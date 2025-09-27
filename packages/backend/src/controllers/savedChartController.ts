@@ -4,6 +4,8 @@ import {
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
+    ApiGetCustomChartJsonHistoryResponse,
+    ApiGetCustomChartJsonVersionResponse,
     ApiPromoteChartResponse,
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
@@ -257,6 +259,81 @@ export class SavedChartController extends BaseController {
         await this.services
             .getSavedChartService()
             .rollback(req.user!, chartUuid, versionUuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get custom chart JSON version history
+     * @param chartUuid chartUuid for the chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/custom-json-history')
+    @OperationId('GetCustomChartJsonHistory')
+    async getCustomChartJsonHistory(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetCustomChartJsonHistoryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedChartService()
+                .getCustomChartJsonHistory(req.user!, chartUuid),
+        };
+    }
+
+    /**
+     * Get custom chart JSON version
+     * @param chartUuid chartUuid for the chart
+     * @param versionUuid versionUuid for the chart version
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/custom-json-version/{versionUuid}')
+    @OperationId('GetCustomChartJsonVersion')
+    async getCustomChartJsonVersion(
+        @Path() chartUuid: string,
+        @Path() versionUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetCustomChartJsonVersionResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedChartService()
+                .getCustomChartJsonVersion(req.user!, chartUuid, versionUuid),
+        };
+    }
+
+    /**
+     * Restore custom chart JSON to a previous version
+     * @param chartUuid chartUuid for the chart
+     * @param versionUuid versionUuid for the chart version
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/restore-custom-json/{versionUuid}')
+    @OperationId('PostCustomChartJsonRestore')
+    async postCustomChartJsonRestore(
+        @Path() chartUuid: string,
+        @Path() versionUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSavedChartService()
+            .restoreCustomChartJson(req.user!, chartUuid, versionUuid);
         return {
             status: 'ok',
             results: undefined,

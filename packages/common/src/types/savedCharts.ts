@@ -728,6 +728,32 @@ export type ApiGetChartVersionResponse = {
     results: ChartVersion;
 };
 
+export type CustomChartJsonVersion = {
+    versionUuid: string;
+    createdAt: Date;
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    jsonSpec: string;
+    isValid: boolean;
+    validationError?: string;
+};
+
+export type CustomChartJsonHistory = {
+    history: CustomChartJsonVersion[];
+};
+
+export type ApiGetCustomChartJsonHistoryResponse = {
+    status: 'ok';
+    results: CustomChartJsonHistory;
+};
+
+export type ApiGetCustomChartJsonVersionResponse = {
+    status: 'ok';
+    results: CustomChartJsonVersion;
+};
+
 export const getHiddenTableFields = (config: ChartConfig) => {
     // get hidden fields from chart config
 

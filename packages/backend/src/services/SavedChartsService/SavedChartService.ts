@@ -11,6 +11,8 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
+    CustomChartJsonHistory,
+    CustomChartJsonVersion,
     ExploreType,
     ForbiddenError,
     NotFoundError,
@@ -1289,6 +1291,247 @@ export class SavedChartService
                 error,
             );
         }
+    }
+
+    private validateCustomChartJson(jsonSpec: string): {
+        isValid: boolean;
+        validationError?: string;
+    } {
+        try {
+            JSON.parse(jsonSpec);
+            // Basic Vega-Lite structure validation
+            const spec = JSON.parse(jsonSpec);
+            const requiredFields = ['$schema', 'data', 'mark', 'encoding'];
+            const hasRequiredFields = requiredFields.some((field) =>
+                spec.hasOwnProperty(field),
+            );
+            if (!hasRequiredFields) {
+                return {
+                    isValid: false,
+                    validationError:
+                        'Invalid Vega-Lite specification: missing required fields',
+                };
+            }
+            return { isValid: true };
+        } catch (error) {
+            return {
+                isValid: false,
+                validationError:
+                    error instanceof Error
+                        ? error.message
+                        : 'Invalid JSON format',
+            };
+        }
+    }
+
+    async getCustomChartJsonHistory(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<CustomChartJsonHistory> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...chart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
+        // Only return history for custom charts
+        if (chart.chartKind !== 'custom') {
+            throw new ParameterError('Chart is not a custom chart');
+        }
+
+        const versions = await this.savedChartModel.getLatestVersionSummaries(
+            chartUuid,
+        );
+
+        const customJsonVersions = await Promise.all(
+            versions.map(async (version) => {
+                const savedChart = await this.savedChartModel.get(
+                    chartUuid,
+                    version.versionUuid,
+                );
+                const jsonSpec =
+                    savedChart.chartConfig.type === 'custom' &&
+                    savedChart.chartConfig.config?.spec
+                        ? JSON.stringify(
+                              savedChart.chartConfig.config.spec,
+                              null,
+                              2,
+                          )
+                        : '';
+
+                const validation = this.validateCustomChartJson(jsonSpec);
+
+                return {
+                    versionUuid: version.versionUuid,
+                    createdAt: version.createdAt,
+                    createdBy: version.createdBy,
+                    jsonSpec,
+                    isValid: validation.isValid,
+                    validationError: validation.validationError,
+                };
+            }),
+        );
+
+        this.analytics.track({
+            event: 'custom_chart_json_history.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: chart.projectUuid,
+                savedQueryId: chart.uuid,
+                versionCount: customJsonVersions.length,
+            },
+        });
+
+        return {
+            history: customJsonVersions,
+        };
+    }
+
+    async getCustomChartJsonVersion(
+        user: SessionUser,
+        chartUuid: string,
+        versionUuid: string,
+    ): Promise<CustomChartJsonVersion> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            chart.spaceUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...chart,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
+        // Only allow for custom charts
+        if (chart.chartKind !== 'custom') {
+            throw new ParameterError('Chart is not a custom chart');
+        }
+
+        const [versionSummary, savedChart] = await Promise.all([
+            this.savedChartModel.getVersionSummary(chartUuid, versionUuid),
+            this.savedChartModel.get(chartUuid, versionUuid),
+        ]);
+
+        const jsonSpec =
+            savedChart.chartConfig.type === 'custom' &&
+            savedChart.chartConfig.config?.spec
+                ? JSON.stringify(savedChart.chartConfig.config.spec, null, 2)
+                : '';
+
+        const validation = this.validateCustomChartJson(jsonSpec);
+
+        this.analytics.track({
+            event: 'custom_chart_json_version.view',
+            userId: user.userUuid,
+            properties: {
+                projectId: chart.projectUuid,
+                savedQueryId: chart.uuid,
+                versionId: versionUuid,
+            },
+        });
+
+        return {
+            versionUuid: versionSummary.versionUuid,
+            createdAt: versionSummary.createdAt,
+            createdBy: versionSummary.createdBy,
+            jsonSpec,
+            isValid: validation.isValid,
+            validationError: validation.validationError,
+        };
+    }
+
+    async restoreCustomChartJson(
+        user: SessionUser,
+        chartUuid: string,
+        versionUuid: string,
+    ): Promise<void> {
+        await this.checkUpdateAccess(user, chartUuid);
+
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+
+        // Only allow for custom charts
+        if (chart.chartKind !== 'custom') {
+            throw new ParameterError('Chart is not a custom chart');
+        }
+
+        const targetVersion = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
+        const currentChart = await this.savedChartModel.get(chartUuid);
+
+        // Extract the JSON spec from the target version
+        const targetJsonSpec =
+            targetVersion.chartConfig.type === 'custom' &&
+            targetVersion.chartConfig.config?.spec
+                ? targetVersion.chartConfig.config.spec
+                : null;
+
+        if (!targetJsonSpec) {
+            throw new ParameterError(
+                'Target version does not contain valid custom chart JSON',
+            );
+        }
+
+        // Create a new version with the restored JSON spec but keep other current settings
+        const restoredConfig = {
+            ...currentChart.chartConfig,
+            config: {
+                ...currentChart.chartConfig.config,
+                spec: targetJsonSpec,
+            },
+        };
+
+        const newVersion = await this.savedChartModel.createVersion(
+            chartUuid,
+            {
+                tableName: currentChart.tableName,
+                metricQuery: currentChart.metricQuery,
+                chartConfig: restoredConfig,
+                tableConfig: currentChart.tableConfig,
+                pivotConfig: currentChart.pivotConfig,
+                parameters: currentChart.parameters,
+            },
+            user,
+        );
+
+        this.analytics.track({
+            event: 'custom_chart_json_version.restore',
+            userId: user.userUuid,
+            properties: {
+                projectId: newVersion.projectUuid,
+                savedQueryId: newVersion.uuid,
+                versionId: versionUuid,
+            },
+        });
     }
 
     async hasAccess(
