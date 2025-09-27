@@ -63,6 +63,7 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
+    getFloatingType: () => 'FLOAT',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {

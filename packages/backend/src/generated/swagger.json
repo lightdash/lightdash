@@ -2596,30 +2596,171 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
-            "TableCalculation": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationType"
+            "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
+                "enum": ["percent_change_from_previous"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE": {
+                "enum": ["percent_of_previous_value"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL": {
+                "enum": ["percent_of_column_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RANK_IN_COLUMN": {
+                "enum": ["rank_in_column"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RUNNING_TOTAL": {
+                "enum": ["running_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
                     },
-                    "format": {
-                        "$ref": "#/components/schemas/CustomFormat"
+                    {
+                        "properties": {
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
                     },
-                    "sql": {
-                        "type": "string"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     },
-                    "displayName": {
-                        "type": "string"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     },
-                    "name": {
-                        "type": "string"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     }
-                },
-                "required": ["sql", "displayName", "name"],
-                "type": "object"
+                ]
+            },
+            "TableCalculation": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationType"
+                            },
+                            "format": {
+                                "$ref": "#/components/schemas/CustomFormat"
+                            },
+                            "displayName": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "index": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["displayName", "name"],
+                        "type": "object"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "template": {
+                                        "$ref": "#/components/schemas/TableCalculationTemplate"
+                                    }
+                                },
+                                "required": ["template"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "MetricType": {
                 "enum": [
@@ -20094,7 +20235,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2024.2",
+        "version": "0.2024.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

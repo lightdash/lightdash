@@ -190,6 +190,10 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
         }
     }
 
+    getFloatingType(): string {
+        return 'DOUBLE';
+    }
+
     escapeString(value: string): string {
         if (typeof value !== 'string') {
             return value;
