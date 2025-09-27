@@ -4,7 +4,16 @@ import {
     assertUnreachable,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
+import {
+    Badge,
+    Box,
+    Button,
+    Group,
+    Menu,
+    SegmentedControl,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
@@ -24,6 +33,14 @@ const MENU_TEXT_PROPS = {
     fz: 'xs',
     fw: 500,
 };
+
+type ProjectFilter = 'all' | 'default' | 'preview';
+
+const PROJECT_FILTER_OPTIONS = [
+    { label: 'All Projects', value: 'all' as ProjectFilter },
+    { label: 'Production', value: 'default' as ProjectFilter },
+    { label: 'Preview', value: 'preview' as ProjectFilter },
+];
 
 const InactiveProjectItem: FC<{
     item: OrganizationProject;
@@ -115,6 +132,9 @@ const ProjectSwitcher = () => {
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
+
+    const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
+    const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all');
 
     const routeMatches =
         matchRoutes(
@@ -221,8 +241,29 @@ const ProjectSwitcher = () => {
                             `Unknown project type: ${project.type}`,
                         );
                 }
+            })
+            .filter((project) => {
+                switch (projectFilter) {
+                    case 'all':
+                        return true;
+                    case 'default':
+                        return project.type === ProjectType.DEFAULT;
+                    case 'preview':
+                        return project.type === ProjectType.PREVIEW;
+                    default:
+                        return assertUnreachable(
+                            projectFilter,
+                            `Unknown project filter: ${projectFilter}`,
+                        );
+                }
             });
-    }, [activeProjectUuid, projects, orgRoleCanCreatePreviews, user.data]);
+    }, [
+        activeProjectUuid,
+        projects,
+        orgRoleCanCreatePreviews,
+        user.data,
+        projectFilter,
+    ]);
 
     const userCanCreatePreview = useMemo(() => {
         if (isLoadingProjects || !projects || !user.data) return false;
@@ -240,8 +281,6 @@ const ProjectSwitcher = () => {
                 ),
             );
     }, [isLoadingProjects, projects, user.data]);
-
-    const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
 
     if (
         isLoadingProjects ||
@@ -262,6 +301,7 @@ const ProjectSwitcher = () => {
                 offset={-2}
                 styles={{
                     dropdown: {
+                        minWidth: 250,
                         maxHeight: 450,
                         overflow: 'auto',
                     },
@@ -290,27 +330,50 @@ const ProjectSwitcher = () => {
                 </Menu.Target>
 
                 <Menu.Dropdown maw={400}>
-                    {inactiveProjects.length > 0 && (
-                        <Box
-                            pos="sticky"
-                            top={0}
-                            bg="gray.9"
-                            sx={(theme) => ({
-                                boxShadow: `0 -4px ${theme.colors.gray[9]}`,
-                            })}
-                        >
-                            <Menu.Label py={0}>All Projects</Menu.Label>
-                            <Menu.Divider />
-                        </Box>
-                    )}
-
-                    {inactiveProjects.map((item) => (
-                        <InactiveProjectItem
-                            key={item.projectUuid}
-                            item={item}
-                            handleProjectChange={handleProjectChange}
+                    <Box
+                        pos="sticky"
+                        top={0}
+                        bg="gray.9"
+                        sx={(theme) => ({
+                            boxShadow: `0 -4px ${theme.colors.gray[9]}`,
+                        })}
+                    >
+                        <SegmentedControl
+                            data={PROJECT_FILTER_OPTIONS}
+                            value={projectFilter}
+                            onChange={(value) =>
+                                setProjectFilter(value as ProjectFilter)
+                            }
+                            size="xs"
+                            fullWidth
                         />
-                    ))}
+                        {inactiveProjects.length > 0 && (
+                            <>
+                                <Menu.Divider />
+                            </>
+                        )}
+                    </Box>
+
+                    {inactiveProjects.length === 0 &&
+                    projectFilter !== 'all' ? (
+                        <Box p="sm">
+                            <Text {...MENU_TEXT_PROPS} ta="center">
+                                No{' '}
+                                {projectFilter === 'default'
+                                    ? 'production'
+                                    : projectFilter}{' '}
+                                projects available
+                            </Text>
+                        </Box>
+                    ) : (
+                        inactiveProjects.map((item) => (
+                            <InactiveProjectItem
+                                key={item.projectUuid}
+                                item={item}
+                                handleProjectChange={handleProjectChange}
+                            />
+                        ))
+                    )}
 
                     {userCanCreatePreview && (
                         <Box
