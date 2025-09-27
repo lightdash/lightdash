@@ -454,6 +454,23 @@ const FilterConfiguration: FC<Props> = ({
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
+                                showApplyButton={
+                                    !isTemporary &&
+                                    selectedTabId === FilterTabs.SETTINGS
+                                }
+                                isApplyDisabled={isApplyDisabled}
+                                onApply={() => {
+                                    setSelectedTabId(FilterTabs.SETTINGS);
+                                    if (!!draftFilterRule)
+                                        onSave(draftFilterRule);
+                                }}
+                                showRevertButton={
+                                    !isTemporary &&
+                                    isFilterModified &&
+                                    selectedTabId === FilterTabs.SETTINGS &&
+                                    !isEditMode
+                                }
+                                onRevert={handleRevert}
                             />
                         )}
                     </Stack>
@@ -479,49 +496,6 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.Panel>
                 )}
             </Tabs>
-
-            <Flex gap="sm">
-                <Box sx={{ flexGrow: 1 }} />
-
-                {!isTemporary &&
-                    isFilterModified &&
-                    selectedTabId === FilterTabs.SETTINGS &&
-                    !isEditMode && (
-                        <Tooltip
-                            label="Reset to original value"
-                            position="left"
-                        >
-                            <Button
-                                size="xs"
-                                variant="default"
-                                color="gray"
-                                onClick={handleRevert}
-                            >
-                                <MantineIcon icon={IconRotate2} />
-                            </Button>
-                        </Tooltip>
-                    )}
-
-                <Tooltip
-                    label="Filter field and value required"
-                    disabled={!isApplyDisabled}
-                >
-                    <Box>
-                        <Button
-                            size="xs"
-                            variant="filled"
-                            disabled={isApplyDisabled}
-                            onClick={() => {
-                                setSelectedTabId(FilterTabs.SETTINGS);
-
-                                if (!!draftFilterRule) onSave(draftFilterRule);
-                            }}
-                        >
-                            Apply
-                        </Button>
-                    </Box>
-                </Tooltip>
-            </Flex>
         </Stack>
     );
 };
