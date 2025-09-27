@@ -30,6 +30,7 @@ import {
 import { Knex } from 'knex';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
+    CatalogSearchRelationsTableName,
     CatalogTableName,
     CatalogTagsTableName,
     DbCatalogTagIn,
@@ -175,6 +176,85 @@ export class CatalogModel {
                                     await trx(CatalogTagsTableName)
                                         .insert(yamlTagInserts)
                                         .returning('*');
+                                }
+
+                                // Clear existing relations for this project
+                                await trx(CatalogSearchRelationsTableName)
+                                    .whereIn(
+                                        'explore_catalog_uuid',
+                                        results
+                                            .filter((r) => r.type === 'table')
+                                            .map((r) => r.catalog_search_uuid),
+                                    )
+                                    .orWhereIn(
+                                        'field_catalog_uuid',
+                                        results
+                                            .filter((r) => r.type === 'field')
+                                            .map((r) => r.catalog_search_uuid),
+                                    )
+                                    .delete();
+
+                                // Build catalog search relations
+                                const relationInserts: Array<{
+                                    explore_catalog_uuid: string;
+                                    field_catalog_uuid: string;
+                                }> = [];
+
+                                // Group results by type
+                                const tableItems = results.filter(
+                                    (r) => r.type === 'table',
+                                );
+                                const fieldItems = results.filter(
+                                    (r) => r.type === 'field',
+                                );
+
+                                // For each field, find which explores it should be linked to
+                                for (const field of fieldItems) {
+                                    const fieldTableName = field.table_name;
+
+                                    // Link field to its own table's explore
+                                    const ownTableExplore = tableItems.find(
+                                        (t) => t.name === fieldTableName,
+                                    );
+                                    if (ownTableExplore) {
+                                        relationInserts.push({
+                                            explore_catalog_uuid:
+                                                ownTableExplore.catalog_search_uuid,
+                                            field_catalog_uuid:
+                                                field.catalog_search_uuid,
+                                        });
+                                    }
+
+                                    // Link field to any explores that join this field's table
+                                    for (const tableItem of tableItems) {
+                                        // Skip if this is the field's own table (already handled above)
+                                        if (tableItem.name === fieldTableName)
+                                            // eslint-disable-next-line no-continue
+                                            continue;
+
+                                        // Check if this table's joined_tables includes the field's table
+                                        if (
+                                            tableItem.joined_tables?.includes(
+                                                fieldTableName,
+                                            )
+                                        ) {
+                                            relationInserts.push({
+                                                explore_catalog_uuid:
+                                                    tableItem.catalog_search_uuid,
+                                                field_catalog_uuid:
+                                                    field.catalog_search_uuid,
+                                            });
+                                        }
+                                    }
+                                }
+
+                                // Insert relations if any exist
+                                if (relationInserts.length > 0) {
+                                    await trx.batchInsert(
+                                        CatalogSearchRelationsTableName,
+                                        relationInserts,
+                                        BATCH_SIZE,
+                                    );
                                 }
 
                                 return results;
