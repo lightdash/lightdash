@@ -922,6 +922,15 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
+    // Keep Redux sorts in sync with Context sorts
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setSortFields(
+                unsavedChartVersion.metricQuery.sorts,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
+
     const computedMetricQuery = useMemo(
         () => ({
             ...unsavedChartVersion.metricQuery,
@@ -1027,9 +1036,10 @@ const ExplorerProvider: FC<
                 descending: boolean;
             } = { descending: false },
         ) => {
+            const sortField = { fieldId, ...options };
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, ...options },
+                payload: sortField,
             });
         },
         [],
