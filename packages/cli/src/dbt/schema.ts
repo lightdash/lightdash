@@ -1,4 +1,9 @@
-import { DbtSchemaEditor, DimensionType, ParseError } from '@lightdash/common';
+import {
+    DbtSchemaEditor,
+    DimensionType,
+    ParseError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 
 type YamlColumnMeta = {
@@ -24,9 +29,16 @@ export type YamlSchema = {
     models?: YamlModel[];
 };
 
-const loadYamlSchema = async (path: string): Promise<DbtSchemaEditor> => {
+const loadYamlSchema = async (
+    path: string,
+    dbtVersion?: SupportedDbtVersions,
+): Promise<DbtSchemaEditor> => {
     try {
-        return new DbtSchemaEditor(await fs.readFile(path, 'utf8'));
+        return new DbtSchemaEditor(
+            await fs.readFile(path, 'utf8'),
+            path,
+            dbtVersion,
+        );
     } catch (e) {
         if (e instanceof ParseError) {
             // Prefix error message with file path
@@ -41,13 +53,15 @@ const loadYamlSchema = async (path: string): Promise<DbtSchemaEditor> => {
 type FindModelInYamlArgs = {
     filename: string;
     modelName: string;
+    dbtVersion?: SupportedDbtVersions;
 };
 const findModelInYaml = async ({
     filename,
     modelName,
+    dbtVersion,
 }: FindModelInYamlArgs) => {
     try {
-        const schemaEditor = await loadYamlSchema(filename);
+        const schemaEditor = await loadYamlSchema(filename, dbtVersion);
 
         if (schemaEditor.findModelByName(modelName)) {
             return schemaEditor;
@@ -64,13 +78,19 @@ const findModelInYaml = async ({
 type SearchForModelArgs = {
     modelName: string;
     filenames: string[];
+    dbtVersion?: SupportedDbtVersions;
 };
 export const searchForModel = async ({
     modelName,
     filenames,
+    dbtVersion,
 }: SearchForModelArgs) => {
     for await (const filename of filenames) {
-        const schemaEditor = await findModelInYaml({ filename, modelName });
+        const schemaEditor = await findModelInYaml({
+            filename,
+            modelName,
+            dbtVersion,
+        });
         if (schemaEditor) {
             return {
                 schemaEditor,

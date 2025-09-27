@@ -5,6 +5,7 @@ import {
     DimensionType,
     ParseError,
     patchPathParts,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import execa from 'execa';
@@ -68,27 +69,51 @@ type GenerateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
     includeMeta: boolean;
+    dbtVersion?: SupportedDbtVersions;
 };
 const generateModelYml = ({
     model,
     table,
     includeMeta,
-}: GenerateModelYamlArgs) => ({
-    name: model.name,
-    columns: Object.entries(table).map(([columnName, dimensionType]) => ({
-        name: columnName,
-        description: '',
-        ...(includeMeta
-            ? {
-                  meta: {
-                      dimension: {
-                          type: dimensionType,
-                      },
-                  },
-              }
-            : {}),
-    })),
-});
+    dbtVersion,
+}: GenerateModelYamlArgs) => {
+    // Check if we should use dbt 1.10+ metadata structure
+    const useDbt110Metadata =
+        dbtVersion &&
+        Object.values(SupportedDbtVersions).indexOf(dbtVersion) >=
+            Object.values(SupportedDbtVersions).indexOf(
+                SupportedDbtVersions.V1_10,
+            );
+
+    return {
+        name: model.name,
+        columns: Object.entries(table).map(([columnName, dimensionType]) => ({
+            name: columnName,
+            description: '',
+            ...(includeMeta
+                ? useDbt110Metadata
+                    ? {
+                          // dbt 1.10+ structure: config.meta
+                          config: {
+                              meta: {
+                                  dimension: {
+                                      type: dimensionType,
+                                  },
+                              },
+                          },
+                      }
+                    : {
+                          // Legacy structure: meta
+                          meta: {
+                              dimension: {
+                                  type: dimensionType,
+                              },
+                          },
+                      }
+                : {}),
+        })),
+    };
+};
 
 const askOverwrite = async (message: string): Promise<boolean> => {
     const answers = await inquirer.prompt([
@@ -143,6 +168,7 @@ type FindAndUpdateModelYamlArgs = {
     projectDir: string;
     projectName: string;
     assumeYes: boolean;
+    dbtVersion?: SupportedDbtVersions;
 };
 export const findAndUpdateModelYaml = async ({
     model,
@@ -152,6 +178,7 @@ export const findAndUpdateModelYaml = async ({
     projectDir,
     projectName,
     assumeYes,
+    dbtVersion,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: DbtSchemaEditor;
     outputFilePath: string;
@@ -160,6 +187,7 @@ export const findAndUpdateModelYaml = async ({
         model,
         table,
         includeMeta,
+        dbtVersion,
     });
     const filenames = [];
     const { patchPath, packageName } = model;
@@ -196,6 +224,7 @@ export const findAndUpdateModelYaml = async ({
     const match = await searchForModel({
         modelName: model.name,
         filenames,
+        dbtVersion,
     });
     if (match) {
         const { schemaEditor } = match;
@@ -292,7 +321,9 @@ export const findAndUpdateModelYaml = async ({
     }
 
     return {
-        updatedYml: new DbtSchemaEditor().addModel(generatedModel),
+        updatedYml: new DbtSchemaEditor('', '', dbtVersion).addModel(
+            generatedModel,
+        ),
         outputFilePath,
     };
 };
