@@ -1,6 +1,4 @@
-import {
-    type AiAgentMessageAssistantArtifact,
-    type AiAgentToolCall,
+
 } from '@lightdash/common';
 import { Accordion, Drawer, Text } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
@@ -11,18 +9,13 @@ import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 type Props = {
     isVisualizationAvailable: boolean;
     isDrawerOpen: boolean;
-    onClose: () => void;
-    artifacts: AiAgentMessageAssistantArtifact[] | null;
-    toolCalls: AiAgentToolCall[] | null;
-    agentUuid: string;
-    projectUuid: string;
+
 };
 
 const AgentChatDebugDrawer: React.FC<Props> = ({
     isVisualizationAvailable,
     isDrawerOpen,
-    onClose,
-    artifacts,
+
     toolCalls,
     agentUuid,
     projectUuid,
@@ -44,22 +37,12 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
             size="xl"
         >
             <Accordion variant="contained" chevronPosition="right">
+
                 <Accordion.Item value="visualization">
                     <Accordion.Control
                         icon={<MantineIcon icon={IconChartBar} color="gray" />}
                     >
-                        <Text fw={500}>
-                            Configuration for {artifactData?.artifactType}
-                        </Text>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                        <Prism language="json" withLineNumbers>
-                            {JSON.stringify(
-                                artifactData?.chartConfig ??
-                                    artifactData?.dashboardConfig,
-                                null,
-                                2,
-                            )}
+
                         </Prism>
                     </Accordion.Panel>
                 </Accordion.Item>
