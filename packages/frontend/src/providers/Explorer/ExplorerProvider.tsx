@@ -922,6 +922,14 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
+    // Keep Redux table name in sync with Context state
+    useEffect(() => {
+        const contextTableName = reducerState.unsavedChartVersion.tableName;
+        if (contextTableName) {
+            reduxDispatch(explorerActions.setTableName(contextTableName));
+        }
+    }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
+
     const computedMetricQuery = useMemo(
         () => ({
             ...unsavedChartVersion.metricQuery,
@@ -967,7 +975,7 @@ const ExplorerProvider: FC<
             // Sync to Redux for components that have been migrated
             reduxDispatch(explorerActions.setTableName(tableName));
         },
-        [reduxDispatch],
+        [dispatch, reduxDispatch],
     );
 
     const toggleActiveField = useCallback(
