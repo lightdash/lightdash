@@ -1,3 +1,10 @@
+## [0.2026.4](https://github.com/lightdash/lightdash/compare/0.2026.3...0.2026.4) (2025-09-27)
+
+
+### Bug Fixes
+
+* wrap ChartHistory in redux Provider ([#17103](https://github.com/lightdash/lightdash/issues/17103)) ([e3cb8a5](https://github.com/lightdash/lightdash/commit/e3cb8a5193e87aca73074bf415b40bcfbf2b0f20))
+
 ## [0.2026.3](https://github.com/lightdash/lightdash/compare/0.2026.2...0.2026.3) (2025-09-26)
 
 

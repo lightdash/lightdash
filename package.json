@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2026.3",
+    "version": "0.2026.4",
     "main": "index.js",
     "license": "MIT",
     "private": true,
