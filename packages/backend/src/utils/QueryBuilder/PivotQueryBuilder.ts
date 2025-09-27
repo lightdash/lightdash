@@ -493,7 +493,46 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates complete pivot SQL with all CTEs for grouped pivot.
+     * Generates the original query CTE with ROW_NUMBER() to track original sort order.
+     * We will use it to maintain proper sort order when the sorted column is not in the pivot.
+     * @param userSql - Original user SQL query
+     * @param sortBy - Sort configuration
+     * @returns SQL for the original_query CTE with original_pos column
+     */
+    private getOriginalQueryWithPosition(
+        userSql: string,
+        sortBy: PivotConfiguration['sortBy'],
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Build ORDER BY clause for ROW_NUMBER() - this preserves the original sort intent
+        let orderByClause = '';
+        if (sortBy && sortBy.length > 0) {
+            const orderByParts = sortBy.map(
+                (sort) => `${q}${sort.reference}${q} ${sort.direction}`,
+            );
+            orderByClause = `ORDER BY ${orderByParts.join(', ')}`;
+        }
+
+        return `SELECT *, ROW_NUMBER() OVER (${orderByClause}) AS ${q}original_pos${q} FROM (${userSql}) base_query`;
+    }
+
+    /**
+     * Generates complete pivot SQL with all CTEs for grouped pivot using robust pattern.
+     * Uses separate CTEs to maintain stable sort order even when sorted column is not in chart.
+     * Applies row and column limits early in the pipeline for better performance.
+     *
+     * CTE Flow:
+     * 1. original_query - Captures original sort order with ROW_NUMBER()
+     * 2. group_by_query - Aggregates data to row×column grain
+     * 3. row_groups - Groups by index columns, tracks MIN(original_pos)
+     * 4. row_indices - Assigns DENSE_RANK() based on min_pos for stable row ordering
+     * 5. column_indices - Assigns DENSE_RANK() to pivot groups for column ordering
+     * 6. row_limited - Applies row limit early to reduce data volume
+     * 7. col_limited - Applies column limit early to reduce data volume
+     * 8. cells - Joins limited indices with aggregated data
+     * 9. total_columns - Counts columns after row limiting
+     *
      * @param userSql - Original user SQL query
      * @param groupByQuery - GROUP BY query SQL
      * @param indexColumns - Index columns for row identification
@@ -512,42 +551,113 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
-
-        const metricFirstValueQueries = this.getMetricFirstValueSQL(
-            indexColumns,
-            valuesColumns,
-            groupByColumns,
-            sortBy,
-        );
-
-        const pivotQuery = this.getPivotQuerySQL(
-            indexColumns,
-            valuesColumns,
-            groupByColumns,
-            sortBy,
-            metricFirstValueQueries,
-        );
         const maxColumnsPerValueColumn =
             PivotQueryBuilder.calculateMaxColumnsPerValueColumn(valuesColumns);
+
+        // Use robust pattern with original position tracking
+        const originalQueryWithPos = this.getOriginalQueryWithPosition(
+            userSql,
+            sortBy,
+        );
+
+        // Create row_groups CTE - groups by index columns and tracks min original position
+        const indexColumnRefs = indexColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ');
+        const rowGroupsQuery = `SELECT ${indexColumnRefs}, MIN(${q}original_pos${q}) AS ${q}min_pos${q} FROM original_query GROUP BY ${indexColumnRefs}`;
+
+        // Create row_indices CTE - assigns dense ranks to the groups based on min_pos
+        const rowIndicesQuery = `SELECT ${indexColumnRefs}, DENSE_RANK() OVER (ORDER BY ${q}min_pos${q}) AS ${q}row_index${q} FROM row_groups`;
+
+        // Create column_indices CTE - assigns column numbers to pivot groups
+        const groupColumnRefs = groupByColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ');
+
+        // Build ORDER BY for column indices based on original sortBy configuration
+        let columnOrderBy = '';
+        if (sortBy && sortBy.length > 0) {
+            const groupBySorts = sortBy
+                .filter((sort) =>
+                    groupByColumns.some(
+                        (group) => group.reference === sort.reference,
+                    ),
+                )
+                .map((sort) => `${q}${sort.reference}${q} ${sort.direction}`);
+
+            if (groupBySorts.length > 0) {
+                columnOrderBy = `ORDER BY ${groupBySorts.join(', ')}`;
+            } else {
+                columnOrderBy = `ORDER BY ${groupColumnRefs}`;
+            }
+        } else {
+            columnOrderBy = `ORDER BY ${groupColumnRefs}`;
+        }
+
+        const columnIndicesQuery = `SELECT ${groupColumnRefs}, DENSE_RANK() OVER (${columnOrderBy}) AS ${q}column_index${q} FROM (SELECT DISTINCT ${groupColumnRefs} FROM group_by_query) distinct_groups`;
+
+        // Create row_limited CTE - apply row limit to row indices
+        const rowLimitedQuery = `SELECT * FROM row_indices WHERE ${q}row_index${q} <= ${rowLimit}`;
+
+        // Create col_limited CTE - apply column limit to column indices
+        const colLimitedQuery = `SELECT * FROM column_indices WHERE ${q}column_index${q} <= ${maxColumnsPerValueColumn}`;
+
+        // Create cells CTE - joins everything together with the aggregated values using limited indices
+        const valueColumnSelects = (valuesColumns || [])
+            .map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `g.${q}${fieldName}${q}`;
+            })
+            .join(', ');
+
+        const cellsQuery = `SELECT
+            rl.${q}row_index${q},
+            cl.${q}column_index${q},
+            ${indexColumnRefs
+                .split(', ')
+                .map((ref) => `g.${ref}`)
+                .join(', ')},
+            ${groupColumnRefs
+                .split(', ')
+                .map((ref) => `g.${ref}`)
+                .join(', ')}
+            ${valueColumnSelects ? `, ${valueColumnSelects}` : ''}
+        FROM group_by_query g
+        JOIN row_limited rl ON ${indexColumns
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} = rl.${q}${col.reference}${q}`,
+            )
+            .join(' AND ')}
+        JOIN col_limited cl ON ${groupByColumns
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} = cl.${q}${col.reference}${q}`,
+            )
+            .join(' AND ')}`;
 
         const totalColumnsQuery = this.getTotalColumnsSQL(
             groupByColumns,
             valuesColumns,
-            'filtered_rows',
+            'cells',
         );
 
         const ctes = [
-            `original_query AS (${userSql})`,
+            `original_query AS (${originalQueryWithPos})`,
             `group_by_query AS (${groupByQuery})`,
-            ...Object.values(metricFirstValueQueries).map(
-                ({ cteName, sql }) => `${cteName} AS (${sql})`,
-            ),
-            `pivot_query AS (${pivotQuery})`,
-            `filtered_rows AS (SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${rowLimit})`,
+            `row_groups AS (${rowGroupsQuery})`,
+            `row_indices AS (${rowIndicesQuery})`,
+            `column_indices AS (${columnIndicesQuery})`,
+            `row_limited AS (${rowLimitedQuery})`,
+            `col_limited AS (${colLimitedQuery})`,
+            `cells AS (${cellsQuery})`,
             `total_columns AS (${totalColumnsQuery})`,
         ];
 
-        const finalSelect = `SELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit} and p.${q}column_index${q} <= ${maxColumnsPerValueColumn} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+        const finalSelect = `SELECT c.*, t.total_columns FROM cells c CROSS JOIN total_columns t ORDER BY c.${q}row_index${q}, c.${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),

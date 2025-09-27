@@ -136,26 +136,34 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Should contain all CTEs
+            // Should contain all CTEs for robust pivot pattern including limit CTEs
             expect(result).toContain(
-                'WITH original_query AS (SELECT * FROM events)',
+                'original_query AS (SELECT *, ROW_NUMBER() OVER (ORDER BY "date" ASC) AS "original_pos" FROM (SELECT * FROM events) base_query)',
             );
             expect(result).toContain('group_by_query AS (');
-            expect(result).toContain('pivot_query AS (');
-            expect(result).toContain('filtered_rows AS (');
+            expect(result).toContain('row_groups AS (');
+            expect(result).toContain('row_indices AS (');
+            expect(result).toContain('column_indices AS (');
+            expect(result).toContain('row_limited AS (');
+            expect(result).toContain('col_limited AS (');
+            expect(result).toContain('cells AS (');
             expect(result).toContain('total_columns AS (');
 
-            // Should include row_index and column_index metadata
+            // Should use DENSE_RANK() based on original position for proper grouping
             expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."date" asc) as "row_index"',
+                'dense_rank() over (order by "min_pos") as "row_index"',
             );
             expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."event_type" asc) as "column_index"',
+                'dense_rank() over (order by "event_type") as "column_index"',
             );
 
-            // Should apply limits and column constraints
-            expect(result).toContain('WHERE "row_index" <= 100');
-            expect(result).toContain('"column_index" <= 99');
+            // Should apply limits in separate CTEs, not in final SELECT
+            expect(result).toContain(
+                'row_limited AS (SELECT * FROM row_indices WHERE "row_index" <= 100)',
+            );
+            expect(result).toContain(
+                'col_limited AS (SELECT * FROM column_indices WHERE "column_index" <= 99)',
+            );
 
             // Should join with total_columns for metadata
             expect(result).toContain('CROSS JOIN total_columns t');
@@ -227,7 +235,7 @@ describe('PivotQueryBuilder', () => {
     });
 
     describe('Metric sorting CTEs', () => {
-        test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
+        test('Should handle sorting by value columns using robust pattern', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -250,26 +258,21 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Should add additional CTEs for metric first values
-            expect(result).toContain('revenue_row_anchor AS (');
-            expect(result).toContain('revenue_column_anchor AS (');
-
-            // Should join anchor CTEs on the correct keys
-            expect(replaceWhitespace(result)).toContain(
-                'JOIN revenue_row_anchor ON g."date" = revenue_row_anchor."date"',
-            );
-            expect(replaceWhitespace(result)).toContain(
-                'JOIN revenue_column_anchor ON g."category" = revenue_column_anchor."category"',
+            // Should use robust pattern with original position tracking
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY "revenue" DESC) AS "original_pos"',
             );
 
-            // Row index should order by the row anchor value then remaining index columns
-            expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index"',
-            );
+            // Should have all the robust pattern CTEs
+            expect(result).toContain('row_groups AS (');
+            expect(result).toContain('row_indices AS (');
+            expect(result).toContain('column_indices AS (');
+            expect(result).toContain('cells AS (');
 
-            // Column index should order by the column anchor value then remaining groupBy columns
-            expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY revenue_column_anchor."revenue_column_anchor_value" DESC, g."category" ASC) AS "column_index"',
+            // Should use min_pos for stable row ordering
+            expect(result).toContain('MIN("original_pos") AS "min_pos"');
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY "min_pos") AS "row_index"',
             );
         });
 
@@ -301,9 +304,14 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Row index order must follow: revenue anchor ASC, store_id DESC, then date ASC (appended)
-            expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" ASC, g."store_id" DESC, g."date" ASC) AS "row_index"',
+            // Should track original position with the mixed sort order
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY "revenue" ASC, "store_id" DESC) AS "original_pos"',
+            );
+
+            // Should use original position for stable row ordering
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY "min_pos") AS "row_index"',
             );
         });
     });
@@ -409,9 +417,14 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Should use DESC for row_index calculation
-            expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."date" desc) as "row_index"',
+            // Should track original position with DESC order
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY "date" DESC) AS "original_pos"',
+            );
+
+            // Should use min original position for stable row ordering
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY "min_pos") AS "row_index"',
             );
         });
     });
@@ -716,7 +729,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
 
             const result = builder.toSql();
-            expect(result).toContain('WHERE "row_index" <= 250');
+            expect(result).toContain(
+                'row_limited AS (SELECT * FROM row_indices WHERE "row_index" <= 250)',
+            );
         });
     });
 
@@ -976,15 +991,16 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Should include all index columns in GROUP BY
             expect(result).toContain('"date", "store_id", "product_category"');
 
-            // Should include all index columns in the pivot query ORDER BY for row_index
-            expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."date" asc, g."store_id" asc, g."product_category" asc)',
+            // Should use DENSE_RANK with min_pos for stable ordering
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY "min_pos") AS "row_index"',
             );
 
-            // Should include all columns in select references (all should be quoted now)
+            // Should include all columns in the cells CTE select
             expect(result).toContain(
-                'g."date", g."store_id", g."product_category", g."category", g."region"',
+                'g."date", g."store_id", g."product_category"',
             );
+            expect(result).toContain('g."category", g."region"');
         });
 
         test('Should handle mixed sorting for multiple index columns', () => {
@@ -1019,9 +1035,14 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Should respect sort directions for specified columns only
-            expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."date" desc, g."store_id" asc, g."product_category" asc)',
+            // Should track original position with specified sort order
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY "date" DESC, "store_id" ASC) AS "original_pos"',
+            );
+
+            // Should use min_pos for stable row ordering
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY "min_pos") AS "row_index"',
             );
         });
     });
@@ -1074,7 +1095,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // Should default to 500
-            expect(result).toContain('WHERE "row_index" <= 500');
+            expect(result).toContain(
+                'row_limited AS (SELECT * FROM row_indices WHERE "row_index" <= 500)',
+            );
         });
 
         test('Should remove duplicate columns from group by dimensions', () => {
