@@ -331,6 +331,9 @@ const DashboardProvider: React.FC<
     // Track which tiles have loaded (to know when all are complete)
     const [loadedTiles, setLoadedTiles] = useState<Set<string>>(new Set());
 
+    // Track when parameters are ready to display
+    const [parametersReady, setParametersReady] = useState<boolean>(false);
+
     const addParameterReferences = useCallback(
         (tileUuid: string, references: string[]) => {
             setTileParameterReferences((prev) => ({
@@ -359,6 +362,7 @@ const DashboardProvider: React.FC<
     useEffect(() => {
         if (projectParameters) {
             addParameterDefinitions(projectParameters);
+            setParametersReady(true);
         }
     }, [projectParameters, addParameterDefinitions]);
 
@@ -1016,6 +1020,7 @@ const DashboardProvider: React.FC<
         addParameterReferences,
         tileParameterReferences,
         areAllChartsLoaded,
+        parametersReady,
         missingRequiredParameters,
         pinnedParameters,
         setPinnedParameters,
