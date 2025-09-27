@@ -32,6 +32,16 @@ import {
     type TableColumn,
 } from '../components/common/Table/types';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import {
+    selectActiveFields,
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectParameters,
+    selectSorts,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -62,35 +72,21 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 };
 
 export const useColumns = (): TableColumn[] => {
-    const activeFields = useExplorerContext(
-        (context) => context.state.activeFields,
-    );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
+    // Use Redux selectors for performance - prevents re-renders from context cascades
+    const tableName = useExplorerSelector(selectTableName);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const sorts = useExplorerSelector(selectSorts);
+    const activeFields = useExplorerSelector(selectActiveFields);
+    const parameters = useExplorerSelector(selectParameters);
+
+    // TODO: These still need to be migrated to Redux once query results are in Redux
     const resultsMetricQuery = useExplorerContext(
         (context) => context.query.data?.metricQuery,
     );
     const resultsFields = useExplorerContext(
         (context) => context.query.data?.fields,
-    );
-    const parameters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.parameters,
     );
 
     const { data: exploreData } = useExplore(tableName, {

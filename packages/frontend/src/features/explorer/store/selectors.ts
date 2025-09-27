@@ -48,15 +48,10 @@ export const selectIsResultsExpanded = createSelector(
     (expandedSections) => expandedSections.includes(ExplorerSection.RESULTS),
 );
 
-// const selectPreviouslyFetchedState = createSelector(
+// export const selectPreviouslyFetchedState = createSelector(
 //     [selectExplorerState],
 //     (explorer) => explorer.previouslyFetchedState,
 // );
-
-export const selectIsVisualizationConfigOpen = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.isVisualizationConfigOpen,
-);
 
 // FiltersCard specific selectors
 export const selectFilters = createSelector(
@@ -89,17 +84,33 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
-// const selectDimensions = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.dimensions,
-// );
-//
-// const selectMetrics = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.metrics,
-// );
-//
-// const selectTableName = createSelector(
-//     [selectUnsavedChartVersion],
-//     (unsavedChartVersion) => unsavedChartVersion.tableName,
-// );
+export const selectDimensions = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.dimensions,
+);
+
+export const selectMetrics = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.metrics,
+);
+
+export const selectSorts = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.sorts,
+);
+
+// Computed selector for active fields - combines dimensions, metrics, and table calculations
+export const selectActiveFields = createSelector(
+    [selectMetricQuery],
+    (metricQuery) =>
+        new Set([
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...metricQuery.tableCalculations.map((tc) => tc.name),
+        ]),
+);
+
+export const selectParameters = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.parameters,
+);

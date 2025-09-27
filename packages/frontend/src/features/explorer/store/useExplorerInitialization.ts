@@ -19,6 +19,11 @@ export const useExplorerInitialization = (
             dispatch(explorerActions.reset(initialState));
             hasInitialized.current = true;
         }
+
+        // Reset flag when component unmounts to allow re-initialization
+        return () => {
+            hasInitialized.current = false;
+        };
     }, [initialState, dispatch]);
 
     return hasInitialized.current;

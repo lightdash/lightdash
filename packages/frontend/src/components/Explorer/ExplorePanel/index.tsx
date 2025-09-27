@@ -24,10 +24,6 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import {
-    selectIsVisualizationConfigOpen,
-    useExplorerSelector,
-} from '../../../features/explorer/store';
-import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
 } from '../../../features/virtualView';
@@ -100,8 +96,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.actions.replaceFields,
     );
 
-    const isVisualizationConfigOpen = useExplorerSelector(
-        selectIsVisualizationConfigOpen,
+    const isVisualizationConfigOpen = useExplorerContext(
+        (context) => context.state.isVisualizationConfigOpen ?? false,
     );
 
     const { data: explore, status, error } = useExplore(activeTableName);
