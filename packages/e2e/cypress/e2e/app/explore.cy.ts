@@ -149,7 +149,14 @@ describe('Explore', () => {
 
         // add table calculation
         cy.get('button').contains('Table calculation').click();
-        cy.findByTestId('table-calculation-name-input').type('TC');
+        cy.findByTestId('table-calculation-name-input')
+            .clear()
+            .type('TC')
+            .blur();
+        // Ensure focus moves to ace editor before typing - Firefox needs explicit focus
+        cy.wait(100); // Small wait for Firefox focus handling
+        cy.get('div.ace_content').click();
+        cy.focused().should('have.class', 'ace_text-input');
         // eslint-disable-next-line no-template-curly-in-string
         cy.get('div.ace_content').type('${{}orders.unique_order_count{}}'); // cypress way of escaping { and }
         cy.findAllByTestId('table-calculation-save-button').click();
