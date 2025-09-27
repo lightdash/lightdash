@@ -97,6 +97,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { search } = useLocation();
     const navigate = useNavigate();
 
+    const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -422,6 +423,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     opened={
                                         hasRequiredDashboardFiltersToSet &&
                                         !!hasDashboardTiles
+                                    }
+                                    customMessage={
+                                        dashboard?.config
+                                            ?.requiredFiltersMessage
                                     }
                                 />
                                 {(!hasDashboardTiles ||
