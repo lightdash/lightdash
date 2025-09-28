@@ -1699,34 +1699,29 @@ const ExplorerProvider: FC<
         runQuery();
     }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
 
-    // TODO: REDUX-MIGRATION - Remove this effect once parameter changes trigger query updates properly
-    // Trigger query update when parameters change (if query has been run before)
-    useEffect(() => {
-        // Only update if we have a valid query and parameters have actually been set
+    // TODO: REDUX-MIGRATION - Remove this derived value once parameter changes trigger query updates properly
+    const parametersChanged = useMemo(() => {
         if (
-            query.isFetched &&
-            unsavedChartVersion.parameters &&
-            Object.keys(unsavedChartVersion.parameters).length > 0
+            !query.isFetched ||
+            !unsavedChartVersion.parameters ||
+            Object.keys(unsavedChartVersion.parameters).length === 0
         ) {
-            // Check if parameters have changed from what's in validQueryArgs
-            const currentParams = JSON.stringify(
-                validQueryArgs?.parameters ?? {},
-            );
-            const newParams = JSON.stringify(unsavedChartVersion.parameters);
-            if (currentParams !== newParams) {
-                // Parameters changed, need to update the query
-                if (autoFetchEnabled) {
-                    runQuery();
-                }
-            }
+            return false;
         }
+
+        const currentParams = validQueryArgs?.parameters ?? {};
+        return !deepEqual(currentParams, unsavedChartVersion.parameters);
     }, [
-        unsavedChartVersion.parameters,
         query.isFetched,
         validQueryArgs?.parameters,
-        autoFetchEnabled,
-        runQuery,
+        unsavedChartVersion.parameters,
     ]);
+
+    useEffect(() => {
+        if (parametersChanged && autoFetchEnabled) {
+            runQuery();
+        }
+    }, [parametersChanged, autoFetchEnabled, runQuery]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
