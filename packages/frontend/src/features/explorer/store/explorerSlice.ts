@@ -81,11 +81,22 @@ const explorerSlice = createSlice({
             }
         },
 
+        clearAllParameters: (state) => {
+            state.unsavedChartVersion.parameters = {};
+        },
+
         setParameterReferences: (
             state,
             action: PayloadAction<string[] | null>,
         ) => {
             state.parameterReferences = action.payload;
+        },
+
+        setParameterDefinitions: (
+            state,
+            action: PayloadAction<ExplorerReduceState['parameterDefinitions']>,
+        ) => {
+            state.parameterDefinitions = action.payload;
         },
 
         // Visualization config

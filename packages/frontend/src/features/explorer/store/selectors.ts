@@ -48,11 +48,6 @@ export const selectIsResultsExpanded = createSelector(
     (expandedSections) => expandedSections.includes(ExplorerSection.RESULTS),
 );
 
-// const selectPreviouslyFetchedState = createSelector(
-//     [selectExplorerState],
-//     (explorer) => explorer.previouslyFetchedState,
-// );
-
 export const selectIsVisualizationConfigOpen = createSelector(
     [selectExplorerState],
     (explorer) => explorer.isVisualizationConfigOpen,
@@ -89,6 +84,21 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
+// Parameter selectors
+export const selectParameters = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.parameters || {},
+);
+
+export const selectParameterDefinitions = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.parameterDefinitions,
+);
+
+// TODO: REDUX-MIGRATION - Add missingRequiredParameters as a computed selector once all dependencies are in Redux
+// TODO: REDUX-MIGRATION - Add selectParameterReferences once ParametersCard uses Redux for parameterReferences
+// Currently missingRequiredParameters is computed state in Context, not stored in Redux
+
 // ResultsCard specific selectors
 export const selectSorts = createSelector(
     [selectMetricQuery],
@@ -99,18 +109,3 @@ export const selectColumnOrder = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
 );
-
-// const selectDimensions = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.dimensions,
-// );
-//
-// const selectMetrics = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.metrics,
-// );
-//
-// const selectTableName = createSelector(
-//     [selectUnsavedChartVersion],
-//     (unsavedChartVersion) => unsavedChartVersion.tableName,
-// );
