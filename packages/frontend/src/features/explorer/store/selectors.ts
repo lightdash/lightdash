@@ -84,6 +84,17 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
+// Core metric query field selectors
+export const selectDimensions = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.dimensions,
+);
+
+export const selectMetrics = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.metrics,
+);
+
 // Parameter selectors
 export const selectParameters = createSelector(
     [selectUnsavedChartVersion],

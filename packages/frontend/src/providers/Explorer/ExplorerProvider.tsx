@@ -940,6 +940,22 @@ const ExplorerProvider: FC<
             reduxDispatch(explorerActions.setTableName(contextTableName));
         }
     }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
+
+    // Keep Redux dimensions in sync with Context dimensions
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setDimensions(
+                unsavedChartVersion.metricQuery.dimensions,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.dimensions, reduxDispatch]);
+
+    // Keep Redux metrics in sync with Context metrics
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
+        );
+    }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
 
     const computedMetricQuery = useMemo(

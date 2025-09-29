@@ -62,6 +62,14 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.sorts = action.payload;
         },
 
+        // Dimensions and Metrics
+        setDimensions: (state, action: PayloadAction<string[]>) => {
+            state.unsavedChartVersion.metricQuery.dimensions = action.payload;
+        },
+        setMetrics: (state, action: PayloadAction<string[]>) => {
+            state.unsavedChartVersion.metricQuery.metrics = action.payload;
+        },
+
         // Parameters
         setParameter: (
             state,
