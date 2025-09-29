@@ -1653,10 +1653,7 @@ export class AiAgentService {
                 searchQuery: null,
                 exploreName: args.tableName,
                 yamlTags: agentSettings.tags,
-                paginateArgs: {
-                    page: args.page,
-                    pageSize: args.pageSize,
-                },
+                paginateArgs: { page: 1, pageSize: 1 },
             });
 
             if (tables.length !== 1) {
@@ -1992,10 +1989,9 @@ export class AiAgentService {
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
 
-            availableExploresPageSize: 100,
-            inspectExplorePageSize: 15,
-            findExploresFieldSearchSize: 200,
-            findFieldsPageSize: 10,
+            listExploresPageSize: 100,
+            inspectExploreFieldsPageSize: 200,
+            findFieldsPageSize: 30,
             findDashboardsPageSize: 5,
             findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,

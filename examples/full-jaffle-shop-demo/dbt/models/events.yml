@@ -2,7 +2,7 @@ version: 2
 models:
   - name: events
     config:
-      tags: ['ai']
+      tags: ["ai"]
     meta:
       primary_key: event_id
       group_details:

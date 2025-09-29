@@ -138,14 +138,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 .select('*');
 
             const { data: tables } =
-                await services.catalogService.searchCatalog({
+                await services.catalogService.searchExplores({
+                    user: context.testUser,
                     projectUuid: createdAgent.projectUuid!,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                        yamlTags: context.testAgent.tags ?? undefined,
-                    },
-                    userAttributes: {},
-                    context: CatalogSearchContext.AI_AGENT,
+                    exploreName: null,
+                    yamlTags: context.testAgent.tags,
+                    searchQuery: null,
                     paginateArgs: {
                         page: 1,
                         pageSize: 100,
@@ -525,14 +523,16 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
         const availableExplores = await getServices(
             context.app,
-        ).catalogService.searchCatalog({
+        ).catalogService.searchExplores({
+            user: context.testUser,
             projectUuid: createdAgent.projectUuid!,
-            catalogSearch: {
-                type: CatalogType.Table,
-                yamlTags: context.testAgent.tags ?? undefined,
+            exploreName: null,
+            yamlTags: context.testAgent.tags,
+            searchQuery: null,
+            paginateArgs: {
+                page: 1,
+                pageSize: 100,
             },
-            userAttributes: {},
-            context: CatalogSearchContext.AI_AGENT,
         });
 
         const availableExploresText = availableExplores.data

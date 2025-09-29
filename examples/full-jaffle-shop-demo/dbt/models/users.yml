@@ -1,23 +1,17 @@
 version: 2
 models:
   - name: users
+    config:
+      tags: ["ai"]
     meta:
       primary_key: customer_id
       sql_filter: 'customer_id = ${ld.attr.customer_id}'
     columns:
       - name: customer_id
         description: This is a unique identifier for a customer
-        config:
-          meta:
-            dimension:
-              tags: ['ai']
       - name: first_name
         description: Customer's first name. PII.
       - name: last_name
         description: Customer's last name. PII.
       - name: created
         description: Timestamp (UTC) when customer was created
-        config:
-          meta:
-            dimension:
-              tags: ['ai']

@@ -5,15 +5,13 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
-    pageSize: number;
-    fieldSearchSize: number;
+    inspectExploreFieldsPageSize: number;
     inspectExplore: InspectExploreFn;
 };
 
 export const getInspectExplore = ({
     inspectExplore,
-    pageSize,
-    fieldSearchSize,
+    inspectExploreFieldsPageSize,
 }: Dependencies) =>
     tool({
         description: toolInspectExploreArgsSchema.description,
@@ -33,8 +31,7 @@ export const getInspectExplore = ({
                 } = await inspectExplore({
                     tableName: args.exploreName,
                     page: args.page ?? 1,
-                    pageSize,
-                    fieldSearchSize,
+                    pageSize: inspectExploreFieldsPageSize,
                 });
 
                 return (

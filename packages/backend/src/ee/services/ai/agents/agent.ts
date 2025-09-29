@@ -146,8 +146,7 @@ const getAgentTools = (
     );
 
     const inspectExplore = getInspectExplore({
-        pageSize: args.inspectExplorePageSize,
-        fieldSearchSize: args.findExploresFieldSearchSize,
+        inspectExploreFieldsPageSize: args.inspectExploreFieldsPageSize,
         inspectExplore: dependencies.inspectExplore,
     });
 
@@ -253,7 +252,7 @@ const getAgentMessages = async (
 
     const availableExplores = await dependencies.listExplores({
         page: 1,
-        pageSize: args.availableExploresPageSize,
+        pageSize: args.listExploresPageSize,
     });
 
     const messages = [
