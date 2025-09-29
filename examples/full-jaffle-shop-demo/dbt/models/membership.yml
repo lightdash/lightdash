@@ -1,8 +1,6 @@
 version: 2
 models:
   - name: membership
-    config:
-      tags: ['ai']
     meta:
       primary_key: id
       required_attributes:

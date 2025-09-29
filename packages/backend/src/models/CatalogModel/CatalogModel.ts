@@ -392,96 +392,10 @@ export class CatalogModel {
         };
     }
 
-    static whereYamlTags(projectUuid: string, yamlTags: string[] | null) {
-        return function yamlTagsFiltering(this: Knex.QueryBuilder) {
-            if (!yamlTags) {
-                void this.whereRaw(`true`);
-                return;
-            }
-
-            void this
-                // Condition 1: The item itself has a matching tag.
-                // This is the highest priority rule. It includes any
-                // field or table that is explicitly tagged.
-                .whereRaw(`${CatalogTableName}.yaml_tags && ?::text[]`, [
-                    yamlTags,
-                ])
-
-                // Condition 2: The item is part of an explore where ONLY the explore's
-                // base table is tagged, making all items in that explore visible.
-                // This handles the "show all fields" scenario.
-                .orWhere(function exploreTaggedButFieldsAreNot() {
-                    void this
-                        // Check that the explore's base table has a matching tag.
-                        .whereExists(function exploreIsTagged() {
-                            void this.select('name')
-                                .from(`${CatalogTableName} as explore_table`)
-                                .andWhere(
-                                    'explore_table.project_uuid',
-                                    projectUuid,
-                                )
-                                .whereRaw(
-                                    `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                )
-                                .andWhere('explore_table.type', 'table')
-                                .andWhereRaw(
-                                    `explore_table.yaml_tags && ?::text[]`,
-                                    [yamlTags],
-                                );
-                        })
-                        // AND crucially, check that NO fields within that same explore have any tags.
-                        // This enforces the precedence rule.
-                        .whereNotExists(function anyFieldIsTagged() {
-                            void this.select('name')
-                                .from(
-                                    `${CatalogTableName} as any_field_in_explore`,
-                                )
-                                .andWhereRaw(
-                                    `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                )
-                                .andWhere(
-                                    'any_field_in_explore.project_uuid',
-                                    projectUuid,
-                                )
-                                .andWhere('any_field_in_explore.type', 'field')
-                                .whereNotNull(`any_field_in_explore.yaml_tags`);
-                        });
-                })
-
-                // Condition 3: The item is a table, and at least one of its
-                // child fields has a matching tag. This ensures the parent table is
-                // always included if any of its fields are visible.
-                .orWhere(function isTableWithTaggedChildren() {
-                    void this.where(
-                        `${CatalogTableName}.type`,
-                        'table',
-                    ).whereExists(function hasTaggedChild() {
-                        void this.select('name')
-                            .from(`${CatalogTableName} as child_field`)
-                            .andWhere('child_field.project_uuid', projectUuid)
-                            .whereRaw(
-                                `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                            )
-                            .andWhereNot('child_field.type', 'table')
-                            .andWhereRaw(`child_field.yaml_tags && ?::text[]`, [
-                                yamlTags,
-                            ]);
-                    });
-                });
-        };
-    }
-
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: {
-            catalogTags,
-            filter,
-            searchQuery = '',
-            type,
-            yamlTags,
-            tables,
-        },
+        catalogSearch: { catalogTags, filter, searchQuery = '', type },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -533,7 +447,6 @@ export class CatalogModel {
             .andWhere(
                 CatalogModel.whereTablesConfiguration(tablesConfiguration),
             )
-            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags ?? null)) // TODO: fixme
             .andWhere(CatalogModel.whereUserAttributes(userAttributes));
 
         if (context === CatalogSearchContext.SPOTLIGHT) {
@@ -628,30 +541,6 @@ export class CatalogModel {
                                 );
                         });
                     }
-                },
-            );
-        }
-
-        if (tables) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                function joinedTablesFiltering() {
-                    // Condition 1: The item's own table is in the list.
-                    // This includes the table itself, and any fields belonging to it.
-                    void this.whereIn(`${CatalogTableName}.table_name`, tables);
-
-                    // Condition 2: The item belongs to a table whose joined_tables array
-                    // contains any of the specified tables
-                    void this.orWhereExists(function tableJoinsToSelected() {
-                        void this.select('name')
-                            .from(`${CatalogTableName} as parent_table`)
-                            .whereRaw(
-                                `parent_table.table_name = ANY(?::text[])`,
-                                [tables],
-                            )
-                            .andWhereRaw(
-                                `parent_table.joined_tables @> ARRAY[${CatalogTableName}.table_name]::text[]`,
-                            );
-                    });
                 },
             );
         }
@@ -789,49 +678,28 @@ export class CatalogModel {
             );
         }
 
-        catalogItemsQuery = catalogItemsQuery.whereExists(
-            function fieldBelongsToExplore() {
-                void this.select(`${CatalogTableName}.name`)
-                    .from(CatalogSearchRelationsTableName)
-                    .whereRaw(
-                        `${CatalogSearchRelationsTableName}.field_catalog_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                    )
-                    .whereRaw(
-                        `${CatalogSearchRelationsTableName}.explore_catalog_uuid = (
-                        SELECT ${CatalogTableName}.catalog_search_uuid
-                        FROM ${CatalogTableName}
-                        WHERE ${CatalogTableName}.name = ? AND ${CatalogTableName}.type = ? AND ${CatalogTableName}.project_uuid = ?
-                    )`,
-                        [exploreName, CatalogType.Table, projectUuid],
-                    );
-            },
+        if (yamlTags) {
+            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                `EXISTS (SELECT 1 FROM ${CatalogTableName} AS cs WHERE cs.name = ? AND cs.type = ? AND cs.project_uuid = ? AND cs.yaml_tags && ?::text[])`,
+                [exploreName, CatalogType.Table, projectUuid, yamlTags],
+            );
+        }
+
+        // field belongs to base table or one of the joined tables
+        catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+            `(${CatalogTableName}.table_name = ?
+                OR EXISTS (SELECT 1 FROM ${CatalogTableName} AS cs WHERE cs.name = ? AND cs.type = ? AND cs.project_uuid = ? AND cs.joined_tables @> ARRAY[${CatalogTableName}.table_name]))`,
+            [exploreName, exploreName, CatalogType.Table, projectUuid],
         );
 
-        const catalogItemsQueryCTE = this.database
-            .with('all_available_catalog_fields_cte', catalogItemsQuery)
-            .select<(DbCatalog & { explore: Explore; search_rank: number })[]>()
-            .from('all_available_catalog_fields_cte')
-            .where(function yamlTagsFiltering(this: Knex.QueryBuilder) {
-                if (!yamlTags) {
-                    void this.whereRaw(`true`);
-                    return;
-                }
-
-                void this.whereRaw(
-                    `all_available_catalog_fields_cte.yaml_tags && ?::text[]`,
-                    [yamlTags],
-                ).orWhere(function noTagsOnFieldsButExploresAreTagged() {
-                    void this.whereRaw(
-                        `NOT EXISTS (SELECT 1 FROM all_available_catalog_fields_cte WHERE all_available_catalog_fields_cte.yaml_tags IS NOT NULL)`,
-                    ).andWhereRaw(
-                        `EXISTS (SELECT 1 from ${CatalogTableName} WHERE ${CatalogTableName}.yaml_tags IS NOT NULL AND ${CatalogTableName}.yaml_tags && ?::text[] AND ${CatalogTableName}.name = ? AND ${CatalogTableName}.type = ? AND ${CatalogTableName}.project_uuid = ?)`,
-                        [yamlTags, exploreName, CatalogType.Table, projectUuid],
-                    );
-                });
-            });
+        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
+        console.log(catalogItemsQuery.toString());
+        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
-            catalogItemsQueryCTE,
+            catalogItemsQuery.select<
+                (DbCatalog & { explore: Explore; search_rank: number })[]
+            >(),
             {
                 page: paginateArgs?.page ?? 1,
                 pageSize: paginateArgs?.pageSize ?? 50,
@@ -872,30 +740,9 @@ export class CatalogModel {
         });
 
         if (yamlTags) {
-            catalogItemsQuery = catalogItemsQuery.where(
-                function yamlTagsFiltering() {
-                    void this.whereRaw(
-                        `${CatalogTableName}.yaml_tags && ?::text[]`,
-                        [yamlTags],
-                    ).orWhere(function noTagOnExploreButItsFieldsAreTagged() {
-                        void this.where(
-                            `${CatalogTableName}.yaml_tags`,
-                            null,
-                        ).andWhereRaw(
-                            `EXISTS (
-                                SELECT 1 FROM ${CatalogSearchRelationsTableName}
-                                LEFT JOIN ${CatalogTableName} AS ct
-                                    ON ct.catalog_search_uuid = ${CatalogSearchRelationsTableName}.field_catalog_uuid
-                                    AND ct.table_name = ${CatalogTableName}.table_name
-                                    AND ct.yaml_tags && ?
-                                WHERE
-                                    ct.type = ?
-                                    AND ${CatalogSearchRelationsTableName}.explore_catalog_uuid = ${CatalogTableName}.catalog_search_uuid
-                            )`,
-                            [yamlTags, CatalogType.Field],
-                        );
-                    });
-                },
+            catalogItemsQuery = catalogItemsQuery.whereRaw(
+                `${CatalogTableName}.yaml_tags && ?::text[]`,
+                [yamlTags],
             );
         }
 
@@ -905,10 +752,6 @@ export class CatalogModel {
                 exploreName,
             );
         }
-
-        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
-        console.log(catalogItemsQuery.toString());
-        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<

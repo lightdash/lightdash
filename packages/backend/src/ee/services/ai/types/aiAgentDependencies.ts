@@ -34,10 +34,7 @@ export type ListExploresFn = (args: KnexPaginateArgs) => Promise<{
 }>;
 
 export type InspectExploreFn = (
-    args: {
-        tableName: string;
-        fieldSearchSize: number;
-    } & KnexPaginateArgs,
+    args: { tableName: string } & KnexPaginateArgs,
 ) => Promise<{
     table: CatalogTable;
     dimensions?: CatalogField[];

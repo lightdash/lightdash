@@ -34,9 +34,8 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
 
-    availableExploresPageSize: number;
-    inspectExplorePageSize: number;
-    findExploresFieldSearchSize: number;
+    listExploresPageSize: number;
+    inspectExploreFieldsPageSize: number;
     findFieldsPageSize: number;
     findDashboardsPageSize: number;
     findChartsPageSize: number;
