@@ -23,7 +23,13 @@ vi.mock('../providers/Explorer/useExplorerQueryManager', () => ({
     useQueryManager: vi.fn(() => [
         {
             query: { isFetched: false, isFetching: false },
-            queryResults: { queryUuid: null, totalResults: 0 },
+            queryResults: {
+                queryUuid: null,
+                totalResults: 0,
+                isFetchingFirstPage: false,
+                isFetchingAllPages: false,
+                error: null,
+            },
         },
         vi.fn(),
     ]),
@@ -58,11 +64,21 @@ describe('useExplorerQuery', () => {
 
         expect(result.current).toHaveProperty('query');
         expect(result.current).toHaveProperty('queryResults');
+        expect(result.current).toHaveProperty('isLoading');
         expect(result.current).toHaveProperty('runQuery');
         expect(result.current).toHaveProperty('resetQueryResults');
         expect(result.current).toHaveProperty('getDownloadQueryUuid');
         expect(result.current).toHaveProperty('activeFields');
         expect(result.current).toHaveProperty('isValidQuery');
+    });
+
+    it('should compute loading state correctly', () => {
+        const { result } = renderHook(() => useExplorerQuery(), {
+            wrapper: createWrapper(),
+        });
+
+        // Should be false initially when not fetching
+        expect(result.current.isLoading).toBe(false);
     });
 
     it('should have empty activeFields when no dimensions/metrics selected', () => {

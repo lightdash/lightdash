@@ -10,7 +10,15 @@ import {
 import { useHotkeys, useOs } from '@mantine-8/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
+import {
+    selectQueryLimit,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import useHealth from '../hooks/health/useHealth';
+import {
+    useExplorerQuery,
+    useExplorerQueryActions,
+} from '../hooks/useExplorerQuery';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -23,30 +31,20 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const maxLimit = health.data?.query.maxLimit ?? 5000;
 
     const os = useOs();
-    const limit = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.limit,
+
+    // Get state from Redux
+    const limit = useExplorerSelector(selectQueryLimit);
+
+    // Get query state and actions from new hooks
+    const { isValidQuery, isLoading, query, fetchResults } = useExplorerQuery();
+    const { cancelQuery } = useExplorerQueryActions(
+        undefined, // projectUuid - will be inferred from URL
+        query.data?.queryUuid,
     );
+
+    // Keep setRowLimit from Context for now (will migrate when we add Redux action)
     const setRowLimit = useExplorerContext(
         (context) => context.actions.setRowLimit,
-    );
-    const isValidQuery = useExplorerContext(
-        (context) => context.state.isValidQuery,
-    );
-    const isLoading = useExplorerContext((context) => {
-        const isCreatingQuery = context.query.isFetching;
-        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
-        const isFetchingAllRows = context.queryResults.isFetchingAllPages;
-        const isQueryError = context.queryResults.error;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !isQueryError
-        );
-    });
-    const fetchResults = useExplorerContext(
-        (context) => context.actions.fetchResults,
-    );
-    const cancelQuery = useExplorerContext(
-        (context) => context.actions.cancelQuery,
     );
 
     const canRunQuery = isValidQuery;
@@ -54,6 +52,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const { track } = useTracking();
 
     const onClick = useCallback(() => {
+        console.log('click!', { canRunQuery });
         if (canRunQuery) {
             fetchResults();
             track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });

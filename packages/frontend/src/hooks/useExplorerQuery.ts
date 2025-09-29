@@ -22,6 +22,7 @@ import {
     selectIsResultsExpanded,
     selectMetricQuery,
     selectParameterDefinitions,
+    selectParameterReferences,
     selectParameters,
     selectTableName,
     useExplorerSelector,
@@ -57,6 +58,7 @@ export const useExplorerQuery = (
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
+    const parameterReferences = useExplorerSelector(selectParameterReferences);
 
     // Auto-fetch configuration
     const [autoFetchEnabled] = useLocalStorage({
@@ -94,24 +96,25 @@ export const useExplorerQuery = (
             ...metricQuery.metrics,
             ...metricQuery.tableCalculations.map(({ name }) => name),
         ]);
-        return [fields, fields.size > 0];
-    }, [metricQuery]);
 
-    // Track parameter references for validation
-    const [parameterReferences, setParameterReferences] = useState<
-        string[] | null
-    >(null);
+        // Only consider valid if we have fields AND a table selected
+        // This prevents validation from being true before Redux is properly initialized
+        return [fields, fields.size > 0 && !!tableName];
+    }, [metricQuery, tableName]);
 
     // Compute missing required parameters
     const missingRequiredParameters = useMemo(() => {
+        console.log('parameterReferences from Redux:', parameterReferences);
         if (parameterReferences === null) return null;
 
         // Missing required parameters are the ones that are not set and don't have a default value
-        return parameterReferences.filter(
+        const missing = parameterReferences.filter(
             (parameter) =>
                 !parameters?.[parameter] &&
                 !parameterDefinitions?.[parameter]?.default,
         );
+        console.log('missingRequiredParameters:', missing);
+        return missing;
     }, [parameterReferences, parameters, parameterDefinitions]);
 
     // State for query arguments
@@ -144,6 +147,25 @@ export const useExplorerQuery = (
     );
     const { query, queryResults } = mainQueryManager;
 
+    console.log('🔍 useExplorerQuery Redux state:', {
+        tableName,
+        dimensions: metricQuery.dimensions,
+        metrics: metricQuery.metrics,
+        parameters: Object.keys(parameters || {}),
+        parameterReferences,
+        filtersCount: Object.keys(filters).length,
+    });
+
+    console.log('🔍 useExplorerQuery query state:', {
+        validQueryArgsExists: !!validQueryArgs,
+        missingParams: missingRequiredParameters,
+        queryStatus: query.status,
+        queryIsFetched: query.isFetched,
+        queryData: !!query.data,
+        queryResultsRows: queryResults.rows?.length,
+        queryResultsTotal: queryResults.totalResults,
+    });
+
     // Unpivoted query manager for results table
     const [unpivotedQueryManager, unpivotedSetQueryUuidHistory] =
         useQueryManager(
@@ -160,6 +182,12 @@ export const useExplorerQuery = (
     // Function to prepare and set query arguments
     const runQuery = useCallback(() => {
         const hasFields = activeFields.size > 0;
+        console.log('🔍 runQuery called with:', {
+            tableName,
+            hasFields,
+            projectUuid,
+            explore: !!explore,
+        });
 
         if (tableName && hasFields && projectUuid) {
             let pivotConfiguration: PivotConfiguration | undefined;
@@ -195,6 +223,7 @@ export const useExplorerQuery = (
                 pivotConfiguration,
             };
 
+            console.log('🔍 Setting validQueryArgs:', mainQueryArgs);
             setValidQueryArgs(mainQueryArgs);
         } else {
             console.warn(
@@ -275,6 +304,16 @@ export const useExplorerQuery = (
         });
     }, [queryClient, mainSetQueryUuidHistory, unpivotedSetQueryUuidHistory]);
 
+    // Fetch results (manual refresh) - follows original pattern: reset then run
+    const fetchResults = useCallback(() => {
+        console.log('🔍 fetchResults called!');
+        // force new results even when query is the same
+        resetQueryResults();
+        console.log('🔍 resetQueryResults done');
+        runQuery();
+        console.log('🔍 runQuery called');
+    }, [resetQueryResults, runQuery]);
+
     // Get download query UUID
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
@@ -309,6 +348,22 @@ export const useExplorerQuery = (
         ],
     );
 
+    // Compute loading state for components like RefreshButton
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = query.isFetching;
+        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
+        const isFetchingAllRows = queryResults.isFetchingAllPages;
+        const isQueryError = queryResults.error;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !isQueryError
+        );
+    }, [
+        query.isFetching,
+        queryResults.isFetchingFirstPage,
+        queryResults.isFetchingAllPages,
+        queryResults.error,
+    ]);
     return {
         // Query state
         query,
@@ -316,8 +371,12 @@ export const useExplorerQuery = (
         unpivotedQuery,
         unpivotedQueryResults,
 
+        // Computed loading state
+        isLoading,
+
         // Query management
         runQuery,
+        fetchResults,
         resetQueryResults,
         getDownloadQueryUuid,
 
@@ -328,14 +387,12 @@ export const useExplorerQuery = (
         // State derived from Redux
         activeFields,
         isValidQuery,
-
-        // Parameter management
-        setParameterReferences,
     };
 };
 
 /**
  * Hook for manual query actions (fetch, cancel)
+ * This should be used in components that already use useExplorerQuery
  */
 export const useExplorerQueryActions = (
     projectUuid?: string,
@@ -347,9 +404,10 @@ export const useExplorerQueryActions = (
         queryUuid,
     );
 
-    // Force refresh by invalidating queries
+    // Force refresh by invalidating and resetting queries
     const fetchResults = useCallback(() => {
-        void queryClient.invalidateQueries({
+        // Clear existing queries to force fresh execution
+        void queryClient.resetQueries({
             queryKey: ['create-query'],
             exact: false,
         });

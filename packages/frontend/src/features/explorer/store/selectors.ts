@@ -85,15 +85,15 @@ export const selectTableCalculations = createSelector(
 );
 
 // Core metric query field selectors
-export const selectDimensions = createSelector(
-    [selectMetricQuery],
-    (metricQuery) => metricQuery.dimensions,
-);
-
-export const selectMetrics = createSelector(
-    [selectMetricQuery],
-    (metricQuery) => metricQuery.metrics,
-);
+// export const selectDimensions = createSelector(
+//     [selectMetricQuery],
+//     (metricQuery) => metricQuery.dimensions,
+// );
+//
+// export const selectMetrics = createSelector(
+//     [selectMetricQuery],
+//     (metricQuery) => metricQuery.metrics,
+// );
 
 // Parameter selectors
 export const selectParameters = createSelector(
@@ -106,8 +106,12 @@ export const selectParameterDefinitions = createSelector(
     (explorer) => explorer.parameterDefinitions,
 );
 
+export const selectParameterReferences = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.parameterReferences,
+);
+
 // TODO: REDUX-MIGRATION - Add missingRequiredParameters as a computed selector once all dependencies are in Redux
-// TODO: REDUX-MIGRATION - Add selectParameterReferences once ParametersCard uses Redux for parameterReferences
 // Currently missingRequiredParameters is computed state in Context, not stored in Redux
 
 // ResultsCard specific selectors
@@ -119,4 +123,16 @@ export const selectSorts = createSelector(
 export const selectColumnOrder = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
+);
+
+// Query limit selector
+export const selectQueryLimit = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.limit,
+);
+
+// Timezone selector
+export const selectTimezone = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.timezone,
 );

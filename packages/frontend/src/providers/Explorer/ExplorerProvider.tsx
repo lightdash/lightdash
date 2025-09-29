@@ -956,6 +956,13 @@ const ExplorerProvider: FC<
             explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
         );
     }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
+
+    // Keep Redux query limit in sync with Context limit
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setRowLimit(unsavedChartVersion.metricQuery.limit),
+        );
+    }, [unsavedChartVersion.metricQuery.limit, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
 
     const computedMetricQuery = useMemo(
