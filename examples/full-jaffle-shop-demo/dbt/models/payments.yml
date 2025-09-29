@@ -24,14 +24,8 @@ models:
                 description: count of all payments
       - name: order_id
         description: Foreign key to the orders table
-        config:
-          meta:
-            dimension:
       - name: payment_method
         description: Method of payment used, for example credit card
-        config:
-          meta:
-            dimension:
       - name: amount
         description: Total amount (AUD) of the individual payment
         config:
