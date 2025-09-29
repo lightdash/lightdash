@@ -220,9 +220,12 @@ const TableRow: FC<TableRowProps> = ({
     );
 };
 
+const SCROLL_THRESHOLD = 100;
+
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
-}> = ({ tableContainerRef }) => {
+    minimal?: boolean;
+}> = ({ tableContainerRef, minimal }) => {
     const {
         table,
         cellContextMenu,
@@ -243,14 +246,19 @@ const VirtualizedTableBody: FC<{
 
     useEffect(() => {
         const scrollElement = rowVirtualizer.scrollElement;
-        // Check if we're near the end of the list
-        const threshold = 100;
+        // Trigger fetching when user is within SCROLL_THRESHOLD px of the bottom
+        // Scrolling math explanation:
+        // - rowVirtualizer.scrollOffset: Current scroll position from top (how far user has scrolled down)
+        // - scrollElement.clientHeight: Visible height of the scrollable container (viewport height)
+        // - scrollElement.scrollHeight: Total scrollable height (all content including non-visible)
+        // - We fetch more when: (scrollOffset + clientHeight) >= (scrollHeight - threshold)
+        //   This means: current position + visible area >= total height minus buffer zone
         if (
             isInfiniteScrollEnabled &&
             scrollElement &&
             rowVirtualizer.scrollOffset !== null &&
             rowVirtualizer.scrollOffset + scrollElement.clientHeight >=
-                scrollElement.scrollHeight - threshold
+                scrollElement.scrollHeight - SCROLL_THRESHOLD
         ) {
             fetchMoreRows();
         }
@@ -332,6 +340,7 @@ const VirtualizedTableBody: FC<{
 
                       return (
                           <TableRow
+                              minimal={minimal}
                               key={index}
                               index={index}
                               row={rows[index]}
@@ -352,39 +361,18 @@ const VirtualizedTableBody: FC<{
     );
 };
 
-const NormalTableBody: FC = () => {
-    const { table, cellContextMenu, conditionalFormattings, minMaxMap } =
-        useTableContext();
-    const { rows } = table.getRowModel();
-
-    return (
-        <tbody>
-            {rows.map((row, index) => (
-                <TableRow
-                    key={index}
-                    minimal
-                    index={index}
-                    row={row}
-                    cellContextMenu={cellContextMenu}
-                    conditionalFormattings={conditionalFormattings}
-                    minMaxMap={minMaxMap}
-                />
-            ))}
-        </tbody>
-    );
-};
-
 interface TableBodyProps {
     minimal?: boolean;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {
-    if (minimal) {
-        return <NormalTableBody />;
-    } else {
-        return <VirtualizedTableBody tableContainerRef={tableContainerRef} />;
-    }
+    return (
+        <VirtualizedTableBody
+            tableContainerRef={tableContainerRef}
+            minimal={minimal}
+        />
+    );
 };
 
 export default TableBody;

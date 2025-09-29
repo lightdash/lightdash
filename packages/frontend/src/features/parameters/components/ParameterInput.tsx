@@ -161,7 +161,8 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             return uniq([...parameterOptions, ...filteredCurrentValues]);
         }
 
-        return parameterOptions;
+        // Always return a copy to avoid Redux immutability issues
+        return [...parameterOptions];
     }, [
         parameter.options,
         parameter.allow_custom_values,
@@ -222,7 +223,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
               )
             : optionsData;
 
-        const regularItems = baseItems
+        const regularItems = [...baseItems] // Create a copy to avoid mutating Redux state
             .sort((a, b) => String(a).localeCompare(String(b)))
             .map((option) => ({
                 value: String(option),
@@ -234,7 +235,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 ? [
                       {
                           group: 'Dimension values',
-                          items: fetchedResults
+                          items: [...fetchedResults] // Create a copy to avoid mutating Redux state
                               .sort((a, b) => a.localeCompare(b))
                               .map((option) => ({
                                   value: option,

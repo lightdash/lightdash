@@ -22,6 +22,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
+import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
@@ -30,6 +31,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
+import { explorerStore } from '../features/explorer/store';
 import {
     useChartHistory,
     useChartVersion,
@@ -244,41 +246,43 @@ const ChartHistory = () => {
                 />
             )}
             {chartVersionQuery.data && (
-                <ExplorerProvider
-                    key={selectedVersionUuid}
-                    viewModeQueryArgs={
-                        savedQueryUuid && selectedVersionUuid
-                            ? {
-                                  chartUuid: savedQueryUuid,
-                                  chartVersionUuid: selectedVersionUuid,
-                              }
-                            : undefined
-                    }
-                    initialState={{
-                        parameterReferences: [],
-                        parameterDefinitions: {},
-                        previouslyFetchedState: undefined,
-                        expandedSections: [ExplorerSection.VISUALIZATION],
-                        unsavedChartVersion: chartVersionQuery.data.chart,
-                        modals: {
-                            format: {
-                                isOpen: false,
+                <Provider store={explorerStore}>
+                    <ExplorerProvider
+                        key={selectedVersionUuid}
+                        viewModeQueryArgs={
+                            savedQueryUuid && selectedVersionUuid
+                                ? {
+                                      chartUuid: savedQueryUuid,
+                                      chartVersionUuid: selectedVersionUuid,
+                                  }
+                                : undefined
+                        }
+                        initialState={{
+                            parameterReferences: [],
+                            parameterDefinitions: {},
+                            previouslyFetchedState: undefined,
+                            expandedSections: [ExplorerSection.VISUALIZATION],
+                            unsavedChartVersion: chartVersionQuery.data.chart,
+                            modals: {
+                                format: {
+                                    isOpen: false,
+                                },
+                                additionalMetric: {
+                                    isOpen: false,
+                                },
+                                customDimension: {
+                                    isOpen: false,
+                                },
+                                writeBack: {
+                                    isOpen: false,
+                                },
                             },
-                            additionalMetric: {
-                                isOpen: false,
-                            },
-                            customDimension: {
-                                isOpen: false,
-                            },
-                            writeBack: {
-                                isOpen: false,
-                            },
-                        },
-                    }}
-                    savedChart={chartVersionQuery.data?.chart}
-                >
-                    <Explorer hideHeader={true} />
-                </ExplorerProvider>
+                        }}
+                        savedChart={chartVersionQuery.data?.chart}
+                    >
+                        <Explorer hideHeader={true} />
+                    </ExplorerProvider>
+                </Provider>
             )}
 
             <Modal

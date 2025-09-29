@@ -917,10 +917,30 @@ const ExplorerProvider: FC<
     const reduxFilters = useExplorerSelector(selectFilters);
     const reduxDispatch = useExplorerDispatch();
 
+    // TODO: REDUX-MIGRATION - Remove these sync effects once all components use Redux directly
+    // START TRANSITIONAL SYNC CODE
     // Keep Redux isEditMode in sync with prop changes
     useEffect(() => {
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
+
+    // Keep Redux sorts in sync with Context sorts
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setSortFields(
+                unsavedChartVersion.metricQuery.sorts,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
+
+    // Keep Redux table name in sync with Context state
+    useEffect(() => {
+        const contextTableName = reducerState.unsavedChartVersion.tableName;
+        if (contextTableName) {
+            reduxDispatch(explorerActions.setTableName(contextTableName));
+        }
+    }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
+    // END TRANSITIONAL SYNC CODE
 
     const computedMetricQuery = useMemo(
         () => ({
@@ -964,10 +984,10 @@ const ExplorerProvider: FC<
                 type: ActionType.SET_TABLE_NAME,
                 payload: tableName,
             });
-            // Sync to Redux for components that have been migrated
+            // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
             reduxDispatch(explorerActions.setTableName(tableName));
         },
-        [reduxDispatch],
+        [dispatch, reduxDispatch],
     );
 
     const toggleActiveField = useCallback(
@@ -1027,9 +1047,10 @@ const ExplorerProvider: FC<
                 descending: boolean;
             } = { descending: false },
         ) => {
+            const sortField = { fieldId, ...options };
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, ...options },
+                payload: sortField,
             });
         },
         [],
@@ -1082,13 +1103,17 @@ const ExplorerProvider: FC<
                     payload: { key, value },
                 });
             }
+            // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
+            reduxDispatch(explorerActions.setParameter({ key, value }));
         },
-        [],
+        [reduxDispatch],
     );
 
     const clearAllParameters = useCallback(() => {
         dispatch({ type: ActionType.CLEAR_ALL_PARAMETERS });
-    }, []);
+        // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
+        reduxDispatch(explorerActions.clearAllParameters());
+    }, [reduxDispatch]);
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1401,6 +1426,14 @@ const ExplorerProvider: FC<
         };
     }, [projectParameters, exploreParameterDefinitions]);
 
+    // TODO: REDUX-MIGRATION - Remove once parameterDefinitions are computed in Redux
+    // Keep Redux parameter definitions in sync
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setParameterDefinitions(parameterDefinitions),
+        );
+    }, [parameterDefinitions, reduxDispatch]);
+
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
         if (reducerState.parameterReferences === null) return null;
@@ -1666,6 +1699,30 @@ const ExplorerProvider: FC<
         runQuery();
     }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
 
+    // TODO: REDUX-MIGRATION - Remove this derived value once parameter changes trigger query updates properly
+    const parametersChanged = useMemo(() => {
+        if (
+            !query.isFetched ||
+            !unsavedChartVersion.parameters ||
+            Object.keys(unsavedChartVersion.parameters).length === 0
+        ) {
+            return false;
+        }
+
+        const currentParams = validQueryArgs?.parameters ?? {};
+        return !deepEqual(currentParams, unsavedChartVersion.parameters);
+    }, [
+        query.isFetched,
+        validQueryArgs?.parameters,
+        unsavedChartVersion.parameters,
+    ]);
+
+    useEffect(() => {
+        if (parametersChanged && autoFetchEnabled) {
+            runQuery();
+        }
+    }, [parametersChanged, autoFetchEnabled, runQuery]);
+
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
         // cancel query creation
@@ -1772,8 +1829,12 @@ const ExplorerProvider: FC<
                 type: ActionType.SET_PARAMETER_REFERENCES,
                 payload: parameterReferences,
             });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(
+                explorerActions.setParameterReferences(parameterReferences),
+            );
         },
-        [],
+        [reduxDispatch],
     );
     const actions = useMemo(
         () => ({

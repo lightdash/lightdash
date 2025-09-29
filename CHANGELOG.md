@@ -1,3 +1,24 @@
+# [0.2027.0](https://github.com/lightdash/lightdash/compare/0.2026.5...0.2027.0) (2025-09-29)
+
+
+### Features
+
+* migrate ParametersCard to Redux store ([#17116](https://github.com/lightdash/lightdash/issues/17116)) ([714ee3b](https://github.com/lightdash/lightdash/commit/714ee3bd9779386e65b5f573161a789fedfc12fb))
+
+## [0.2026.5](https://github.com/lightdash/lightdash/compare/0.2026.4...0.2026.5) (2025-09-29)
+
+
+### Bug Fixes
+
+* table visualizations rendered on table charts should also scroll to fetch more results ([#17091](https://github.com/lightdash/lightdash/issues/17091)) ([bfb78e7](https://github.com/lightdash/lightdash/commit/bfb78e73bc2e32fe5d6dfae5132b48feff4be33d))
+
+## [0.2026.4](https://github.com/lightdash/lightdash/compare/0.2026.3...0.2026.4) (2025-09-27)
+
+
+### Bug Fixes
+
+* wrap ChartHistory in redux Provider ([#17103](https://github.com/lightdash/lightdash/issues/17103)) ([e3cb8a5](https://github.com/lightdash/lightdash/commit/e3cb8a5193e87aca73074bf415b40bcfbf2b0f20))
+
 ## [0.2026.3](https://github.com/lightdash/lightdash/compare/0.2026.2...0.2026.3) (2025-09-26)
 
 

@@ -2,6 +2,7 @@ import {
     type CustomDimension,
     type MetricQuery,
     type ParameterValue,
+    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
@@ -56,6 +57,11 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.filters = action.payload;
         },
 
+        // Sorting actions
+        setSortFields: (state, action: PayloadAction<SortField[]>) => {
+            state.unsavedChartVersion.metricQuery.sorts = action.payload;
+        },
+
         // Parameters
         setParameter: (
             state,
@@ -75,11 +81,22 @@ const explorerSlice = createSlice({
             }
         },
 
+        clearAllParameters: (state) => {
+            state.unsavedChartVersion.parameters = {};
+        },
+
         setParameterReferences: (
             state,
             action: PayloadAction<string[] | null>,
         ) => {
             state.parameterReferences = action.payload;
+        },
+
+        setParameterDefinitions: (
+            state,
+            action: PayloadAction<ExplorerReduceState['parameterDefinitions']>,
+        ) => {
+            state.parameterDefinitions = action.payload;
         },
 
         // Visualization config
