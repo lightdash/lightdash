@@ -224,7 +224,8 @@ const SCROLL_THRESHOLD = 100;
 
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
-}> = ({ tableContainerRef }) => {
+    minimal?: boolean;
+}> = ({ tableContainerRef, minimal }) => {
     const {
         table,
         cellContextMenu,
@@ -339,6 +340,7 @@ const VirtualizedTableBody: FC<{
 
                       return (
                           <TableRow
+                              minimal={minimal}
                               key={index}
                               index={index}
                               row={rows[index]}
@@ -359,99 +361,18 @@ const VirtualizedTableBody: FC<{
     );
 };
 
-const NormalTableBody: FC<{
-    tableContainerRef: React.RefObject<HTMLDivElement | null>;
-}> = ({ tableContainerRef }) => {
-    const {
-        table,
-        cellContextMenu,
-        conditionalFormattings,
-        minMaxMap,
-        isInfiniteScrollEnabled,
-        fetchMoreRows,
-        isFetchingRows,
-    } = useTableContext();
-    const { rows } = table.getRowModel();
-
-    useEffect(() => {
-        const currentTableContainerRef = tableContainerRef.current;
-        const handleScroll = () => {
-            if (!currentTableContainerRef) return;
-
-            const scrollTop = currentTableContainerRef.scrollTop;
-            const scrollHeight = currentTableContainerRef.scrollHeight;
-            const clientHeight = currentTableContainerRef.clientHeight;
-
-            // Trigger fetching when user is within SCROLL_THRESHOLD px of the bottom
-            // Scrolling explanation:
-            // - scrollTop: Current scroll position from top (how far user has scrolled down)
-            // - clientHeight: Visible height of the scrollable container (viewport height)
-            // - scrollHeight: Total scrollable height (all content including non-visible)
-            // - We fetch more when: (scrollTop + clientHeight) >= (scrollHeight - threshold)
-            //   This means: current position + visible area >= total height minus buffer zone
-            //   Example: If scrollHeight is 1000px, clientHeight is 400px, and threshold is 100px,
-            //   we'll fetch when scrollTop reaches 500px (user sees content from 500-900px range)
-            if (
-                isInfiniteScrollEnabled &&
-                scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD
-            ) {
-                fetchMoreRows();
-            }
-        };
-
-        if (currentTableContainerRef) {
-            currentTableContainerRef.addEventListener('scroll', handleScroll);
-            return () =>
-                currentTableContainerRef?.removeEventListener(
-                    'scroll',
-                    handleScroll,
-                );
-        }
-    }, [fetchMoreRows, isInfiniteScrollEnabled, tableContainerRef]);
-
-    return (
-        <tbody>
-            {rows.map((row, index) => (
-                <TableRow
-                    key={index}
-                    minimal
-                    index={index}
-                    row={row}
-                    cellContextMenu={cellContextMenu}
-                    conditionalFormattings={conditionalFormattings}
-                    minMaxMap={minMaxMap}
-                />
-            ))}
-            {isFetchingRows && isInfiniteScrollEnabled && (
-                <tr>
-                    <td colSpan={table.getVisibleFlatColumns().length}>
-                        <Center>
-                            <Tooltip
-                                withinPortal
-                                position="top"
-                                label={`Loading more rows...`}
-                            >
-                                <Loader size="xs" color="gray" />
-                            </Tooltip>
-                        </Center>
-                    </td>
-                </tr>
-            )}
-        </tbody>
-    );
-};
-
 interface TableBodyProps {
     minimal?: boolean;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {
-    if (minimal) {
-        return <NormalTableBody tableContainerRef={tableContainerRef} />;
-    } else {
-        return <VirtualizedTableBody tableContainerRef={tableContainerRef} />;
-    }
+    return (
+        <VirtualizedTableBody
+            tableContainerRef={tableContainerRef}
+            minimal={minimal}
+        />
+    );
 };
 
 export default TableBody;
