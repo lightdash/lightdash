@@ -1,3 +1,10 @@
+## [0.2026.5](https://github.com/lightdash/lightdash/compare/0.2026.4...0.2026.5) (2025-09-29)
+
+
+### Bug Fixes
+
+* table visualizations rendered on table charts should also scroll to fetch more results ([#17091](https://github.com/lightdash/lightdash/issues/17091)) ([bfb78e7](https://github.com/lightdash/lightdash/commit/bfb78e73bc2e32fe5d6dfae5132b48feff4be33d))
+
 ## [0.2026.4](https://github.com/lightdash/lightdash/compare/0.2026.3...0.2026.4) (2025-09-27)
 
 
