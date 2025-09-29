@@ -77,7 +77,7 @@ export const useCompiledSql = (
         queryParameters,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
-        enabled: tableId !== undefined,
+        enabled: !!tableId,
         queryKey,
         queryFn: () =>
             getCompiledQuery(

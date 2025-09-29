@@ -5,6 +5,9 @@ import {
     explorerActions,
     selectIsEditMode,
     selectIsParametersExpanded,
+    selectParameterDefinitions,
+    selectParameters,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -19,10 +22,17 @@ const ParametersCard = memo(
 
         const paramsIsOpen = useExplorerSelector(selectIsParametersExpanded);
         const isEditMode = useExplorerSelector(selectIsEditMode);
+        const tableName = useExplorerSelector(selectTableName);
+        const parameterDefinitions = useExplorerSelector(
+            selectParameterDefinitions,
+        );
+        const parameterValues = useExplorerSelector(selectParameters);
         const dispatch = useExplorerDispatch();
 
-        const tableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
+        // TODO: REDUX-MIGRATION - Move missingRequiredParameters computation to Redux selectors
+        // Keep missingRequiredParameters from Context for now (it's computed state)
+        const missingRequiredParameters = useExplorerContext(
+            (context) => context.state.missingRequiredParameters,
         );
 
         const toggleExpandedSection = useCallback(
@@ -30,10 +40,6 @@ const ParametersCard = memo(
                 dispatch(explorerActions.toggleExpandedSection(section));
             },
             [dispatch],
-        );
-
-        const parameterDefinitions = useExplorerContext(
-            (context) => context.state.parameterDefinitions,
         );
 
         const filteredParameterDefinitions = useMemo(() => {
@@ -44,17 +50,18 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
-        const parameterValues = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.parameters || {},
-        );
-
-        const setParameter = useExplorerContext(
+        // TODO: REDUX-MIGRATION - Use Redux actions directly once Context sync is removed
+        // Currently using Context actions to ensure proper sync and trigger side effects
+        const setParameterFromContext = useExplorerContext(
             (context) => context.actions.setParameter,
         );
 
-        const clearAllParameters = useExplorerContext(
+        const clearAllParametersFromContext = useExplorerContext(
             (context) => context.actions.clearAllParameters,
         );
+
+        const setParameter = setParameterFromContext;
+        const clearAllParameters = clearAllParametersFromContext;
 
         const handleParameterChange = (
             paramKey: string,
@@ -62,10 +69,6 @@ const ParametersCard = memo(
         ) => {
             setParameter(paramKey, value);
         };
-
-        const missingRequiredParameters = useExplorerContext(
-            (context) => context.state.missingRequiredParameters,
-        );
 
         return (
             <CollapsableCard
