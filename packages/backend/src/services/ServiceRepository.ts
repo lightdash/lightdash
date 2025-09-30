@@ -9,6 +9,7 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
+import { ChangesetService } from './ChangesetService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
@@ -112,6 +113,7 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
+    changesetService: ChangesetService;
 }
 
 /**
@@ -807,6 +809,16 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
+                }),
+        );
+    }
+
+    public getChangesetService(): ChangesetService {
+        return this.getService(
+            'changesetService',
+            () =>
+                new ChangesetService({
+                    changesetModel: this.models.getChangesetModel(),
                 }),
         );
     }
