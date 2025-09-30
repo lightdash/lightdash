@@ -1,3 +1,10 @@
+# [0.2031.0](https://github.com/lightdash/lightdash/compare/0.2030.2...0.2031.0) (2025-09-30)
+
+
+### Features
+
+* implement useExplorerQuery.ts ([#17121](https://github.com/lightdash/lightdash/issues/17121)) ([67537d5](https://github.com/lightdash/lightdash/commit/67537d511fba994bb384587f7c853b80c8743dc8))
+
 ## [0.2030.2](https://github.com/lightdash/lightdash/compare/0.2030.1...0.2030.2) (2025-09-30)
 
 
