@@ -79,7 +79,6 @@ const Dashboard: FC = () => {
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const activeTab = useDashboardContext((c) => c.activeTab);
-    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -747,7 +746,6 @@ const Dashboard: FC = () => {
                         handleEditTile={handleEditTiles}
                         setGridWidth={setGridWidth}
                         activeTab={activeTab}
-                        setActiveTab={setActiveTab}
                         setAddingTab={setAddingTab}
                     />
                 </Flex>

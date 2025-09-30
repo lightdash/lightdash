@@ -226,13 +226,14 @@ const DashboardProvider: React.FC<
 
     // Set active tab when dashboard and tabs are loaded
     useEffect(() => {
-        if (dashboard?.tabs) {
+        if (dashboardTabs && dashboardTabs.length > 0) {
             const matchedTab =
-                dashboard.tabs.find((tab) => tab.uuid === tabUuid) ??
-                dashboard.tabs[0];
+                dashboardTabs.find((tab) => tab.uuid === tabUuid) ??
+                dashboardTabs[0];
+
             setActiveTab(matchedTab);
         }
-    }, [dashboard?.tabs, tabUuid]);
+    }, [dashboardTabs, tabUuid]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
     useEffect(() => {
@@ -367,7 +368,7 @@ const DashboardProvider: React.FC<
         if (!dashboardTiles) return false;
 
         // If tabs exist, but no active tab is specified, tiles are not loaded
-        if (dashboard?.tabs && dashboard?.tabs.length > 0 && !activeTab)
+        if (dashboardTabs && dashboardTabs.length > 0 && !activeTab)
             return false;
 
         const chartTileUuids = dashboardTiles
@@ -382,7 +383,7 @@ const DashboardProvider: React.FC<
             .map((tile) => tile.uuid);
 
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
-    }, [dashboardTiles, loadedTiles, activeTab, dashboard?.tabs]);
+    }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
