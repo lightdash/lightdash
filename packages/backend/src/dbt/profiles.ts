@@ -36,7 +36,8 @@ const credentialsTarget = (
                     timeout_seconds: credentials.timeoutSeconds,
                     priority: credentials.priority,
                     retries: credentials.retries,
-                    maximum_bytes_billed: credentials.maximumBytesBilled,
+                    maximum_bytes_billed:
+                        credentials.maximumBytesBilled || undefined, // form allows empty string, converting to undefined here
                     execution_project: credentials.executionProject,
                 },
                 environment: {},
