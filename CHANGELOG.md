@@ -1,3 +1,10 @@
+# [0.2030.0](https://github.com/lightdash/lightdash/compare/0.2029.1...0.2030.0) (2025-09-30)
+
+
+### Features
+
+* upload dashboard charts when uploading dashboards ([#17111](https://github.com/lightdash/lightdash/issues/17111)) ([e0f2de9](https://github.com/lightdash/lightdash/commit/e0f2de988b3bf10da85b1f361ed35ebdb873bfbe))
+
 ## [0.2029.1](https://github.com/lightdash/lightdash/compare/0.2029.0...0.2029.1) (2025-09-30)
 
 
