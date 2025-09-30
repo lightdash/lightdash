@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
+import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -99,6 +100,7 @@ export type ModelManifest = {
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
     projectParametersModel: ProjectParametersModel;
+    changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
     embedModel: unknown;
@@ -514,6 +516,13 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
+        );
+    }
+
+    public getChangesetModel(): ChangesetModel {
+        return this.getModel(
+            'changesetModel',
+            () => new ChangesetModel({ database: this.database }),
         );
     }
 

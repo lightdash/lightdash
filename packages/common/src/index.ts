@@ -234,6 +234,7 @@ export * from './types/api/uuid';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
+export * from './types/changeset';
 export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
