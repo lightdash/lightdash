@@ -13,6 +13,7 @@ import {
     CachedExploresTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
     CompletePostgresCredentials,
@@ -43,8 +44,11 @@ function queryMatcher(
 }
 
 describe('ProjectModel', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+
     const model = new ProjectModel({
-        database: knex({ client: MockClient, dialect: 'pg' }),
+        database,
+        changesetModel: new ChangesetModel({ database }),
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: encryptionUtilMock,
     });
