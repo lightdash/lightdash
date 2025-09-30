@@ -1,3 +1,10 @@
+## [0.2030.1](https://github.com/lightdash/lightdash/compare/0.2030.0...0.2030.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* adding dashboard tabs can break layout ([#17140](https://github.com/lightdash/lightdash/issues/17140)) ([0a76073](https://github.com/lightdash/lightdash/commit/0a76073bb2a03086e93bc61fa564121e653ad196))
+
 # [0.2030.0](https://github.com/lightdash/lightdash/compare/0.2029.1...0.2030.0) (2025-09-30)
 
 
