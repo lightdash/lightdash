@@ -1,3 +1,10 @@
+# [0.2028.0](https://github.com/lightdash/lightdash/compare/0.2027.0...0.2028.0) (2025-09-30)
+
+
+### Features
+
+* **backend:** introduce changes and changesets tables ([#17124](https://github.com/lightdash/lightdash/issues/17124)) ([5b8057f](https://github.com/lightdash/lightdash/commit/5b8057f177806393a62af962dc4215563e0a2038)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2027.0](https://github.com/lightdash/lightdash/compare/0.2026.5...0.2027.0) (2025-09-29)
 
 
