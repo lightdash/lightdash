@@ -1,4 +1,5 @@
 import {
+    ChangeSchema,
     ChangesetWithChanges,
     ChangesetWithChangesSchema,
     NotFoundError,
@@ -8,10 +9,26 @@ import { Knex } from 'knex';
 import {
     ChangesetsTableName,
     ChangesTableName,
+    ChangeType,
+    DbChange,
+    DbChangeInsertSchema,
+    DbChangeSchema,
+    EntityType,
 } from '../database/entities/changesets';
 
 type ChangesetModelArguments = {
     database: Knex;
+};
+
+type CreateChangeParams = {
+    projectUuid: string;
+    createdByUserUuid: string;
+    sourcePromptUuid: string | null;
+    type: ChangeType;
+    entityType: EntityType;
+    entityExploreUuid: string | null;
+    entityName: string;
+    payload: Record<string, unknown>;
 };
 
 export class ChangesetModel {
@@ -68,5 +85,77 @@ export class ChangesetModel {
             });
         }
         return parsed.data;
+    }
+
+    /**
+     * Creates a change in the database, if no active changeset exists, it will be created.
+     * @param params - The parameters for the change
+     * @returns The created change
+     */
+    async createChange(
+        params: CreateChangeParams,
+    ): Promise<ChangesetWithChanges['changes'][number]> {
+        return this.database.transaction(async (trx) => {
+            let activeChangeset = await trx(ChangesetsTableName)
+                .where('project_uuid', params.projectUuid)
+                .orderBy('created_at', 'desc')
+                .first();
+
+            // Create changeset if it doesn't exist
+            if (!activeChangeset) {
+                const [newChangeset] = await trx(ChangesetsTableName)
+                    .insert({
+                        project_uuid: params.projectUuid,
+                        created_by_user_uuid: params.createdByUserUuid,
+                        updated_by_user_uuid: params.createdByUserUuid,
+                        status: 'draft',
+                        // TODO: Handle name in the future - auto generated for now.
+                        name: 'Auto-generated changeset',
+                    })
+                    .returning('*');
+
+                activeChangeset = newChangeset;
+            }
+
+            const changeParsed = DbChangeInsertSchema.safeParse({
+                changeset_uuid: activeChangeset.changeset_uuid,
+                created_by_user_uuid: params.createdByUserUuid,
+                source_prompt_uuid: params.sourcePromptUuid,
+                type: params.type,
+                entity_type: params.entityType,
+                entity_explore_uuid: params.entityExploreUuid,
+                entity_name: params.entityName,
+                payload: params.payload,
+            });
+
+            if (!changeParsed.success) {
+                throw new ParseError('Failed to parse change', {
+                    changeData: params,
+                });
+            }
+
+            const [change] = await trx(ChangesTableName)
+                .insert(changeParsed.data)
+                .returning('*');
+
+            const parsedChange = ChangeSchema.safeParse({
+                changeUuid: change.change_uuid,
+                changesetUuid: change.changeset_uuid,
+                createdAt: change.created_at,
+                createdByUserUuid: change.created_by_user_uuid,
+                sourcePromptUuid: change.source_prompt_uuid,
+                type: change.type,
+                entityType: change.entity_type,
+                entityTableName: change.entity_table_name,
+                entityName: change.entity_name,
+                payload: change.payload,
+            });
+            if (!parsedChange.success) {
+                throw new ParseError('Failed to parse change', {
+                    changeData: change,
+                });
+            }
+            return parsedChange.data;
+        });
     }
 }
