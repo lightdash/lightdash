@@ -359,6 +359,18 @@ const useCartesianChartConfig = ({
             showGridY: show,
         }));
     }, []);
+    const setShowXAxis = useCallback((hide: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showXAxis: hide,
+        }));
+    }, []);
+    const setShowYAxis = useCallback((hide: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showYAxis: hide,
+        }));
+    }, []);
     const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
@@ -995,6 +1007,8 @@ const useCartesianChartConfig = ({
         setGrid,
         setShowGridX,
         setShowGridY,
+        setShowXAxis,
+        setShowYAxis,
         setXAxisSort,
         setXAxisLabelRotation,
         updateSeries,

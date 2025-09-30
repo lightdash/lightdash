@@ -335,6 +335,8 @@ export type CompleteCartesianChartLayout = {
     flipAxes?: boolean | undefined;
     showGridX?: boolean | undefined;
     showGridY?: boolean | undefined;
+    showXAxis?: boolean | undefined;
+    showYAxis?: boolean | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

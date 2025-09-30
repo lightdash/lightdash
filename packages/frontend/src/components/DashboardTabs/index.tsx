@@ -41,9 +41,6 @@ type DashboardTabsProps = {
     handleDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     handleBatchDeleteTiles: (tile: IDashboard['tiles'][number][]) => void;
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
-    setActiveTab: (
-        value: React.SetStateAction<DashboardTab | undefined>,
-    ) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
 };
@@ -54,7 +51,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     addingTab,
     dashboardTiles,
     activeTab,
-    setActiveTab,
     handleAddTiles,
     handleUpdateTiles,
     handleDeleteTile,
@@ -144,6 +140,21 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         isActiveTile(tile),
     );
 
+    const handleChangeTab = (tab: DashboardTab) => {
+        const newParams = new URLSearchParams(search);
+        // Change tabs by navigating to the new tab
+        // the provider sets the active tab based on the URL
+        void navigate(
+            {
+                pathname: isEditMode
+                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                search: newParams.toString(),
+            },
+            { replace: true },
+        );
+    };
+
     const handleAddTab = (name: string) => {
         if (name) {
             const newTabs = dashboardTabs ? [...dashboardTabs] : [];
@@ -168,8 +179,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             };
             newTabs.push(newTab);
             setDashboardTabs(newTabs);
-            setActiveTab(newTab);
             setHaveTabsChanged(true);
+
+            // Navigate to the new tab
+            handleChangeTab(newTab);
         }
         setAddingTab(false);
     };
@@ -198,7 +211,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             return newTabs;
         });
         if (activeTab?.uuid === tabUuid) {
-            setActiveTab(
+            handleChangeTab(
                 dashboardTabs.filter((tab) => tab.uuid !== tabUuid)?.[0],
             );
         }
@@ -258,19 +271,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         (t) => t.uuid === e,
                                     );
                                     if (tab) {
-                                        setActiveTab(tab);
-                                        const newParams = new URLSearchParams(
-                                            search,
-                                        );
-                                        void navigate(
-                                            {
-                                                pathname: isEditMode
-                                                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                                                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                                                search: newParams.toString(),
-                                            },
-                                            { replace: true },
-                                        );
+                                        handleChangeTab(tab);
                                     }
                                 }}
                                 mt={tabsEnabled ? 'sm' : 'xs'}

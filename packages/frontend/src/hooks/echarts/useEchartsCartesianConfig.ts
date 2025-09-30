@@ -1221,6 +1221,15 @@ const getEchartAxes = ({
             ? validCartesianConfig.layout.showGridY
             : true;
 
+    const showXAxis =
+        validCartesianConfig.layout.showXAxis !== undefined
+            ? validCartesianConfig.layout.showXAxis
+            : true;
+    const showYAxis =
+        validCartesianConfig.layout.showYAxis !== undefined
+            ? validCartesianConfig.layout.showYAxis
+            : true;
+
     // There is no Top x axis when no flipped
     const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
@@ -1452,6 +1461,7 @@ const getEchartAxes = ({
         xAxis: [
             {
                 type: bottomAxisType,
+                show: showXAxis,
                 name: validCartesianConfig.layout.flipAxes
                     ? getAxisName({
                           isAxisTheSameForAllSeries,
@@ -1490,6 +1500,7 @@ const getEchartAxes = ({
             },
             {
                 type: topAxisType,
+                show: showXAxis,
                 name: validCartesianConfig.layout.flipAxes
                     ? getAxisName({
                           isAxisTheSameForAllSeries,
@@ -1533,6 +1544,7 @@ const getEchartAxes = ({
         yAxis: [
             {
                 type: leftAxisType,
+                show: showYAxis,
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.name ||
                       (yAxisItem
@@ -1569,6 +1581,7 @@ const getEchartAxes = ({
             },
             {
                 type: rightAxisType,
+                show: showYAxis,
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.name
                     : getAxisName({

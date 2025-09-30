@@ -1,3 +1,52 @@
+# [0.2031.0](https://github.com/lightdash/lightdash/compare/0.2030.2...0.2031.0) (2025-09-30)
+
+
+### Features
+
+* implement useExplorerQuery.ts ([#17121](https://github.com/lightdash/lightdash/issues/17121)) ([67537d5](https://github.com/lightdash/lightdash/commit/67537d511fba994bb384587f7c853b80c8743dc8))
+
+## [0.2030.2](https://github.com/lightdash/lightdash/compare/0.2030.1...0.2030.2) (2025-09-30)
+
+
+### Bug Fixes
+
+* empty maximum billed bytes error ([#17135](https://github.com/lightdash/lightdash/issues/17135)) ([564938f](https://github.com/lightdash/lightdash/commit/564938f8319ffc466f9d262dcc772a75fb9bd5c6))
+
+## [0.2030.1](https://github.com/lightdash/lightdash/compare/0.2030.0...0.2030.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* adding dashboard tabs can break layout ([#17140](https://github.com/lightdash/lightdash/issues/17140)) ([0a76073](https://github.com/lightdash/lightdash/commit/0a76073bb2a03086e93bc61fa564121e653ad196))
+
+# [0.2030.0](https://github.com/lightdash/lightdash/compare/0.2029.1...0.2030.0) (2025-09-30)
+
+
+### Features
+
+* upload dashboard charts when uploading dashboards ([#17111](https://github.com/lightdash/lightdash/issues/17111)) ([e0f2de9](https://github.com/lightdash/lightdash/commit/e0f2de988b3bf10da85b1f361ed35ebdb873bfbe))
+
+## [0.2029.1](https://github.com/lightdash/lightdash/compare/0.2029.0...0.2029.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* remove relation from changes to ai-agent ([#17132](https://github.com/lightdash/lightdash/issues/17132)) ([a2932e1](https://github.com/lightdash/lightdash/commit/a2932e199066475a24c24cae3e814d5f0cc10c71))
+
+# [0.2029.0](https://github.com/lightdash/lightdash/compare/0.2028.0...0.2029.0) (2025-09-30)
+
+
+### Features
+
+* allow to show/hide cartesian chart axis ([#17125](https://github.com/lightdash/lightdash/issues/17125)) ([d554cce](https://github.com/lightdash/lightdash/commit/d554cce6f3bbc7afa3832cbf2cc600816e8ee3b5))
+
+# [0.2028.0](https://github.com/lightdash/lightdash/compare/0.2027.0...0.2028.0) (2025-09-30)
+
+
+### Features
+
+* **backend:** introduce changes and changesets tables ([#17124](https://github.com/lightdash/lightdash/issues/17124)) ([5b8057f](https://github.com/lightdash/lightdash/commit/5b8057f177806393a62af962dc4215563e0a2038)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2027.0](https://github.com/lightdash/lightdash/compare/0.2026.5...0.2027.0) (2025-09-29)
 
 
