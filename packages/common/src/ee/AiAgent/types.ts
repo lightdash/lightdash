@@ -12,6 +12,7 @@ export enum AiResultType {
     TABLE_RESULT = 'table',
     DASHBOARD_RESULT = 'dashboard',
     IMPROVE_CONTEXT = 'improve_context',
+    PROPOSE_CHANGE = 'propose_change',
 }
 
 export type AiMetricQuery = Pick<
