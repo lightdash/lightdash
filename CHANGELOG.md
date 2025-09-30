@@ -1,3 +1,10 @@
+## [0.2030.2](https://github.com/lightdash/lightdash/compare/0.2030.1...0.2030.2) (2025-09-30)
+
+
+### Bug Fixes
+
+* empty maximum billed bytes error ([#17135](https://github.com/lightdash/lightdash/issues/17135)) ([564938f](https://github.com/lightdash/lightdash/commit/564938f8319ffc466f9d262dcc772a75fb9bd5c6))
+
 ## [0.2030.1](https://github.com/lightdash/lightdash/compare/0.2030.0...0.2030.1) (2025-09-30)
 
 
