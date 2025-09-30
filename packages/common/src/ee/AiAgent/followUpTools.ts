@@ -11,6 +11,7 @@ export const followUpToolsText: FollowUpToolsText = {
     [AiResultType.TIME_SERIES_RESULT]: 'Generate a Time Series Chart',
     [AiResultType.DASHBOARD_RESULT]: 'Generate a Dashboard',
     [AiResultType.IMPROVE_CONTEXT]: 'Improve Context',
+    [AiResultType.PROPOSE_CHANGE]: 'Propose a Change',
 };
 
 export enum LegacyFollowUpTools {
