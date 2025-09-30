@@ -84,12 +84,7 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('users')
                 .onDelete('CASCADE');
 
-            table
-                .uuid('source_prompt_uuid')
-                .nullable()
-                .references('ai_prompt_uuid')
-                .inTable('ai_prompt')
-                .onDelete('SET NULL');
+            table.uuid('source_prompt_uuid').nullable();
 
             table.string('type').notNullable();
 
