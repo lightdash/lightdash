@@ -1,3 +1,10 @@
+# [0.2029.0](https://github.com/lightdash/lightdash/compare/0.2028.0...0.2029.0) (2025-09-30)
+
+
+### Features
+
+* allow to show/hide cartesian chart axis ([#17125](https://github.com/lightdash/lightdash/issues/17125)) ([d554cce](https://github.com/lightdash/lightdash/commit/d554cce6f3bbc7afa3832cbf2cc600816e8ee3b5))
+
 # [0.2028.0](https://github.com/lightdash/lightdash/compare/0.2027.0...0.2028.0) (2025-09-30)
 
 
