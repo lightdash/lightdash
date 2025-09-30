@@ -3,6 +3,7 @@ import { Button, Tooltip } from '@mantine-8/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -21,9 +22,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     );
     const spaceUuid = useSearchParams('fromSpace');
 
-    const missingRequiredParameters = useExplorerContext(
-        (context) => context.state.missingRequiredParameters,
-    );
+    const { missingRequiredParameters } = useExplorerQuery();
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
 

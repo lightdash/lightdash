@@ -136,3 +136,29 @@ export const selectTimezone = createSelector(
     [selectMetricQuery],
     (metricQuery) => metricQuery.timezone,
 );
+
+// Query execution selectors
+const selectQueryExecution = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.queryExecution,
+);
+
+export const selectValidQueryArgs = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.validQueryArgs,
+);
+
+export const selectUnpivotedQueryArgs = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.unpivotedQueryArgs,
+);
+
+export const selectQueryUuidHistory = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.queryUuidHistory,
+);
+
+export const selectUnpivotedQueryUuidHistory = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
+);

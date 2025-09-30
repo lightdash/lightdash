@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { explorerStore } from '../features/explorer/store';
-import { useExplorerQuery, useExplorerQueryActions } from './useExplorerQuery';
+import { useExplorerQuery } from './useExplorerQuery';
 
 // Mock the hooks that depend on external APIs
 vi.mock('./useExplore', () => ({
@@ -96,21 +96,5 @@ describe('useExplorerQuery', () => {
         });
 
         expect(result.current.validQueryArgs).toBeNull();
-    });
-});
-
-describe('useExplorerQueryActions', () => {
-    it('should return fetchResults and cancelQuery functions', () => {
-        const { result } = renderHook(
-            () => useExplorerQueryActions('test-project', 'test-query'),
-            {
-                wrapper: createWrapper(),
-            },
-        );
-
-        expect(result.current).toHaveProperty('fetchResults');
-        expect(result.current).toHaveProperty('cancelQuery');
-        expect(typeof result.current.fetchResults).toBe('function');
-        expect(typeof result.current.cancelQuery).toBe('function');
     });
 });

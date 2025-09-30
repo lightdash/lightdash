@@ -168,9 +168,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [unsavedChartVersion],
     );
 
-    const missingRequiredParameters = useExplorerContext(
-        (context) => context.state.missingRequiredParameters,
-    );
+    const { missingRequiredParameters } = useExplorerQuery();
 
     const apiErrorDetail = useMemo(() => {
         const queryError = query.error?.error ?? queryResults.error?.error;

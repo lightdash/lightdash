@@ -86,15 +86,6 @@ export const ExplorerResults = memo(() => {
     );
 
     const resultsData = useMemo(() => {
-        console.log('🔍 ExplorerResults DEBUG:', {
-            queryStatus: query.status,
-            queryIsFetched: query.isFetched,
-            queryIsFetching: query.isFetching,
-            queryData: query.data,
-            queryResultsRows: queryResults.rows?.length,
-            queryResultsError: queryResults.error,
-        });
-
         const isSqlPivotEnabled = !!useSqlPivotResults?.enabled;
         const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
         const hasMainQuery = !!query.data?.queryUuid;
@@ -168,12 +159,6 @@ export const ExplorerResults = memo(() => {
             status: finalStatus,
             apiError: query.error ?? queryResults.error,
         };
-
-        console.log('🔍 ExplorerResults FINAL:', {
-            status: finalStatus,
-            rowsCount: queryResults.rows?.length,
-            totalResults: queryResults.totalResults,
-        });
 
         return result;
     }, [

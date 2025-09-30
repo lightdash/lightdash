@@ -12,6 +12,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { ParameterSelection } from '../../../features/parameters';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -29,11 +30,7 @@ const ParametersCard = memo(
         const parameterValues = useExplorerSelector(selectParameters);
         const dispatch = useExplorerDispatch();
 
-        // TODO: REDUX-MIGRATION - Move missingRequiredParameters computation to Redux selectors
-        // Keep missingRequiredParameters from Context for now (it's computed state)
-        const missingRequiredParameters = useExplorerContext(
-            (context) => context.state.missingRequiredParameters,
-        );
+        const { missingRequiredParameters } = useExplorerQuery();
 
         const toggleExpandedSection = useCallback(
             (section: ExplorerSection) => {

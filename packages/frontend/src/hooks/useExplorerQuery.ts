@@ -1,30 +1,28 @@
 import {
     ChartType,
-    deepEqual,
     derivePivotConfigurationFromChart,
     FeatureFlags,
     getFieldsFromMetricQuery,
     type DateGranularity,
-    type FieldId,
     type PivotConfiguration,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import {
-    AUTO_FETCH_ENABLED_DEFAULT,
-    AUTO_FETCH_ENABLED_KEY,
-} from '../components/RunQuerySettings/defaults';
-import {
+    explorerActions,
     selectFilters,
     selectIsEditMode,
-    selectIsResultsExpanded,
     selectMetricQuery,
     selectParameterDefinitions,
     selectParameterReferences,
     selectParameters,
+    selectQueryUuidHistory,
     selectTableName,
+    selectUnpivotedQueryArgs,
+    selectUnpivotedQueryUuidHistory,
+    selectValidQueryArgs,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useQueryManager } from '../providers/Explorer/useExplorerQueryManager';
@@ -37,48 +35,105 @@ import {
 } from './useQueryResults';
 
 /**
- * Hook that manages query execution for the Explorer
- * This reads from Redux state and manages TanStack Query lifecycle
+ * Main hook for Explorer query management
+ *
+ * This hook:
+ * - Reads from Redux
+ * - Accesses TanStack Query cache (cheap - queries are shared across all instances)
+ * - Provides action functions (cheap - just callbacks with dispatch)
  */
-export const useExplorerQuery = (
+export const useExplorerQuery = (options?: {
     viewModeQueryArgs?:
         | { chartUuid: string; context?: string }
-        | { chartUuid: string; chartVersionUuid: string },
-    dateZoomGranularity?: DateGranularity,
-    projectUuidProp?: string,
-    minimal: boolean = false,
-) => {
-    // Get state from Redux selectors
+        | { chartUuid: string; chartVersionUuid: string };
+    dateZoomGranularity?: DateGranularity;
+    projectUuid?: string;
+    minimal?: boolean;
+}) => {
+    const viewModeQueryArgs = options?.viewModeQueryArgs;
+    const dateZoomGranularity = options?.dateZoomGranularity;
+    const projectUuidProp = options?.projectUuid;
+    const minimal = options?.minimal ?? false;
+
+    // Redux state (cheap - memoized selectors)
+    const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const filters = useExplorerSelector(selectFilters);
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
-    const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
+    const queryUuidHistory = useExplorerSelector(selectQueryUuidHistory);
+    const unpivotedQueryUuidHistory = useExplorerSelector(
+        selectUnpivotedQueryUuidHistory,
+    );
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
     const parameterReferences = useExplorerSelector(selectParameterReferences);
 
-    // Auto-fetch configuration
-    const [autoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
+    // Compute missing required parameters
+    const missingRequiredParameters = useMemo(() => {
+        if (parameterReferences === null) return null;
 
-    // Project UUID from props or route params
+        const missing = parameterReferences.filter(
+            (parameter) =>
+                !parameters?.[parameter] &&
+                !parameterDefinitions?.[parameter]?.default,
+        );
+        return missing;
+    }, [parameterReferences, parameters, parameterDefinitions]);
+
+    // Project UUID
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
     }>();
     const projectUuid = projectUuidProp || projectUuidFromParams;
 
-    // Get explore data and pivot configuration
+    // Get explore data
     const { data: explore } = useExplore(tableName);
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
-    // Compute the complete metric query (including Redux filters)
+    // Access TanStack Query state (cheap - cache is shared across all hook instances)
+    const setQueryUuidHistory = useCallback(
+        (history: string[]) => {
+            dispatch(explorerActions.setQueryUuidHistory(history));
+        },
+        [dispatch],
+    );
+    const setUnpivotedQueryUuidHistory = useCallback(
+        (history: string[]) => {
+            dispatch(explorerActions.setUnpivotedQueryUuidHistory(history));
+        },
+        [dispatch],
+    );
+
+    // Main query state
+    const [mainQueryManager] = useQueryManager(
+        validQueryArgs,
+        missingRequiredParameters,
+        true,
+        queryUuidHistory,
+        setQueryUuidHistory,
+    );
+    const { query, queryResults } = mainQueryManager;
+
+    // Unpivoted query state (only if needed)
+    const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
+    const unpivotedEnabled = !!unpivotedQueryArgs;
+    const [unpivotedQueryManager] = useQueryManager(
+        unpivotedQueryArgs,
+        missingRequiredParameters,
+        unpivotedEnabled,
+        unpivotedQueryUuidHistory,
+        setUnpivotedQueryUuidHistory,
+    );
+    const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
+        unpivotedQueryManager;
+
+    // Computed metric query (including filters)
     const computedMetricQuery = useMemo(
         () => ({
             ...metricQuery,
@@ -88,106 +143,38 @@ export const useExplorerQuery = (
     );
 
     // Compute active fields and query validity
-    const [activeFields, isValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
+    const [activeFields, isValidQuery] = useMemo(() => {
         const fields = new Set([
             ...metricQuery.dimensions,
             ...metricQuery.metrics,
             ...metricQuery.tableCalculations.map(({ name }) => name),
         ]);
-
-        // Only consider valid if we have fields AND a table selected
-        // This prevents validation from being true before Redux is properly initialized
         return [fields, fields.size > 0 && !!tableName];
     }, [metricQuery, tableName]);
 
-    // Compute missing required parameters
-    const missingRequiredParameters = useMemo(() => {
-        console.log('parameterReferences from Redux:', parameterReferences);
-        if (parameterReferences === null) return null;
-
-        // Missing required parameters are the ones that are not set and don't have a default value
-        const missing = parameterReferences.filter(
-            (parameter) =>
-                !parameters?.[parameter] &&
-                !parameterDefinitions?.[parameter]?.default,
+    // Compute loading state
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = query.isFetching;
+        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
+        const isFetchingAllRows = queryResults.isFetchingAllPages;
+        const isQueryError = queryResults.error;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !isQueryError
         );
-        console.log('missingRequiredParameters:', missing);
-        return missing;
-    }, [parameterReferences, parameters, parameterDefinitions]);
+    }, [
+        query.isFetching,
+        queryResults.isFetchingFirstPage,
+        queryResults.isFetchingAllPages,
+        queryResults.error,
+    ]);
 
-    // State for query arguments
-    const [validQueryArgs, setValidQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-    const [unpivotedQueryArgs, setUnpivotedQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-
-    // Check if we need unpivoted data for results table
-    const needsUnpivotedData = useMemo(() => {
-        if (!useSqlPivotResults?.enabled || !explore) return false;
-
-        const items = getFieldsFromMetricQuery(metricQuery, explore);
-        const pivotConfiguration = derivePivotConfigurationFromChart(
-            {
-                chartConfig: { type: ChartType.TABLE }, // Default for detection
-                pivotConfig: undefined,
-            },
-            metricQuery,
-            items,
-        );
-
-        return !!pivotConfiguration;
-    }, [useSqlPivotResults?.enabled, explore, metricQuery]);
-
-    // Main query manager
-    const [mainQueryManager, mainSetQueryUuidHistory] = useQueryManager(
-        validQueryArgs,
-        missingRequiredParameters,
-    );
-    const { query, queryResults } = mainQueryManager;
-
-    console.log('🔍 useExplorerQuery Redux state:', {
-        tableName,
-        dimensions: metricQuery.dimensions,
-        metrics: metricQuery.metrics,
-        parameters: Object.keys(parameters || {}),
-        parameterReferences,
-        filtersCount: Object.keys(filters).length,
-    });
-
-    console.log('🔍 useExplorerQuery query state:', {
-        validQueryArgsExists: !!validQueryArgs,
-        missingParams: missingRequiredParameters,
-        queryStatus: query.status,
-        queryIsFetched: query.isFetched,
-        queryData: !!query.data,
-        queryResultsRows: queryResults.rows?.length,
-        queryResultsTotal: queryResults.totalResults,
-    });
-
-    // Unpivoted query manager for results table
-    const [unpivotedQueryManager, unpivotedSetQueryUuidHistory] =
-        useQueryManager(
-            unpivotedQueryArgs,
-            missingRequiredParameters,
-            isResultsOpen, // Only execute when results panel is open
-        );
-    const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
-        unpivotedQueryManager;
-
-    // Query client for manual operations
+    // Query client for actions
     const queryClient = useQueryClient();
 
-    // Function to prepare and set query arguments
+    // Action: Run query
     const runQuery = useCallback(() => {
         const hasFields = activeFields.size > 0;
-        console.log('🔍 runQuery called with:', {
-            tableName,
-            hasFields,
-            projectUuid,
-            explore: !!explore,
-        });
 
         if (tableName && hasFields && projectUuid) {
             let pivotConfiguration: PivotConfiguration | undefined;
@@ -203,7 +190,7 @@ export const useExplorerQuery = (
                 );
                 pivotConfiguration = derivePivotConfigurationFromChart(
                     {
-                        chartConfig: { type: ChartType.TABLE }, // Default for query hook
+                        chartConfig: { type: ChartType.TABLE },
                         pivotConfig: undefined,
                     },
                     computedMetricQuery,
@@ -211,7 +198,6 @@ export const useExplorerQuery = (
                 );
             }
 
-            // Prepare query args
             const mainQueryArgs: QueryResultsProps = {
                 projectUuid,
                 tableId: tableName,
@@ -223,15 +209,7 @@ export const useExplorerQuery = (
                 pivotConfiguration,
             };
 
-            console.log('🔍 Setting validQueryArgs:', mainQueryArgs);
-            setValidQueryArgs(mainQueryArgs);
-        } else {
-            console.warn(
-                `Can't make SQL request, invalid state`,
-                tableName,
-                hasFields,
-                computedMetricQuery,
-            );
+            dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
         }
     }, [
         activeFields,
@@ -245,80 +223,28 @@ export const useExplorerQuery = (
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
+        dispatch,
     ]);
 
-    // Set up unpivoted query args when needed
-    useEffect(() => {
-        if (!validQueryArgs) {
-            setUnpivotedQueryArgs(null);
-            return;
-        }
-
-        if (needsUnpivotedData && isResultsOpen) {
-            setUnpivotedQueryArgs({
-                ...validQueryArgs,
-                pivotConfiguration: undefined,
-                pivotResults: false,
-            });
-        } else {
-            setUnpivotedQueryArgs(null);
-        }
-    }, [validQueryArgs, needsUnpivotedData, isResultsOpen]);
-
-    // Auto-fetch logic
-    useEffect(() => {
-        if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
-        runQuery();
-    }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
-
-    // Parameter change detection
-    const parametersChanged = useMemo(() => {
-        if (
-            !query.isFetched ||
-            !parameters ||
-            Object.keys(parameters).length === 0
-        ) {
-            return false;
-        }
-
-        const currentParams = validQueryArgs?.parameters ?? {};
-        return !deepEqual(currentParams, parameters);
-    }, [query.isFetched, validQueryArgs?.parameters, parameters]);
-
-    // Re-run query on parameter changes
-    useEffect(() => {
-        if (parametersChanged && autoFetchEnabled) {
-            runQuery();
-        }
-    }, [parametersChanged, autoFetchEnabled, runQuery]);
-
-    // Reset query results
+    // Action: Reset query results
     const resetQueryResults = useCallback(() => {
-        setValidQueryArgs(null);
-        setUnpivotedQueryArgs(null);
-        mainSetQueryUuidHistory([]);
-        unpivotedSetQueryUuidHistory([]);
+        dispatch(explorerActions.resetQueryExecution());
         void queryClient.removeQueries({
             queryKey: ['create-query'],
             exact: false,
         });
-    }, [queryClient, mainSetQueryUuidHistory, unpivotedSetQueryUuidHistory]);
+    }, [queryClient, dispatch]);
 
-    // Fetch results (manual refresh) - follows original pattern: reset then run
+    // Action: Fetch results (force refresh)
     const fetchResults = useCallback(() => {
-        console.log('🔍 fetchResults called!');
-        // force new results even when query is the same
         resetQueryResults();
-        console.log('🔍 resetQueryResults done');
         runQuery();
-        console.log('🔍 runQuery called');
     }, [resetQueryResults, runQuery]);
 
-    // Get download query UUID
+    // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
             let queryUuid = queryResults.queryUuid;
-            // Always execute a new query if limit is different
             if (limit === null || limit !== queryResults.totalResults) {
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
@@ -348,22 +274,21 @@ export const useExplorerQuery = (
         ],
     );
 
-    // Compute loading state for components like RefreshButton
-    const isLoading = useMemo(() => {
-        const isCreatingQuery = query.isFetching;
-        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
-        const isFetchingAllRows = queryResults.isFetchingAllPages;
-        const isQueryError = queryResults.error;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !isQueryError
-        );
-    }, [
-        query.isFetching,
-        queryResults.isFetchingFirstPage,
-        queryResults.isFetchingAllPages,
-        queryResults.error,
-    ]);
+    // Action: Cancel query
+    const { mutate: cancelQueryMutation } = useCancelQuery(
+        projectUuid,
+        queryResults.queryUuid,
+    );
+    const cancelQuery = useCallback(() => {
+        void queryClient.cancelQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+        if (queryResults.queryUuid) {
+            cancelQueryMutation();
+        }
+    }, [queryClient, queryResults.queryUuid, cancelQueryMutation]);
+
     return {
         // Query state
         query,
@@ -371,62 +296,18 @@ export const useExplorerQuery = (
         unpivotedQuery,
         unpivotedQueryResults,
 
-        // Computed loading state
+        // Computed state
         isLoading,
+        isValidQuery,
+        activeFields,
+        missingRequiredParameters,
+        validQueryArgs,
 
-        // Query management
+        // Actions
         runQuery,
         fetchResults,
         resetQueryResults,
         getDownloadQueryUuid,
-
-        // Query configuration
-        validQueryArgs,
-        missingRequiredParameters,
-
-        // State derived from Redux
-        activeFields,
-        isValidQuery,
-    };
-};
-
-/**
- * Hook for manual query actions (fetch, cancel)
- * This should be used in components that already use useExplorerQuery
- */
-export const useExplorerQueryActions = (
-    projectUuid?: string,
-    queryUuid?: string,
-) => {
-    const queryClient = useQueryClient();
-    const { mutate: cancelQueryMutation } = useCancelQuery(
-        projectUuid,
-        queryUuid,
-    );
-
-    // Force refresh by invalidating and resetting queries
-    const fetchResults = useCallback(() => {
-        // Clear existing queries to force fresh execution
-        void queryClient.resetQueries({
-            queryKey: ['create-query'],
-            exact: false,
-        });
-    }, [queryClient]);
-
-    // Cancel running query
-    const cancelQuery = useCallback(() => {
-        void queryClient.cancelQueries({
-            queryKey: ['create-query'],
-            exact: false,
-        });
-
-        if (queryUuid) {
-            cancelQueryMutation();
-        }
-    }, [queryClient, queryUuid, cancelQueryMutation]);
-
-    return {
-        fetchResults,
         cancelQuery,
     };
 };

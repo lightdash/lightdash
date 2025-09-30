@@ -3,11 +3,8 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
-    derivePivotConfigurationFromChart,
-    FeatureFlags,
     getAvailableParametersFromTables,
     getFieldRef,
-    getFieldsFromMetricQuery,
     getItemId,
     isTimeZone,
     lightdashVariablePattern,
@@ -20,19 +17,16 @@ import {
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
-    type DateGranularity,
     type FieldId,
     type Metric,
     type MetricQuery,
     type ParameterDefinitions,
     type ParameterValue,
-    type PivotConfiguration,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -42,41 +36,26 @@ import {
     useMemo,
     useReducer,
     useRef,
-    useState,
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
-    AUTO_FETCH_ENABLED_DEFAULT,
-    AUTO_FETCH_ENABLED_KEY,
-} from '../../components/RunQuerySettings/defaults';
-import {
     explorerActions,
-    selectFilters,
     useExplorerDispatch,
     useExplorerInitialization,
-    useExplorerSelector,
 } from '../../features/explorer/store';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
-import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
-import {
-    executeQueryAndWaitForResults,
-    useCancelQuery,
-    type QueryResultsProps,
-} from '../../hooks/useQueryResults';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
 import {
     ActionType,
-    ExplorerSection,
     type Action,
     type ConfigCacheMap,
     type ExplorerContextType,
     type ExplorerReduceState,
 } from './types';
-import { useQueryManager } from './useExplorerQueryManager';
 import { cleanConfig, getValidChartConfig } from './utils';
 
 const calcColumnOrder = (
@@ -856,33 +835,20 @@ export function reducer(
 
 const ExplorerProvider: FC<
     React.PropsWithChildren<{
-        minimal?: boolean;
         isEditMode?: boolean;
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
         defaultLimit?: number;
-        viewModeQueryArgs?:
-            | { chartUuid: string; context?: string }
-            | { chartUuid: string; chartVersionUuid: string };
-        dateZoomGranularity?: DateGranularity;
         projectUuid?: string;
     }>
 > = ({
-    minimal = false,
     isEditMode = false,
     initialState,
     savedChart,
     defaultLimit,
     children,
-    viewModeQueryArgs,
-    dateZoomGranularity,
     projectUuid: propProjectUuid,
 }) => {
-    const [autoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
-
     const defaultStateWithConfig = useMemo(
         () => ({
             ...defaultState,
@@ -914,7 +880,6 @@ const ExplorerProvider: FC<
 
     useExplorerInitialization(initialStateWithEditMode);
 
-    const reduxFilters = useExplorerSelector(selectFilters);
     const reduxDispatch = useExplorerDispatch();
 
     // TODO: REDUX-MIGRATION - Remove these sync effects once all components use Redux directly
@@ -964,14 +929,6 @@ const ExplorerProvider: FC<
         );
     }, [unsavedChartVersion.metricQuery.limit, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
-
-    const computedMetricQuery = useMemo(
-        () => ({
-            ...unsavedChartVersion.metricQuery,
-            filters: reduxFilters,
-        }),
-        [unsavedChartVersion.metricQuery, reduxFilters],
-    );
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -1414,13 +1371,6 @@ const ExplorerProvider: FC<
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
-    const [validQueryArgs, setValidQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-
-    // State for unpivoted query (for results table when chart is pivoted)
-    const [unpivotedQueryArgs, setUnpivotedQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
     }>();
@@ -1457,33 +1407,6 @@ const ExplorerProvider: FC<
         );
     }, [parameterDefinitions, reduxDispatch]);
 
-    const missingRequiredParameters = useMemo(() => {
-        // If no required parameters are set, return null, this will disable query execution
-        if (reducerState.parameterReferences === null) return null;
-
-        // If parameters are not the same return null, this will disable query execution until validQueryArgs is updated
-        if (
-            !deepEqual(
-                validQueryArgs?.parameters ?? {},
-                unsavedChartVersion.parameters ?? {},
-            )
-        ) {
-            return null;
-        }
-
-        // Missing required parameters are the ones that are not set and don't have a default value
-        return reducerState.parameterReferences.filter(
-            (parameter) =>
-                !unsavedChartVersion.parameters?.[parameter] &&
-                !parameterDefinitions?.[parameter]?.default,
-        );
-    }, [
-        parameterDefinitions,
-        reducerState.parameterReferences,
-        unsavedChartVersion.parameters,
-        validQueryArgs?.parameters,
-    ]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
@@ -1493,7 +1416,6 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            missingRequiredParameters,
             parameterDefinitions,
         }),
         [
@@ -1503,248 +1425,24 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            missingRequiredParameters,
             parameterDefinitions,
         ],
     );
 
-    // Check if results section is open
-    const isResultsOpen = useMemo(
-        () => reducerState.expandedSections.includes(ExplorerSection.RESULTS),
-        [reducerState.expandedSections],
-    );
-
-    // Use custom query manager to reduce duplication
-    const [mainQueryManager, mainSetQueryUuidHistory] = useQueryManager(
-        validQueryArgs,
-        missingRequiredParameters,
-    );
-    const { query, queryResults } = mainQueryManager;
-
-    // Unpivoted query manager for results table
-    const [unpivotedQueryManager, unpivotedSetQueryUuidHistory] =
-        useQueryManager(
-            unpivotedQueryArgs,
-            missingRequiredParameters,
-            isResultsOpen, // Only execute unpivoted query when results panel is open
-        );
-    const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
-        unpivotedQueryManager;
-
-    const { data: useSqlPivotResults } = useFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-    const getDownloadQueryUuid = useCallback(
-        async (limit: number | null) => {
-            let queryUuid = queryResults.queryUuid;
-            // Always execute a new query if:
-            // 1. limit is null (meaning "all results" - should ignore existing query limits)
-            // 2. limit is different from current totalResults
-            if (limit === null || limit !== queryResults.totalResults) {
-                // Create query args with the specified limit
-                const queryArgsWithLimit: QueryResultsProps | null =
-                    validQueryArgs
-                        ? {
-                              ...validQueryArgs,
-                              csvLimit: limit,
-                              invalidateCache: minimal,
-                              pivotResults: useSqlPivotResults?.enabled,
-                          }
-                        : null;
-                const downloadQuery = await executeQueryAndWaitForResults(
-                    queryArgsWithLimit,
-                );
-                queryUuid = downloadQuery.queryUuid;
-            }
-            if (!queryUuid) {
-                throw new Error(`Missing query uuid`);
-            }
-            return queryUuid;
-        },
-        [
-            queryResults.queryUuid,
-            queryResults.totalResults,
-            validQueryArgs,
-            minimal,
-            useSqlPivotResults,
-        ],
-    );
-
     const queryClient = useQueryClient();
-    const resetQueryResults = useCallback(() => {
-        setValidQueryArgs(null);
-        setUnpivotedQueryArgs(null);
-        mainSetQueryUuidHistory([]);
-        unpivotedSetQueryUuidHistory([]);
-        void queryClient.removeQueries({
-            queryKey: ['create-query'],
-            exact: false,
-        });
-    }, [queryClient, mainSetQueryUuidHistory, unpivotedSetQueryUuidHistory]);
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
-    // Set default sort in unsavedChartVersion if no query has been run yet (validQueryArgs)
-    // and if there are no existing sorts in the unsavedChartVersion
+    // Set default sort in unsavedChartVersion if there are no existing sorts
     useEffect(() => {
-        if (
-            !validQueryArgs?.query?.sorts.length &&
-            !unsavedChartVersion.metricQuery.sorts.length &&
-            defaultSort
-        ) {
+        if (!unsavedChartVersion.metricQuery.sorts.length && defaultSort) {
             setSortFields([defaultSort]);
         }
     }, [
-        validQueryArgs,
         defaultSort,
         setSortFields,
         unsavedChartVersion.metricQuery.sorts.length,
     ]);
-
-    // Check if we need unpivoted data (chart is pivoted)
-    const needsUnpivotedData = useMemo(() => {
-        if (!useSqlPivotResults?.enabled || !explore) return false;
-
-        const metricQuery = unsavedChartVersion.metricQuery;
-        const items = getFieldsFromMetricQuery(metricQuery, explore);
-        const pivotConfiguration = derivePivotConfigurationFromChart(
-            {
-                chartConfig: unsavedChartVersion.chartConfig,
-                pivotConfig: unsavedChartVersion.pivotConfig,
-            },
-            metricQuery,
-            items,
-        );
-
-        return !!pivotConfiguration;
-    }, [
-        useSqlPivotResults?.enabled,
-        explore,
-        unsavedChartVersion.metricQuery,
-        unsavedChartVersion.chartConfig,
-        unsavedChartVersion.pivotConfig,
-    ]);
-
-    // Prepares and executes query if all required parameters exist
-    const runQuery = useCallback(() => {
-        const fields = new Set([
-            ...computedMetricQuery.dimensions,
-            ...computedMetricQuery.metrics,
-            ...computedMetricQuery.tableCalculations.map(({ name }) => name),
-        ]);
-        const hasFields = fields.size > 0;
-        if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
-            const metricQuery = computedMetricQuery; // Use computed metricQuery with Redux filters
-            let pivotConfiguration: PivotConfiguration | undefined;
-
-            if (!explore) {
-                return;
-            }
-
-            if (useSqlPivotResults?.enabled && explore) {
-                const items = getFieldsFromMetricQuery(metricQuery, explore);
-                pivotConfiguration = derivePivotConfigurationFromChart(
-                    {
-                        chartConfig: unsavedChartVersion.chartConfig,
-                        pivotConfig: unsavedChartVersion.pivotConfig,
-                    },
-                    metricQuery,
-                    items,
-                );
-            }
-
-            // Prepare query args
-            const mainQueryArgs = {
-                projectUuid,
-                tableId: unsavedChartVersion.tableName,
-                query: metricQuery,
-                ...(isEditMode ? {} : viewModeQueryArgs),
-                dateZoomGranularity,
-                invalidateCache: minimal,
-                parameters: unsavedChartVersion.parameters || {},
-                pivotConfiguration,
-            };
-
-            // Set main query args (with pivot configuration for chart)
-            setValidQueryArgs(mainQueryArgs);
-
-            dispatch({
-                type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
-                payload: cloneDeep(unsavedChartVersion.metricQuery),
-            });
-        } else {
-            console.warn(
-                `Can't make SQL request, invalid state`,
-                unsavedChartVersion.tableName,
-                hasFields,
-                unsavedChartVersion.metricQuery,
-            );
-        }
-    }, [
-        computedMetricQuery, // Use computed metricQuery instead of context metricQuery
-        unsavedChartVersion.metricQuery,
-        unsavedChartVersion.tableName,
-        unsavedChartVersion.parameters,
-        unsavedChartVersion.chartConfig,
-        unsavedChartVersion.pivotConfig,
-        explore,
-        useSqlPivotResults,
-        projectUuid,
-        isEditMode,
-        viewModeQueryArgs,
-        dateZoomGranularity,
-        minimal,
-    ]);
-
-    useEffect(() => {
-        if (!validQueryArgs) {
-            setUnpivotedQueryArgs(null);
-            return;
-        }
-
-        if (needsUnpivotedData && isResultsOpen) {
-            // Only set unpivoted args if results panel is actually open
-            // This prevents setting args that won't be executed
-            setUnpivotedQueryArgs({
-                ...validQueryArgs,
-                pivotConfiguration: undefined, // No pivot for results table in explore page
-                pivotResults: false, // No pivot for results table in chart page
-            });
-        } else {
-            setUnpivotedQueryArgs(null);
-        }
-    }, [validQueryArgs, needsUnpivotedData, isResultsOpen]);
-
-    useEffect(() => {
-        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
-        // This will stop auto-fetching until the first query is run
-        if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
-        runQuery();
-    }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
-
-    // TODO: REDUX-MIGRATION - Remove this derived value once parameter changes trigger query updates properly
-    const parametersChanged = useMemo(() => {
-        if (
-            !query.isFetched ||
-            !unsavedChartVersion.parameters ||
-            Object.keys(unsavedChartVersion.parameters).length === 0
-        ) {
-            return false;
-        }
-
-        const currentParams = validQueryArgs?.parameters ?? {};
-        return !deepEqual(currentParams, unsavedChartVersion.parameters);
-    }, [
-        query.isFetched,
-        validQueryArgs?.parameters,
-        unsavedChartVersion.parameters,
-    ]);
-
-    useEffect(() => {
-        if (parametersChanged && autoFetchEnabled) {
-            runQuery();
-        }
-    }, [parametersChanged, autoFetchEnabled, runQuery]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
@@ -1753,23 +1451,15 @@ const ExplorerProvider: FC<
             queryKey: ['create-query'],
             exact: false,
         });
-        mainSetQueryUuidHistory([]);
-        unpivotedSetQueryUuidHistory([]);
         dispatch({
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
         // Reset Redux store for filters and other migrated state
         reduxDispatch(explorerActions.reset(defaultStateWithConfig));
-        resetQueryResults();
-    }, [
-        queryClient,
-        resetQueryResults,
-        defaultStateWithConfig,
-        mainSetQueryUuidHistory,
-        unpivotedSetQueryUuidHistory,
-        reduxDispatch,
-    ]);
+        // Reset query execution state in Redux
+        reduxDispatch(explorerActions.resetQueryExecution());
+    }, [queryClient, defaultStateWithConfig, reduxDispatch]);
 
     const navigate = useNavigate();
     const clearQuery = useCallback(async () => {
@@ -1783,7 +1473,8 @@ const ExplorerProvider: FC<
                 },
             },
         });
-        resetQueryResults();
+        // Reset query execution state in Redux
+        reduxDispatch(explorerActions.resetQueryExecution());
         // clear state in url params
         void navigate(
             {
@@ -1794,48 +1485,8 @@ const ExplorerProvider: FC<
     }, [
         defaultStateWithConfig,
         navigate,
-        resetQueryResults,
         unsavedChartVersion.tableName,
-    ]);
-
-    const fetchResults = useCallback(() => {
-        // force new results even when query is the same
-        resetQueryResults();
-        runQuery();
-    }, [resetQueryResults, runQuery]);
-
-    const { mutate: cancelQueryMutation } = useCancelQuery(
-        projectUuid,
-        query.data?.queryUuid,
-    );
-
-    const cancelQuery = useCallback(() => {
-        // cancel query creation
-        void queryClient.cancelQueries({
-            queryKey: [
-                'create-query',
-                validQueryArgs,
-                missingRequiredParameters,
-            ],
-        });
-
-        if (query.data?.queryUuid) {
-            // remove current queryUuid from query history
-            mainSetQueryUuidHistory((prev: string[]) => {
-                return prev.filter(
-                    (queryUuid: string) => queryUuid !== query.data.queryUuid,
-                );
-            });
-            // mark query as cancelled
-            cancelQueryMutation();
-        }
-    }, [
-        queryClient,
-        validQueryArgs,
-        missingRequiredParameters,
-        query.data,
-        cancelQueryMutation,
-        mainSetQueryUuidHistory,
+        reduxDispatch,
     ]);
 
     const openVisualizationConfig = useCallback(() => {
@@ -1890,8 +1541,6 @@ const ExplorerProvider: FC<
             setPivotFields,
             setChartType,
             setChartConfig,
-            fetchResults,
-            cancelQuery,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
@@ -1899,7 +1548,6 @@ const ExplorerProvider: FC<
             toggleFormatModal,
             updateMetricFormat,
             replaceFields,
-            getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
             setParameterReferences,
@@ -1933,8 +1581,6 @@ const ExplorerProvider: FC<
             setPivotFields,
             setChartType,
             setChartConfig,
-            fetchResults,
-            cancelQuery,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
@@ -1943,7 +1589,6 @@ const ExplorerProvider: FC<
             updateMetricFormat,
             toggleWriteBackModal,
             replaceFields,
-            getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
             setParameterReferences,
@@ -1953,20 +1598,9 @@ const ExplorerProvider: FC<
     const value: ExplorerContextType = useMemo(
         () => ({
             state,
-            query,
-            queryResults,
-            unpivotedQuery,
-            unpivotedQueryResults,
             actions,
         }),
-        [
-            actions,
-            query,
-            queryResults,
-            unpivotedQuery,
-            unpivotedQueryResults,
-            state,
-        ],
+        [actions, state],
     );
     return (
         <ExplorerContext.Provider value={value}>

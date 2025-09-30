@@ -15,10 +15,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import useHealth from '../hooks/health/useHealth';
-import {
-    useExplorerQuery,
-    useExplorerQueryActions,
-} from '../hooks/useExplorerQuery';
+import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -36,11 +33,8 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const limit = useExplorerSelector(selectQueryLimit);
 
     // Get query state and actions from new hooks
-    const { isValidQuery, isLoading, query, fetchResults } = useExplorerQuery();
-    const { cancelQuery } = useExplorerQueryActions(
-        undefined, // projectUuid - will be inferred from URL
-        query.data?.queryUuid,
-    );
+    const { isValidQuery, isLoading, fetchResults, cancelQuery } =
+        useExplorerQuery();
 
     // Keep setRowLimit from Context for now (will migrate when we add Redux action)
     const setRowLimit = useExplorerContext(
@@ -52,7 +46,6 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const { track } = useTracking();
 
     const onClick = useCallback(() => {
-        console.log('click!', { canRunQuery });
         if (canRunQuery) {
             fetchResults();
             track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });

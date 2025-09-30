@@ -6,6 +6,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
     type ExplorerReduceState,
@@ -191,6 +192,43 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.customDimensions.filter(
                     (cd) => cd.id !== idToRemove,
                 );
+        },
+
+        // Query execution state management
+        setValidQueryArgs: (
+            state,
+            action: PayloadAction<QueryResultsProps | null>,
+        ) => {
+            state.queryExecution.validQueryArgs = action.payload;
+        },
+        setUnpivotedQueryArgs: (
+            state,
+            action: PayloadAction<QueryResultsProps | null>,
+        ) => {
+            state.queryExecution.unpivotedQueryArgs = action.payload;
+        },
+        setQueryUuidHistory: (state, action: PayloadAction<string[]>) => {
+            state.queryExecution.queryUuidHistory = action.payload;
+        },
+        addQueryUuid: (state, action: PayloadAction<string>) => {
+            state.queryExecution.queryUuidHistory.push(action.payload);
+        },
+        setUnpivotedQueryUuidHistory: (
+            state,
+            action: PayloadAction<string[]>,
+        ) => {
+            state.queryExecution.unpivotedQueryUuidHistory = action.payload;
+        },
+        addUnpivotedQueryUuid: (state, action: PayloadAction<string>) => {
+            state.queryExecution.unpivotedQueryUuidHistory.push(action.payload);
+        },
+        resetQueryExecution: (state) => {
+            state.queryExecution = {
+                validQueryArgs: null,
+                unpivotedQueryArgs: null,
+                queryUuidHistory: [],
+                unpivotedQueryUuidHistory: [],
+            };
         },
     },
 });

@@ -1,5 +1,6 @@
 import { useParams } from 'react-router';
 import { useExplore } from '../../../../hooks/useExplore';
+import { useExplorerQuery } from '../../../../hooks/useExplorerQuery';
 import { useProject } from '../../../../hooks/useProject';
 import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
@@ -12,7 +13,8 @@ export const useDataForFiltersProvider = () => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const rows = useExplorerContext((context) => context.queryResults.rows);
+    const { queryResults } = useExplorerQuery();
+    const rows = queryResults.rows;
 
     const { data: exploreData } = useExplore(tableName);
 
