@@ -1,3 +1,10 @@
+## [0.2029.1](https://github.com/lightdash/lightdash/compare/0.2029.0...0.2029.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* remove relation from changes to ai-agent ([#17132](https://github.com/lightdash/lightdash/issues/17132)) ([a2932e1](https://github.com/lightdash/lightdash/commit/a2932e199066475a24c24cae3e814d5f0cc10c71))
+
 # [0.2029.0](https://github.com/lightdash/lightdash/compare/0.2028.0...0.2029.0) (2025-09-30)
 
 
