@@ -767,6 +767,7 @@ export const convertExplores = async (
                 groupLabel: meta.group_label,
                 joins: meta?.joins || [],
                 description: meta.description,
+                tables: tableLookup,
             },
             ...(meta.explores
                 ? Object.entries(meta.explores).map(
@@ -778,6 +779,19 @@ export const convertExplores = async (
                               exploreConfig.group_label || meta.group_label,
                           joins: exploreConfig.joins || [],
                           description: exploreConfig.description,
+                          tables: {
+                              ...tableLookup,
+                              // Override the base table required filters with the explore config required filters
+                              [model.name]: {
+                                  ...tableLookup[model.name],
+                                  requiredFilters: parseModelRequiredFilters({
+                                      requiredFilters:
+                                          exploreConfig.required_filters,
+                                      defaultFilters:
+                                          exploreConfig.default_filters,
+                                  }),
+                              },
+                          },
                       }),
                   )
                 : []),
@@ -805,7 +819,7 @@ export const convertExplores = async (
                         always: join.always,
                         relationship: join.relationship,
                     })),
-                    tables: tableLookup,
+                    tables: exploreToCreate.tables,
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
