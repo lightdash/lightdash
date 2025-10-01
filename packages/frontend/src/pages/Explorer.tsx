@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { type DateGranularity } from '@lightdash/common';
 import { memo } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -23,11 +24,11 @@ import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 const ExplorerWithUrlParams = memo<{
-    dateZoomGranularity?: string;
+    dateZoomGranularity?: DateGranularity;
 }>(({ dateZoomGranularity }) => {
     // Run the query manager hook - orchestrates all query effects
     useExplorerQueryManager({
-        dateZoomGranularity: dateZoomGranularity as any,
+        dateZoomGranularity,
     });
 
     useExplorerRoute();

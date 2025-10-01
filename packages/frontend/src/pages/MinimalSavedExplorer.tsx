@@ -1,3 +1,4 @@
+import { type DateGranularity } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -26,12 +27,12 @@ const themeOverride: MantineThemeOverride = {
 
 const MinimalExplorerContent = memo<{
     viewModeQueryArgs?: { chartUuid: string; context?: string };
-    dateZoomGranularity?: string;
+    dateZoomGranularity?: DateGranularity;
 }>(({ viewModeQueryArgs, dateZoomGranularity }) => {
     // Run the query manager hook - orchestrates all query effects
     useExplorerQueryManager({
         viewModeQueryArgs,
-        dateZoomGranularity: dateZoomGranularity as any,
+        dateZoomGranularity,
         minimal: true,
     });
 
