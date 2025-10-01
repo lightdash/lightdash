@@ -1,6 +1,15 @@
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
 import { memo, useEffect, type FC } from 'react';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectMetricQuery,
+    selectParameterReferences,
+    selectTableName,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
@@ -24,29 +33,25 @@ import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
-        const unsavedChartVersionTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
+        // Get state from Redux
+        const tableName = useExplorerSelector(selectTableName);
+        const metricQuery = useExplorerSelector(selectMetricQuery);
+        const isEditMode = useExplorerSelector(selectIsEditMode);
+        const parameterReferencesFromRedux = useExplorerSelector(
+            selectParameterReferences,
         );
-        const unsavedChartVersionMetricQuery = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.metricQuery,
-        );
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
-        );
+        const dispatch = useExplorerDispatch();
+
         const projectUuid = useProjectUuid();
 
-        // Get query state and actions from hook instead of Context
+        // Get query state and actions from hook
         const { query, fetchResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
 
-        const setParameterReferences = useExplorerContext(
-            (context) => context.actions.setParameterReferences,
-        );
-
-        const { data: explore } = useExplore(unsavedChartVersionTableName);
+        const { data: explore } = useExplore(tableName);
 
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
-            enabled: !!unsavedChartVersionTableName,
+            enabled: !!tableName,
         });
 
         const isSavedChart = useExplorerContext(
@@ -86,30 +91,36 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         useEffect(() => {
             if (isError) {
                 // If there's an error, we set the parameter references to an empty array
-                setParameterReferences([]);
+                dispatch(explorerActions.setParameterReferences([]));
             } else {
                 // While there's no parameter references array the request hasn't run, so we set it explicitly to null
-                setParameterReferences(parameterReferences ?? null);
+                dispatch(
+                    explorerActions.setParameterReferences(
+                        parameterReferences ?? null,
+                    ),
+                );
             }
-        }, [parameterReferences, setParameterReferences, isError]);
+        }, [parameterReferences, dispatch, isError]);
 
         const { data: org } = useOrganization();
 
         return (
             <MetricQueryDataProvider
-                metricQuery={unsavedChartVersionMetricQuery}
-                tableName={unsavedChartVersionTableName}
+                metricQuery={metricQuery}
+                tableName={tableName}
                 explore={explore}
                 queryUuid={queryUuid}
             >
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    {!!unsavedChartVersionTableName &&
-                        parameterReferences &&
-                        parameterReferences?.length > 0 && (
+                    {!!tableName &&
+                        parameterReferencesFromRedux &&
+                        parameterReferencesFromRedux?.length > 0 && (
                             <ParametersCard
-                                parameterReferences={parameterReferences}
+                                parameterReferences={
+                                    parameterReferencesFromRedux
+                                }
                             />
                         )}
 

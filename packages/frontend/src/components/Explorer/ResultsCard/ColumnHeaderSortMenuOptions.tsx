@@ -7,8 +7,13 @@ import {
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { type FC } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    selectSorts,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import {
     SortDirection,
     getSortDirectionOrder,
@@ -30,11 +35,22 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
             : SortDirection.ASC
         : undefined;
 
-    const setSortFields = useExplorerContext(
-        (context) => context.actions.setSortFields,
+    const dispatch = useExplorerDispatch();
+    const sorts = useExplorerSelector(selectSorts);
+
+    const setSortFields = useCallback(
+        (newSorts: SortField[]) => {
+            dispatch(explorerActions.setSortFields(newSorts));
+        },
+        [dispatch],
     );
-    const removeSortField = useExplorerContext(
-        (context) => context.actions.removeSortField,
+
+    const removeSortField = useCallback(
+        (fieldId: string) => {
+            const newSorts = sorts.filter((s) => s.fieldId !== fieldId);
+            dispatch(explorerActions.setSortFields(newSorts));
+        },
+        [dispatch, sorts],
     );
 
     return (
