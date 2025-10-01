@@ -1,3 +1,10 @@
+# [0.2035.0](https://github.com/lightdash/lightdash/compare/0.2034.2...0.2035.0) (2025-10-01)
+
+
+### Features
+
+* allow explores defined in dbt models to override default_filters ([#17141](https://github.com/lightdash/lightdash/issues/17141)) ([3213bd9](https://github.com/lightdash/lightdash/commit/3213bd95f52cf1b40e7ab2714cef7aa1c9fe445c))
+
 ## [0.2034.2](https://github.com/lightdash/lightdash/compare/0.2034.1...0.2034.2) (2025-10-01)
 
 
