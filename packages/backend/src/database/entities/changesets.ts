@@ -62,7 +62,15 @@ export const DbChangeSchema = z.object({
     entity_type: EntityTypeSchema,
     entity_table_name: z.string().min(1),
     entity_name: z.string().min(1),
-    payload: z.record(z.unknown()),
+    payload: z.object({
+        patches: z.array(
+            z.object({
+                op: z.enum(['replace']),
+                path: z.string(),
+                value: z.unknown(),
+            }),
+        ),
+    }),
 });
 
 export type DbChange = z.infer<typeof DbChangeSchema>;

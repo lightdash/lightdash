@@ -7,7 +7,6 @@ describe('translateToolProposeChangeArgs', () => {
             translateToolProposeChangeArgs({
                 type: AiResultType.PROPOSE_CHANGE,
                 entityTableName: 'customers',
-                fieldId: 'customer_id',
                 rationale: 'Update the description of the customers table',
                 change: {
                     value: {
@@ -50,7 +49,6 @@ describe('translateToolProposeChangeArgs', () => {
             translateToolProposeChangeArgs({
                 type: AiResultType.PROPOSE_CHANGE,
                 entityTableName: 'customers',
-                fieldId: 'customer_name',
                 rationale: 'Update the description of the customers table',
                 change: {
                     value: {
@@ -64,6 +62,7 @@ describe('translateToolProposeChangeArgs', () => {
                         },
                     },
                     entityType: 'dimension',
+                    fieldId: 'customer_name',
                 },
             }),
         ).toEqual({
@@ -88,7 +87,6 @@ describe('translateToolProposeChangeArgs', () => {
             translateToolProposeChangeArgs({
                 type: AiResultType.PROPOSE_CHANGE,
                 entityTableName: 'customers',
-                fieldId: 'customer_total_revenue',
                 rationale: 'Update the description of the customers table',
                 change: {
                     value: {
@@ -102,6 +100,7 @@ describe('translateToolProposeChangeArgs', () => {
                         },
                     },
                     entityType: 'metric',
+                    fieldId: 'customer_total_revenue',
                 },
             }),
         ).toEqual({

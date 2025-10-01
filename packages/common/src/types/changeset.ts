@@ -39,16 +39,16 @@ export type ApiChangesetsResponse = {
     results: ChangesetWithChanges[];
 };
 
-export type CreateChangeParams = {
-    projectUuid: string;
-    createdByUserUuid: string;
-    sourcePromptUuid: string | null;
-    type: Change['type'];
-    entityType: Change['entityType'];
-    entityExploreUuid: string | null;
-    entityName: string;
-    payload: Record<string, unknown>;
-};
+export type CreateChangeParams = Pick<
+    Change,
+    | 'createdByUserUuid'
+    | 'sourcePromptUuid'
+    | 'type'
+    | 'entityName'
+    | 'entityType'
+    | 'entityTableName'
+    | 'payload'
+>;
 
 // tsoa does not support z.infer schemas - https://github.com/lukeautry/tsoa/issues/1256
 type ChangesetTSOACompat = Record<string, unknown>;

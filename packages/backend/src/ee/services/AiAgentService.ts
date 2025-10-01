@@ -1951,22 +1951,10 @@ export class AiAgentService {
         };
 
         const createChange: CreateChangeFn = async (params) => {
-            const webOrSlackPrompt = isSlackPrompt(prompt)
-                ? await this.aiAgentModel.findSlackPrompt(prompt.promptUuid)
-                : await this.aiAgentModel.findWebAppPrompt(prompt.promptUuid);
-
-            await this.changesetModel.createChange({
-                projectUuid: params.projectUuid,
-                createdByUserUuid: params.createdByUserUuid,
-                sourcePromptUuid:
-                    params.sourcePromptUuid ??
-                    webOrSlackPrompt?.promptUuid ??
-                    null,
-                type: params.type,
-                entityType: params.entityType,
-                entityExploreUuid: params.entityExploreUuid,
-                entityName: params.entityName,
-                payload: params.payload,
+            await this.changesetModel.createChange(projectUuid, {
+                createdByUserUuid: user.userUuid,
+                sourcePromptUuid: prompt.promptUuid,
+                ...params,
             });
         };
 
