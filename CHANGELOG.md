@@ -1,3 +1,10 @@
+## [0.2031.1](https://github.com/lightdash/lightdash/compare/0.2031.0...0.2031.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* duplicated user warehouse credentials snowflake ([#17148](https://github.com/lightdash/lightdash/issues/17148)) ([ec550d3](https://github.com/lightdash/lightdash/commit/ec550d3d8848fe610ba7d85ee8edbbac9542c9aa))
+
 # [0.2031.0](https://github.com/lightdash/lightdash/compare/0.2030.2...0.2031.0) (2025-09-30)
 
 
