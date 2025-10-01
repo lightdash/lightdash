@@ -30,6 +30,7 @@ import {
     SpaceMemberRole,
     SpaceSummary,
     UpdatedByUser,
+    type DashboardTileWithSlug,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -209,7 +210,7 @@ export class CoderService extends BaseService {
      */
     static getFiltersWithTileUuids(
         dashboardAsCode: DashboardAsCode,
-        tilesWithUuids: DashboardTile[],
+        tilesWithUuids: DashboardTileWithSlug[],
     ): DashboardDAO['filters'] {
         const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
             dashboardAsCode.filters.dimensions.map((filter) => {
@@ -220,7 +221,9 @@ export class CoderService extends BaseService {
                         const tileUuid = tilesWithUuids.find(
                             (t) =>
                                 isAnyChartTile(t) &&
-                                t.properties.chartSlug === tileSlug,
+                                // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
+                                (t.tileSlug === tileSlug ||
+                                    t.properties.chartSlug === tileSlug),
                         )?.uuid;
                         if (!tileUuid) {
                             console.error(
@@ -310,7 +313,7 @@ export class CoderService extends BaseService {
     async convertTileWithSlugsToUuids(
         projectUuid: string,
         tiles: DashboardTileAsCode[],
-    ): Promise<DashboardTile[]> {
+    ): Promise<DashboardTileWithSlug[]> {
         const chartSlugs: string[] = tiles.reduce<string[]>(
             (acc, tile) =>
                 isAnyChartTile(tile)
@@ -344,9 +347,10 @@ export class CoderService extends BaseService {
                         ...tile.properties,
                         savedChartUuid: savedChart.uuid,
                     },
-                } as DashboardTile;
+                } as DashboardTileWithSlug;
             }
-            return tile as DashboardTile;
+
+            return tile as DashboardTileWithSlug;
         });
     }
 

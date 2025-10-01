@@ -1,3 +1,10 @@
+## [0.2034.2](https://github.com/lightdash/lightdash/compare/0.2034.1...0.2034.2) (2025-10-01)
+
+
+### Bug Fixes
+
+* find tile targets first by tileSlug ([#17161](https://github.com/lightdash/lightdash/issues/17161)) ([cdfa27d](https://github.com/lightdash/lightdash/commit/cdfa27d925e0d1f30bb7b47a41bf4b022192c9f0))
+
 ## [0.2034.1](https://github.com/lightdash/lightdash/compare/0.2034.0...0.2034.1) (2025-10-01)
 
 
