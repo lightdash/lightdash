@@ -5,9 +5,13 @@ import {
     toolProposeChangeArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type { GetExploreFn } from '../types/aiAgentDependencies';
 import { CreateChangeFn } from '../types/aiAgentDependencies';
-
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    validateFieldEntityType,
+    validateTableNames,
+} from '../utils/validators';
 
 export const translateToolProposeChangeArgs = (
     toolArgs: ToolProposeChangeArgs,
@@ -47,14 +51,32 @@ export const translateToolProposeChangeArgs = (
 
 type GetProposeChangeArgs = {
     createChange: CreateChangeFn;
+    getExplore: GetExploreFn;
 };
 
-export const getProposeChange = ({ createChange }: GetProposeChangeArgs) =>
+export const getProposeChange = ({
+    createChange,
+    getExplore,
+}: GetProposeChangeArgs) =>
     tool({
         description: toolProposeChangeArgsSchema.description,
         inputSchema: toolProposeChangeArgsSchema,
         execute: async (toolArgs) => {
             try {
+                const { entityTableName, change } = toolArgs;
+                const explore = await getExplore({
+                    exploreName: entityTableName,
+                });
+
+                validateTableNames(explore, [entityTableName]);
+                if (change.entityType !== 'table') {
+                    validateFieldEntityType(
+                        explore,
+                        [change.fieldId],
+                        change.entityType,
+                    );
+                }
+
                 const translatedArgs = translateToolProposeChangeArgs(toolArgs);
                 await createChange(translatedArgs);
                 return `Successfully proposed change to ${translatedArgs.entityType} "${translatedArgs.entityName}" in table "${translatedArgs.entityTableName}"`;
