@@ -1,4 +1,5 @@
 import {
+    Change,
     ChangeSchema,
     ChangesetWithChanges,
     ChangesetWithChangesSchema,
@@ -11,6 +12,7 @@ import {
     ChangesetsTableName,
     ChangesTableName,
     DbChange,
+    DbChangeInsert,
     DbChangeInsertSchema,
     DbChangeSchema,
     EntityType,
@@ -82,11 +84,12 @@ export class ChangesetModel {
      * @returns The created change
      */
     async createChange(
-        params: CreateChangeParams,
-    ): Promise<ChangesetWithChanges['changes'][number]> {
+        projectUuid: string,
+        change: CreateChangeParams,
+    ): Promise<Change> {
         return this.database.transaction(async (trx) => {
             let activeChangeset = await trx(ChangesetsTableName)
-                .where('project_uuid', params.projectUuid)
+                .where('project_uuid', projectUuid)
                 .orderBy('created_at', 'desc')
                 .first();
 
@@ -94,9 +97,9 @@ export class ChangesetModel {
             if (!activeChangeset) {
                 const [newChangeset] = await trx(ChangesetsTableName)
                     .insert({
-                        project_uuid: params.projectUuid,
-                        created_by_user_uuid: params.createdByUserUuid,
-                        updated_by_user_uuid: params.createdByUserUuid,
+                        project_uuid: projectUuid,
+                        created_by_user_uuid: change.createdByUserUuid,
+                        updated_by_user_uuid: change.createdByUserUuid,
                         status: 'draft',
                         // TODO: Handle name in the future - auto generated for now.
                         name: 'Auto-generated changeset',
@@ -108,37 +111,38 @@ export class ChangesetModel {
 
             const changeParsed = DbChangeInsertSchema.safeParse({
                 changeset_uuid: activeChangeset.changeset_uuid,
-                created_by_user_uuid: params.createdByUserUuid,
-                source_prompt_uuid: params.sourcePromptUuid,
-                type: params.type,
-                entity_type: params.entityType,
-                entity_explore_uuid: params.entityExploreUuid,
-                entity_name: params.entityName,
-                payload: params.payload,
-            });
+                created_by_user_uuid: change.createdByUserUuid,
+                source_prompt_uuid: change.sourcePromptUuid,
+                type: change.type,
+                entity_type: change.entityType,
+                entity_table_name: change.entityTableName,
+                entity_name: change.entityName,
+                payload: change.payload,
+            } satisfies DbChangeInsert);
 
             if (!changeParsed.success) {
                 throw new ParseError('Failed to parse change', {
-                    changeData: params,
+                    changeData: change,
                 });
             }
 
-            const [change] = await trx(ChangesTableName)
+            const [createdChange] = await trx(ChangesTableName)
                 .insert(changeParsed.data)
                 .returning('*');
 
             const parsedChange = ChangeSchema.safeParse({
-                changeUuid: change.change_uuid,
-                changesetUuid: change.changeset_uuid,
-                createdAt: change.created_at,
-                createdByUserUuid: change.created_by_user_uuid,
-                sourcePromptUuid: change.source_prompt_uuid,
-                type: change.type,
-                entityType: change.entity_type,
-                entityTableName: change.entity_table_name,
-                entityName: change.entity_name,
-                payload: change.payload,
-            });
+                changeUuid: createdChange.change_uuid,
+                changesetUuid: createdChange.changeset_uuid,
+                createdAt: createdChange.created_at,
+                createdByUserUuid: createdChange.created_by_user_uuid,
+                sourcePromptUuid: createdChange.source_prompt_uuid,
+                type: createdChange.type,
+                entityType: createdChange.entity_type,
+                entityTableName: createdChange.entity_table_name,
+                entityName: createdChange.entity_name,
+                payload: createdChange.payload,
+            } satisfies Change);
+
             if (!parsedChange.success) {
                 throw new ParseError('Failed to parse change', {
                     changeData: change,

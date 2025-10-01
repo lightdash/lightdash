@@ -20,6 +20,7 @@ export const ToolNameSchema = z.enum([
     'findDashboards',
     'findCharts',
     'improveContext',
+    'proposeChange',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;

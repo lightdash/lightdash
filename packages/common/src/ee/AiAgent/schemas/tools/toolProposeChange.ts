@@ -28,6 +28,9 @@ Use this tool to propose changes to a table's metadata in the semantic layer. Th
   User: "The revenue_net field should explain it's after taxes and discounts"
 `;
 
+const getPatchDescription = (type: 'metric' | 'dimension' | 'table') =>
+    `Patch to apply to the ${type}. You can omit/set-to-null any fields you don't want to change.`;
+
 /**
  * Op schema can be configured on per-field basis to have a appropriate type and allow applicable operations
  */
@@ -53,10 +56,12 @@ const DimensionChangeSchema = z.discriminatedUnion('type', [
     // }),
     z.object({
         type: z.literal('update'),
-        patch: z.object({
-            label: stringOpSchema.nullable(),
-            description: stringOpSchema.nullable(),
-        } satisfies ChangePatch<Dimension>),
+        patch: z
+            .object({
+                label: stringOpSchema.nullable(),
+                description: stringOpSchema.nullable(),
+            } satisfies ChangePatch<Dimension>)
+            .describe(getPatchDescription('dimension')),
     }),
     // z.object({
     //   type: z.literal('delete'),
@@ -66,11 +71,13 @@ const DimensionChangeSchema = z.discriminatedUnion('type', [
 const MetricChangeSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('update'),
-        patch: z.object({
-            label: stringOpSchema.nullable(),
-            description: stringOpSchema.nullable(),
-            // aiHint: OpSchema,
-        } satisfies ChangePatch<Metric>),
+        patch: z
+            .object({
+                label: stringOpSchema.nullable(),
+                description: stringOpSchema.nullable(),
+                // aiHint: OpSchema,
+            } satisfies ChangePatch<Metric>)
+            .describe(getPatchDescription('metric')),
     }),
 ]);
 
@@ -79,10 +86,12 @@ type ChangePatch<T> = Partial<Record<keyof T, z.ZodType>>;
 const TableChangeSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('update'),
-        patch: z.object({
-            description: stringOpSchema.nullable(),
-            label: stringOpSchema.nullable(),
-        } satisfies ChangePatch<Table>),
+        patch: z
+            .object({
+                description: stringOpSchema.nullable(),
+                label: stringOpSchema.nullable(),
+            } satisfies ChangePatch<Table>)
+            .describe(getPatchDescription('table')),
     }),
 ]);
 
@@ -93,10 +102,12 @@ const changeSchema = z.discriminatedUnion('entityType', [
     }),
     z.object({
         entityType: z.literal('dimension'),
+        fieldId: getFieldIdSchema({ additionalDescription: '' }),
         value: DimensionChangeSchema,
     }),
     z.object({
         entityType: z.literal('metric'),
+        fieldId: getFieldIdSchema({ additionalDescription: '' }),
         value: MetricChangeSchema,
     }),
 ]);
@@ -109,7 +120,6 @@ export const toolProposeChangeArgsSchema = createToolSchema(
         entityTableName: z
             .string()
             .describe('The name of the table/explore being modified'),
-        fieldId: getFieldIdSchema({ additionalDescription: '' }),
         rationale: z
             .string()
             .describe(

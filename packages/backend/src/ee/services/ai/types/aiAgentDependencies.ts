@@ -142,4 +142,9 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type CreateChangeFn = (params: CreateChangeParams) => Promise<void>;
+export type CreateChangeFn = (
+    params: Pick<
+        CreateChangeParams,
+        'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
+    >,
+) => Promise<void>;
