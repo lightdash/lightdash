@@ -26,10 +26,7 @@ import {
     type TimeZone,
     type TreemapChartConfig,
 } from '@lightdash/common';
-import {
-    type useGetReadyQueryResults,
-    type useInfiniteQueryResults,
-} from '../../hooks/useQueryResults';
+import { type QueryResultsProps } from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -293,6 +290,14 @@ export interface ExplorerReduceState {
         };
     };
 
+    // Query execution state - manages TanStack Query arguments and history
+    queryExecution: {
+        validQueryArgs: QueryResultsProps | null;
+        unpivotedQueryArgs: QueryResultsProps | null;
+        queryUuidHistory: string[];
+        unpivotedQueryUuidHistory: string[];
+    };
+
     fromDashboard?: string;
 }
 
@@ -302,15 +307,10 @@ export interface ExplorerState extends ExplorerReduceState {
     hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
-    missingRequiredParameters: string[] | null;
 }
 
 export interface ExplorerContextType {
     state: ExplorerState;
-    query: ReturnType<typeof useGetReadyQueryResults>;
-    queryResults: ReturnType<typeof useInfiniteQueryResults>;
-    unpivotedQuery: ReturnType<typeof useGetReadyQueryResults>;
-    unpivotedQueryResults: ReturnType<typeof useInfiniteQueryResults>;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
@@ -357,8 +357,6 @@ export interface ExplorerContextType {
         setPivotFields: (fields: FieldId[] | undefined) => void;
         setChartType: (chartType: ChartType) => void;
         setChartConfig: (chartConfig: ChartConfig) => void;
-        fetchResults: () => void;
-        cancelQuery: () => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
         editCustomDimension: (
             customDimension: CustomDimension,
@@ -383,7 +381,6 @@ export interface ExplorerContextType {
             formatOptions: CustomFormat | undefined;
         }) => void;
         replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
-        getDownloadQueryUuid: (limit: number | null) => Promise<string>;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
         setParameterReferences: (parameterReferences: string[] | null) => void;

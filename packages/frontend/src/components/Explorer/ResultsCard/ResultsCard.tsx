@@ -14,6 +14,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -41,13 +42,9 @@ const ResultsCard: FC = memo(() => {
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
-    // These remain in Context as they're not part of Redux state
-    const totalResults = useExplorerContext(
-        (context) => context.queryResults.totalResults,
-    );
-    const getDownloadQueryUuid = useExplorerContext(
-        (context) => context.actions.getDownloadQueryUuid,
-    );
+    // Get query state from new hook
+    const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
+    const totalResults = queryResults.totalResults;
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );

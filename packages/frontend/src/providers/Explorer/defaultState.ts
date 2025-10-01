@@ -2,6 +2,14 @@ import { ChartType } from '@lightdash/common';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { ExplorerSection, type ExplorerReduceState } from './types';
 
+// Helper to create default query execution state
+export const defaultQueryExecution: ExplorerReduceState['queryExecution'] = {
+    validQueryArgs: null,
+    unpivotedQueryArgs: null,
+    queryUuidHistory: [],
+    unpivotedQueryUuidHistory: [],
+};
+
 export const defaultState: ExplorerReduceState = {
     isVisualizationConfigOpen: false,
     parameterReferences: [],
@@ -44,4 +52,5 @@ export const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
     },
+    queryExecution: defaultQueryExecution,
 };

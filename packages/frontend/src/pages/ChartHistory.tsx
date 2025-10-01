@@ -21,7 +21,7 @@ import {
     IconHistory,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState } from '../components/common/EmptyState';
@@ -32,6 +32,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import { explorerStore } from '../features/explorer/store';
+import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
 import {
     useChartHistory,
     useChartVersion,
@@ -39,9 +40,24 @@ import {
     useSavedQuery,
 } from '../hooks/useSavedQuery';
 import { Can } from '../providers/Ability';
+import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
+
+const ChartHistoryExplorer = memo<{
+    viewModeQueryArgs?: {
+        chartUuid: string;
+        chartVersionUuid: string;
+    };
+}>(({ viewModeQueryArgs }) => {
+    // Run the query manager hook - orchestrates all query effects
+    useExplorerQueryManager({
+        viewModeQueryArgs,
+    });
+
+    return <Explorer hideHeader={true} />;
+});
 
 const ChartHistory = () => {
     const navigate = useNavigate();
@@ -249,14 +265,6 @@ const ChartHistory = () => {
                 <Provider store={explorerStore}>
                     <ExplorerProvider
                         key={selectedVersionUuid}
-                        viewModeQueryArgs={
-                            savedQueryUuid && selectedVersionUuid
-                                ? {
-                                      chartUuid: savedQueryUuid,
-                                      chartVersionUuid: selectedVersionUuid,
-                                  }
-                                : undefined
-                        }
                         initialState={{
                             parameterReferences: [],
                             parameterDefinitions: {},
@@ -277,10 +285,20 @@ const ChartHistory = () => {
                                     isOpen: false,
                                 },
                             },
+                            queryExecution: defaultQueryExecution,
                         }}
                         savedChart={chartVersionQuery.data?.chart}
                     >
-                        <Explorer hideHeader={true} />
+                        <ChartHistoryExplorer
+                            viewModeQueryArgs={
+                                savedQueryUuid && selectedVersionUuid
+                                    ? {
+                                          chartUuid: savedQueryUuid,
+                                          chartVersionUuid: selectedVersionUuid,
+                                      }
+                                    : undefined
+                            }
+                        />
                     </ExplorerProvider>
                 </Provider>
             )}

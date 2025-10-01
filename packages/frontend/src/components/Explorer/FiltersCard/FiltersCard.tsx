@@ -35,6 +35,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -176,7 +177,9 @@ const FiltersCard: FC = memo(() => {
         resetDimensionFiltersIfNoModelSelected,
     ]);
 
-    const rows = useExplorerContext((context) => context.queryResults.rows);
+    // Get query rows from new hook
+    const { queryResults } = useExplorerQuery();
+    const rows = queryResults.rows;
 
     // Get Context setFilters action for synchronization during migration
     const contextSetFilters = useExplorerContext(

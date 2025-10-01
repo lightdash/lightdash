@@ -18,6 +18,7 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
+import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import {
     ExplorerSection,
     type ExplorerReduceState,
@@ -259,6 +260,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     },
                     parameters: {},
                     fromDashboard: fromDashboard ?? undefined,
+                    queryExecution: defaultQueryExecution,
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';

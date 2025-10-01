@@ -35,14 +35,15 @@ import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectParameters,
     selectSorts,
     selectTableCalculations,
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
+import { useExplorerQuery } from './useExplorerQuery';
 
 export const getItemBgColor = (
     item: Field | AdditionalMetric | TableCalculation | CustomDimension,
@@ -77,19 +78,13 @@ export const useColumns = (): TableColumn[] => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
 
-    // Keep Context for computed state not in Redux
-    const activeFields = useExplorerContext(
-        (context) => context.state.activeFields,
-    );
-    const resultsMetricQuery = useExplorerContext(
-        (context) => context.query.data?.metricQuery,
-    );
-    const resultsFields = useExplorerContext(
-        (context) => context.query.data?.fields,
-    );
-    const parameters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.parameters,
-    );
+    // Get state from new query hook
+    const { activeFields, query } = useExplorerQuery();
+    const resultsMetricQuery = query.data?.metricQuery;
+    const resultsFields = query.data?.fields;
+
+    // Get parameters from Redux
+    const parameters = useExplorerSelector(selectParameters);
 
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,

@@ -9,6 +9,7 @@ import Explorer from '../../../../../components/Explorer';
 import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
 import { explorerStore } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
+import { defaultQueryExecution } from '../../../../../providers/Explorer/defaultState';
 import ExplorerProvider from '../../../../../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
@@ -77,6 +78,7 @@ const getInitialState = (exploreId: string, savedChart: SavedChart) => ({
             isOpen: false,
         },
     },
+    queryExecution: defaultQueryExecution,
 });
 
 type Props = {
