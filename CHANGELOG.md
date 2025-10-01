@@ -1,3 +1,10 @@
+# [0.2034.0](https://github.com/lightdash/lightdash/compare/0.2033.0...0.2034.0) (2025-10-01)
+
+
+### Features
+
+* add propose change tool validators ([#17163](https://github.com/lightdash/lightdash/issues/17163)) ([ea597d6](https://github.com/lightdash/lightdash/commit/ea597d67711c13c95b4f46534f0d44084f67ee2f))
+
 # [0.2033.0](https://github.com/lightdash/lightdash/compare/0.2032.0...0.2033.0) (2025-10-01)
 
 
