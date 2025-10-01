@@ -32,6 +32,7 @@ import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -268,10 +269,14 @@ export async function seed(knex: Knex): Promise<void> {
             organizationUuid,
             projectUuid,
         });
+
+        const changesetModel = new ChangesetModel({ database: knex });
+
         await new ProjectModel({
             database: knex,
             lightdashConfig,
             encryptionUtil: enc,
+            changesetModel,
         }).saveExploresToCache(SEED_PROJECT.project_uuid, explores);
 
         // Seed parameters

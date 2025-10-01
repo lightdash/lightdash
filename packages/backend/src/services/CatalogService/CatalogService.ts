@@ -285,6 +285,7 @@ export class CatalogService<
     ) {
         const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
         );
 
         if (!cachedExplores) return [];
@@ -331,8 +332,10 @@ export class CatalogService<
     }
 
     async indexCatalog(projectUuid: string, userUuid: string | undefined) {
-        const cachedExploresMap =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
+        const cachedExploresMap = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'uuid',
+        );
 
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1007,6 +1010,7 @@ export class CatalogService<
 
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
             uniqBy(metrics, 'tableName').map((m) => m.tableName),
         );
 

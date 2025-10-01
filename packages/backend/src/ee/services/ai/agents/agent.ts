@@ -23,6 +23,7 @@ import { getGenerateDashboard } from '../tools/generateDashboard';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import { getImproveContext } from '../tools/improveContext';
+import { getProposeChange } from '../tools/proposeChange';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -216,6 +217,11 @@ const getAgentTools = (
 
     const improveContext = getImproveContext();
 
+    const proposeChange = getProposeChange({
+        createChange: dependencies.createChange,
+        getExplore: dependencies.getExplore,
+    });
+
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
     });
@@ -230,6 +236,7 @@ const getAgentTools = (
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
         ...(args.canManageAgent ? { improveContext } : {}),
+        ...(args.enableSelfImprovement ? { proposeChange } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
     };
 

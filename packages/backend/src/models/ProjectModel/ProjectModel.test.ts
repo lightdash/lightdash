@@ -1,7 +1,13 @@
 import {
     AnyType,
+    Change,
+    CompiledDimension,
+    CompiledMetric,
     CreatePostgresCredentials,
+    DimensionType,
     ExploreType,
+    FieldType,
+    MetricType,
 } from '@lightdash/common';
 import knex from 'knex';
 import { MockClient, RawQuery, Tracker, getTracker } from 'knex-mock-client';
@@ -13,6 +19,7 @@ import {
     CachedExploresTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
     CompletePostgresCredentials,
@@ -43,8 +50,11 @@ function queryMatcher(
 }
 
 describe('ProjectModel', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+
     const model = new ProjectModel({
-        database: knex({ client: MockClient, dialect: 'pg' }),
+        database,
+        changesetModel: new ChangesetModel({ database }),
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: encryptionUtilMock,
     });
@@ -193,6 +203,221 @@ describe('ProjectModel', () => {
             );
             expect(result.user).toEqual(null);
             expect(result.password).toEqual('new_password');
+        });
+    });
+    describe('applyChange', () => {
+        const mockDimension: CompiledDimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'test_dimension',
+            label: 'Test Dimension',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: 'test_column',
+            hidden: false,
+            compiledSql: 'orders.test_column',
+            tablesReferences: ['orders'],
+        };
+
+        const mockMetric: CompiledMetric = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.COUNT,
+            name: 'test_metric',
+            label: 'Test Metric',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: 'COUNT(*)',
+            hidden: false,
+            compiledSql: 'COUNT(*)',
+            tablesReferences: ['orders'],
+        };
+
+        describe('create change', () => {
+            test('should create a new dimension', () => {
+                const createChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'create',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: { value: mockDimension },
+                };
+
+                const result = ProjectModel.applyChange(
+                    undefined,
+                    createChange,
+                );
+                expect(result).toEqual(mockDimension);
+            });
+
+            test('should create a new metric', () => {
+                const createChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'create',
+                    entityType: 'metric',
+                    entityTableName: 'orders',
+                    entityName: 'test_metric',
+                    payload: { value: mockMetric },
+                };
+
+                const result = ProjectModel.applyChange(
+                    undefined,
+                    createChange,
+                );
+                expect(result).toEqual(mockMetric);
+            });
+        });
+
+        describe('update change', () => {
+            test('should update dimension label', () => {
+                const updateChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'update',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: {
+                        patches: [
+                            {
+                                op: 'replace',
+                                path: '/label',
+                                value: 'Updated Test Dimension',
+                            },
+                        ],
+                    },
+                };
+
+                const result = ProjectModel.applyChange(
+                    mockDimension,
+                    updateChange,
+                );
+                expect(result?.label).toBe('Updated Test Dimension');
+                expect(result?.name).toBe(mockDimension.name);
+            });
+
+            test('should update field description', () => {
+                const dimensionWithDescription: CompiledDimension = {
+                    ...mockDimension,
+                    description: 'Original description',
+                };
+
+                const updateChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'update',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: {
+                        patches: [
+                            {
+                                op: 'replace',
+                                path: '/description',
+                                value: 'Updated field description with more details',
+                            },
+                        ],
+                    },
+                };
+
+                const result = ProjectModel.applyChange(
+                    dimensionWithDescription,
+                    updateChange,
+                );
+                expect(result?.description).toBe(
+                    'Updated field description with more details',
+                );
+                expect(result?.name).toBe(mockDimension.name);
+                expect(result?.label).toBe(mockDimension.label);
+            });
+
+            test('should throw error for invalid patch', () => {
+                const invalidUpdateChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'update',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: {
+                        patches: [
+                            {
+                                op: 'replace',
+                                path: '/nonexistent',
+                                value: 'some value',
+                            },
+                        ],
+                    },
+                };
+
+                expect(() => {
+                    ProjectModel.applyChange(
+                        mockDimension,
+                        invalidUpdateChange,
+                    );
+                }).toThrow('Invalid patch');
+            });
+        });
+
+        describe('delete change', () => {
+            test('should return undefined for delete change', () => {
+                const deleteChange: Change = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'delete',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: {},
+                };
+
+                const result = ProjectModel.applyChange(
+                    mockDimension,
+                    deleteChange,
+                );
+                expect(result).toBeUndefined();
+            });
+        });
+
+        describe('invalid change type', () => {
+            test('should throw error for invalid change type', () => {
+                const invalidChange = {
+                    changeUuid: 'test-uuid',
+                    changesetUuid: 'changeset-uuid',
+                    createdAt: new Date(),
+                    createdByUserUuid: 'user-uuid',
+                    sourcePromptUuid: null,
+                    type: 'invalid',
+                    entityType: 'dimension',
+                    entityTableName: 'orders',
+                    entityName: 'test_dimension',
+                    payload: {},
+                } as unknown as Change;
+
+                expect(() => {
+                    ProjectModel.applyChange(mockDimension, invalidChange);
+                }).toThrow();
+            });
         });
     });
 });

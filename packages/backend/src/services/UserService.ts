@@ -1715,6 +1715,12 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Remove old Snowflake credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.SNOWFLAKE,
+        );
+
         const snowflakeCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {

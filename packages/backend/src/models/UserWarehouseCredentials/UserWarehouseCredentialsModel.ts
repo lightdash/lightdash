@@ -278,4 +278,14 @@ export class UserWarehouseCredentialsModel {
             )
             .andWhere('user_uuid', userUuid);
     }
+
+    async deleteAllByUserAndWarehouseType(
+        userUuid: string,
+        warehouseType: WarehouseTypes,
+    ): Promise<void> {
+        await this.database(UserWarehouseCredentialsTableName)
+            .delete()
+            .where('user_uuid', userUuid)
+            .andWhere('warehouse_type', warehouseType);
+    }
 }

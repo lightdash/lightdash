@@ -2,6 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     Card,
@@ -33,6 +34,7 @@ import {
     IconPlug,
     IconPointFilled,
     IconRefresh,
+    IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -73,6 +75,7 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
+    enableSelfImprovement: z.boolean(),
 });
 
 export const AiAgentFormSetup = ({
@@ -355,6 +358,65 @@ export const AiAgentFormSetup = ({
                                 {...form.getInputProps('enableDataAccess', {
                                     type: 'checkbox',
                                 })}
+                            />
+                            <Switch
+                                // TODO: enable this once we have a way to enable self-improvement
+                                disabled
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Enable Self-Improvement
+                                        </Text>
+                                        <Tooltip
+                                            label="When enabled, the AI agent can make improvements to your semantic layer by updating field descriptions, creating new metrics, and refining dimensions based on user interactions."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                        <Badge
+                                            color="indigo"
+                                            radius="sm"
+                                            variant="light"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSparkles}
+                                                />
+                                            }
+                                        >
+                                            Coming soon
+                                        </Badge>
+                                    </Group>
+                                }
+                                description={
+                                    <>
+                                        Allows the agent to improve the
+                                        project's explores by updating
+                                        descriptions, creating metrics and
+                                        dimensions based on conversations.
+                                        Changes are tracked in changesets for
+                                        review.{' '}
+                                        <Anchor
+                                            href="https://docs.lightdash.com/guides/ai-agents#self-improvement"
+                                            target="_blank"
+                                            size="xs"
+                                        >
+                                            Learn more
+                                        </Anchor>
+                                    </>
+                                }
+                                {...form.getInputProps(
+                                    'enableSelfImprovement',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
                             />
                         </Stack>
                     </Paper>

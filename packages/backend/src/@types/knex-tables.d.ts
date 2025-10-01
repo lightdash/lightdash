@@ -1,4 +1,10 @@
 import {
+    ChangesetsTable,
+    ChangesetsTableName,
+    ChangesTable,
+    ChangesTableName,
+} from '../database/entities/changesets';
+import {
     DashboardsTableName,
     DashboardTable,
     DashboardTabsTable,
@@ -402,5 +408,7 @@ declare module 'knex/types/tables' {
         [AiEvalPromptTableName]: AiEvalPromptTable;
         [AiEvalRunTableName]: AiEvalRunTable;
         [AiEvalRunResultTableName]: AiEvalRunResultTable;
+        [ChangesetsTableName]: ChangesetsTable;
+        [ChangesTableName]: ChangesTable;
     }
 }

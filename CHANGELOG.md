@@ -1,3 +1,50 @@
+## [0.2034.1](https://github.com/lightdash/lightdash/compare/0.2034.0...0.2034.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* custom metrics are created with the wrong id ([#17162](https://github.com/lightdash/lightdash/issues/17162)) ([b422286](https://github.com/lightdash/lightdash/commit/b4222860f35a7a00e08a276ec74dfad083488df8))
+
+# [0.2034.0](https://github.com/lightdash/lightdash/compare/0.2033.0...0.2034.0) (2025-10-01)
+
+
+### Features
+
+* add propose change tool validators ([#17163](https://github.com/lightdash/lightdash/issues/17163)) ([ea597d6](https://github.com/lightdash/lightdash/commit/ea597d67711c13c95b4f46534f0d44084f67ee2f))
+
+# [0.2033.0](https://github.com/lightdash/lightdash/compare/0.2032.0...0.2033.0) (2025-10-01)
+
+
+### Features
+
+* add changesetModel to AiAgentService for proposing changes ([#17150](https://github.com/lightdash/lightdash/issues/17150)) ([394df91](https://github.com/lightdash/lightdash/commit/394df914f9059ea8fc7ae93039ca434ea767b552))
+* create proposeChange ai agent tool ([#17142](https://github.com/lightdash/lightdash/issues/17142)) ([0d0558b](https://github.com/lightdash/lightdash/commit/0d0558bad76f46854f6fce7c0e7f0c5cc887e4c0))
+* get updated explores before indexing catalog ([#17149](https://github.com/lightdash/lightdash/issues/17149)) ([590ed39](https://github.com/lightdash/lightdash/commit/590ed39eebd625b08015737d33682d4d311599e2))
+* implement changeset application for explore dimensions and metrics ([#17137](https://github.com/lightdash/lightdash/issues/17137)) ([5555157](https://github.com/lightdash/lightdash/commit/5555157a3638d70ba011cc728ef0621b020921b2)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* include changeset updatedAt in explore cache key ([#17147](https://github.com/lightdash/lightdash/issues/17147)) ([76b00b6](https://github.com/lightdash/lightdash/commit/76b00b6921779672f46879c66325ae646dff9057))
+* replace entity explore uuid for table name ([#17139](https://github.com/lightdash/lightdash/issues/17139)) ([0339aab](https://github.com/lightdash/lightdash/commit/0339aab38a1e0901fec5498742f8a12df7a304a9)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.2032.0](https://github.com/lightdash/lightdash/compare/0.2031.2...0.2032.0) (2025-10-01)
+
+
+### Features
+
+* allow deploy command to work with just manifest.json ([#17153](https://github.com/lightdash/lightdash/issues/17153)) ([3335384](https://github.com/lightdash/lightdash/commit/333538481ba4f362ba5b401d609de23d29f16bf8))
+
+## [0.2031.2](https://github.com/lightdash/lightdash/compare/0.2031.1...0.2031.2) (2025-10-01)
+
+
+### Bug Fixes
+
+* cli generate compatible with 1.10 ([#17034](https://github.com/lightdash/lightdash/issues/17034)) ([f619ae4](https://github.com/lightdash/lightdash/commit/f619ae4be156b4fedd676de8e8d4ff2737804b31))
+
+## [0.2031.1](https://github.com/lightdash/lightdash/compare/0.2031.0...0.2031.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* duplicated user warehouse credentials snowflake ([#17148](https://github.com/lightdash/lightdash/issues/17148)) ([ec550d3](https://github.com/lightdash/lightdash/commit/ec550d3d8848fe610ba7d85ee8edbbac9542c9aa))
+
 # [0.2031.0](https://github.com/lightdash/lightdash/compare/0.2030.2...0.2031.0) (2025-09-30)
 
 

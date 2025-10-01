@@ -79,6 +79,7 @@ import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
+import { ChangesetModel } from '../../models/ChangesetModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { SearchModel } from '../../models/SearchModel';
@@ -100,6 +101,7 @@ import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/ti
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
+    CreateChangeFn,
     FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
@@ -131,6 +133,7 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
+    changesetModel: ChangesetModel;
     searchModel: SearchModel;
     spaceModel: SpaceModel;
     featureFlagService: FeatureFlagService;
@@ -155,6 +158,8 @@ export class AiAgentService {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly catalogService: CatalogService;
+
+    private readonly changesetModel: ChangesetModel;
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -187,6 +192,7 @@ export class AiAgentService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
+        this.changesetModel = dependencies.changesetModel;
         this.searchModel = dependencies.searchModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
@@ -792,6 +798,7 @@ export class AiAgentService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
+            enableSelfImprovement: body.enableSelfImprovement,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -848,6 +855,7 @@ export class AiAgentService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
+            enableSelfImprovement: body.enableSelfImprovement,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -1944,6 +1952,14 @@ export class AiAgentService {
             return results;
         };
 
+        const createChange: CreateChangeFn = async (params) => {
+            await this.changesetModel.createChange(projectUuid, {
+                createdByUserUuid: user.userUuid,
+                sourcePromptUuid: prompt.promptUuid,
+                ...params,
+            });
+        };
+
         return {
             findCharts,
             findDashboards,
@@ -1957,6 +1973,7 @@ export class AiAgentService {
             storeToolCall,
             storeToolResults,
             searchFieldValues,
+            createChange,
         };
     }
 
@@ -2030,6 +2047,7 @@ export class AiAgentService {
             storeToolCall,
             storeToolResults,
             searchFieldValues,
+            createChange,
         } = this.getAiAgentDependencies(user, prompt);
 
         const modelProperties = getModel(this.lightdashConfig.ai.copilot);
@@ -2051,6 +2069,7 @@ export class AiAgentService {
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
+            enableSelfImprovement: agentSettings.enableSelfImprovement,
 
             availableExploresPageSize: 100,
             findExploresPageSize: 15,
@@ -2087,6 +2106,8 @@ export class AiAgentService {
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
+
+            createChange,
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

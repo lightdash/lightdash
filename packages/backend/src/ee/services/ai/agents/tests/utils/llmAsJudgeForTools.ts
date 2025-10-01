@@ -22,6 +22,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateBarVizConfig: 'vertical_bar_chart',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
+    proposeChange: 'propose_change',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {
@@ -299,7 +300,7 @@ Evaluate the tool usage across three dimensions:
    - adequate: Tools accomplished the expected outcome but with some issues
    - poor: Tools partially accomplished the expected outcome with significant issues
    - failed: Tools did not accomplish the expected outcome
-   
+
    Consider:
    - Did the tools accomplish the expected outcome?
    - Were the tool arguments appropriate and complete?

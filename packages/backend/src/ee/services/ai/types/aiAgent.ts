@@ -2,6 +2,7 @@ import { AiAgent } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel, AiProvider } from '../models/types';
 import {
+    CreateChangeFn,
     CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
@@ -31,6 +32,7 @@ export type AiAgentArgs = AnyAiModel & {
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 
     availableExploresPageSize: number;
     findExploresPageSize: number;
@@ -66,6 +68,7 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    createChange: CreateChangeFn;
     perf: PerformanceMetrics;
 };
 
