@@ -30,7 +30,9 @@ export const translateToolProposeChangeArgs = (
 
     // Determine entityName based on entityType
     const entityName =
-        entityType === 'table' ? entityTableName : change.fieldId;
+        entityType === 'table'
+            ? entityTableName
+            : change.fieldId.replace(new RegExp(`^${entityTableName}_`), '');
 
     return {
         type,

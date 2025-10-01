@@ -54,6 +54,7 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
+    enableSelfImprovement: z.boolean(),
 });
 
 type Props = {
@@ -97,6 +98,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             groupAccess: [],
             userAccess: [],
             enableDataAccess: false,
+            enableSelfImprovement: false,
         },
         validate: zodResolver(formSchema),
     });
@@ -116,6 +118,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
+                enableSelfImprovement: agent.enableSelfImprovement ?? false,
             };
             form.setValues(values);
             form.resetDirty(values);

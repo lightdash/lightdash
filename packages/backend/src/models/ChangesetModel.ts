@@ -107,18 +107,25 @@ export class ChangesetModel {
                     .returning('*');
 
                 activeChangeset = newChangeset;
+            } else {
+                await trx(ChangesetsTableName)
+                    .where('changeset_uuid', activeChangeset.changeset_uuid)
+                    .update({
+                        updated_by_user_uuid: change.createdByUserUuid,
+                        updated_at: new Date(),
+                    });
             }
 
             const changeParsed = DbChangeInsertSchema.safeParse({
                 changeset_uuid: activeChangeset.changeset_uuid,
                 created_by_user_uuid: change.createdByUserUuid,
                 source_prompt_uuid: change.sourcePromptUuid,
-                type: change.type,
                 entity_type: change.entityType,
                 entity_table_name: change.entityTableName,
                 entity_name: change.entityName,
+                type: change.type,
                 payload: change.payload,
-            } satisfies DbChangeInsert);
+            });
 
             if (!changeParsed.success) {
                 throw new ParseError('Failed to parse change', {
@@ -136,12 +143,12 @@ export class ChangesetModel {
                 createdAt: createdChange.created_at,
                 createdByUserUuid: createdChange.created_by_user_uuid,
                 sourcePromptUuid: createdChange.source_prompt_uuid,
-                type: createdChange.type,
                 entityType: createdChange.entity_type,
                 entityTableName: createdChange.entity_table_name,
                 entityName: createdChange.entity_name,
+                type: createdChange.type,
                 payload: createdChange.payload,
-            } satisfies Change);
+            });
 
             if (!parsedChange.success) {
                 throw new ParseError('Failed to parse change', {

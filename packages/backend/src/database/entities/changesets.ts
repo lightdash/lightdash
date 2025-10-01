@@ -38,6 +38,7 @@ type DbChangesetInsert = z.infer<typeof DbChangesetInsertSchema>;
 
 export const DbChangesetUpdateSchema = DbChangesetSchema.pick({
     updated_by_user_uuid: true,
+    updated_at: true,
     status: true,
     name: true,
 })

@@ -193,6 +193,7 @@ export const setupIntegrationTest =
             userAccess: [],
             imageUrl: null,
             enableDataAccess: false,
+            enableSelfImprovement: false,
         };
 
         const catalogService = app.getServiceRepository().getCatalogService();

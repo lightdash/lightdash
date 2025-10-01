@@ -924,11 +924,11 @@ export class ProjectModel {
                         `Entity "${change.entityName}" does not exist.`,
                     );
                 }
-                const errors = validate(change.payload.patch, entity);
+                const errors = validate(change.payload.patches, entity);
                 if (errors) {
-                    throw new Error(`Invalid patch: ${errors.message}`);
+                    throw new Error(`Invalid patches: ${errors.message}`);
                 }
-                const result = applyPatch(entity, change.payload.patch);
+                const result = applyPatch(entity, change.payload.patches);
                 return result.newDocument;
 
             case 'delete':

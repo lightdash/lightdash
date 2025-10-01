@@ -191,6 +191,7 @@ export class AiAgentModel {
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
+                enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -298,6 +299,7 @@ export class AiAgentModel {
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
+                enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -378,6 +380,7 @@ export class AiAgentModel {
             | 'groupAccess'
             | 'userAccess'
             | 'enableDataAccess'
+            | 'enableSelfImprovement'
         > & {
             organizationUuid: string;
         },
@@ -392,6 +395,7 @@ export class AiAgentModel {
                     description: null,
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
+                    enable_self_improvement: args.enableSelfImprovement,
                 })
                 .returning('*');
 
@@ -462,6 +466,7 @@ export class AiAgentModel {
                 groupAccess,
                 userAccess,
                 enableDataAccess: agent.enable_data_access,
+                enableSelfImprovement: agent.enable_self_improvement,
             };
         });
     }
@@ -490,6 +495,12 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableDataAccess !== undefined
                         ? { enable_data_access: args.enableDataAccess }
+                        : {}),
+                    ...(args.enableSelfImprovement !== undefined
+                        ? {
+                              enable_self_improvement:
+                                  args.enableSelfImprovement,
+                          }
                         : {}),
                 })
                 .returning('*');
@@ -576,6 +587,7 @@ export class AiAgentModel {
                 groupAccess,
                 userAccess,
                 enableDataAccess: agent.enable_data_access,
+                enableSelfImprovement: agent.enable_self_improvement,
             };
         });
     }
