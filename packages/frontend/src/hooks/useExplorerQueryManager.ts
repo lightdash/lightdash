@@ -6,7 +6,6 @@ import {
     getFieldsFromMetricQuery,
     type DateGranularity,
     type FieldId,
-    type PivotConfiguration,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -33,9 +32,9 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useQueryManager } from '../providers/Explorer/useExplorerQueryManager';
+import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
-import { type QueryResultsProps } from './useQueryResults';
 
 /**
  * Manager hook for Explorer query orchestration
@@ -182,48 +181,27 @@ export const useExplorerQueryManager = (
 
     // Function to prepare and set query arguments
     const runQuery = useCallback(() => {
-        const hasFields = activeFields.size > 0;
+        const mainQueryArgs = buildQueryArgs({
+            activeFields,
+            tableName,
+            projectUuid,
+            explore,
+            useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
+            computedMetricQuery,
+            parameters,
+            isEditMode,
+            viewModeQueryArgs,
+            dateZoomGranularity,
+            minimal,
+        });
 
-        if (tableName && hasFields && projectUuid) {
-            let pivotConfiguration: PivotConfiguration | undefined;
-
-            if (!explore) {
-                return;
-            }
-
-            if (useSqlPivotResults?.enabled && explore) {
-                const items = getFieldsFromMetricQuery(
-                    computedMetricQuery,
-                    explore,
-                );
-                pivotConfiguration = derivePivotConfigurationFromChart(
-                    {
-                        chartConfig: { type: ChartType.TABLE }, // Default for query hook
-                        pivotConfig: undefined,
-                    },
-                    computedMetricQuery,
-                    items,
-                );
-            }
-
-            // Prepare query args
-            const mainQueryArgs: QueryResultsProps = {
-                projectUuid,
-                tableId: tableName,
-                query: computedMetricQuery,
-                ...(isEditMode ? {} : viewModeQueryArgs),
-                dateZoomGranularity,
-                invalidateCache: minimal,
-                parameters: parameters || {},
-                pivotConfiguration,
-            };
-
+        if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
         } else {
             console.warn(
                 `Can't make SQL request, invalid state`,
                 tableName,
-                hasFields,
+                activeFields.size,
                 computedMetricQuery,
             );
         }
@@ -263,7 +241,10 @@ export const useExplorerQueryManager = (
     }, [validQueryArgs, needsUnpivotedData, isResultsOpen, dispatch]);
 
     // Auto-fetch logic
+    // Run query automatically when state changes (respects auto-fetch setting in edit mode)
     useEffect(() => {
+        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
+        // This will stop auto-fetching until the first query is run
         if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
         runQuery();
     }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);

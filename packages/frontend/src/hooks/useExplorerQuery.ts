@@ -1,11 +1,4 @@
-import {
-    ChartType,
-    derivePivotConfigurationFromChart,
-    FeatureFlags,
-    getFieldsFromMetricQuery,
-    type DateGranularity,
-    type PivotConfiguration,
-} from '@lightdash/common';
+import { FeatureFlags, type DateGranularity } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
@@ -26,6 +19,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useQueryManager } from '../providers/Explorer/useExplorerQueryManager';
+import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 import {
@@ -172,43 +166,22 @@ export const useExplorerQuery = (options?: {
     // Query client for actions
     const queryClient = useQueryClient();
 
-    // Action: Run query
     const runQuery = useCallback(() => {
-        const hasFields = activeFields.size > 0;
+        const mainQueryArgs = buildQueryArgs({
+            activeFields,
+            tableName,
+            projectUuid,
+            explore,
+            useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
+            computedMetricQuery,
+            parameters,
+            isEditMode,
+            viewModeQueryArgs,
+            dateZoomGranularity,
+            minimal,
+        });
 
-        if (tableName && hasFields && projectUuid) {
-            let pivotConfiguration: PivotConfiguration | undefined;
-
-            if (!explore) {
-                return;
-            }
-
-            if (useSqlPivotResults?.enabled && explore) {
-                const items = getFieldsFromMetricQuery(
-                    computedMetricQuery,
-                    explore,
-                );
-                pivotConfiguration = derivePivotConfigurationFromChart(
-                    {
-                        chartConfig: { type: ChartType.TABLE },
-                        pivotConfig: undefined,
-                    },
-                    computedMetricQuery,
-                    items,
-                );
-            }
-
-            const mainQueryArgs: QueryResultsProps = {
-                projectUuid,
-                tableId: tableName,
-                query: computedMetricQuery,
-                ...(isEditMode ? {} : viewModeQueryArgs),
-                dateZoomGranularity,
-                invalidateCache: minimal,
-                parameters: parameters || {},
-                pivotConfiguration,
-            };
-
+        if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
         }
     }, [
@@ -235,7 +208,7 @@ export const useExplorerQuery = (options?: {
         });
     }, [queryClient, dispatch]);
 
-    // Action: Fetch results (force refresh)
+    // Action: Fetch results (force refresh - bypasses auto-fetch setting)
     const fetchResults = useCallback(() => {
         resetQueryResults();
         runQuery();
