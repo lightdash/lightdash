@@ -62,7 +62,15 @@ export const DbChangeSchema = z.object({
     entity_table_name: z.string().min(1),
     entity_name: z.string().min(1),
     type: ChangeTypeSchema,
-    payload: z.record(z.unknown()),
+    payload: z.object({
+        patches: z.array(
+            z.object({
+                op: z.enum(['replace']),
+                path: z.string(),
+                value: z.unknown(),
+            }),
+        ),
+    }),
 });
 
 export type DbChange = z.infer<typeof DbChangeSchema>;
@@ -78,6 +86,6 @@ export const DbChangeInsertSchema = DbChangeSchema.pick({
     payload: true,
 });
 
-type DbChangeInsert = z.infer<typeof DbChangeInsertSchema>;
+export type DbChangeInsert = z.infer<typeof DbChangeInsertSchema>;
 
 export type ChangesTable = Knex.CompositeTableType<DbChange, DbChangeInsert>;

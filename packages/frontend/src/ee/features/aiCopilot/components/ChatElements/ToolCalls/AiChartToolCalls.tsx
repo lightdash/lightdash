@@ -28,6 +28,7 @@ import {
     IconChartLine,
     IconDashboard,
     IconDatabase,
+    IconPencil,
     IconSchool,
     IconSearch,
     IconSelector,
@@ -58,6 +59,7 @@ const getToolIcon = (toolName: ToolName) => {
             findDashboards: IconDashboard,
             findCharts: IconChartDots3,
             improveContext: IconSchool,
+            proposeChange: IconPencil,
         };
 
     return iconMap[toolName];
@@ -288,6 +290,27 @@ const ToolCallDescription: FC<{
             );
         case AiResultType.IMPROVE_CONTEXT:
             return <> </>;
+        case AiResultType.PROPOSE_CHANGE:
+            return (
+                <Text c="dimmed" size="xs">
+                    Proposed change to{' '}
+                    <Badge
+                        color="gray"
+                        variant="light"
+                        size="xs"
+                        mx={rem(2)}
+                        radius="sm"
+                        style={{
+                            textTransform: 'none',
+                            fontWeight: 400,
+                        }}
+                    >
+                        {toolArgs.change.entityType === 'table'
+                            ? toolArgs.entityTableName
+                            : toolArgs.change.fieldId}
+                    </Badge>
+                </Text>
+            );
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
