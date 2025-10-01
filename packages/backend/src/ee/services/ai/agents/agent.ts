@@ -217,7 +217,9 @@ const getAgentTools = (
 
     const improveContext = getImproveContext();
 
-    const proposeChange = getProposeChange();
+    const proposeChange = getProposeChange({
+        createChange: dependencies.createChange,
+    });
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,

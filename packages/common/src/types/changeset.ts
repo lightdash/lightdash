@@ -62,10 +62,22 @@ export const ChangesetWithChangesSchema = ChangesetSchema.extend({
 
 export type Changeset = z.infer<typeof ChangesetSchema>;
 export type ChangesetWithChanges = z.infer<typeof ChangesetWithChangesSchema>;
+export type Change = z.infer<typeof ChangeSchema>;
 
 export type ApiChangesetsResponse = {
     status: 'ok';
     results: ChangesetWithChanges[];
+};
+
+export type CreateChangeParams = {
+    projectUuid: string;
+    createdByUserUuid: string;
+    sourcePromptUuid: string | null;
+    type: Change['type'];
+    entityType: Change['entityType'];
+    entityExploreUuid: string | null;
+    entityName: string;
+    payload: Record<string, unknown>;
 };
 
 // tsoa does not support z.infer schemas - https://github.com/lukeautry/tsoa/issues/1256

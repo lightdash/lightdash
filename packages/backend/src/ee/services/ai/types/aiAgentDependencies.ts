@@ -8,6 +8,7 @@ import {
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    CreateChangeParams,
     DashboardSearchResult,
     Explore,
     Filters,
@@ -140,3 +141,5 @@ export type CheckUserPermissionFn = (args: {
     organizationId: string;
     permission: string;
 }) => Promise<boolean>;
+
+export type CreateChangeFn = (params: CreateChangeParams) => Promise<void>;
