@@ -71,6 +71,10 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
         | DashboardLoomTileProperties['properties'];
 };
 
+export type DashboardTileWithSlug = DashboardTile & {
+    tileSlug: string | undefined;
+};
+
 export type DashboardAsCode = Pick<
     Dashboard,
     'name' | 'description' | 'updatedAt' | 'tabs' | 'slug'
