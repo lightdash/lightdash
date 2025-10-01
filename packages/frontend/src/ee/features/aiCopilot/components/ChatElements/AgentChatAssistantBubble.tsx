@@ -137,24 +137,16 @@ const AssistantBubbleContent: FC<{
                 </Paper>
             )}
 
-            {isStreaming && (
-                <AiChartToolCalls
-                    toolCalls={streamingState?.toolCalls}
-                    type="streaming"
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                />
-            )}
-            {!isStreaming && message.toolCalls.length > 0 && (
-                <AiChartToolCalls
-                    toolCalls={message.toolCalls}
-                    type="persisted"
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                />
-            )}
+            <AiChartToolCalls
+                toolCalls={
+                    isStreaming ? streamingState?.toolCalls : message.toolCalls
+                }
+                type={isStreaming ? 'streaming' : 'persisted'}
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                threadUuid={message.threadUuid}
+                messageUuid={message.uuid}
+            />
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
                     source={messageContent}

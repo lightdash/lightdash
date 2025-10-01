@@ -10,11 +10,11 @@ import { lightdashApiStream } from '../../../../api';
 import {
     addToolCall,
     setError,
-    setImproveContextNotification,
     setMessage,
     startStreaming,
     stopStreaming,
 } from '../store/aiAgentThreadStreamSlice';
+import { addImproveContextNotification } from '../store/aiAgentThreadNotificationsSlice';
 import { useAiAgentStoreDispatch } from '../store/hooks';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 
@@ -150,14 +150,15 @@ export function useAiAgentThreadStreamMutation() {
                                             toolArgs.type ===
                                                 AiResultType.IMPROVE_CONTEXT
                                         ) {
-                                            dispatch(
-                                                setImproveContextNotification({
-                                                    threadUuid,
-                                                    toolCallId: part.toolCallId,
-                                                    suggestedInstruction:
-                                                        toolArgs.suggestedInstruction,
-                                                }),
-                                            );
+                                        dispatch(
+                                            addImproveContextNotification({
+                                                threadUuid,
+                                                messageUuid,
+                                                toolCallId: part.toolCallId,
+                                                suggestedInstruction:
+                                                    toolArgs.suggestedInstruction,
+                                            }),
+                                        );
                                         }
                                     } catch (error) {
                                         console.error(

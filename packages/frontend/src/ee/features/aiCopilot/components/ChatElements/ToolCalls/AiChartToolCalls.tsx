@@ -39,7 +39,7 @@ import {
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAppendInstructionMutation } from '../../../hooks/useProjectAiAgents';
-import { clearImproveContextNotification } from '../../../store/aiAgentThreadStreamSlice';
+import { removeImproveContextNotification } from '../../../store/aiAgentThreadNotificationsSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -320,11 +320,12 @@ const ImproveContextToolCall: FC<{
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
-}> = ({ projectUuid, agentUuid, threadUuid }) => {
-    const improveContextNotification = useAiAgentStoreSelector(
-        (state) =>
-            state.aiAgentThreadStream[threadUuid]?.improveContextNotification,
-    );
+    messageUuid: string;
+    notification: {
+        toolCallId: string;
+        suggestedInstruction: string;
+    };
+}> = ({ projectUuid, agentUuid, threadUuid, messageUuid, notification }) => {
     const dispatch = useAiAgentStoreDispatch();
 
     const appendInstructionMutation = useAppendInstructionMutation(
@@ -332,28 +333,26 @@ const ImproveContextToolCall: FC<{
         agentUuid,
     );
 
-    if (!improveContextNotification) {
-        return null;
-    }
-
     const handleSave = async () => {
-        if (!improveContextNotification) return;
-
         await appendInstructionMutation.mutateAsync({
-            instruction: improveContextNotification.suggestedInstruction,
+            instruction: notification.suggestedInstruction,
         });
 
         dispatch(
-            clearImproveContextNotification({
+            removeImproveContextNotification({
                 threadUuid,
+                messageUuid,
+                toolCallId: notification.toolCallId,
             }),
         );
     };
 
     const handleDismiss = () => {
         dispatch(
-            clearImproveContextNotification({
+            removeImproveContextNotification({
                 threadUuid,
+                messageUuid,
+                toolCallId: notification.toolCallId,
             }),
         );
     };
@@ -377,7 +376,7 @@ const ImproveContextToolCall: FC<{
                             fontStyle: 'italic',
                         }}
                     >
-                        {improveContextNotification.suggestedInstruction}
+                        {notification.suggestedInstruction}
                     </Text>
                     <Group justify="flex-end" gap="xs">
                         <Button
@@ -410,6 +409,38 @@ type AiChartToolCallsProps = {
     projectUuid?: string;
     agentUuid?: string;
     threadUuid?: string;
+    messageUuid?: string;
+};
+
+const ImproveContextNotifications: FC<{
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+}> = ({ projectUuid, agentUuid, threadUuid, messageUuid }) => {
+    const improveContextNotifications = useAiAgentStoreSelector(
+        (state) =>
+            state.aiAgentThreadNotifications[threadUuid]?.[messageUuid] ?? [],
+    );
+
+    if (improveContextNotifications.length === 0) {
+        return null;
+    }
+
+    return (
+        <>
+            {improveContextNotifications.map((notification) => (
+                <ImproveContextToolCall
+                    key={notification.toolCallId}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={threadUuid}
+                    messageUuid={messageUuid}
+                    notification={notification}
+                />
+            ))}
+        </>
+    );
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
@@ -418,6 +449,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    messageUuid,
 }) => {
     const texts =
         type === 'streaming'
@@ -428,18 +460,23 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
         (toolCall) => toolCall.toolName !== 'improveContext',
     );
 
-    if (!toolCalls || toolCalls.length === 0) return null;
+    const hasCalculationToolCalls = !!calculationToolCalls?.length;
+    const hasNotifications =
+        projectUuid && agentUuid && threadUuid && messageUuid;
+
+    if (!hasCalculationToolCalls && !hasNotifications) return null;
 
     return (
         <>
-            {projectUuid && agentUuid && threadUuid && (
-                <ImproveContextToolCall
+            {projectUuid && agentUuid && threadUuid && messageUuid && (
+                <ImproveContextNotifications
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={threadUuid}
+                    messageUuid={messageUuid}
                 />
             )}
-            {!!calculationToolCalls?.length && (
+            {hasCalculationToolCalls && (
                 <ToolCallContainer defaultOpened={type !== 'persisted'}>
                     <Stack pt="xs">
                         <Timeline
