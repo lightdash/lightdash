@@ -3,12 +3,16 @@ import {
     CatalogItemIcon,
     CatalogItemsWithIcons,
     CatalogType,
+    ChangesetWithChanges,
+    CompiledDimension,
+    CompiledMetric,
     Explore,
     FieldType,
     NotFoundError,
     TableSelectionType,
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
+    convertToAiHints,
     isExploreError,
     type ApiCatalogSearch,
     type ApiSort,
@@ -28,6 +32,7 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { uniqBy } from 'lodash';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
     CatalogTableName,
@@ -198,6 +203,110 @@ export class CatalogModel {
                 numberOfCategoriesApplied: 0,
             };
         }
+    }
+
+    async indexCatalogUpdates({
+        projectUuid,
+        cachedExploreMap,
+        changeset,
+    }: {
+        projectUuid: string;
+        cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError };
+        changeset: ChangesetWithChanges;
+    }): Promise<{
+        catalogUpdates: DbCatalog[];
+    }> {
+        const catalogUpdates = await wrapSentryTransaction(
+            'indexCatalog.updateCatalogItems',
+            {
+                projectUuid,
+                changesetLength: changeset?.changes.length,
+            },
+            () =>
+                this.database.transaction(async (trx) => {
+                    const catalogUpdatesResult: DbCatalog[] = [];
+
+                    const changesetChangesMap = uniqBy(
+                        changeset?.changes,
+                        (change) =>
+                            `${change.entityTableName}:${change.entityType}:${change.entityName}`,
+                    );
+                    const updatePromises = changesetChangesMap.map(
+                        async (change) => {
+                            const cachedExploreTable =
+                                cachedExploreMap[change.entityTableName];
+
+                            if (
+                                !cachedExploreTable ||
+                                !cachedExploreTable.tables
+                            ) {
+                                return null;
+                            }
+
+                            let fieldToUpdate:
+                                | CompiledDimension
+                                | CompiledMetric;
+                            if (
+                                cachedExploreTable.tables[
+                                    change.entityTableName
+                                ]
+                            ) {
+                                let key: 'dimensions' | 'metrics' | undefined;
+                                if (change.entityType === 'metric') {
+                                    key = 'metrics';
+                                } else if (change.entityType === 'dimension') {
+                                    key = 'dimensions';
+                                } else {
+                                    return null;
+                                }
+
+                                const table =
+                                    cachedExploreTable.tables[
+                                        change.entityTableName
+                                    ];
+
+                                if (!table) {
+                                    return null;
+                                }
+
+                                fieldToUpdate = table[key][change.entityName];
+                            } else {
+                                return null;
+                            }
+
+                            if (!fieldToUpdate) {
+                                return null;
+                            }
+
+                            const [result] = await trx(CatalogTableName)
+                                .where('table_name', change.entityTableName)
+                                .andWhere('project_uuid', projectUuid)
+                                .andWhere('name', change.entityName)
+                                .update({
+                                    label: fieldToUpdate.label ?? null,
+                                    description:
+                                        fieldToUpdate.description ?? null,
+                                    ai_hints:
+                                        convertToAiHints(
+                                            fieldToUpdate.aiHint,
+                                        ) ?? null,
+                                })
+                                .returning('*');
+
+                            catalogUpdatesResult.push(result);
+                            return result;
+                        },
+                    );
+
+                    await Promise.all(updatePromises);
+
+                    return catalogUpdatesResult;
+                }),
+        );
+
+        return {
+            catalogUpdates,
+        };
     }
 
     private async getTagsPerItem(catalogSearchUuids: string[]) {
