@@ -1,3 +1,15 @@
+# [0.2033.0](https://github.com/lightdash/lightdash/compare/0.2032.0...0.2033.0) (2025-10-01)
+
+
+### Features
+
+* add changesetModel to AiAgentService for proposing changes ([#17150](https://github.com/lightdash/lightdash/issues/17150)) ([394df91](https://github.com/lightdash/lightdash/commit/394df914f9059ea8fc7ae93039ca434ea767b552))
+* create proposeChange ai agent tool ([#17142](https://github.com/lightdash/lightdash/issues/17142)) ([0d0558b](https://github.com/lightdash/lightdash/commit/0d0558bad76f46854f6fce7c0e7f0c5cc887e4c0))
+* get updated explores before indexing catalog ([#17149](https://github.com/lightdash/lightdash/issues/17149)) ([590ed39](https://github.com/lightdash/lightdash/commit/590ed39eebd625b08015737d33682d4d311599e2))
+* implement changeset application for explore dimensions and metrics ([#17137](https://github.com/lightdash/lightdash/issues/17137)) ([5555157](https://github.com/lightdash/lightdash/commit/5555157a3638d70ba011cc728ef0621b020921b2)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* include changeset updatedAt in explore cache key ([#17147](https://github.com/lightdash/lightdash/issues/17147)) ([76b00b6](https://github.com/lightdash/lightdash/commit/76b00b6921779672f46879c66325ae646dff9057))
+* replace entity explore uuid for table name ([#17139](https://github.com/lightdash/lightdash/issues/17139)) ([0339aab](https://github.com/lightdash/lightdash/commit/0339aab38a1e0901fec5498742f8a12df7a304a9)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2032.0](https://github.com/lightdash/lightdash/compare/0.2031.2...0.2032.0) (2025-10-01)
 
 
