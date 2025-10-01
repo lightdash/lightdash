@@ -1,3 +1,10 @@
+## [0.2031.2](https://github.com/lightdash/lightdash/compare/0.2031.1...0.2031.2) (2025-10-01)
+
+
+### Bug Fixes
+
+* cli generate compatible with 1.10 ([#17034](https://github.com/lightdash/lightdash/issues/17034)) ([f619ae4](https://github.com/lightdash/lightdash/commit/f619ae4be156b4fedd676de8e8d4ff2737804b31))
+
 ## [0.2031.1](https://github.com/lightdash/lightdash/compare/0.2031.0...0.2031.1) (2025-10-01)
 
 
