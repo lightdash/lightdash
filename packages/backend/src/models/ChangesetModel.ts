@@ -2,6 +2,7 @@ import {
     ChangeSchema,
     ChangesetWithChanges,
     ChangesetWithChangesSchema,
+    CreateChangeParams,
     NotFoundError,
     ParseError,
 } from '@lightdash/common';
@@ -9,7 +10,6 @@ import { Knex } from 'knex';
 import {
     ChangesetsTableName,
     ChangesTableName,
-    ChangeType,
     DbChange,
     DbChangeInsertSchema,
     DbChangeSchema,
@@ -18,17 +18,6 @@ import {
 
 type ChangesetModelArguments = {
     database: Knex;
-};
-
-type CreateChangeParams = {
-    projectUuid: string;
-    createdByUserUuid: string;
-    sourcePromptUuid: string | null;
-    type: ChangeType;
-    entityType: EntityType;
-    entityExploreUuid: string | null;
-    entityName: string;
-    payload: Record<string, unknown>;
 };
 
 export class ChangesetModel {
