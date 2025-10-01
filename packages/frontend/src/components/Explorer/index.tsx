@@ -3,15 +3,20 @@ import { Stack } from '@mantine/core';
 import { memo, useEffect, type FC } from 'react';
 import {
     explorerActions,
+    selectFromDashboard,
     selectIsEditMode,
     selectMetricQuery,
     selectParameterReferences,
+    selectPivotConfig,
+    selectPreviouslyFetchedState,
+    selectSorts,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
+import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -40,6 +45,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
+        const sorts = useExplorerSelector(selectSorts);
         const dispatch = useExplorerDispatch();
 
         const projectUuid = useProjectUuid();
@@ -54,21 +60,17 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             enabled: !!tableName,
         });
 
+        // Keep reading savedChart from Context for now (will migrate when we add to Redux)
         const isSavedChart = useExplorerContext(
             (context) => !!context.state.savedChart,
         );
 
-        const fromDashboard = useExplorerContext(
-            (context) => context.state.fromDashboard,
+        // Get navigation context from Redux
+        const fromDashboard = useExplorerSelector(selectFromDashboard);
+        const previouslyFetchedState = useExplorerSelector(
+            selectPreviouslyFetchedState,
         );
-
-        const previouslyFetchedState = useExplorerContext(
-            (context) => context.state.previouslyFetchedState,
-        );
-
-        const pivotConfig = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.pivotConfig,
-        );
+        const pivotConfig = useExplorerSelector(selectPivotConfig);
 
         const hasPivotConfig = !!pivotConfig;
 
@@ -101,6 +103,19 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 );
             }
         }, [parameterReferences, dispatch, isError]);
+
+        // Get unsavedChartVersion for default sort calculation
+        const unsavedChartVersion = useExplorerContext(
+            (context) => context.state.unsavedChartVersion,
+        );
+        const defaultSort = useDefaultSortField(unsavedChartVersion);
+
+        // Set default sort when table changes and no sorts exist
+        useEffect(() => {
+            if (tableName && !sorts.length && defaultSort) {
+                dispatch(explorerActions.setSortFields([defaultSort]));
+            }
+        }, [tableName, sorts.length, defaultSort, dispatch]);
 
         const { data: org } = useOrganization();
 
