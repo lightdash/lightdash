@@ -66,10 +66,10 @@ const FiltersCard: FC = memo(() => {
             if (!inputFilters.dimensions) return inputFilters;
             // The table metadata model required filters may have been updated.
             // We need to refresh the required filters property in the filter group to reflect any changes on the metadata model.
-            if (!data || !data.tables[tableName]) return inputFilters;
+            if (!data || !data.tables[data.baseTable]) return inputFilters;
 
             const requiredFilters =
-                data.tables[tableName].requiredFilters || [];
+                data.tables[data.baseTable].requiredFilters || [];
             // We transform the required filters to filter rules
             // filters is pass as undefined to guarantee all required filters are transform even if they already exist in the filter group
             const allRequiredFilters: FilterRule[] =
@@ -93,7 +93,7 @@ const FiltersCard: FC = memo(() => {
                 dimensions: updatedDimensionFilters,
             };
         },
-        [data, tableName],
+        [data],
     );
     const [hasDefaultFiltersApplied, setHasDefaultFiltersApplied] =
         useState(false);
@@ -101,11 +101,11 @@ const FiltersCard: FC = memo(() => {
     const updateDimensionFiltersWithRequiredFilters = useCallback(
         (unsavedQueryFilters: Filters) => {
             // Check if the table has required filters
-            if (data && data.tables[tableName]) {
+            if (data && data.tables[data.baseTable]) {
                 // We only force required filters that are not explicitly set to false
                 // requiredFilters with required:false will be added on the UI, but not enforced on the backend
                 const requiredFilters = data.tables[
-                    tableName
+                    data.baseTable
                 ].requiredFilters?.filter(
                     (filter) => filter.required !== false,
                 );
@@ -132,7 +132,7 @@ const FiltersCard: FC = memo(() => {
             }
             return unsavedQueryFilters;
         },
-        [data, tableName],
+        [data],
     );
 
     const resetDimensionFiltersIfNoModelSelected = useCallback(
@@ -207,9 +207,10 @@ const FiltersCard: FC = memo(() => {
 
     useEffect(() => {
         if (hasDefaultFiltersApplied) return;
-        const defaultFilters = data?.tables[tableName]?.requiredFilters?.filter(
-            (filter) => filter.required === false,
-        );
+        const defaultFilters = data?.tables[
+            data.baseTable
+        ]?.requiredFilters?.filter((filter) => filter.required === false);
+
         if (
             data &&
             defaultFilters !== undefined &&
