@@ -384,6 +384,7 @@ export class ModelRepository
             () =>
                 new ProjectModel({
                     database: this.database,
+                    changesetModel: this.getChangesetModel(),
                     lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),

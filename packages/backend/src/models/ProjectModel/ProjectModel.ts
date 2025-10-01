@@ -2,6 +2,9 @@ import {
     AlreadyExistsError,
     AnyType,
     BigqueryAuthenticationType,
+    Change,
+    CompiledDimension,
+    CompiledMetric,
     CreateProject,
     CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
@@ -11,6 +14,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    ForbiddenError,
     NotExistsError,
     NotFoundError,
     OrganizationProject,
@@ -44,8 +48,8 @@ import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import { applyPatch, validate } from 'fast-json-patch';
 import { Knex } from 'knex';
-import { merge } from 'lodash';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -89,6 +93,7 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
+import { ChangesetModel } from '../ChangesetModel';
 import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
@@ -96,6 +101,7 @@ export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
+    changesetModel: ChangesetModel;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -105,6 +111,8 @@ export class ProjectModel {
 
     protected lightdashConfig: LightdashConfig;
 
+    protected changesetModel: ChangesetModel;
+
     private encryptionUtil: EncryptionUtil;
 
     private readonly exploreCache: ExploreCache;
@@ -112,6 +120,7 @@ export class ProjectModel {
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
         this.exploreCache = new ExploreCache();
     }
@@ -746,7 +755,7 @@ export class ProjectModel {
         };
     }
 
-    /* 
+    /*
     This method will load default values for backwards compatibility
     For example, when we introduce a new authentication type, we need to set the default value for the existing projects
     */
@@ -895,6 +904,163 @@ export class ProjectModel {
         return convertedExplore;
     };
 
+    static applyChange<T extends CompiledDimension | CompiledMetric>(
+        entity: T,
+        change: Change,
+    ): T | undefined {
+        switch (change.type) {
+            case 'create':
+                return change.payload.value as T;
+
+            case 'update':
+                const errors = validate(change.payload.patch, entity);
+                if (errors) {
+                    throw new Error(`Invalid patch: ${errors.message}`);
+                }
+                const result = applyPatch(entity, change.payload.patch);
+                return result.newDocument;
+
+            case 'delete':
+                return undefined;
+
+            default:
+                return assertUnreachable(change, 'Invalid change type');
+        }
+    }
+
+    async applyChangeset(
+        projectUuid: string,
+        explores: Record<string, Explore | ExploreError>,
+    ) {
+        const changeset =
+            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                projectUuid,
+            );
+
+        if (!changeset) {
+            return explores;
+        }
+
+        const changedExplores = changeset.changes.reduce<
+            Record<string, Explore | ExploreError>
+        >((acc, change) => {
+            const tableName = change.entityTableName;
+            const explore = explores[tableName];
+
+            if (!explore || isExploreError(explore)) {
+                return acc;
+            }
+
+            let patchedExplore = explore;
+
+            switch (change.entityType) {
+                case 'table':
+                    throw new Error(
+                        `Not implemented: applyChange for table ${tableName}`,
+                    );
+                case 'dimension':
+                case 'metric':
+                    const entityType = `${change.entityType}s` as const;
+
+                    if (!explore.tables[tableName]) {
+                        throw new NotExistsError(
+                            `Table "${tableName}" does not exist in explore "${change.entityTableName}".`,
+                        );
+                    }
+
+                    switch (change.type) {
+                        case 'create':
+                            if (
+                                explore.tables[tableName][entityType][
+                                    change.entityName
+                                ]
+                            ) {
+                                throw new ForbiddenError(
+                                    `${entityType} "${change.entityName}" already exists in table "${tableName}" of explore "${change.entityTableName}".`,
+                                );
+                            }
+                            break;
+
+                        case 'update':
+                        case 'delete':
+                            if (
+                                !explore.tables[tableName][entityType][
+                                    change.entityName
+                                ]
+                            ) {
+                                throw new NotExistsError(
+                                    `${entityType} "${change.entityName}" does not exist in table "${tableName}" of explore "${change.entityTableName}".`,
+                                );
+                            }
+                            break;
+
+                        default:
+                            return assertUnreachable(
+                                change,
+                                'Invalid change type',
+                            );
+                    }
+
+                    const changedEntity = ProjectModel.applyChange(
+                        explore.tables[tableName][entityType][
+                            change.entityName
+                        ],
+                        change,
+                    );
+
+                    const patchResult = applyPatch(
+                        explore,
+                        changedEntity === undefined
+                            ? [
+                                  {
+                                      op: 'remove',
+                                      path: `/tables/${tableName}/${entityType}/${change.entityName}`,
+                                  },
+                              ]
+                            : [
+                                  {
+                                      op: 'replace',
+                                      path: `/tables/${tableName}/${entityType}/${change.entityName}`,
+                                      value: changedEntity,
+                                  },
+                              ],
+                    );
+
+                    patchedExplore = patchResult.newDocument;
+
+                    break;
+                default:
+                    throw new Error(
+                        `Invalid entity type: ${change.entityType}`,
+                    );
+            }
+
+            const accPatchResult = applyPatch(acc, [
+                {
+                    op: 'replace',
+                    path: `/${change.entityTableName}`,
+                    value: patchedExplore,
+                },
+            ]);
+            return accPatchResult.newDocument;
+        }, {});
+
+        const patchedExploreNamess = Object.keys(changedExplores);
+        if (patchedExploreNamess.length > 0) {
+            const patchResult = applyPatch(
+                explores,
+                patchedExploreNamess.map((exploreName) => ({
+                    op: 'replace',
+                    path: `/${exploreName}`,
+                    value: changedExplores[exploreName],
+                })),
+            );
+            return patchResult.newDocument;
+        }
+
+        return explores;
+    }
+
     async findExploresFromCache(
         projectUuid: string,
         exploreNamesWithDuplicates?: string[],
@@ -929,7 +1095,8 @@ export class ProjectModel {
                 }
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
-                const finalExplores = explores.reduce<
+
+                let finalExplores = explores.reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, { explore }) => {
                     acc[explore.name] =
@@ -938,6 +1105,12 @@ export class ProjectModel {
                         );
                     return acc;
                 }, {});
+
+                finalExplores = await this.applyChangeset(
+                    projectUuid,
+                    finalExplores,
+                );
+
                 // Store in cache
                 this.exploreCache?.setExplores(
                     projectUuid,

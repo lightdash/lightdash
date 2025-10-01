@@ -58,10 +58,10 @@ export const DbChangeSchema = z.object({
     created_at: z.date(),
     created_by_user_uuid: z.string().uuid(),
     source_prompt_uuid: z.string().uuid().nullable(),
-    type: ChangeTypeSchema,
     entity_type: EntityTypeSchema,
     entity_table_name: z.string().min(1),
     entity_name: z.string().min(1),
+    type: ChangeTypeSchema,
     payload: z.record(z.unknown()),
 });
 
