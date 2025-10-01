@@ -1,3 +1,10 @@
+# [0.2032.0](https://github.com/lightdash/lightdash/compare/0.2031.2...0.2032.0) (2025-10-01)
+
+
+### Features
+
+* allow deploy command to work with just manifest.json ([#17153](https://github.com/lightdash/lightdash/issues/17153)) ([3335384](https://github.com/lightdash/lightdash/commit/333538481ba4f362ba5b401d609de23d29f16bf8))
+
 ## [0.2031.2](https://github.com/lightdash/lightdash/compare/0.2031.1...0.2031.2) (2025-10-01)
 
 
