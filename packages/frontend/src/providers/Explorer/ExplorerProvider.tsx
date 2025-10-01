@@ -928,6 +928,33 @@ const ExplorerProvider: FC<
             explorerActions.setRowLimit(unsavedChartVersion.metricQuery.limit),
         );
     }, [unsavedChartVersion.metricQuery.limit, reduxDispatch]);
+
+    // Keep Redux custom dimensions in sync with Context custom dimensions
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setCustomDimensions(
+                unsavedChartVersion.metricQuery.customDimensions,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.customDimensions, reduxDispatch]);
+
+    // Keep Redux additional metrics in sync with Context additional metrics
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setAdditionalMetrics(
+                unsavedChartVersion.metricQuery.additionalMetrics,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.additionalMetrics, reduxDispatch]);
+
+    // Keep Redux table calculations in sync with Context table calculations
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setTableCalculations(
+                unsavedChartVersion.metricQuery.tableCalculations,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
 
     const [activeFields, isValidQuery] = useMemo<

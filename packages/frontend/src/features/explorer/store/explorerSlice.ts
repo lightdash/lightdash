@@ -1,4 +1,5 @@
 import {
+    type AdditionalMetric,
     type CustomDimension,
     type MetricQuery,
     type ParameterValue,
@@ -152,6 +153,13 @@ const explorerSlice = createSlice({
                     (tc) => tc.name !== nameToRemove,
                 );
         },
+        setTableCalculations: (
+            state,
+            action: PayloadAction<TableCalculation[]>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.tableCalculations =
+                action.payload;
+        },
 
         // Custom dimensions
         addCustomDimension: (state, action: PayloadAction<CustomDimension>) => {
@@ -192,6 +200,22 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.customDimensions.filter(
                     (cd) => cd.id !== idToRemove,
                 );
+        },
+        setCustomDimensions: (
+            state,
+            action: PayloadAction<CustomDimension[] | undefined>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.customDimensions =
+                action.payload;
+        },
+
+        // Additional metrics
+        setAdditionalMetrics: (
+            state,
+            action: PayloadAction<AdditionalMetric[] | undefined>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.additionalMetrics =
+                action.payload;
         },
 
         // Query execution state management
