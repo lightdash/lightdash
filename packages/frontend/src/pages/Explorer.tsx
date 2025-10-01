@@ -26,12 +26,9 @@ const ExplorerWithUrlParams = memo<{
     dateZoomGranularity?: string;
 }>(({ dateZoomGranularity }) => {
     // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager(
-        undefined, // viewModeQueryArgs - undefined for edit mode
-        dateZoomGranularity as any,
-        undefined, // projectUuid - will be inferred from URL params
-        false, // minimal
-    );
+    useExplorerQueryManager({
+        dateZoomGranularity: dateZoomGranularity as any,
+    });
 
     useExplorerRoute();
     const tableId = useExplorerContext(

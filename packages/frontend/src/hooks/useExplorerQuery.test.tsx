@@ -19,8 +19,8 @@ vi.mock('./parameters/useParameters', () => ({
     useParameters: vi.fn(() => ({ data: {} })),
 }));
 
-vi.mock('../providers/Explorer/useExplorerQueryManager', () => ({
-    useQueryManager: vi.fn(() => [
+vi.mock('../providers/Explorer/useQueryExecutor', () => ({
+    useQueryExecutor: vi.fn(() => [
         {
             query: { isFetched: false, isFetching: false },
             queryResults: {

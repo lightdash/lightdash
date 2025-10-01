@@ -52,12 +52,9 @@ const ChartHistoryExplorer = memo<{
     };
 }>(({ viewModeQueryArgs }) => {
     // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager(
+    useExplorerQueryManager({
         viewModeQueryArgs,
-        undefined, // dateZoomGranularity
-        undefined, // projectUuid - will be inferred from URL params
-        false, // minimal
-    );
+    });
 
     return <Explorer hideHeader={true} />;
 });

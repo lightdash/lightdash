@@ -29,12 +29,11 @@ const MinimalExplorerContent = memo<{
     dateZoomGranularity?: string;
 }>(({ viewModeQueryArgs, dateZoomGranularity }) => {
     // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager(
+    useExplorerQueryManager({
         viewModeQueryArgs,
-        dateZoomGranularity as any,
-        undefined, // projectUuid - will be inferred from URL params
-        true, // minimal
-    );
+        dateZoomGranularity: dateZoomGranularity as any,
+        minimal: true,
+    });
 
     const { health } = useApp();
 

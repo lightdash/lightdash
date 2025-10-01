@@ -31,7 +31,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import { useQueryManager } from '../providers/Explorer/useExplorerQueryManager';
+import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
@@ -47,14 +47,18 @@ import { useFeatureFlag } from './useFeatureFlagEnabled';
  * Should be called ONCE at the Explorer root component.
  * Child components should use useExplorerQuery() instead.
  */
-export const useExplorerQueryManager = (
+export const useExplorerQueryManager = (options?: {
     viewModeQueryArgs?:
         | { chartUuid: string; context?: string }
-        | { chartUuid: string; chartVersionUuid: string },
-    dateZoomGranularity?: DateGranularity,
-    projectUuidProp?: string,
-    minimal: boolean = false,
-) => {
+        | { chartUuid: string; chartVersionUuid: string };
+    dateZoomGranularity?: DateGranularity;
+    projectUuid?: string;
+    minimal?: boolean;
+}) => {
+    const viewModeQueryArgs = options?.viewModeQueryArgs;
+    const dateZoomGranularity = options?.dateZoomGranularity;
+    const projectUuidProp = options?.projectUuid;
+    const minimal = options?.minimal ?? false;
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -157,21 +161,21 @@ export const useExplorerQueryManager = (
         [dispatch],
     );
 
-    // Main query manager - creates TanStack Query subscriptions
-    const [mainQueryManager] = useQueryManager(
+    // Main query executor - creates TanStack Query subscriptions
+    const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         missingRequiredParameters,
         true,
         queryUuidHistory,
         setQueryUuidHistory,
     );
-    const { query } = mainQueryManager;
+    const { query } = mainQueryExecutor;
 
-    // Unpivoted query manager for results table
+    // Unpivoted query executor for results table
     // Only enable when we actually need unpivoted data AND results are open AND we have valid args
     const unpivotedEnabled =
         needsUnpivotedData && isResultsOpen && !!unpivotedQueryArgs;
-    useQueryManager(
+    useQueryExecutor(
         unpivotedQueryArgs,
         missingRequiredParameters,
         unpivotedEnabled,

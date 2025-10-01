@@ -5,7 +5,17 @@ import {
     useInfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 
-export const useQueryManager = (
+/**
+ * Low-level hook that executes a single query and tracks its state
+ *
+ * This hook:
+ * - Subscribes to TanStack Query for query creation and result fetching
+ * - Manages query UUID history
+ * - Returns query state and paginated results
+ *
+ * Used by both useExplorerQueryManager (orchestrator) and useExplorerQuery (consumer).
+ */
+export const useQueryExecutor = (
     queryArgs: QueryResultsProps | null,
     missingRequiredParameters: string[] | null,
     enabled: boolean = true,

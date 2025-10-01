@@ -18,7 +18,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import { useQueryManager } from '../providers/Explorer/useExplorerQueryManager';
+import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
@@ -105,19 +105,19 @@ export const useExplorerQuery = (options?: {
     );
 
     // Main query state
-    const [mainQueryManager] = useQueryManager(
+    const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         missingRequiredParameters,
         true,
         queryUuidHistory,
         setQueryUuidHistory,
     );
-    const { query, queryResults } = mainQueryManager;
+    const { query, queryResults } = mainQueryExecutor;
 
     // Unpivoted query state (only if needed)
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
     const unpivotedEnabled = !!unpivotedQueryArgs;
-    const [unpivotedQueryManager] = useQueryManager(
+    const [unpivotedQueryExecutor] = useQueryExecutor(
         unpivotedQueryArgs,
         missingRequiredParameters,
         unpivotedEnabled,
@@ -125,7 +125,7 @@ export const useExplorerQuery = (options?: {
         setUnpivotedQueryUuidHistory,
     );
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
-        unpivotedQueryManager;
+        unpivotedQueryExecutor;
 
     // Computed metric query (including filters)
     const computedMetricQuery = useMemo(
