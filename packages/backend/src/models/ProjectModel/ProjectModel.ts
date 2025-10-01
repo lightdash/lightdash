@@ -906,14 +906,24 @@ export class ProjectModel {
     };
 
     static applyChange<T extends CompiledDimension | CompiledMetric>(
-        entity: T,
+        entity: T | undefined,
         change: Change,
     ): T | undefined {
         switch (change.type) {
             case 'create':
+                if (entity) {
+                    throw new ForbiddenError(
+                        `Entity "${change.entityName}" already exists.`,
+                    );
+                }
                 return change.payload.value as T;
 
             case 'update':
+                if (!entity) {
+                    throw new NotExistsError(
+                        `Entity "${change.entityName}" does not exist.`,
+                    );
+                }
                 const errors = validate(change.payload.patch, entity);
                 if (errors) {
                     throw new Error(`Invalid patch: ${errors.message}`);
@@ -922,6 +932,11 @@ export class ProjectModel {
                 return result.newDocument;
 
             case 'delete':
+                if (!entity) {
+                    throw new NotExistsError(
+                        `Entity "${change.entityName}" does not exist.`,
+                    );
+                }
                 return undefined;
 
             default:
