@@ -686,11 +686,14 @@ export function getCompiledModels(
     manifestModels: DbtModelNode[],
     compiledModelIds?: string[],
 ) {
+    const isAnyModelCompiled = manifestModels.some((model) => model.compiled);
+
     return manifestModels.filter((model) => {
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }
 
-        return model.compiled;
+        // In case any model is compiled, we only return the compiled models otherwise we return all models (this maintains backwards compatibility + adds ability to use parse)
+        return isAnyModelCompiled ? model.compiled : true;
     });
 }
