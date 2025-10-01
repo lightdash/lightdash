@@ -54,7 +54,15 @@ module.exports = {
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',
             },
         ],
-        ['@semantic-release/github', {}],
+        [
+            '@semantic-release/github',
+            {
+                successComment: false,
+                failComment: false,
+                releasedLabels: false,
+                addReleases: 'top',
+            },
+        ],
     ],
     tagFormat: '${version}',
 };

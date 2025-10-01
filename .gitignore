@@ -41,6 +41,11 @@ lightdash_dev.yml
 # CLI binary build artifacts
 /packages/cli/bundle/
 /packages/cli/bin/
+/packages/cli/notarize-temp/
+/packages/cli/lightdash-cli-*.tar.gz
+/packages/cli/lightdash-cli-*.zip
+/packages/cli/checksums-*.txt
+/packages/cli/scripts/sign-env.sh
 
 # misc
 .DS_Store
