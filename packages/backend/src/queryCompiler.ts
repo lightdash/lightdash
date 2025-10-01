@@ -9,6 +9,7 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
+    isSpreadsheetFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     lightdashVariablePattern,
@@ -18,6 +19,7 @@ import {
     TableCalculationTemplateType,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { compileSpreadsheetFormula } from './compiler/spreadsheetFormulaCompiler';
 
 interface TableCalculationDependency {
     name: string;
@@ -120,7 +122,17 @@ const buildTableCalculationDependencyGraph = (
             };
         }
 
-        throw new CompileError(`Table calculation has no SQL or template`, {});
+        if (isSpreadsheetFormulaTableCalculation(calc)) {
+            return {
+                name: calc.name,
+                dependencies: [], // Stage 1: no field references yet
+            };
+        }
+
+        throw new CompileError(
+            `Table calculation has no SQL, template, or spreadsheet formula`,
+            {},
+        );
     });
 
 const detectCircularDependencies = (
@@ -239,7 +251,23 @@ const compileTableCalculation = (
         };
     }
 
-    throw new CompileError(`Table calculation has no SQL or template`, {});
+    if (isSpreadsheetFormulaTableCalculation(tableCalculation)) {
+        const compiledSql = compileSpreadsheetFormula(
+            tableCalculation.spreadsheetFormula,
+            warehouseSqlBuilder,
+        );
+
+        return {
+            ...tableCalculation,
+            compiledSql,
+            dependsOn: tableCalcDependencies,
+        };
+    }
+
+    throw new CompileError(
+        `Table calculation has no SQL, template, or spreadsheet formula`,
+        {},
+    );
 };
 
 const compileTableCalculations = (
