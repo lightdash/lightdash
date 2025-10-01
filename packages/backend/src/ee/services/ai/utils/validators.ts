@@ -452,3 +452,90 @@ ${errors.join('\n\n')}`;
         throw new Error(errorMessage);
     }
 }
+
+/**
+ * Validate that fields exist and match the expected entity type
+ * @param explore - The explore containing field definitions
+ * @param fieldIds - Array of field IDs to validate
+ * @param expectedEntityType - The expected entity type ('dimension' or 'metric')
+ */
+export function validateFieldEntityType(
+    explore: Explore,
+    fieldIds: string[],
+    expectedEntityType: 'dimension' | 'metric',
+) {
+    const exploreFields = getFields(explore);
+    const errors: string[] = [];
+
+    fieldIds.forEach((fieldId) => {
+        const field = exploreFields.find((f) => getItemId(f) === fieldId);
+
+        if (!field) {
+            errors.push(
+                `Error: Field with id "${fieldId}" does not exist in the explore.`,
+            );
+            return;
+        }
+
+        const isValidType =
+            (expectedEntityType === 'dimension' && isDimension(field)) ||
+            (expectedEntityType === 'metric' && isMetric(field));
+
+        if (!isValidType) {
+            errors.push(
+                `Error: Field "${fieldId}" is a ${field.fieldType}, but expected a ${expectedEntityType}.
+
+Field Details:
+- Field ID: ${fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+- Expected Type: ${expectedEntityType}`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid field entity type:
+
+${errors.join('\n\n')}
+
+Available fields:
+${exploreFields.map((f) => `- ${getItemId(f)} (${f.fieldType})`).join('\n')}`;
+
+        Logger.error(`[AiAgent][Validate Field Entity Type] ${errorMessage}`);
+
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that table names exist in the explore
+ * @param explore - The explore containing table definitions
+ * @param tableNames - Array of table names to validate
+ */
+export function validateTableNames(explore: Explore, tableNames: string[]) {
+    const availableTableNames = Object.keys(explore.tables);
+    const errors: string[] = [];
+
+    tableNames.forEach((tableName) => {
+        if (!availableTableNames.includes(tableName)) {
+            errors.push(
+                `Error: Table "${tableName}" does not exist in the explore.`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid table names:
+
+${errors.join('\n\n')}
+
+Available tables:
+${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
+
+        Logger.error(`[AiAgent][Validate Table Names] ${errorMessage}`);
+
+        throw new Error(errorMessage);
+    }
+}
