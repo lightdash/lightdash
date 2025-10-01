@@ -1,14 +1,18 @@
+import { type DateGranularity } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { type FC, useMemo } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { explorerStore } from '../features/explorer/store';
+import { useExplorerQuery } from '../hooks/useExplorerQuery';
+import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
+import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
@@ -20,10 +24,22 @@ const themeOverride: MantineThemeOverride = {
         },
     }),
 };
-const MinimalExplorer: FC = () => {
+
+const MinimalExplorerContent = memo<{
+    viewModeQueryArgs?: { chartUuid: string; context?: string };
+    dateZoomGranularity?: DateGranularity;
+}>(({ viewModeQueryArgs, dateZoomGranularity }) => {
+    // Run the query manager hook - orchestrates all query effects
+    useExplorerQueryManager({
+        viewModeQueryArgs,
+        dateZoomGranularity,
+        minimal: true,
+    });
+
     const { health } = useApp();
-    const queryResults = useExplorerContext((context) => context.queryResults);
-    const query = useExplorerContext((context) => context.query);
+
+    // Get query state from hook
+    const { query, queryResults } = useExplorerQuery({ minimal: true });
 
     const resultsData = useMemo(
         () => ({
@@ -38,10 +54,8 @@ const MinimalExplorer: FC = () => {
         (context) => context.state.savedChart,
     );
 
-    const isLoadingQueryResults = useExplorerContext(
-        (context) =>
-            context.query.isFetching || context.queryResults.isFetchingRows,
-    );
+    const isLoadingQueryResults =
+        query.isFetching || queryResults.isFetchingRows;
 
     if (!savedChart || health.isInitialLoading || !health.data) {
         return null;
@@ -71,7 +85,7 @@ const MinimalExplorer: FC = () => {
             </MantineProvider>
         </VisualizationProvider>
     );
-};
+});
 
 const MinimalSavedExplorer: FC = () => {
     const { savedQueryUuid } = useParams<{
@@ -97,13 +111,6 @@ const MinimalSavedExplorer: FC = () => {
     return (
         <Provider store={explorerStore}>
             <ExplorerProvider
-                minimal={true}
-                viewModeQueryArgs={
-                    savedQueryUuid
-                        ? { chartUuid: savedQueryUuid, context }
-                        : undefined
-                }
-                dateZoomGranularity={dateZoomGranularity}
                 savedChart={data}
                 initialState={
                     data
@@ -135,12 +142,20 @@ const MinimalSavedExplorer: FC = () => {
                                       isOpen: false,
                                   },
                               },
+                              queryExecution: defaultQueryExecution,
                           }
                         : undefined
                 }
             >
                 <MantineProvider inherit theme={themeOverride}>
-                    <MinimalExplorer />
+                    <MinimalExplorerContent
+                        viewModeQueryArgs={
+                            savedQueryUuid
+                                ? { chartUuid: savedQueryUuid, context }
+                                : undefined
+                        }
+                        dateZoomGranularity={dateZoomGranularity}
+                    />
                 </MantineProvider>
             </ExplorerProvider>
         </Provider>

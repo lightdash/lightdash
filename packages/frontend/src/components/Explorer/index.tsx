@@ -4,6 +4,7 @@ import { memo, useEffect, type FC } from 'react';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
+import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
@@ -34,9 +35,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
         const projectUuid = useProjectUuid();
 
-        const queryUuid = useExplorerContext(
-            (context) => context.query?.data?.queryUuid,
-        );
+        // Get query state and actions from hook instead of Context
+        const { query, fetchResults } = useExplorerQuery();
+        const queryUuid = query.data?.queryUuid;
 
         const setParameterReferences = useExplorerContext(
             (context) => context.actions.setParameterReferences,
@@ -58,10 +59,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const previouslyFetchedState = useExplorerContext(
             (context) => context.state.previouslyFetchedState,
-        );
-
-        const fetchResults = useExplorerContext(
-            (context) => context.actions.fetchResults,
         );
 
         const pivotConfig = useExplorerContext(

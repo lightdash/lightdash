@@ -1,4 +1,5 @@
 import {
+    type AdditionalMetric,
     type CustomDimension,
     type MetricQuery,
     type ParameterValue,
@@ -6,6 +7,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
     type ExplorerReduceState,
@@ -60,6 +62,17 @@ const explorerSlice = createSlice({
         // Sorting actions
         setSortFields: (state, action: PayloadAction<SortField[]>) => {
             state.unsavedChartVersion.metricQuery.sorts = action.payload;
+        },
+
+        // Dimensions and Metrics
+        setDimensions: (state, action: PayloadAction<string[]>) => {
+            state.unsavedChartVersion.metricQuery.dimensions = action.payload;
+        },
+        setMetrics: (state, action: PayloadAction<string[]>) => {
+            state.unsavedChartVersion.metricQuery.metrics = action.payload;
+        },
+        setRowLimit: (state, action: PayloadAction<number>) => {
+            state.unsavedChartVersion.metricQuery.limit = action.payload;
         },
 
         // Parameters
@@ -140,6 +153,13 @@ const explorerSlice = createSlice({
                     (tc) => tc.name !== nameToRemove,
                 );
         },
+        setTableCalculations: (
+            state,
+            action: PayloadAction<TableCalculation[]>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.tableCalculations =
+                action.payload;
+        },
 
         // Custom dimensions
         addCustomDimension: (state, action: PayloadAction<CustomDimension>) => {
@@ -180,6 +200,59 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.customDimensions.filter(
                     (cd) => cd.id !== idToRemove,
                 );
+        },
+        setCustomDimensions: (
+            state,
+            action: PayloadAction<CustomDimension[] | undefined>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.customDimensions =
+                action.payload;
+        },
+
+        // Additional metrics
+        setAdditionalMetrics: (
+            state,
+            action: PayloadAction<AdditionalMetric[] | undefined>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.additionalMetrics =
+                action.payload;
+        },
+
+        // Query execution state management
+        setValidQueryArgs: (
+            state,
+            action: PayloadAction<QueryResultsProps | null>,
+        ) => {
+            state.queryExecution.validQueryArgs = action.payload;
+        },
+        setUnpivotedQueryArgs: (
+            state,
+            action: PayloadAction<QueryResultsProps | null>,
+        ) => {
+            state.queryExecution.unpivotedQueryArgs = action.payload;
+        },
+        setQueryUuidHistory: (state, action: PayloadAction<string[]>) => {
+            state.queryExecution.queryUuidHistory = action.payload;
+        },
+        addQueryUuid: (state, action: PayloadAction<string>) => {
+            state.queryExecution.queryUuidHistory.push(action.payload);
+        },
+        setUnpivotedQueryUuidHistory: (
+            state,
+            action: PayloadAction<string[]>,
+        ) => {
+            state.queryExecution.unpivotedQueryUuidHistory = action.payload;
+        },
+        addUnpivotedQueryUuid: (state, action: PayloadAction<string>) => {
+            state.queryExecution.unpivotedQueryUuidHistory.push(action.payload);
+        },
+        resetQueryExecution: (state) => {
+            state.queryExecution = {
+                validQueryArgs: null,
+                unpivotedQueryArgs: null,
+                queryUuidHistory: [],
+                unpivotedQueryUuidHistory: [],
+            };
         },
     },
 });

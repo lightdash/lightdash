@@ -6,7 +6,13 @@ import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import {
+    selectQueryLimit,
+    selectTimezone,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
@@ -25,30 +31,23 @@ const ExplorerHeader: FC = memo(() => {
     const { user } = useApp();
     const { onBackToDashboard } = useEmbed();
 
+    // Get state from Redux and new hook
+    const limit = useExplorerSelector(selectQueryLimit);
+    const selectedTimezone = useExplorerSelector(selectTimezone);
+    const { query, queryResults, isValidQuery } = useExplorerQuery();
+
+    // Compute values from new hook data
+    const showLimitWarning = useMemo(
+        () => queryResults.totalResults && queryResults.totalResults >= limit,
+        [queryResults.totalResults, limit],
+    );
+    const queryWarnings = query.data?.warnings;
+
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
-    );
-    const isValidQuery = useExplorerContext(
-        (context) => context.state.isValidQuery,
-    );
-    const showLimitWarning = useExplorerContext(
-        (context) =>
-            context.queryResults.totalResults &&
-            context.queryResults.totalResults >=
-                context.state.unsavedChartVersion.metricQuery.limit,
-    );
-    const queryWarnings = useExplorerContext(
-        (context) => context.query.data?.warnings,
-    );
-    const limit = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.limit,
-    );
-
-    const selectedTimezone = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.timezone,
     );
     const setTimeZone = useExplorerContext(
         (context) => context.actions.setTimeZone,
@@ -150,7 +149,7 @@ const ExplorerHeader: FC = memo(() => {
                 {userTimeZonesEnabled && (
                     <TimeZonePicker
                         onChange={setTimeZone}
-                        value={selectedTimezone}
+                        value={selectedTimezone as string}
                     />
                 )}
 

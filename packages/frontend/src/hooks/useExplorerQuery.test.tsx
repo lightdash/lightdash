@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { explorerStore } from '../features/explorer/store';
-import { useExplorerQuery, useExplorerQueryActions } from './useExplorerQuery';
+import { useExplorerQuery } from './useExplorerQuery';
 
 // Mock the hooks that depend on external APIs
 vi.mock('./useExplore', () => ({
@@ -19,11 +19,17 @@ vi.mock('./parameters/useParameters', () => ({
     useParameters: vi.fn(() => ({ data: {} })),
 }));
 
-vi.mock('../providers/Explorer/useExplorerQueryManager', () => ({
-    useQueryManager: vi.fn(() => [
+vi.mock('../providers/Explorer/useQueryExecutor', () => ({
+    useQueryExecutor: vi.fn(() => [
         {
             query: { isFetched: false, isFetching: false },
-            queryResults: { queryUuid: null, totalResults: 0 },
+            queryResults: {
+                queryUuid: null,
+                totalResults: 0,
+                isFetchingFirstPage: false,
+                isFetchingAllPages: false,
+                error: null,
+            },
         },
         vi.fn(),
     ]),
@@ -58,11 +64,21 @@ describe('useExplorerQuery', () => {
 
         expect(result.current).toHaveProperty('query');
         expect(result.current).toHaveProperty('queryResults');
+        expect(result.current).toHaveProperty('isLoading');
         expect(result.current).toHaveProperty('runQuery');
         expect(result.current).toHaveProperty('resetQueryResults');
         expect(result.current).toHaveProperty('getDownloadQueryUuid');
         expect(result.current).toHaveProperty('activeFields');
         expect(result.current).toHaveProperty('isValidQuery');
+    });
+
+    it('should compute loading state correctly', () => {
+        const { result } = renderHook(() => useExplorerQuery(), {
+            wrapper: createWrapper(),
+        });
+
+        // Should be false initially when not fetching
+        expect(result.current.isLoading).toBe(false);
     });
 
     it('should have empty activeFields when no dimensions/metrics selected', () => {
@@ -80,21 +96,5 @@ describe('useExplorerQuery', () => {
         });
 
         expect(result.current.validQueryArgs).toBeNull();
-    });
-});
-
-describe('useExplorerQueryActions', () => {
-    it('should return fetchResults and cancelQuery functions', () => {
-        const { result } = renderHook(
-            () => useExplorerQueryActions('test-project', 'test-query'),
-            {
-                wrapper: createWrapper(),
-            },
-        );
-
-        expect(result.current).toHaveProperty('fetchResults');
-        expect(result.current).toHaveProperty('cancelQuery');
-        expect(typeof result.current.fetchResults).toBe('function');
-        expect(typeof result.current.cancelQuery).toBe('function');
     });
 });

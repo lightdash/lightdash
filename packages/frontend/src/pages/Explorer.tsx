@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { type DateGranularity } from '@lightdash/common';
 import { memo } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -10,6 +11,7 @@ import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { explorerStore } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
+import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
 import {
     useDateZoomGranularitySearch,
     useExplorerRoute,
@@ -21,7 +23,14 @@ import { defaultState } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
-const ExplorerWithUrlParams = memo(() => {
+const ExplorerWithUrlParams = memo<{
+    dateZoomGranularity?: DateGranularity;
+}>(({ dateZoomGranularity }) => {
+    // Run the query manager hook - orchestrates all query effects
+    useExplorerQueryManager({
+        dateZoomGranularity,
+    });
+
     useExplorerRoute();
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -84,9 +93,10 @@ const ExplorerPage = memo(() => {
                         : { ...defaultState, isEditMode: true }
                 }
                 defaultLimit={health.data?.query.defaultLimit}
-                dateZoomGranularity={dateZoomGranularity}
             >
-                <ExplorerWithUrlParams />
+                <ExplorerWithUrlParams
+                    dateZoomGranularity={dateZoomGranularity}
+                />
             </ExplorerProvider>
         </Provider>
     );

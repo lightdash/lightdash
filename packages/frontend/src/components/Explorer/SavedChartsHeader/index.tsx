@@ -57,6 +57,7 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -120,9 +121,10 @@ const SavedChartsHeader: FC = () => {
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
-    const itemsMap = useExplorerContext(
-        (context) => context.query.data?.fields,
-    );
+    // Get query state from hook instead of Context
+    const { query } = useExplorerQuery();
+    const itemsMap = query.data?.fields;
+
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
