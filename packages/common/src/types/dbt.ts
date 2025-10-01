@@ -82,31 +82,38 @@ type ExploreConfig = {
     joins?: DbtModelJoin[];
 };
 
-type DbtModelLightdashConfig = ExploreConfig & {
-    metrics?: Record<string, DbtModelLightdashMetric>;
-    order_fields_by?: OrderFieldsByStrategy;
-    group_label?: string;
-    sql_filter?: string;
-    sql_where?: string; // alias for sql_filter
-    sql_from?: string; // overrides dbt model relation_name
+type SharedDbtModelLightdashConfig = {
     default_filters?: RequiredFilter[];
     required_filters?: RequiredFilter[]; // Alias for default_filters, for backwards compatibility
-    required_attributes?: Record<string, string | string[]>;
-    group_details?: Record<string, DbtModelGroup>;
-    default_time_dimension?: {
-        field: string;
-        interval: TimeFrames;
-    };
-    spotlight?: {
-        visibility?: NonNullable<
-            LightdashProjectConfig['spotlight']
-        >['default_visibility'];
-        categories?: string[]; // yaml_reference
-    };
-    explores?: Record<string, ExploreConfig>;
-    ai_hint?: string | string[];
-    parameters?: LightdashProjectConfig['parameters'];
 };
+
+type DbtModelLightdashConfig = ExploreConfig &
+    SharedDbtModelLightdashConfig & {
+        metrics?: Record<string, DbtModelLightdashMetric>;
+        order_fields_by?: OrderFieldsByStrategy;
+        group_label?: string;
+        sql_filter?: string;
+        sql_where?: string; // alias for sql_filter
+        sql_from?: string; // overrides dbt model relation_name
+        required_attributes?: Record<string, string | string[]>;
+        group_details?: Record<string, DbtModelGroup>;
+        default_time_dimension?: {
+            field: string;
+            interval: TimeFrames;
+        };
+        spotlight?: {
+            visibility?: NonNullable<
+                LightdashProjectConfig['spotlight']
+            >['default_visibility'];
+            categories?: string[]; // yaml_reference
+        };
+        explores?: Record<
+            string,
+            ExploreConfig & SharedDbtModelLightdashConfig
+        >;
+        ai_hint?: string | string[];
+        parameters?: LightdashProjectConfig['parameters'];
+    };
 
 export type DbtModelGroup = {
     label: string;
