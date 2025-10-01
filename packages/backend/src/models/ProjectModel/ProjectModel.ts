@@ -1069,10 +1069,18 @@ export class ProjectModel {
         return explores;
     }
 
+    /**
+     * Find explores from cache (cached_explore) from a project.
+     * @param projectUuid - The project uuid.
+     * @param key - The key to represent the Explore dictionary key.
+     * @param exploreNamesWithDuplicates - The explore names with duplicates.
+     * @returns A dictionary of explores with the key being the name or uuid.
+     */
     async findExploresFromCache(
         projectUuid: string,
+        key: 'name' | 'uuid',
         exploreNamesWithDuplicates?: string[],
-    ): Promise<Record<string, Explore | ExploreError>> {
+    ): Promise<{ [exploreNameOrUuid: string]: Explore | ExploreError }> {
         // dedupe values
         const exploreNames = exploreNamesWithDuplicates
             ? [...new Set(exploreNamesWithDuplicates)]
@@ -1095,14 +1103,15 @@ export class ProjectModel {
                     exploreNames,
                     changeset?.updatedAt,
                 );
-                if (cachedExplores) {
+                // NOTE: Explores are cached with the name key, so we don't need to return the cached explores if the key is uuid
+                if (cachedExplores && key === 'name') {
                     span.setAttribute('cacheHit', true);
                     // Return cached explores
                     return cachedExplores;
                 }
                 // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
-                    .select('explore')
+                    .select('explore', 'cached_explore_uuid')
                     .where('project_uuid', projectUuid);
                 if (exploreNames) {
                     void query.whereIn('name', exploreNames);
@@ -1112,8 +1121,10 @@ export class ProjectModel {
 
                 let finalExplores = explores.reduce<
                     Record<string, Explore | ExploreError>
-                >((acc, { explore }) => {
-                    acc[explore.name] =
+                >((acc, { explore, cached_explore_uuid }) => {
+                    const exploreKey =
+                        key === 'name' ? explore.name : cached_explore_uuid;
+                    acc[exploreKey] =
                         ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
                             explore,
                         );
@@ -1182,9 +1193,11 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        const cachedExplores = await this.findExploresFromCache(projectUuid, [
-            exploreName,
-        ]);
+        const cachedExplores = await this.findExploresFromCache(
+            projectUuid,
+            'name',
+            [exploreName],
+        );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
             throw new NotExistsError(
@@ -1198,9 +1211,11 @@ export class ProjectModel {
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        const cachedExplores = await this.findExploresFromCache(projectUuid, [
-            tableName,
-        ]);
+        const cachedExplores = await this.findExploresFromCache(
+            projectUuid,
+            'name',
+            [tableName],
+        );
         return cachedExplores[tableName];
     }
 

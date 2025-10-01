@@ -3835,6 +3835,7 @@ export class ProjectService extends BaseService {
 
         const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
         );
         const explores = Object.values(cachedExplores);
 
@@ -3999,6 +4000,7 @@ export class ProjectService extends BaseService {
                 }
                 const explores = await this.projectModel.findExploresFromCache(
                     projectUuid,
+                    'name',
                     exploreNames,
                 );
 
@@ -4046,6 +4048,7 @@ export class ProjectService extends BaseService {
         }
         const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
         );
         const explores = Object.values(cachedExplores);
 
@@ -5579,6 +5582,7 @@ export class ProjectService extends BaseService {
         }
         const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
         );
         const allExplores = Object.values(cachedExplores);
 
@@ -6154,6 +6158,7 @@ export class ProjectService extends BaseService {
         );
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
+            'name',
             charts.map((chart) => chart.tableName),
         );
         const replaceableFields = charts.reduce<ReplaceableCustomFields>(

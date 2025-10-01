@@ -616,7 +616,10 @@ export class ValidationService extends BaseService {
             );
         } else {
             explores = Object.values(
-                await this.projectModel.findExploresFromCache(projectUuid),
+                await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    'name',
+                ),
             );
         }
 
