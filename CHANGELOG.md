@@ -1,3 +1,10 @@
+## [0.2034.1](https://github.com/lightdash/lightdash/compare/0.2034.0...0.2034.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* custom metrics are created with the wrong id ([#17162](https://github.com/lightdash/lightdash/issues/17162)) ([b422286](https://github.com/lightdash/lightdash/commit/b4222860f35a7a00e08a276ec74dfad083488df8))
+
 # [0.2034.0](https://github.com/lightdash/lightdash/compare/0.2033.0...0.2034.0) (2025-10-01)
 
 
