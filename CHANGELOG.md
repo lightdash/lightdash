@@ -1,3 +1,10 @@
+# [0.2036.0](https://github.com/lightdash/lightdash/compare/0.2035.0...0.2036.0) (2025-10-01)
+
+
+### Features
+
+* migrate query execution from Context to Redux ([#17129](https://github.com/lightdash/lightdash/issues/17129)) ([f6cfcfe](https://github.com/lightdash/lightdash/commit/f6cfcfeb003fa25c8c54a663ef7e0882b3a9f930))
+
 # [0.2035.0](https://github.com/lightdash/lightdash/compare/0.2034.2...0.2035.0) (2025-10-01)
 
 
