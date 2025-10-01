@@ -1,4 +1,8 @@
 import { subject } from '@casl/ability';
+import {
+    getAvailableParametersFromTables,
+    type CreateSavedChartVersion,
+} from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
@@ -18,6 +22,7 @@ import {
     useExplorerSelector,
 } from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
+import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
@@ -109,6 +114,39 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 );
             }
         }, [parameterReferences, dispatch, isError]);
+
+        // Fetch project parameters based on parameter references
+        const { data: projectParameters } = useParameters(
+            projectUuid,
+            parameterReferencesFromRedux ?? undefined,
+            {
+                enabled: !!parameterReferencesFromRedux?.length,
+            },
+        );
+
+        // Compute parameter definitions from explore tables
+        const exploreParameterDefinitions = useMemo(() => {
+            return explore
+                ? getAvailableParametersFromTables(
+                      Object.values(explore.tables),
+                  )
+                : {};
+        }, [explore]);
+
+        // Merge project and explore parameter definitions
+        const parameterDefinitions = useMemo(() => {
+            return {
+                ...(projectParameters ?? {}),
+                ...(exploreParameterDefinitions ?? {}),
+            };
+        }, [projectParameters, exploreParameterDefinitions]);
+
+        // Sync parameter definitions to Redux
+        useEffect(() => {
+            dispatch(
+                explorerActions.setParameterDefinitions(parameterDefinitions),
+            );
+        }, [parameterDefinitions, dispatch]);
 
         // Construct object for default sort calculation using Redux values
         const chartVersionForSort = useMemo(
