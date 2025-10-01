@@ -189,6 +189,8 @@ export const prepareCustomMetricData = ({
                 'baseDimensionName' in item &&
                 item.baseDimensionName
                 ? item.baseDimensionName
+                : isCustomDimension(item)
+                ? item.id // Custom dimensions have ids instead of names
                 : item.name,
         ),
         ...(isEditingCustomMetric &&

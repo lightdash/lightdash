@@ -172,7 +172,7 @@ describe('Custom dimensions', () => {
 
         const sqlLines = [
             `"payments".payment_method AS "payments_payment_method",`,
-            `MAX((("orders".amount)) / 10) AS "payments_discounted amount_max_of_discounted_amount",`,
+            `MAX((("orders".amount)) / 10) AS "payments_discounted_amount_max_of_discounted_amount",`,
             `GROUP BY 1`,
             `ORDER BY "payments_payment_method"`,
         ];
