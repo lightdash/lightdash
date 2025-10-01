@@ -289,7 +289,7 @@ describe('ProjectModel', () => {
                     entityTableName: 'orders',
                     entityName: 'test_dimension',
                     payload: {
-                        patch: [
+                        patches: [
                             {
                                 op: 'replace',
                                 path: '/label',
@@ -324,7 +324,7 @@ describe('ProjectModel', () => {
                     entityTableName: 'orders',
                     entityName: 'test_dimension',
                     payload: {
-                        patch: [
+                        patches: [
                             {
                                 op: 'replace',
                                 path: '/description',
@@ -357,7 +357,7 @@ describe('ProjectModel', () => {
                     entityTableName: 'orders',
                     entityName: 'test_dimension',
                     payload: {
-                        patch: [
+                        patches: [
                             {
                                 op: 'replace',
                                 path: '/nonexistent',

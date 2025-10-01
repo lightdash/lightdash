@@ -25,7 +25,7 @@ export async function up(knex: Knex): Promise<void> {
 
     for await (const mapping of slackMappings) {
         const [agent] = await knex(AIAgentTableName)
-            // @ts-ignore - enable_data_access is not in the table at this point
+            // @ts-ignore - enable_data_access and enable_self_improvement are not in the table at this point
             .insert({
                 project_uuid: mapping.project_uuid,
                 organization_uuid: mapping.organization_uuid,

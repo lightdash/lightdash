@@ -59,6 +59,7 @@ export const baseAgentSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
+    enableSelfImprovement: z.boolean(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -78,6 +79,7 @@ export type AiAgent = Pick<
     | 'groupAccess'
     | 'userAccess'
     | 'enableDataAccess'
+    | 'enableSelfImprovement'
 >;
 
 export type AiAgentSummary = Pick<
@@ -95,6 +97,7 @@ export type AiAgentSummary = Pick<
     | 'groupAccess'
     | 'userAccess'
     | 'enableDataAccess'
+    | 'enableSelfImprovement'
 >;
 
 export type AiAgentUser = {
@@ -185,6 +188,7 @@ export type ApiCreateAiAgent = Pick<
     | 'groupAccess'
     | 'userAccess'
     | 'enableDataAccess'
+    | 'enableSelfImprovement'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -199,6 +203,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'groupAccess'
         | 'userAccess'
         | 'enableDataAccess'
+        | 'enableSelfImprovement'
     >
 > & {
     uuid: string;

@@ -32,6 +32,7 @@ export type AiAgentArgs = AnyAiModel & {
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 
     availableExploresPageSize: number;
     findExploresPageSize: number;

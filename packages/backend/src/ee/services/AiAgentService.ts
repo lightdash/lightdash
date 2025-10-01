@@ -798,6 +798,7 @@ export class AiAgentService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
+            enableSelfImprovement: body.enableSelfImprovement,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -854,6 +855,7 @@ export class AiAgentService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
+            enableSelfImprovement: body.enableSelfImprovement,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -2067,6 +2069,7 @@ export class AiAgentService {
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
+            enableSelfImprovement: agentSettings.enableSelfImprovement,
 
             availableExploresPageSize: 100,
             findExploresPageSize: 15,

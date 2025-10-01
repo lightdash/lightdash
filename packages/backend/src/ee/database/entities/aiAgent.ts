@@ -11,6 +11,7 @@ export type DbAiAgent = {
     image_url: string | null;
     tags: string[] | null;
     enable_data_access: boolean;
+    enable_self_improvement: boolean;
     created_at: Date;
     updated_at: Date;
 };
