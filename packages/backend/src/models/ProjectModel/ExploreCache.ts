@@ -19,27 +19,44 @@ export class ExploreCache {
 
     private static getCacheKey(
         projectUuid: string,
-        exploreNames?: string[] | undefined,
+        exploreNames: string[] | undefined,
+        changesetUpdatedAt: Date | undefined,
     ): string {
-        return `explores::${projectUuid}::${exploreNames?.join(',') || 'all'}`;
+        const exploreNamesString = exploreNames?.join(',') || 'all';
+
+        const cacheKey = changesetUpdatedAt
+            ? `explores::${projectUuid}::${exploreNamesString}::${changesetUpdatedAt.toISOString()}`
+            : `explores::${projectUuid}::${exploreNamesString}`;
+
+        return cacheKey;
     }
 
     public getExplores(
         projectUuid: string,
         exploreNames: string[] | undefined,
+        changesetUpdatedAt: Date | undefined,
     ): CachedExplores | undefined {
         return this.cache?.get<CachedExplores>(
-            ExploreCache.getCacheKey(projectUuid, exploreNames),
+            ExploreCache.getCacheKey(
+                projectUuid,
+                exploreNames,
+                changesetUpdatedAt,
+            ),
         );
     }
 
     public setExplores(
         projectUuid: string,
         exploreNames: string[] | undefined,
+        changesetUpdatedAt: Date | undefined,
         explore: CachedExplores,
     ): void {
         this.cache?.set(
-            ExploreCache.getCacheKey(projectUuid, exploreNames),
+            ExploreCache.getCacheKey(
+                projectUuid,
+                exploreNames,
+                changesetUpdatedAt,
+            ),
             explore,
         );
     }

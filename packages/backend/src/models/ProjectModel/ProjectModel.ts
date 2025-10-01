@@ -3,6 +3,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     Change,
+    ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
     CreateProject,
@@ -928,19 +929,11 @@ export class ProjectModel {
         }
     }
 
-    async applyChangeset(
+    static async applyChangeset(
         projectUuid: string,
+        changeset: ChangesetWithChanges,
         explores: Record<string, Explore | ExploreError>,
     ) {
-        const changeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                projectUuid,
-            );
-
-        if (!changeset) {
-            return explores;
-        }
-
         const changedExplores = changeset.changes.reduce<
             Record<string, Explore | ExploreError>
         >((acc, change) => {
@@ -1076,10 +1069,16 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
+                const changeset =
+                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                        projectUuid,
+                    );
+
                 // Try to get from cache first
                 const cachedExplores = this.exploreCache?.getExplores(
                     projectUuid,
                     exploreNames,
+                    changeset?.updatedAt,
                 );
                 if (cachedExplores) {
                     span.setAttribute('cacheHit', true);
@@ -1106,15 +1105,19 @@ export class ProjectModel {
                     return acc;
                 }, {});
 
-                finalExplores = await this.applyChangeset(
-                    projectUuid,
-                    finalExplores,
-                );
+                if (changeset) {
+                    finalExplores = await ProjectModel.applyChangeset(
+                        projectUuid,
+                        changeset,
+                        finalExplores,
+                    );
+                }
 
                 // Store in cache
                 this.exploreCache?.setExplores(
                     projectUuid,
                     exploreNames,
+                    changeset?.updatedAt,
                     finalExplores,
                 );
                 return finalExplores;
