@@ -1,3 +1,10 @@
+## [0.2036.3](https://github.com/lightdash/lightdash/compare/0.2036.2...0.2036.3) (2025-10-02)
+
+
+### Bug Fixes
+
+* changeset application logic ([#17183](https://github.com/lightdash/lightdash/issues/17183)) ([14fdf4f](https://github.com/lightdash/lightdash/commit/14fdf4f231bd240019f77ab2b69870840ad57c22))
+
 ## [0.2036.2](https://github.com/lightdash/lightdash/compare/0.2036.1...0.2036.2) (2025-10-02)
 
 
