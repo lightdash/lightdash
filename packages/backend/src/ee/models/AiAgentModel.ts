@@ -20,6 +20,7 @@ import {
     AiAgentUser,
     AiAgentUserPreferences,
     AiArtifact,
+    AiResultType,
     AiThread,
     AiWebAppPrompt,
     ApiAppendEvaluationRequest,
@@ -39,6 +40,9 @@ import {
     NotImplementedError,
     SlackPrompt,
     ToolName,
+    ToolNameSchema,
+    ToolProposeChangeOutput,
+    toolProposeChangeOutputSchema,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
@@ -2109,15 +2113,34 @@ export class AiAgentModel {
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 
-        return rows.map((row) => ({
-            uuid: row.ai_agent_tool_result_uuid,
-            promptUuid: row.ai_prompt_uuid,
-            toolCallId: row.tool_call_id,
-            toolName: row.tool_name,
-            result: row.result,
-            metadata: row.metadata as AgentToolOutput['metadata'] | null,
-            createdAt: row.created_at,
-        }));
+        return rows.map((row) => {
+            const toolName = ToolNameSchema.parse(row.tool_name);
+            switch (toolName) {
+                case 'proposeChange':
+                    return {
+                        uuid: row.ai_agent_tool_result_uuid,
+                        promptUuid: row.ai_prompt_uuid,
+                        toolCallId: row.tool_call_id,
+                        toolName,
+                        result: row.result,
+                        metadata:
+                            toolProposeChangeOutputSchema.shape.metadata.parse(
+                                row.metadata,
+                            ),
+                        createdAt: row.created_at,
+                    };
+                default:
+                    return {
+                        uuid: row.ai_agent_tool_result_uuid,
+                        promptUuid: row.ai_prompt_uuid,
+                        toolCallId: row.tool_call_id,
+                        toolName,
+                        result: row.result,
+                        metadata: row.metadata as AgentToolOutput['metadata'],
+                        createdAt: row.created_at,
+                    };
+            }
+        });
     }
 
     async createToolResults(
@@ -2148,49 +2171,19 @@ export class AiAgentModel {
         });
     }
 
-    async getToolCallsAndResultsForPrompt(promptUuid: string) {
-        const toolCallsAndResults = await this.database(
-            AiAgentToolCallTableName,
-        )
-            .select<
-                Array<
-                    Pick<
-                        DbAiAgentToolCall,
-                        | 'ai_agent_tool_call_uuid'
-                        | 'tool_call_id'
-                        | 'tool_name'
-                        | 'tool_args'
-                        | 'created_at'
-                    > &
-                        Pick<
-                            DbAiAgentToolResult,
-                            'ai_agent_tool_result_uuid' | 'result' | 'metadata'
-                        >
-                >
-            >(
-                `${AiAgentToolCallTableName}.ai_agent_tool_call_uuid`,
-                `${AiAgentToolCallTableName}.tool_call_id`,
-                `${AiAgentToolCallTableName}.tool_name`,
-                `${AiAgentToolCallTableName}.tool_args`,
-                `${AiAgentToolCallTableName}.created_at`,
-                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
-                `${AiAgentToolResultTableName}.result`,
-                `${AiAgentToolResultTableName}.metadata`,
-            )
-            // we only want to return tool_calls that have a matching tool_result
-            .innerJoin(
-                AiAgentToolResultTableName,
-                `${AiAgentToolCallTableName}.tool_call_id`,
-                `${AiAgentToolResultTableName}.tool_call_id`,
-            )
-            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
-            .andWhere(
-                `${AiAgentToolResultTableName}.ai_prompt_uuid`,
-                promptUuid,
-            )
-            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
-
-        return toolCallsAndResults;
+    async updateToolResultMetadata(
+        promptUuid: string,
+        toolCallId: string,
+        metadata: AgentToolOutput['metadata'],
+    ): Promise<void> {
+        await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .update({
+                metadata,
+            });
     }
 
     async createArtifact(

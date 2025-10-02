@@ -8,6 +8,8 @@ import type {
     ItemsMap,
     KnexPaginatedData,
     ToolDashboardArgs,
+    ToolName,
+    ToolProposeChangeOutput,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -319,11 +321,19 @@ export type AiAgentToolCall = {
 export type AiAgentToolResult = {
     uuid: string;
     promptUuid: string;
-    toolName: string;
     result: string;
-    metadata: AgentToolOutput['metadata'] | null;
     createdAt: Date;
-};
+    toolCallId: string;
+} & (
+    | {
+          toolName: 'proposeChange';
+          metadata: ToolProposeChangeOutput['metadata'];
+      }
+    | {
+          toolName: Exclude<ToolName, 'proposeChange'>;
+          metadata: AgentToolOutput['metadata'];
+      }
+);
 
 export type AiAgentExploreAccessSummary = {
     exploreName: string;
@@ -484,3 +494,9 @@ export type ApiAppendInstructionRequest = {
 export type ApiAppendInstructionResponse = ApiSuccess<{
     updatedInstruction: string;
 }>;
+
+export type ApiRevertChangeRequest = {
+    changeUuid: string;
+};
+
+export type ApiRevertChangeResponse = ApiSuccessEmpty;

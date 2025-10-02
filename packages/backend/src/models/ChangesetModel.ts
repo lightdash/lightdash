@@ -167,4 +167,24 @@ export class ChangesetModel {
             return parsedChange.data;
         });
     }
+
+    async getChange(changeUuid: string) {
+        const change = await this.database(ChangesTableName)
+            .where('change_uuid', changeUuid)
+            .first();
+
+        if (!change) {
+            throw new NotFoundError(`Change with UUID ${changeUuid} not found`);
+        }
+
+        return change;
+    }
+
+    async revertChange(changeUuid: string): Promise<void> {
+        await this.getChange(changeUuid);
+
+        await this.database(ChangesTableName)
+            .where('change_uuid', changeUuid)
+            .delete();
+    }
 }

@@ -3,7 +3,6 @@ import { type Dimension, type Metric, type Table } from '../../../..';
 import { AiResultType } from '../../types';
 import { customMetricBaseSchema } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
-import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 // ============================================================================
@@ -189,7 +188,19 @@ export type UpdateTablePatch = ChangePatch<Table>;
 
 export const toolProposeChangeOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: z.discriminatedUnion('status', [
+        z.object({
+            status: z.literal('success'),
+            changeUuid: z.string(),
+            userFeedback: z
+                .enum(['accepted', 'rejected'])
+                .default('accepted')
+                .optional(),
+        }),
+        z.object({
+            status: z.literal('error'),
+        }),
+    ]),
 });
 
 export type ToolProposeChangeOutput = z.infer<

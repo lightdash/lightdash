@@ -29,6 +29,8 @@ import {
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
+    ApiRevertChangeRequest,
+    ApiRevertChangeResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
@@ -897,6 +899,35 @@ export class AiAgentController extends BaseController {
             results: {
                 updatedInstruction,
             },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/threads/{threadUuid}/messages/{promptUuid}/revert-change',
+    )
+    @OperationId('revertChange')
+    async revertChange(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() promptUuid: string,
+        @Body() body: ApiRevertChangeRequest,
+    ): Promise<ApiRevertChangeResponse> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().revertChange(req.user!, {
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            changeUuid: body.changeUuid,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

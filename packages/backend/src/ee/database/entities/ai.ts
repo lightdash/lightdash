@@ -177,5 +177,5 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
     > &
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
-    never
+    Partial<Pick<DbAiAgentToolResult, 'metadata'>>
 >;
