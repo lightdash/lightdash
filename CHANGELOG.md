@@ -1,3 +1,10 @@
+# [0.2037.0](https://github.com/lightdash/lightdash/compare/0.2036.3...0.2037.0) (2025-10-02)
+
+
+### Features
+
+* allow updating subsets of catalog explores ([#17166](https://github.com/lightdash/lightdash/issues/17166)) ([a276f79](https://github.com/lightdash/lightdash/commit/a276f79fdd6fb51526ef5e8748b36b59bad65adc))
+
 ## [0.2036.3](https://github.com/lightdash/lightdash/compare/0.2036.2...0.2036.3) (2025-10-02)
 
 
