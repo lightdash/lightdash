@@ -6,12 +6,14 @@ import {
     ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
+    CompiledTable,
     Explore,
     FieldType,
     NotFoundError,
     TableSelectionType,
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
+    assertUnreachable,
     convertToAiHints,
     isExploreError,
     type ApiCatalogSearch,
@@ -245,43 +247,49 @@ export class CatalogModel {
 
                             let fieldToUpdate:
                                 | CompiledDimension
-                                | CompiledMetric;
-                            if (
+                                | CompiledMetric
+                                | CompiledTable;
+                            const isTable = change.entityType === 'table';
+                            const table =
                                 cachedExploreTable.tables[
                                     change.entityTableName
-                                ]
-                            ) {
-                                let key: 'dimensions' | 'metrics' | undefined;
-                                if (change.entityType === 'metric') {
-                                    key = 'metrics';
-                                } else if (change.entityType === 'dimension') {
-                                    key = 'dimensions';
-                                } else {
-                                    return null;
-                                }
-
-                                const table =
-                                    cachedExploreTable.tables[
-                                        change.entityTableName
-                                    ];
-
-                                if (!table) {
-                                    return null;
-                                }
-
-                                fieldToUpdate = table[key][change.entityName];
-                            } else {
+                                ];
+                            if (!table) {
                                 return null;
                             }
 
-                            if (!fieldToUpdate) {
-                                return null;
+                            switch (change.entityType) {
+                                case 'table': {
+                                    fieldToUpdate = table;
+                                    break;
+                                }
+                                case 'dimension': {
+                                    fieldToUpdate =
+                                        table.dimensions[change.entityName];
+                                    break;
+                                }
+                                case 'metric': {
+                                    fieldToUpdate =
+                                        table.metrics[change.entityName];
+                                    break;
+                                }
+                                default:
+                                    assertUnreachable(
+                                        change.entityType,
+                                        `Unknown entity type ${change.entityType}`,
+                                    );
                             }
 
                             const [result] = await trx(CatalogTableName)
                                 .where('table_name', change.entityTableName)
                                 .andWhere('project_uuid', projectUuid)
                                 .andWhere('name', change.entityName)
+                                .andWhere(
+                                    'type',
+                                    isTable
+                                        ? CatalogType.Table
+                                        : CatalogType.Field,
+                                )
                                 .update({
                                     label: fieldToUpdate.label ?? null,
                                     description:
