@@ -23,7 +23,7 @@ import {
     useMantineReactTable,
     type MRT_ColumnDef,
 } from 'mantine-react-table';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -54,39 +54,19 @@ const formatDateTime = (date: Date): string => {
     return dayjs(date).format('MMM D, YYYY HH:mm');
 };
 
-const extractChangeValue = (change: Change): string | ReactNode => {
+const extractChangeValue = (
+    change: Change,
+): string | { path: string; value: string }[] => {
     switch (change.type) {
         case 'create':
             return 'Create new item';
         case 'delete':
             return 'Delete item';
         case 'update':
-            if (change.payload.patches.length === 0) {
-                return 'Update';
-            }
-            if (change.payload.patches.length === 1) {
-                return (
-                    <Text fz="xs">
-                        <Text fw={500} fz="xs" span>
-                            {change.payload.patches[0].path.replace('/', '')}:{' '}
-                        </Text>
-                        {String(change.payload.patches[0].value)}
-                    </Text>
-                );
-            } else {
-                return (
-                    <>
-                        {change.payload.patches.map((patch) => (
-                            <Text key={patch.path} fz="xs">
-                                <Text fw={500} fz="xs" span>
-                                    {patch.path.replace('/', '')}:{' '}
-                                </Text>
-                                {String(patch.value)}
-                            </Text>
-                        ))}
-                    </>
-                );
-            }
+            return change.payload.patches.map((patch) => ({
+                path: patch.path.replace('/', ''),
+                value: String(patch.value),
+            }));
 
         default:
             return assertUnreachable(change, `Unknown change type`);
@@ -187,22 +167,42 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                                 >
                                     {change.type}
                                 </Badge>
-                                <Tooltip
-                                    withinPortal
-                                    label={changeValue}
-                                    disabled={!isTruncated.isTruncated}
-                                >
-                                    <Text
-                                        fz="sm"
-                                        c="gray.7"
-                                        truncate
-                                        maw={250}
-                                        ref={isTruncated.ref}
-                                        style={{ flex: 1 }}
-                                    >
-                                        {changeValue}
-                                    </Text>
-                                </Tooltip>
+                                {typeof changeValue === 'string' ? (
+                                    <Text fz="xs">{changeValue}</Text>
+                                ) : (
+                                    <>
+                                        <Tooltip
+                                            withinPortal
+                                            label={changeValue.map((patch) => (
+                                                <Text key={patch.path} fz="xs">
+                                                    {patch.value}
+                                                </Text>
+                                            ))}
+                                            disabled={!isTruncated.isTruncated}
+                                        >
+                                            <Box>
+                                                {changeValue.map((patch) => (
+                                                    <Text
+                                                        key={patch.path}
+                                                        fz="xs"
+                                                        maw={280}
+                                                        truncate
+                                                        ref={isTruncated.ref}
+                                                    >
+                                                        <Text
+                                                            fw={500}
+                                                            fz="xs"
+                                                            span
+                                                        >
+                                                            {patch.path}:{' '}
+                                                        </Text>
+                                                        {patch.value}
+                                                    </Text>
+                                                ))}
+                                            </Box>
+                                        </Tooltip>
+                                    </>
+                                )}
                             </Group>
                         );
                     },
