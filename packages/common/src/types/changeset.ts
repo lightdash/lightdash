@@ -28,9 +28,13 @@ export const ChangeSchema = z
         z.discriminatedUnion('type', [
             z.object({
                 type: z.literal('create'),
-                payload: z.object({
-                    value: z.unknown(),
-                }),
+                payload: z.discriminatedUnion('type', [
+                    z.object({
+                        type: z.literal('metric'),
+                        // TODO: add metric schema
+                        value: z.unknown(),
+                    }),
+                ]),
             }),
             z.object({
                 type: z.literal('update'),
