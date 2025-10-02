@@ -42,24 +42,6 @@ export const CreateCredentialsModal: FC<Props> = ({
                 user: '',
             },
         },
-        validate: {
-            credentials: {
-                account: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Account is required'
-                        : null,
-                database: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Database is required'
-                        : null,
-                warehouse: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Warehouse is required'
-                        : null,
-                schema: (value) =>
-                    !value || value.trim() === '' ? 'Schema is required' : null,
-            },
-        },
     });
     return (
         <Modal

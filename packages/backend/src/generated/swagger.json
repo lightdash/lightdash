@@ -7518,8 +7518,523 @@
                 ],
                 "type": "string"
             },
+            "WarehouseTypes.SNOWFLAKE": {
+                "enum": ["snowflake"],
+                "type": "string"
+            },
+            "SnowflakeAuthenticationType": {
+                "enum": ["password", "private_key", "sso"],
+                "type": "string"
+            },
+            "WeekDay": {
+                "enum": [0, 1, 2, 3, 4, 5, 6],
+                "type": "number"
+            },
+            "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "account": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "clientSessionKeepAlive": {
+                        "type": "boolean"
+                    },
+                    "queryTag": {
+                        "type": "string"
+                    },
+                    "accessUrl": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
+                    },
+                    "override": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "type",
+                    "account",
+                    "database",
+                    "warehouse",
+                    "schema"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SnowflakeCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.REDSHIFT": {
+                "enum": ["redshift"],
+                "type": "string"
+            },
+            "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "useSshTunnel": {
+                        "type": "boolean"
+                    },
+                    "sshTunnelHost": {
+                        "type": "string"
+                    },
+                    "sshTunnelPort": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sshTunnelUser": {
+                        "type": "string"
+                    },
+                    "sshTunnelPublicKey": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "keepalivesIdle": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sslmode": {
+                        "type": "string"
+                    },
+                    "ra3Node": {
+                        "type": "boolean"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["type", "schema", "host", "port", "dbname"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "RedshiftCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.POSTGRES": {
+                "enum": ["postgres"],
+                "type": "string"
+            },
+            "Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "useSshTunnel": {
+                        "type": "boolean"
+                    },
+                    "sshTunnelHost": {
+                        "type": "string"
+                    },
+                    "sshTunnelPort": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sshTunnelUser": {
+                        "type": "string"
+                    },
+                    "sshTunnelPublicKey": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "keepalivesIdle": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sslmode": {
+                        "type": "string"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sslcertFileName": {
+                        "type": "string"
+                    },
+                    "sslkeyFileName": {
+                        "type": "string"
+                    },
+                    "sslrootcertFileName": {
+                        "type": "string"
+                    },
+                    "searchPath": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "schema", "host", "port", "dbname"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PostgresCredentials": {
+                "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.BIGQUERY": {
+                "enum": ["bigquery"],
+                "type": "string"
+            },
+            "BigqueryAuthenticationType": {
+                "enum": ["sso", "private_key", "adc"],
+                "type": "string"
+            },
+            "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "project": {
+                        "type": "string"
+                    },
+                    "dataset": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["interactive", "batch"]
+                    },
+                    "retries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "maximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "executionProject": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "project", "dataset"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "BigqueryCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.DATABRICKS": {
+                "enum": ["databricks"],
+                "type": "string"
+            },
+            "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "catalog": {
+                        "type": "string"
+                    },
+                    "serverHostName": {
+                        "type": "string"
+                    },
+                    "httpPath": {
+                        "type": "string"
+                    },
+                    "compute": {
+                        "items": {
+                            "properties": {
+                                "httpPath": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["httpPath", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["type", "database", "serverHostName", "httpPath"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DatabricksCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.TRINO": {
+                "enum": ["trino"],
+                "type": "string"
+            },
+            "Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "http_scheme": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "schema",
+                    "host",
+                    "port",
+                    "dbname",
+                    "http_scheme"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "TrinoCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseTypes.CLICKHOUSE": {
+                "enum": ["clickhouse"],
+                "type": "string"
+            },
+            "Pick_CreateClickhouseCredentials.Exclude_keyofCreateClickhouseCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "secure": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type", "schema", "host", "port"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateClickhouseCredentials.Exclude_keyofCreateClickhouseCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ClickhouseCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
+            },
+            "WarehouseCredentials": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SnowflakeCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/RedshiftCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PostgresCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/BigqueryCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DatabricksCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TrinoCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ClickhouseCredentials"
+                    }
+                ]
+            },
             "OrganizationWarehouseCredentials": {
                 "properties": {
+                    "credentials": {
+                        "$ref": "#/components/schemas/WarehouseCredentials"
+                    },
                     "createdByUserUuid": {
                         "type": "string",
                         "nullable": true
@@ -7546,6 +8061,7 @@
                     }
                 },
                 "required": [
+                    "credentials",
                     "createdByUserUuid",
                     "createdAt",
                     "warehouseType",
@@ -7611,14 +8127,6 @@
                     }
                 },
                 "type": "object"
-            },
-            "WarehouseTypes.REDSHIFT": {
-                "enum": ["redshift"],
-                "type": "string"
-            },
-            "WeekDay": {
-                "enum": [0, 1, 2, 3, 4, 5, 6],
-                "type": "number"
             },
             "CreateRedshiftCredentials": {
                 "allOf": [
@@ -7691,14 +8199,6 @@
                         "type": "object"
                     }
                 ]
-            },
-            "WarehouseTypes.BIGQUERY": {
-                "enum": ["bigquery"],
-                "type": "string"
-            },
-            "BigqueryAuthenticationType": {
-                "enum": ["sso", "private_key", "adc"],
-                "type": "string"
             },
             "CreateBigqueryCredentials": {
                 "properties": {
@@ -7787,10 +8287,6 @@
                 },
                 "type": "object"
             },
-            "WarehouseTypes.POSTGRES": {
-                "enum": ["postgres"],
-                "type": "string"
-            },
             "CreatePostgresCredentials": {
                 "allOf": [
                     {
@@ -7865,14 +8361,6 @@
                         "type": "object"
                     }
                 ]
-            },
-            "WarehouseTypes.SNOWFLAKE": {
-                "enum": ["snowflake"],
-                "type": "string"
-            },
-            "SnowflakeAuthenticationType": {
-                "enum": ["password", "private_key", "sso"],
-                "type": "string"
             },
             "CreateSnowflakeCredentials": {
                 "properties": {
@@ -7956,10 +8444,6 @@
                 ],
                 "type": "object"
             },
-            "WarehouseTypes.DATABRICKS": {
-                "enum": ["databricks"],
-                "type": "string"
-            },
             "CreateDatabricksCredentials": {
                 "properties": {
                     "compute": {
@@ -8016,10 +8500,6 @@
                 ],
                 "type": "object"
             },
-            "WarehouseTypes.TRINO": {
-                "enum": ["trino"],
-                "type": "string"
-            },
             "CreateTrinoCredentials": {
                 "properties": {
                     "startOfWeek": {
@@ -8070,10 +8550,6 @@
                     "type"
                 ],
                 "type": "object"
-            },
-            "WarehouseTypes.CLICKHOUSE": {
-                "enum": ["clickhouse"],
-                "type": "string"
             },
             "CreateClickhouseCredentials": {
                 "properties": {
@@ -9173,11 +9649,11 @@
                     "password": {
                         "type": "string"
                     },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
-                    },
                     "token": {
                         "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     }
                 },
                 "required": ["user", "type"],
@@ -9221,11 +9697,11 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
-                    },
                     "keyfileContents": {
                         "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
                     }
                 },
                 "required": ["type", "keyfileContents"],
@@ -13676,484 +14152,6 @@
                     }
                 ]
             },
-            "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
-                    },
-                    "token": {
-                        "type": "string"
-                    },
-                    "role": {
-                        "type": "string"
-                    },
-                    "account": {
-                        "type": "string"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "refreshToken": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string"
-                    },
-                    "warehouse": {
-                        "type": "string"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "clientSessionKeepAlive": {
-                        "type": "boolean"
-                    },
-                    "queryTag": {
-                        "type": "string"
-                    },
-                    "accessUrl": {
-                        "type": "string"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "quotedIdentifiersIgnoreCase": {
-                        "type": "boolean"
-                    },
-                    "override": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "type",
-                    "account",
-                    "database",
-                    "warehouse",
-                    "schema"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "SnowflakeCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "useSshTunnel": {
-                        "type": "boolean"
-                    },
-                    "sshTunnelHost": {
-                        "type": "string"
-                    },
-                    "sshTunnelPort": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sshTunnelUser": {
-                        "type": "string"
-                    },
-                    "sshTunnelPublicKey": {
-                        "type": "string"
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dbname": {
-                        "type": "string"
-                    },
-                    "keepalivesIdle": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sslmode": {
-                        "type": "string"
-                    },
-                    "ra3Node": {
-                        "type": "boolean"
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["type", "schema", "host", "port", "dbname"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "RedshiftCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                    },
-                    "role": {
-                        "type": "string"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "useSshTunnel": {
-                        "type": "boolean"
-                    },
-                    "sshTunnelHost": {
-                        "type": "string"
-                    },
-                    "sshTunnelPort": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sshTunnelUser": {
-                        "type": "string"
-                    },
-                    "sshTunnelPublicKey": {
-                        "type": "string"
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dbname": {
-                        "type": "string"
-                    },
-                    "keepalivesIdle": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sslmode": {
-                        "type": "string"
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sslcertFileName": {
-                        "type": "string"
-                    },
-                    "sslkeyFileName": {
-                        "type": "string"
-                    },
-                    "sslrootcertFileName": {
-                        "type": "string"
-                    },
-                    "searchPath": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "schema", "host", "port", "dbname"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.Exclude_keyofCreatePostgresCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "PostgresCredentials": {
-                "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "project": {
-                        "type": "string"
-                    },
-                    "dataset": {
-                        "type": "string"
-                    },
-                    "priority": {
-                        "type": "string",
-                        "enum": ["interactive", "batch"]
-                    },
-                    "retries": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "location": {
-                        "type": "string"
-                    },
-                    "maximumBytesBilled": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "executionProject": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "project", "dataset"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "BigqueryCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "database": {
-                        "type": "string"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "catalog": {
-                        "type": "string"
-                    },
-                    "serverHostName": {
-                        "type": "string"
-                    },
-                    "httpPath": {
-                        "type": "string"
-                    },
-                    "compute": {
-                        "items": {
-                            "properties": {
-                                "httpPath": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["httpPath", "name"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["type", "database", "serverHostName", "httpPath"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "DatabricksCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dbname": {
-                        "type": "string"
-                    },
-                    "http_scheme": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "schema",
-                    "host",
-                    "port",
-                    "dbname",
-                    "http_scheme"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.Exclude_keyofCreateTrinoCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "TrinoCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "Pick_CreateClickhouseCredentials.Exclude_keyofCreateClickhouseCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "secure": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["type", "schema", "host", "port"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateClickhouseCredentials.Exclude_keyofCreateClickhouseCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "ClickhouseCredentials": {
-                "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
-            },
-            "WarehouseCredentials": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SnowflakeCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/RedshiftCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PostgresCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/BigqueryCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DatabricksCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TrinoCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ClickhouseCredentials"
-                    }
-                ]
-            },
             "SupportedDbtVersions": {
                 "enum": [
                     "v1.4",
@@ -14182,6 +14180,9 @@
             },
             "Project": {
                 "properties": {
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
                     "createdByUserUuid": {
                         "type": "string",
                         "nullable": true
@@ -17017,6 +17018,9 @@
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
                     },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
                     "copyWarehouseConnectionFromUpstreamProject": {
                         "type": "boolean"
                     },
@@ -17867,11 +17871,11 @@
                         },
                         "type": "array"
                     },
-                    "parameters": {
-                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
-                    },
                     "warehouse": {
                         "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
                     "groupLabel": {
                         "type": "string"
