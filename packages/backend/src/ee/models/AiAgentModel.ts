@@ -1,4 +1,5 @@
 import {
+    AgentToolOutput,
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
@@ -15,6 +16,7 @@ import {
     AiAgentNotFoundError,
     AiAgentSummary,
     AiAgentThreadSummary,
+    AiAgentToolResult,
     AiAgentUser,
     AiAgentUserPreferences,
     AiArtifact,
@@ -1255,6 +1257,10 @@ export class AiAgentModel {
                 row.ai_prompt_uuid,
             );
 
+            const toolResults = await this.getToolResultsForPrompt(
+                row.ai_prompt_uuid,
+            );
+
             if (row.responded_at != null) {
                 const artifacts = artifactsMap.get(row.ai_prompt_uuid) || [];
 
@@ -1282,6 +1288,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    toolResults,
                     savedQueryUuid: row.saved_query_uuid,
                 });
             }
@@ -1505,6 +1512,9 @@ export class AiAgentModel {
                 const toolCalls = await this.getToolCallsForPrompt(
                     row.ai_prompt_uuid,
                 );
+                const toolResults = await this.getToolResultsForPrompt(
+                    row.ai_prompt_uuid,
+                );
                 return {
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
@@ -1532,6 +1542,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    toolResults,
                     savedQueryUuid: row.saved_query_uuid,
                 } satisfies AiAgentMessageAssistant;
             default:
@@ -2071,12 +2082,51 @@ export class AiAgentModel {
             .orderBy('created_at', 'asc');
     }
 
+    async getToolResultsForPrompt(
+        promptUuid: string,
+    ): Promise<AiAgentToolResult[]> {
+        const rows = await this.database(AiAgentToolResultTableName)
+            .select<
+                Pick<
+                    DbAiAgentToolResult,
+                    | 'ai_agent_tool_result_uuid'
+                    | 'ai_prompt_uuid'
+                    | 'tool_call_id'
+                    | 'tool_name'
+                    | 'result'
+                    | 'metadata'
+                    | 'created_at'
+                >[]
+            >(
+                'ai_agent_tool_result_uuid',
+                'ai_prompt_uuid',
+                'tool_call_id',
+                'tool_name',
+                'result',
+                'metadata',
+                'created_at',
+            )
+            .where('ai_prompt_uuid', promptUuid)
+            .orderBy('created_at', 'asc');
+
+        return rows.map((row) => ({
+            uuid: row.ai_agent_tool_result_uuid,
+            promptUuid: row.ai_prompt_uuid,
+            toolCallId: row.tool_call_id,
+            toolName: row.tool_name,
+            result: row.result,
+            metadata: row.metadata as AgentToolOutput['metadata'] | null,
+            createdAt: row.created_at,
+        }));
+    }
+
     async createToolResults(
         data: Array<{
             promptUuid: string;
             toolCallId: string;
             toolName: string;
             result: string;
+            metadata?: AgentToolOutput['metadata'];
         }>,
     ): Promise<string[]> {
         if (data.length === 0) return [];
@@ -2089,20 +2139,13 @@ export class AiAgentModel {
                         tool_call_id: item.toolCallId,
                         tool_name: item.toolName,
                         result: item.result,
+                        ...(item.metadata && { metadata: item.metadata }),
                     })),
                 )
                 .returning('ai_agent_tool_result_uuid');
 
             return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
         });
-    }
-
-    async getToolResultsForPrompt(
-        promptUuid: string,
-    ): Promise<DbAiAgentToolResult[]> {
-        return this.database(AiAgentToolResultTableName)
-            .where('ai_prompt_uuid', promptUuid)
-            .orderBy('created_at', 'asc');
     }
 
     async getToolCallsAndResultsForPrompt(promptUuid: string) {
@@ -2121,7 +2164,7 @@ export class AiAgentModel {
                     > &
                         Pick<
                             DbAiAgentToolResult,
-                            'ai_agent_tool_result_uuid' | 'result'
+                            'ai_agent_tool_result_uuid' | 'result' | 'metadata'
                         >
                 >
             >(
@@ -2132,6 +2175,7 @@ export class AiAgentModel {
                 `${AiAgentToolCallTableName}.created_at`,
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
                 `${AiAgentToolResultTableName}.result`,
+                `${AiAgentToolResultTableName}.metadata`,
             )
             // we only want to return tool_calls that have a matching tool_result
             .innerJoin(
@@ -3076,7 +3120,13 @@ export class AiAgentModel {
 
                 // Clone tool results
                 const toolResults = await trx(AiAgentToolResultTableName)
-                    .select('tool_call_id', 'tool_name', 'result', 'created_at')
+                    .select(
+                        'tool_call_id',
+                        'tool_name',
+                        'result',
+                        'metadata',
+                        'created_at',
+                    )
                     .where('ai_prompt_uuid', sourcePromptUuid);
 
                 const toolResultUpdates = toolResults.map((toolResult) => ({
@@ -3084,6 +3134,7 @@ export class AiAgentModel {
                     tool_call_id: toolResult.tool_call_id,
                     tool_name: toolResult.tool_name,
                     result: toolResult.result,
+                    metadata: toolResult.metadata,
                 }));
 
                 await Promise.all([

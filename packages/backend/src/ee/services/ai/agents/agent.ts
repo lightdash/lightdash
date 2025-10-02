@@ -417,13 +417,14 @@ export const generateAgentResponse = async ({
                                         toolResult.output,
                                     )})`,
                                 );
+                                const output =
+                                    toolResult.output as AgentToolOutput;
                                 return {
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolResult.toolCallId,
                                     toolName: toolResult.toolName,
-                                    result: (
-                                        toolResult.output as AgentToolOutput
-                                    ).result,
+                                    result: output.result,
+                                    metadata: output.metadata,
                                 };
                             }),
                     );
@@ -556,6 +557,9 @@ export const streamAgentResponse = async ({
                                     result: (
                                         event.chunk.output as AgentToolOutput
                                     ).result,
+                                    metadata: (
+                                        event.chunk.output as AgentToolOutput
+                                    ).metadata,
                                 },
                             ])
                             .catch((error) => {

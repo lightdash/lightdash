@@ -12,6 +12,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
@@ -139,6 +140,7 @@ export type AiAgentMessageAssistant = {
     humanScore: number | null;
 
     toolCalls: AiAgentToolCall[];
+    toolResults: AiAgentToolResult[];
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
@@ -312,6 +314,15 @@ export type AiAgentToolCall = {
     // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
     toolName: string; // ToolName zod enum
     toolArgs: object;
+};
+
+export type AiAgentToolResult = {
+    uuid: string;
+    promptUuid: string;
+    toolName: string;
+    result: string;
+    metadata: AgentToolOutput['metadata'] | null;
+    createdAt: Date;
 };
 
 export type AiAgentExploreAccessSummary = {

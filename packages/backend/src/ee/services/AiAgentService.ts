@@ -1588,6 +1588,7 @@ export class AiAgentService {
                                     toolName: toolCallAndResult.tool_name,
                                     output: {
                                         type: 'json',
+                                        // TODO :: based on tool, if there's a need for it we can use the metadata here
                                         value: toolCallAndResult.result,
                                     },
                                 } satisfies ToolResultPart),

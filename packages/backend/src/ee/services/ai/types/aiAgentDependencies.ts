@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AgentToolOutput,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
@@ -114,6 +115,7 @@ export type StoreToolResultsFn = (
         toolCallId: string;
         toolName: string;
         result: string;
+        metadata?: AgentToolOutput['metadata'];
     }>,
 ) => Promise<void>;
 
