@@ -12,7 +12,7 @@ seed-paths:
   - data
 macro-paths:
   - macros
-target-path: target
+target-path: "{{ env_var('DBT_ENV__TARGET_FOLDER', 'target') }}"
 clean-targets:
   - target
   - dbt_modules

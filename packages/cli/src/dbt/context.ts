@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import GlobalState from '../globalState';
+import { renderProfilesYml } from './templating';
 
 type GetDbtContextArgs = {
     projectDir: string;
@@ -40,7 +41,9 @@ export const getDbtContext = async ({
             `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${msg}`,
         );
     }
-    const config = yaml.load(file) as Record<string, string>;
+    // Render Jinja templating (e.g., env_var) before parsing YAML
+    const renderedFile = renderProfilesYml(file);
+    const config = yaml.load(renderedFile) as Record<string, string>;
 
     const targetSubDir = config['target-path'] || './target';
 
