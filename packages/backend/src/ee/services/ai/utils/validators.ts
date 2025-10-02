@@ -4,7 +4,6 @@ import {
     booleanFilterSchema,
     CompiledField,
     convertAdditionalMetric,
-    CustomMetricBaseSchema,
     dateFilterSchema,
     Explore,
     FilterRule,
@@ -19,7 +18,6 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
-    Metric,
     numberFilterSchema,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
@@ -27,6 +25,7 @@ import {
     SupportedDbtAdapter,
     ToolSortField,
     WeekDay,
+    type CustomMetricBase,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -39,9 +38,7 @@ import { serializeData } from './serializeData';
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
-    customMetrics?:
-        | (CustomMetricBaseSchema | Omit<AdditionalMetric, 'sql'>)[]
-        | null,
+    customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const customMetricIds = customMetrics?.map(getItemId);
@@ -76,7 +73,7 @@ ${nonExploreFields.join('\n')}
  */
 export function validateCustomMetricsDefinition(
     explore: Explore,
-    customMetrics: CustomMetricBaseSchema[] | null,
+    customMetrics: CustomMetricBase[] | null,
 ) {
     if (!customMetrics || customMetrics.length === 0) {
         return;
@@ -257,7 +254,7 @@ ${serializeData(filterRule, 'json')}`;
 export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
-    customMetrics?: CustomMetricBaseSchema[] | null,
+    customMetrics?: CustomMetricBase[] | null,
 ) {
     const exploreFields = getFields(explore);
     const customMetricFields = populateCustomMetricsSQL(
@@ -315,7 +312,7 @@ ${filterRuleErrorStrings}`;
 export function validateMetricDimensionFilterPlacement(
     explore: Explore,
     filters?: Filters,
-    customMetrics?: CustomMetricBaseSchema[] | null,
+    customMetrics?: CustomMetricBase[] | null,
 ) {
     if (!filters) return;
 
@@ -414,7 +411,7 @@ export function validateSortFieldsAreSelected(
     sorts: ToolSortField[],
     selectedDimensions: string[],
     selectedMetrics: string[],
-    customMetrics?: CustomMetricBaseSchema[] | null,
+    customMetrics?: CustomMetricBase[] | null,
 ) {
     if (!sorts || sorts.length === 0) {
         return;

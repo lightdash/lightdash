@@ -11,6 +11,7 @@ import {
     CreateChangeParams,
     DashboardSearchResult,
     Explore,
+    ExploreCompiler,
     Filters,
     ItemsMap,
     KnexPaginateArgs,
@@ -148,3 +149,5 @@ export type CreateChangeFn = (
         'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
     >,
 ) => Promise<void>;
+
+export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
