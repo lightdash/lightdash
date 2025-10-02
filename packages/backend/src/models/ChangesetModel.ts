@@ -31,6 +31,9 @@ export class ChangesetModel {
 
     async findActiveChangesetWithChangesByProjectUuid(
         projectUuid: string,
+        filters?: {
+            tableNames?: string[];
+        },
     ): Promise<ChangesetWithChanges | undefined> {
         // FIXME: NOTE: We are only returning the active changeset for now - active === latest
         const activeChangeset = await this.database(ChangesetsTableName)
@@ -43,9 +46,15 @@ export class ChangesetModel {
             return undefined;
         }
 
-        const changes = await this.database(ChangesTableName)
+        const query = this.database(ChangesTableName)
             .select('*')
             .where('changeset_uuid', activeChangeset.changeset_uuid);
+
+        if (filters?.tableNames) {
+            void query.whereIn('entity_table_name', filters.tableNames);
+        }
+
+        const changes = await query;
 
         const parsed = ChangesetWithChangesSchema.safeParse({
             changesetUuid: activeChangeset.changeset_uuid,

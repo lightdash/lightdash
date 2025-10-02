@@ -1958,6 +1958,10 @@ export class AiAgentService {
                 sourcePromptUuid: prompt.promptUuid,
                 ...params,
             });
+
+            await this.catalogService.indexCatalogUpdates(projectUuid, [
+                params.entityTableName,
+            ]);
         };
 
         return {
