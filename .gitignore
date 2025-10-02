@@ -37,6 +37,11 @@ lightdash_dev.yml
 /packages/warehouses/dist
 /packages/sdk/dist
 /packages/sdk-test-app/dist
+
+# CLI binary build artifacts
+/packages/cli/bundle/
+/packages/cli/bin/
+
 # misc
 .DS_Store
 .env.local
