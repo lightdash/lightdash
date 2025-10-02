@@ -1,6 +1,5 @@
 import { assertUnreachable, capitalize } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
-import { Paper } from '@mantine/core';
+import { Paper, Stack, Text } from '@mantine-8/core';
 import type { Operation } from './types';
 
 type ReplaceOperationProps = {
