@@ -19,11 +19,17 @@ import {
 import { IconAlertTriangle, IconCode, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import {
+    explorerActions,
+    selectAdditionalMetrics as selectAllAdditionalMetrics,
+    selectCustomDimensions as selectAllCustomDimensions,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../../features/explorer/store';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
-import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
@@ -69,21 +75,15 @@ const TableTreeSections: FC<Props> = ({
             projectUuid,
         }),
     );
-    const toggleCustomDimensionModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
-    const toggleWriteBackModal = useExplorerContext(
-        (context) => context.actions.toggleWriteBackModal,
-    );
 
-    const allAdditionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    // Use Redux dispatch for modal actions - no Context needed!
+    const dispatch = useExplorerDispatch();
+
+    // Read from Redux instead of Context to avoid re-renders
+    const allAdditionalMetrics = useExplorerSelector(
+        selectAllAdditionalMetrics,
     );
-    const allCustomDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
+    const allCustomDimensions = useExplorerSelector(selectAllCustomDimensions);
 
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
@@ -176,12 +176,14 @@ const TableTreeSections: FC<Props> = ({
     );
 
     const handleAddCustomDimension = useCallback(() => {
-        toggleCustomDimensionModal({
-            isEditing: false,
-            table: table.name,
-            item: undefined,
-        });
-    }, [toggleCustomDimensionModal, table.name]);
+        dispatch(
+            explorerActions.toggleCustomDimensionModal({
+                isEditing: false,
+                table: table.name,
+                item: undefined,
+            }),
+        );
+    }, [dispatch, table.name]);
 
     const handleWriteBackCustomMetrics = useCallback(() => {
         if (projectUuid && user.data?.organizationUuid) {
@@ -196,14 +198,12 @@ const TableTreeSections: FC<Props> = ({
                 },
             });
         }
-        toggleWriteBackModal({ items: allAdditionalMetrics });
-    }, [
-        projectUuid,
-        user.data,
-        allAdditionalMetrics,
-        toggleWriteBackModal,
-        track,
-    ]);
+        dispatch(
+            explorerActions.toggleWriteBackModal({
+                items: allAdditionalMetrics,
+            }),
+        );
+    }, [projectUuid, user.data, allAdditionalMetrics, dispatch, track]);
 
     const handleWriteBackCustomDimensions = useCallback(() => {
         if (projectUuid && user.data?.organizationUuid) {
@@ -219,16 +219,12 @@ const TableTreeSections: FC<Props> = ({
                 },
             });
         }
-        toggleWriteBackModal({
-            items: customDimensionsToWriteBack || [],
-        });
-    }, [
-        projectUuid,
-        user.data,
-        customDimensionsToWriteBack,
-        toggleWriteBackModal,
-        track,
-    ]);
+        dispatch(
+            explorerActions.toggleWriteBackModal({
+                items: customDimensionsToWriteBack || [],
+            }),
+        );
+    }, [projectUuid, user.data, customDimensionsToWriteBack, dispatch, track]);
 
     const getMissingFieldClickHandler = useCallback(
         (field: string) => () => {

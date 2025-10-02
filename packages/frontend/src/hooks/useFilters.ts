@@ -12,13 +12,14 @@ import {
     selectIsFiltersExpanded,
     useExplorerDispatch,
     useExplorerSelector,
+    useExplorerStore,
 } from '../features/explorer/store';
 import { ExplorerSection } from '../providers/Explorer/types';
 
 export const useFilteredFields = () => {
     const filters = useExplorerSelector(selectFilters);
-    const isFiltersExpanded = useExplorerSelector(selectIsFiltersExpanded);
     const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
 
     const filteredFieldIds = useMemo(() => {
         const allFilterRules = getTotalFilterRules(filters);
@@ -35,9 +36,16 @@ export const useFilteredFields = () => {
 
     const addFilter = useCallback(
         (field: FilterableField, value: any) => {
-            const newFilters = addFilterRule({ filters, field, value });
+            const currentFilters = selectFilters(store.getState());
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
             dispatch(explorerActions.setFilters(newFilters));
 
+            // Read isFiltersExpanded at call time, not at callback creation time
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
             if (!isFiltersExpanded) {
                 dispatch(
                     explorerActions.toggleExpandedSection(
@@ -51,7 +59,7 @@ export const useFilteredFields = () => {
                 behavior: 'smooth',
             });
         },
-        [filters, dispatch, isFiltersExpanded],
+        [dispatch, store],
     );
 
     return useMemo(

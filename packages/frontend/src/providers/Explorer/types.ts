@@ -38,12 +38,8 @@ export enum ExplorerSection {
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
-    REMOVE_FIELD,
-    TOGGLE_DIMENSION,
-    TOGGLE_METRIC,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
-    SET_FILTERS,
     SET_COLUMN_ORDER,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
@@ -87,23 +83,12 @@ export type Action =
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
-          type:
-              | ActionType.REMOVE_FIELD
-              | ActionType.TOGGLE_DIMENSION
-              | ActionType.TOGGLE_METRIC;
-          payload: FieldId;
-      }
-    | {
           type: ActionType.SET_ROW_LIMIT;
           payload: number;
       }
     | {
           type: ActionType.SET_TIME_ZONE;
           payload: TimeZone;
-      }
-    | {
-          type: ActionType.SET_FILTERS;
-          payload: MetricQuery['filters'];
       }
     | {
           type: ActionType.ADD_TABLE_CALCULATION;
@@ -274,11 +259,8 @@ export interface ExplorerContextType {
         clearQuery: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
-        removeActiveField: (fieldId: FieldId) => void;
-        toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
-        setFilters: (filters: MetricQuery['filters']) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,

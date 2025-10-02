@@ -27,10 +27,16 @@ import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    explorerActions,
+    selectCustomDimensions,
+    selectTableCalculations,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 
 type FormValues = {
@@ -49,23 +55,13 @@ export const CustomSqlDimensionModal: FC<{
     const { colors } = theme;
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
-    const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
-    const addCustomDimension = useExplorerContext(
-        (context) => context.actions.addCustomDimension,
-    );
-    const editCustomDimension = useExplorerContext(
-        (context) => context.actions.editCustomDimension,
-    );
+
+    const dispatch = useExplorerDispatch();
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+
+    const toggleModal = () =>
+        dispatch(explorerActions.toggleCustomDimensionModal());
     const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -146,12 +142,17 @@ export const CustomSqlDimensionModal: FC<{
             };
 
             if (isEditing && item) {
-                editCustomDimension({ ...customDim, id: item.id }, item.id);
+                dispatch(
+                    explorerActions.editCustomDimension({
+                        dimension: { ...customDim, id: item.id },
+                        oldDimensionId: item.id,
+                    }),
+                );
                 showToastSuccess({
                     title: 'Custom dimension edited successfully',
                 });
             } else {
-                addCustomDimension(customDim);
+                dispatch(explorerActions.addCustomDimension(customDim));
                 showToastSuccess({
                     title: 'Custom dimension added successfully',
                 });

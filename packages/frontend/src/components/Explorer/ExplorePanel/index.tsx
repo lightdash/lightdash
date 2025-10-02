@@ -24,12 +24,15 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import {
+    explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
     selectDimensions,
     selectIsVisualizationConfigOpen,
     selectMetrics,
+    selectTableCalculations,
     selectTableName,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import {
@@ -82,21 +85,37 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const dimensions = useExplorerSelector(selectDimensions);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const metrics = useExplorerSelector(selectMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+
+    // Compute activeFields from Redux state (Set of all selected field IDs)
+    const activeFields = useMemo(() => {
+        return new Set([
+            ...dimensions,
+            ...metrics,
+            ...tableCalculations.map(({ name }) => name),
+        ]);
+    }, [dimensions, metrics, tableCalculations]);
 
     // Keep reading these from Context for now (will migrate later)
     const chartUuid = useExplorerContext(
         (context) => context.state.savedChart?.uuid,
     );
-    const activeFields = useExplorerContext(
-        (context) => context.state.activeFields,
-    );
     const replaceFields = useExplorerContext(
         (context) => context.actions.replaceFields,
     );
 
-    // Use Context action for toggleActiveField - it has dual-dispatch to Redux
-    const toggleActiveField = useExplorerContext(
-        (context) => context.actions.toggleActiveField,
+    const dispatch = useExplorerDispatch();
+
+    // Toggle dimension or metric using Redux
+    const toggleActiveField = useCallback(
+        (fieldId: string, isDimension: boolean) => {
+            if (isDimension) {
+                dispatch(explorerActions.toggleDimension(fieldId));
+            } else {
+                dispatch(explorerActions.toggleMetric(fieldId));
+            }
+        },
+        [dispatch],
     );
 
     const isVisualizationConfigOpen = useExplorerSelector(
