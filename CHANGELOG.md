@@ -1,3 +1,10 @@
+# [0.2045.0](https://github.com/lightdash/lightdash/compare/0.2044.0...0.2045.0) (2025-10-02)
+
+
+### Features
+
+* handle ai metric creation on catalog_search index ([#17214](https://github.com/lightdash/lightdash/issues/17214)) ([da8c822](https://github.com/lightdash/lightdash/commit/da8c82277cf1d2238139869b403ed313d8132b98))
+
 # [0.2044.0](https://github.com/lightdash/lightdash/compare/0.2043.0...0.2044.0) (2025-10-02)
 
 
