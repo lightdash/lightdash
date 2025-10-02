@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = `Tool: searchFieldValues
@@ -51,4 +52,13 @@ export const toolSearchFieldValuesArgsSchemaTransformed =
 
 export type ToolSearchFieldValuesArgsTransformed = z.infer<
     typeof toolSearchFieldValuesArgsSchemaTransformed
+>;
+
+export const toolSearchFieldValuesOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolSearchFieldValuesOutput = z.infer<
+    typeof toolSearchFieldValuesOutputSchema
 >;

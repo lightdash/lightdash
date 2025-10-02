@@ -1,7 +1,12 @@
-import { getItemId, toolFindExploresArgsSchema } from '@lightdash/common';
+import {
+    getItemId,
+    toolFindExploresArgsSchema,
+    toolFindExploresOutputSchema,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import { truncate } from 'lodash';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -122,10 +127,16 @@ export const getFindExplores = ({
     tool({
         description: toolFindExploresArgsSchema.description,
         inputSchema: toolFindExploresArgsSchema,
+        outputSchema: toolFindExploresOutputSchema,
         execute: async (args) => {
             try {
                 if (args.page && args.page < 1) {
-                    return `Error: Page must be greater than 0.`;
+                    return {
+                        result: `Error: Page must be greater than 0.`,
+                        metadata: {
+                            status: 'error',
+                        },
+                    };
                 }
 
                 const { pagination, tablesWithFields } = await findExplores({
@@ -147,21 +158,39 @@ export const getFindExplores = ({
                 );
 
                 if (args.exploreName) {
-                    return <explores>{exploreElements}</explores>;
+                    return {
+                        result: (
+                            <explores>{exploreElements}</explores>
+                        ) as string,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
-                return (
-                    <explores
-                        page={pagination?.page ?? 0}
-                        pageSize={pagination?.pageSize ?? 0}
-                        totalPageCount={pagination?.totalPageCount ?? 0}
-                        totalResults={pagination?.totalResults ?? 0}
-                    >
-                        {exploreElements}
-                    </explores>
-                );
+                return {
+                    result: (
+                        <explores
+                            page={pagination?.page ?? 0}
+                            pageSize={pagination?.pageSize ?? 0}
+                            totalPageCount={pagination?.totalPageCount ?? 0}
+                            totalResults={pagination?.totalResults ?? 0}
+                        >
+                            {exploreElements}
+                        </explores>
+                    ) as string,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(error, `Error listing explores.`);
+                return {
+                    result: toolErrorHandler(error, `Error listing explores.`),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

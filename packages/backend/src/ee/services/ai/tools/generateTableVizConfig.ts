@@ -3,6 +3,7 @@ import {
     metricQueryTableViz,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
+    toolTableVizOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -16,6 +17,7 @@ import type {
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTableVizConfig } from '../utils/validateTableVizConfig';
 
@@ -43,6 +45,7 @@ export const getGenerateTableVizConfig = ({
     tool({
         description: toolTableVizArgsSchema.description,
         inputSchema: toolTableVizArgsSchema,
+        outputSchema: toolTableVizOutputSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('🔢 Querying the data...');
@@ -100,26 +103,52 @@ export const getGenerateTableVizConfig = ({
                 }
 
                 if (rowCount === 0) {
-                    return `The query returned no results`;
+                    return {
+                        result: `The query returned no results`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 if (!enableDataAccess) {
                     if (rowCount === 1) {
-                        return `Here's the result:\n${serializeData(
-                            csv,
-                            'csv',
-                        )}`;
+                        return {
+                            result: `Here's the result:\n${serializeData(
+                                csv,
+                                'csv',
+                            )}`,
+                            metadata: {
+                                status: 'success',
+                            },
+                        };
                     }
 
-                    return `Success`;
+                    return {
+                        result: `Success`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
-                return serializeData(csv, 'csv');
+                return {
+                    result: serializeData(csv, 'csv'),
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (e) {
-                return toolErrorHandler(
-                    e,
-                    `Error generating table visualization`,
-                );
+                return {
+                    result: toolErrorHandler(
+                        e,
+                        `Error generating table visualization`,
+                    ),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

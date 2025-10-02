@@ -6,6 +6,7 @@ import {
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { verticalBarMetricVizConfigSchema } from '../visualizations';
@@ -62,3 +63,10 @@ export const toolVerticalBarArgsSchemaTransformed = toolVerticalBarArgsSchema
 export type ToolVerticalBarArgsTransformed = z.infer<
     typeof toolVerticalBarArgsSchemaTransformed
 >;
+
+export const toolVerticalBarOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolVerticalBarOutput = z.infer<typeof toolVerticalBarOutputSchema>;

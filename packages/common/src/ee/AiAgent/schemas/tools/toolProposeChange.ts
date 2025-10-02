@@ -3,6 +3,7 @@ import { type Dimension, type Metric, type Table } from '../../../..';
 import { AiResultType } from '../../types';
 import { customMetricBaseSchema } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 // ============================================================================
@@ -185,3 +186,12 @@ export type ToolProposeChangeReplaceStringOp = z.infer<typeof stringOpSchema>;
 export type UpdateDimensionPatch = ChangePatch<Dimension>;
 export type UpdateMetricPatch = ChangePatch<Metric>;
 export type UpdateTablePatch = ChangePatch<Table>;
+
+export const toolProposeChangeOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolProposeChangeOutput = z.infer<
+    typeof toolProposeChangeOutputSchema
+>;

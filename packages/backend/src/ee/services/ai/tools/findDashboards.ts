@@ -1,10 +1,12 @@
 import {
     DashboardSearchResult,
     toolFindDashboardsArgsSchema,
+    toolFindDashboardsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
 import type { FindDashboardsFn } from '../types/aiAgentDependencies';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -111,6 +113,7 @@ export const getFindDashboards = ({
     tool({
         description: toolFindDashboardsArgsSchema.description,
         inputSchema: toolFindDashboardsArgsSchema,
+        outputSchema: toolFindDashboardsOutputSchema,
         execute: async (args) => {
             try {
                 const dashboardSearchQueryResults = await Promise.all(
@@ -132,14 +135,25 @@ export const getFindDashboards = ({
                     )
                     .join('\n\n');
 
-                return `<SearchResults>${dashboardsText}</SearchResults>`;
+                return {
+                    result: `<SearchResults>${dashboardsText}</SearchResults>`,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(
-                    error,
-                    `Error finding dashboards for search queries: ${args.dashboardSearchQueries
-                        .map((q) => q.label)
-                        .join(', ')}`,
-                );
+                return {
+                    result: toolErrorHandler(
+                        error,
+                        `Error finding dashboards for search queries: ${args.dashboardSearchQueries
+                            .map((q) => q.label)
+                            .join(', ')}`,
+                    ),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

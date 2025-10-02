@@ -3,6 +3,7 @@ import {
     metricQueryVerticalBarViz,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
+    toolVerticalBarOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -17,6 +18,7 @@ import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateBarVizConfig } from '../utils/validateBarVizConfig';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
@@ -45,6 +47,7 @@ export const getGenerateBarVizConfig = ({
     tool({
         description: toolVerticalBarArgsSchema.description,
         inputSchema: toolVerticalBarArgsSchema,
+        outputSchema: toolVerticalBarOutputSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📊 Generating your bar chart...');
@@ -70,7 +73,12 @@ export const getGenerateBarVizConfig = ({
                 });
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
-                    return `Success`;
+                    return {
+                        result: `Success`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 const metricQuery = metricQueryVerticalBarViz({
@@ -108,14 +116,30 @@ export const getGenerateBarVizConfig = ({
                 }
 
                 if (!enableDataAccess) {
-                    return `Success`;
+                    return {
+                        result: `Success`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
 
-                return serializeData(csv, 'csv');
+                return {
+                    result: serializeData(csv, 'csv'),
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (e) {
-                return toolErrorHandler(e, `Error generating bar chart.`);
+                return {
+                    result: toolErrorHandler(e, `Error generating bar chart.`),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });
