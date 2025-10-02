@@ -11,17 +11,13 @@ import {
 import {
     Badge,
     Button,
-    Collapse,
     Group,
     Paper,
     rem,
     Stack,
     Text,
     Timeline,
-    Title,
-    UnstyledButton,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconChartDots3,
     IconChartHistogram,
@@ -45,6 +41,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../../store/hooks';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ToolCallPaper } from './ToolCallPaper';
 
 const getToolIcon = (toolName: ToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
@@ -78,35 +75,15 @@ const ToolCallContainer = ({
     children: React.ReactNode;
     defaultOpened?: boolean;
 }) => {
-    const [opened, { toggle }] = useDisclosure(defaultOpened);
-
     return (
-        <Paper
-            withBorder
-            p="xs"
-            radius="md"
-            style={{ borderStyle: 'dashed' }}
-            // default shadow is subtler than the ones we can set
-            shadow={opened ? 'none' : undefined}
+        <ToolCallPaper
+            defaultOpened={defaultOpened}
+            variant="dashed"
+            icon={IconTools}
+            title="How it is calculated"
         >
-            <UnstyledButton onClick={toggle} w="100%" h="18px">
-                <Group justify="space-between" w="100%" h="100%">
-                    <Group gap="xs">
-                        <MantineIcon
-                            icon={IconTools}
-                            size="sm"
-                            strokeWidth={1.2}
-                            color="gray.6"
-                        />
-                        <Title order={6} c="gray.6" size="xs">
-                            How it is calculated
-                        </Title>
-                    </Group>
-                    <MantineIcon icon={IconSelector} size={12} color="gray.6" />
-                </Group>
-            </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
-        </Paper>
+            {children}
+        </ToolCallPaper>
     );
 };
 
