@@ -220,6 +220,7 @@ const getAgentTools = (
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
         getExplore: dependencies.getExplore,
+        getExploreCompiler: dependencies.getExploreCompiler,
     });
 
     const searchFieldValues = getSearchFieldValues({

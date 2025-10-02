@@ -115,6 +115,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
+                    projectModel: models.getProjectModel(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, context }) =>

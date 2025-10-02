@@ -144,7 +144,7 @@ export class ChangesetUtils {
                                         {
                                             op: 'replace',
                                             path: `/tables/${tableName}/${entityType}/${change.entityName}`,
-                                            value: change,
+                                            value: change.payload.value,
                                         },
                                     ],
                                 );

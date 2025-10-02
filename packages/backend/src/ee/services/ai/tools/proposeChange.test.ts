@@ -1,27 +1,56 @@
-import { AiResultType } from '@lightdash/common';
+import {
+    AiResultType,
+    type Explore,
+    SupportedDbtAdapter,
+} from '@lightdash/common';
 import { translateToolProposeChangeArgs } from './proposeChange';
+
+const mockExplore: Explore = {
+    name: 'customers',
+    label: 'Customers',
+    tags: [],
+    baseTable: 'customers',
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    joinedTables: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'Customers',
+            database: 'test',
+            schema: 'public',
+            sqlTable: 'customers',
+            lineageGraph: {},
+            dimensions: {},
+            metrics: {},
+        },
+    },
+};
 
 describe('translateToolProposeChangeArgs', () => {
     it('should translate table update changes', () => {
         expect(
-            translateToolProposeChangeArgs({
-                type: AiResultType.PROPOSE_CHANGE,
-                entityTableName: 'customers',
-                rationale: 'Update the description of the customers table',
-                change: {
-                    value: {
-                        type: 'update',
-                        patch: {
-                            label: { value: 'customers', op: 'replace' },
-                            description: {
-                                value: 'Customer records including both B2B and B2C customers',
-                                op: 'replace',
+            translateToolProposeChangeArgs(
+                {
+                    type: AiResultType.PROPOSE_CHANGE,
+                    entityTableName: 'customers',
+                    rationale: 'Update the description of the customers table',
+                    change: {
+                        value: {
+                            type: 'update',
+                            patch: {
+                                label: { value: 'customers', op: 'replace' },
+                                description: {
+                                    value: 'Customer records including both B2B and B2C customers',
+                                    op: 'replace',
+                                },
                             },
                         },
+                        entityType: 'table',
                     },
-                    entityType: 'table',
                 },
-            }),
+                mockExplore,
+                jest.fn(),
+            ),
         ).toEqual({
             type: 'update',
             entityType: 'table',
@@ -46,25 +75,29 @@ describe('translateToolProposeChangeArgs', () => {
 
     it('should translate dimension update changes', () => {
         expect(
-            translateToolProposeChangeArgs({
-                type: AiResultType.PROPOSE_CHANGE,
-                entityTableName: 'customers',
-                rationale: 'Update the description of the customers table',
-                change: {
-                    value: {
-                        type: 'update',
-                        patch: {
-                            label: null,
-                            description: {
-                                value: 'Customer records including both B2B and B2C customers',
-                                op: 'replace',
+            translateToolProposeChangeArgs(
+                {
+                    type: AiResultType.PROPOSE_CHANGE,
+                    entityTableName: 'customers',
+                    rationale: 'Update the description of the customers table',
+                    change: {
+                        value: {
+                            type: 'update',
+                            patch: {
+                                label: null,
+                                description: {
+                                    value: 'Customer records including both B2B and B2C customers',
+                                    op: 'replace',
+                                },
                             },
                         },
+                        entityType: 'dimension',
+                        fieldId: 'customer_name',
                     },
-                    entityType: 'dimension',
-                    fieldId: 'customer_name',
                 },
-            }),
+                mockExplore,
+                jest.fn(),
+            ),
         ).toEqual({
             type: 'update',
             entityType: 'dimension',
@@ -84,25 +117,29 @@ describe('translateToolProposeChangeArgs', () => {
 
     it('should translate metric update changes', () => {
         expect(
-            translateToolProposeChangeArgs({
-                type: AiResultType.PROPOSE_CHANGE,
-                entityTableName: 'customers',
-                rationale: 'Update the description of the customers table',
-                change: {
-                    value: {
-                        type: 'update',
-                        patch: {
-                            label: null,
-                            description: {
-                                value: 'Customer total revenue',
-                                op: 'replace',
+            translateToolProposeChangeArgs(
+                {
+                    type: AiResultType.PROPOSE_CHANGE,
+                    entityTableName: 'customers',
+                    rationale: 'Update the description of the customers table',
+                    change: {
+                        value: {
+                            type: 'update',
+                            patch: {
+                                label: null,
+                                description: {
+                                    value: 'Customer total revenue',
+                                    op: 'replace',
+                                },
                             },
                         },
+                        entityType: 'metric',
+                        fieldId: 'customer_total_revenue',
                     },
-                    entityType: 'metric',
-                    fieldId: 'customer_total_revenue',
                 },
-            }),
+                mockExplore,
+                jest.fn(),
+            ),
         ).toEqual({
             type: 'update',
             entityType: 'metric',
