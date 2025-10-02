@@ -63,7 +63,7 @@ export type Change = z.infer<typeof ChangeSchema>;
 
 export type ApiChangesetsResponse = {
     status: 'ok';
-    results: ChangesetWithChanges[];
+    results: ChangesetWithChanges;
 };
 
 export type CreateChangeParams = Pick<
