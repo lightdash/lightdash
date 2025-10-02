@@ -1,3 +1,10 @@
+# [0.2043.0](https://github.com/lightdash/lightdash/compare/0.2042.0...0.2043.0) (2025-10-02)
+
+
+### Features
+
+* handle table label & description updates ([#17203](https://github.com/lightdash/lightdash/issues/17203)) ([6fad5a8](https://github.com/lightdash/lightdash/commit/6fad5a8fd215f60e9a278c0eb10de6075de41958))
+
 # [0.2042.0](https://github.com/lightdash/lightdash/compare/0.2041.0...0.2042.0) (2025-10-02)
 
 
