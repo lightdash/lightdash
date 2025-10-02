@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconCode, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { shallowEqual } from 'react-redux';
 import { useParams } from 'react-router';
 import {
     explorerActions,
@@ -79,11 +80,16 @@ const TableTreeSections: FC<Props> = ({
     // Use Redux dispatch for modal actions - no Context needed!
     const dispatch = useExplorerDispatch();
 
-    // Read from Redux instead of Context to avoid re-renders
+    // Read from Redux with shallowEqual to prevent re-renders when parent object changes
+    // but actual array values haven't changed
     const allAdditionalMetrics = useExplorerSelector(
         selectAllAdditionalMetrics,
+        shallowEqual,
     );
-    const allCustomDimensions = useExplorerSelector(selectAllCustomDimensions);
+    const allCustomDimensions = useExplorerSelector(
+        selectAllCustomDimensions,
+        shallowEqual,
+    );
 
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(

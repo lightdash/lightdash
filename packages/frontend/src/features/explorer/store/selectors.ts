@@ -1,4 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
+import { getTotalFilterRules } from '@lightdash/common';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 
@@ -58,6 +59,16 @@ export const selectFilters = createSelector(
     (metricQuery) => metricQuery.filters,
 );
 
+export const selectIsFieldFiltered = createSelector(
+    [selectFilters, (_state: ExplorerStoreState, fieldId: string) => fieldId],
+    (filters, fieldId) => {
+        if (!filters) return false;
+
+        const allFilterRules = getTotalFilterRules(filters);
+        return allFilterRules.some((rule) => rule.target.fieldId === fieldId);
+    },
+);
+
 export const selectTableName = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.tableName,
@@ -70,12 +81,12 @@ export const selectIsEditMode = createSelector(
 
 export const selectAdditionalMetrics = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.additionalMetrics || [],
+    (metricQuery) => metricQuery.additionalMetrics ?? [],
 );
 
 export const selectCustomDimensions = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.customDimensions || [],
+    (metricQuery) => metricQuery.customDimensions ?? [],
 );
 
 export const selectTableCalculations = createSelector(
