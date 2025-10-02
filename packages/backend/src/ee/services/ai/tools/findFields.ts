@@ -73,7 +73,7 @@ const getFieldText = (catalogField: CatalogField) => {
                 ? `<Emoji>${catalogField.icon.unicode}</Emoji>`
                 : ''
         }
-        <Description>${catalogField.description}</Description>
+        <description>${catalogField.description}</description>
     </${fieldTypeLabel}>
     `.trim();
 };

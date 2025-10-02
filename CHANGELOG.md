@@ -1,3 +1,10 @@
+## [0.2036.1](https://github.com/lightdash/lightdash/compare/0.2036.0...0.2036.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* pass promptUuid to ImproveContextToolCall component ([#17182](https://github.com/lightdash/lightdash/issues/17182)) ([30efd1c](https://github.com/lightdash/lightdash/commit/30efd1c55a75040f74f233a58ca36111c54da4ea))
+
 # [0.2036.0](https://github.com/lightdash/lightdash/compare/0.2035.0...0.2036.0) (2025-10-01)
 
 

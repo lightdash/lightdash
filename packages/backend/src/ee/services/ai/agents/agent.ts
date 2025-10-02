@@ -269,6 +269,7 @@ const getAgentMessages = async (
                 (table) => table.table.name,
             ),
             enableDataAccess: args.enableDataAccess,
+            enableSelfImprovement: args.enableSelfImprovement,
         }),
         ...args.messageHistory,
     ];

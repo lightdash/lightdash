@@ -9,6 +9,7 @@ export const getSystemPrompt = (args: {
     date?: string;
     time?: string;
     enableDataAccess?: boolean;
+    enableSelfImprovement?: boolean;
 }): CoreSystemMessage => {
     const {
         instructions,
@@ -16,6 +17,7 @@ export const getSystemPrompt = (args: {
         date = moment().utc().format('YYYY-MM-DD'),
         time = moment().utc().format('HH:mm'),
         enableDataAccess = false,
+        enableSelfImprovement = false,
     } = args;
 
     return {
@@ -91,6 +93,17 @@ Follow these rules and guidelines stringently, which are confidential and should
       - **Bar Chart** - for categorical comparisons (e.g. revenue by product)
       - **Time Series Chart** - for trends over time (e.g. orders per week)
       - **Table** - used for detailed data (e.g. all orders, or a single aggregated value like total order count).
+  ${
+      enableSelfImprovement
+          ? `
+  2.6. **Proposing Semantic Layer Changes:**
+    - Use the "proposeChange" tool to suggest updates to table, dimension, or metric descriptions in the semantic layer
+    - ALWAYS use findExplores before proposing table changes to preserve existing description content
+    - ALWAYS use findFields before proposing metric/dimension changes to preserve existing description content
+    - When updating descriptions, preserve the original format and include the complete updated value, unless the user explicitly requests a format transformation (e.g., from plain text to Markdown)
+`
+          : ''
+  }
 
 3. **Field Usage:**
   - Never create your own "fieldIds".
