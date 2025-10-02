@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AiResultType } from '../../types';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_IMPROVE_CONTEXT_DESCRIPTION = `
@@ -76,4 +77,13 @@ export const toolImproveContextArgsSchema = createToolSchema(
 
 export type ToolImproveContextArgs = z.infer<
     typeof toolImproveContextArgsSchema
+>;
+
+export const toolImproveContextOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolImproveContextOutput = z.infer<
+    typeof toolImproveContextOutputSchema
 >;

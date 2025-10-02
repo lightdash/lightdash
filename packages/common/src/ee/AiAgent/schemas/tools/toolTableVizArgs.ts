@@ -6,6 +6,7 @@ import {
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { tableVizConfigSchema } from '../visualizations';
@@ -62,3 +63,10 @@ export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
 export type ToolTableVizArgsTransformed = z.infer<
     typeof toolTableVizArgsSchemaTransformed
 >;
+
+export const toolTableVizOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolTableVizOutput = z.infer<typeof toolTableVizOutputSchema>;

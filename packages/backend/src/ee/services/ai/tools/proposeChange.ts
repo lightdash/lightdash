@@ -5,6 +5,7 @@ import {
     getItemId,
     ToolProposeChangeArgs,
     toolProposeChangeArgsSchema,
+    toolProposeChangeOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -13,6 +14,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { CreateChangeFn } from '../types/aiAgentDependencies';
 import { populateCustomMetricSQL } from '../utils/populateCustomMetricsSQL';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFieldEntityType,
@@ -112,6 +114,7 @@ export const getProposeChange = ({
     tool({
         description: toolProposeChangeArgsSchema.description,
         inputSchema: toolProposeChangeArgsSchema,
+        outputSchema: toolProposeChangeOutputSchema,
         execute: async (toolArgs) => {
             try {
                 const { entityTableName, change } = toolArgs;
@@ -170,9 +173,20 @@ export const getProposeChange = ({
                     getExploreCompiler,
                 );
                 await createChange(translatedArgs);
-                return `Successfully proposed change to ${translatedArgs.entityType} "${translatedArgs.entityName}" in table "${translatedArgs.entityTableName}"`;
+                return {
+                    result: `Successfully proposed change to ${translatedArgs.entityType} "${translatedArgs.entityName}" in table "${translatedArgs.entityTableName}"`,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(error, 'Error proposing change');
+                return {
+                    result: toolErrorHandler(error, 'Error proposing change'),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

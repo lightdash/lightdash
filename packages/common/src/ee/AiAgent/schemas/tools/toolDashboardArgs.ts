@@ -3,6 +3,7 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import {
@@ -121,3 +122,10 @@ export const toolDashboardArgsSchemaTransformed =
 export type ToolDashboardArgsTransformed = z.infer<
     typeof toolDashboardArgsSchemaTransformed
 >;
+
+export const toolDashboardOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolDashboardOutput = z.infer<typeof toolDashboardOutputSchema>;

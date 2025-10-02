@@ -6,6 +6,7 @@ import {
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
     ToolRunMetricQueryArgsTransformed,
+    toolRunMetricQueryOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -16,6 +17,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateCustomMetricsDefinition,
@@ -70,6 +72,7 @@ export const getRunMetricQuery = ({
     return tool({
         description: toolRunMetricQueryArgsSchema.description,
         inputSchema: toolRunMetricQueryArgsSchema,
+        outputSchema: toolRunMetricQueryOutputSchema,
         execute: async (toolArgs) => {
             try {
                 const vizTool =
@@ -120,10 +123,21 @@ export const getRunMetricQuery = ({
                     columns: csvHeaders,
                 });
 
-                return serializeData(csv, 'csv');
+                return {
+                    result: serializeData(csv, 'csv'),
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (e) {
-                return toolErrorHandler(e, 'Error running metric query.');
+                return {
+                    result: toolErrorHandler(e, 'Error running metric query.'),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });
 };
