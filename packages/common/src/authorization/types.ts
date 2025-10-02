@@ -42,6 +42,7 @@ export type CaslSubjectNames =
     | 'MetricsTree'
     | 'Organization'
     | 'OrganizationMemberProfile'
+    | 'OrganizationWarehouseCredentials'
     | 'PersonalAccessToken'
     | 'PinnedItems'
     | 'Project'

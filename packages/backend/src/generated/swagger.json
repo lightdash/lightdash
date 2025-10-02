@@ -2596,30 +2596,171 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
-            "TableCalculation": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/TableCalculationType"
+            "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
+                "enum": ["percent_change_from_previous"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE": {
+                "enum": ["percent_of_previous_value"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL": {
+                "enum": ["percent_of_column_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RANK_IN_COLUMN": {
+                "enum": ["rank_in_column"],
+                "type": "string"
+            },
+            "TableCalculationTemplateType.RUNNING_TOTAL": {
+                "enum": ["running_total"],
+                "type": "string"
+            },
+            "TableCalculationTemplate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
                     },
-                    "format": {
-                        "$ref": "#/components/schemas/CustomFormat"
+                    {
+                        "properties": {
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
                     },
-                    "sql": {
-                        "type": "string"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     },
-                    "displayName": {
-                        "type": "string"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RANK_IN_COLUMN"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     },
-                    "name": {
-                        "type": "string"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.RUNNING_TOTAL"
+                            }
+                        },
+                        "required": ["fieldId", "type"],
+                        "type": "object"
                     }
-                },
-                "required": ["sql", "displayName", "name"],
-                "type": "object"
+                ]
+            },
+            "TableCalculation": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationType"
+                            },
+                            "format": {
+                                "$ref": "#/components/schemas/CustomFormat"
+                            },
+                            "displayName": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "index": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["displayName", "name"],
+                        "type": "object"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "template": {
+                                        "$ref": "#/components/schemas/TableCalculationTemplate"
+                                    }
+                                },
+                                "required": ["template"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "MetricType": {
                 "enum": [
@@ -7365,6 +7506,681 @@
                 "required": ["changeUuid"],
                 "type": "object"
             },
+            "WarehouseTypes": {
+                "enum": [
+                    "bigquery",
+                    "postgres",
+                    "redshift",
+                    "snowflake",
+                    "databricks",
+                    "trino",
+                    "clickhouse"
+                ],
+                "type": "string"
+            },
+            "OrganizationWarehouseCredentials": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserUuid",
+                    "createdAt",
+                    "warehouseType",
+                    "description",
+                    "name",
+                    "organizationUuid",
+                    "organizationWarehouseCredentialsUuid"
+                ],
+                "type": "object",
+                "description": "Organization-level warehouse credentials"
+            },
+            "ApiOrganizationWarehouseCredentialsListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationWarehouseCredentials"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOrganizationWarehouseCredentialsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationWarehouseCredentials"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SshTunnelConfiguration": {
+                "properties": {
+                    "sshTunnelPrivateKey": {
+                        "type": "string"
+                    },
+                    "sshTunnelPublicKey": {
+                        "type": "string"
+                    },
+                    "sshTunnelUser": {
+                        "type": "string"
+                    },
+                    "sshTunnelPort": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sshTunnelHost": {
+                        "type": "string"
+                    },
+                    "useSshTunnel": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "WarehouseTypes.REDSHIFT": {
+                "enum": ["redshift"],
+                "type": "string"
+            },
+            "WeekDay": {
+                "enum": [0, 1, 2, 3, 4, 5, 6],
+                "type": "number"
+            },
+            "CreateRedshiftCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SshTunnelConfiguration"
+                    },
+                    {
+                        "properties": {
+                            "timeoutSeconds": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "startOfWeek": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WeekDay"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "ra3Node": {
+                                "type": "boolean"
+                            },
+                            "sslmode": {
+                                "type": "string"
+                            },
+                            "keepalivesIdle": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "threads": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "schema": {
+                                "type": "string"
+                            },
+                            "dbname": {
+                                "type": "string"
+                            },
+                            "port": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "requireUserCredentials": {
+                                "type": "boolean"
+                            },
+                            "password": {
+                                "type": "string"
+                            },
+                            "user": {
+                                "type": "string"
+                            },
+                            "host": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                            }
+                        },
+                        "required": [
+                            "schema",
+                            "dbname",
+                            "port",
+                            "password",
+                            "user",
+                            "host",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "WarehouseTypes.BIGQUERY": {
+                "enum": ["bigquery"],
+                "type": "string"
+            },
+            "BigqueryAuthenticationType": {
+                "enum": ["sso", "private_key", "adc"],
+                "type": "string"
+            },
+            "CreateBigqueryCredentials": {
+                "properties": {
+                    "executionProject": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "maximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "retries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "keyfileContents": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["interactive", "batch"]
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dataset": {
+                        "type": "string"
+                    },
+                    "project": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["keyfileContents", "dataset", "project", "type"],
+                "type": "object"
+            },
+            "SslConfiguration": {
+                "properties": {
+                    "sslrootcert": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sslrootcertFileName": {
+                        "type": "string"
+                    },
+                    "sslkey": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sslkeyFileName": {
+                        "type": "string"
+                    },
+                    "sslcert": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sslcertFileName": {
+                        "type": "string"
+                    },
+                    "sslmode": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "WarehouseTypes.POSTGRES": {
+                "enum": ["postgres"],
+                "type": "string"
+            },
+            "CreatePostgresCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SshTunnelConfiguration"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SslConfiguration"
+                    },
+                    {
+                        "properties": {
+                            "timeoutSeconds": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "startOfWeek": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WeekDay"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "role": {
+                                "type": "string"
+                            },
+                            "searchPath": {
+                                "type": "string"
+                            },
+                            "keepalivesIdle": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "threads": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "schema": {
+                                "type": "string"
+                            },
+                            "dbname": {
+                                "type": "string"
+                            },
+                            "port": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "requireUserCredentials": {
+                                "type": "boolean"
+                            },
+                            "password": {
+                                "type": "string"
+                            },
+                            "user": {
+                                "type": "string"
+                            },
+                            "host": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                            }
+                        },
+                        "required": [
+                            "schema",
+                            "dbname",
+                            "port",
+                            "password",
+                            "user",
+                            "host",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "WarehouseTypes.SNOWFLAKE": {
+                "enum": ["snowflake"],
+                "type": "string"
+            },
+            "SnowflakeAuthenticationType": {
+                "enum": ["password", "private_key", "sso"],
+                "type": "string"
+            },
+            "CreateSnowflakeCredentials": {
+                "properties": {
+                    "override": {
+                        "type": "boolean"
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "accessUrl": {
+                        "type": "string"
+                    },
+                    "queryTag": {
+                        "type": "string"
+                    },
+                    "clientSessionKeepAlive": {
+                        "type": "boolean"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    },
+                    "privateKeyPass": {
+                        "type": "string"
+                    },
+                    "privateKey": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "account": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    }
+                },
+                "required": [
+                    "schema",
+                    "warehouse",
+                    "database",
+                    "user",
+                    "account",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "WarehouseTypes.DATABRICKS": {
+                "enum": ["databricks"],
+                "type": "string"
+            },
+            "CreateDatabricksCredentials": {
+                "properties": {
+                    "compute": {
+                        "items": {
+                            "properties": {
+                                "httpPath": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["httpPath", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "personalAccessToken": {
+                        "type": "string"
+                    },
+                    "httpPath": {
+                        "type": "string"
+                    },
+                    "serverHostName": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "catalog": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    }
+                },
+                "required": [
+                    "personalAccessToken",
+                    "httpPath",
+                    "serverHostName",
+                    "database",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "WarehouseTypes.TRINO": {
+                "enum": ["trino"],
+                "type": "string"
+            },
+            "CreateTrinoCredentials": {
+                "properties": {
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "http_scheme": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "dbname": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    }
+                },
+                "required": [
+                    "http_scheme",
+                    "schema",
+                    "dbname",
+                    "port",
+                    "password",
+                    "user",
+                    "host",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "WarehouseTypes.CLICKHOUSE": {
+                "enum": ["clickhouse"],
+                "type": "string"
+            },
+            "CreateClickhouseCredentials": {
+                "properties": {
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "secure": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
+                    }
+                },
+                "required": [
+                    "schema",
+                    "port",
+                    "password",
+                    "user",
+                    "host",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "CreateWarehouseCredentials": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateRedshiftCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateBigqueryCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreatePostgresCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDatabricksCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateTrinoCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateClickhouseCredentials"
+                    }
+                ]
+            },
+            "CreateOrganizationWarehouseCredentials": {
+                "properties": {
+                    "credentials": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["credentials", "name"],
+                "type": "object"
+            },
+            "UpdateOrganizationWarehouseCredentials": {
+                "properties": {
+                    "credentials": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -8222,26 +9038,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "WarehouseTypes.POSTGRES": {
-                "enum": ["postgres"],
-                "type": "string"
-            },
-            "WarehouseTypes.REDSHIFT": {
-                "enum": ["redshift"],
-                "type": "string"
-            },
-            "WarehouseTypes.SNOWFLAKE": {
-                "enum": ["snowflake"],
-                "type": "string"
-            },
-            "WarehouseTypes.TRINO": {
-                "enum": ["trino"],
-                "type": "string"
-            },
-            "WarehouseTypes.CLICKHOUSE": {
-                "enum": ["clickhouse"],
-                "type": "string"
-            },
             "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
                     "user": {
@@ -8271,10 +9067,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "WarehouseTypes.BIGQUERY": {
-                "enum": ["bigquery"],
-                "type": "string"
-            },
             "Pick_CreateBigqueryCredentials.type_": {
                 "properties": {
                     "type": {
@@ -8284,10 +9076,6 @@
                 "required": ["type"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "WarehouseTypes.DATABRICKS": {
-                "enum": ["databricks"],
-                "type": "string"
             },
             "Pick_CreateDatabricksCredentials.type_": {
                 "properties": {
@@ -8374,10 +9162,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "SnowflakeAuthenticationType": {
-                "enum": ["password", "private_key", "sso"],
-                "type": "string"
-            },
             "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-token_": {
                 "properties": {
                     "user": {
@@ -8431,10 +9215,6 @@
                 "required": ["user", "type", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "BigqueryAuthenticationType": {
-                "enum": ["sso", "private_key", "adc"],
-                "type": "string"
             },
             "Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_": {
                 "properties": {
@@ -12896,10 +13676,6 @@
                     }
                 ]
             },
-            "WeekDay": {
-                "enum": [0, 1, 2, 3, 4, 5, 6],
-                "type": "number"
-            },
             "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -12919,6 +13695,9 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
+                    },
+                    "refreshToken": {
+                        "type": "string"
                     },
                     "database": {
                         "type": "string"
@@ -14469,22 +15248,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -14823,22 +15602,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -15507,18 +16286,6 @@
             },
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
-            },
-            "WarehouseTypes": {
-                "enum": [
-                    "bigquery",
-                    "postgres",
-                    "redshift",
-                    "snowflake",
-                    "databricks",
-                    "trino",
-                    "clickhouse"
-                ],
-                "type": "string"
             },
             "OrganizationProject": {
                 "properties": {
@@ -16267,525 +17034,6 @@
             "Omit_CreateProject.warehouseConnection_": {
                 "$ref": "#/components/schemas/Pick_CreateProject.Exclude_keyofCreateProject.warehouseConnection__",
                 "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "SshTunnelConfiguration": {
-                "properties": {
-                    "sshTunnelPrivateKey": {
-                        "type": "string"
-                    },
-                    "sshTunnelPublicKey": {
-                        "type": "string"
-                    },
-                    "sshTunnelUser": {
-                        "type": "string"
-                    },
-                    "sshTunnelPort": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sshTunnelHost": {
-                        "type": "string"
-                    },
-                    "useSshTunnel": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "CreateRedshiftCredentials": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SshTunnelConfiguration"
-                    },
-                    {
-                        "properties": {
-                            "timeoutSeconds": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "startOfWeek": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/WeekDay"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "ra3Node": {
-                                "type": "boolean"
-                            },
-                            "sslmode": {
-                                "type": "string"
-                            },
-                            "keepalivesIdle": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "threads": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "schema": {
-                                "type": "string"
-                            },
-                            "dbname": {
-                                "type": "string"
-                            },
-                            "port": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "requireUserCredentials": {
-                                "type": "boolean"
-                            },
-                            "password": {
-                                "type": "string"
-                            },
-                            "user": {
-                                "type": "string"
-                            },
-                            "host": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
-                            }
-                        },
-                        "required": [
-                            "schema",
-                            "dbname",
-                            "port",
-                            "password",
-                            "user",
-                            "host",
-                            "type"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "CreateBigqueryCredentials": {
-                "properties": {
-                    "executionProject": {
-                        "type": "string"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "maximumBytesBilled": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "location": {
-                        "type": "string"
-                    },
-                    "retries": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "keyfileContents": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
-                    },
-                    "priority": {
-                        "type": "string",
-                        "enum": ["interactive", "batch"]
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dataset": {
-                        "type": "string"
-                    },
-                    "project": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
-                    }
-                },
-                "required": ["keyfileContents", "dataset", "project", "type"],
-                "type": "object"
-            },
-            "SslConfiguration": {
-                "properties": {
-                    "sslrootcert": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "sslrootcertFileName": {
-                        "type": "string"
-                    },
-                    "sslkey": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "sslkeyFileName": {
-                        "type": "string"
-                    },
-                    "sslcert": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "sslcertFileName": {
-                        "type": "string"
-                    },
-                    "sslmode": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "CreatePostgresCredentials": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SshTunnelConfiguration"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SslConfiguration"
-                    },
-                    {
-                        "properties": {
-                            "timeoutSeconds": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "startOfWeek": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/WeekDay"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "role": {
-                                "type": "string"
-                            },
-                            "searchPath": {
-                                "type": "string"
-                            },
-                            "keepalivesIdle": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "threads": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "schema": {
-                                "type": "string"
-                            },
-                            "dbname": {
-                                "type": "string"
-                            },
-                            "port": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "requireUserCredentials": {
-                                "type": "boolean"
-                            },
-                            "password": {
-                                "type": "string"
-                            },
-                            "user": {
-                                "type": "string"
-                            },
-                            "host": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                            }
-                        },
-                        "required": [
-                            "schema",
-                            "dbname",
-                            "port",
-                            "password",
-                            "user",
-                            "host",
-                            "type"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "CreateSnowflakeCredentials": {
-                "properties": {
-                    "override": {
-                        "type": "boolean"
-                    },
-                    "quotedIdentifiersIgnoreCase": {
-                        "type": "boolean"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "accessUrl": {
-                        "type": "string"
-                    },
-                    "queryTag": {
-                        "type": "string"
-                    },
-                    "clientSessionKeepAlive": {
-                        "type": "boolean"
-                    },
-                    "threads": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "warehouse": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string"
-                    },
-                    "role": {
-                        "type": "string"
-                    },
-                    "token": {
-                        "type": "string"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
-                    },
-                    "privateKeyPass": {
-                        "type": "string"
-                    },
-                    "privateKey": {
-                        "type": "string"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "password": {
-                        "type": "string"
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "account": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
-                    }
-                },
-                "required": [
-                    "schema",
-                    "warehouse",
-                    "database",
-                    "user",
-                    "account",
-                    "type"
-                ],
-                "type": "object"
-            },
-            "CreateDatabricksCredentials": {
-                "properties": {
-                    "compute": {
-                        "items": {
-                            "properties": {
-                                "httpPath": {
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["httpPath", "name"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "personalAccessToken": {
-                        "type": "string"
-                    },
-                    "httpPath": {
-                        "type": "string"
-                    },
-                    "serverHostName": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string"
-                    },
-                    "catalog": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
-                    }
-                },
-                "required": [
-                    "personalAccessToken",
-                    "httpPath",
-                    "serverHostName",
-                    "database",
-                    "type"
-                ],
-                "type": "object"
-            },
-            "CreateTrinoCredentials": {
-                "properties": {
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "http_scheme": {
-                        "type": "string"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "dbname": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "password": {
-                        "type": "string"
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
-                    }
-                },
-                "required": [
-                    "http_scheme",
-                    "schema",
-                    "dbname",
-                    "port",
-                    "password",
-                    "user",
-                    "host",
-                    "type"
-                ],
-                "type": "object"
-            },
-            "CreateClickhouseCredentials": {
-                "properties": {
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "startOfWeek": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/WeekDay"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "secure": {
-                        "type": "boolean"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "port": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
-                    "password": {
-                        "type": "string"
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "host": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
-                    }
-                },
-                "required": [
-                    "schema",
-                    "port",
-                    "password",
-                    "user",
-                    "host",
-                    "type"
-                ],
-                "type": "object"
-            },
-            "CreateWarehouseCredentials": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/CreateRedshiftCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateBigqueryCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreatePostgresCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateSnowflakeCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateDatabricksCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateTrinoCredentials"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateClickhouseCredentials"
-                    }
-                ]
             },
             "CreateProjectOptionalCredentials": {
                 "allOf": [
@@ -20318,7 +20566,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2041.0",
+        "version": "0.2050.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20358,6 +20606,214 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/warehouse-credentials": {
+            "get": {
+                "operationId": "ListOrganizationWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all warehouse credentials for the current organization",
+                "summary": "List warehouse credentials",
+                "tags": ["Organization Warehouse Credentials"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "CreateOrganizationWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create new warehouse credentials for the organization",
+                "summary": "Create warehouse credentials",
+                "tags": ["Organization Warehouse Credentials"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the warehouse credentials to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrganizationWarehouseCredentials",
+                                "description": "the warehouse credentials to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/warehouse-credentials/{credentialsUuid}": {
+            "get": {
+                "operationId": "GetOrganizationWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a specific warehouse credential by UUID",
+                "summary": "Get warehouse credential",
+                "tags": ["Organization Warehouse Credentials"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the UUID of the warehouse credentials",
+                        "in": "path",
+                        "name": "credentialsUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "UpdateOrganizationWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update existing warehouse credentials",
+                "summary": "Update warehouse credentials",
+                "tags": ["Organization Warehouse Credentials"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the UUID of the warehouse credentials to update",
+                        "in": "path",
+                        "name": "credentialsUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the updated warehouse credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationWarehouseCredentials",
+                                "description": "the updated warehouse credentials"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteOrganizationWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete warehouse credentials",
+                "summary": "Delete warehouse credentials",
+                "tags": ["Organization Warehouse Credentials"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the UUID of the warehouse credentials to delete",
+                        "in": "path",
+                        "name": "credentialsUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/orgs/{orgUuid}/roles": {

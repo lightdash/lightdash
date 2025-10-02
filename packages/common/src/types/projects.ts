@@ -195,7 +195,8 @@ export type CreateSnowflakeCredentials = {
     privateKey?: string;
     privateKeyPass?: string;
     authenticationType?: SnowflakeAuthenticationType;
-    token?: string; // oauth token for sso
+    refreshToken?: string; // Refresh token for sso, this is used to generate a new access token
+    token?: string; // Access token for sso, this has a low expiry time
     role?: string;
     database: string;
     warehouse: string;
