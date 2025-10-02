@@ -1,3 +1,10 @@
+# [0.2038.0](https://github.com/lightdash/lightdash/compare/0.2037.0...0.2038.0) (2025-10-02)
+
+
+### Features
+
+* add initial project changesets table in settings ([#17180](https://github.com/lightdash/lightdash/issues/17180)) ([03005c9](https://github.com/lightdash/lightdash/commit/03005c929e3cc8587bc419962b53e890a00692ac))
+
 # [0.2037.0](https://github.com/lightdash/lightdash/compare/0.2036.3...0.2037.0) (2025-10-02)
 
 
