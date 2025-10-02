@@ -1,3 +1,10 @@
+# [0.2039.0](https://github.com/lightdash/lightdash/compare/0.2038.1...0.2039.0) (2025-10-02)
+
+
+### Features
+
+* introduce propose change tool template ([#17164](https://github.com/lightdash/lightdash/issues/17164)) ([9d63834](https://github.com/lightdash/lightdash/commit/9d6383484ea51d5134768b5028a3d71712e0fbbd))
+
 ## [0.2038.1](https://github.com/lightdash/lightdash/compare/0.2038.0...0.2038.1) (2025-10-02)
 
 
