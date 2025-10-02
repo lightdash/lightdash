@@ -1,3 +1,10 @@
+## [0.2038.1](https://github.com/lightdash/lightdash/compare/0.2038.0...0.2038.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* add index on catalog for cached_explores ([#17196](https://github.com/lightdash/lightdash/issues/17196)) ([1205624](https://github.com/lightdash/lightdash/commit/12056249e112fd860502fc11da1be7d534a9ac88))
+
 # [0.2038.0](https://github.com/lightdash/lightdash/compare/0.2037.0...0.2038.0) (2025-10-02)
 
 
