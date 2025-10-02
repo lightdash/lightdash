@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FieldType, MetricType } from './field';
 
 const ChangesetStatusSchema = z.enum(['draft', 'applied']);
 
@@ -31,8 +32,25 @@ export const ChangeSchema = z
                 payload: z.discriminatedUnion('type', [
                     z.object({
                         type: z.literal('metric'),
-                        // TODO: add metric schema
-                        value: z.unknown(),
+                        value: z.object({
+                            fieldType: z.literal(FieldType.METRIC),
+                            type: z.nativeEnum(MetricType),
+                            name: z.string(),
+                            label: z.string(),
+                            table: z.string(),
+                            tableLabel: z.string(), // Table friendly name
+                            sql: z.string(), // Templated sql
+                            description: z.string().optional(),
+                            hidden: z.boolean(),
+                            compiledSql: z.string(),
+                            tablesReferences: z.array(z.string()),
+                            tablesRequiredAttributes: z
+                                .record(
+                                    z.string(),
+                                    z.record(z.string(), z.string()),
+                                )
+                                .optional(),
+                        }),
                     }),
                 ]),
             }),
