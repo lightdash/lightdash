@@ -200,3 +200,107 @@ export const UpdateMetricLabelAndDescription: Story = {
         },
     },
 };
+
+export const UpdateTableDescriptionWithMarkdown: Story = {
+    args: {
+        entityTableName: 'customers',
+        change: {
+            entityType: 'table',
+            value: {
+                type: 'update',
+                patch: {
+                    description: {
+                        op: 'replace',
+                        value: `# Customer Data
+
+This table contains customer information with the following characteristics:
+
+- **B2B Customers**: Enterprise and business accounts
+- **B2C Customers**: Individual consumer accounts
+- **Status**: Both active and inactive customers
+
+## Important Notes
+
+> Data is synced daily from the CRM system at 2 AM UTC
+
+For more information, see the [customer onboarding guide](https://example.com/docs/customers).`,
+                    },
+                    label: null,
+                },
+            },
+        },
+    },
+};
+
+export const UpdateDimensionDescriptionWithMarkdown: Story = {
+    args: {
+        entityTableName: 'orders',
+        change: {
+            entityType: 'dimension',
+            fieldId: 'order_status',
+            value: {
+                type: 'update',
+                patch: {
+                    description: {
+                        op: 'replace',
+                        value: `Current status of the order in the fulfillment pipeline:
+
+1. **pending** - Order received, awaiting payment
+2. **processing** - Payment confirmed, preparing shipment
+3. **shipped** - Order dispatched to customer
+4. **delivered** - Order received by customer
+5. **cancelled** - Order cancelled by customer or system
+
+\`\`\`sql
+-- Example query
+SELECT order_status, COUNT(*)
+FROM orders
+GROUP BY order_status
+\`\`\``,
+                    },
+                    label: {
+                        op: 'replace',
+                        value: 'Order Status',
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const UpdateMetricDescriptionWithMarkdown: Story = {
+    args: {
+        entityTableName: 'revenue',
+        change: {
+            entityType: 'metric',
+            fieldId: 'mrr',
+            value: {
+                type: 'update',
+                patch: {
+                    description: {
+                        op: 'replace',
+                        value: `**Monthly Recurring Revenue (MRR)** calculation:
+
+### Formula
+\`MRR = Sum of all active subscription values normalized to monthly\`
+
+### Inclusions
+- Active subscription fees
+- Recurring add-ons and upgrades
+
+### Exclusions
+- One-time setup fees
+- Usage-based charges
+- Refunds and credits
+
+*Note: Values are in USD and updated nightly*`,
+                    },
+                    label: {
+                        op: 'replace',
+                        value: 'Monthly Recurring Revenue',
+                    },
+                },
+            },
+        },
+    },
+};
