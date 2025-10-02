@@ -150,6 +150,6 @@ export type CreateChangeFn = (
         CreateChangeParams,
         'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
     >,
-) => Promise<void>;
+) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;

@@ -172,11 +172,13 @@ export const getProposeChange = ({
                     explore,
                     getExploreCompiler,
                 );
-                await createChange(translatedArgs);
+                const changeUuid = await createChange(translatedArgs);
                 return {
                     result: `Successfully proposed change to ${translatedArgs.entityType} "${translatedArgs.entityName}" in table "${translatedArgs.entityTableName}"`,
                     metadata: {
                         status: 'success',
+                        changeUuid,
+                        userFeedback: 'accepted',
                     },
                 };
             } catch (error) {

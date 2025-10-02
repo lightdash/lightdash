@@ -1509,6 +1509,98 @@ export class AiAgentService {
         });
     }
 
+    async revertChange(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            changeUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            promptUuid: string;
+            changeUuid: string;
+        },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has access to update this thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to revert this change',
+            );
+        }
+
+        // Revert the change
+        await this.changesetModel.revertChange(changeUuid);
+
+        // Get the tool result that corresponds to this change to update metadata
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            promptUuid,
+        );
+
+        // Find the tool result for the propose_change that created this change
+        const proposeChangeResult = toolResults.find(
+            (result) =>
+                result.toolName === 'proposeChange' &&
+                result.metadata.status === 'success' &&
+                result.metadata.changeUuid === changeUuid,
+        );
+
+        if (
+            !proposeChangeResult ||
+            !(
+                proposeChangeResult.toolName === 'proposeChange' &&
+                proposeChangeResult.metadata.status === 'success' &&
+                proposeChangeResult.metadata.changeUuid === changeUuid
+            )
+        ) {
+            throw new NotFoundError(
+                `Propose change result not found for change: ${changeUuid}`,
+            );
+        }
+
+        await this.aiAgentModel.updateToolResultMetadata(
+            promptUuid,
+            proposeChangeResult.toolCallId,
+            {
+                ...proposeChangeResult.metadata,
+                userFeedback: 'rejected',
+            },
+        );
+    }
+
     private async updateSlackResponseWithProgress(
         slackPrompt: SlackPrompt,
         progress: string,
@@ -1559,40 +1651,58 @@ export class AiAgentService {
                     } satisfies UserModelMessage,
                 ];
 
-                const toolCallsAndResults =
-                    await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
+                    message.ai_prompt_uuid,
+                );
+                const toolResults =
+                    await this.aiAgentModel.getToolResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
 
-                if (toolCallsAndResults.length > 0) {
+                if (toolCalls.length > 0) {
                     messages.push({
                         role: 'assistant',
-                        content: toolCallsAndResults.map(
-                            (toolCallAndResult) =>
+                        content: toolCalls.map(
+                            (toolCall) =>
                                 ({
                                     type: 'tool-call',
-                                    toolCallId: toolCallAndResult.tool_call_id,
-                                    toolName: toolCallAndResult.tool_name,
-                                    input: toolCallAndResult.tool_args,
+                                    toolCallId: toolCall.tool_call_id,
+                                    toolName: toolCall.tool_name,
+                                    input: toolCall.tool_args,
                                 } satisfies ToolCallPart),
                         ),
                     } satisfies AssistantModelMessage);
 
                     messages.push({
                         role: 'tool',
-                        content: toolCallsAndResults.map(
-                            (toolCallAndResult) =>
-                                ({
+                        content: toolResults.map((toolResult) => {
+                            if (
+                                toolResult.toolName === 'proposeChange' &&
+                                toolResult.metadata.status === 'success' &&
+                                toolResult.metadata.userFeedback === 'rejected'
+                            ) {
+                                return {
                                     type: 'tool-result',
-                                    toolCallId: toolCallAndResult.tool_call_id,
-                                    toolName: toolCallAndResult.tool_name,
+                                    toolCallId: toolResult.toolCallId,
+                                    toolName: toolResult.toolName,
                                     output: {
                                         type: 'json',
-                                        // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                        value: toolCallAndResult.result,
+                                        value: `${toolResult.result}\nUser rejected proposed change.`,
                                     },
-                                } satisfies ToolResultPart),
-                        ),
+                                } satisfies ToolResultPart;
+                            }
+
+                            return {
+                                type: 'tool-result',
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                output: {
+                                    type: 'json',
+                                    // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                    value: toolResult.result,
+                                },
+                            } satisfies ToolResultPart;
+                        }),
                     } satisfies ToolModelMessage);
                 }
 
@@ -1971,7 +2081,7 @@ export class AiAgentService {
         };
 
         const createChange: CreateChangeFn = async (params) => {
-            await this.changesetModel.createChange(projectUuid, {
+            const change = await this.changesetModel.createChange(projectUuid, {
                 createdByUserUuid: user.userUuid,
                 sourcePromptUuid: prompt.promptUuid,
                 ...params,
@@ -1980,6 +2090,8 @@ export class AiAgentService {
             await this.catalogService.indexCatalogUpdates(projectUuid, [
                 params.entityTableName,
             ]);
+
+            return change.changeUuid;
         };
 
         return {
