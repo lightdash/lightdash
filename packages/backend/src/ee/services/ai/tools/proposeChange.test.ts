@@ -27,9 +27,9 @@ const mockExplore: Explore = {
 };
 
 describe('translateToolProposeChangeArgs', () => {
-    it('should translate table update changes', () => {
+    it('should translate table update changes', async () => {
         expect(
-            translateToolProposeChangeArgs(
+            await translateToolProposeChangeArgs(
                 {
                     type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',
@@ -73,9 +73,9 @@ describe('translateToolProposeChangeArgs', () => {
         });
     });
 
-    it('should translate dimension update changes', () => {
+    it('should translate dimension update changes', async () => {
         expect(
-            translateToolProposeChangeArgs(
+            await translateToolProposeChangeArgs(
                 {
                     type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',
@@ -115,9 +115,9 @@ describe('translateToolProposeChangeArgs', () => {
         });
     });
 
-    it('should translate metric update changes', () => {
+    it('should translate metric update changes', async () => {
         expect(
-            translateToolProposeChangeArgs(
+            await translateToolProposeChangeArgs(
                 {
                     type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',

@@ -7,7 +7,7 @@ type ReplaceOperationProps = {
     name: string;
 };
 
-const ReplaceOperation = ({ value, name }: ReplaceOperationProps) => {
+const ReplaceOrAddOperation = ({ value, name }: ReplaceOperationProps) => {
     return (
         <Paper bg="gray.0" p="xs" component={Stack} gap="xxs">
             <Text component="code" size="xs" fw={600} c="gray.7">
@@ -29,8 +29,14 @@ export const OperationRenderer = ({
 }: OperationRendererProps) => {
     switch (operation.op) {
         case 'replace':
-            return <ReplaceOperation value={operation.value} name={property} />;
+        case 'add':
+            return (
+                <ReplaceOrAddOperation
+                    value={operation.value}
+                    name={property}
+                />
+            );
         default:
-            return assertUnreachable(operation.op, 'Unknown operation type');
+            return assertUnreachable(operation, 'Unknown operation type');
     }
 };
