@@ -37,7 +37,7 @@ export const ChangeSchema = z
                 payload: z.object({
                     patches: z.array(
                         z.object({
-                            op: z.enum(['replace']),
+                            op: z.enum(['replace', 'add']),
                             path: z.string(),
                             value: z
                                 .unknown()

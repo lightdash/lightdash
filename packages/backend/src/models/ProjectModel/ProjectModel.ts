@@ -47,11 +47,11 @@ import {
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
 } from '@lightdash/common';
+import { ChangesetUtils } from '@lightdash/common/src/utils/changeset';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import { applyPatch, validate } from 'fast-json-patch';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -907,200 +907,6 @@ export class ProjectModel {
         return convertedExplore;
     };
 
-    static applyChange<
-        T extends CompiledDimension | CompiledMetric | CompiledTable | Explore,
-    >(entity: T | undefined, change: Change): T | undefined {
-        switch (change.type) {
-            case 'create':
-                throw new ParameterError('Create change is not supported');
-
-            case 'delete':
-                throw new ParameterError('Delete change is not supported');
-
-            case 'update':
-                if (!entity) {
-                    throw new NotExistsError(
-                        `Entity "${change.entityName}" does not exist.`,
-                    );
-                }
-                const errors = validate(change.payload.patches, entity);
-                if (errors) {
-                    throw new Error(`Invalid patches: ${errors.message}`);
-                }
-                const result = applyPatch(entity, change.payload.patches);
-                return result.newDocument;
-
-            default:
-                return assertUnreachable(change, 'Invalid change type');
-        }
-    }
-
-    static async applyChangeset(
-        changeset: ChangesetWithChanges,
-        explores: Record<string, Explore | ExploreError>,
-    ) {
-        const changedExplores = Object.entries(explores).reduce<
-            Record<string, Explore | ExploreError>
-        >((acc, [exploreName, explore]) => {
-            if (isExploreError(explore)) {
-                return acc;
-            }
-
-            const relevantChanges = changeset.changes.filter(
-                (change) => explore.tables[change.entityTableName],
-            );
-
-            if (relevantChanges.length === 0) {
-                return acc;
-            }
-
-            let patchedExplore = explore;
-
-            for (const change of relevantChanges) {
-                const tableName = change.entityTableName;
-
-                switch (change.entityType) {
-                    case 'table':
-                        switch (change.type) {
-                            case 'create':
-                                throw new NotImplementedError(
-                                    `Not implemented: applyChange for table ${tableName} create change`,
-                                );
-                            case 'update':
-                                const updatePatch = applyPatch(patchedExplore, [
-                                    ...(patchedExplore.baseTable ===
-                                        change.entityName &&
-                                    change.entityName in patchedExplore
-                                        ? [
-                                              {
-                                                  op: 'replace' as const,
-                                                  path: `/`,
-                                                  value: ProjectModel.applyChange(
-                                                      patchedExplore,
-                                                      change,
-                                                  ),
-                                              },
-                                          ]
-                                        : []),
-                                    {
-                                        op: 'replace',
-                                        path: `/tables/${change.entityName}`,
-                                        value: ProjectModel.applyChange(
-                                            patchedExplore.tables[
-                                                change.entityName
-                                            ],
-                                            change,
-                                        ),
-                                    },
-                                ]);
-                                patchedExplore = updatePatch.newDocument;
-                                break;
-                            case 'delete':
-                                throw new NotImplementedError(
-                                    `Not implemented: applyChange for table ${tableName} delete change`,
-                                );
-                            default:
-                                return assertUnreachable(
-                                    change,
-                                    'Invalid change type',
-                                );
-                        }
-                        break;
-
-                    case 'metric':
-                    case 'dimension':
-                        const entityType = `${change.entityType}s` as const;
-
-                        if (!patchedExplore.tables[tableName]) {
-                            throw new NotExistsError(
-                                `Table "${tableName}" does not exist in explore`,
-                            );
-                        }
-
-                        switch (change.type) {
-                            case 'create':
-                                if (
-                                    patchedExplore.tables[tableName][
-                                        entityType
-                                    ][change.entityName]
-                                ) {
-                                    throw new ForbiddenError(
-                                        `Entity "${change.entityName}" already exists in table "${tableName}" of explore`,
-                                    );
-                                }
-
-                                const createPatch = applyPatch(patchedExplore, [
-                                    {
-                                        op: 'replace',
-                                        path: `/tables/${tableName}/${entityType}/${change.entityName}`,
-                                        value: change,
-                                    },
-                                ]);
-                                patchedExplore = createPatch.newDocument;
-                                break;
-
-                            case 'update':
-                                const updatePatch = applyPatch(patchedExplore, [
-                                    {
-                                        op: 'replace',
-                                        path: `/tables/${tableName}/${entityType}/${change.entityName}`,
-                                        value: ProjectModel.applyChange(
-                                            patchedExplore.tables[tableName][
-                                                entityType
-                                            ][change.entityName],
-                                            change,
-                                        ),
-                                    },
-                                ]);
-                                patchedExplore = updatePatch.newDocument;
-                                break;
-
-                            case 'delete':
-                                const deletePatch = applyPatch(patchedExplore, [
-                                    {
-                                        op: 'remove',
-                                        path: `/tables/${tableName}/${entityType}/${change.entityName}`,
-                                    },
-                                ]);
-                                patchedExplore = deletePatch.newDocument;
-                                break;
-
-                            default:
-                                return assertUnreachable(
-                                    change,
-                                    'Invalid change type',
-                                );
-                        }
-                        break;
-
-                    default:
-                        return assertUnreachable(
-                            change.entityType,
-                            'Invalid entity type',
-                        );
-                }
-            }
-
-            acc[exploreName] = patchedExplore;
-            return acc;
-        }, {});
-
-        const patchedExploreNamess = Object.keys(changedExplores);
-        if (patchedExploreNamess.length > 0) {
-            const patchResult = applyPatch(
-                explores,
-                patchedExploreNamess.map((exploreName) => ({
-                    op: 'replace',
-                    path: `/${exploreName}`,
-                    value: changedExplores[exploreName],
-                })),
-            );
-            return patchResult.newDocument;
-        }
-
-        return explores;
-    }
-
     /**
      * Find explores from cache (cached_explore) from a project.
      * @param projectUuid - The project uuid.
@@ -1164,7 +970,7 @@ export class ProjectModel {
                 }, {});
 
                 if (changeset) {
-                    finalExplores = await ProjectModel.applyChangeset(
+                    finalExplores = await ChangesetUtils.applyChangeset(
                         changeset,
                         finalExplores,
                     );
