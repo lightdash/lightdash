@@ -44,7 +44,7 @@ export async function up(knex: Knex): Promise<void> {
             .nullable()
             .references('organization_warehouse_credentials_uuid')
             .inTable(ORGANIZATION_WAREHOUSE_CREDENTIALS_TABLE)
-            .onDelete('RESTRICT'); // throw errors if tying to delete a warehouse credential that is still in use in a project
+            .onDelete('RESTRICT'); // throw errors if trying to delete a warehouse credential that is still in use in a project
         table.index('organization_warehouse_credentials_uuid');
     });
 }

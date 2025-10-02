@@ -1,5 +1,12 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
+import {
+    Button,
+    Group,
+    LoadingOverlay,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
@@ -11,7 +18,8 @@ import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
 
 export const OrganizationWarehouseCredentialsPanel = () => {
-    const { data: credentials } = useOrganizationWarehouseCredentials();
+    const { data: credentials, isLoading } =
+        useOrganizationWarehouseCredentials();
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
         useState<OrganizationWarehouseCredentials | undefined>(undefined);
@@ -20,6 +28,9 @@ export const OrganizationWarehouseCredentialsPanel = () => {
         setWarehouseCredentialsToBeDeleted,
     ] = useState<OrganizationWarehouseCredentials | undefined>(undefined);
 
+    if (isLoading) {
+        return <LoadingOverlay visible={isLoading} />;
+    }
     return (
         <>
             <Stack mb="lg">
