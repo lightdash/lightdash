@@ -3,6 +3,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     Change,
+    ChangesetUtils,
     ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
@@ -47,7 +48,6 @@ import {
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
 } from '@lightdash/common';
-import { ChangesetUtils } from '@lightdash/common/src/utils/changeset';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
