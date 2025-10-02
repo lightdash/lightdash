@@ -257,6 +257,90 @@ describe('ChangesetUtils', () => {
                     expect(patchedExplores).toStrictEqual(mockExplores);
                 });
             });
+
+            describe('tables', () => {
+                it('should update the table label', () => {
+                    expect(mockExplores.orders.tables.orders.label).toEqual(
+                        'Orders',
+                    );
+
+                    const change: Change = {
+                        changeUuid: 'c7',
+                        changesetUuid: 'cs1',
+                        createdAt: new Date(),
+                        createdByUserUuid: 'u1',
+                        sourcePromptUuid: 'sp1',
+                        type: 'update',
+                        entityType: 'table',
+                        entityTableName: 'orders',
+                        entityName: 'orders',
+                        payload: {
+                            patches: [
+                                {
+                                    op: 'replace',
+                                    path: '/label',
+                                    value: 'Orders Table',
+                                },
+                            ],
+                        },
+                    };
+
+                    const patchedExplores = ChangesetUtils.applyChangeset(
+                        { ...changeset, changes: [change] },
+                        mockExplores,
+                    );
+
+                    expect(patchedExplores.orders.tables!.orders.label).toEqual(
+                        'Orders Table',
+                    );
+                });
+
+                it('should update the joined table properties', () => {
+                    expect(
+                        mockExplores.orders.tables.customers,
+                    ).not.toHaveProperty('description');
+                    expect(
+                        mockExplores.customers.tables.customers,
+                    ).not.toHaveProperty('description');
+
+                    const change: Change = {
+                        changeUuid: 'c8',
+                        changesetUuid: 'cs1',
+                        createdAt: new Date(),
+                        createdByUserUuid: 'u1',
+                        sourcePromptUuid: 'sp1',
+                        type: 'update',
+                        entityType: 'table',
+                        entityTableName: 'customers',
+                        entityName: 'customers',
+                        payload: {
+                            patches: [
+                                {
+                                    op: 'add',
+                                    path: '/description',
+                                    value: 'Customers Table is a table that contains customer information',
+                                },
+                            ],
+                        },
+                    };
+
+                    const patchedExplores = ChangesetUtils.applyChangeset(
+                        { ...changeset, changes: [change] },
+                        mockExplores,
+                    );
+
+                    expect(
+                        patchedExplores.orders.tables!.customers.description,
+                    ).toEqual(
+                        'Customers Table is a table that contains customer information',
+                    );
+                    expect(
+                        patchedExplores.customers.tables!.customers.description,
+                    ).toEqual(
+                        'Customers Table is a table that contains customer information',
+                    );
+                });
+            });
         });
     });
 });
