@@ -1,3 +1,10 @@
+## [0.2036.2](https://github.com/lightdash/lightdash/compare/0.2036.1...0.2036.2) (2025-10-02)
+
+
+### Bug Fixes
+
+* improve prompt for propose change tool ([#17181](https://github.com/lightdash/lightdash/issues/17181)) ([c966811](https://github.com/lightdash/lightdash/commit/c966811bc1b8cc781ce27eee03b1b69622ad4e5d))
+
 ## [0.2036.1](https://github.com/lightdash/lightdash/compare/0.2036.0...0.2036.1) (2025-10-02)
 
 
