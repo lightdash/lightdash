@@ -9,7 +9,6 @@ import {
     Anchor,
     Button,
     CopyButton,
-    Divider,
     Group,
     Loader,
     Paper,
@@ -36,6 +35,11 @@ import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
+import {
+    mdEditorComponents,
+    rehypeRemoveHeaderLinks,
+    useMdEditorStyle,
+} from '../../../../../utils/markdownUtils';
 import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
@@ -65,6 +69,7 @@ const AssistantBubbleContent: FC<{
         message.uuid,
     );
     const { streamMessage } = useAiAgentThreadStreamMutation();
+    const mdStyle = useMdEditorStyle();
 
     const hasStreamingError =
         streamingState?.error && streamingState?.messageUuid === message.uuid;
@@ -170,11 +175,12 @@ const AssistantBubbleContent: FC<{
             )}
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
+                    rehypeRewrite={rehypeRemoveHeaderLinks}
                     source={messageContent}
-                    style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
+                    style={{ ...mdStyle, padding: `0.5rem 0` }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
-                        hr: () => <Divider color="gray.4" my="sm" />,
+                        ...mdEditorComponents,
                         a: ({ node, children, ...props }) => {
                             const contentType =
                                 'data-content-type' in props &&
