@@ -8,8 +8,8 @@ import {
     type ToolFindDashboardsOutput,
     toolFindExploresArgsSchema,
     type ToolFindExploresOutput,
-    type ToolFindFieldsArgsOutput,
     toolFindFieldsArgsSchema,
+    type ToolFindFieldsOutput,
     toolImproveContextArgsSchema,
     type ToolImproveContextOutput,
     toolProposeChangeArgsSchema,
@@ -26,6 +26,7 @@ import {
 
 export * from './customMetrics';
 export * from './filters';
+export * from './outputMetadata';
 export * from './sortField';
 export * from './tools';
 export * from './visualizations';
@@ -51,7 +52,7 @@ export type AgentToolOutput =
     | ToolFindChartsOutput
     | ToolFindDashboardsOutput
     | ToolFindExploresOutput
-    | ToolFindFieldsArgsOutput
+    | ToolFindFieldsOutput
     | ToolImproveContextOutput
     | ToolProposeChangeOutput
     | ToolSearchFieldValuesOutput

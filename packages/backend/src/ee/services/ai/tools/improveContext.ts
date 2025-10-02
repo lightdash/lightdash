@@ -26,16 +26,15 @@ export const getImproveContext = () =>
                         '[AI Agent] Confidence too low to improve context',
                     );
                     return {
-                        result: `
-                        <InstructionLearned>
-                            <Status>rejected</Status>
-                            <Reason>confidence_too_low</Reason>
-                            <Message>
-                                Context improved but confidence too low to
-                                create permanent instruction
-                            </Message>
-                        </InstructionLearned>
-                    )`.trim(),
+                        result: `\
+<InstructionLearned>
+    <Status>rejected</Status>
+    <Reason>confidence_too_low</Reason>
+    <Message>
+        Context improved but confidence too low to
+        create permanent instruction
+    </Message>
+</InstructionLearned>`.trim(),
                         metadata: {
                             status: 'success',
                         },
@@ -47,15 +46,15 @@ export const getImproveContext = () =>
                 );
 
                 return {
-                    result: `
-                    <InstructionLearned>
-                        <Status>learned</Status>
-                        <Instruction>
-                            ${toolArgs.suggestedInstruction}
-                        </Instruction>
-                        <Category>${toolArgs.category}</Category>
-                        <Confidence>${toolArgs.confidence}</Confidence>
-                    </InstructionLearned>`.trim(),
+                    result: `\
+<InstructionLearned>
+    <Status>learned</Status>
+    <Instruction>
+        ${toolArgs.suggestedInstruction}
+    </Instruction>
+    <Category>${toolArgs.category}</Category>
+    <Confidence>${toolArgs.confidence}</Confidence>
+</InstructionLearned>`.trim(),
                     metadata: {
                         status: 'success',
                     },

@@ -6,8 +6,8 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    toolFindFieldsArgsOutputSchema,
     toolFindFieldsArgsSchema,
+    toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -98,7 +98,7 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
     tool({
         description: toolFindFieldsArgsSchema.description,
         inputSchema: toolFindFieldsArgsSchema,
-        outputSchema: toolFindFieldsArgsOutputSchema,
+        outputSchema: toolFindFieldsOutputSchema,
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(

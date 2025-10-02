@@ -37,11 +37,9 @@ export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
 
 export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
 
-export const toolFindFieldsArgsOutputSchema = z.object({
+export const toolFindFieldsOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
-export type ToolFindFieldsArgsOutput = z.infer<
-    typeof toolFindFieldsArgsOutputSchema
->;
+export type ToolFindFieldsOutput = z.infer<typeof toolFindFieldsOutputSchema>;
