@@ -99,6 +99,10 @@ const AssistantBubbleContent: FC<{
         : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
               ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
 
+    const proposeChangeToolResult = message.toolResults.find(
+        (result) => result.toolName === 'proposeChange',
+    );
+
     return (
         <>
             {hasStreamingError && (
@@ -288,6 +292,11 @@ const AssistantBubbleContent: FC<{
                 <AiProposeChangeToolCall
                     change={proposeChangeToolCall.change}
                     entityTableName={proposeChangeToolCall.entityTableName}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    promptUuid={message.uuid}
+                    toolResult={proposeChangeToolResult}
                 />
             )}
         </>

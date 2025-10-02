@@ -15,6 +15,8 @@ import type {
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiError,
+    ApiRevertChangeRequest,
+    ApiRevertChangeResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
@@ -823,6 +825,77 @@ export const useSavePromptQuery = (
             } else {
                 showToastApiError({
                     title: 'Failed to save prompt query',
+                    apiError: error,
+                });
+            }
+        },
+    });
+};
+
+const revertChange = async ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    promptUuid,
+    changeUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+    changeUuid: string;
+}) =>
+    lightdashApi<ApiRevertChangeResponse>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${promptUuid}/revert-change`,
+        method: 'POST',
+        body: JSON.stringify({
+            changeUuid,
+        } satisfies ApiRevertChangeRequest),
+    });
+
+export const useRevertChangeMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiRevertChangeResponse,
+        ApiError,
+        { promptUuid: string; changeUuid: string }
+    >({
+        mutationFn: ({ promptUuid, changeUuid }) => {
+            return revertChange({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                promptUuid,
+                changeUuid,
+            });
+        },
+        onSuccess: () => {
+            showToastSuccess({
+                title: 'Change reverted successfully',
+            });
+            void queryClient.invalidateQueries([
+                AI_AGENTS_KEY,
+                projectUuid,
+                agentUuid,
+                'threads',
+                threadUuid,
+            ]);
+        },
+        onError: ({ error }) => {
+            if (error?.statusCode === 403) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
+            } else {
+                showToastApiError({
+                    title: 'Failed to revert change',
                     apiError: error,
                 });
             }
