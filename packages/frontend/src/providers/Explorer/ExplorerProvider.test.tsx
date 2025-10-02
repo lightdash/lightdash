@@ -254,7 +254,8 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('REMOVE_FIELD', () => {
+    // REMOVE_FIELD, TOGGLE_DIMENSION, TOGGLE_METRIC migrated to Redux - tests moved to Redux slice tests
+    describe.skip('REMOVE_FIELD', () => {
         it('removes field from dimensions, metrics, sorts, tableCalculations, and columnOrder', () => {
             const state = mockExplorerState({
                 unsavedChartVersion: {
@@ -287,6 +288,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.REMOVE_FIELD,
                 payload: 'revenue',
             });
@@ -317,6 +319,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.REMOVE_FIELD,
                 payload: 'non_existent_field',
             });
@@ -329,6 +332,7 @@ describe('ExplorerProvider reducer', () => {
 
             expect(() =>
                 reducer(state, {
+                    // @ts-expect-error - Action migrated to Redux
                     type: ActionType.REMOVE_FIELD,
                     payload: 'non_existent_field',
                 }),
@@ -336,7 +340,7 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('TOGGLE_DIMENSION', () => {
+    describe.skip('TOGGLE_DIMENSION', () => {
         it('adds a dimension when not present', () => {
             const initial = mockExplorerState({
                 unsavedChartVersion: {
@@ -362,6 +366,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const next = reducer(initial, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_DIMENSION,
                 payload: 'dim_1',
             });
@@ -399,6 +404,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const next = reducer(initial, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_DIMENSION,
                 payload: 'dim_1',
             });
@@ -428,6 +434,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const next = reducer(initial, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_DIMENSION,
                 payload: 'dim_2',
             });
@@ -459,6 +466,7 @@ describe('ExplorerProvider reducer', () => {
 
             expect(() =>
                 reducer(frozen, {
+                    // @ts-expect-error - Action migrated to Redux
                     type: ActionType.TOGGLE_DIMENSION,
                     payload: 'dim_2',
                 }),
@@ -466,7 +474,7 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('TOGGLE_METRIC', () => {
+    describe.skip('TOGGLE_METRIC', () => {
         it('adds a metric if not already present', () => {
             const state = mockExplorerState({
                 unsavedChartVersion: {
@@ -486,6 +494,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_METRIC,
                 payload: 'metric_1',
             });
@@ -521,6 +530,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_METRIC,
                 payload: 'metric_1',
             });
@@ -560,6 +570,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.TOGGLE_METRIC,
                 payload: 'metric_2',
             });
@@ -597,6 +608,7 @@ describe('ExplorerProvider reducer', () => {
 
             expect(() =>
                 reducer(state, {
+                    // @ts-expect-error - Action migrated to Redux
                     type: ActionType.TOGGLE_METRIC,
                     payload: 'metric_1',
                 }),
@@ -688,7 +700,7 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('SET_FILTERS', () => {
+    describe.skip('SET_FILTERS', () => {
         it('sets filters without fetching results', () => {
             const filters = {
                 dimensions: mockFilterGroup(),
@@ -696,7 +708,9 @@ describe('ExplorerProvider reducer', () => {
 
             const state = mockExplorerState();
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.SET_FILTERS,
+                // @ts-expect-error - Payload type changed after migration
                 payload: filters,
             });
 
@@ -722,7 +736,9 @@ describe('ExplorerProvider reducer', () => {
 
             const state = mockExplorerState();
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.SET_FILTERS,
+                // @ts-expect-error - Payload type changed after migration
                 payload: filters,
             });
 
@@ -758,7 +774,9 @@ describe('ExplorerProvider reducer', () => {
             };
 
             const newState = reducer(state, {
+                // @ts-expect-error - Action migrated to Redux
                 type: ActionType.SET_FILTERS,
+                // @ts-expect-error - Payload type changed after migration
                 payload: filters,
             });
 

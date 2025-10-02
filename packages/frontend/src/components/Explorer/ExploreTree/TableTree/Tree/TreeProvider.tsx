@@ -12,27 +12,53 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     itemsAlerts,
     missingCustomDimensions,
     groupDetails,
-    ...rest
+    orderFieldsBy,
+    isGithubIntegrationEnabled,
+    gitIntegration,
+    onItemClick,
+    searchResults,
 }) => {
     const nodeMap = useMemo(
         () => getNodeMapFromItemsMap(itemsMap, groupDetails),
         [itemsMap, groupDetails],
     );
     const isSearching = !!searchQuery && searchQuery !== '';
+
+    const contextValue = useMemo(
+        () => ({
+            itemsMap,
+            nodeMap,
+            selectedItems,
+            isSearching,
+            searchQuery,
+            missingCustomMetrics,
+            itemsAlerts,
+            missingCustomDimensions,
+            orderFieldsBy,
+            isGithubIntegrationEnabled,
+            gitIntegration,
+            onItemClick,
+            searchResults,
+        }),
+        [
+            itemsMap,
+            nodeMap,
+            selectedItems,
+            isSearching,
+            searchQuery,
+            missingCustomMetrics,
+            itemsAlerts,
+            missingCustomDimensions,
+            orderFieldsBy,
+            isGithubIntegrationEnabled,
+            gitIntegration,
+            onItemClick,
+            searchResults,
+        ],
+    );
+
     return (
-        <TreeContext.Provider
-            value={{
-                itemsMap,
-                nodeMap,
-                selectedItems,
-                isSearching,
-                searchQuery,
-                missingCustomMetrics,
-                itemsAlerts,
-                missingCustomDimensions,
-                ...rest,
-            }}
-        >
+        <TreeContext.Provider value={contextValue}>
             {children}
         </TreeContext.Provider>
     );

@@ -54,6 +54,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             selectParameterReferences,
         );
         const sorts = useExplorerSelector(selectSorts);
+        const dimensions = useExplorerSelector(selectDimensions);
+        const metricsFromRedux = useExplorerSelector(selectMetrics);
+        const columnOrder = useExplorerSelector(selectColumnOrder);
         const dispatch = useExplorerDispatch();
 
         const projectUuid = useProjectUuid();
@@ -145,19 +148,19 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }, [parameterDefinitions, dispatch]);
 
-        // Construct object for default sort calculation using Redux values
+        // Construct object for default sort calculation from Redux state
         const chartVersionForSort = useMemo(
             () => ({
                 tableName,
                 metricQuery: {
                     dimensions,
-                    metrics,
+                    metrics: metricsFromRedux,
                 },
                 tableConfig: {
                     columnOrder,
                 },
             }),
-            [tableName, dimensions, metrics, columnOrder],
+            [tableName, dimensions, metricsFromRedux, columnOrder],
         );
 
         const defaultSort = useDefaultSortField(chartVersionForSort as any);
