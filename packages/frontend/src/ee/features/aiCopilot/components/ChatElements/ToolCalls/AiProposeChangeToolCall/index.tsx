@@ -11,7 +11,8 @@ interface Props
 
 const CHANGE_COLORS = {
     update: 'blue',
-} as const satisfies Record<'update', DefaultMantineColor>;
+    create: 'green',
+} as const satisfies Record<'update' | 'create', DefaultMantineColor>;
 
 export const AiProposeChangeToolCall = ({
     change,

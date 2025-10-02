@@ -121,9 +121,19 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
                     <UpdateChange patch={change.value.patch} />
                 </Stack>
             );
+        case 'create':
+            return (
+                <Stack gap="xs">
+                    <FieldBreadcrumb
+                        entityTableName={entityTableName}
+                        fieldType="metric"
+                        fieldId={change.fieldId}
+                    />
+                </Stack>
+            );
         default:
             return assertUnreachable(
-                change.value.type,
+                change.value,
                 'Unknown metric change type',
             );
     }
