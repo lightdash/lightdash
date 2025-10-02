@@ -1,4 +1,5 @@
 import {
+    addFilterRule,
     getItemId,
     isAdditionalMetric,
     isCompiledMetric,
@@ -31,8 +32,18 @@ import {
 import { darken, lighten } from 'polished';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    explorerActions,
+    selectFilters,
+    selectIsFieldFiltered,
+    selectIsFiltersExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+    useExplorerStore,
+    type ExplorerStoreState,
+} from '../../../../../features/explorer/store';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
-import { useFilteredFields } from '../../../../../hooks/useFilters';
+import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
@@ -87,9 +98,38 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (context) => context.missingCustomDimensions,
     );
     const onItemClick = useTableTree((context) => context.onItemClick);
-    const { isFilteredField, addFilter } = useFilteredFields();
     const { showItemDetail } = useItemDetail();
     const { track } = useTracking();
+
+    // Create stable addFilter action directly without hook
+    const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
+    const addFilter = useCallback(
+        (field: FilterableField, value: any) => {
+            const currentFilters = selectFilters(store.getState());
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
+            dispatch(explorerActions.setFilters(newFilters));
+
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
+            if (!isFiltersExpanded) {
+                dispatch(
+                    explorerActions.toggleExpandedSection(
+                        ExplorerSection.FILTERS,
+                    ),
+                );
+            }
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [dispatch, store],
+    );
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -98,6 +138,19 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const isVisible = !isSearching || searchResults.includes(node.key);
 
     const item = itemsMap[node.key];
+
+    // Use item-level selector with equality check to prevent unnecessary re-renders
+    const fieldId = useMemo(() => getItemId(item), [item]);
+    const selectIsFiltered = useMemo(
+        () => (state: ExplorerStoreState) =>
+            selectIsFieldFiltered(state, fieldId),
+        [fieldId],
+    );
+    // Use strict equality since it's a boolean - only re-render if value actually changes
+    const isFieldFiltered = useExplorerSelector(
+        selectIsFiltered,
+        (a, b) => a === b,
+    );
 
     const metricInfo = useMemo(() => {
         if (isCompiledMetric(item)) {
@@ -136,7 +189,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const bgColor = getItemBgColor(item);
     const alerts = itemsAlerts?.[getItemId(item)];
-    const isFiltered = isField(item) && isFilteredField(item);
+    const isFiltered = isField(item) && isFieldFiltered;
     const showFilterAction =
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
@@ -364,7 +417,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     );
 };
 
-const TreeSingleNode = memo(TreeSingleNodeComponent);
+const TreeSingleNode = memo(TreeSingleNodeComponent, (prev, next) => {
+    // Only re-render if the node key changes
+    // All other data comes from context/Redux with proper selectors
+    return prev.node.key === next.node.key;
+});
 TreeSingleNode.displayName = 'TreeSingleNode';
 
 export default TreeSingleNode;
