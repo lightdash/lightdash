@@ -5,9 +5,11 @@ import { getFieldIdSchema } from '../fieldId';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_PROPOSE_CHANGE_DESCRIPTION = `
-ALWAYS first look up the tables/fields to understand what the current values are.
-
 Use this tool to propose changes to a table's metadata in the semantic layer. This tool creates a change proposal that can be reviewed and approved before being applied.
+
+- When updating descriptions, ensure to preserve as much original content as possible. Remember that descriptions are enclosed in "description" tags and you should take the whole value into account as well as its format.
+- If modifying tables, _always_ use the findExplores tool to check existing descriptions before proposing changes to ensure no important content is removed.
+- If modifying metrics or dimensions, _always_ use the findFields tool to check existing descriptions before proposing changes to ensure no important content is removed.
 
 - **When to use the Propose Change Tool:**
   - User requests to update a table description: "Update the description of the customers table"
@@ -38,7 +40,13 @@ const getOpSchema = <T extends z.ZodTypeAny>(type: T) =>
     z.discriminatedUnion('op', [
         z
             .object({ op: z.literal('replace'), value: type })
-            .describe('Replace (overwrite) the value of the field.'),
+            .describe(
+                [
+                    'Replace (overwrite) the value of the field.',
+                    'Updates the **entire** value of the field to reflect the necessary changes, replacing the current value entirely.',
+                    'Even if only the part is being changed, make sure to pass the entire value with changes included so that no part is lost.',
+                ].join('\n'),
+            ),
         // z.object({
         //   op: z.literal("push"),
         //   value: z.any(),
