@@ -1,3 +1,10 @@
+# [0.2044.0](https://github.com/lightdash/lightdash/compare/0.2043.0...0.2044.0) (2025-10-02)
+
+
+### Features
+
+* add view changeset button in propose change tool ui ([#17210](https://github.com/lightdash/lightdash/issues/17210)) ([a0805ed](https://github.com/lightdash/lightdash/commit/a0805ed677cb13cc39f1efa947824f8bf0e39517))
+
 # [0.2043.0](https://github.com/lightdash/lightdash/compare/0.2042.0...0.2043.0) (2025-10-02)
 
 
