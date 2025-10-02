@@ -1,3 +1,10 @@
+# [0.2040.0](https://github.com/lightdash/lightdash/compare/0.2039.1...0.2040.0) (2025-10-02)
+
+
+### Features
+
+* support markdown in propose changes tool ui ([#17202](https://github.com/lightdash/lightdash/issues/17202)) ([ea483c1](https://github.com/lightdash/lightdash/commit/ea483c1cb0f7ced5752c07bd8eff09412459ad13))
+
 ## [0.2039.1](https://github.com/lightdash/lightdash/compare/0.2039.0...0.2039.1) (2025-10-02)
 
 
