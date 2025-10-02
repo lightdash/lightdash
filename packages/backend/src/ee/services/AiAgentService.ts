@@ -3,9 +3,7 @@ import {
     Account,
     AiAgent,
     AiAgentEvalRunJobPayload,
-    AiAgentEvaluation,
     AiAgentEvaluationRun,
-    AiAgentEvaluationRunResult,
     AiAgentEvaluationSummary,
     AiAgentNotFoundError,
     AiAgentThread,
@@ -29,6 +27,7 @@ import {
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
+    ExploreCompiler,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
@@ -36,18 +35,17 @@ import {
     KnexPaginateArgs,
     LightdashUser,
     NotFoundError,
-    NotImplementedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
     toolDashboardArgsSchema,
-    toolDashboardArgsSchemaTransformed,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     type SessionUser,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
@@ -82,6 +80,7 @@ import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../models/ChangesetModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
@@ -147,6 +146,7 @@ type AiAgentServiceDependencies = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     spaceService: SpaceService;
+    projectModel: ProjectModel;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -185,6 +185,8 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     constructor(dependencies: AiAgentServiceDependencies) {
@@ -205,6 +207,7 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
     }
 
@@ -1952,12 +1955,30 @@ export class AiAgentService {
             return results;
         };
 
+        const getExploreCompiler = async () => {
+            const warehouseCredentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
+                );
+
+            return new ExploreCompiler(
+                warehouseSqlBuilderFromType(
+                    warehouseCredentials.type,
+                    warehouseCredentials.startOfWeek,
+                ),
+            );
+        };
+
         const createChange: CreateChangeFn = async (params) => {
             await this.changesetModel.createChange(projectUuid, {
                 createdByUserUuid: user.userUuid,
                 sourcePromptUuid: prompt.promptUuid,
                 ...params,
             });
+
+            await this.catalogService.indexCatalogUpdates(projectUuid, [
+                params.entityTableName,
+            ]);
         };
 
         return {
@@ -1974,6 +1995,7 @@ export class AiAgentService {
             storeToolResults,
             searchFieldValues,
             createChange,
+            getExploreCompiler,
         };
     }
 
@@ -2048,6 +2070,7 @@ export class AiAgentService {
             storeToolResults,
             searchFieldValues,
             createChange,
+            getExploreCompiler,
         } = this.getAiAgentDependencies(user, prompt);
 
         const modelProperties = getModel(this.lightdashConfig.ai.copilot);
@@ -2096,6 +2119,7 @@ export class AiAgentService {
             storeToolCall,
             storeToolResults,
             searchFieldValues,
+            getExploreCompiler,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,

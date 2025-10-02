@@ -1,0 +1,15 @@
+{
+  "scripts": "bundle/**/*.js",
+  "assets": [
+    "bundle/**/*.node",
+    "bundle/ca-bundle-aws-redshift.crt",
+    "bundle/ca-bundle-aws-rds-global.pem"
+  ],
+  "targets": [
+    "node20-macos-x64",
+    "node20-macos-arm64",
+    "node20-linux-x64",
+    "node20-win-x64"
+  ],
+  "outputPath": "bin"
+}

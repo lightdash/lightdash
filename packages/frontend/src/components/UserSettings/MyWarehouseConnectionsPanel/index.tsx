@@ -1,5 +1,5 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
@@ -19,6 +19,22 @@ export const MyWarehouseConnectionsPanel = () => {
         warehouseCredentialsToBeDeleted,
         setWarehouseCredentialsToBeDeleted,
     ] = useState<UserWarehouseCredentials | undefined>(undefined);
+
+    const personalConnectionsCallout = (
+        <Text c="dimmed">
+            These credentials are only used for projects that require user
+            credentials -{' '}
+            <Anchor
+                role="button"
+                href="https://docs.lightdash.com/references/personal-warehouse-connections"
+                target="_blank"
+                rel="noreferrer"
+            >
+                learn more
+            </Anchor>
+            .
+        </Text>
+    );
 
     return (
         <>
@@ -43,6 +59,7 @@ export const MyWarehouseConnectionsPanel = () => {
                                 Add new credentials
                             </Button>
                         </Group>
+                        {personalConnectionsCallout}
                         <CredentialsTable
                             credentials={credentials}
                             setWarehouseCredentialsToBeDeleted={
@@ -64,7 +81,16 @@ export const MyWarehouseConnectionsPanel = () => {
                             />
                         }
                         title="No credentials"
-                        description="You haven't created any personal warehouse connections yet!"
+                        description={
+                            <>
+                                <Text>
+                                    You haven't created any personal warehouse
+                                    connections yet!
+                                </Text>
+                                <br />
+                                {personalConnectionsCallout}
+                            </>
+                        }
                     >
                         <Button onClick={() => setIsCreatingCredentials(true)}>
                             Add new credentials

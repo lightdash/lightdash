@@ -1,3 +1,5 @@
+import '@mantine-8/core/styles.css';
+
 import { MantineProvider } from '@mantine/core';
 import React from 'react';
 import { getMantineThemeOverride } from '../src/mantineTheme';

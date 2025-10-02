@@ -45,11 +45,18 @@ export type DbCatalogIn = Pick<
     | 'joined_tables'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
-export type DbCatalogUpdate =
-    | Pick<DbCatalog, 'embedding_vector'>
-    | Pick<DbCatalog, 'chart_usage'>
-    | Pick<DbCatalog, 'icon'>
-    | Pick<DbCatalog, 'table_name'>;
+export type DbCatalogUpdate = Partial<
+    Pick<
+        DbCatalog,
+        | 'label'
+        | 'description'
+        | 'ai_hints'
+        | 'embedding_vector'
+        | 'chart_usage'
+        | 'icon'
+        | 'table_name'
+    >
+>;
 export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,
     DbCatalogIn,

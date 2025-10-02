@@ -63,15 +63,24 @@ export const DbChangeSchema = z.object({
     entity_table_name: z.string().min(1),
     entity_name: z.string().min(1),
     type: ChangeTypeSchema,
-    payload: z.object({
-        patches: z.array(
+    payload: z.union([
+        z.discriminatedUnion('type', [
             z.object({
-                op: z.enum(['replace']),
-                path: z.string(),
+                type: z.literal('metric'),
+                // TODO: add metric schema
                 value: z.unknown(),
             }),
-        ),
-    }),
+        ]),
+        z.object({
+            patches: z.array(
+                z.object({
+                    op: z.enum(['replace', 'add']),
+                    path: z.string(),
+                    value: z.unknown().refine((value) => value !== undefined),
+                }),
+            ),
+        }),
+    ]),
 });
 
 export type DbChange = z.infer<typeof DbChangeSchema>;

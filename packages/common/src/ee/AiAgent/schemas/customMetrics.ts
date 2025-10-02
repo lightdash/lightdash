@@ -38,25 +38,25 @@ export const customMetricBaseSchema = z.object({
         ),
 });
 
-export type CustomMetricBaseSchema = z.infer<typeof customMetricBaseSchema>;
+export type CustomMetricBase = z.infer<typeof customMetricBaseSchema>;
 
 export const customMetricsSchema = z
     .array(customMetricBaseSchema)
     .nullable()
     .describe(
         `Create custom metrics when requested metrics don't exist. Only create if no existing metric matches the user's request. Use null if no custom metrics needed.
-                
-                IMPORTANT: If the user requests metrics that don't exist (like "average customer age"), create them using the customMetrics field. Analyze available dimensions from findFields results and create appropriate SQL aggregations.
 
-                When using custom metrics:
-                1. Create the metric in customMetrics array with just the metric name (e.g., "avg_customer_age")
-                2. Reference it in metrics array using the format "table_metricname" (e.g., "customers_avg_customer_age")
-                3. Reference it in sorts array using the format "table_metricname" (e.g., "customers_avg_customer_age")
-                4. DO NOT use the raw metric name in metrics or sorts arrays
+IMPORTANT: If the user requests metrics that don't exist (like "average customer age"), create them using the customMetrics field. Analyze available dimensions from findFields results and create appropriate SQL aggregations.
 
-                For example:
-                - "Show me average customer age sorted descending" → 
-                customMetrics: [{name: "avg_customer_age", label: "Average Customer Age", type: "AVERAGE", baseDimensionName: "age", table: "customers"}]
-                metrics: ["customers_avg_customer_age"]
-                sorts: [{fieldId: "customers_avg_customer_age", descending: true}]`,
+When using custom metrics:
+1. Create the metric in customMetrics array with just the metric name (e.g., "avg_customer_age")
+2. Reference it in metrics array using the format "table_metricname" (e.g., "customers_avg_customer_age")
+3. Reference it in sorts array using the format "table_metricname" (e.g., "customers_avg_customer_age")
+4. DO NOT use the raw metric name in metrics or sorts arrays
+
+For example:
+- "Show me average customer age sorted descending" →
+customMetrics: [{name: "avg_customer_age", label: "Average Customer Age", type: "AVERAGE", baseDimensionName: "age", table: "customers"}]
+metrics: ["customers_avg_customer_age"]
+sorts: [{fieldId: "customers_avg_customer_age", descending: true}]`,
     );

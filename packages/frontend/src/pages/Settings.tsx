@@ -10,6 +10,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconHistory,
     IconIdBadge2,
     IconKey,
     IconLock,
@@ -25,7 +26,13 @@ import {
     IconVariable,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { Navigate, useRoutes, type RouteObject } from 'react-router';
+import {
+    Navigate,
+    matchPath,
+    useLocation,
+    useRoutes,
+    type RouteObject,
+} from 'react-router';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -374,6 +381,16 @@ const Settings: FC = () => {
     ]);
     const routeElements = useRoutes(routes);
 
+    const location = useLocation();
+    const isChangesetsPage = useMemo(() => {
+        return matchPath(
+            {
+                path: '/generalSettings/projectManagement/:projectUuid/changesets',
+            },
+            location.pathname,
+        );
+    }, [location.pathname]);
+
     if (
         isHealthLoading ||
         isUserLoading ||
@@ -403,7 +420,7 @@ const Settings: FC = () => {
         <Page
             withFullHeight
             withSidebarFooter
-            withFixedContent
+            withFixedContent={!isChangesetsPage}
             withPaddedContent
             title="Settings"
             sidebar={
@@ -648,6 +665,15 @@ const Settings: FC = () => {
                                             <MantineIcon
                                                 icon={IconTableOptions}
                                             />
+                                        }
+                                    />
+
+                                    <RouterNavLink
+                                        label="Changesets"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/changesets`}
+                                        icon={
+                                            <MantineIcon icon={IconHistory} />
                                         }
                                     />
 

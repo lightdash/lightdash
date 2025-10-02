@@ -809,6 +809,7 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
+                    changesetModel: this.models.getChangesetModel(),
                 }),
         );
     }

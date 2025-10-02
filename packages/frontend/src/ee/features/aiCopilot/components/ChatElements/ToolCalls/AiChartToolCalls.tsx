@@ -11,17 +11,13 @@ import {
 import {
     Badge,
     Button,
-    Collapse,
     Group,
     Paper,
     rem,
     Stack,
     Text,
     Timeline,
-    Title,
-    UnstyledButton,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconChartDots3,
     IconChartHistogram,
@@ -45,6 +41,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../../store/hooks';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ToolCallPaper } from './ToolCallPaper';
 
 const getToolIcon = (toolName: ToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
@@ -78,35 +75,15 @@ const ToolCallContainer = ({
     children: React.ReactNode;
     defaultOpened?: boolean;
 }) => {
-    const [opened, { toggle }] = useDisclosure(defaultOpened);
-
     return (
-        <Paper
-            withBorder
-            p="xs"
-            radius="md"
-            style={{ borderStyle: 'dashed' }}
-            // default shadow is subtler than the ones we can set
-            shadow={opened ? 'none' : undefined}
+        <ToolCallPaper
+            defaultOpened={defaultOpened}
+            variant="dashed"
+            icon={IconTools}
+            title="How it is calculated"
         >
-            <UnstyledButton onClick={toggle} w="100%" h="18px">
-                <Group justify="space-between" w="100%" h="100%">
-                    <Group gap="xs">
-                        <MantineIcon
-                            icon={IconTools}
-                            size="sm"
-                            strokeWidth={1.2}
-                            color="gray.6"
-                        />
-                        <Title order={6} c="gray.6" size="xs">
-                            How it is calculated
-                        </Title>
-                    </Group>
-                    <MantineIcon icon={IconSelector} size={12} color="gray.6" />
-                </Group>
-            </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
-        </Paper>
+            {children}
+        </ToolCallPaper>
     );
 };
 
@@ -289,28 +266,8 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case AiResultType.IMPROVE_CONTEXT:
-            return <> </>;
         case AiResultType.PROPOSE_CHANGE:
-            return (
-                <Text c="dimmed" size="xs">
-                    Proposed change to{' '}
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        mx={rem(2)}
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {toolArgs.change.entityType === 'table'
-                            ? toolArgs.entityTableName
-                            : toolArgs.change.fieldId}
-                    </Badge>
-                </Text>
-            );
+            return <> </>;
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
@@ -417,6 +374,7 @@ type AiChartToolCallsProps = {
     promptUuid: string;
 };
 
+const EXCLUDED_TOOL_NAMES = ['improveContext', 'proposeChange'];
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     type,
@@ -431,7 +389,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
             : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL;
 
     const calculationToolCalls = toolCalls?.filter(
-        (toolCall) => toolCall.toolName !== 'improveContext',
+        (toolCall) => !EXCLUDED_TOOL_NAMES.includes(toolCall.toolName),
     );
 
     if (!toolCalls || toolCalls.length === 0) return null;

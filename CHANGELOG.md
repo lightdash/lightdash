@@ -1,3 +1,59 @@
+# [0.2040.0](https://github.com/lightdash/lightdash/compare/0.2039.1...0.2040.0) (2025-10-02)
+
+
+### Features
+
+* support markdown in propose changes tool ui ([#17202](https://github.com/lightdash/lightdash/issues/17202)) ([ea483c1](https://github.com/lightdash/lightdash/commit/ea483c1cb0f7ced5752c07bd8eff09412459ad13))
+
+## [0.2039.1](https://github.com/lightdash/lightdash/compare/0.2039.0...0.2039.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* process env_var in project yml ([#17167](https://github.com/lightdash/lightdash/issues/17167)) ([d230c3e](https://github.com/lightdash/lightdash/commit/d230c3ecb578f56f867215a5582f3e92c738793f))
+
+# [0.2039.0](https://github.com/lightdash/lightdash/compare/0.2038.1...0.2039.0) (2025-10-02)
+
+
+### Features
+
+* introduce propose change tool template ([#17164](https://github.com/lightdash/lightdash/issues/17164)) ([9d63834](https://github.com/lightdash/lightdash/commit/9d6383484ea51d5134768b5028a3d71712e0fbbd))
+
+## [0.2038.1](https://github.com/lightdash/lightdash/compare/0.2038.0...0.2038.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* add index on catalog for cached_explores ([#17196](https://github.com/lightdash/lightdash/issues/17196)) ([1205624](https://github.com/lightdash/lightdash/commit/12056249e112fd860502fc11da1be7d534a9ac88))
+
+# [0.2038.0](https://github.com/lightdash/lightdash/compare/0.2037.0...0.2038.0) (2025-10-02)
+
+
+### Features
+
+* add initial project changesets table in settings ([#17180](https://github.com/lightdash/lightdash/issues/17180)) ([03005c9](https://github.com/lightdash/lightdash/commit/03005c929e3cc8587bc419962b53e890a00692ac))
+
+# [0.2037.0](https://github.com/lightdash/lightdash/compare/0.2036.3...0.2037.0) (2025-10-02)
+
+
+### Features
+
+* allow updating subsets of catalog explores ([#17166](https://github.com/lightdash/lightdash/issues/17166)) ([a276f79](https://github.com/lightdash/lightdash/commit/a276f79fdd6fb51526ef5e8748b36b59bad65adc))
+
+## [0.2036.3](https://github.com/lightdash/lightdash/compare/0.2036.2...0.2036.3) (2025-10-02)
+
+
+### Bug Fixes
+
+* changeset application logic ([#17183](https://github.com/lightdash/lightdash/issues/17183)) ([14fdf4f](https://github.com/lightdash/lightdash/commit/14fdf4f231bd240019f77ab2b69870840ad57c22))
+
+## [0.2036.2](https://github.com/lightdash/lightdash/compare/0.2036.1...0.2036.2) (2025-10-02)
+
+
+### Bug Fixes
+
+* improve prompt for propose change tool ([#17181](https://github.com/lightdash/lightdash/issues/17181)) ([c966811](https://github.com/lightdash/lightdash/commit/c966811bc1b8cc781ce27eee03b1b69622ad4e5d))
+
 ## [0.2036.1](https://github.com/lightdash/lightdash/compare/0.2036.0...0.2036.1) (2025-10-02)
 
 

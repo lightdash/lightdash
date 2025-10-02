@@ -1,13 +1,14 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.2036.1",
+    "version": "0.2040.0",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
     },
     "files": [
         "dist/**/*",
-        "track.sh"
+        "track.sh",
+        "entitlements.plist"
     ],
     "dependencies": {
         "@actions/core": "^1.11.1",
@@ -37,6 +38,8 @@
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
+        "@vercel/ncc": "^0.38.4",
+        "@yao-pkg/pkg": "^6.6.0",
         "@types/inquirer": "^8.2.1",
         "@types/js-yaml": "^4.0.9",
         "@types/lodash": "^4.14.185",
@@ -50,6 +53,8 @@
         "test": "jest",
         "dev": "ts-node src/index.ts",
         "build": "tsc --build tsconfig.json",
+        "bundle": "ncc build dist/index.js -o bundle && cp ../warehouses/src/warehouseClients/ca-bundle-*.crt ../warehouses/src/warehouseClients/ca-bundle-*.pem bundle/",
+        "build:binary": "pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",

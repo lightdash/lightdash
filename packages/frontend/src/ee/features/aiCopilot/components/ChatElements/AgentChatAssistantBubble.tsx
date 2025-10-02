@@ -1,11 +1,14 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    ChartKind,
+    type AiAgentMessageAssistant,
+    type ToolProposeChangeArgs,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
     Anchor,
     Button,
     CopyButton,
-    Divider,
     Group,
     Loader,
     Paper,
@@ -32,6 +35,11 @@ import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
+import {
+    mdEditorComponents,
+    rehypeRemoveHeaderLinks,
+    useMdEditorStyle,
+} from '../../../../../utils/markdownUtils';
 import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
@@ -48,6 +56,7 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
+import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -60,6 +69,7 @@ const AssistantBubbleContent: FC<{
         message.uuid,
     );
     const { streamMessage } = useAiAgentThreadStreamMutation();
+    const mdStyle = useMdEditorStyle();
 
     const hasStreamingError =
         streamingState?.error && streamingState?.messageUuid === message.uuid;
@@ -82,6 +92,12 @@ const AssistantBubbleContent: FC<{
         message.uuid,
         projectUuid,
     ]);
+
+    const proposeChangeToolCall = isStreaming
+        ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
+              ?.toolArgs as ToolProposeChangeArgs)
+        : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
+              ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
 
     return (
         <>
@@ -159,11 +175,12 @@ const AssistantBubbleContent: FC<{
             )}
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
+                    rehypeRewrite={rehypeRemoveHeaderLinks}
                     source={messageContent}
-                    style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
+                    style={{ ...mdStyle, padding: `0.5rem 0` }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
-                        hr: () => <Divider color="gray.4" my="sm" />,
+                        ...mdEditorComponents,
                         a: ({ node, children, ...props }) => {
                             const contentType =
                                 'data-content-type' in props &&
@@ -267,6 +284,12 @@ const AssistantBubbleContent: FC<{
                 />
             ) : null}
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
+            {proposeChangeToolCall && (
+                <AiProposeChangeToolCall
+                    change={proposeChangeToolCall.change}
+                    entityTableName={proposeChangeToolCall.entityTableName}
+                />
+            )}
         </>
     );
 };

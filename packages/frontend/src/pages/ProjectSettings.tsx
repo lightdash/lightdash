@@ -13,6 +13,7 @@ import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
+import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
 import { useProject } from '../hooks/useProject';
 
 const ProjectSettings: FC = () => {
@@ -36,6 +37,10 @@ const ProjectSettings: FC = () => {
                 element: (
                     <ProjectTablesConfiguration projectUuid={projectUuid} />
                 ),
+            },
+            {
+                path: `/changesets`,
+                element: <ProjectChangesets projectUuid={projectUuid} />,
             },
             {
                 path: `/projectAccess`,

@@ -28,16 +28,20 @@ export const ChangeSchema = z
         z.discriminatedUnion('type', [
             z.object({
                 type: z.literal('create'),
-                payload: z.object({
-                    value: z.unknown(),
-                }),
+                payload: z.discriminatedUnion('type', [
+                    z.object({
+                        type: z.literal('metric'),
+                        // TODO: add metric schema
+                        value: z.unknown(),
+                    }),
+                ]),
             }),
             z.object({
                 type: z.literal('update'),
                 payload: z.object({
                     patches: z.array(
                         z.object({
-                            op: z.enum(['replace']),
+                            op: z.enum(['replace', 'add']),
                             path: z.string(),
                             value: z
                                 .unknown()
@@ -63,7 +67,7 @@ export type Change = z.infer<typeof ChangeSchema>;
 
 export type ApiChangesetsResponse = {
     status: 'ok';
-    results: ChangesetWithChanges[];
+    results: ChangesetWithChanges;
 };
 
 export type CreateChangeParams = Pick<

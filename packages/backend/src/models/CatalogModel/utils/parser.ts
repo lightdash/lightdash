@@ -17,6 +17,8 @@ const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
     catalogArgs: {
+        label: string | null;
+        description: string | null;
         catalogSearchUuid: string;
         tags: string[];
         categories: Pick<Tag, 'tagUuid' | 'color' | 'name' | 'yamlReference'>[];
@@ -27,8 +29,8 @@ const parseFieldFromMetricOrDimension = (
     },
 ): CatalogField => ({
     name: field.name,
-    label: field.label,
-    description: field.description,
+    label: catalogArgs.label ?? '',
+    description: catalogArgs.description ?? '',
     tableLabel: field.tableLabel,
     tableName: table.name,
     tableGroupLabel: table.groupLabel,
@@ -55,6 +57,8 @@ export const parseFieldsFromCompiledTable = (
     ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
     return tableFields.map((field) =>
         parseFieldFromMetricOrDimension(table, field, {
+            label: field.label,
+            description: field.description ?? '',
             tags: [],
             categories: [],
             requiredAttributes:
@@ -114,6 +118,8 @@ export const parseCatalog = (
         );
     }
     return parseFieldFromMetricOrDimension(baseTable, findField, {
+        label: dbCatalog.label,
+        description: dbCatalog.description,
         catalogSearchUuid: dbCatalog.catalog_search_uuid,
         tags: dbCatalog.explore.tags,
         categories: dbCatalog.catalog_tags,
