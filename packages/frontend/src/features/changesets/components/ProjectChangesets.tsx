@@ -57,7 +57,7 @@ const formatDateTime = (date: Date): string => {
 const extractChangeValue = (change: Change): string | ReactNode => {
     switch (change.type) {
         case 'create':
-            return 'Create new item';
+            return '';
         case 'delete':
             return 'Delete item';
         case 'update':
