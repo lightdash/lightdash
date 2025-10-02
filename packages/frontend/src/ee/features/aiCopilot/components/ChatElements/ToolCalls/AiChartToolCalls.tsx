@@ -320,11 +320,15 @@ const ImproveContextToolCall: FC<{
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
-}> = ({ projectUuid, agentUuid, threadUuid }) => {
-    const improveContextNotification = useAiAgentStoreSelector(
-        (state) =>
-            state.aiAgentThreadStream[threadUuid]?.improveContextNotification,
-    );
+    promptUuid: string;
+}> = ({ projectUuid, agentUuid, threadUuid, promptUuid }) => {
+    const improveContextNotification = useAiAgentStoreSelector((state) => {
+        const thread = state.aiAgentThreadStream[threadUuid];
+        if (thread?.messageUuid === promptUuid) {
+            return thread.improveContextNotification;
+        }
+        return null;
+    });
     const dispatch = useAiAgentStoreDispatch();
 
     const appendInstructionMutation = useAppendInstructionMutation(
@@ -407,9 +411,10 @@ const ImproveContextToolCall: FC<{
 type AiChartToolCallsProps = {
     toolCalls: ToolCallSummary[] | undefined;
     type: ToolCallDisplayType;
-    projectUuid?: string;
-    agentUuid?: string;
-    threadUuid?: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
@@ -418,6 +423,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    promptUuid,
 }) => {
     const texts =
         type === 'streaming'
@@ -437,6 +443,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={threadUuid}
+                    promptUuid={promptUuid}
                 />
             )}
             {!!calculationToolCalls?.length && (
