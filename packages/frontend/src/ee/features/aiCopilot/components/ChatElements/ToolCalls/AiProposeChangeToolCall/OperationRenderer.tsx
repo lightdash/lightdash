@@ -14,7 +14,7 @@ type ReplaceOperationProps = {
     name: string;
 };
 
-const ReplaceOperation = ({ value, name }: ReplaceOperationProps) => {
+const ReplaceOrAddOperation = ({ value, name }: ReplaceOperationProps) => {
     const mdStyle = useMdEditorStyle();
 
     return (
@@ -44,8 +44,14 @@ export const OperationRenderer = ({
 }: OperationRendererProps) => {
     switch (operation.op) {
         case 'replace':
-            return <ReplaceOperation value={operation.value} name={property} />;
+        case 'add':
+            return (
+                <ReplaceOrAddOperation
+                    value={operation.value}
+                    name={property}
+                />
+            );
         default:
-            return assertUnreachable(operation.op, 'Unknown operation type');
+            return assertUnreachable(operation, 'Unknown operation type');
     }
 };
