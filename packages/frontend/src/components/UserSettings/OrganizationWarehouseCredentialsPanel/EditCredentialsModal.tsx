@@ -19,6 +19,10 @@ export const EditCredentialsModal: FC<
     const { mutateAsync, isLoading: isSaving } =
         useUpdateOrganizationWarehouseCredentials();
 
+    const snowflakeCredentials =
+        organizationCredentials.credentials.type === WarehouseTypes.SNOWFLAKE
+            ? organizationCredentials.credentials
+            : undefined;
     const form = useForm<UpdateOrganizationWarehouseCredentials>({
         initialValues: {
             name: organizationCredentials.name,
@@ -26,29 +30,11 @@ export const EditCredentialsModal: FC<
             credentials: {
                 type: WarehouseTypes.SNOWFLAKE,
                 authenticationType: SnowflakeAuthenticationType.SSO,
-                account: '',
-                database: '',
-                warehouse: '',
-                schema: '',
-                user: '',
-            },
-        },
-        validate: {
-            credentials: {
-                account: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Account is required'
-                        : null,
-                database: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Database is required'
-                        : null,
-                warehouse: (value) =>
-                    !value || value.trim() === ''
-                        ? 'Warehouse is required'
-                        : null,
-                schema: (value) =>
-                    !value || value.trim() === '' ? 'Schema is required' : null,
+                account: snowflakeCredentials?.account || '',
+                database: snowflakeCredentials?.database || '',
+                warehouse: snowflakeCredentials?.warehouse || '',
+                schema: snowflakeCredentials?.schema || '',
+                user: '', // This is required by snowflake CreateWarehouseCredentials type, but it is not used for SSO
             },
         },
     });

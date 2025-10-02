@@ -1,4 +1,8 @@
-import type { CreateWarehouseCredentials, WarehouseTypes } from './projects';
+import type {
+    CreateWarehouseCredentials,
+    WarehouseCredentials,
+    WarehouseTypes,
+} from './projects';
 
 /**
  * Organization-level warehouse credentials
@@ -11,7 +15,7 @@ export type OrganizationWarehouseCredentials = {
     warehouseType: WarehouseTypes;
     createdAt: Date;
     createdByUserUuid: string | null;
-    // credentials: WarehouseCredentials | undefined; // Removed to avoid sensitive data in the response
+    credentials: WarehouseCredentials; // Non-sensitive credentials only (WarehouseCredentials = Omit<CreateWarehouseCredentials, SensitiveCredentialsFieldNames>)
 };
 
 export type CreateOrganizationWarehouseCredentials = {

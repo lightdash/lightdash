@@ -68,6 +68,8 @@ export const sensitiveCredentialsFieldNames = [
     'sslcert',
     'sslkey',
     'sslrootcert',
+    'token',
+    'refreshToken',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
@@ -424,6 +426,7 @@ export type Project = {
     dbtVersion: DbtVersionOption;
     schedulerTimezone: string;
     createdByUserUuid: string | null;
+    organizationWarehouseCredentialsUuid?: string;
 };
 
 export type ProjectSummary = Pick<

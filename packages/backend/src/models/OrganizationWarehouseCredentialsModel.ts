@@ -3,8 +3,10 @@ import {
     CreateWarehouseCredentials,
     NotFoundError,
     OrganizationWarehouseCredentials,
+    sensitiveCredentialsFieldNames,
     UnexpectedServerError,
     UpdateOrganizationWarehouseCredentials,
+    WarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -36,11 +38,26 @@ export class OrganizationWarehouseCredentialsModel {
     }
 
     // eslint-disable-next-line class-methods-use-this
+    private stripSensitiveCredentials(
+        credentials: CreateWarehouseCredentials,
+    ): WarehouseCredentials {
+        const strippedCredentials: Record<string, unknown> = { ...credentials };
+        sensitiveCredentialsFieldNames.forEach((field) => {
+            delete strippedCredentials[field];
+        });
+        return strippedCredentials as WarehouseCredentials;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
     private convertToOrganizationWarehouseCredentials(
         data: DbOrganizationWarehouseCredentials & {
             organization_uuid: string;
         },
     ): OrganizationWarehouseCredentials {
+        const fullCredentials = JSON.parse(
+            this.encryptionUtil.decrypt(data.warehouse_connection),
+        ) as CreateWarehouseCredentials;
+
         return {
             organizationWarehouseCredentialsUuid:
                 data.organization_warehouse_credentials_uuid,
@@ -50,7 +67,8 @@ export class OrganizationWarehouseCredentialsModel {
             warehouseType: data.warehouse_type as WarehouseTypes,
             createdAt: data.created_at,
             createdByUserUuid: data.created_by_user_uuid,
-        };
+            credentials: this.stripSensitiveCredentials(fullCredentials),
+        } as OrganizationWarehouseCredentials;
     }
 
     async getAllByOrganizationUuid(
@@ -69,11 +87,24 @@ export class OrganizationWarehouseCredentialsModel {
 
     async getByUuid(
         uuid: string,
+        withSensitiveData?: false,
+    ): Promise<OrganizationWarehouseCredentials>;
+    async getByUuid(
+        uuid: string,
+        withSensitiveData: true,
+    ): Promise<
+        Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+            credentials: CreateWarehouseCredentials;
+        }
+    >;
+    async getByUuid(
+        uuid: string,
         withSensitiveData: boolean = false,
     ): Promise<
-        OrganizationWarehouseCredentials & {
-            credentials?: CreateWarehouseCredentials;
-        }
+        | OrganizationWarehouseCredentials
+        | (Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+              credentials: CreateWarehouseCredentials;
+          })
     > {
         const result = await this.database(
             OrganizationWarehouseCredentialsTableName,
@@ -88,8 +119,10 @@ export class OrganizationWarehouseCredentialsModel {
         }
 
         if (withSensitiveData) {
+            const baseData =
+                this.convertToOrganizationWarehouseCredentials(result);
             return {
-                ...this.convertToOrganizationWarehouseCredentials(result),
+                ...baseData,
                 credentials: JSON.parse(
                     this.encryptionUtil.decrypt(result.warehouse_connection),
                 ) as CreateWarehouseCredentials,
@@ -97,33 +130,6 @@ export class OrganizationWarehouseCredentialsModel {
         }
 
         return this.convertToOrganizationWarehouseCredentials(result);
-    }
-
-    async getCredentialsWithSecrets(
-        uuid: string,
-    ): Promise<CreateWarehouseCredentials> {
-        const result = await this.database(
-            OrganizationWarehouseCredentialsTableName,
-        )
-            .select('warehouse_connection')
-            .where('organization_warehouse_credentials_uuid', uuid)
-            .first();
-
-        if (!result) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-
-        try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(result.warehouse_connection),
-            ) as CreateWarehouseCredentials;
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to parse warehouse credentials',
-            );
-        }
     }
 
     async create(
