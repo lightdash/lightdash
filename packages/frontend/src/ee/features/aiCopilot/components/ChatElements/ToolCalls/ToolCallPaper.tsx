@@ -12,6 +12,7 @@ type ToolCallPaperProps = {
     icon: MantineIconProps['icon'];
     defaultOpened?: boolean;
     variant?: 'default' | 'dashed';
+    rightAction?: ReactNode;
 };
 
 export const ToolCallPaper = ({
@@ -20,6 +21,7 @@ export const ToolCallPaper = ({
     icon,
     defaultOpened = true,
     variant = 'default',
+    rightAction,
 }: ToolCallPaperProps) => {
     const [opened, { toggle }] = useDisclosure(defaultOpened);
 
@@ -44,7 +46,14 @@ export const ToolCallPaper = ({
                             {title}
                         </Title>
                     </Group>
-                    <MantineIcon icon={IconSelector} size={12} color="gray.6" />
+                    <Group gap="xs">
+                        {rightAction}
+                        <MantineIcon
+                            icon={IconSelector}
+                            size={12}
+                            color="gray.6"
+                        />
+                    </Group>
                 </Group>
             </UnstyledButton>
             <Collapse in={opened}>{children}</Collapse>
