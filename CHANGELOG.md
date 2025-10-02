@@ -1,3 +1,12 @@
+# [0.2041.0](https://github.com/lightdash/lightdash/compare/0.2040.0...0.2041.0) (2025-10-02)
+
+
+### Features
+
+* add 'add' operation to toolProposeChange schema ([#17200](https://github.com/lightdash/lightdash/issues/17200)) ([0855466](https://github.com/lightdash/lightdash/commit/0855466374cb73c38ffc5d31260baa2f68c665e0))
+* add support for creating metrics via AI agent ([#17201](https://github.com/lightdash/lightdash/issues/17201)) ([fb5768d](https://github.com/lightdash/lightdash/commit/fb5768dd08325f20f2903b69248c554199eaf86e))
+* validate base dimension existence in propose change tool ([#17204](https://github.com/lightdash/lightdash/issues/17204)) ([26081a8](https://github.com/lightdash/lightdash/commit/26081a8e8f20049ad503318f5cd35faafd3ffc6a))
+
 # [0.2040.0](https://github.com/lightdash/lightdash/compare/0.2039.1...0.2040.0) (2025-10-02)
 
 

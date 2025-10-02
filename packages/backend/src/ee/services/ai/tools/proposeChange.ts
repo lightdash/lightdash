@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     convertAdditionalMetric,
     Explore,
+    getItemId,
     ToolProposeChangeArgs,
     toolProposeChangeArgsSchema,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import { populateCustomMetricSQL } from '../utils/populateCustomMetricsSQL';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFieldEntityType,
+    validateSelectedFieldsExistence,
     validateTableNames,
 } from '../utils/validators';
 
@@ -135,6 +137,13 @@ export const getProposeChange = ({
                         switch (change.value.type) {
                             case 'create':
                                 validateTableNames(explore, [entityTableName]);
+                                validateSelectedFieldsExistence(explore, [
+                                    getItemId({
+                                        table: entityTableName,
+                                        name: change.value.value.metric
+                                            .baseDimensionName,
+                                    }),
+                                ]);
                                 break;
                             case 'update':
                                 validateTableNames(explore, [entityTableName]);
