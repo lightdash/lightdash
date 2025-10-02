@@ -165,7 +165,9 @@ export type DbAiAgentToolResult = {
     tool_call_id: string;
     tool_name: string;
     result: string;
+    metadata: object | null;
     created_at: Date;
+    // TODO add updated_at
 };
 
 export type AiAgentToolResultTable = Knex.CompositeTableType<
@@ -173,6 +175,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
     Pick<
         DbAiAgentToolResult,
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
-    >,
-    never
+    > &
+        Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
+    Partial<Pick<DbAiAgentToolResult, 'metadata'>>
 >;

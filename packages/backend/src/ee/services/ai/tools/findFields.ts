@@ -7,9 +7,12 @@ import {
     getItemId,
     isEmojiIcon,
     toolFindFieldsArgsSchema,
+    toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
 import type { FindFieldFn } from '../types/aiAgentDependencies';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -95,6 +98,7 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
     tool({
         description: toolFindFieldsArgsSchema.description,
         inputSchema: toolFindFieldsArgsSchema,
+        outputSchema: toolFindFieldsOutputSchema,
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(
@@ -115,14 +119,25 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
                     )
                     .join('\n\n');
 
-                return `<SearchResults>${fieldsText}</SearchResults>`;
+                return {
+                    result: `<SearchResults>${fieldsText}</SearchResults>`,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(
-                    error,
-                    `Error finding fields for search queries: ${args.fieldSearchQueries
-                        .map((q) => q.label)
-                        .join(', ')}`,
-                );
+                return {
+                    result: toolErrorHandler(
+                        error,
+                        `Error finding fields for search queries: ${args.fieldSearchQueries
+                            .map((q) => q.label)
+                            .join(', ')}`,
+                    ),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

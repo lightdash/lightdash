@@ -8,10 +8,13 @@ import type {
     ItemsMap,
     KnexPaginatedData,
     ToolDashboardArgs,
+    ToolName,
+    ToolProposeChangeOutput,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
@@ -139,6 +142,7 @@ export type AiAgentMessageAssistant = {
     humanScore: number | null;
 
     toolCalls: AiAgentToolCall[];
+    toolResults: AiAgentToolResult[];
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
@@ -314,6 +318,23 @@ export type AiAgentToolCall = {
     toolArgs: object;
 };
 
+export type AiAgentToolResult = {
+    uuid: string;
+    promptUuid: string;
+    result: string;
+    createdAt: Date;
+    toolCallId: string;
+} & (
+    | {
+          toolName: 'proposeChange';
+          metadata: ToolProposeChangeOutput['metadata'];
+      }
+    | {
+          toolName: Exclude<ToolName, 'proposeChange'>;
+          metadata: AgentToolOutput['metadata'];
+      }
+);
+
 export type AiAgentExploreAccessSummary = {
     exploreName: string;
     joinedTables: string[];
@@ -473,3 +494,9 @@ export type ApiAppendInstructionRequest = {
 export type ApiAppendInstructionResponse = ApiSuccess<{
     updatedInstruction: string;
 }>;
+
+export type ApiRevertChangeRequest = {
+    changeUuid: string;
+};
+
+export type ApiRevertChangeResponse = ApiSuccessEmpty;

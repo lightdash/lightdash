@@ -185,3 +185,24 @@ export type ToolProposeChangeReplaceStringOp = z.infer<typeof stringOpSchema>;
 export type UpdateDimensionPatch = ChangePatch<Dimension>;
 export type UpdateMetricPatch = ChangePatch<Metric>;
 export type UpdateTablePatch = ChangePatch<Table>;
+
+export const toolProposeChangeOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.discriminatedUnion('status', [
+        z.object({
+            status: z.literal('success'),
+            changeUuid: z.string(),
+            userFeedback: z
+                .enum(['accepted', 'rejected'])
+                .default('accepted')
+                .optional(),
+        }),
+        z.object({
+            status: z.literal('error'),
+        }),
+    ]),
+});
+
+export type ToolProposeChangeOutput = z.infer<
+    typeof toolProposeChangeOutputSchema
+>;

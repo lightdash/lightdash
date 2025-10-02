@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
@@ -34,3 +35,12 @@ export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
 
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
+
+export const toolFindExploresOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolFindExploresOutput = z.infer<
+    typeof toolFindExploresOutputSchema
+>;

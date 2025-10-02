@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AgentToolOutput,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
@@ -114,6 +115,7 @@ export type StoreToolResultsFn = (
         toolCallId: string;
         toolName: string;
         result: string;
+        metadata?: AgentToolOutput['metadata'];
     }>,
 ) => Promise<void>;
 
@@ -148,6 +150,6 @@ export type CreateChangeFn = (
         CreateChangeParams,
         'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
     >,
-) => Promise<void>;
+) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;

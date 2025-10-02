@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { AgentToolOutput, assertUnreachable } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateObject,
@@ -385,7 +385,7 @@ export const generateAgentResponse = async ({
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
-                                    toolArgs: toolCall.input,
+                                    toolArgs: toolCall.input as object,
                                 });
                             }
                         }),
@@ -417,11 +417,14 @@ export const generateAgentResponse = async ({
                                         toolResult.output,
                                     )})`,
                                 );
+                                const output =
+                                    toolResult.output as AgentToolOutput;
                                 return {
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolResult.toolCallId,
                                     toolName: toolResult.toolName,
-                                    result: toolResult.output,
+                                    result: output.result,
+                                    metadata: output.metadata,
                                 };
                             }),
                     );
@@ -525,7 +528,7 @@ export const streamAgentResponse = async ({
                                 promptUuid: args.promptUuid,
                                 toolCallId: event.chunk.toolCallId,
                                 toolName: event.chunk.toolName,
-                                toolArgs: event.chunk.input,
+                                toolArgs: event.chunk.input as object,
                             })
                             .catch((error) => {
                                 Logger.error(
@@ -551,7 +554,12 @@ export const streamAgentResponse = async ({
                                     promptUuid: args.promptUuid,
                                     toolCallId: event.chunk.toolCallId,
                                     toolName: event.chunk.toolName,
-                                    result: event.chunk.output,
+                                    result: (
+                                        event.chunk.output as AgentToolOutput
+                                    ).result,
+                                    metadata: (
+                                        event.chunk.output as AgentToolOutput
+                                    ).metadata,
                                 },
                             ])
                             .catch((error) => {
