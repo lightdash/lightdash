@@ -61,6 +61,11 @@ const getOpSchema = <T extends z.ZodTypeAny>(type: T) =>
                     'Even if only the part is being changed, make sure to pass the entire value with changes included so that no part is lost.',
                 ].join('\n'),
             ),
+        z
+            .object({ op: z.literal('add'), value: type })
+            .describe(
+                'Add a new value to the field. (Creates a new property if it does not exist)',
+            ),
         // z.object({
         //   op: z.literal("push"),
         //   value: z.any(),
