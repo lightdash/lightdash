@@ -1,4 +1,8 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    ChartKind,
+    type AiAgentMessageAssistant,
+    type ToolProposeChangeArgs,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -48,6 +52,7 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
+import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -82,6 +87,12 @@ const AssistantBubbleContent: FC<{
         message.uuid,
         projectUuid,
     ]);
+
+    const proposeChangeToolCall = isStreaming
+        ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
+              ?.toolArgs as ToolProposeChangeArgs)
+        : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
+              ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
 
     return (
         <>
@@ -267,6 +278,12 @@ const AssistantBubbleContent: FC<{
                 />
             ) : null}
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
+            {proposeChangeToolCall && (
+                <AiProposeChangeToolCall
+                    change={proposeChangeToolCall.change}
+                    entityTableName={proposeChangeToolCall.entityTableName}
+                />
+            )}
         </>
     );
 };

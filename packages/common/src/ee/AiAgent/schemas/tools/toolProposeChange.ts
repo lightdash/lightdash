@@ -4,6 +4,10 @@ import { AiResultType } from '../../types';
 import { getFieldIdSchema } from '../fieldId';
 import { createToolSchema } from '../toolSchemaBuilder';
 
+// ============================================================================
+// Tool Description
+// ============================================================================
+
 export const TOOL_PROPOSE_CHANGE_DESCRIPTION = `
 Use this tool to propose changes to a table's metadata in the semantic layer. This tool creates a change proposal that can be reviewed and approved before being applied.
 
@@ -30,8 +34,18 @@ Use this tool to propose changes to a table's metadata in the semantic layer. Th
   User: "The revenue_net field should explain it's after taxes and discounts"
 `;
 
+// ============================================================================
+// Type Helpers
+// ============================================================================
+
+type ChangePatch<T> = Partial<Record<keyof T, z.ZodType>>;
+
 const getPatchDescription = (type: 'metric' | 'dimension' | 'table') =>
     `Patch to apply to the ${type}. You can omit/set-to-null any fields you don't want to change.`;
+
+// ============================================================================
+// Operation Schemas
+// ============================================================================
 
 /**
  * Op schema can be configured on per-field basis to have a appropriate type and allow applicable operations
@@ -56,6 +70,22 @@ const getOpSchema = <T extends z.ZodTypeAny>(type: T) =>
     ]);
 
 const stringOpSchema = getOpSchema(z.string());
+
+// ============================================================================
+// Entity Change Schemas
+// ============================================================================
+
+const TableChangeSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('update'),
+        patch: z
+            .object({
+                description: stringOpSchema.nullable(),
+                label: stringOpSchema.nullable(),
+            } satisfies ChangePatch<Table>)
+            .describe(getPatchDescription('table')),
+    }),
+]);
 
 const DimensionChangeSchema = z.discriminatedUnion('type', [
     // z.object({
@@ -89,19 +119,9 @@ const MetricChangeSchema = z.discriminatedUnion('type', [
     }),
 ]);
 
-type ChangePatch<T> = Partial<Record<keyof T, z.ZodType>>;
-
-const TableChangeSchema = z.discriminatedUnion('type', [
-    z.object({
-        type: z.literal('update'),
-        patch: z
-            .object({
-                description: stringOpSchema.nullable(),
-                label: stringOpSchema.nullable(),
-            } satisfies ChangePatch<Table>)
-            .describe(getPatchDescription('table')),
-    }),
-]);
+// ============================================================================
+// Main Change Schema
+// ============================================================================
 
 const changeSchema = z.discriminatedUnion('entityType', [
     z.object({
@@ -119,6 +139,10 @@ const changeSchema = z.discriminatedUnion('entityType', [
         value: MetricChangeSchema,
     }),
 ]);
+
+// ============================================================================
+// Tool Schema Export
+// ============================================================================
 
 export const toolProposeChangeArgsSchema = createToolSchema(
     AiResultType.PROPOSE_CHANGE,
@@ -138,3 +162,7 @@ export const toolProposeChangeArgsSchema = createToolSchema(
     .build();
 
 export type ToolProposeChangeArgs = z.infer<typeof toolProposeChangeArgsSchema>;
+export type ToolProposeChangeReplaceStringOp = z.infer<typeof stringOpSchema>;
+export type UpdateDimensionPatch = ChangePatch<Dimension>;
+export type UpdateMetricPatch = ChangePatch<Metric>;
+export type UpdateTablePatch = ChangePatch<Table>;

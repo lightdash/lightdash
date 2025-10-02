@@ -289,28 +289,8 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case AiResultType.IMPROVE_CONTEXT:
-            return <> </>;
         case AiResultType.PROPOSE_CHANGE:
-            return (
-                <Text c="dimmed" size="xs">
-                    Proposed change to{' '}
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        mx={rem(2)}
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {toolArgs.change.entityType === 'table'
-                            ? toolArgs.entityTableName
-                            : toolArgs.change.fieldId}
-                    </Badge>
-                </Text>
-            );
+            return <> </>;
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
@@ -417,6 +397,7 @@ type AiChartToolCallsProps = {
     promptUuid: string;
 };
 
+const EXCLUDED_TOOL_NAMES = ['improveContext', 'proposeChange'];
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     type,
@@ -431,7 +412,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
             : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL;
 
     const calculationToolCalls = toolCalls?.filter(
-        (toolCall) => toolCall.toolName !== 'improveContext',
+        (toolCall) => !EXCLUDED_TOOL_NAMES.includes(toolCall.toolName),
     );
 
     if (!toolCalls || toolCalls.length === 0) return null;
