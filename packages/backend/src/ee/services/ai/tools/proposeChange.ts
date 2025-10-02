@@ -56,7 +56,7 @@ export const translateToolProposeChangeArgs = async (
 
             if (!additionalMetric) {
                 throw new Error(
-                    'Dimension field not found. Try using the right table name and dimension name',
+                    'Base dimension field not found. Try using the right table name and dimension name',
                 );
             }
 
