@@ -1,3 +1,10 @@
+## [0.2039.1](https://github.com/lightdash/lightdash/compare/0.2039.0...0.2039.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* process env_var in project yml ([#17167](https://github.com/lightdash/lightdash/issues/17167)) ([d230c3e](https://github.com/lightdash/lightdash/commit/d230c3ecb578f56f867215a5582f3e92c738793f))
+
 # [0.2039.0](https://github.com/lightdash/lightdash/compare/0.2038.1...0.2039.0) (2025-10-02)
 
 
