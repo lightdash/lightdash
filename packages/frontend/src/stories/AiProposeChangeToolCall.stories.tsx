@@ -18,6 +18,7 @@ type Story = StoryObj<typeof AiProposeChangeToolCall>;
 export const UpdateTableDescription: Story = {
     args: {
         entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'table',
             value: {
@@ -37,6 +38,7 @@ export const UpdateTableDescription: Story = {
 export const UpdateTableLabel: Story = {
     args: {
         entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'table',
             value: {
@@ -56,6 +58,7 @@ export const UpdateTableLabel: Story = {
 export const UpdateTableLabelAndDescription: Story = {
     args: {
         entityTableName: 'products',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'table',
             value: {
@@ -78,6 +81,7 @@ export const UpdateTableLabelAndDescription: Story = {
 export const UpdateDimensionDescription: Story = {
     args: {
         entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'dimension',
             fieldId: 'customer_name',
@@ -98,6 +102,7 @@ export const UpdateDimensionDescription: Story = {
 export const UpdateDimensionLabel: Story = {
     args: {
         entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'dimension',
             fieldId: 'customer_email',
@@ -118,6 +123,7 @@ export const UpdateDimensionLabel: Story = {
 export const UpdateDimensionLabelAndDescription: Story = {
     args: {
         entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'dimension',
             fieldId: 'signup_date',
@@ -141,6 +147,7 @@ export const UpdateDimensionLabelAndDescription: Story = {
 export const UpdateMetricDescription: Story = {
     args: {
         entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'metric',
             fieldId: 'total_revenue',
@@ -161,6 +168,7 @@ export const UpdateMetricDescription: Story = {
 export const UpdateMetricLabel: Story = {
     args: {
         entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'metric',
             fieldId: 'avg_order_value',
@@ -181,6 +189,7 @@ export const UpdateMetricLabel: Story = {
 export const UpdateMetricLabelAndDescription: Story = {
     args: {
         entityTableName: 'users',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'metric',
             fieldId: 'active_users',
@@ -204,6 +213,7 @@ export const UpdateMetricLabelAndDescription: Story = {
 export const UpdateTableDescriptionWithMarkdown: Story = {
     args: {
         entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'table',
             value: {
@@ -235,6 +245,7 @@ For more information, see the [customer onboarding guide](https://example.com/do
 export const UpdateDimensionDescriptionWithMarkdown: Story = {
     args: {
         entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'dimension',
             fieldId: 'order_status',
@@ -271,6 +282,7 @@ GROUP BY order_status
 export const UpdateMetricDescriptionWithMarkdown: Story = {
     args: {
         entityTableName: 'revenue',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
         change: {
             entityType: 'metric',
             fieldId: 'mrr',

@@ -1,6 +1,6 @@
-import {
-    type AiAgentToolResult,
-    type ToolProposeChangeArgs,
+import type {
+    AiAgentToolResult,
+    ToolProposeChangeArgs,
 } from '@lightdash/common';
 import {
     Badge,
@@ -9,7 +9,7 @@ import {
     Group,
     Stack,
 } from '@mantine-8/core';
-import { IconGitBranch, IconX } from '@tabler/icons-react';
+import { IconExternalLink, IconGitBranch, IconX } from '@tabler/icons-react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useRevertChangeMutation } from '../../../../hooks/useProjectAiAgents';
 import { ToolCallPaper } from '../ToolCallPaper';
@@ -82,6 +82,24 @@ export const AiProposeChangeToolCall = ({
                         {changeType}
                     </Badge>
                 </Group>
+            }
+            rightAction={
+                <Button
+                    component="a"
+                    href={`/generalSettings/projectManagement/${projectUuid}/changesets`}
+                    target="_blank"
+                    variant="subtle"
+                    size="compact-xs"
+                    rightSection={
+                        <MantineIcon icon={IconExternalLink} size={14} />
+                    }
+                    // do not bubble up event to close the collapsible
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
+                >
+                    View Changeset
+                </Button>
             }
         >
             <Stack gap="xs" mt="xs">
