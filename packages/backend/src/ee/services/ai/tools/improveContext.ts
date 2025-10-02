@@ -1,12 +1,17 @@
-import { toolImproveContextArgsSchema } from '@lightdash/common';
+import {
+    toolImproveContextArgsSchema,
+    toolImproveContextOutputSchema,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 export const getImproveContext = () =>
     tool({
         description: toolImproveContextArgsSchema.description,
         inputSchema: toolImproveContextArgsSchema,
+        outputSchema: toolImproveContextOutputSchema,
         execute: async (toolArgs) => {
             try {
                 Logger.debug(`[AI Agent] Attempting to improve context:
@@ -20,7 +25,8 @@ export const getImproveContext = () =>
                     Logger.debug(
                         '[AI Agent] Confidence too low to improve context',
                     );
-                    return `
+                    return {
+                        result: `
                         <InstructionLearned>
                             <Status>rejected</Status>
                             <Reason>confidence_too_low</Reason>
@@ -29,14 +35,19 @@ export const getImproveContext = () =>
                                 create permanent instruction
                             </Message>
                         </InstructionLearned>
-                    )`.trim();
+                    )`.trim(),
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 Logger.info(
                     `[AI Agent] Successfully got context improvement candidate:  ${toolArgs.suggestedInstruction}`,
                 );
 
-                return `
+                return {
+                    result: `
                     <InstructionLearned>
                         <Status>learned</Status>
                         <Instruction>
@@ -44,9 +55,19 @@ export const getImproveContext = () =>
                         </Instruction>
                         <Category>${toolArgs.category}</Category>
                         <Confidence>${toolArgs.confidence}</Confidence>
-                    </InstructionLearned>`.trim();
+                    </InstructionLearned>`.trim(),
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(error, 'Error improving context');
+                return {
+                    result: toolErrorHandler(error, 'Error improving context'),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

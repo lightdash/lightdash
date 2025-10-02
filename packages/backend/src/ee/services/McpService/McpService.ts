@@ -169,15 +169,26 @@ export class McpService extends BaseService {
     }
 
     static async streamToolResult(
-        result: string | AsyncIterable<string>,
+        result:
+            | { result: string }
+            | AsyncIterable<{
+                  result: string;
+              }>,
     ): Promise<string> {
-        if (typeof result === 'string') {
-            return result;
+        if (
+            'result' in result &&
+            typeof result.result === 'string' &&
+            Symbol.asyncIterator in result === false
+        ) {
+            return result.result;
         }
 
         let out = '';
-        for await (const chunk of result) {
-            out += chunk;
+        for await (const chunk of result as AsyncIterable<{
+            result: string;
+            metadata: { status: 'error' | 'success' };
+        }>) {
+            out += chunk.result;
         }
         return out;
     }

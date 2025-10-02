@@ -3,6 +3,7 @@ import {
     metricQueryTimeSeriesViz,
     toolTimeSeriesArgsSchema,
     toolTimeSeriesArgsSchemaTransformed,
+    toolTimeSeriesOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -17,6 +18,7 @@ import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTimeSeriesVizConfig } from '../utils/validateTimeSeriesVizConfig';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
@@ -45,6 +47,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     tool({
         description: toolTimeSeriesArgsSchema.description,
         inputSchema: toolTimeSeriesArgsSchema,
+        outputSchema: toolTimeSeriesOutputSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');
@@ -71,7 +74,12 @@ export const getGenerateTimeSeriesVizConfig = ({
                 });
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
-                    return `Success`;
+                    return {
+                        result: `Success`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 const metricQuery = metricQueryTimeSeriesViz({
@@ -109,14 +117,30 @@ export const getGenerateTimeSeriesVizConfig = ({
                 }
 
                 if (!enableDataAccess) {
-                    return `Success`;
+                    return {
+                        result: `Success`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
 
-                return serializeData(csv, 'csv');
+                return {
+                    result: serializeData(csv, 'csv'),
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (e) {
-                return toolErrorHandler(e, `Error generating line chart.`);
+                return {
+                    result: toolErrorHandler(e, `Error generating line chart.`),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

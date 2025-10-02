@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_FIND_DASHBOARDS_DESCRIPTION = `Tool: "findDashboards"
@@ -42,3 +43,12 @@ export const toolFindDashboardsArgsSchemaTransformed =
     toolFindDashboardsArgsSchema;
 
 export type ToolFindDashboardsArgsTransformed = ToolFindDashboardsArgs;
+
+export const toolFindDashboardsOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolFindDashboardsOutput = z.infer<
+    typeof toolFindDashboardsOutputSchema
+>;

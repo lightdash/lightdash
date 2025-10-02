@@ -3,10 +3,12 @@ import {
     isSavedChartSearchResult,
     isSqlChartSearchResult,
     toolFindChartsArgsSchema,
+    toolFindChartsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
 import type { FindChartsFn } from '../types/aiAgentDependencies';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -94,6 +96,7 @@ export const getFindCharts = ({
     tool({
         description: toolFindChartsArgsSchema.description,
         inputSchema: toolFindChartsArgsSchema,
+        outputSchema: toolFindChartsOutputSchema,
         execute: async (args) => {
             try {
                 const chartSearchQueryResults = await Promise.all(
@@ -113,14 +116,25 @@ export const getFindCharts = ({
                     )
                     .join('\n\n');
 
-                return `<SearchResults>${chartsText}</SearchResults>`;
+                return {
+                    result: `<SearchResults>${chartsText}</SearchResults>`,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (error) {
-                return toolErrorHandler(
-                    error,
-                    `Error finding charts for search queries: ${args.chartSearchQueries
-                        .map((q) => q.label)
-                        .join(', ')}`,
-                );
+                return {
+                    result: toolErrorHandler(
+                        error,
+                        `Error finding charts for search queries: ${args.chartSearchQueries
+                            .map((q) => q.label)
+                            .join(', ')}`,
+                    ),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });

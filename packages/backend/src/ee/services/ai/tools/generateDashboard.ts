@@ -5,6 +5,7 @@ import {
     toolDashboardArgsSchema,
     toolDashboardArgsSchemaTransformed,
     ToolDashboardArgsTransformed,
+    toolDashboardOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -16,6 +17,7 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateBarVizConfig } from '../utils/validateBarVizConfig';
 import { validateTableVizConfig } from '../utils/validateTableVizConfig';
@@ -60,6 +62,7 @@ export const getGenerateDashboard = ({
     return tool({
         description: toolDashboardArgsSchema.description,
         inputSchema: toolDashboardArgsSchema,
+        outputSchema: toolDashboardOutputSchema,
         execute: async (toolArgs) => {
             try {
                 const args = toolDashboardArgsSchemaTransformed.parse(toolArgs);
@@ -102,11 +105,16 @@ export const getGenerateDashboard = ({
 
                 // Check if we have at least one valid visualization
                 if (validVisualizations.length === 0) {
-                    return `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
-                        '\n',
-                    )}
+                    return {
+                        result: `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
+                            '\n',
+                        )}
                     Please fix these issues and try again.
-                    `;
+                    `,
+                        metadata: {
+                            status: 'error',
+                        },
+                    };
                 }
 
                 // Create dashboard with valid visualizations only
@@ -127,19 +135,35 @@ export const getGenerateDashboard = ({
 
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
-                    return `Dashboard created with ${
-                        validVisualizations.length
-                    } visualization${
-                        validVisualizations.length > 1 ? 's' : ''
-                    }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
-                        .map((title) => `- ${title}`)
-                        .join('\n')}\n\nErrors:\n${errors.join('\n')}`;
+                    return {
+                        result: `Dashboard created with ${
+                            validVisualizations.length
+                        } visualization${
+                            validVisualizations.length > 1 ? 's' : ''
+                        }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
+                            .map((title) => `- ${title}`)
+                            .join('\n')}\n\nErrors:\n${errors.join('\n')}`,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
                 }
 
-                return `Success`;
+                return {
+                    result: `Success`,
+                    metadata: {
+                        status: 'success',
+                    },
+                };
             } catch (e) {
-                return toolErrorHandler(e, 'Error generating dashboard.');
+                return {
+                    result: toolErrorHandler(e, 'Error generating dashboard.'),
+                    metadata: {
+                        status: 'error',
+                    },
+                };
             }
         },
+        toModelOutput: (output) => toModelOutput(output),
     });
 };

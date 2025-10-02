@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Dimension, Metric, Table } from '../../../..';
 import { AiResultType } from '../../types';
 import { getFieldIdSchema } from '../fieldId';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_PROPOSE_CHANGE_DESCRIPTION = `
@@ -138,3 +139,12 @@ export const toolProposeChangeArgsSchema = createToolSchema(
     .build();
 
 export type ToolProposeChangeArgs = z.infer<typeof toolProposeChangeArgsSchema>;
+
+export const toolProposeChangeOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolProposeChangeOutput = z.infer<
+    typeof toolProposeChangeOutputSchema
+>;

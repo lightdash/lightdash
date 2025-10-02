@@ -6,6 +6,7 @@ import {
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz';
@@ -67,3 +68,10 @@ export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
 export type ToolTimeSeriesArgsTransformed = z.infer<
     typeof toolTimeSeriesArgsSchemaTransformed
 >;
+
+export const toolTimeSeriesOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolTimeSeriesOutput = z.infer<typeof toolTimeSeriesOutputSchema>;

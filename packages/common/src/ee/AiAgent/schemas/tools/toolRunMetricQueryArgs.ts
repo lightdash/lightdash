@@ -1,6 +1,7 @@
-import { type z } from 'zod';
+import { z } from 'zod';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { tableVizConfigSchema } from '../visualizations';
 
@@ -44,4 +45,13 @@ export const toolRunMetricQueryArgsSchemaTransformed =
 
 export type ToolRunMetricQueryArgsTransformed = z.infer<
     typeof toolRunMetricQueryArgsSchemaTransformed
+>;
+
+export const toolRunMetricQueryOutputSchema = z.object({
+    result: z.string(),
+    metadata: baseOutputMetadataSchema,
+});
+
+export type ToolRunMetricQueryOutput = z.infer<
+    typeof toolRunMetricQueryOutputSchema
 >;
