@@ -3,6 +3,7 @@ import {
     CatalogItemIcon,
     CatalogItemsWithIcons,
     CatalogType,
+    ChangesetUtils,
     ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
@@ -245,6 +246,53 @@ export class CatalogModel {
                                 return null;
                             }
 
+                            if (change.type === 'create') {
+                                const isMetric = change.entityType === 'metric';
+
+                                if (isMetric) {
+                                    const metricData = change.payload.value;
+
+                                    const cachedExplore = await trx(
+                                        CatalogTableName,
+                                    )
+                                        .select('cached_explore_uuid')
+                                        .where(
+                                            'table_name',
+                                            change.entityTableName,
+                                        )
+                                        .where('project_uuid', projectUuid)
+                                        .first('cached_explore_uuid');
+
+                                    if (!cachedExplore) {
+                                        return null;
+                                    }
+
+                                    const [result] = await trx(CatalogTableName)
+                                        .insert({
+                                            name: metricData.name,
+                                            label: metricData.label,
+                                            description:
+                                                metricData.description ?? null,
+                                            cached_explore_uuid:
+                                                cachedExplore.cached_explore_uuid,
+                                            project_uuid: projectUuid,
+                                            type: CatalogType.Field,
+                                            field_type: FieldType.METRIC,
+                                            required_attributes: {},
+                                            yaml_tags: [],
+                                            ai_hints: null,
+                                            chart_usage: 0,
+                                            table_name: change.entityTableName,
+                                            spotlight_show: true,
+                                            joined_tables: [],
+                                        })
+                                        .returning('*');
+
+                                    catalogUpdatesResult.push(result);
+                                    return result;
+                                }
+                            }
+
                             let fieldToUpdate:
                                 | CompiledDimension
                                 | CompiledMetric
@@ -367,6 +415,7 @@ export class CatalogModel {
         sortArgs,
         context,
         fullTextSearchOperator = 'AND',
+        exploreCacheMap,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -378,6 +427,7 @@ export class CatalogModel {
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
+        exploreCacheMap: { [exploreUuid: string]: Explore | ExploreError };
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -735,6 +785,7 @@ export class CatalogModel {
                 paginatedCatalogItems.data.map((item) =>
                     parseCatalog({
                         ...item,
+                        explore: exploreCacheMap[item.explore.name] as Explore,
                         catalog_tags:
                             tagsPerItem[item.catalog_search_uuid] ?? [],
                     }),
