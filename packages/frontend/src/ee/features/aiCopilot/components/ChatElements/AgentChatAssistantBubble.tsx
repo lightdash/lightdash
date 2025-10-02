@@ -144,6 +144,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                    promptUuid={message.uuid}
                 />
             )}
             {!isStreaming && message.toolCalls.length > 0 && (
@@ -153,6 +154,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                    promptUuid={message.uuid}
                 />
             )}
             {messageContent.length > 0 ? (
