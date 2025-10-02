@@ -1,3 +1,18 @@
+# [0.2042.0](https://github.com/lightdash/lightdash/compare/0.2041.0...0.2042.0) (2025-10-02)
+
+
+### Bug Fixes
+
+* truncate changes correctly ([#17207](https://github.com/lightdash/lightdash/issues/17207)) ([6868770](https://github.com/lightdash/lightdash/commit/68687700b09bc6c74e14dd260c4f7cbab4a3c352))
+
+
+### Features
+
+* add ability to revert AI agent proposed changes ([#17205](https://github.com/lightdash/lightdash/issues/17205)) ([19b6f79](https://github.com/lightdash/lightdash/commit/19b6f7965c50c29243e44f04d7db5ad23d7f4a09))
+* add metadata field to AI agent tool results ([#17197](https://github.com/lightdash/lightdash/issues/17197)) ([4d5c7bf](https://github.com/lightdash/lightdash/commit/4d5c7bfd474d4a53d4629051ecec74abfb391b8a))
+* add reject functionality for AI proposed changes frontend ([#17209](https://github.com/lightdash/lightdash/issues/17209)) ([6b46e6f](https://github.com/lightdash/lightdash/commit/6b46e6f0d48598aa4ea523a94b179c2c280c4efa))
+* add structured output schema for AI agent tools and support metadata ([#17189](https://github.com/lightdash/lightdash/issues/17189)) ([a510030](https://github.com/lightdash/lightdash/commit/a510030cbbc40c05c4df50512113d6980c242f30))
+
 # [0.2041.0](https://github.com/lightdash/lightdash/compare/0.2040.0...0.2041.0) (2025-10-02)
 
 
