@@ -39,7 +39,6 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
@@ -181,20 +180,12 @@ const FiltersCard: FC = memo(() => {
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
 
-    // Get Context setFilters action for synchronization during migration
-    const contextSetFilters = useExplorerContext(
-        (context) => context.actions.setFilters,
-    );
-
-    // TODO: Migration - dispatching directly to Redux for isolated re-renders.
-    // Once migration is complete, context actions can be removed
+    // Update filters in Redux
     const setFilters = useCallback(
         (newFilters: Filters) => {
-            // Update both Redux and Context during migration phase
             dispatch(explorerActions.setFilters(newFilters));
-            contextSetFilters(newFilters);
         },
-        [dispatch, contextSetFilters],
+        [dispatch],
     );
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {

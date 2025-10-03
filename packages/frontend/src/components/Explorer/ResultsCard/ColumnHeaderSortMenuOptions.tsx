@@ -7,8 +7,11 @@ import {
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { type FC } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import {
     SortDirection,
     getSortDirectionOrder,
@@ -30,11 +33,23 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
             : SortDirection.ASC
         : undefined;
 
-    const setSortFields = useExplorerContext(
-        (context) => context.actions.setSortFields,
-    );
-    const removeSortField = useExplorerContext(
-        (context) => context.actions.removeSortField,
+    const dispatch = useExplorerDispatch();
+
+    const handleSortClick = useCallback(
+        (sortDirection: SortDirection) => {
+            if (hasSort && selectedSortDirection === sortDirection) {
+                // Remove sort - clicking on current direction removes it
+                dispatch(explorerActions.setSortFields([]));
+            } else {
+                // Replace ALL sorts with this single sort
+                const newSort: SortField = {
+                    fieldId: itemFieldId,
+                    descending: sortDirection === SortDirection.DESC,
+                };
+                dispatch(explorerActions.setSortFields([newSort]));
+            }
+        },
+        [dispatch, hasSort, itemFieldId, selectedSortDirection],
     );
 
     return (
@@ -53,19 +68,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
                         disabled={
                             hasSort && selectedSortDirection === sortDirection
                         }
-                        onClick={() =>
-                            hasSort && selectedSortDirection === sortDirection
-                                ? removeSortField(itemFieldId)
-                                : setSortFields([
-                                      {
-                                          fieldId: itemFieldId,
-                                          descending:
-                                              sortDirection ===
-                                              SortDirection.DESC,
-                                          nullsFirst: true, // TODO: implement UI
-                                      },
-                                  ])
-                        }
+                        onClick={() => handleSortClick(sortDirection)}
                     >
                         Sort{' '}
                         <Text span fw={500}>

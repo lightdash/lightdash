@@ -14,17 +14,11 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { ExplorerSection } from '../providers/Explorer/types';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 export const useFilteredFields = () => {
     const filters = useExplorerSelector(selectFilters);
     const isFiltersExpanded = useExplorerSelector(selectIsFiltersExpanded);
     const dispatch = useExplorerDispatch();
-
-    // Get Context setFilters action for synchronization during migration
-    const contextSetFilters = useExplorerContext(
-        (context) => context.actions.setFilters,
-    );
 
     const filteredFieldIds = useMemo(() => {
         const allFilterRules = getTotalFilterRules(filters);
@@ -42,9 +36,7 @@ export const useFilteredFields = () => {
     const addFilter = useCallback(
         (field: FilterableField, value: any) => {
             const newFilters = addFilterRule({ filters, field, value });
-            // Update both Redux and Context during migration phase
             dispatch(explorerActions.setFilters(newFilters));
-            contextSetFilters(newFilters);
 
             if (!isFiltersExpanded) {
                 dispatch(
@@ -59,7 +51,7 @@ export const useFilteredFields = () => {
                 behavior: 'smooth',
             });
         },
-        [filters, dispatch, contextSetFilters, isFiltersExpanded],
+        [filters, dispatch, isFiltersExpanded],
     );
 
     return useMemo(
@@ -76,18 +68,11 @@ export const useFilters = () => {
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const dispatch = useExplorerDispatch();
 
-    // Get Context setFilters action for synchronization during migration
-    const contextSetFilters = useExplorerContext(
-        (context) => context.actions.setFilters,
-    );
-
     const setFilters = useCallback(
         (newFilters: typeof filters) => {
-            // Update both Redux and Context during migration phase
             dispatch(explorerActions.setFilters(newFilters));
-            contextSetFilters(newFilters);
         },
-        [dispatch, contextSetFilters],
+        [dispatch],
     );
 
     const toggleExpandedSection = useCallback(

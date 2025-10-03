@@ -11,12 +11,13 @@ import { useHotkeys, useOs } from '@mantine-8/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {
+    explorerActions,
     selectQueryLimit,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import RunQuerySettings from './RunQuerySettings';
@@ -29,16 +30,19 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
 
     const os = useOs();
 
-    // Get state from Redux
+    // Get state and actions from Redux
     const limit = useExplorerSelector(selectQueryLimit);
+    const dispatch = useExplorerDispatch();
 
-    // Get query state and actions from new hooks
+    // Get query state and actions from hooks
     const { isValidQuery, isLoading, fetchResults, cancelQuery } =
         useExplorerQuery();
 
-    // Keep setRowLimit from Context for now (will migrate when we add Redux action)
-    const setRowLimit = useExplorerContext(
-        (context) => context.actions.setRowLimit,
+    const setRowLimit = useCallback(
+        (newLimit: number) => {
+            dispatch(explorerActions.setRowLimit(newLimit));
+        },
+        [dispatch],
     );
 
     const canRunQuery = isValidQuery;

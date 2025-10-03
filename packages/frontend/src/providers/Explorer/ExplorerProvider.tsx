@@ -25,7 +25,6 @@ import {
     type ParameterValue,
     type ReplaceCustomFields,
     type SavedChart,
-    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,7 +45,6 @@ import {
     useExplorerInitialization,
 } from '../../features/explorer/store';
 import { useParameters } from '../../hooks/parameters/useParameters';
-import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
@@ -254,95 +252,6 @@ export function reducer(
                     calcColumnOrder(
                         draft.unsavedChartVersion.tableConfig.columnOrder,
                         [...dimensionIds, ...metricIds, ...calcIds],
-                    );
-            });
-        }
-        case ActionType.TOGGLE_SORT_FIELD: {
-            return produce(state, (draft) => {
-                const sortFieldId = action.payload;
-                const activeFields = new Set([
-                    ...draft.unsavedChartVersion.metricQuery.dimensions,
-                    ...draft.unsavedChartVersion.metricQuery.metrics,
-                    ...draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        (tc) => tc.name,
-                    ),
-                ]);
-                if (!activeFields.has(sortFieldId)) {
-                    return;
-                }
-                const sortField =
-                    draft.unsavedChartVersion.metricQuery.sorts.find(
-                        (sf) => sf.fieldId === sortFieldId,
-                    );
-
-                if (!sortField) {
-                    draft.unsavedChartVersion.metricQuery.sorts.push({
-                        fieldId: sortFieldId,
-                        descending: false,
-                    });
-                } else if (sortField.descending) {
-                    draft.unsavedChartVersion.metricQuery.sorts =
-                        draft.unsavedChartVersion.metricQuery.sorts.filter(
-                            (sf) => sf.fieldId !== sortFieldId,
-                        );
-                } else {
-                    sortField.descending = true;
-                }
-            });
-        }
-        case ActionType.SET_SORT_FIELDS: {
-            return produce(state, (draft) => {
-                const activeFields = new Set([
-                    ...draft.unsavedChartVersion.metricQuery.dimensions,
-                    ...draft.unsavedChartVersion.metricQuery.metrics,
-                    ...draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        (tc) => tc.name,
-                    ),
-                ]);
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    action.payload.filter((sf) => activeFields.has(sf.fieldId));
-            });
-        }
-        case ActionType.ADD_SORT_FIELD: {
-            return produce(state, (newState) => {
-                const sort =
-                    newState.unsavedChartVersion.metricQuery.sorts.find(
-                        (sf) => sf.fieldId === action.payload.fieldId,
-                    );
-
-                if (sort) {
-                    sort.descending = action.payload.descending;
-                } else {
-                    newState.unsavedChartVersion.metricQuery.sorts.push(
-                        action.payload,
-                    );
-                }
-            });
-        }
-        case ActionType.REMOVE_SORT_FIELD: {
-            return produce(state, (newState) => {
-                newState.unsavedChartVersion.metricQuery.sorts =
-                    newState.unsavedChartVersion.metricQuery.sorts.filter(
-                        (sf) => sf.fieldId !== action.payload,
-                    );
-            });
-        }
-        case ActionType.MOVE_SORT_FIELDS: {
-            return produce(state, (newState) => {
-                const sorts = newState.unsavedChartVersion.metricQuery.sorts;
-                const { sourceIndex, destinationIndex } = action.payload;
-
-                const [removed] = sorts.splice(sourceIndex, 1);
-                sorts.splice(destinationIndex, 0, removed);
-            });
-        }
-        case ActionType.SET_SORT_FIELD_NULLS_FIRST: {
-            return produce(state, (newState) => {
-                newState.unsavedChartVersion.metricQuery.sorts =
-                    newState.unsavedChartVersion.metricQuery.sorts.map((sf) =>
-                        sf.fieldId === action.payload.fieldId
-                            ? { ...sf, nullsFirst: action.payload.nullsFirst }
-                            : sf,
                     );
             });
         }
@@ -894,15 +803,6 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
-    // Keep Redux sorts in sync with Context sorts
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setSortFields(
-                unsavedChartVersion.metricQuery.sorts,
-            ),
-        );
-    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
-
     // Keep Redux table name in sync with Context state
     useEffect(() => {
         const contextTableName = reducerState.unsavedChartVersion.tableName;
@@ -926,6 +826,15 @@ const ExplorerProvider: FC<
             explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
         );
     }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
+
+    // Keep Redux columnOrder in sync with Context columnOrder
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setColumnOrder(
+                unsavedChartVersion.tableConfig.columnOrder,
+            ),
+        );
+    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
 
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
@@ -1021,63 +930,6 @@ const ExplorerProvider: FC<
         });
     }, []);
 
-    const toggleSortField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.TOGGLE_SORT_FIELD,
-            payload: fieldId,
-        });
-    }, []);
-
-    const setSortFields = useCallback((sortFields: SortField[]) => {
-        dispatch({
-            type: ActionType.SET_SORT_FIELDS,
-            payload: sortFields,
-        });
-    }, []);
-
-    const removeSortField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_SORT_FIELD,
-            payload: fieldId,
-        });
-    }, []);
-
-    const moveSortFields = useCallback(
-        (sourceIndex: number, destinationIndex: number) => {
-            dispatch({
-                type: ActionType.MOVE_SORT_FIELDS,
-                payload: { sourceIndex, destinationIndex },
-            });
-        },
-        [],
-    );
-
-    const addSortField = useCallback(
-        (
-            fieldId: FieldId,
-            options: {
-                descending: boolean;
-            } = { descending: false },
-        ) => {
-            const sortField = { fieldId, ...options };
-            dispatch({
-                type: ActionType.ADD_SORT_FIELD,
-                payload: sortField,
-            });
-        },
-        [],
-    );
-
-    const setSortFieldNullsFirst = useCallback(
-        (fieldId: FieldId, nullsFirst: boolean | undefined) => {
-            dispatch({
-                type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
-                payload: { fieldId, nullsFirst },
-            });
-        },
-        [],
-    );
-
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
@@ -1094,13 +946,17 @@ const ExplorerProvider: FC<
         }
     }, []);
 
-    const setFilters = useCallback((filters: MetricQuery['filters']) => {
-        dispatch({
-            type: ActionType.SET_FILTERS,
-            payload: filters,
-        });
-        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
-    }, []);
+    const setFilters = useCallback(
+        (filters: MetricQuery['filters']) => {
+            dispatch({
+                type: ActionType.SET_FILTERS,
+                payload: filters,
+            });
+            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
+            reduxDispatch(explorerActions.setFilters(filters));
+        },
+        [reduxDispatch],
+    );
 
     const setParameter = useCallback(
         (key: string, value: ParameterValue | null) => {
@@ -1463,19 +1319,6 @@ const ExplorerProvider: FC<
 
     const queryClient = useQueryClient();
 
-    const defaultSort = useDefaultSortField(unsavedChartVersion);
-
-    // Set default sort in unsavedChartVersion if there are no existing sorts
-    useEffect(() => {
-        if (!unsavedChartVersion.metricQuery.sorts.length && defaultSort) {
-            setSortFields([defaultSort]);
-        }
-    }, [
-        defaultSort,
-        setSortFields,
-        unsavedChartVersion.metricQuery.sorts.length,
-    ]);
-
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
         // cancel query creation
@@ -1550,12 +1393,6 @@ const ExplorerProvider: FC<
             setTableName,
             removeActiveField,
             toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,
@@ -1591,12 +1428,6 @@ const ExplorerProvider: FC<
             setTableName,
             removeActiveField,
             toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,

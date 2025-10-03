@@ -9,7 +9,11 @@ import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { explorerStore } from '../features/explorer/store';
+import {
+    explorerStore,
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
 import {
@@ -32,9 +36,8 @@ const ExplorerWithUrlParams = memo<{
     });
 
     useExplorerRoute();
-    const tableId = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    // Get table name from Redux
+    const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
 
     const clearQuery = useExplorerContext(
