@@ -1,3 +1,10 @@
+# [0.2050.0](https://github.com/lightdash/lightdash/compare/0.2049.0...0.2050.0) (2025-10-03)
+
+
+### Features
+
+* disable parallel tool calls for OpenAI GPT model ([#17226](https://github.com/lightdash/lightdash/issues/17226)) ([2cc837a](https://github.com/lightdash/lightdash/commit/2cc837a130d71dd8e6d42ccf3cbfb1106cd715a2))
+
 # [0.2049.0](https://github.com/lightdash/lightdash/compare/0.2048.0...0.2049.0) (2025-10-03)
 
 
