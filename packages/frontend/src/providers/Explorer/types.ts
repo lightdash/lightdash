@@ -15,7 +15,6 @@ import {
     type MetricQuery,
     type MetricType,
     type ParameterDefinitions,
-    type ParameterValue,
     type PieChartConfig,
     type ReplaceCustomFields,
     type SavedChart,
@@ -46,8 +45,6 @@ export enum ActionType {
     SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
-    SET_PARAMETER,
-    CLEAR_ALL_PARAMETERS,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -124,14 +121,6 @@ export type Action =
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
       }
-    | {
-          type: ActionType.SET_PARAMETER;
-          payload: {
-              key: string;
-              value: ParameterValue | null;
-          };
-      }
-    | { type: ActionType.CLEAR_ALL_PARAMETERS }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
           payload: AdditionalMetric;
@@ -288,8 +277,6 @@ export interface ExplorerContextType {
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
-        setParameter: (key: string, value: ParameterValue | null) => void;
-        clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,

@@ -14,7 +14,6 @@ import {
 import { ParameterSelection } from '../../../features/parameters';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
@@ -47,18 +46,19 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
-        // TODO: REDUX-MIGRATION - Use Redux actions directly once Context sync is removed
-        // Currently using Context actions to ensure proper sync and trigger side effects
-        const setParameterFromContext = useExplorerContext(
-            (context) => context.actions.setParameter,
+        const setParameter = useCallback(
+            (
+                key: string,
+                value: string | number | string[] | number[] | null,
+            ) => {
+                dispatch(explorerActions.setParameter({ key, value }));
+            },
+            [dispatch],
         );
 
-        const clearAllParametersFromContext = useExplorerContext(
-            (context) => context.actions.clearAllParameters,
-        );
-
-        const setParameter = setParameterFromContext;
-        const clearAllParameters = clearAllParametersFromContext;
+        const clearAllParameters = useCallback(() => {
+            dispatch(explorerActions.clearAllParameters());
+        }, [dispatch]);
 
         const handleParameterChange = (
             paramKey: string,

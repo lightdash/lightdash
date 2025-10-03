@@ -3,7 +3,6 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
-    getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
     isSqlTableCalculation,
@@ -21,8 +20,6 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
-    type ParameterDefinitions,
-    type ParameterValue,
     type ReplaceCustomFields,
     type SavedChart,
     type TableCalculation,
@@ -38,14 +35,12 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import {
     explorerActions,
     useExplorerDispatch,
     useExplorerInitialization,
 } from '../../features/explorer/store';
-import { useParameters } from '../../hooks/parameters/useParameters';
-import { useExplore } from '../../hooks/useExplore';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
 import {
@@ -268,28 +263,6 @@ export function reducer(
         case ActionType.SET_FILTERS: {
             return produce(state, (draft) => {
                 draft.unsavedChartVersion.metricQuery.filters = action.payload;
-            });
-        }
-        case ActionType.SET_PARAMETER: {
-            return produce(state, (draft) => {
-                if (!draft.unsavedChartVersion.parameters) {
-                    draft.unsavedChartVersion.parameters = {};
-                }
-                if (action.payload.value === null) {
-                    delete draft.unsavedChartVersion.parameters[
-                        action.payload.key
-                    ];
-                } else {
-                    draft.unsavedChartVersion.parameters = {
-                        ...draft.unsavedChartVersion.parameters,
-                        [action.payload.key]: action.payload.value,
-                    };
-                }
-            });
-        }
-        case ActionType.CLEAR_ALL_PARAMETERS: {
-            return produce(state, (draft) => {
-                draft.unsavedChartVersion.parameters = {};
             });
         }
         case ActionType.ADD_ADDITIONAL_METRIC: {
@@ -761,7 +734,7 @@ const ExplorerProvider: FC<
     savedChart,
     defaultLimit,
     children,
-    projectUuid: propProjectUuid,
+    projectUuid: _propProjectUuid,
 }) => {
     const defaultStateWithConfig = useMemo(
         () => ({
@@ -957,31 +930,6 @@ const ExplorerProvider: FC<
         },
         [reduxDispatch],
     );
-
-    const setParameter = useCallback(
-        (key: string, value: ParameterValue | null) => {
-            if (value === null) {
-                dispatch({
-                    type: ActionType.SET_PARAMETER,
-                    payload: { key, value: null },
-                });
-            } else {
-                dispatch({
-                    type: ActionType.SET_PARAMETER,
-                    payload: { key, value },
-                });
-            }
-            // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
-            reduxDispatch(explorerActions.setParameter({ key, value }));
-        },
-        [reduxDispatch],
-    );
-
-    const clearAllParameters = useCallback(() => {
-        dispatch({ type: ActionType.CLEAR_ALL_PARAMETERS });
-        // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
-        reduxDispatch(explorerActions.clearAllParameters());
-    }, [reduxDispatch]);
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1259,42 +1207,6 @@ const ExplorerProvider: FC<
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = propProjectUuid || projectUuidFromParams;
-
-    const { data: projectParameters } = useParameters(
-        projectUuid,
-        reducerState.parameterReferences ?? undefined,
-        {
-            enabled: !!reducerState.parameterReferences?.length,
-        },
-    );
-
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
-
-    const exploreParameterDefinitions = useMemo(() => {
-        return explore
-            ? getAvailableParametersFromTables(Object.values(explore.tables))
-            : {};
-    }, [explore]);
-
-    const parameterDefinitions: ParameterDefinitions = useMemo(() => {
-        return {
-            ...(projectParameters ?? {}),
-            ...(exploreParameterDefinitions ?? {}),
-        };
-    }, [projectParameters, exploreParameterDefinitions]);
-
-    // TODO: REDUX-MIGRATION - Remove once parameterDefinitions are computed in Redux
-    // Keep Redux parameter definitions in sync
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setParameterDefinitions(parameterDefinitions),
-        );
-    }, [parameterDefinitions, reduxDispatch]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
@@ -1304,7 +1216,6 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            parameterDefinitions,
         }),
         [
             isEditMode,
@@ -1313,7 +1224,6 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            parameterDefinitions,
         ],
     );
 
@@ -1394,8 +1304,6 @@ const ExplorerProvider: FC<
             removeActiveField,
             toggleActiveField,
             setFilters,
-            setParameter,
-            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1429,8 +1337,6 @@ const ExplorerProvider: FC<
             removeActiveField,
             toggleActiveField,
             setFilters,
-            setParameter,
-            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
