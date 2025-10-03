@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DownloadFileType,
     formatDate,
+    QueryExecutionContext,
     type PivotConfig,
 } from '@lightdash/common';
 import {
@@ -18,6 +19,7 @@ import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
 
+import { scheduleEmbedDownloadQuery } from '../../ee/features/embed/EmbedDashboard/api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -25,17 +27,12 @@ import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import { Limit } from './types';
 
 type ExportCsvRenderProps = {
     onExport: () => Promise<unknown>;
     isExporting: boolean;
 };
-
-enum Limit {
-    TABLE = 'table',
-    ALL = 'all',
-    CUSTOM = 'custom',
-}
 
 enum Values {
     FORMATTED = 'formatted',
@@ -45,7 +42,10 @@ enum Values {
 export type ExportResultsProps = {
     projectUuid: string;
     totalResults: number | undefined;
-    getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        limitType: Limit,
+    ) => Promise<string>;
     columnOrder?: string[];
     customLabels?: Record<string, string>;
     hiddenFields?: string[];
@@ -54,6 +54,10 @@ export type ExportResultsProps = {
     pivotConfig?: PivotConfig;
     hideLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
+    /**
+     * Query execution context - used to determine if we're in embed mode
+     */
+    context?: QueryExecutionContext;
 };
 
 const TOAST_KEY = 'exporting-results';
@@ -71,18 +75,21 @@ const ExportResults: FC<ExportResultsProps> = memo(
         pivotConfig,
         hideLimitSelection = false,
         renderDialogActions,
+        context,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
 
         const user = useUser(true);
         const health = useHealth();
-        const [limit, setLimit] = useState<string>(Limit.TABLE);
+        const [limit, setLimit] = useState<Limit>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
         const [fileType, setFileType] = useState<DownloadFileType>(
             DownloadFileType.CSV,
         );
+
+        const isEmbedContext = context === QueryExecutionContext.EMBED;
 
         const { isLoading: isExporting, mutateAsync: exportMutation } =
             useMutation(
@@ -94,8 +101,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             : limit === Limit.TABLE
                             ? totalResults ?? 0
                             : null,
+                        limit,
                     );
-                    return scheduleDownloadQuery(projectUuid, queryUuid, {
+
+                    const downloadOptions = {
                         fileType,
                         onlyRaw: format === Values.RAW,
                         columnOrder,
@@ -106,7 +115,20 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         attachmentDownloadName: chartName
                             ? `${chartName}_${formatDate(new Date())}`
                             : undefined,
-                    });
+                    };
+
+                    // Use embed-specific endpoint if in embed context
+                    return isEmbedContext
+                        ? scheduleEmbedDownloadQuery(
+                              projectUuid,
+                              queryUuid,
+                              downloadOptions,
+                          )
+                        : scheduleDownloadQuery(
+                              projectUuid,
+                              queryUuid,
+                              downloadOptions,
+                          );
                 },
                 {
                     onMutate: () => {
@@ -228,7 +250,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                             size={'xs'}
                                             value={limit}
                                             onChange={(value) =>
-                                                setLimit(value)
+                                                setLimit(value as Limit)
                                             }
                                             data={[
                                                 {

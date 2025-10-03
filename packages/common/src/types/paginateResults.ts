@@ -1,6 +1,6 @@
 import type { KnexPaginateArgs, KnexPaginatedData } from './knex-paginate';
 
-export const DEFAULT_RESULTS_PAGE_SIZE = 500;
+export const DEFAULT_RESULTS_PAGE_SIZE = 100;
 
 export type ResultsPaginationArgs = Partial<KnexPaginateArgs>;
 

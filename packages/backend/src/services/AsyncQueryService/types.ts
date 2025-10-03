@@ -53,7 +53,10 @@ export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
     'invalidateCache' | 'context' | 'parameters'
 > &
-    Omit<DownloadAsyncQueryResultsPayload, 'userUuid' | 'organizationUuid'>;
+    Omit<
+        DownloadAsyncQueryResultsPayload,
+        'userUuid' | 'organizationUuid' | 'dryAccount'
+    >;
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;

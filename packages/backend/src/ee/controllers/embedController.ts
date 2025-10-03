@@ -26,6 +26,8 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SortField,
     UpdateEmbed,
+    type ApiJobScheduledResponse,
+    type DownloadAsyncQueryResultsRequestParams,
 } from '@lightdash/common';
 import {
     Body,
@@ -386,6 +388,59 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Downloads query results in various formats with custom formatting options
+     * @summary Download results
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{queryUuid}/schedule-download')
+    @OperationId('scheduleDownloadResults')
+    async scheduleDownloadResults(
+        @Path() projectUuid: string,
+        /** The UUID of the completed async query to download */
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+        @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const {
+            type,
+            onlyRaw,
+            showTableNames,
+            customLabels,
+            columnOrder,
+            hiddenFields,
+            pivotConfig,
+            attachmentDownloadName,
+        } = body;
+
+        const jobId =
+            await this.getEmbedService().scheduleDownloadAsyncQueryResults({
+                account: req.account!,
+                projectUuid,
+                queryUuid,
+                type,
+                onlyRaw,
+                showTableNames,
+                customLabels,
+                columnOrder,
+                hiddenFields,
+                pivotConfig,
+                attachmentDownloadName,
+            });
+
+        return {
+            status: 'ok',
+            results: {
+                jobId,
+            },
         };
     }
 
