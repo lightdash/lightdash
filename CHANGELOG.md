@@ -1,3 +1,10 @@
+# [0.2046.0](https://github.com/lightdash/lightdash/compare/0.2045.0...0.2046.0) (2025-10-03)
+
+
+### Features
+
+* update proposeChange tool description + add permissions ([#17219](https://github.com/lightdash/lightdash/issues/17219)) ([7a26561](https://github.com/lightdash/lightdash/commit/7a26561284b5fa948546a817d59f0933bcc39c58))
+
 # [0.2045.0](https://github.com/lightdash/lightdash/compare/0.2044.0...0.2045.0) (2025-10-02)
 
 
