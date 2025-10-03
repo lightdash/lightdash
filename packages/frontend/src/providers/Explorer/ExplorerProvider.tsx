@@ -941,13 +941,17 @@ const ExplorerProvider: FC<
         }
     }, []);
 
-    const setFilters = useCallback((filters: MetricQuery['filters']) => {
-        dispatch({
-            type: ActionType.SET_FILTERS,
-            payload: filters,
-        });
-        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
-    }, []);
+    const setFilters = useCallback(
+        (filters: MetricQuery['filters']) => {
+            dispatch({
+                type: ActionType.SET_FILTERS,
+                payload: filters,
+            });
+            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
+            reduxDispatch(explorerActions.setFilters(filters));
+        },
+        [reduxDispatch],
+    );
 
     const setParameter = useCallback(
         (key: string, value: ParameterValue | null) => {
