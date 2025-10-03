@@ -1,9 +1,13 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI, OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { AiModel } from './types';
 
 const PROVIDER = 'openai';
 
+/**
+ *
+ * @see https://ai-sdk.dev/providers/ai-sdk-providers/openai
+ */
 export const getOpenaiGptmodel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['openai']
@@ -25,6 +29,10 @@ export const getOpenaiGptmodel = (
         providerOptions: {
             [PROVIDER]: {
                 strictJsonSchema: true,
+                textVerbosity: 'low',
+                reasoningEffort: 'minimal',
+                reasoningSummary: 'auto',
+                include: ['reasoning.encrypted_content'],
             },
         },
     };
