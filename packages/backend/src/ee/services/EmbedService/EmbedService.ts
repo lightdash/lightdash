@@ -55,7 +55,11 @@ import {
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { encodeLightdashJwt } from '../../../auth/lightdashJwt';
+import { fromJwt } from '../../../auth/account';
+import {
+    decodeLightdashJwt,
+    encodeLightdashJwt,
+} from '../../../auth/lightdashJwt';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -64,6 +68,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import type { ScheduleDownloadAsyncQueryResultsArgs } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import {
     getAvailableParameterDefinitions,
@@ -1353,5 +1358,39 @@ export class EmbedService extends BaseService {
 
     async getEmbeddingByProjectId(projectUuid: string) {
         return this.embedModel.get(projectUuid);
+    }
+
+    async getAccountFromJwt(projectUuid: string, encodedJwt: string) {
+        const embed = await this.getEmbeddingByProjectId(projectUuid);
+        const decodedToken = decodeLightdashJwt(
+            encodedJwt,
+            embed.encodedSecret,
+        );
+        const userAttributesPromise = this.getEmbedUserAttributes(
+            embed.organization.organizationUuid,
+            decodedToken,
+        );
+        const dashboardUuidPromise = this.getDashboardUuidFromJwt(
+            decodedToken,
+            projectUuid,
+        );
+        const [dashboardUuid, userAttributes] = await Promise.all([
+            dashboardUuidPromise,
+            userAttributesPromise,
+        ]);
+
+        if (!dashboardUuid) {
+            throw new NotFoundError(
+                'Cannot verify JWT. Dashboard ID not found',
+            );
+        }
+
+        return fromJwt({
+            decodedToken,
+            source: encodedJwt,
+            embed,
+            dashboardUuid,
+            userAttributes,
+        });
     }
 }

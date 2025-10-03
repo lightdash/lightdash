@@ -1762,7 +1762,7 @@ export default class SchedulerTask {
         }
     }
 
-    private async logWrapper<TRecordValues = string>(
+    protected async logWrapper<TRecordValues = string>(
         baseLog: Pick<
             SchedulerLog,
             'task' | 'jobId' | 'scheduledTime' | 'details'

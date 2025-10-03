@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import { Limit } from '../../components/ExportResults/types';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useFeatureFlag } from '../useFeatureFlagEnabled';
@@ -17,6 +18,7 @@ export const useDashboardChartDownload = (
     chartUuid: string,
     projectUuid: string | undefined,
     dashboardUuid: string | undefined,
+    originalQueryUuid: string,
 ) => {
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -35,9 +37,14 @@ export const useDashboardChartDownload = (
     );
 
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null): Promise<string> => {
+        async (limit: number | null, limitType: Limit): Promise<string> => {
             if (!projectUuid || !dashboardUuid) {
                 throw new Error('Missing required parameters');
+            }
+
+            // When limiting to the table, use the original query uuid so we don't execute a new query
+            if (limitType === Limit.TABLE) {
+                return originalQueryUuid;
             }
 
             // Execute a new query with the specified limit for download
@@ -86,7 +93,8 @@ export const useDashboardChartDownload = (
             dashboardSorts,
             dateZoomGranularity,
             parameters,
-            useSqlPivotResults,
+            useSqlPivotResults?.enabled,
+            originalQueryUuid,
         ],
     );
 

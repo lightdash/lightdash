@@ -87,39 +87,10 @@ export async function jwtAuthMiddleware(
         }
 
         // Get embed configuration from database
-        const embed = await embedService.getEmbeddingByProjectId(projectUuid);
-        const decodedToken = decodeLightdashJwt(
-            embedToken,
-            embed.encodedSecret,
-        );
-        const userAttributesPromise = embedService.getEmbedUserAttributes(
-            embed.organization.organizationUuid,
-            decodedToken,
-        );
-        const dashboardUuidPromise = embedService.getDashboardUuidFromJwt(
-            decodedToken,
+        req.account = await embedService.getAccountFromJwt(
             projectUuid,
+            embedToken,
         );
-        const [dashboardUuid, userAttributes] = await Promise.all([
-            dashboardUuidPromise,
-            userAttributesPromise,
-        ]);
-
-        if (!dashboardUuid) {
-            next(
-                new NotFoundError('Cannot verify JWT. Dashboard ID not found'),
-            );
-
-            return;
-        }
-
-        req.account = fromJwt({
-            decodedToken,
-            source: embedToken,
-            embed,
-            dashboardUuid,
-            userAttributes,
-        });
 
         // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
         // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.
