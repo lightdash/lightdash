@@ -84,6 +84,7 @@ import {
     isTableChartConfig,
     isVizTableConfig,
     operatorActionValue,
+    parseAccount,
     pivotResultsAsCsv,
     setUuidParam,
 } from '@lightdash/common';
@@ -96,6 +97,7 @@ import {
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
 import * as Account from '../auth/account';
+import { decodeLightdashJwt } from '../auth/lightdashJwt';
 import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
@@ -1762,7 +1764,7 @@ export default class SchedulerTask {
         }
     }
 
-    private async logWrapper<TRecordValues = string>(
+    protected async logWrapper<TRecordValues = string>(
         baseLog: Pick<
             SchedulerLog,
             'task' | 'jobId' | 'scheduledTime' | 'details'

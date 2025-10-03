@@ -57,6 +57,7 @@ export type DashboardChartReadyQuery = {
     executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
     chart: SavedChart;
     explore: ApiExploreResults;
+    requestedContext: QueryExecutionContext;
 };
 
 export const useDashboardChartReadyQuery = (
@@ -243,6 +244,7 @@ export const useDashboardChartReadyQuery = (
                 chart: chartQuery.data,
                 explore,
                 executeQueryResponse,
+                requestedContext,
             };
         },
         enabled: Boolean(
