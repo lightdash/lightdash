@@ -7,6 +7,10 @@ import {
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import {
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -34,9 +38,8 @@ export const useCompiledSql = (
     queryOptions?: UseQueryOptions<ApiCompiledQueryResults, ApiError>,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const tableId = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    // Read tableName from Redux to avoid stale Context reads
+    const tableId = useExplorerSelector(selectTableName);
     const {
         dimensions,
         metrics,
@@ -77,7 +80,6 @@ export const useCompiledSql = (
         queryParameters,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
-        enabled: !!tableId,
         queryKey,
         queryFn: () =>
             getCompiledQuery(
@@ -89,6 +91,8 @@ export const useCompiledSql = (
         onError: (result) => setErrorResponse(result),
         keepPreviousData: true,
         ...queryOptions,
+        // Ensure enabled check happens AFTER spread to prevent override
+        enabled: (queryOptions?.enabled ?? true) && !!tableId && !!projectUuid,
     });
 };
 
