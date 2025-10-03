@@ -24,12 +24,12 @@ Use this tool to propose changes to a table's metadata in the semantic layer. Th
   - User wants to document business logic in descriptions: "Add a note that active_users excludes test accounts"
 
 - **What this tool does:**
-  - Creates a change proposal in the system
-  - The change is NOT applied immediately - it requires review and approval
+  - Creates a change proposal and applies it to a changeset (batch of changes)
+  - Changes are applied immediately but can be reviewed and rejected afterward
   - Supports updating descriptions for tables, dimensions, and metrics
   - Supports creating new metrics
   - Tracks who proposed the change and when
-  - Change proposals can be reviewed, approved, or rejected by authorized users
+  - Applied changes can be reviewed and rejected by authorized users
 
 - **Examples:**
 
