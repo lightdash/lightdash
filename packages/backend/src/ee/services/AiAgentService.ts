@@ -1561,6 +1561,16 @@ export class AiAgentService {
         }
 
         // Revert the change
+        const change = await this.changesetModel.getChange(changeUuid);
+        await this.changesetModel.revertChange(changeUuid);
+
+        const originalExplores = await this.projectModel.findExploresFromCache(
+            agent.projectUuid,
+            'name',
+            originalChangeset.changes.map((c) => c.entityTableName),
+            { applyChangeset: false },
+        );
+
         await this.changesetModel.revertChange(changeUuid);
 
         // Get the tool result that corresponds to this change to update metadata

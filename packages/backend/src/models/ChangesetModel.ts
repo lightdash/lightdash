@@ -169,7 +169,7 @@ export class ChangesetModel {
         });
     }
 
-    async getChange(changeUuid: string) {
+    async getChange(changeUuid: string): Promise<Change> {
         const change = await this.database(ChangesTableName)
             .where('change_uuid', changeUuid)
             .first();
@@ -178,14 +178,37 @@ export class ChangesetModel {
             throw new NotFoundError(`Change with UUID ${changeUuid} not found`);
         }
 
-        return change;
+        return ChangeSchema.parse({
+            changeUuid: change.change_uuid,
+            changesetUuid: change.changeset_uuid,
+            createdAt: change.created_at,
+            createdByUserUuid: change.created_by_user_uuid,
+            sourcePromptUuid: change.source_prompt_uuid,
+            entityType: change.entity_type,
+            entityTableName: change.entity_table_name,
+            entityName: change.entity_name,
+            type: change.type,
+            payload: change.payload,
+        });
+    }
+
+    async revertChanges({
+        changeUuids,
+    }: {
+        changeUuids: string[];
+    }): Promise<void> {
+        if (changeUuids.length === 0) {
+            return;
+        }
+
+        await this.database(ChangesTableName)
+            .whereIn('change_uuid', changeUuids)
+            .delete();
     }
 
     async revertChange(changeUuid: string): Promise<void> {
         await this.getChange(changeUuid);
 
-        await this.database(ChangesTableName)
-            .where('change_uuid', changeUuid)
-            .delete();
+        await this.revertChanges({ changeUuids: [changeUuid] });
     }
 }

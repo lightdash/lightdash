@@ -821,6 +821,8 @@ export class ServiceRepository
             () =>
                 new ChangesetService({
                     changesetModel: this.models.getChangesetModel(),
+                    catalogModel: this.models.getCatalogModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
