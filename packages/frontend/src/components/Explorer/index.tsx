@@ -8,7 +8,6 @@ import {
     selectDimensions,
     selectFromDashboard,
     selectIsEditMode,
-    selectMetricQuery,
     selectMetrics,
     selectParameterReferences,
     selectPivotConfig,
@@ -24,6 +23,7 @@ import { useCompiledSql } from '../../hooks/useCompiledSql';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
+import { useExplorerQueryResults } from '../../hooks/useExplorerQueryResults';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
@@ -48,21 +48,22 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
         const columnOrder = useExplorerSelector(selectColumnOrder);
-        const metricQuery = useExplorerSelector(selectMetricQuery);
+        const sorts = useExplorerSelector(selectSorts);
+        const fromDashboard = useExplorerSelector(selectFromDashboard);
+        const previouslyFetchedState = useExplorerSelector(
+            selectPreviouslyFetchedState,
+        );
+        const pivotConfig = useExplorerSelector(selectPivotConfig);
+        // metricQuery removed - MetricQueryDataProvider will read it from Redux
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
-        const sorts = useExplorerSelector(selectSorts);
-        const dimensions = useExplorerSelector(selectDimensions);
-        const metricsFromRedux = useExplorerSelector(selectMetrics);
-        const columnOrder = useExplorerSelector(selectColumnOrder);
         const dispatch = useExplorerDispatch();
 
         const projectUuid = useProjectUuid();
 
-        // Get query state and actions from hook
-        const { query, fetchResults } = useExplorerQuery();
+        const { query } = useExplorerQueryResults();
         const queryUuid = query.data?.queryUuid;
 
         const { data: explore } = useExplore(tableName);
@@ -71,21 +72,16 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             enabled: !!tableName,
         });
 
-        // Keep reading savedChart from Context for now (will migrate when we add to Redux)
+        const { fetchResults } = useExplorerQuery();
+
+        // TODO: Read from Redux once savedChart is migrated
         const isSavedChart = useExplorerContext(
             (context) => !!context.state.savedChart,
         );
 
-        // Get navigation context from Redux
-        const fromDashboard = useExplorerSelector(selectFromDashboard);
-        const previouslyFetchedState = useExplorerSelector(
-            selectPreviouslyFetchedState,
-        );
-        const pivotConfig = useExplorerSelector(selectPivotConfig);
-
-        const hasPivotConfig = !!pivotConfig;
-
+        // Auto-fetch effect
         useEffect(() => {
+            const hasPivotConfig = !!pivotConfig;
             const shouldAutoFetch =
                 !previouslyFetchedState &&
                 (!!fromDashboard || isSavedChart || hasPivotConfig);
@@ -98,8 +94,32 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             fetchResults,
             fromDashboard,
             isSavedChart,
-            hasPivotConfig,
+            pivotConfig,
         ]);
+
+        // Construct object for default sort calculation
+        const chartVersionForSort = useMemo(
+            () => ({
+                tableName,
+                metricQuery: {
+                    dimensions,
+                    metrics,
+                },
+                tableConfig: {
+                    columnOrder,
+                },
+            }),
+            [tableName, dimensions, metrics, columnOrder],
+        );
+
+        const defaultSort = useDefaultSortField(chartVersionForSort as any);
+
+        // Set default sort when table changes and no sorts exist
+        useEffect(() => {
+            if (tableName && !sorts.length && defaultSort) {
+                dispatch(explorerActions.setSortFields([defaultSort]));
+            }
+        }, [tableName, sorts.length, defaultSort, dispatch]);
 
         useEffect(() => {
             if (isError) {
@@ -148,23 +168,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }, [parameterDefinitions, dispatch]);
 
-        // Construct object for default sort calculation from Redux state
-        const chartVersionForSort = useMemo(
-            () => ({
-                tableName,
-                metricQuery: {
-                    dimensions,
-                    metrics: metricsFromRedux,
-                },
-                tableConfig: {
-                    columnOrder,
-                },
-            }),
-            [tableName, dimensions, metricsFromRedux, columnOrder],
-        );
-
-        const defaultSort = useDefaultSortField(chartVersionForSort as any);
-
         // Set default sort when table changes and no sorts exist
         useEffect(() => {
             if (tableName && !sorts.length && defaultSort) {
@@ -176,7 +179,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         return (
             <MetricQueryDataProvider
-                metricQuery={metricQuery}
                 tableName={tableName}
                 explore={explore}
                 queryUuid={queryUuid}
@@ -221,5 +223,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
     },
 );
+
+Explorer.displayName = 'Explorer';
 
 export default Explorer;

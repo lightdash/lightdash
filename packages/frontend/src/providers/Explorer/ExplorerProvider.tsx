@@ -2,14 +2,12 @@ import {
     assertUnreachable,
     ChartType,
     convertFieldRefToFieldId,
-    deepEqual,
     getFieldRef,
     getItemId,
     isSqlTableCalculation,
     isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
-    removeEmptyProperties,
     removeFieldFromFilterGroup,
     toggleArrayValue,
     updateFieldIdInFilters,
@@ -37,8 +35,10 @@ import {
 import { useNavigate } from 'react-router';
 import {
     explorerActions,
+    selectTableName,
     useExplorerDispatch,
     useExplorerInitialization,
+    useExplorerSelector,
 } from '../../features/explorer/store';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
@@ -49,7 +49,7 @@ import {
     type ExplorerContextType,
     type ExplorerReduceState,
 } from './types';
-import { cleanConfig, getValidChartConfig } from './utils';
+import { getValidChartConfig } from './utils';
 
 const calcColumnOrder = (
     columnOrder: FieldId[],
@@ -721,19 +721,6 @@ const ExplorerProvider: FC<
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
 
-    const [activeFields, isValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
-        const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
-        ]);
-        return [fields, fields.size > 0];
-    }, [unsavedChartVersion]);
-
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
     const resetCachedChartConfig = () => {
@@ -1034,48 +1021,15 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const hasUnsavedChanges = useMemo<boolean>(() => {
-        if (savedChart) {
-            return !deepEqual(
-                removeEmptyProperties({
-                    tableName: savedChart.tableName,
-                    chartConfig: cleanConfig(savedChart.chartConfig),
-                    metricQuery: savedChart.metricQuery,
-                    tableConfig: savedChart.tableConfig,
-                    pivotConfig: savedChart.pivotConfig,
-                    parameters: savedChart.parameters,
-                }),
-                removeEmptyProperties({
-                    tableName: unsavedChartVersion.tableName,
-                    chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
-                    metricQuery: unsavedChartVersion.metricQuery,
-                    tableConfig: unsavedChartVersion.tableConfig,
-                    pivotConfig: unsavedChartVersion.pivotConfig,
-                    parameters: unsavedChartVersion.parameters,
-                }),
-            );
-        }
-        return isValidQuery;
-    }, [unsavedChartVersion, isValidQuery, savedChart]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
+            // activeFields, isValidQuery, hasUnsavedChanges removed - use Redux selectors or local calculation
             savedChart,
         }),
-        [
-            isEditMode,
-            reducerState,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
-            savedChart,
-        ],
+        [isEditMode, reducerState, savedChart],
     );
 
     const queryClient = useQueryClient();
@@ -1098,12 +1052,14 @@ const ExplorerProvider: FC<
     }, [queryClient, defaultStateWithConfig, reduxDispatch]);
 
     const navigate = useNavigate();
+    // Read tableName from Redux to avoid recreating callback when Context changes
+    const tableNameFromRedux = useExplorerSelector(selectTableName);
     const clearQuery = useCallback(async () => {
         const clearedState = {
             ...defaultStateWithConfig,
             unsavedChartVersion: {
                 ...defaultStateWithConfig.unsavedChartVersion,
-                tableName: unsavedChartVersion.tableName,
+                tableName: tableNameFromRedux,
             },
         };
         dispatch({
@@ -1119,12 +1075,7 @@ const ExplorerProvider: FC<
             },
             { replace: true },
         );
-    }, [
-        defaultStateWithConfig,
-        navigate,
-        unsavedChartVersion.tableName,
-        reduxDispatch,
-    ]);
+    }, [defaultStateWithConfig, navigate, tableNameFromRedux, reduxDispatch]);
 
     const openVisualizationConfig = useCallback(() => {
         reduxDispatch(explorerActions.openVisualizationConfig());

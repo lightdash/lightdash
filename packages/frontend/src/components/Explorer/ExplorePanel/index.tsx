@@ -1,15 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    convertFieldRefToFieldId,
     convertReplaceableFieldMatchMapToReplaceFieldsMap,
     ExploreType,
     findReplaceableCustomMetrics,
-    getAllReferences,
-    getItemId,
     getMetrics,
-    getVisibleFields,
-    isCustomBinDimension,
-    isCustomSqlDimension,
 } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
@@ -27,10 +21,7 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectDimensions,
     selectIsVisualizationConfigOpen,
-    selectMetrics,
-    selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -79,22 +70,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    // Get state from Redux
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const dimensions = useExplorerSelector(selectDimensions);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
-    const metrics = useExplorerSelector(selectMetrics);
-    const tableCalculations = useExplorerSelector(selectTableCalculations);
-
-    // Compute activeFields from Redux state (Set of all selected field IDs)
-    const activeFields = useMemo(() => {
-        return new Set([
-            ...dimensions,
-            ...metrics,
-            ...tableCalculations.map(({ name }) => name),
-        ]);
-    }, [dimensions, metrics, tableCalculations]);
 
     // Keep reading these from Context for now (will migrate later)
     const chartUuid = useExplorerContext(
@@ -165,55 +143,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         chartUuid,
     ]);
 
-    const missingFields = useMemo(() => {
-        if (explore) {
-            const visibleFields = getVisibleFields(explore);
-
-            const allFields = [
-                ...visibleFields,
-                ...(additionalMetrics || []),
-                ...(customDimensions || []),
-            ];
-            const selectedFields = [...metrics, ...dimensions];
-            const fieldIds = allFields.map((field) => getItemId(field));
-
-            const missingCustomMetrics = additionalMetrics?.filter((metric) => {
-                const table = explore.tables[metric.table];
-                return (
-                    !table ||
-                    (metric.baseDimensionName &&
-                        !table.dimensions[metric.baseDimensionName])
-                );
-            });
-
-            const missingCustomDimensions = customDimensions?.filter(
-                (customDimension) => {
-                    const isCustomBinDimensionMissing =
-                        isCustomBinDimension(customDimension) &&
-                        !fieldIds.includes(customDimension.dimensionId);
-
-                    const isCustomSqlDimensionMissing =
-                        isCustomSqlDimension(customDimension) &&
-                        getAllReferences(customDimension.sql)
-                            .map((ref) => convertFieldRefToFieldId(ref))
-                            .some(
-                                (refFieldId) => !fieldIds.includes(refFieldId),
-                            );
-
-                    return (
-                        isCustomBinDimensionMissing ||
-                        isCustomSqlDimensionMissing
-                    );
-                },
-            );
-
-            return {
-                all: selectedFields.filter((node) => !fieldIds.includes(node)),
-                customMetrics: missingCustomMetrics,
-                customDimensions: missingCustomDimensions,
-            };
-        }
-    }, [explore, additionalMetrics, metrics, dimensions, customDimensions]);
+    // TODO: missingFields computation removed to avoid re-rendering ExplorePanel
+    // when dimensions/metrics change. Need to restore this logic after performance
+    // optimization demo, possibly in a separate component or computed lazily.
+    const missingFields = undefined;
 
     const handleEditVirtualView = useCallback(() => {
         startTransition(() => setIsEditVirtualViewOpen(true));
@@ -319,10 +252,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     <ExploreTree
                         explore={explore}
                         additionalMetrics={additionalMetrics || []}
-                        selectedNodes={activeFields}
                         onSelectedFieldChange={toggleActiveField}
                         customDimensions={customDimensions}
-                        selectedDimensions={dimensions}
                         missingFields={missingFields}
                     />
                 </ItemDetailProvider>
@@ -348,5 +279,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         </>
     );
 });
+
+ExplorePanel.displayName = 'ExplorePanel';
 
 export default ExplorePanel;

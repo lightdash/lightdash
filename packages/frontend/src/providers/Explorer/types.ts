@@ -243,9 +243,9 @@ export interface ExplorerReduceState {
 }
 
 export interface ExplorerState extends ExplorerReduceState {
-    activeFields: Set<FieldId>;
-    isValidQuery: boolean;
-    hasUnsavedChanges: boolean;
+    // activeFields removed - now available via selectActiveFields Redux selector
+    // isValidQuery removed - use selectIsValidQuery Redux selector instead
+    // hasUnsavedChanges removed - compute in components that need it
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
 }

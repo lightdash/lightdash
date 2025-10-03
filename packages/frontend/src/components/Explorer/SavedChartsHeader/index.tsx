@@ -3,6 +3,7 @@ import {
     ChartSourceType,
     ContentType,
     DashboardTileTypes,
+    deepEqual,
     FeatureFlags,
     ResourceViewItemType,
     type ResourceViewChartItem,
@@ -41,6 +42,10 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
+import {
+    selectIsValidQuery,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -113,21 +118,23 @@ const SavedChartsHeader: FC = () => {
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
-    const hasUnsavedChanges = useExplorerContext(
-        (context) => context.state.hasUnsavedChanges,
-    );
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
+    // Compute hasUnsavedChanges locally
+    const hasUnsavedChanges = useMemo(() => {
+        if (!savedChart) return false;
+        return !deepEqual(unsavedChartVersion, savedChart);
+    }, [unsavedChartVersion, savedChart]);
+
     // Get query state from hook instead of Context
     const { query } = useExplorerQuery();
     const itemsMap = query.data?.fields;
 
-    const isValidQuery = useExplorerContext(
-        (context) => context.state.isValidQuery,
-    );
+    // Read isValidQuery from Redux instead of Context
+    const isValidQuery = useExplorerSelector(selectIsValidQuery);
 
     const isPinned = useMemo(() => {
         return Boolean(savedChart?.pinnedListUuid);

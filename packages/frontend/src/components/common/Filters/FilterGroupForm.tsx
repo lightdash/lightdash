@@ -171,6 +171,7 @@ const FilterGroupForm: FC<Props> = ({
             <Group spacing="xs">
                 <Box bg="white" pos="relative" style={{ zIndex: 3 }}>
                     <Select
+                        limit={25}
                         size="xs"
                         w={70}
                         withinPortal

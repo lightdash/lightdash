@@ -289,4 +289,6 @@ const ExploreSideBar = memo(() => {
     );
 });
 
+ExploreSideBar.displayName = 'ExploreSideBar';
+
 export default ExploreSideBar;
