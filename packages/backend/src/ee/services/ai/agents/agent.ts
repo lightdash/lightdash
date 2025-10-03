@@ -237,7 +237,9 @@ const getAgentTools = (
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(args.enableSelfImprovement ? { proposeChange } : {}),
+        ...(args.enableSelfImprovement && args.canManageAgent
+            ? { proposeChange }
+            : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
     };
 
