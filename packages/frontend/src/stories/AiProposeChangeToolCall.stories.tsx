@@ -1,11 +1,20 @@
+import { MetricType } from '@lightdash/common';
 import '@mantine-8/core/styles.css';
 import type { Meta, StoryObj } from '@storybook/react';
+import { MemoryRouter } from 'react-router';
 import { AiProposeChangeToolCall } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiProposeChangeToolCall';
 import Mantine8Provider from '../providers/Mantine8Provider';
+import ReactQueryProvider from '../providers/__mocks__/ReactQueryProvider';
 
 const meta: Meta<typeof AiProposeChangeToolCall> = {
     decorators: [
-        (renderStory) => <Mantine8Provider>{renderStory()}</Mantine8Provider>,
+        (renderStory) => (
+            <MemoryRouter>
+                <ReactQueryProvider>
+                    <Mantine8Provider>{renderStory()}</Mantine8Provider>
+                </ReactQueryProvider>
+            </MemoryRouter>
+        ),
     ],
     component: AiProposeChangeToolCall,
     tags: ['autodocs'],
@@ -311,6 +320,102 @@ export const UpdateMetricDescriptionWithMarkdown: Story = {
                         op: 'replace',
                         value: 'Monthly Recurring Revenue',
                     },
+                },
+            },
+        },
+    },
+};
+
+export const CreateMetricChurnRate: Story = {
+    args: {
+        entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+        change: {
+            entityType: 'metric',
+            fieldId: 'customers_churn_rate',
+            value: {
+                type: 'create',
+                value: {
+                    metric: {
+                        name: 'churn_rate',
+                        type: MetricType.AVERAGE,
+                        label: 'Churn Rate (No Orders in Last 1 Month)',
+                        table: 'customers',
+                        baseDimensionName: 'customer_id',
+                    },
+                    entityType: 'metric',
+                },
+            },
+        },
+    },
+};
+
+export const CreateMetricTotalRevenue: Story = {
+    args: {
+        entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+        change: {
+            entityType: 'metric',
+            fieldId: 'orders_total_revenue',
+            value: {
+                type: 'create',
+                value: {
+                    metric: {
+                        name: 'total_revenue',
+                        type: MetricType.SUM,
+                        label: 'Total Revenue',
+                        table: 'orders',
+                        baseDimensionName: 'order_total',
+                    },
+                    entityType: 'metric',
+                },
+            },
+        },
+    },
+};
+
+export const CreateMetricCustomerCount: Story = {
+    args: {
+        entityTableName: 'customers',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+        change: {
+            entityType: 'metric',
+            fieldId: 'customers_count',
+            value: {
+                type: 'create',
+                value: {
+                    metric: {
+                        name: 'customer_count',
+                        type: MetricType.COUNT,
+                        label: 'Total Customers',
+                        table: 'customers',
+                        baseDimensionName: 'customer_id',
+                    },
+                    entityType: 'metric',
+                },
+            },
+        },
+    },
+};
+
+export const CreateMetricAverageOrderValue: Story = {
+    args: {
+        entityTableName: 'orders',
+        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+        change: {
+            entityType: 'metric',
+            fieldId: 'orders_avg_value',
+            value: {
+                type: 'create',
+                value: {
+                    metric: {
+                        name: 'average_order_value',
+                        type: MetricType.AVERAGE,
+                        label: 'Average Order Value',
+                        table: 'orders',
+                        baseDimensionName: 'order_total',
+                    },
+                    entityType: 'metric',
                 },
             },
         },
