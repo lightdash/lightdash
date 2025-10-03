@@ -19,15 +19,34 @@ const nunjucksContext = {
         JSON.parse(process.argv[process.argv.indexOf('--vars') + 1])[key],
 };
 
-export const renderProfilesYml = (
+/**
+ * Render a dbt YAML file with Jinja templating (env_var, var, filters)
+ * @param raw - Raw YAML content as string
+ * @param context - Additional context variables to pass to the template
+ * @returns Rendered YAML string with Jinja expressions resolved
+ */
+export const renderTemplatedYml = (
     raw: string,
     context?: Record<string, unknown>,
-) => {
+): string => {
     const template = nunjucks.compile(raw, nunjucksEnv);
-    const rendered = template.render({
+    return template.render({
         ...nunjucksContext,
         ...(context || {}),
     });
+};
+
+/**
+ * Render a profiles.yml file with Jinja templating and private key handling
+ * @param raw - Raw profiles.yml content as string
+ * @param context - Additional context variables to pass to the template
+ * @returns Rendered profiles.yml string with Jinja expressions resolved and private keys escaped
+ */
+export const renderProfilesYml = (
+    raw: string,
+    context?: Record<string, unknown>,
+): string => {
+    const rendered = renderTemplatedYml(raw, context);
     // Fix multiline privatekey strings
     // Prevents error: Error: error:1E08010C:DECODER routines::unsupported
     const privateKeyRegex =

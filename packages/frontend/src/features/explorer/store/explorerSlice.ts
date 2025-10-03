@@ -71,6 +71,9 @@ const explorerSlice = createSlice({
         setMetrics: (state, action: PayloadAction<string[]>) => {
             state.unsavedChartVersion.metricQuery.metrics = action.payload;
         },
+        setColumnOrder: (state, action: PayloadAction<string[]>) => {
+            state.unsavedChartVersion.tableConfig.columnOrder = action.payload;
+        },
         setRowLimit: (state, action: PayloadAction<number>) => {
             state.unsavedChartVersion.metricQuery.limit = action.payload;
         },

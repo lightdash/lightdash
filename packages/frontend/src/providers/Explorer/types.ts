@@ -15,11 +15,9 @@ import {
     type MetricQuery,
     type MetricType,
     type ParameterDefinitions,
-    type ParameterValue,
     type PieChartConfig,
     type ReplaceCustomFields,
     type SavedChart,
-    type SortField,
     type TableCalculation,
     type TableCalculationMetadata,
     type TableChartConfig,
@@ -37,29 +35,16 @@ export enum ExplorerSection {
     PARAMETERS = 'PARAMETERS',
 }
 
-interface SwapSortFieldsPayload {
-    sourceIndex: number;
-    destinationIndex: number;
-}
-
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
     REMOVE_FIELD,
     TOGGLE_DIMENSION,
     TOGGLE_METRIC,
-    TOGGLE_SORT_FIELD,
-    SET_SORT_FIELDS,
-    ADD_SORT_FIELD,
-    REMOVE_SORT_FIELD,
-    MOVE_SORT_FIELDS,
-    SET_SORT_FIELD_NULLS_FIRST,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
-    SET_PARAMETER,
-    CLEAR_ALL_PARAMETERS,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -105,29 +90,8 @@ export type Action =
           type:
               | ActionType.REMOVE_FIELD
               | ActionType.TOGGLE_DIMENSION
-              | ActionType.TOGGLE_METRIC
-              | ActionType.TOGGLE_SORT_FIELD;
+              | ActionType.TOGGLE_METRIC;
           payload: FieldId;
-      }
-    | {
-          type: ActionType.SET_SORT_FIELDS;
-          payload: SortField[];
-      }
-    | {
-          type: ActionType.ADD_SORT_FIELD;
-          payload: SortField;
-      }
-    | {
-          type: ActionType.REMOVE_SORT_FIELD;
-          payload: FieldId;
-      }
-    | {
-          type: ActionType.MOVE_SORT_FIELDS;
-          payload: SwapSortFieldsPayload;
-      }
-    | {
-          type: ActionType.SET_SORT_FIELD_NULLS_FIRST;
-          payload: { fieldId: FieldId; nullsFirst: boolean | undefined };
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -157,14 +121,6 @@ export type Action =
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
       }
-    | {
-          type: ActionType.SET_PARAMETER;
-          payload: {
-              key: string;
-              value: ParameterValue | null;
-          };
-      }
-    | { type: ActionType.CLEAR_ALL_PARAMETERS }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
           payload: AdditionalMetric;
@@ -318,23 +274,9 @@ export interface ExplorerContextType {
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
-        toggleSortField: (fieldId: FieldId) => void;
-        setSortFields: (sortFields: SortField[]) => void;
-        addSortField: (
-            fieldId: FieldId,
-            options?: { descending: boolean },
-        ) => void;
-        removeSortField: (fieldId: FieldId) => void;
-        moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
-        setSortFieldNullsFirst: (
-            fieldId: FieldId,
-            nullsFirst: boolean | undefined,
-        ) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
-        setParameter: (key: string, value: ParameterValue | null) => void;
-        clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,

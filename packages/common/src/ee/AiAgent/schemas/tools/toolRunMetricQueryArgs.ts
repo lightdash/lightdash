@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { tableVizConfigSchema } from '../visualizations';
 
@@ -24,6 +25,7 @@ export const toolRunMetricQueryArgsSchema = createToolSchema(
     .extend({
         vizConfig: tableVizConfigSchema,
         customMetrics: customMetricsSchema,
+        tableCalculations: tableCalcsSchema,
         filters: filtersSchema
             .nullable()
             .describe(

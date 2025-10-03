@@ -17,7 +17,12 @@ export enum AiResultType {
 
 export type AiMetricQuery = Pick<
     MetricQuery,
-    'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName'
+    | 'metrics'
+    | 'dimensions'
+    | 'sorts'
+    | 'limit'
+    | 'exploreName'
+    | 'tableCalculations'
 > & {
     additionalMetrics: Omit<AdditionalMetric, 'sql'>[];
 };

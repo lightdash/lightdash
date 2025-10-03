@@ -24,7 +24,12 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectDimensions,
     selectIsVisualizationConfigOpen,
+    selectMetrics,
+    selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import {
@@ -70,34 +75,28 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [, startTransition] = useTransition();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    // Get state from Redux
+    const activeTableName = useExplorerSelector(selectTableName);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const dimensions = useExplorerSelector(selectDimensions);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const metrics = useExplorerSelector(selectMetrics);
+
+    // Keep reading these from Context for now (will migrate later)
     const chartUuid = useExplorerContext(
         (context) => context.state.savedChart?.uuid,
-    );
-    const activeTableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const dimensions = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const metrics = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
     );
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
-    const toggleActiveField = useExplorerContext(
-        (context) => context.actions.toggleActiveField,
-    );
     const replaceFields = useExplorerContext(
         (context) => context.actions.replaceFields,
+    );
+
+    // Use Context action for toggleActiveField - it has dual-dispatch to Redux
+    const toggleActiveField = useExplorerContext(
+        (context) => context.actions.toggleActiveField,
     );
 
     const isVisualizationConfigOpen = useExplorerSelector(

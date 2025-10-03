@@ -1,3 +1,67 @@
+# [0.2052.0](https://github.com/lightdash/lightdash/compare/0.2051.0...0.2052.0) (2025-10-03)
+
+
+### Features
+
+* migrate parameters from Context to Redux store ([#17184](https://github.com/lightdash/lightdash/issues/17184)) ([b1ddbe0](https://github.com/lightdash/lightdash/commit/b1ddbe0a7d3f6f9c5f9137a2b8cbb3a77ac39431))
+
+# [0.2051.0](https://github.com/lightdash/lightdash/compare/0.2050.2...0.2051.0) (2025-10-03)
+
+
+### Features
+
+* migrate filters and sorts from Context to Redux ([#17171](https://github.com/lightdash/lightdash/issues/17171)) ([7058bba](https://github.com/lightdash/lightdash/commit/7058bba8ad70ecc97957fae26061fa03b427e6eb))
+
+## [0.2050.2](https://github.com/lightdash/lightdash/compare/0.2050.1...0.2050.2) (2025-10-03)
+
+
+### Bug Fixes
+
+* improve auto-refresh UI ([#17233](https://github.com/lightdash/lightdash/issues/17233)) ([61bcf91](https://github.com/lightdash/lightdash/commit/61bcf91ec13bd4d8a839fa03b65f2225f492efb0))
+
+## [0.2050.1](https://github.com/lightdash/lightdash/compare/0.2050.0...0.2050.1) (2025-10-03)
+
+
+### Bug Fixes
+
+* fall back when rendering templated dbt fails ([#17231](https://github.com/lightdash/lightdash/issues/17231)) ([6a9184c](https://github.com/lightdash/lightdash/commit/6a9184ccba39e5bcc7f3605a9b0a0ff08c6fe0f9))
+
+# [0.2050.0](https://github.com/lightdash/lightdash/compare/0.2049.0...0.2050.0) (2025-10-03)
+
+
+### Features
+
+* disable parallel tool calls for OpenAI GPT model ([#17226](https://github.com/lightdash/lightdash/issues/17226)) ([2cc837a](https://github.com/lightdash/lightdash/commit/2cc837a130d71dd8e6d42ccf3cbfb1106cd715a2))
+
+# [0.2049.0](https://github.com/lightdash/lightdash/compare/0.2048.0...0.2049.0) (2025-10-03)
+
+
+### Features
+
+* display metric creation in Propose Change tool ui ([#17222](https://github.com/lightdash/lightdash/issues/17222)) ([a0aaff7](https://github.com/lightdash/lightdash/commit/a0aaff7f61095d98d3a4563ff04c9cdb300aa10e))
+
+# [0.2048.0](https://github.com/lightdash/lightdash/compare/0.2047.0...0.2048.0) (2025-10-03)
+
+
+### Features
+
+* ask user to create metric from custom metric after ai artifact ([#17221](https://github.com/lightdash/lightdash/issues/17221)) ([62c4598](https://github.com/lightdash/lightdash/commit/62c45984637ca09897b5c6e502da54b8e9a35dc7))
+
+# [0.2047.0](https://github.com/lightdash/lightdash/compare/0.2046.0...0.2047.0) (2025-10-03)
+
+
+### Features
+
+* add table calculation templates ([#17099](https://github.com/lightdash/lightdash/issues/17099)) ([095bd7a](https://github.com/lightdash/lightdash/commit/095bd7a600c9fc9f700d5e7c3ed7b5782120f484))
+* add table calculations support for AI agent visualizations ([#17043](https://github.com/lightdash/lightdash/issues/17043)) ([d91c97d](https://github.com/lightdash/lightdash/commit/d91c97d22d50ad7eae9616cee6d4979c05811e81))
+
+# [0.2046.0](https://github.com/lightdash/lightdash/compare/0.2045.0...0.2046.0) (2025-10-03)
+
+
+### Features
+
+* update proposeChange tool description + add permissions ([#17219](https://github.com/lightdash/lightdash/issues/17219)) ([7a26561](https://github.com/lightdash/lightdash/commit/7a26561284b5fa948546a817d59f0933bcc39c58))
+
 # [0.2045.0](https://github.com/lightdash/lightdash/compare/0.2044.0...0.2045.0) (2025-10-02)
 
 

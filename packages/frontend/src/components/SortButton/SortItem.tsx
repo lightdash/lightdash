@@ -6,7 +6,6 @@ import { isField, type SortField } from '@lightdash/common';
 import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import { type ExplorerContextType } from '../../providers/Explorer/types';
 import {
     getSortDirectionOrder,
     getSortLabel,
@@ -27,15 +26,9 @@ interface SortItemProps {
     column?: TableColumn;
     draggableProps: DraggableProvidedDraggableProps;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-    onAddSortField: (
-        payload: Parameters<ExplorerContextType['actions']['addSortField']>[1],
-    ) => void;
+    onAddSortField: (options: { descending: boolean }) => void;
     onRemoveSortField: () => void;
-    onSetSortFieldNullsFirst: (
-        payload: Parameters<
-            ExplorerContextType['actions']['setSortFieldNullsFirst']
-        >[1],
-    ) => void;
+    onSetSortFieldNullsFirst: (nullsFirst: boolean | undefined) => void;
 }
 
 const SortItem = forwardRef<HTMLDivElement, SortItemProps>(

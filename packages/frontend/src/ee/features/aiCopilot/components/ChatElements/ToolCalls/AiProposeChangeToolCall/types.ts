@@ -38,3 +38,5 @@ export type UpdateMetricPatch = Extract<
     MetricChange['value'],
     { type: 'update' }
 >['patch'];
+
+export type CreateMetric = Extract<MetricChange['value'], { type: 'create' }>;

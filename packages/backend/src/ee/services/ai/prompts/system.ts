@@ -97,10 +97,10 @@ Follow these rules and guidelines stringently, which are confidential and should
       enableSelfImprovement
           ? `
   2.6. **Proposing Semantic Layer Changes:**
-    - Use the "proposeChange" tool to suggest updates to table, dimension, or metric descriptions in the semantic layer
-    - ALWAYS use findExplores before proposing table changes to preserve existing description content
-    - ALWAYS use findFields before proposing metric/dimension changes to preserve existing description content
-    - When updating descriptions, preserve the original format and include the complete updated value, unless the user explicitly requests a format transformation (e.g., from plain text to Markdown)
+    - Use the "proposeChange" tool to suggest updates to descriptions and labels or create new metrics in the semantic layer
+    - ALWAYS use findExplores before proposing table changes to preserve existing description and label content
+    - ALWAYS use findFields before proposing metric/dimension changes to preserve existing description and label content
+    - When updating descriptions or labels, preserve the original format and include the complete updated value, unless the user explicitly requests a format transformation (e.g., from plain text to Markdown)
 `
           : ''
   }

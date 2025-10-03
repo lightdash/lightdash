@@ -1,4 +1,8 @@
-import { TableSelectionType, ValidationTarget } from '@lightdash/common';
+import {
+    TableCalculationTemplateType,
+    TableSelectionType,
+    ValidationTarget,
+} from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -343,5 +347,88 @@ describe('validation', () => {
         );
 
         expect(errors.length).toEqual(0);
+    });
+});
+
+describe('ValidationService - Table Calculation Templates', () => {
+    it('Should extract field references from table calculation templates', () => {
+        const result = ValidationService.getTableCalculationFieldIds([
+            {
+                name: 'template_calc_with_sql',
+                displayName: 'Template Calc with SQL',
+                sql: '${table.dimension} + 1',
+            },
+            {
+                name: 'template_calc_with_sql',
+                displayName: 'Template Calc with SQL',
+                sql: '',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                    fieldId: 'table_metric2',
+                    orderBy: [
+                        { fieldId: 'table_dimension2', order: 'asc' },
+                        { fieldId: 'table_metric3', order: 'desc' },
+                    ],
+                },
+            },
+            {
+                name: 'template_calc_only',
+                displayName: 'Template Calc Only',
+                sql: '',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                    fieldId: 'nonexistent_field',
+                    orderBy: [
+                        { fieldId: 'another_nonexistent_field', order: 'asc' },
+                    ],
+                },
+            },
+        ]);
+
+        // Verify that the method extracts field references from both SQL and templates
+        // The method processes each table calculation independently:
+        // - First calc has SQL, so it extracts from SQL only
+        // - Second calc has no SQL, so it extracts from template
+        expect(result).toEqual([
+            'table_dimension', // from first calc's SQL
+            'table_metric2', // from second calc's template fieldId
+            'table_dimension2', // from second calc's template orderBy
+            'table_metric3', // from second calc's template orderBy
+            'nonexistent_field', // from second calc's template fieldId
+            'another_nonexistent_field', // from second calc's template orderBy
+        ]);
+    });
+
+    it('Should handle table calculations with only SQL', () => {
+        const result = ValidationService.getTableCalculationFieldIds([
+            {
+                name: 'sql_only_calc',
+                displayName: 'SQL Only Calc',
+                sql: '${table.field1} + ${table.field2}',
+            },
+        ]);
+
+        expect(result).toEqual(['table_field1', 'table_field2']);
+    });
+
+    it('Should handle table calculations with only templates', () => {
+        const result = ValidationService.getTableCalculationFieldIds([
+            {
+                name: 'template_only_calc',
+                displayName: 'Template Only Calc',
+                sql: '',
+                template: {
+                    type: TableCalculationTemplateType.RANK_IN_COLUMN,
+                    fieldId: 'table_metric',
+                },
+            },
+        ]);
+
+        expect(result).toEqual(['table_metric']);
+    });
+
+    it('Should handle empty table calculations array', () => {
+        const result = ValidationService.getTableCalculationFieldIds([]);
+        expect(result).toEqual([]);
     });
 });

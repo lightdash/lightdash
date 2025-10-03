@@ -1,9 +1,17 @@
-import { assertUnreachable } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import {
+    assertUnreachable,
+    type Field,
+    FieldType,
+    friendlyName,
+    getItemColor,
+} from '@lightdash/common';
+import { Group, Paper, Stack, Text } from '@mantine-8/core';
 import { toPairs } from 'lodash';
+import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
 import { OperationRenderer } from './OperationRenderer';
 import { FieldBreadcrumb, TableBreadcrumb } from './SupportElements';
 import type {
+    CreateMetric as CreateMetricPayload,
     DimensionChange,
     EntityChange,
     MetricChange,
@@ -37,6 +45,44 @@ const UpdateChange = ({ patch }: UpdateChangeProps) => {
                 />
             ))}
         </Stack>
+    );
+};
+
+// ============================================================================
+// Metric Creation Component
+// ============================================================================
+
+type CreateMetricProps = {
+    change: CreateMetricPayload;
+};
+
+const CreateMetric = ({ change }: CreateMetricProps) => {
+    const metric = {
+        ...change.value.metric,
+        fieldType: FieldType.METRIC,
+        tableLabel: '',
+        sql: '',
+        hidden: false,
+    } satisfies Field;
+    const color = getItemColor(metric);
+
+    return (
+        <Paper
+            bg="gray.0"
+            mx="xs"
+            p="xs"
+            component={Group}
+            gap={6}
+            align="center"
+        >
+            <FieldIcon item={metric} color={color} size="md" />
+            <Text size="xs" fw={600}>
+                {metric.label}
+            </Text>
+            <Text size="xs" fw={600} c="dimmed">
+                ({friendlyName(metric.type)})
+            </Text>
+        </Paper>
     );
 };
 
@@ -129,6 +175,7 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
                         fieldType="metric"
                         fieldId={change.fieldId}
                     />
+                    <CreateMetric change={change.value} />
                 </Stack>
             );
         default:

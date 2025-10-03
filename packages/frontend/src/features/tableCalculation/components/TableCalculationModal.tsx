@@ -2,6 +2,8 @@ import {
     CustomFormatType,
     getErrorMessage,
     getItemId,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
     NumberSeparator,
     TableCalculationType,
     type CustomFormat,
@@ -30,7 +32,7 @@ import {
     IconMaximize,
     IconMinimize,
 } from '@tabler/icons-react';
-import { useRef, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
@@ -39,6 +41,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { getUniqueTableCalculationName } from '../utils';
 import { SqlForm } from './SqlForm';
+import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
 type Props = ModalProps & {
     tableCalculation?: TableCalculation;
@@ -52,6 +55,11 @@ type TableCalculationFormInputs = {
     type?: TableCalculationType;
 };
 
+enum EditMode {
+    SQL = 'sql',
+    TEMPLATE = 'template',
+}
+
 const TableCalculationModal: FC<Props> = ({
     opened,
     tableCalculation,
@@ -61,6 +69,13 @@ const TableCalculationModal: FC<Props> = ({
     const theme = useMantineTheme();
     const { colors } = theme;
     const [isExpanded, toggleExpanded] = useToggle(false);
+
+    // Default to Raw SQL, but show Template if it exists
+    const hasTemplate = tableCalculation
+        ? isTemplateTableCalculation(tableCalculation)
+        : false;
+    const defaultMode = hasTemplate ? EditMode.TEMPLATE : EditMode.SQL;
+    const [editMode, setEditMode] = useState<EditMode>(defaultMode);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
@@ -77,7 +92,10 @@ const TableCalculationModal: FC<Props> = ({
     const form = useForm<TableCalculationFormInputs>({
         initialValues: {
             name: tableCalculation?.displayName || '',
-            sql: tableCalculation?.sql || '',
+            sql:
+                tableCalculation && isSqlTableCalculation(tableCalculation)
+                    ? tableCalculation.sql
+                    : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
                 type:
@@ -123,7 +141,7 @@ const TableCalculationModal: FC<Props> = ({
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
         // throw error if sql is empty
-        if (sql.length === 0) {
+        if (sql.length === 0 && editMode === EditMode.SQL) {
             addToastError({
                 title: 'SQL cannot be empty',
                 key: 'table-calculation-modal',
@@ -156,13 +174,27 @@ const TableCalculationModal: FC<Props> = ({
                 finalName = tableCalculation.name;
             }
 
-            onSave({
-                name: finalName,
-                displayName: name,
-                sql,
-                format: data.format,
-                type: data.type,
-            });
+            if (
+                editMode === EditMode.TEMPLATE &&
+                tableCalculation &&
+                isTemplateTableCalculation(tableCalculation)
+            ) {
+                onSave({
+                    name: finalName,
+                    displayName: name,
+                    format: data.format,
+                    type: data.type,
+                    template: tableCalculation.template,
+                });
+            } else {
+                onSave({
+                    name: finalName,
+                    displayName: name,
+                    format: data.format,
+                    type: data.type,
+                    sql,
+                });
+            }
         } catch (e) {
             addToastError({
                 title: 'Error saving',
@@ -249,49 +281,136 @@ const TableCalculationModal: FC<Props> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            <Tabs
-                                defaultValue="sqlEditor"
-                                color="indigo"
-                                variant="outline"
-                                radius="xs"
-                                styles={{
-                                    panel: {
-                                        borderColor: colors.gray[2],
-                                        borderWidth: 1,
-                                        borderStyle: 'solid',
-                                        borderTop: 'none',
-                                        height: isExpanded
-                                            ? 'calc(90vh - 400px)'
-                                            : 'auto',
-                                    },
-                                }}
-                            >
-                                <Tabs.List>
-                                    <Tabs.Tab value="sqlEditor">SQL</Tabs.Tab>
-                                    <Tabs.Tab value="format">Format</Tabs.Tab>
-                                </Tabs.List>
-                                <Tabs.Panel value="sqlEditor">
-                                    <SqlForm
-                                        form={form}
-                                        isFullScreen={isExpanded}
-                                        focusOnRender={true}
-                                        onCmdEnter={() => {
-                                            if (submitButtonRef.current) {
-                                                submitButtonRef.current.click();
+                            {hasTemplate && (
+                                <Select
+                                    label="Calculation Mode"
+                                    value={editMode}
+                                    onChange={(value) =>
+                                        setEditMode(value as EditMode)
+                                    }
+                                    data={[
+                                        {
+                                            value: EditMode.SQL,
+                                            label: 'Raw SQL',
+                                        },
+                                        {
+                                            value: EditMode.TEMPLATE,
+                                            label: 'Predefined Template',
+                                        },
+                                    ]}
+                                    mb="md"
+                                />
+                            )}
+
+                            {editMode === EditMode.TEMPLATE ? (
+                                <Tabs
+                                    key="template"
+                                    defaultValue="template"
+                                    color="indigo"
+                                    variant="outline"
+                                    radius="xs"
+                                    styles={{
+                                        panel: {
+                                            borderColor: colors.gray[2],
+                                            borderWidth: 1,
+                                            borderStyle: 'solid',
+                                            borderTop: 'none',
+                                            height: isExpanded
+                                                ? 'calc(90vh - 400px)'
+                                                : 'auto',
+                                        },
+                                    }}
+                                >
+                                    <Tabs.List>
+                                        <Tabs.Tab value="template">
+                                            Template
+                                        </Tabs.Tab>
+
+                                        <Tabs.Tab value="format">
+                                            Format
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="template" p="sm">
+                                        <TemplateViewer
+                                            template={
+                                                tableCalculation &&
+                                                isTemplateTableCalculation(
+                                                    tableCalculation,
+                                                )
+                                                    ? tableCalculation.template
+                                                    : undefined
                                             }
-                                        }}
-                                    />
-                                </Tabs.Panel>
-                                <Tabs.Panel value="format" p="sm">
-                                    <FormatForm
-                                        formatInputProps={getFormatInputProps}
-                                        setFormatFieldValue={
-                                            setFormatFieldValue
-                                        }
-                                        format={form.values.format}
-                                    />
-                                </Tabs.Panel>
-                            </Tabs>
+                                            readOnly={true}
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="format" p="sm">
+                                        <FormatForm
+                                            formatInputProps={
+                                                getFormatInputProps
+                                            }
+                                            setFormatFieldValue={
+                                                setFormatFieldValue
+                                            }
+                                            format={form.values.format}
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            ) : (
+                                <Tabs
+                                    key="sql"
+                                    defaultValue={'sqlEditor'}
+                                    color="indigo"
+                                    variant="outline"
+                                    radius="xs"
+                                    styles={{
+                                        panel: {
+                                            borderColor: colors.gray[2],
+                                            borderWidth: 1,
+                                            borderStyle: 'solid',
+                                            borderTop: 'none',
+                                            height: isExpanded
+                                                ? 'calc(90vh - 400px)'
+                                                : 'auto',
+                                        },
+                                    }}
+                                >
+                                    <Tabs.List>
+                                        <Tabs.Tab value="sqlEditor">
+                                            SQL
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="format">
+                                            Format
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="sqlEditor">
+                                        <SqlForm
+                                            form={form}
+                                            isFullScreen={isExpanded}
+                                            focusOnRender={true}
+                                            onCmdEnter={() => {
+                                                if (submitButtonRef.current) {
+                                                    submitButtonRef.current.click();
+                                                }
+                                            }}
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="format" p="sm">
+                                        <FormatForm
+                                            formatInputProps={
+                                                getFormatInputProps
+                                            }
+                                            setFormatFieldValue={
+                                                setFormatFieldValue
+                                            }
+                                            format={form.values.format}
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            )}
 
                             <Tooltip
                                 position="right"

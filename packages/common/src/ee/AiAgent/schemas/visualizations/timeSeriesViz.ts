@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TableCalculation } from '../../../../types/field';
 import type { Filters } from '../../../../types/filter';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from '../../constants';
 import type { AiMetricQueryWithFilters } from '../../types';
@@ -61,11 +62,13 @@ export const metricQueryTimeSeriesViz = ({
     filters,
     maxLimit,
     customMetrics,
+    tableCalculations,
 }: {
     vizConfig: TimeSeriesMetricVizConfigSchemaType;
     filters: Filters;
     maxLimit: number;
     customMetrics: ToolTimeSeriesArgsTransformed['customMetrics'] | null;
+    tableCalculations: TableCalculation[];
 }): AiMetricQueryWithFilters => {
     const metrics = vizConfig.yMetrics;
     const dimensions = [
@@ -87,5 +90,6 @@ export const metricQueryTimeSeriesViz = ({
         exploreName: vizConfig.exploreName,
         filters,
         additionalMetrics: customMetrics ?? [],
+        tableCalculations,
     };
 };

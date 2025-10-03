@@ -17,6 +17,8 @@ import {
     InlineErrorType,
     isDashboardFieldTarget,
     isExploreError,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
     isValidationTargetValid,
     OrganizationMemberRole,
     RequestMethod,
@@ -100,10 +102,23 @@ export class ValidationService extends BaseService {
         >((acc, tc) => {
             const regex = /\$\{([^}]+)\}/g;
 
-            const fieldsInSql = tc.sql.match(regex);
-            if (fieldsInSql != null) {
-                return [...acc, ...fieldsInSql.map(parseTableField)];
+            if (isSqlTableCalculation(tc)) {
+                const fieldsInSql = tc.sql.match(regex);
+                if (fieldsInSql != null) {
+                    return [...acc, ...fieldsInSql.map(parseTableField)];
+                }
             }
+
+            if (isTemplateTableCalculation(tc)) {
+                const fieldsInTemplate = [
+                    tc.template.fieldId,
+                    ...('orderBy' in tc.template
+                        ? tc.template.orderBy.map((o) => o.fieldId)
+                        : []),
+                ];
+                return [...acc, ...fieldsInTemplate];
+            }
+
             return acc;
         }, []);
         return tableCalculationFieldsInSql;

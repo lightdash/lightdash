@@ -180,6 +180,7 @@ const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
+        enableSelfImprovement: args.enableSelfImprovement,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -191,6 +192,7 @@ const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
+        enableSelfImprovement: args.enableSelfImprovement,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -202,6 +204,7 @@ const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
+        enableSelfImprovement: args.enableSelfImprovement,
     });
 
     const generateDashboard = getGenerateDashboard({
@@ -237,7 +240,9 @@ const getAgentTools = (
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(args.enableSelfImprovement ? { proposeChange } : {}),
+        ...(args.enableSelfImprovement && args.canManageAgent
+            ? { proposeChange }
+            : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
     };
 

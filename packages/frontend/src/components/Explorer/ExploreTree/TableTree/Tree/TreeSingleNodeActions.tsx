@@ -61,6 +61,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { addFilter } = useFilteredFields();
     const { track } = useTracking();
 
+    // Keep using Context actions (they have dual-dispatch to Redux in ExplorerProvider)
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
     );

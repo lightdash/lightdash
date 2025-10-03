@@ -3,9 +3,9 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
-    getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
+    isSqlTableCalculation,
     isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
@@ -20,11 +20,8 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
-    type ParameterDefinitions,
-    type ParameterValue,
     type ReplaceCustomFields,
     type SavedChart,
-    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,15 +35,12 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import {
     explorerActions,
     useExplorerDispatch,
     useExplorerInitialization,
 } from '../../features/explorer/store';
-import { useParameters } from '../../hooks/parameters/useParameters';
-import useDefaultSortField from '../../hooks/useDefaultSortField';
-import { useExplore } from '../../hooks/useExplore';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
 import {
@@ -256,95 +250,6 @@ export function reducer(
                     );
             });
         }
-        case ActionType.TOGGLE_SORT_FIELD: {
-            return produce(state, (draft) => {
-                const sortFieldId = action.payload;
-                const activeFields = new Set([
-                    ...draft.unsavedChartVersion.metricQuery.dimensions,
-                    ...draft.unsavedChartVersion.metricQuery.metrics,
-                    ...draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        (tc) => tc.name,
-                    ),
-                ]);
-                if (!activeFields.has(sortFieldId)) {
-                    return;
-                }
-                const sortField =
-                    draft.unsavedChartVersion.metricQuery.sorts.find(
-                        (sf) => sf.fieldId === sortFieldId,
-                    );
-
-                if (!sortField) {
-                    draft.unsavedChartVersion.metricQuery.sorts.push({
-                        fieldId: sortFieldId,
-                        descending: false,
-                    });
-                } else if (sortField.descending) {
-                    draft.unsavedChartVersion.metricQuery.sorts =
-                        draft.unsavedChartVersion.metricQuery.sorts.filter(
-                            (sf) => sf.fieldId !== sortFieldId,
-                        );
-                } else {
-                    sortField.descending = true;
-                }
-            });
-        }
-        case ActionType.SET_SORT_FIELDS: {
-            return produce(state, (draft) => {
-                const activeFields = new Set([
-                    ...draft.unsavedChartVersion.metricQuery.dimensions,
-                    ...draft.unsavedChartVersion.metricQuery.metrics,
-                    ...draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        (tc) => tc.name,
-                    ),
-                ]);
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    action.payload.filter((sf) => activeFields.has(sf.fieldId));
-            });
-        }
-        case ActionType.ADD_SORT_FIELD: {
-            return produce(state, (newState) => {
-                const sort =
-                    newState.unsavedChartVersion.metricQuery.sorts.find(
-                        (sf) => sf.fieldId === action.payload.fieldId,
-                    );
-
-                if (sort) {
-                    sort.descending = action.payload.descending;
-                } else {
-                    newState.unsavedChartVersion.metricQuery.sorts.push(
-                        action.payload,
-                    );
-                }
-            });
-        }
-        case ActionType.REMOVE_SORT_FIELD: {
-            return produce(state, (newState) => {
-                newState.unsavedChartVersion.metricQuery.sorts =
-                    newState.unsavedChartVersion.metricQuery.sorts.filter(
-                        (sf) => sf.fieldId !== action.payload,
-                    );
-            });
-        }
-        case ActionType.MOVE_SORT_FIELDS: {
-            return produce(state, (newState) => {
-                const sorts = newState.unsavedChartVersion.metricQuery.sorts;
-                const { sourceIndex, destinationIndex } = action.payload;
-
-                const [removed] = sorts.splice(sourceIndex, 1);
-                sorts.splice(destinationIndex, 0, removed);
-            });
-        }
-        case ActionType.SET_SORT_FIELD_NULLS_FIRST: {
-            return produce(state, (newState) => {
-                newState.unsavedChartVersion.metricQuery.sorts =
-                    newState.unsavedChartVersion.metricQuery.sorts.map((sf) =>
-                        sf.fieldId === action.payload.fieldId
-                            ? { ...sf, nullsFirst: action.payload.nullsFirst }
-                            : sf,
-                    );
-            });
-        }
         case ActionType.SET_ROW_LIMIT: {
             return produce(state, (draft) => {
                 draft.unsavedChartVersion.metricQuery.limit = action.payload;
@@ -358,28 +263,6 @@ export function reducer(
         case ActionType.SET_FILTERS: {
             return produce(state, (draft) => {
                 draft.unsavedChartVersion.metricQuery.filters = action.payload;
-            });
-        }
-        case ActionType.SET_PARAMETER: {
-            return produce(state, (draft) => {
-                if (!draft.unsavedChartVersion.parameters) {
-                    draft.unsavedChartVersion.parameters = {};
-                }
-                if (action.payload.value === null) {
-                    delete draft.unsavedChartVersion.parameters[
-                        action.payload.key
-                    ];
-                } else {
-                    draft.unsavedChartVersion.parameters = {
-                        ...draft.unsavedChartVersion.parameters,
-                        [action.payload.key]: action.payload.value,
-                    };
-                }
-            });
-        }
-        case ActionType.CLEAR_ALL_PARAMETERS: {
-            return produce(state, (draft) => {
-                draft.unsavedChartVersion.parameters = {};
             });
         }
         case ActionType.ADD_ADDITIONAL_METRIC: {
@@ -570,6 +453,10 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.tableCalculations =
                     draft.unsavedChartVersion.metricQuery.tableCalculations.map(
                         (tableCalculation) => {
+                            if (!isSqlTableCalculation(tableCalculation)) {
+                                return tableCalculation;
+                            }
+
                             const newSql = tableCalculation.sql.replace(
                                 lightdashVariablePattern,
                                 (_, fieldRef) => {
@@ -847,7 +734,7 @@ const ExplorerProvider: FC<
     savedChart,
     defaultLimit,
     children,
-    projectUuid: propProjectUuid,
+    projectUuid: _propProjectUuid,
 }) => {
     const defaultStateWithConfig = useMemo(
         () => ({
@@ -889,15 +776,6 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
-    // Keep Redux sorts in sync with Context sorts
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setSortFields(
-                unsavedChartVersion.metricQuery.sorts,
-            ),
-        );
-    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
-
     // Keep Redux table name in sync with Context state
     useEffect(() => {
         const contextTableName = reducerState.unsavedChartVersion.tableName;
@@ -921,6 +799,15 @@ const ExplorerProvider: FC<
             explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
         );
     }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
+
+    // Keep Redux columnOrder in sync with Context columnOrder
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setColumnOrder(
+                unsavedChartVersion.tableConfig.columnOrder,
+            ),
+        );
+    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
 
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
@@ -1016,63 +903,6 @@ const ExplorerProvider: FC<
         });
     }, []);
 
-    const toggleSortField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.TOGGLE_SORT_FIELD,
-            payload: fieldId,
-        });
-    }, []);
-
-    const setSortFields = useCallback((sortFields: SortField[]) => {
-        dispatch({
-            type: ActionType.SET_SORT_FIELDS,
-            payload: sortFields,
-        });
-    }, []);
-
-    const removeSortField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_SORT_FIELD,
-            payload: fieldId,
-        });
-    }, []);
-
-    const moveSortFields = useCallback(
-        (sourceIndex: number, destinationIndex: number) => {
-            dispatch({
-                type: ActionType.MOVE_SORT_FIELDS,
-                payload: { sourceIndex, destinationIndex },
-            });
-        },
-        [],
-    );
-
-    const addSortField = useCallback(
-        (
-            fieldId: FieldId,
-            options: {
-                descending: boolean;
-            } = { descending: false },
-        ) => {
-            const sortField = { fieldId, ...options };
-            dispatch({
-                type: ActionType.ADD_SORT_FIELD,
-                payload: sortField,
-            });
-        },
-        [],
-    );
-
-    const setSortFieldNullsFirst = useCallback(
-        (fieldId: FieldId, nullsFirst: boolean | undefined) => {
-            dispatch({
-                type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
-                payload: { fieldId, nullsFirst },
-            });
-        },
-        [],
-    );
-
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
@@ -1089,38 +919,17 @@ const ExplorerProvider: FC<
         }
     }, []);
 
-    const setFilters = useCallback((filters: MetricQuery['filters']) => {
-        dispatch({
-            type: ActionType.SET_FILTERS,
-            payload: filters,
-        });
-        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
-    }, []);
-
-    const setParameter = useCallback(
-        (key: string, value: ParameterValue | null) => {
-            if (value === null) {
-                dispatch({
-                    type: ActionType.SET_PARAMETER,
-                    payload: { key, value: null },
-                });
-            } else {
-                dispatch({
-                    type: ActionType.SET_PARAMETER,
-                    payload: { key, value },
-                });
-            }
-            // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
-            reduxDispatch(explorerActions.setParameter({ key, value }));
+    const setFilters = useCallback(
+        (filters: MetricQuery['filters']) => {
+            dispatch({
+                type: ActionType.SET_FILTERS,
+                payload: filters,
+            });
+            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
+            reduxDispatch(explorerActions.setFilters(filters));
         },
         [reduxDispatch],
     );
-
-    const clearAllParameters = useCallback(() => {
-        dispatch({ type: ActionType.CLEAR_ALL_PARAMETERS });
-        // TODO: REDUX-MIGRATION - Remove Context dispatch once all components use Redux
-        reduxDispatch(explorerActions.clearAllParameters());
-    }, [reduxDispatch]);
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1398,42 +1207,6 @@ const ExplorerProvider: FC<
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = propProjectUuid || projectUuidFromParams;
-
-    const { data: projectParameters } = useParameters(
-        projectUuid,
-        reducerState.parameterReferences ?? undefined,
-        {
-            enabled: !!reducerState.parameterReferences?.length,
-        },
-    );
-
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
-
-    const exploreParameterDefinitions = useMemo(() => {
-        return explore
-            ? getAvailableParametersFromTables(Object.values(explore.tables))
-            : {};
-    }, [explore]);
-
-    const parameterDefinitions: ParameterDefinitions = useMemo(() => {
-        return {
-            ...(projectParameters ?? {}),
-            ...(exploreParameterDefinitions ?? {}),
-        };
-    }, [projectParameters, exploreParameterDefinitions]);
-
-    // TODO: REDUX-MIGRATION - Remove once parameterDefinitions are computed in Redux
-    // Keep Redux parameter definitions in sync
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setParameterDefinitions(parameterDefinitions),
-        );
-    }, [parameterDefinitions, reduxDispatch]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
@@ -1443,7 +1216,6 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            parameterDefinitions,
         }),
         [
             isEditMode,
@@ -1452,24 +1224,10 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
-            parameterDefinitions,
         ],
     );
 
     const queryClient = useQueryClient();
-
-    const defaultSort = useDefaultSortField(unsavedChartVersion);
-
-    // Set default sort in unsavedChartVersion if there are no existing sorts
-    useEffect(() => {
-        if (!unsavedChartVersion.metricQuery.sorts.length && defaultSort) {
-            setSortFields([defaultSort]);
-        }
-    }, [
-        defaultSort,
-        setSortFields,
-        unsavedChartVersion.metricQuery.sorts.length,
-    ]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
@@ -1545,15 +1303,7 @@ const ExplorerProvider: FC<
             setTableName,
             removeActiveField,
             toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setSortFieldNullsFirst,
             setFilters,
-            setParameter,
-            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1586,15 +1336,7 @@ const ExplorerProvider: FC<
             setTableName,
             removeActiveField,
             toggleActiveField,
-            toggleSortField,
-            setSortFields,
-            addSortField,
-            removeSortField,
-            moveSortFields,
-            setSortFieldNullsFirst,
             setFilters,
-            setParameter,
-            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,

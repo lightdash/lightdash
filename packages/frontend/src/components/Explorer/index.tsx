@@ -1,8 +1,27 @@
 import { subject } from '@casl/ability';
+import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine/core';
-import { memo, useEffect, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import {
+    explorerActions,
+    selectColumnOrder,
+    selectDimensions,
+    selectFromDashboard,
+    selectIsEditMode,
+    selectMetricQuery,
+    selectMetrics,
+    selectParameterReferences,
+    selectPivotConfig,
+    selectPreviouslyFetchedState,
+    selectSorts,
+    selectTableName,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
+import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
+import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -24,46 +43,42 @@ import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
-        const unsavedChartVersionTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
+        // Get state from Redux
+        const tableName = useExplorerSelector(selectTableName);
+        const dimensions = useExplorerSelector(selectDimensions);
+        const metrics = useExplorerSelector(selectMetrics);
+        const columnOrder = useExplorerSelector(selectColumnOrder);
+        const metricQuery = useExplorerSelector(selectMetricQuery);
+        const isEditMode = useExplorerSelector(selectIsEditMode);
+        const parameterReferencesFromRedux = useExplorerSelector(
+            selectParameterReferences,
         );
-        const unsavedChartVersionMetricQuery = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.metricQuery,
-        );
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
-        );
+        const sorts = useExplorerSelector(selectSorts);
+        const dispatch = useExplorerDispatch();
+
         const projectUuid = useProjectUuid();
 
-        // Get query state and actions from hook instead of Context
+        // Get query state and actions from hook
         const { query, fetchResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
 
-        const setParameterReferences = useExplorerContext(
-            (context) => context.actions.setParameterReferences,
-        );
-
-        const { data: explore } = useExplore(unsavedChartVersionTableName);
+        const { data: explore } = useExplore(tableName);
 
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
-            enabled: !!unsavedChartVersionTableName,
+            enabled: !!tableName,
         });
 
+        // Keep reading savedChart from Context for now (will migrate when we add to Redux)
         const isSavedChart = useExplorerContext(
             (context) => !!context.state.savedChart,
         );
 
-        const fromDashboard = useExplorerContext(
-            (context) => context.state.fromDashboard,
+        // Get navigation context from Redux
+        const fromDashboard = useExplorerSelector(selectFromDashboard);
+        const previouslyFetchedState = useExplorerSelector(
+            selectPreviouslyFetchedState,
         );
-
-        const previouslyFetchedState = useExplorerContext(
-            (context) => context.state.previouslyFetchedState,
-        );
-
-        const pivotConfig = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.pivotConfig,
-        );
+        const pivotConfig = useExplorerSelector(selectPivotConfig);
 
         const hasPivotConfig = !!pivotConfig;
 
@@ -86,30 +101,93 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         useEffect(() => {
             if (isError) {
                 // If there's an error, we set the parameter references to an empty array
-                setParameterReferences([]);
+                dispatch(explorerActions.setParameterReferences([]));
             } else {
                 // While there's no parameter references array the request hasn't run, so we set it explicitly to null
-                setParameterReferences(parameterReferences ?? null);
+                dispatch(
+                    explorerActions.setParameterReferences(
+                        parameterReferences ?? null,
+                    ),
+                );
             }
-        }, [parameterReferences, setParameterReferences, isError]);
+        }, [parameterReferences, dispatch, isError]);
+
+        // Fetch project parameters based on parameter references
+        const { data: projectParameters } = useParameters(
+            projectUuid,
+            parameterReferencesFromRedux ?? undefined,
+            {
+                enabled: !!parameterReferencesFromRedux?.length,
+            },
+        );
+
+        // Compute parameter definitions from explore tables
+        const exploreParameterDefinitions = useMemo(() => {
+            return explore
+                ? getAvailableParametersFromTables(
+                      Object.values(explore.tables),
+                  )
+                : {};
+        }, [explore]);
+
+        // Merge project and explore parameter definitions
+        const parameterDefinitions = useMemo(() => {
+            return {
+                ...(projectParameters ?? {}),
+                ...(exploreParameterDefinitions ?? {}),
+            };
+        }, [projectParameters, exploreParameterDefinitions]);
+
+        // Sync parameter definitions to Redux
+        useEffect(() => {
+            dispatch(
+                explorerActions.setParameterDefinitions(parameterDefinitions),
+            );
+        }, [parameterDefinitions, dispatch]);
+
+        // Construct object for default sort calculation using Redux values
+        const chartVersionForSort = useMemo(
+            () => ({
+                tableName,
+                metricQuery: {
+                    dimensions,
+                    metrics,
+                },
+                tableConfig: {
+                    columnOrder,
+                },
+            }),
+            [tableName, dimensions, metrics, columnOrder],
+        );
+
+        const defaultSort = useDefaultSortField(chartVersionForSort as any);
+
+        // Set default sort when table changes and no sorts exist
+        useEffect(() => {
+            if (tableName && !sorts.length && defaultSort) {
+                dispatch(explorerActions.setSortFields([defaultSort]));
+            }
+        }, [tableName, sorts.length, defaultSort, dispatch]);
 
         const { data: org } = useOrganization();
 
         return (
             <MetricQueryDataProvider
-                metricQuery={unsavedChartVersionMetricQuery}
-                tableName={unsavedChartVersionTableName}
+                metricQuery={metricQuery}
+                tableName={tableName}
                 explore={explore}
                 queryUuid={queryUuid}
             >
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    {!!unsavedChartVersionTableName &&
-                        parameterReferences &&
-                        parameterReferences?.length > 0 && (
+                    {!!tableName &&
+                        parameterReferencesFromRedux &&
+                        parameterReferencesFromRedux?.length > 0 && (
                             <ParametersCard
-                                parameterReferences={parameterReferences}
+                                parameterReferences={
+                                    parameterReferencesFromRedux
+                                }
                             />
                         )}
 

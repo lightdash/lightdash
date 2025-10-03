@@ -105,6 +105,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                 <Tooltip
                     withinPortal
                     position="bottom"
+                    disabled={isOpen}
                     label={
                         <Text>
                             Last refreshed at:{' '}
@@ -172,7 +173,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Auto-refresh</Menu.Label>
+                        <Menu.Label>Auto-refresh while viewing</Menu.Label>
                         <Menu.Item
                             fz="xs"
                             onClick={() => {

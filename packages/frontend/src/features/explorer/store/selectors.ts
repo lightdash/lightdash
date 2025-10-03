@@ -85,15 +85,15 @@ export const selectTableCalculations = createSelector(
 );
 
 // Core metric query field selectors
-// export const selectDimensions = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.dimensions,
-// );
-//
-// export const selectMetrics = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.metrics,
-// );
+export const selectDimensions = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.dimensions,
+);
+
+export const selectMetrics = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.metrics,
+);
 
 // Parameter selectors
 export const selectParameters = createSelector(
@@ -161,4 +161,20 @@ export const selectQueryUuidHistory = createSelector(
 export const selectUnpivotedQueryUuidHistory = createSelector(
     [selectQueryExecution],
     (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
+);
+
+// Navigation context selectors
+export const selectFromDashboard = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.fromDashboard,
+);
+
+export const selectPreviouslyFetchedState = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.previouslyFetchedState,
+);
+
+export const selectPivotConfig = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
 );

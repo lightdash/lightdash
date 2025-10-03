@@ -1,4 +1,5 @@
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     isSlackPrompt,
     metricQueryTimeSeriesViz,
     toolTimeSeriesArgsSchema,
@@ -32,6 +33,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 };
 
 export const getGenerateTimeSeriesVizConfig = ({
@@ -43,6 +45,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
+    enableSelfImprovement,
 }: Dependencies) =>
     tool({
         description: toolTimeSeriesArgsSchema.description,
@@ -73,6 +76,13 @@ export const getGenerateTimeSeriesVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
+                const selfImprovementResultFollowUp =
+                    enableSelfImprovement &&
+                    toolArgs.customMetrics &&
+                    toolArgs.customMetrics.length > 0
+                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
+                        : '';
+
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
                     return {
                         result: `Success`,
@@ -87,6 +97,9 @@ export const getGenerateTimeSeriesVizConfig = ({
                     filters: vizTool.filters,
                     maxLimit,
                     customMetrics: vizTool.customMetrics ?? null,
+                    tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                        vizTool.tableCalculations,
+                    ),
                 });
                 const queryResults = await runMiniMetricQuery(
                     metricQuery,
@@ -118,7 +131,7 @@ export const getGenerateTimeSeriesVizConfig = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success`,
+                        result: `Success. ${selfImprovementResultFollowUp}`,
                         metadata: {
                             status: 'success',
                         },
@@ -128,7 +141,10 @@ export const getGenerateTimeSeriesVizConfig = ({
                 const csv = convertQueryResultsToCsv(queryResults);
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: `${serializeData(
+                        csv,
+                        'csv',
+                    )} ${selfImprovementResultFollowUp}`,
                     metadata: {
                         status: 'success',
                     },
