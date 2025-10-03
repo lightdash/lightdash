@@ -1,3 +1,10 @@
+# [0.2048.0](https://github.com/lightdash/lightdash/compare/0.2047.0...0.2048.0) (2025-10-03)
+
+
+### Features
+
+* ask user to create metric from custom metric after ai artifact ([#17221](https://github.com/lightdash/lightdash/issues/17221)) ([62c4598](https://github.com/lightdash/lightdash/commit/62c45984637ca09897b5c6e502da54b8e9a35dc7))
+
 # [0.2047.0](https://github.com/lightdash/lightdash/compare/0.2046.0...0.2047.0) (2025-10-03)
 
 
