@@ -1,13 +1,12 @@
-import { useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import TreeContext from './TreeContext';
 import { type TreeProviderProps } from './types';
 import { getNodeMapFromItemsMap } from './utils';
 
-export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
+const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     searchQuery,
     children,
     itemsMap,
-    selectedItems,
     missingCustomMetrics,
     itemsAlerts,
     missingCustomDimensions,
@@ -28,7 +27,6 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
         () => ({
             itemsMap,
             nodeMap,
-            selectedItems,
             isSearching,
             searchQuery,
             missingCustomMetrics,
@@ -43,7 +41,6 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
         [
             itemsMap,
             nodeMap,
-            selectedItems,
             isSearching,
             searchQuery,
             missingCustomMetrics,
@@ -63,3 +60,6 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
         </TreeContext.Provider>
     );
 };
+
+// TreeProvider uses normal React memo - all components now read selection state from Redux
+export const TreeProvider = memo(TreeProviderComponent);

@@ -164,21 +164,24 @@ export const CustomBinDimensionModal: FC<{
             );
 
             if (isEditing && isCustomDimension(item)) {
+                // Edit by updating the entire array
+                const updatedDimensions = (customDimensions ?? []).map((dim) =>
+                    dim.id === item.id
+                        ? {
+                              id: item.id,
+                              name: values.customDimensionLabel,
+                              type: CustomDimensionType.BIN,
+                              dimensionId: item.dimensionId,
+                              binType: values.binType,
+                              binNumber: values.binConfig.fixedNumber.binNumber,
+                              binWidth: values.binConfig.fixedWidth.binWidth,
+                              table: item.table,
+                              customRange: values.binConfig.customRange,
+                          }
+                        : dim,
+                );
                 dispatch(
-                    explorerActions.editCustomDimension({
-                        dimension: {
-                            id: item.id,
-                            name: values.customDimensionLabel,
-                            type: CustomDimensionType.BIN,
-                            dimensionId: item.dimensionId,
-                            binType: values.binType,
-                            binNumber: values.binConfig.fixedNumber.binNumber,
-                            binWidth: values.binConfig.fixedWidth.binWidth,
-                            table: item.table,
-                            customRange: values.binConfig.customRange,
-                        },
-                        oldDimensionId: item.id,
-                    }),
+                    explorerActions.setCustomDimensions(updatedDimensions),
                 );
 
                 showToastSuccess({
@@ -227,7 +230,7 @@ export const CustomBinDimensionModal: FC<{
             onClick={(e) => e.stopPropagation()}
             opened={true}
             onClose={() => {
-                toggleModal(undefined);
+                toggleModal();
                 form.reset();
             }}
             title={

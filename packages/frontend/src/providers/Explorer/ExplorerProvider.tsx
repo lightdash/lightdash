@@ -39,6 +39,7 @@ import { useNavigate } from 'react-router';
 import {
     explorerActions,
     selectUnsavedChartVersion,
+    selectTableName,
     useExplorerDispatch,
     useExplorerInitialization,
     useExplorerSelector,
@@ -751,7 +752,7 @@ const ExplorerProvider: FC<
 
     // END TRANSITIONAL SYNC CODE
 
-    const [activeFields, isValidQuery] = useMemo<
+    const [, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
     >(() => {
         const fields = new Set([
@@ -1092,16 +1093,14 @@ const ExplorerProvider: FC<
             // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
-            activeFields,
-            isValidQuery,
             savedChart,
+            isValidQuery,
             // Provide merged version with Context chartConfig/pivotConfig + Redux fields for saving
             mergedUnsavedChartVersion,
         }),
         [
             isEditMode,
             reducerState,
-            activeFields,
             isValidQuery,
             savedChart,
             mergedUnsavedChartVersion,
@@ -1128,12 +1127,14 @@ const ExplorerProvider: FC<
     }, [queryClient, defaultStateWithConfig, reduxDispatch]);
 
     const navigate = useNavigate();
+    // Read tableName from Redux to avoid recreating callback when Context changes
+    const tableNameFromRedux = useExplorerSelector(selectTableName);
     const clearQuery = useCallback(async () => {
         const clearedState = {
             ...defaultStateWithConfig,
             unsavedChartVersion: {
                 ...defaultStateWithConfig.unsavedChartVersion,
-                tableName: unsavedChartVersion.tableName,
+                tableName: tableNameFromRedux,
             },
         };
         dispatch({
@@ -1149,12 +1150,7 @@ const ExplorerProvider: FC<
             },
             { replace: true },
         );
-    }, [
-        defaultStateWithConfig,
-        navigate,
-        unsavedChartVersion.tableName,
-        reduxDispatch,
-    ]);
+    }, [defaultStateWithConfig, navigate, tableNameFromRedux, reduxDispatch]);
 
     const openVisualizationConfig = useCallback(() => {
         reduxDispatch(explorerActions.openVisualizationConfig());

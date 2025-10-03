@@ -18,6 +18,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
+    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -25,6 +26,11 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
@@ -33,7 +39,6 @@ type ExploreTreeProps = {
     explore: Explore;
     additionalMetrics: AdditionalMetric[];
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
-    selectedNodes: Set<string>;
     customDimensions?: CustomDimension[];
     selectedDimensions?: string[];
     missingFields?: {
@@ -45,15 +50,17 @@ type ExploreTreeProps = {
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
-const ExploreTree: FC<ExploreTreeProps> = ({
+const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
-    additionalMetrics,
-    selectedNodes,
+    additionalMetrics: _additionalMetricsProp, // deprecated - read from Redux
     onSelectedFieldChange,
-    customDimensions,
+    customDimensions: _customDimensionsProp, // deprecated - read from Redux
     selectedDimensions,
     missingFields,
 }) => {
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
     const [searchResultsMap, setSearchResultsMap] = useState<
@@ -163,7 +170,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             }
                             table={table}
                             additionalMetrics={additionalMetrics}
-                            selectedItems={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
                             customDimensions={customDimensions}
                             missingCustomMetrics={
@@ -193,5 +199,9 @@ const ExploreTree: FC<ExploreTreeProps> = ({
         </>
     );
 };
+
+const ExploreTree = memo(ExploreTreeComponent);
+
+ExploreTree.displayName = 'ExploreTree';
 
 export default ExploreTree;

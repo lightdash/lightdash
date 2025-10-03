@@ -24,6 +24,7 @@ import {
     explorerActions,
     selectAdditionalMetrics as selectAllAdditionalMetrics,
     selectCustomDimensions as selectAllCustomDimensions,
+    selectDimensions,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../features/explorer/store';
@@ -42,7 +43,6 @@ type Props = {
     searchQuery?: string;
     table: CompiledTable;
     additionalMetrics: AdditionalMetric[];
-    selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     customDimensions?: CustomDimension[];
     missingFields?: {
@@ -50,7 +50,7 @@ type Props = {
         customDimensions: CustomDimension[] | undefined;
         customMetrics: AdditionalMetric[] | undefined;
     };
-    selectedDimensions?: string[];
+    selectedDimensions?: string[]; // DEPRECATED - read from Redux instead
     searchResults: string[];
     isSearching: boolean;
 };
@@ -59,13 +59,13 @@ const TableTreeSections: FC<Props> = ({
     table,
     additionalMetrics,
     customDimensions,
-    selectedItems,
     missingFields,
-    selectedDimensions,
+    selectedDimensions: _selectedDimensionsProp, // deprecated, unused
     onSelectedNodeChange,
     searchResults,
     isSearching,
 }) => {
+    const selectedDimensions = useExplorerSelector(selectDimensions);
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { track } = useTracking();
@@ -315,7 +315,6 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={dimensions}
-                    selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
                     searchResults={searchResults}
@@ -364,7 +363,6 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={metrics}
-                    selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickMetric}
                     searchResults={searchResults}
@@ -412,7 +410,6 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={customMetrics}
-                    selectedItems={selectedItems}
                     missingCustomMetrics={missingFields?.customMetrics}
                     itemsAlerts={customMetricsIssues}
                     groupDetails={table.groupDetails}
@@ -469,7 +466,6 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={customDimensionsMap}
                     missingCustomDimensions={missingFields?.customDimensions}
-                    selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
                     searchResults={searchResults}

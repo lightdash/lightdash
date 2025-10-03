@@ -11,6 +11,10 @@ import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    selectActiveFields,
+    useExplorerSelector,
+} from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
 import { useItemDetail } from '../useItemDetails';
@@ -30,7 +34,7 @@ type Props = {
 };
 
 const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
-    const selectedItems = useTableTree((ctx) => ctx.selectedItems);
+    const selectedItems = useExplorerSelector(selectActiveFields);
     const isSearching = useTableTree((ctx) => ctx.isSearching);
     const searchQuery = useTableTree((ctx) => ctx.searchQuery);
     const searchResults = useTableTree((ctx) => ctx.searchResults);

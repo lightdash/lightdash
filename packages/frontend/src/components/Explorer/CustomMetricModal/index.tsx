@@ -234,14 +234,14 @@ export const CustomMetricModal = () => {
             });
 
             if (isEditing && isAdditionalMetric(item)) {
+                // Edit by updating the entire array
+                const updatedMetrics = (additionalMetrics ?? []).map((metric) =>
+                    getItemId(metric) === getItemId(item)
+                        ? { ...item, ...data }
+                        : metric,
+                );
                 dispatch(
-                    explorerActions.editAdditionalMetric({
-                        metric: {
-                            ...item,
-                            ...data,
-                        },
-                        oldMetricId: getItemId(item),
-                    }),
+                    explorerActions.setAdditionalMetrics(updatedMetrics),
                 );
                 showToastSuccess({
                     title: 'Custom metric edited successfully',

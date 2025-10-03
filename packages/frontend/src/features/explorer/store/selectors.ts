@@ -79,14 +79,50 @@ export const selectIsEditMode = createSelector(
     (explorer) => explorer.isEditMode ?? true, // Default to true for Explorer page
 );
 
+// Cached additional metrics with stable reference
+let cachedAdditionalMetrics: any[] | null = null;
+let cachedAdditionalMetricsKey: string | null = null;
+
 export const selectAdditionalMetrics = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.additionalMetrics ?? [],
+    (metricQuery) => {
+        const metrics = metricQuery.additionalMetrics ?? [];
+        const key = metrics
+            .map((m) => m.uuid || m.name)
+            .sort()
+            .join(',');
+
+        if (cachedAdditionalMetricsKey === key && cachedAdditionalMetrics) {
+            return cachedAdditionalMetrics;
+        }
+
+        cachedAdditionalMetricsKey = key;
+        cachedAdditionalMetrics = metrics;
+        return cachedAdditionalMetrics;
+    },
 );
+
+// Cached custom dimensions with stable reference
+let cachedCustomDimensions: any[] | null = null;
+let cachedCustomDimensionsKey: string | null = null;
 
 export const selectCustomDimensions = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.customDimensions ?? [],
+    (metricQuery) => {
+        const dimensions = metricQuery.customDimensions ?? [];
+        const key = dimensions
+            .map((d) => d.id || d.name)
+            .sort()
+            .join(',');
+
+        if (cachedCustomDimensionsKey === key && cachedCustomDimensions) {
+            return cachedCustomDimensions;
+        }
+
+        cachedCustomDimensionsKey = key;
+        cachedCustomDimensions = dimensions;
+        return cachedCustomDimensions;
+    },
 );
 
 export const selectTableCalculations = createSelector(
@@ -187,4 +223,63 @@ export const selectPreviouslyFetchedState = createSelector(
 export const selectPivotConfig = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
+);
+
+// Active fields selector - computed from dimensions, metrics, and table calculations
+// Returns a Set of all selected field IDs
+let cachedActiveFieldsSet: Set<string> | null = null;
+let cachedActiveFieldsKey: string | null = null;
+
+export const selectActiveFields = createSelector(
+    [selectDimensions, selectMetrics, selectTableCalculations],
+    (dimensions, metrics, tableCalculations) => {
+        const activeFieldsArray = [
+            ...dimensions,
+            ...metrics,
+            ...tableCalculations.map(({ name }) => name),
+        ];
+
+        // Create stable key by sorting - same contents = same key regardless of order
+        const activeFieldsKey = [...activeFieldsArray].sort().join(',');
+
+        // Check if contents changed by comparing keys
+        if (
+            cachedActiveFieldsKey === activeFieldsKey &&
+            cachedActiveFieldsSet
+        ) {
+            // Contents haven't changed - return cached Set with same reference
+            return cachedActiveFieldsSet;
+        }
+
+        // Contents changed - create new Set and cache it
+        cachedActiveFieldsKey = activeFieldsKey;
+        cachedActiveFieldsSet = new Set(activeFieldsArray);
+        return cachedActiveFieldsSet;
+    },
+);
+
+// Item-level active/selected selector for TreeSingleNode performance
+// This allows each node to subscribe only to its own selection status,
+// preventing re-renders of all nodes when a single field is toggled
+export const selectIsFieldActive = createSelector(
+    [
+        selectDimensions,
+        selectMetrics,
+        selectTableCalculations,
+        (_state: ExplorerStoreState, fieldId: string) => fieldId,
+    ],
+    (dimensions, metrics, tableCalculations, fieldId) => {
+        // Check if fieldId exists in dimensions or metrics
+        if (dimensions.includes(fieldId) || metrics.includes(fieldId)) {
+            return true;
+        }
+        // Check if fieldId matches a table calculation name
+        return tableCalculations.some((tc) => tc.name === fieldId);
+    },
+);
+
+// Is valid query selector - true if there are any active fields
+export const selectIsValidQuery = createSelector(
+    [selectActiveFields],
+    (activeFields) => activeFields.size > 0,
 );

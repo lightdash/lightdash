@@ -142,11 +142,12 @@ export const CustomSqlDimensionModal: FC<{
             };
 
             if (isEditing && item) {
+                // Edit by updating the entire array
+                const updatedDimensions = (customDimensions ?? []).map((dim) =>
+                    dim.id === item.id ? { ...customDim, id: item.id } : dim,
+                );
                 dispatch(
-                    explorerActions.editCustomDimension({
-                        dimension: { ...customDim, id: item.id },
-                        oldDimensionId: item.id,
-                    }),
+                    explorerActions.setCustomDimensions(updatedDimensions),
                 );
                 showToastSuccess({
                     title: 'Custom dimension edited successfully',
@@ -175,7 +176,7 @@ export const CustomSqlDimensionModal: FC<{
         <Modal.Root
             opened={true}
             onClose={() => {
-                toggleModal(undefined);
+                toggleModal();
                 form.reset();
             }}
             size="xl"
@@ -321,7 +322,7 @@ export const CustomSqlDimensionModal: FC<{
                                     variant="default"
                                     h={32}
                                     onClick={() => {
-                                        toggleModal(undefined);
+                                        toggleModal();
                                         form.reset();
                                     }}
                                 >
