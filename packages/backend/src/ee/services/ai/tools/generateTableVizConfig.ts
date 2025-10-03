@@ -1,4 +1,5 @@
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     isSlackPrompt,
     metricQueryTableViz,
     toolTableVizArgsSchema,
@@ -78,6 +79,9 @@ export const getGenerateTableVizConfig = ({
                     filters: vizTool.filters,
                     maxLimit,
                     customMetrics: vizTool.customMetrics ?? null,
+                    tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                        vizTool.tableCalculations,
+                    ),
                 });
                 const queryResults = await runMiniMetricQuery(
                     metricQuery,

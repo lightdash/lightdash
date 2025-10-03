@@ -1,4 +1,5 @@
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     isSlackPrompt,
     metricQueryTimeSeriesViz,
     toolTimeSeriesArgsSchema,
@@ -87,6 +88,9 @@ export const getGenerateTimeSeriesVizConfig = ({
                     filters: vizTool.filters,
                     maxLimit,
                     customMetrics: vizTool.customMetrics ?? null,
+                    tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                        vizTool.tableCalculations,
+                    ),
                 });
                 const queryResults = await runMiniMetricQuery(
                     metricQuery,

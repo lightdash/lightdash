@@ -4,6 +4,7 @@ import {
     booleanFilterSchema,
     CompiledField,
     convertAdditionalMetric,
+    CustomMetricBase,
     dateFilterSchema,
     Explore,
     FilterRule,
@@ -18,14 +19,17 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
+    Metric,
+    MetricType,
     numberFilterSchema,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     stringFilterSchema,
     SupportedDbtAdapter,
+    TableCalcSchema,
+    TableCalcsSchema,
     ToolSortField,
     WeekDay,
-    type CustomMetricBase,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -533,6 +537,122 @@ ${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
 
         Logger.error(`[AiAgent][Validate Table Names] ${errorMessage}`);
 
+        throw new Error(errorMessage);
+    }
+}
+
+// Numeric metric types that support most table calculations
+const NUMERIC_METRIC_TYPES: MetricType[] = [
+    MetricType.NUMBER,
+    MetricType.PERCENTILE,
+    MetricType.MEDIAN,
+    MetricType.AVERAGE,
+    MetricType.COUNT,
+    MetricType.COUNT_DISTINCT,
+    MetricType.SUM,
+    // MIN and MAX can be of non-numeric types, like dates
+];
+
+// Table calculation types that require numeric metrics
+const NUMERIC_CALCULATION_TYPES: TableCalcSchema['type'][] = [
+    'percent_change_from_previous',
+    'percent_of_previous_value',
+    'percent_of_column_total',
+    'running_total',
+];
+
+/**
+ * Validate table calculations to ensure fieldId and orderBy.fieldId reference valid metrics/custom metrics
+ * with compatible types for the calculation being performed
+ */
+export function validateTableCalculations(
+    explore: Explore,
+    tableCalcs: TableCalcsSchema,
+    selectedMetrics: string[],
+    customMetrics?: CustomMetricBase[] | null,
+) {
+    if (!tableCalcs?.length) return;
+
+    const exploreFields = getFields(explore);
+    const customMetricFields = customMetrics
+        ? populateCustomMetricsSQL(customMetrics, explore)
+        : [];
+    const customMetricIds = customMetricFields.map(getItemId);
+    const allFields = [...exploreFields, ...customMetricFields];
+    const errors: string[] = [];
+
+    // Validate orderBy fields exist
+    const orderByFieldIds = tableCalcs
+        .filter((calc) => 'orderBy' in calc)
+        .flatMap((calc) => calc.orderBy.map((order) => order.fieldId));
+
+    if (orderByFieldIds.length > 0) {
+        try {
+            validateSelectedFieldsExistence(
+                explore,
+                orderByFieldIds,
+                customMetrics,
+            );
+        } catch (e) {
+            errors.push(
+                `OrderBy field validation failed: ${getErrorMessage(e)}`,
+            );
+        }
+    }
+
+    // Helper to find field by ID
+    const findField = (fieldId: string) =>
+        allFields.find((f) => getItemId(f) === fieldId);
+
+    tableCalcs.forEach((tableCalc) => {
+        const { fieldId, type, name, displayName } = tableCalc;
+        const isSelectedMetric = selectedMetrics.includes(fieldId);
+        const isCustomMetric = customMetricIds.includes(fieldId);
+
+        // Check field is selected
+        if (!isSelectedMetric && !isCustomMetric) {
+            errors.push(
+                `Table calculation "${name}" references unselected field "${fieldId}". ` +
+                    'The field must be included in metrics or custom metrics.',
+            );
+            return;
+        }
+
+        // Find and validate field
+        const field = findField(fieldId);
+        if (!field) {
+            errors.push(
+                `Table calculation "${name}" references non-existent field "${fieldId}".`,
+            );
+            return;
+        }
+
+        // Check field is a metric
+        if (!isMetric(field) && !isAdditionalMetric(field)) {
+            errors.push(
+                `Table calculation "${name}" references "${fieldId}" which is not a metric. ` +
+                    'Table calculations can only be applied to metric fields.',
+            );
+            return;
+        }
+
+        // Check type compatibility for numeric calculations
+        if (
+            NUMERIC_CALCULATION_TYPES.includes(type) &&
+            !NUMERIC_METRIC_TYPES.includes(field.type)
+        ) {
+            errors.push(
+                `Table calculation "${name}" of type "${type}" requires a numeric metric, ` +
+                    `but field "${fieldId}" has type "${field.type}".`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid table calculation configuration:\n\n${errors.join(
+            '\n',
+        )}`;
+        Logger.error(`[AiAgent][Validate Table Calculations] ${errorMessage}`);
         throw new Error(errorMessage);
     }
 }

@@ -1,4 +1,5 @@
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     Explore,
     getItemLabelWithoutTableName,
     getTotalFilterRules,
@@ -89,6 +90,9 @@ export const getRunMetricQuery = ({
                     filters: vizTool.filters,
                     maxLimit,
                     customMetrics: vizTool.customMetrics,
+                    tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                        vizTool.tableCalculations,
+                    ),
                 });
 
                 const results = await runMiniMetricQuery(
