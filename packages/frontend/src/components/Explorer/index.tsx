@@ -1,8 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    getAvailableParametersFromTables,
-    type CreateSavedChartVersion,
-} from '@lightdash/common';
+import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
