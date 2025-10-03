@@ -2,14 +2,12 @@ import {
     assertUnreachable,
     ChartType,
     convertFieldRefToFieldId,
-    deepEqual,
     getFieldRef,
     getItemId,
     isSqlTableCalculation,
     isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
-    removeEmptyProperties,
     removeFieldFromFilterGroup,
     toggleArrayValue,
     updateFieldIdInFilters,
@@ -19,7 +17,6 @@ import {
     type CustomFormat,
     type FieldId,
     type Metric,
-    type MetricQuery,
     type ReplaceCustomFields,
     type SavedChart,
     type TableCalculation,
@@ -38,8 +35,10 @@ import {
 import { useNavigate } from 'react-router';
 import {
     explorerActions,
+    selectTableName,
     useExplorerDispatch,
     useExplorerInitialization,
+    useExplorerSelector,
 } from '../../features/explorer/store';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
@@ -50,7 +49,7 @@ import {
     type ExplorerContextType,
     type ExplorerReduceState,
 } from './types';
-import { cleanConfig, getValidChartConfig } from './utils';
+import { getValidChartConfig } from './utils';
 
 const calcColumnOrder = (
     columnOrder: FieldId[],
@@ -162,94 +161,6 @@ export function reducer(
                 );
             });
         }
-        case ActionType.REMOVE_FIELD: {
-            return produce(state, (draft) => {
-                const fieldToRemove = action.payload;
-                draft.unsavedChartVersion.metricQuery.dimensions =
-                    draft.unsavedChartVersion.metricQuery.dimensions.filter(
-                        (fieldId) => fieldId !== fieldToRemove,
-                    );
-                draft.unsavedChartVersion.metricQuery.metrics =
-                    draft.unsavedChartVersion.metricQuery.metrics.filter(
-                        (fieldId) => fieldId !== fieldToRemove,
-                    );
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    draft.unsavedChartVersion.metricQuery.sorts.filter(
-                        (s) => s.fieldId !== fieldToRemove,
-                    );
-                draft.unsavedChartVersion.metricQuery.tableCalculations =
-                    draft.unsavedChartVersion.metricQuery.tableCalculations.filter(
-                        (tc) => tc.name !== fieldToRemove,
-                    );
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    draft.unsavedChartVersion.tableConfig.columnOrder.filter(
-                        (fieldId) => fieldId !== fieldToRemove,
-                    );
-            });
-        }
-        case ActionType.TOGGLE_DIMENSION: {
-            return produce(state, (draft) => {
-                const current =
-                    draft.unsavedChartVersion.metricQuery.dimensions;
-                draft.unsavedChartVersion.metricQuery.dimensions =
-                    toggleArrayValue(current, action.payload);
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    draft.unsavedChartVersion.metricQuery.sorts.filter(
-                        (s) => s.fieldId !== action.payload,
-                    );
-
-                const dimensionIds =
-                    draft.unsavedChartVersion.metricQuery.dimensions;
-                const metricIds = draft.unsavedChartVersion.metricQuery.metrics;
-                const calcIds =
-                    draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        ({ name }) => name,
-                    );
-
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    calcColumnOrder(
-                        draft.unsavedChartVersion.tableConfig.columnOrder,
-                        [...dimensionIds, ...metricIds, ...calcIds],
-                        dimensionIds,
-                    );
-            });
-        }
-
-        case ActionType.TOGGLE_METRIC: {
-            return produce(state, (draft) => {
-                const currentMetrics =
-                    draft.unsavedChartVersion.metricQuery.metrics;
-                draft.unsavedChartVersion.metricQuery.metrics =
-                    toggleArrayValue(currentMetrics, action.payload);
-
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    draft.unsavedChartVersion.metricQuery.sorts.filter(
-                        (s) => s.fieldId !== action.payload,
-                    );
-
-                draft.unsavedChartVersion.metricQuery.metricOverrides =
-                    Object.fromEntries(
-                        Object.entries(
-                            draft.unsavedChartVersion.metricQuery
-                                .metricOverrides || {},
-                        ).filter(([key]) => key !== action.payload),
-                    );
-
-                const dimensionIds =
-                    draft.unsavedChartVersion.metricQuery.dimensions;
-                const metricIds = draft.unsavedChartVersion.metricQuery.metrics;
-                const calcIds =
-                    draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        ({ name }) => name,
-                    );
-
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    calcColumnOrder(
-                        draft.unsavedChartVersion.tableConfig.columnOrder,
-                        [...dimensionIds, ...metricIds, ...calcIds],
-                    );
-            });
-        }
         case ActionType.SET_ROW_LIMIT: {
             return produce(state, (draft) => {
                 draft.unsavedChartVersion.metricQuery.limit = action.payload;
@@ -258,11 +169,6 @@ export function reducer(
         case ActionType.SET_TIME_ZONE: {
             return produce(state, (draft) => {
                 draft.unsavedChartVersion.metricQuery.timezone = action.payload;
-            });
-        }
-        case ActionType.SET_FILTERS: {
-            return produce(state, (draft) => {
-                draft.unsavedChartVersion.metricQuery.filters = action.payload;
             });
         }
         case ActionType.ADD_ADDITIONAL_METRIC: {
@@ -557,14 +463,10 @@ export function reducer(
         }
         case ActionType.SET_COLUMN_ORDER: {
             return produce(state, (draft) => {
+                // When user explicitly sets column order (e.g., drag-and-drop), respect it exactly
+                // Match Redux behavior - don't run through calcColumnOrder
                 draft.unsavedChartVersion.tableConfig.columnOrder =
-                    calcColumnOrder(action.payload, [
-                        ...draft.unsavedChartVersion.metricQuery.dimensions,
-                        ...draft.unsavedChartVersion.metricQuery.metrics,
-                        ...draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                            ({ name }) => name,
-                        ),
-                    ]);
+                    action.payload;
             });
         }
         case ActionType.ADD_TABLE_CALCULATION: {
@@ -784,31 +686,6 @@ const ExplorerProvider: FC<
         }
     }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
 
-    // Keep Redux dimensions in sync with Context dimensions
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setDimensions(
-                unsavedChartVersion.metricQuery.dimensions,
-            ),
-        );
-    }, [unsavedChartVersion.metricQuery.dimensions, reduxDispatch]);
-
-    // Keep Redux metrics in sync with Context metrics
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
-        );
-    }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
-
-    // Keep Redux columnOrder in sync with Context columnOrder
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setColumnOrder(
-                unsavedChartVersion.tableConfig.columnOrder,
-            ),
-        );
-    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
-
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
         reduxDispatch(
@@ -844,19 +721,6 @@ const ExplorerProvider: FC<
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
     // END TRANSITIONAL SYNC CODE
 
-    const [activeFields, isValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
-        const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
-        ]);
-        return [fields, fields.size > 0];
-    }, [unsavedChartVersion]);
-
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
     const resetCachedChartConfig = () => {
@@ -884,25 +748,6 @@ const ExplorerProvider: FC<
         [dispatch, reduxDispatch],
     );
 
-    const toggleActiveField = useCallback(
-        (fieldId: FieldId, isDimension: boolean) => {
-            dispatch({
-                type: isDimension
-                    ? ActionType.TOGGLE_DIMENSION
-                    : ActionType.TOGGLE_METRIC,
-                payload: fieldId,
-            });
-        },
-        [],
-    );
-
-    const removeActiveField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_FIELD,
-            payload: fieldId,
-        });
-    }, []);
-
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
@@ -918,18 +763,6 @@ const ExplorerProvider: FC<
             });
         }
     }, []);
-
-    const setFilters = useCallback(
-        (filters: MetricQuery['filters']) => {
-            dispatch({
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
-            reduxDispatch(explorerActions.setFilters(filters));
-        },
-        [reduxDispatch],
-    );
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -971,12 +804,12 @@ const ExplorerProvider: FC<
                 type: ActionType.ADD_ADDITIONAL_METRIC,
                 payload: additionalMetric,
             });
-            dispatch({
-                type: ActionType.TOGGLE_METRIC,
-                payload: getItemId(additionalMetric),
-            });
+            // Dispatch directly to Redux (which auto-selects the metric)
+            reduxDispatch(
+                explorerActions.addAdditionalMetric(additionalMetric),
+            );
         },
-        [],
+        [reduxDispatch],
     );
 
     const editAdditionalMetric = useCallback(
@@ -1026,12 +859,17 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const setColumnOrder = useCallback((order: string[]) => {
-        dispatch({
-            type: ActionType.SET_COLUMN_ORDER,
-            payload: order,
-        });
-    }, []);
+    const setColumnOrder = useCallback(
+        (order: string[]) => {
+            dispatch({
+                type: ActionType.SET_COLUMN_ORDER,
+                payload: order,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setColumnOrder(order));
+        },
+        [reduxDispatch],
+    );
 
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
@@ -1183,48 +1021,15 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const hasUnsavedChanges = useMemo<boolean>(() => {
-        if (savedChart) {
-            return !deepEqual(
-                removeEmptyProperties({
-                    tableName: savedChart.tableName,
-                    chartConfig: cleanConfig(savedChart.chartConfig),
-                    metricQuery: savedChart.metricQuery,
-                    tableConfig: savedChart.tableConfig,
-                    pivotConfig: savedChart.pivotConfig,
-                    parameters: savedChart.parameters,
-                }),
-                removeEmptyProperties({
-                    tableName: unsavedChartVersion.tableName,
-                    chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
-                    metricQuery: unsavedChartVersion.metricQuery,
-                    tableConfig: unsavedChartVersion.tableConfig,
-                    pivotConfig: unsavedChartVersion.pivotConfig,
-                    parameters: unsavedChartVersion.parameters,
-                }),
-            );
-        }
-        return isValidQuery;
-    }, [unsavedChartVersion, isValidQuery, savedChart]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
+            // activeFields, isValidQuery, hasUnsavedChanges removed - use Redux selectors or local calculation
             savedChart,
         }),
-        [
-            isEditMode,
-            reducerState,
-            activeFields,
-            isValidQuery,
-            hasUnsavedChanges,
-            savedChart,
-        ],
+        [isEditMode, reducerState, savedChart],
     );
 
     const queryClient = useQueryClient();
@@ -1247,19 +1052,22 @@ const ExplorerProvider: FC<
     }, [queryClient, defaultStateWithConfig, reduxDispatch]);
 
     const navigate = useNavigate();
+    // Read tableName from Redux to avoid recreating callback when Context changes
+    const tableNameFromRedux = useExplorerSelector(selectTableName);
     const clearQuery = useCallback(async () => {
+        const clearedState = {
+            ...defaultStateWithConfig,
+            unsavedChartVersion: {
+                ...defaultStateWithConfig.unsavedChartVersion,
+                tableName: tableNameFromRedux,
+            },
+        };
         dispatch({
             type: ActionType.RESET,
-            payload: {
-                ...defaultStateWithConfig,
-                unsavedChartVersion: {
-                    ...defaultStateWithConfig.unsavedChartVersion,
-                    tableName: unsavedChartVersion.tableName,
-                },
-            },
+            payload: clearedState,
         });
-        // Reset query execution state in Redux
-        reduxDispatch(explorerActions.resetQueryExecution());
+        // Reset Redux store to match cleared Context state
+        reduxDispatch(explorerActions.reset(clearedState));
         // clear state in url params
         void navigate(
             {
@@ -1267,12 +1075,7 @@ const ExplorerProvider: FC<
             },
             { replace: true },
         );
-    }, [
-        defaultStateWithConfig,
-        navigate,
-        unsavedChartVersion.tableName,
-        reduxDispatch,
-    ]);
+    }, [defaultStateWithConfig, navigate, tableNameFromRedux, reduxDispatch]);
 
     const openVisualizationConfig = useCallback(() => {
         reduxDispatch(explorerActions.openVisualizationConfig());
@@ -1295,15 +1098,13 @@ const ExplorerProvider: FC<
         },
         [reduxDispatch],
     );
+
     const actions = useMemo(
         () => ({
             clearExplore,
             clearQuery,
             reset,
             setTableName,
-            removeActiveField,
-            toggleActiveField,
-            setFilters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1334,9 +1135,6 @@ const ExplorerProvider: FC<
             clearQuery,
             reset,
             setTableName,
-            removeActiveField,
-            toggleActiveField,
-            setFilters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,

@@ -5,8 +5,7 @@ import {
 } from '@lightdash/common';
 import { MantineProvider, NavLink, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
-import type { FC } from 'react';
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 
 import { getMantineThemeOverride } from '../../../../mantineTheme';
@@ -92,7 +91,6 @@ type Props = {
     showTableLabel: boolean;
     table: CompiledTable;
     additionalMetrics: AdditionalMetric[];
-    selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
@@ -128,7 +126,7 @@ const themeOverride = getMantineThemeOverride({
     },
 });
 
-const TableTree: FC<Props> = ({
+const TableTreeComponent: FC<Props> = ({
     isOpenByDefault,
     showTableLabel,
     table,
@@ -168,5 +166,9 @@ const TableTree: FC<Props> = ({
         </TrackSection>
     );
 };
+
+const TableTree = memo(TableTreeComponent);
+
+TableTree.displayName = 'TableTree';
 
 export default TableTree;

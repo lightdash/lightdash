@@ -1,11 +1,11 @@
 import { isCustomBinDimension, isDimension } from '@lightdash/common';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useExplorerSelector } from '../../../features/explorer/store';
 import { CustomBinDimensionModal } from './CustomBinDimensionModal';
 import { CustomSqlDimensionModal } from './CustomSqlDimensionModal';
 
 export const CustomDimensionModal = () => {
-    const { isOpen, isEditing, table, item } = useExplorerContext(
-        (context) => context.state.modals.customDimension,
+    const { isOpen, isEditing, table, item } = useExplorerSelector(
+        (state) => state.explorer.modals.customDimension,
     );
 
     if (!isOpen) {

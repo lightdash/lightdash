@@ -23,9 +23,13 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectMetricQuery,
+    selectPivotConfig,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -105,9 +109,29 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         },
         [dispatch],
     );
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
+
+    // Build unsavedChartVersion from Redux selectors
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const columnOrder = useExplorerSelector(selectColumnOrder);
+    const pivotConfig = useExplorerSelector(selectPivotConfig);
+
+    // Read chartConfig from Context (not migrated yet)
+    const chartConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.chartConfig,
     );
+
+    const unsavedChartVersion = useMemo(
+        () => ({
+            tableName,
+            metricQuery,
+            tableConfig: { columnOrder },
+            chartConfig,
+            pivotConfig,
+        }),
+        [tableName, metricQuery, columnOrder, chartConfig, pivotConfig],
+    );
+
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
@@ -193,7 +217,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     }
 
     const getGsheetLink = async (
-        columnOrder: string[],
+        exportColumnOrder: string[],
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => {
@@ -202,7 +226,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,
-                columnOrder,
+                columnOrder: exportColumnOrder,
                 showTableNames,
                 customLabels,
                 hiddenFields: getHiddenTableFields(

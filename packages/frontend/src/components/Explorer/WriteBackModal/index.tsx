@@ -21,7 +21,11 @@ import * as yaml from 'js-yaml';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import {
+    explorerActions,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
@@ -492,17 +496,16 @@ const MultipleItemsModalContent = ({
 };
 
 export const WriteBackModal = () => {
-    const { isOpen, items } = useExplorerContext(
-        (context) => context.state.modals.writeBack,
+    const { isOpen, items } = useExplorerSelector(
+        (state) => state.explorer.modals.writeBack,
     );
+    const dispatch = useExplorerDispatch();
 
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
 
-    const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleWriteBackModal,
-    );
+    const toggleModal = () => dispatch(explorerActions.toggleWriteBackModal());
 
     if (!isOpen) {
         return null;

@@ -1,4 +1,5 @@
 import {
+    addFilterRule,
     getItemId,
     isAdditionalMetric,
     isCompiledMetric,
@@ -31,14 +32,24 @@ import {
 import { darken, lighten } from 'polished';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    explorerActions,
+    selectFilters,
+    selectIsFieldActive,
+    selectIsFieldFiltered,
+    selectIsFiltersExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+    useExplorerStore,
+    type ExplorerStoreState,
+} from '../../../../../features/explorer/store';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
-import { useFilteredFields } from '../../../../../hooks/useFilters';
+import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
-import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
-import { useItemDetail } from '../useItemDetails';
+import { ItemDetailPreview } from '../ItemDetailPreview';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
@@ -74,8 +85,10 @@ type Props = {
 };
 
 const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
-    const itemsMap = useTableTree((context) => context.itemsMap);
-    const selectedItems = useTableTree((context) => context.selectedItems);
+    const itemsMap = useTableTree((context) => {
+        return context.itemsMap;
+    });
+    // Note: selectedItems removed - using Redux selector instead for better performance
     const isSearching = useTableTree((context) => context.isSearching);
     const searchResults = useTableTree((context) => context.searchResults);
     const searchQuery = useTableTree((context) => context.searchQuery);
@@ -87,17 +100,69 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (context) => context.missingCustomDimensions,
     );
     const onItemClick = useTableTree((context) => context.onItemClick);
-    const { isFilteredField, addFilter } = useFilteredFields();
-    const { showItemDetail } = useItemDetail();
+    // TODO: Fix useItemDetail() - it subscribes to ItemDetailContext which causes ALL nodes to re-render
+    // when isItemDetailOpen changes. For now, comment it out for the performance demo.
+    // const { showItemDetail } = useItemDetail();
     const { track } = useTracking();
+
+    // Create stable addFilter action directly without hook
+    const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
+    const addFilter = useCallback(
+        (field: FilterableField, value: any) => {
+            const currentFilters = selectFilters(store.getState());
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
+            dispatch(explorerActions.setFilters(newFilters));
+
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
+            if (!isFiltersExpanded) {
+                dispatch(
+                    explorerActions.toggleExpandedSection(
+                        ExplorerSection.FILTERS,
+                    ),
+                );
+            }
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [dispatch, store],
+    );
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
-    const isSelected = selectedItems.has(node.key);
     const isVisible = !isSearching || searchResults.includes(node.key);
 
     const item = itemsMap[node.key];
+
+    // Use item-level selectors with equality check to prevent unnecessary re-renders
+    // Each node only subscribes to its own state, not the entire activeFields/filters
+    const fieldId = useMemo(() => getItemId(item), [item]);
+
+    const selectIsFiltered = useMemo(
+        () => (state: ExplorerStoreState) =>
+            selectIsFieldFiltered(state, fieldId),
+        [fieldId],
+    );
+    const selectIsActive = useMemo(
+        () => (state: ExplorerStoreState) =>
+            selectIsFieldActive(state, fieldId),
+        [fieldId],
+    );
+
+    // Use strict equality since these are booleans - only re-render if value actually changes
+    const isFieldFiltered = useExplorerSelector(
+        selectIsFiltered,
+        (a, b) => a === b,
+    );
+    const isSelected = useExplorerSelector(selectIsActive, (a, b) => a === b);
 
     const metricInfo = useMemo(() => {
         if (isCompiledMetric(item)) {
@@ -136,7 +201,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const bgColor = getItemBgColor(item);
     const alerts = itemsAlerts?.[getItemId(item)];
-    const isFiltered = isField(item) && isFilteredField(item);
+    const isFiltered = isField(item) && isFieldFiltered;
     const showFilterAction =
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
@@ -184,24 +249,25 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const onOpenDescriptionView = useCallback(() => {
         toggleHover(false);
-        showItemDetail({
-            header: (
-                <Group>
-                    <FieldIcon
-                        item={item}
-                        color={getFieldIconColor(item)}
-                        size="md"
-                    />
-                    <Text size="md">{label}</Text>
-                </Group>
-            ),
-            detail: description ? (
-                <ItemDetailMarkdown source={description} />
-            ) : (
-                <Text color="gray">No description available.</Text>
-            ),
-        });
-    }, [toggleHover, showItemDetail, item, label, description]);
+        // TODO: Re-enable showItemDetail once we fix the context subscription issue
+        // showItemDetail({
+        //     header: (
+        //         <Group>
+        //             <FieldIcon
+        //                 item={item}
+        //                 color={getFieldIconColor(item)}
+        //                 size="md"
+        //             />
+        //             <Text size="md">{label}</Text>
+        //         </Group>
+        //     ),
+        //     detail: description ? (
+        //         <ItemDetailMarkdown source={description} />
+        //     ) : (
+        //         <Text color="gray">No description available.</Text>
+        //     ),
+        // });
+    }, [toggleHover]);
 
     const onToggleMenu = useCallback(() => {
         toggleHover(false);
@@ -365,6 +431,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 };
 
 const TreeSingleNode = memo(TreeSingleNodeComponent);
+
 TreeSingleNode.displayName = 'TreeSingleNode';
 
 export default TreeSingleNode;

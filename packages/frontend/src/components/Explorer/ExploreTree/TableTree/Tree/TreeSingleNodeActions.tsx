@@ -27,11 +27,14 @@ import {
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../../../features/explorer/store';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import useApp from '../../../../../providers/App/useApp';
-import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
@@ -61,28 +64,8 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { addFilter } = useFilteredFields();
     const { track } = useTracking();
 
-    // Keep using Context actions (they have dual-dispatch to Redux in ExplorerProvider)
-    const removeAdditionalMetric = useExplorerContext(
-        (context) => context.actions.removeAdditionalMetric,
-    );
-    const toggleAdditionalMetricModal = useExplorerContext(
-        (context) => context.actions.toggleAdditionalMetricModal,
-    );
-    const toggleWriteBackModal = useExplorerContext(
-        (context) => context.actions.toggleWriteBackModal,
-    );
-    const removeCustomDimension = useExplorerContext(
-        (context) => context.actions.removeCustomDimension,
-    );
-    const toggleCustomDimensionModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
-    const addAdditionalMetric = useExplorerContext(
-        (context) => context.actions.addAdditionalMetric,
-    );
-    const addAdditionalDimension = useExplorerContext(
-        (context) => context.actions.addCustomDimension,
-    );
+    // Use Redux for all operations - no Context needed!
+    const dispatch = useExplorerDispatch();
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
@@ -111,7 +94,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
         newDeepCopyItem.uuid = newId;
         newDeepCopyItem.name = currentName;
-        addAdditionalMetric(newDeepCopyItem);
+        dispatch(explorerActions.addAdditionalMetric(newDeepCopyItem));
     };
     const duplicateCustomDimension = (customDimension: CustomDimension) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customDimension));
@@ -128,7 +111,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
         newDeepCopyItem.id = currentId;
-        addAdditionalDimension(newDeepCopyItem);
+        dispatch(explorerActions.addCustomDimension(newDeepCopyItem));
     };
     return isHovered || isSelected || isOpened ? (
         <Menu
@@ -168,11 +151,15 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
                                 e.stopPropagation();
-                                toggleAdditionalMetricModal({
-                                    type: item.type,
-                                    item,
-                                    isEditing: true,
-                                });
+                                dispatch(
+                                    explorerActions.toggleAdditionalMetricModal(
+                                        {
+                                            type: item.type,
+                                            item,
+                                            isEditing: true,
+                                        },
+                                    ),
+                                );
                             }}
                         >
                             Edit custom metric
@@ -218,9 +205,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         },
                                     });
                                 }
-                                toggleWriteBackModal({
-                                    items: [item],
-                                });
+                                dispatch(
+                                    explorerActions.toggleWriteBackModal({
+                                        items: [item],
+                                    }),
+                                );
                             }}
                         >
                             Write back to dbt
@@ -239,7 +228,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 track({
                                     name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
                                 });
-                                removeAdditionalMetric(getItemId(item));
+                                dispatch(
+                                    explorerActions.removeAdditionalMetric(
+                                        getItemId(item),
+                                    ),
+                                );
                             }}
                         >
                             Remove custom metric
@@ -269,10 +262,12 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
                                 e.stopPropagation();
-                                toggleCustomDimensionModal({
-                                    item,
-                                    isEditing: true,
-                                });
+                                dispatch(
+                                    explorerActions.toggleCustomDimensionModal({
+                                        item,
+                                        isEditing: true,
+                                    }),
+                                );
                             }}
                         >
                             Edit custom dimension
@@ -320,9 +315,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         });
                                     }
 
-                                    toggleWriteBackModal({
-                                        items: [item],
-                                    });
+                                    dispatch(
+                                        explorerActions.toggleWriteBackModal({
+                                            items: [item],
+                                        }),
+                                    );
                                 }}
                             >
                                 Write back to dbt
@@ -337,7 +334,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
                                 e.stopPropagation();
-                                removeCustomDimension(getItemId(item));
+                                dispatch(
+                                    explorerActions.removeCustomDimension(
+                                        getItemId(item),
+                                    ),
+                                );
                             }}
                         >
                             Remove custom dimension
@@ -365,11 +366,15 @@ const TreeSingleNodeActions: FC<Props> = ({
                                             metric,
                                     );
 
-                                    toggleAdditionalMetricModal({
-                                        type: metric,
-                                        item,
-                                        isEditing: false,
-                                    });
+                                    dispatch(
+                                        explorerActions.toggleAdditionalMetricModal(
+                                            {
+                                                type: metric,
+                                                item,
+                                                isEditing: false,
+                                            },
+                                        ),
+                                    );
 
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
@@ -396,10 +401,12 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 track({
                                     name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
                                 });
-                                toggleCustomDimensionModal({
-                                    item,
-                                    isEditing: false,
-                                });
+                                dispatch(
+                                    explorerActions.toggleCustomDimensionModal({
+                                        item,
+                                        isEditing: false,
+                                    }),
+                                );
                             }}
                         >
                             Add custom dimensions
