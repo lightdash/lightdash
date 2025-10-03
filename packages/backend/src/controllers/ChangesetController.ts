@@ -1,12 +1,14 @@
 import {
     ApiChangesetsResponseTSOACompat,
     ApiErrorPayload,
+    ApiRevertChangeResponse,
 } from '@lightdash/common';
 import {
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -44,6 +46,43 @@ export class ChangesetController extends BaseController {
             status: 'ok',
             results:
                 changesets as unknown as ApiChangesetsResponseTSOACompat['results'],
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/changes/{changeUuid}/revert')
+    @OperationId('revertChange')
+    async revertChange(
+        @Path() projectUuid: string,
+        @Path() changeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiRevertChangeResponse> {
+        await this.services
+            .getChangesetService()
+            .revertChange(req.user!, projectUuid, changeUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/revert-all')
+    @OperationId('revertAllChanges')
+    async revertAllChanges(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiRevertChangeResponse> {
+        await this.services
+            .getChangesetService()
+            .revertAllChanges(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

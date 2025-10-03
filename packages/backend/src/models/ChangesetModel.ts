@@ -180,11 +180,41 @@ export class ChangesetModel {
         return change;
     }
 
+    async revertChanges({
+        changeUuids,
+    }: {
+        changeUuids: string[];
+    }): Promise<void> {
+        if (changeUuids.length === 0) {
+            return;
+        }
+
+        await this.database(ChangesTableName)
+            .whereIn('change_uuid', changeUuids)
+            .delete();
+    }
+
     async revertChange(changeUuid: string): Promise<void> {
         await this.getChange(changeUuid);
 
-        await this.database(ChangesTableName)
-            .where('change_uuid', changeUuid)
-            .delete();
+        await this.revertChanges({ changeUuids: [changeUuid] });
+    }
+
+    async getActiveChangesetChanges(projectUuid: string): Promise<string[]> {
+        const activeChangeset = await this.database(ChangesetsTableName)
+            .select('changeset_uuid')
+            .where('project_uuid', projectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        if (!activeChangeset) {
+            return [];
+        }
+
+        const changes = await this.database(ChangesTableName)
+            .select('change_uuid')
+            .where('changeset_uuid', activeChangeset.changeset_uuid);
+
+        return changes.map((change) => change.change_uuid);
     }
 }
