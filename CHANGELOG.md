@@ -1,3 +1,11 @@
+# [0.2047.0](https://github.com/lightdash/lightdash/compare/0.2046.0...0.2047.0) (2025-10-03)
+
+
+### Features
+
+* add table calculation templates ([#17099](https://github.com/lightdash/lightdash/issues/17099)) ([095bd7a](https://github.com/lightdash/lightdash/commit/095bd7a600c9fc9f700d5e7c3ed7b5782120f484))
+* add table calculations support for AI agent visualizations ([#17043](https://github.com/lightdash/lightdash/issues/17043)) ([d91c97d](https://github.com/lightdash/lightdash/commit/d91c97d22d50ad7eae9616cee6d4979c05811e81))
+
 # [0.2046.0](https://github.com/lightdash/lightdash/compare/0.2045.0...0.2046.0) (2025-10-03)
 
 
