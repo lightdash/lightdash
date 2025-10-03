@@ -25,6 +25,7 @@ export const getOpenaiGptmodel = (
         providerOptions: {
             [PROVIDER]: {
                 strictJsonSchema: true,
+                parallelToolCalls: false,
             },
         },
     };
