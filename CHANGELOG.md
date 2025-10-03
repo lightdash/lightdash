@@ -1,3 +1,10 @@
+# [0.2051.0](https://github.com/lightdash/lightdash/compare/0.2050.2...0.2051.0) (2025-10-03)
+
+
+### Features
+
+* migrate filters and sorts from Context to Redux ([#17171](https://github.com/lightdash/lightdash/issues/17171)) ([7058bba](https://github.com/lightdash/lightdash/commit/7058bba8ad70ecc97957fae26061fa03b427e6eb))
+
 ## [0.2050.2](https://github.com/lightdash/lightdash/compare/0.2050.1...0.2050.2) (2025-10-03)
 
 
