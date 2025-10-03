@@ -8,6 +8,7 @@ import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
+    selectSorts,
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -38,12 +39,12 @@ export const useCompiledSql = (
     queryOptions?: UseQueryOptions<ApiCompiledQueryResults, ApiError>,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    // Read tableName from Redux to avoid stale Context reads
+    // Read tableName and sorts from Redux to avoid stale Context reads
     const tableId = useExplorerSelector(selectTableName);
+    const sorts = useExplorerSelector(selectSorts);
     const {
         dimensions,
         metrics,
-        sorts,
         filters,
         limit,
         tableCalculations,

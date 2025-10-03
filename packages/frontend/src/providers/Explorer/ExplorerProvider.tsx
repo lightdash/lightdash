@@ -822,6 +822,15 @@ const ExplorerProvider: FC<
         );
     }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
 
+    // Keep Redux columnOrder in sync with Context columnOrder
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setColumnOrder(
+                unsavedChartVersion.tableConfig.columnOrder,
+            ),
+        );
+    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
+
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
         reduxDispatch(

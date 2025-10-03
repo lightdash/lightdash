@@ -1,11 +1,14 @@
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
-import { memo, useEffect, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     explorerActions,
+    selectColumnOrder,
+    selectDimensions,
     selectFromDashboard,
     selectIsEditMode,
     selectMetricQuery,
+    selectMetrics,
     selectParameterReferences,
     selectPivotConfig,
     selectPreviouslyFetchedState,
@@ -40,6 +43,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
         // Get state from Redux
         const tableName = useExplorerSelector(selectTableName);
+        const dimensions = useExplorerSelector(selectDimensions);
+        const metrics = useExplorerSelector(selectMetrics);
+        const columnOrder = useExplorerSelector(selectColumnOrder);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
@@ -104,11 +110,22 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             }
         }, [parameterReferences, dispatch, isError]);
 
-        // Get unsavedChartVersion for default sort calculation
-        const unsavedChartVersion = useExplorerContext(
-            (context) => context.state.unsavedChartVersion,
+        // Construct object for default sort calculation using Redux values
+        const chartVersionForSort = useMemo(
+            () => ({
+                tableName,
+                metricQuery: {
+                    dimensions,
+                    metrics,
+                },
+                tableConfig: {
+                    columnOrder,
+                },
+            }),
+            [tableName, dimensions, metrics, columnOrder],
         );
-        const defaultSort = useDefaultSortField(unsavedChartVersion);
+
+        const defaultSort = useDefaultSortField(chartVersionForSort as any);
 
         // Set default sort when table changes and no sorts exist
         useEffect(() => {
