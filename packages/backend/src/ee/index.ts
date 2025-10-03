@@ -204,6 +204,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
+                    organizationWarehouseCredentialsModel:
+                        models.getOrganizationWarehouseCredentialsModel(),
                 }),
             instanceConfigurationService: ({ models, context, repository }) =>
                 new InstanceConfigurationService({
@@ -262,6 +264,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     storageClient: clients.getResultsFileStorageClient(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
+                    organizationWarehouseCredentialsModel:
+                        models.getOrganizationWarehouseCredentialsModel(),
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),

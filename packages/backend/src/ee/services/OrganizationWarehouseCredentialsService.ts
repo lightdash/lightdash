@@ -135,12 +135,10 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         this.canManage(account);
         const organizationUuid = account.organization.organizationUuid!;
         const userUuid = account.user.id;
-
         const credentialsWithTokens = await this.updateCredentialTokens(
             userUuid,
             data,
         );
-
         const credentials =
             await this.organizationWarehouseCredentialsModel.create(
                 organizationUuid,

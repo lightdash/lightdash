@@ -1210,6 +1210,7 @@ export type UpdateProject = Omit<
     | 'type'
     | 'schedulerTimezone'
     | 'createdByUserUuid'
+    | 'organizationWarehouseCredentialsUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

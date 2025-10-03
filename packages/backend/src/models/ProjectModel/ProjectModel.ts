@@ -472,6 +472,8 @@ export class ProjectModel {
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
+                    organization_warehouse_credentials_uuid:
+                        data.organizationWarehouseCredentialsUuid ?? null,
                 })
                 .returning('*');
 
@@ -525,6 +527,8 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     dbt_version: data.dbtVersion,
+                    organization_warehouse_credentials_uuid:
+                        data.organizationWarehouseCredentialsUuid,
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -539,6 +543,24 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
         });
+    }
+
+    async clearCachedExplores(projectUuids: string | string[]): Promise<void> {
+        const uuids = Array.isArray(projectUuids)
+            ? projectUuids
+            : [projectUuids];
+
+        if (uuids.length === 0) {
+            return;
+        }
+
+        await this.database('cached_explores')
+            .whereIn('project_uuid', uuids)
+            .delete();
+
+        await this.database('cached_explore')
+            .whereIn('project_uuid', uuids)
+            .delete();
     }
 
     async delete(projectUuid: string): Promise<void> {
@@ -705,6 +727,18 @@ export class ProjectModel {
                         undefined,
                 };
 
+                // If project uses organization warehouse credentials, load them
+                if (project.organization_warehouse_credentials_uuid) {
+                    const sensitiveCredentials =
+                        await this.getOrganizationWarehouseCredentials(
+                            project.organization_warehouse_credentials_uuid,
+                        );
+                    return {
+                        ...result,
+                        warehouseConnection: sensitiveCredentials,
+                    };
+                }
+
                 // Fall back to project-level credentials
                 if (!project.warehouse_type) {
                     return result;
@@ -814,6 +848,37 @@ export class ProjectModel {
         }
     }
 
+    private async getOrganizationWarehouseCredentials(
+        organizationWarehouseCredentialsUuid: string,
+    ): Promise<CreateWarehouseCredentials> {
+        const [orgCredentials] = await this.database(
+            'organization_warehouse_credentials',
+        )
+            .where(
+                'organization_warehouse_credentials_uuid',
+                organizationWarehouseCredentialsUuid,
+            )
+            .select('warehouse_connection');
+
+        if (!orgCredentials) {
+            throw new NotExistsError(
+                'Organization warehouse credentials not found',
+            );
+        }
+
+        try {
+            return JSON.parse(
+                this.encryptionUtil.decrypt(
+                    orgCredentials.warehouse_connection,
+                ),
+            ) as CreateWarehouseCredentials;
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Failed to load organization warehouse credentials',
+            );
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
@@ -854,6 +919,8 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
             createdByUserUuid: project.createdByUserUuid ?? null,
+            organizationWarehouseCredentialsUuid:
+                project.organizationWarehouseCredentialsUuid,
         };
     }
 
@@ -1435,13 +1502,24 @@ export class ProjectModel {
                 'warehouse_credentials.project_id',
                 'projects.project_id',
             )
-            .select(['warehouse_type', 'encrypted_credentials'])
+            .select([
+                'warehouse_type',
+                'encrypted_credentials',
+                'organization_warehouse_credentials_uuid',
+            ])
             .where('project_uuid', projectUuid);
         if (row === undefined) {
             throw new NotExistsError(
                 `Cannot find any warehouse credentials for project.`,
             );
         }
+        if (row.organization_warehouse_credentials_uuid) {
+            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
+            return this.getOrganizationWarehouseCredentials(
+                row.organization_warehouse_credentials_uuid,
+            );
+        }
+
         try {
             return JSON.parse(
                 this.encryptionUtil.decrypt(row.encrypted_credentials),

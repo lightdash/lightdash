@@ -8,6 +8,7 @@ import {
     MetricType,
     ParseError,
     SupportedDbtAdapter,
+    UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -198,6 +199,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
         if (credentials.authenticationType === 'sso') {
+            if (!credentials.token) {
+                // Perhaps we forgot to refresh the token before building the client, check buildAdapter for more details
+                throw new UnexpectedServerError(
+                    'Snowflake token is required for SSO authentication',
+                );
+            }
             authenticationOptions = {
                 token: credentials.token,
                 authenticator: 'OAUTH',
