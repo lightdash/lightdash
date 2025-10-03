@@ -33,6 +33,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 };
 
 export const getGenerateTimeSeriesVizConfig = ({
@@ -44,6 +45,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
+    enableSelfImprovement,
 }: Dependencies) =>
     tool({
         description: toolTimeSeriesArgsSchema.description,
@@ -73,6 +75,13 @@ export const getGenerateTimeSeriesVizConfig = ({
                     description: toolArgs.description,
                     vizConfig: toolArgs,
                 });
+
+                const selfImprovementResultFollowUp =
+                    enableSelfImprovement &&
+                    toolArgs.customMetrics &&
+                    toolArgs.customMetrics.length > 0
+                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
+                        : '';
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
                     return {
@@ -122,7 +131,7 @@ export const getGenerateTimeSeriesVizConfig = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success`,
+                        result: `Success. ${selfImprovementResultFollowUp}`,
                         metadata: {
                             status: 'success',
                         },
@@ -132,7 +141,10 @@ export const getGenerateTimeSeriesVizConfig = ({
                 const csv = convertQueryResultsToCsv(queryResults);
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: `${serializeData(
+                        csv,
+                        'csv',
+                    )} ${selfImprovementResultFollowUp}`,
                     metadata: {
                         status: 'success',
                     },

@@ -31,6 +31,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 };
 
 export const getGenerateTableVizConfig = ({
@@ -42,6 +43,7 @@ export const getGenerateTableVizConfig = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
+    enableSelfImprovement,
 }: Dependencies) =>
     tool({
         description: toolTableVizArgsSchema.description,
@@ -73,6 +75,13 @@ export const getGenerateTableVizConfig = ({
                     description: toolArgs.description,
                     vizConfig: toolArgs,
                 });
+
+                const selfImprovementResultFollowUp =
+                    enableSelfImprovement &&
+                    vizTool.customMetrics &&
+                    vizTool.customMetrics.length > 0
+                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
+                        : '';
 
                 const metricQuery = metricQueryTableViz({
                     vizConfig: vizTool.vizConfig,
@@ -121,7 +130,7 @@ export const getGenerateTableVizConfig = ({
                             result: `Here's the result:\n${serializeData(
                                 csv,
                                 'csv',
-                            )}`,
+                            )} ${selfImprovementResultFollowUp}`,
                             metadata: {
                                 status: 'success',
                             },
@@ -137,7 +146,10 @@ export const getGenerateTableVizConfig = ({
                 }
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: `Here's the result:\n${serializeData(
+                        csv,
+                        'csv',
+                    )} ${selfImprovementResultFollowUp}`,
                     metadata: {
                         status: 'success',
                     },

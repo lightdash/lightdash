@@ -33,6 +33,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
+    enableSelfImprovement: boolean;
 };
 
 export const getGenerateBarVizConfig = ({
@@ -44,6 +45,7 @@ export const getGenerateBarVizConfig = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
+    enableSelfImprovement,
 }: Dependencies) =>
     tool({
         description: toolVerticalBarArgsSchema.description,
@@ -72,6 +74,12 @@ export const getGenerateBarVizConfig = ({
                     description: toolArgs.description,
                     vizConfig: toolArgs,
                 });
+                const selfImprovementResultFollowUp =
+                    enableSelfImprovement &&
+                    vizTool.customMetrics &&
+                    vizTool.customMetrics.length > 0
+                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
+                        : '';
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
                     return {
@@ -121,7 +129,7 @@ export const getGenerateBarVizConfig = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success`,
+                        result: `Success. ${selfImprovementResultFollowUp}`,
                         metadata: {
                             status: 'success',
                         },
@@ -131,7 +139,10 @@ export const getGenerateBarVizConfig = ({
                 const csv = convertQueryResultsToCsv(queryResults);
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: `${serializeData(
+                        csv,
+                        'csv',
+                    )} ${selfImprovementResultFollowUp}`,
                     metadata: {
                         status: 'success',
                     },
