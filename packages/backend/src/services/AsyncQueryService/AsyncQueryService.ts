@@ -780,10 +780,16 @@ export class AsyncQueryService extends ProjectService {
 
         const userUuid = account.user.id;
 
+        // If the account is a JWT user, we need to include the encoded JWT in the payload
+        const encodedJwt = account.isJwtUser()
+            ? account.authentication.source
+            : undefined;
+
         return this.schedulerClient.downloadAsyncQueryResults({
             ...payload,
             organizationUuid,
             userUuid,
+            encodedJwt,
         });
     }
 

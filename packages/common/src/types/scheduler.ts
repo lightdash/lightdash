@@ -537,4 +537,5 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
     attachmentDownloadName?: string;
+    encodedJwt?: string;
 };

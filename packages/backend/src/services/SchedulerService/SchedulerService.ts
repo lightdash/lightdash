@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertIsAccountWithOrg,
     ChartSummary,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
@@ -27,6 +28,7 @@ import {
     SchedulerJobStatus,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
+    type Account,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -509,12 +511,13 @@ export class SchedulerService extends BaseService {
     }
 
     async getJobStatus(
-        user: SessionUser,
+        account: Account,
         jobId: string,
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
+        assertIsAccountWithOrg(account);
         const job = await this.schedulerModel.getJobStatus(jobId);
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('JobStatus', {
                     organizationUuid: job.details?.organizationUuid,

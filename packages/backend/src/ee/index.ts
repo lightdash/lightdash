@@ -350,6 +350,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 renameService: context.serviceRepository.getRenameService(),
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
+                embedService: context.serviceRepository.getEmbedService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
