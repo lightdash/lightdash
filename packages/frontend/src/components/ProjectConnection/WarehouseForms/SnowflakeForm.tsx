@@ -169,19 +169,20 @@ const SnowflakeForm: FC<{
             <Stack style={{ marginTop: '8px' }}>
                 <Radio.Group
                     value={useOrgCredentials ? 'org' : 'manual'}
+                    name="useOrgCredentials"
                     onChange={(value) => {
                         const useOrg = value === 'org';
                         setUseOrgCredentials(useOrg);
                         if (useOrg) {
                             // Clear manual fields when switching to org credentials
                             form.setFieldValue(
-                                'warehouse.organizationWarehouseCredentialsUuid',
+                                'organizationWarehouseCredentialsUuid',
                                 snowflakeOrgCredentials[0]
                                     ?.organizationWarehouseCredentialsUuid,
                             );
                         } else {
                             form.setFieldValue(
-                                'warehouse.organizationWarehouseCredentialsUuid',
+                                'organizationWarehouseCredentialsUuid',
                                 undefined,
                             );
                         }
@@ -212,12 +213,12 @@ const SnowflakeForm: FC<{
                             label: cred.name,
                         }))}
                         value={
-                            form.values.warehouse
-                                ?.organizationWarehouseCredentialsUuid
+                            form.values.organizationWarehouseCredentialsUuid ||
+                            savedProject?.organizationWarehouseCredentialsUuid
                         }
                         onChange={(value) => {
                             form.setFieldValue(
-                                'warehouse.organizationWarehouseCredentialsUuid',
+                                'organizationWarehouseCredentialsUuid',
                                 value || undefined,
                             );
                         }}

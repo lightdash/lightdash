@@ -550,6 +550,8 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                    organizationWarehouseCredentialsModel:
+                        this.models.getOrganizationWarehouseCredentialsModel(),
                 }),
         );
     }
@@ -592,6 +594,8 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                    organizationWarehouseCredentialsModel:
+                        this.models.getOrganizationWarehouseCredentialsModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                     permissionsService: this.getPermissionsService(),

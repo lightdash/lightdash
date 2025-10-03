@@ -39,6 +39,7 @@ type CreateDbProject = Pick<
     | 'copied_from_project_uuid'
     | 'dbt_version'
     | 'created_by_user_uuid'
+    | 'organization_warehouse_credentials_uuid'
 > & {
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
 };

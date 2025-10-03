@@ -31,6 +31,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -185,6 +186,8 @@ const getMockedAsyncQueryService = (
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {} as FeatureFlagModel,
         projectParametersModel: {} as ProjectParametersModel,
+        organizationWarehouseCredentialsModel:
+            {} as OrganizationWarehouseCredentialsModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             s3Client: {} as S3Client,

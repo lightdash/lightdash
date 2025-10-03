@@ -192,6 +192,7 @@ export async function seed(knex: Knex): Promise<void> {
             dbt_connection: encryptedProjectSettings,
             dbt_version: SupportedDbtVersions.V1_7,
             created_by_user_uuid: user.user_uuid,
+            organization_warehouse_credentials_uuid: null,
         })
         .returning(['project_id', 'project_uuid']);
 
