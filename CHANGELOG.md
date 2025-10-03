@@ -1,3 +1,10 @@
+## [0.2050.1](https://github.com/lightdash/lightdash/compare/0.2050.0...0.2050.1) (2025-10-03)
+
+
+### Bug Fixes
+
+* fall back when rendering templated dbt fails ([#17231](https://github.com/lightdash/lightdash/issues/17231)) ([6a9184c](https://github.com/lightdash/lightdash/commit/6a9184ccba39e5bcc7f3605a9b0a0ff08c6fe0f9))
+
 # [0.2050.0](https://github.com/lightdash/lightdash/compare/0.2049.0...0.2050.0) (2025-10-03)
 
 
