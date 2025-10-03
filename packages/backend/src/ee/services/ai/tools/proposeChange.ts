@@ -1,8 +1,11 @@
 import {
     assertUnreachable,
     convertAdditionalMetric,
+    Dimension,
     Explore,
     getItemId,
+    Metric,
+    Table,
     ToolProposeChangeArgs,
     toolProposeChangeArgsSchema,
     toolProposeChangeOutputSchema,
@@ -122,11 +125,15 @@ export const getProposeChange = ({
                     exploreName: entityTableName,
                 });
 
+                let existingEntity: Table | Dimension | Metric | undefined;
+
                 switch (change.entityType) {
                     case 'table':
                         switch (change.value.type) {
                             case 'update':
                                 validateTableNames(explore, [entityTableName]);
+                                existingEntity =
+                                    explore.tables[entityTableName];
                                 break;
                             default:
                                 return assertUnreachable(
@@ -137,6 +144,11 @@ export const getProposeChange = ({
                         break;
                     case 'dimension':
                     case 'metric':
+                        existingEntity =
+                            explore.tables[entityTableName][
+                                `${change.entityType}s`
+                            ][change.fieldId];
+
                         switch (change.value.type) {
                             case 'create':
                                 validateTableNames(explore, [entityTableName]);
@@ -179,6 +191,12 @@ export const getProposeChange = ({
                         status: 'success',
                         changeUuid,
                         userFeedback: 'accepted',
+                        originalEntity: existingEntity
+                            ? {
+                                  label: existingEntity.label,
+                                  description: existingEntity.description,
+                              }
+                            : undefined,
                     },
                 };
             } catch (error) {

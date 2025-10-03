@@ -1,4 +1,7 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ToolProposeChangeOutput,
+} from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { toPairs } from 'lodash';
 import { OperationRenderer } from './OperationRenderer';
@@ -20,20 +23,22 @@ import type {
 
 type UpdateChangeProps = {
     patch: UpdateTablePatch | UpdateDimensionPatch | UpdateMetricPatch;
+    metadata: ToolProposeChangeOutput['metadata'] | null;
 };
 
-const UpdateChange = ({ patch }: UpdateChangeProps) => {
+const UpdateChange: React.FC<UpdateChangeProps> = ({ patch, metadata }) => {
     const operations = toPairs(patch)
         .filter(([, op]) => op !== null)
         .map(([property, op]) => ({ property, op: op! }));
 
     return (
-        <Stack gap="xs" px="xs">
+        <Stack gap="xs">
             {operations.map(({ property, op }) => (
                 <OperationRenderer
                     key={property}
                     operation={op}
                     property={property}
+                    metadata={metadata}
                 />
             ))}
         </Stack>
@@ -47,15 +52,23 @@ const UpdateChange = ({ patch }: UpdateChangeProps) => {
 type TableChangeProps = {
     change: TableChange;
     entityTableName: string;
+    metadata: ToolProposeChangeOutput['metadata'] | null;
 };
 
-const TableChangeRender = ({ change, entityTableName }: TableChangeProps) => {
+const TableChangeRender = ({
+    change,
+    entityTableName,
+    metadata,
+}: TableChangeProps) => {
     switch (change.value.type) {
         case 'update':
             return (
                 <Stack gap="xs">
                     <TableBreadcrumb entityTableName={entityTableName} />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange
+                        patch={change.value.patch}
+                        metadata={metadata}
+                    />
                 </Stack>
             );
         default:
@@ -73,11 +86,13 @@ const TableChangeRender = ({ change, entityTableName }: TableChangeProps) => {
 type DimensionChangeProps = {
     change: DimensionChange;
     entityTableName: string;
+    metadata: ToolProposeChangeOutput['metadata'] | null;
 };
 
 const DimensionChangeRender = ({
     change,
     entityTableName,
+    metadata,
 }: DimensionChangeProps) => {
     switch (change.value.type) {
         case 'update':
@@ -88,7 +103,10 @@ const DimensionChangeRender = ({
                         fieldType="dimension"
                         fieldId={change.fieldId}
                     />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange
+                        patch={change.value.patch}
+                        metadata={metadata}
+                    />
                 </Stack>
             );
         default:
@@ -106,9 +124,14 @@ const DimensionChangeRender = ({
 type MetricChangeProps = {
     change: MetricChange;
     entityTableName: string;
+    metadata: ToolProposeChangeOutput['metadata'] | null;
 };
 
-const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
+const MetricChangeRender = ({
+    change,
+    entityTableName,
+    metadata,
+}: MetricChangeProps) => {
     switch (change.value.type) {
         case 'update':
             return (
@@ -118,7 +141,10 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
                         fieldType="metric"
                         fieldId={change.fieldId}
                     />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange
+                        patch={change.value.patch}
+                        metadata={metadata}
+                    />
                 </Stack>
             );
         case 'create':
@@ -146,18 +172,21 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
 type ChangeRendererProps = {
     change: EntityChange;
     entityTableName: string;
+    metadata: ToolProposeChangeOutput['metadata'] | null;
 };
 
-export const ChangeRenderer = ({
+export const ChangeRenderer: React.FC<ChangeRendererProps> = ({
     change,
     entityTableName,
-}: ChangeRendererProps) => {
+    metadata,
+}) => {
     switch (change.entityType) {
         case 'table':
             return (
                 <TableChangeRender
                     change={change}
                     entityTableName={entityTableName}
+                    metadata={metadata}
                 />
             );
         case 'dimension':
@@ -165,6 +194,7 @@ export const ChangeRenderer = ({
                 <DimensionChangeRender
                     change={change}
                     entityTableName={entityTableName}
+                    metadata={metadata}
                 />
             );
         case 'metric':
@@ -172,6 +202,7 @@ export const ChangeRenderer = ({
                 <MetricChangeRender
                     change={change}
                     entityTableName={entityTableName}
+                    metadata={metadata}
                 />
             );
         default:

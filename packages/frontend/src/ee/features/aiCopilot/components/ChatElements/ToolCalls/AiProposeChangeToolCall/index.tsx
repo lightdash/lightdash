@@ -30,7 +30,7 @@ const CHANGE_COLORS = {
     create: 'green',
 } as const satisfies Record<'update' | 'create', DefaultMantineColor>;
 
-export const AiProposeChangeToolCall = ({
+export const AiProposeChangeToolCall: React.FC<Props> = ({
     change,
     entityTableName,
     defaultOpened = true,
@@ -39,7 +39,7 @@ export const AiProposeChangeToolCall = ({
     threadUuid,
     promptUuid,
     toolResult,
-}: Props) => {
+}) => {
     const changeType = change.value.type;
     const changeColor: DefaultMantineColor =
         CHANGE_COLORS[changeType] ?? 'gray';
@@ -106,6 +106,7 @@ export const AiProposeChangeToolCall = ({
                 <ChangeRenderer
                     change={change}
                     entityTableName={entityTableName}
+                    metadata={metadata}
                 />
 
                 <Group w="100%" justify="flex-end" pr="xs">

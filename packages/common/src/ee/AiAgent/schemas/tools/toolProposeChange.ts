@@ -196,6 +196,12 @@ export const toolProposeChangeOutputSchema = z.object({
                 .enum(['accepted', 'rejected'])
                 .default('accepted')
                 .optional(),
+            originalEntity: z
+                .object({
+                    label: z.string().optional(),
+                    description: z.string().optional(),
+                })
+                .optional(),
         }),
         z.object({
             status: z.literal('error'),
