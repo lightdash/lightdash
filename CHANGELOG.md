@@ -1,3 +1,10 @@
+# [0.2049.0](https://github.com/lightdash/lightdash/compare/0.2048.0...0.2049.0) (2025-10-03)
+
+
+### Features
+
+* display metric creation in Propose Change tool ui ([#17222](https://github.com/lightdash/lightdash/issues/17222)) ([a0aaff7](https://github.com/lightdash/lightdash/commit/a0aaff7f61095d98d3a4563ff04c9cdb300aa10e))
+
 # [0.2048.0](https://github.com/lightdash/lightdash/compare/0.2047.0...0.2048.0) (2025-10-03)
 
 
