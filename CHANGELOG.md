@@ -1,3 +1,10 @@
+## [0.2050.2](https://github.com/lightdash/lightdash/compare/0.2050.1...0.2050.2) (2025-10-03)
+
+
+### Bug Fixes
+
+* improve auto-refresh UI ([#17233](https://github.com/lightdash/lightdash/issues/17233)) ([61bcf91](https://github.com/lightdash/lightdash/commit/61bcf91ec13bd4d8a839fa03b65f2225f492efb0))
+
 ## [0.2050.1](https://github.com/lightdash/lightdash/compare/0.2050.0...0.2050.1) (2025-10-03)
 
 
