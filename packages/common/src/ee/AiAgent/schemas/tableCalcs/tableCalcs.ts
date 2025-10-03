@@ -10,6 +10,7 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { tableCalcPercentChangeFromPreviousSchema } from './tableCalcPercentChangeFromPrevious';
 import { tableCalcPercentOfColumnTotalSchema } from './tableCalcPercentOfColumnTotal';
 import { tableCalcPercentOfPreviousValueSchema } from './tableCalcPercentOfPreviousValue';
+import { tableCalcPercentRankSchema } from './tableCalcPercentRank';
 import { tableCalcRankInColumnSchema } from './tableCalcRankInColumn';
 import { tableCalcRunningTotalSchema } from './tableCalcRunningTotal';
 
@@ -19,6 +20,7 @@ const tableCalcSchema = z.discriminatedUnion('type', [
     tableCalcPercentOfColumnTotalSchema,
     tableCalcRankInColumnSchema,
     tableCalcRunningTotalSchema,
+    tableCalcPercentRankSchema,
 ]);
 
 export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
@@ -47,6 +49,10 @@ Create table calculations when:
 - User requests running total
   Examples: "Show cumulative revenue over time", "Running sum of orders by month"
   Recommended visualization type: Line chart for the table calculation as Y axis and time as X axis
+
+- User requests percent rank (relative position as a percentage)
+  Examples: "Show percentile ranking of sales", "What percentile is each product in revenue distribution"
+  Recommended visualization type: Table, Bar chart
 `);
 
 export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
@@ -123,6 +129,19 @@ function convertTableCalcSchemaToTableCalc(
                 },
                 format: {
                     type: CustomFormatType.NUMBER,
+                    separator: NumberSeparator.DEFAULT,
+                },
+            };
+        case 'percent_rank':
+            return {
+                ...baseCalc,
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_RANK,
+                    fieldId,
+                    orderBy: tableCalc.orderBy,
+                },
+                format: {
+                    type: CustomFormatType.PERCENT,
                     separator: NumberSeparator.DEFAULT,
                 },
             };

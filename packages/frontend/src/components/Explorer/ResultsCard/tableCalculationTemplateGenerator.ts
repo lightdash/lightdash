@@ -66,6 +66,13 @@ export function generateTableCalculationTemplate(
                 fieldId,
             };
 
+        case TableCalculationTemplateType.PERCENT_RANK:
+            return {
+                type: TableCalculationTemplateType.PERCENT_RANK,
+                fieldId,
+                orderBy: mapSortsToOrderBy(currentSorts),
+            };
+
         default:
             return assertUnreachable(type, `Unknown template type`);
     }

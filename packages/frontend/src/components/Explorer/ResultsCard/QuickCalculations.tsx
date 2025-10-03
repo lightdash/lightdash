@@ -40,6 +40,11 @@ const getFormatForQuickCalculation = (
                 type: CustomFormatType.NUMBER,
                 round: 2,
             };
+        case TableCalculationTemplateType.PERCENT_RANK:
+            return {
+                type: CustomFormatType.PERCENT,
+                round: 2,
+            };
         default:
             assertUnreachable(
                 templateType,
@@ -70,6 +75,7 @@ const isCalculationAvailable = (
         case TableCalculationTemplateType.RUNNING_TOTAL:
             return numericTypes.includes(item.type);
         case TableCalculationTemplateType.RANK_IN_COLUMN:
+        case TableCalculationTemplateType.PERCENT_RANK:
             return true; // any type
 
         default:
