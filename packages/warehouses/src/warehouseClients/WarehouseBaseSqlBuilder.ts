@@ -34,6 +34,10 @@ export default abstract class WarehouseBaseSqlBuilder
         return '\\';
     }
 
+    getFloatingType(): string {
+        return 'FLOAT';
+    }
+
     getMetricSql(sql: string, metric: Metric): string {
         return getDefaultMetricSql(sql, metric.type);
     }

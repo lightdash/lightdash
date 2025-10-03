@@ -90,6 +90,7 @@ export interface WarehouseSqlBuilder {
     getStringQuoteChar: () => string;
     getEscapeStringQuoteChar: () => string;
     getFieldQuoteChar: () => string;
+    getFloatingType: () => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
     escapeString: (value: string) => string;

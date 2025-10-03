@@ -449,7 +449,7 @@ export const metricQueryMock: MetricQuery = {
         {
             name: 'tc',
             displayName: '',
-            sql: '',
+            sql: '1',
         },
     ],
 };

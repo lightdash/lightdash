@@ -6,6 +6,7 @@ import {
     getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
+    isSqlTableCalculation,
     isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
@@ -570,6 +571,10 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.tableCalculations =
                     draft.unsavedChartVersion.metricQuery.tableCalculations.map(
                         (tableCalculation) => {
+                            if (!isSqlTableCalculation(tableCalculation)) {
+                                return tableCalculation;
+                            }
+
                             const newSql = tableCalculation.sql.replace(
                                 lightdashVariablePattern,
                                 (_, fieldRef) => {

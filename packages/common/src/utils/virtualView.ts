@@ -112,6 +112,7 @@ export const createTemporaryVirtualView = (
         getStringQuoteChar: () => "'",
         getEscapeStringQuoteChar: () => "''",
         getFieldQuoteChar: () => '"',
+        getFloatingType: () => 'FLOAT',
         getMetricSql: () => '',
         concatString: (...args) => args.join(''),
         getAllTables: async () => [],

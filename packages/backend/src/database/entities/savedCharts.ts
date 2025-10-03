@@ -11,6 +11,7 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
+    TableCalculationTemplate,
     TableCalculationType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -171,6 +172,7 @@ export type DbSavedChartTableCalculation = {
     saved_queries_version_id: number;
     format?: CustomFormat;
     type?: TableCalculationType;
+    template?: TableCalculationTemplate;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<
