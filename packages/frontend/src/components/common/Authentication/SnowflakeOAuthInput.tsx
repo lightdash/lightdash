@@ -1,9 +1,11 @@
-import { Anchor, Text } from '@mantine/core';
+import { WarehouseTypes } from '@lightdash/common';
+import { Anchor, Button, Text } from '@mantine/core';
 import React, { type FC } from 'react';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeLoginPopup,
 } from '../../../hooks/useSnowflake';
+import { getWarehouseIcon } from '../../ProjectConnection/ProjectConnectFlow/utils';
 
 type Props = {
     onAuthenticated?: (isAuthenticated: boolean) => void;
@@ -53,14 +55,16 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
     }
 
     return (
-        <Anchor
-            size="sm"
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.preventDefault();
+        <Button
+            onClick={() => {
                 openLoginPopup();
             }}
+            variant="default"
+            color="gray"
+            leftIcon={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
+            sx={{ ':hover': { textDecoration: 'underline' } }}
         >
             Sign in with Snowflake
-        </Anchor>
+        </Button>
     );
 };

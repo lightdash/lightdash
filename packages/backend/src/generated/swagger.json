@@ -6480,19 +6480,6 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
                                             }
                                         ]
                                     },
@@ -7595,6 +7582,9 @@
                     },
                     "override": {
                         "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -8377,6 +8367,9 @@
             },
             "CreateSnowflakeCredentials": {
                 "properties": {
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
                     "override": {
                         "type": "boolean"
                     },
@@ -12951,10 +12944,40 @@
                 ],
                 "type": "object"
             },
-            "ApiSchedulerLogsResponse": {
+            "KnexPaginatedData_SchedulerWithLogs_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/SchedulerWithLogs"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_SchedulerWithLogs__": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/SchedulerWithLogs"
+                        "$ref": "#/components/schemas/KnexPaginatedData_SchedulerWithLogs_"
                     },
                     "status": {
                         "type": "string",
@@ -12964,6 +12987,9 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ApiSchedulerLogsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_SchedulerWithLogs__"
             },
             "KnexPaginatedData_SchedulerAndTargets-Array_": {
                 "properties": {
@@ -17019,6 +17045,9 @@
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
                     },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
                     "pinnedListUuid": {
                         "type": "string"
                     },
@@ -17030,9 +17059,6 @@
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
-                    },
-                    "organizationWarehouseCredentialsUuid": {
-                        "type": "string"
                     },
                     "copyWarehouseConnectionFromUpstreamProject": {
                         "type": "boolean"
@@ -20600,7 +20626,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2062.0",
+        "version": "0.2064.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

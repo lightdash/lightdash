@@ -35,12 +35,21 @@ export const EditCredentialsModal: FC<
                 warehouse: snowflakeCredentials?.warehouse || '',
                 schema: snowflakeCredentials?.schema || '',
                 user: '', // This is required by snowflake CreateWarehouseCredentials type, but it is not used for SSO
+                override: snowflakeCredentials?.override || false,
+                requireUserCredentials:
+                    snowflakeCredentials?.requireUserCredentials || false,
+                clientSessionKeepAlive:
+                    snowflakeCredentials?.clientSessionKeepAlive || false,
+                queryTag: snowflakeCredentials?.queryTag || '',
+                accessUrl: snowflakeCredentials?.accessUrl || '',
+                startOfWeek: snowflakeCredentials?.startOfWeek ?? null,
             },
         },
     });
 
     return (
         <Modal
+            size="lg"
             title={<Title order={4}>Edit credentials</Title>}
             opened={opened}
             onClose={onClose}

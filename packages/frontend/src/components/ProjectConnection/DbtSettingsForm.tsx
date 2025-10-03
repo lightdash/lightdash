@@ -207,7 +207,11 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
-                                <WarehouseSchemaInput disabled={disabled} />
+                                {/* This WarehouseSchemaInput extra options will be provided in the organization warehouse credentials form */}
+                                {form.values
+                                    .organizationWarehouseCredentialsUuid ? null : (
+                                    <WarehouseSchemaInput disabled={disabled} />
+                                )}
                             </Stack>
                         </FormSection>
                         <FormSection

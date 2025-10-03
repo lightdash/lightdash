@@ -40,11 +40,18 @@ export const CreateCredentialsModal: FC<Props> = ({
                 warehouse: '',
                 schema: '',
                 user: '',
+                override: false,
+                requireUserCredentials: false,
+                clientSessionKeepAlive: false,
+                queryTag: '',
+                accessUrl: '',
+                startOfWeek: null,
             },
         },
     });
     return (
         <Modal
+            size="lg"
             title={title || <Title order={4}>Add new credentials</Title>}
             opened={opened}
             onClose={onClose}

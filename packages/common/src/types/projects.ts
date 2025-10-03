@@ -210,6 +210,7 @@ export type CreateSnowflakeCredentials = {
     startOfWeek?: WeekDay | null;
     quotedIdentifiersIgnoreCase?: boolean;
     override?: boolean;
+    organizationWarehouseCredentialsUuid?: string;
 };
 export type SnowflakeCredentials = Omit<
     CreateSnowflakeCredentials,
