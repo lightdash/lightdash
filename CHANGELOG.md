@@ -1,3 +1,10 @@
+# [0.2052.0](https://github.com/lightdash/lightdash/compare/0.2051.0...0.2052.0) (2025-10-03)
+
+
+### Features
+
+* migrate parameters from Context to Redux store ([#17184](https://github.com/lightdash/lightdash/issues/17184)) ([b1ddbe0](https://github.com/lightdash/lightdash/commit/b1ddbe0a7d3f6f9c5f9137a2b8cbb3a77ac39431))
+
 # [0.2051.0](https://github.com/lightdash/lightdash/compare/0.2050.2...0.2051.0) (2025-10-03)
 
 
