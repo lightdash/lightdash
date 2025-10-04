@@ -14,6 +14,7 @@ import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
+import CustomChartJsonHistory from './pages/CustomChartJsonHistory';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
@@ -170,6 +171,14 @@ const CHART_ROUTES: RouteObject[] = [
                 element: (
                     <TrackPage name={PageName.CHART_HISTORY}>
                         <ChartHistory />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/projects/:projectUuid/saved/:savedQueryUuid/json-history',
+                element: (
+                    <TrackPage name={PageName.CHART_HISTORY}>
+                        <CustomChartJsonHistory />
                     </TrackPage>
                 ),
             },
