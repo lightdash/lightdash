@@ -90,6 +90,7 @@ const Dashboard: FC = () => {
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+    const parametersReady = useDashboardContext((c) => c.parametersReady);
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
     );
@@ -721,7 +722,7 @@ const Dashboard: FC = () => {
                             onParameterChange={handleParameterChange}
                             onClearAll={clearAllParameters}
                             parameters={referencedParameters}
-                            isLoading={!areAllChartsLoaded}
+                            isLoading={!parametersReady}
                             missingRequiredParameters={
                                 missingRequiredParameters
                             }
