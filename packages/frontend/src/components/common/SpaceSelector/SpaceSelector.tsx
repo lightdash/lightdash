@@ -76,7 +76,7 @@ const SpaceSelector = ({
     );
 
     return (
-        <Stack h="600px">
+        <Stack>
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
@@ -97,10 +97,12 @@ const SpaceSelector = ({
             />
 
             <Paper
-                component={ScrollArea}
                 w="100%"
-                sx={{ flexGrow: 1 }}
                 withBorder
+                sx={{
+                    height: '250px',
+                    overflow: 'auto',
+                }}
             >
                 <Tree
                     withRootSelectable={isRootSelectionEnabled}
