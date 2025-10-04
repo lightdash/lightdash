@@ -41,4 +41,51 @@ export class ChangesetService extends BaseService {
             projectUuid,
         );
     }
+
+    async revertChange(
+        user: SessionUser,
+        projectUuid: string,
+        changeUuid: string,
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', {
+                    projectUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to revert changes in this project',
+            );
+        }
+
+        await this.changesetModel.revertChange(changeUuid);
+    }
+
+    async revertAllChanges(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', {
+                    projectUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to revert changes in this project',
+            );
+        }
+
+        const changeUuids = await this.changesetModel.getActiveChangesetChanges(
+            projectUuid,
+        );
+
+        await this.changesetModel.revertChanges({ changeUuids });
+    }
 }
