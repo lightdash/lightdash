@@ -50,6 +50,7 @@ import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
+import MySchedulesPanel from '../components/UserSettings/MySchedulesPanel';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -192,6 +193,10 @@ const Settings: FC = () => {
                     <MyWarehouseConnectionsPanel />
                 </Stack>
             ),
+        });
+        allowedRoutes.push({
+            path: '/mySchedules',
+            element: <MySchedulesPanel />,
         });
         if (user?.ability.can('manage', 'PersonalAccessToken')) {
             allowedRoutes.push({
@@ -465,6 +470,14 @@ const Settings: FC = () => {
                                     to="/generalSettings/myWarehouseConnections"
                                     icon={
                                         <MantineIcon icon={IconDatabaseCog} />
+                                    }
+                                />
+                                <RouterNavLink
+                                    label="My schedules"
+                                    exact
+                                    to="/generalSettings/mySchedules"
+                                    icon={
+                                        <MantineIcon icon={IconCalendarStats} />
                                     }
                                 />
                                 {user.ability.can(
