@@ -319,6 +319,7 @@ export enum TableCalculationTemplateType {
     PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
     RANK_IN_COLUMN = 'rank_in_column',
     RUNNING_TOTAL = 'running_total',
+    PERCENT_RANK = 'percent_rank',
 }
 
 export type TableCalculationTemplate =
@@ -349,6 +350,14 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           fieldId: string;
+      }
+    | {
+          type: TableCalculationTemplateType.PERCENT_RANK;
+          fieldId: string;
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
       };
 
 export type TableCalculation = {

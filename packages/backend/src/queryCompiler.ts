@@ -84,6 +84,10 @@ const compileTableCalculationFromTemplate = (
             return `SUM(${quotedFieldId}) OVER (ORDER BY ${quotedFieldId} DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
         }
 
+        case TableCalculationTemplateType.PERCENT_RANK: {
+            return `PERCENT_RANK() OVER (${orderByClause})`;
+        }
+
         default:
             return assertUnreachable(
                 templateType,
