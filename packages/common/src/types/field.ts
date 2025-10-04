@@ -364,6 +364,9 @@ export type TableCalculation = {
     | {
           template: TableCalculationTemplate;
       }
+    | {
+          spreadsheetFormula: string;
+      }
 );
 
 export type TableCalculationMetadata = {
@@ -384,7 +387,8 @@ export const isTableCalculation = (
     item
         ? !isCustomDimension(item) &&
           (!!('sql' in item && item.sql) ||
-              !!('template' in item && item.template)) &&
+              !!('template' in item && item.template) ||
+              !!('spreadsheetFormula' in item && item.spreadsheetFormula)) &&
           !('description' in item) &&
           !('tableName' in item) &&
           'displayName' in item
@@ -399,6 +403,11 @@ export const isTemplateTableCalculation = (
     calc: TableCalculation,
 ): calc is TableCalculation & { template: TableCalculationTemplate } =>
     !!calc && 'template' in calc && !!calc.template;
+
+export const isSpreadsheetFormulaTableCalculation = (
+    calc: TableCalculation,
+): calc is TableCalculation & { spreadsheetFormula: string } =>
+    !!calc && 'spreadsheetFormula' in calc && !!calc.spreadsheetFormula;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
