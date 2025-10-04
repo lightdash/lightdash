@@ -592,6 +592,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
+                  organization_warehouse_credentials_uuid: string | null;
               }
             | {
                   name: string;
@@ -605,6 +606,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
+                  organization_warehouse_credentials_uuid: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -659,6 +661,9 @@ export class ProjectModel {
                         this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('organization_warehouse_credentials_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -695,7 +700,12 @@ export class ProjectModel {
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
                     createdByUserUuid: project.created_by_user_uuid,
+                    organizationWarehouseCredentialsUuid:
+                        project.organization_warehouse_credentials_uuid ??
+                        undefined,
                 };
+
+                // Fall back to project-level credentials
                 if (!project.warehouse_type) {
                     return result;
                 }

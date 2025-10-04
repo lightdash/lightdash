@@ -25,6 +25,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
+import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
@@ -73,6 +74,7 @@ export type ModelManifest = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
+    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     pinnedListModel: PinnedListModel;
@@ -350,6 +352,17 @@ export class ModelRepository
         return this.getModel(
             'organizationModel',
             () => new OrganizationModel(this.database, this.lightdashConfig),
+        );
+    }
+
+    public getOrganizationWarehouseCredentialsModel(): OrganizationWarehouseCredentialsModel {
+        return this.getModel(
+            'organizationWarehouseCredentialsModel',
+            () =>
+                new OrganizationWarehouseCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
         );
     }
 

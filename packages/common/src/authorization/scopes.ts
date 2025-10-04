@@ -408,6 +408,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:OrganizationWarehouseCredentials',
+        description: 'Manage organization warehouse credentials',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ContentAsCode',
         description: 'Manage content as code features',
         isEnterprise: true,

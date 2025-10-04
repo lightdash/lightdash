@@ -20,6 +20,7 @@ export type DbProject = {
     organization_id: number;
     dbt_connection_type: DbtProjectType | null;
     dbt_connection: Buffer | null;
+    organization_warehouse_credentials_uuid: string | null;
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;
     copied_from_project_uuid: string | null;
@@ -47,6 +48,7 @@ type UpdateDbProject = Partial<
         | 'name'
         | 'dbt_connection'
         | 'dbt_connection_type'
+        | 'organization_warehouse_credentials_uuid'
         | 'table_selection_type'
         | 'table_selection_value'
         | 'dbt_version'

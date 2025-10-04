@@ -114,6 +114,7 @@ interface ServiceManifest {
     rolesService: RolesService;
     slackService: SlackService;
     changesetService: ChangesetService;
+    organizationWarehouseCredentialsService: unknown;
 }
 
 /**
@@ -992,6 +993,12 @@ export class ServiceRepository
         ServiceAccountServiceImplT,
     >(): ServiceAccountServiceImplT {
         return this.getService('serviceAccountService');
+    }
+
+    public getOrganizationWarehouseCredentialsService<
+        OrganizationWarehouseCredentialsServiceImplT,
+    >(): OrganizationWarehouseCredentialsServiceImplT {
+        return this.getService('organizationWarehouseCredentialsService');
     }
 
     public getInstanceConfigurationService<

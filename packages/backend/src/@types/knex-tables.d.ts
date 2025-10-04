@@ -170,6 +170,10 @@ import {
     OrganizationColorPaletteTableName,
 } from '../database/entities/organizationColorPalettes';
 import {
+    OrganizationWarehouseCredentialsTable,
+    OrganizationWarehouseCredentialsTableName,
+} from '../database/entities/organizationWarehouseCredentials';
+import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
@@ -400,6 +404,7 @@ declare module 'knex/types/tables' {
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [ProjectParametersTableName]: ProjectParametersTable;
         [RolesTableName]: RoleTable;
