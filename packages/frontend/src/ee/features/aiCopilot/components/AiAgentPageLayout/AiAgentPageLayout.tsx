@@ -155,7 +155,9 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             collapsedSize={0}
                             className={styles.artifact}
                         >
-                            {artifact && <AiArtifactPanel />}
+                            {artifact && (
+                                <AiArtifactPanel artifact={artifact} />
+                            )}
                         </Panel>
                     </>
                 )}
@@ -180,7 +182,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             },
                         }}
                     >
-                        {artifact && <AiArtifactPanel />}
+                        {artifact && <AiArtifactPanel artifact={artifact} />}
                     </Drawer>
                 )}
             </ErrorBoundary>

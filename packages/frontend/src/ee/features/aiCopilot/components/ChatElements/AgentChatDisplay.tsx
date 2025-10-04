@@ -25,6 +25,7 @@ type Props = {
     debug?: boolean;
     projectUuid?: string;
     agentUuid?: string;
+    renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
 };
 
@@ -36,7 +37,8 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     debug,
     projectUuid,
     agentUuid,
-    showAddToEvalsButton,
+    renderArtifactsInline = false,
+    showAddToEvalsButton = false,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const [addToEvalsPromptUuid, setAddToEvalsPromptUuid] = useState<
@@ -87,11 +89,14 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                             debug={debug}
                                             projectUuid={projectUuid}
                                             agentUuid={agentUuid}
+                                            onAddToEvals={
+                                                setAddToEvalsPromptUuid
+                                            }
                                             showAddToEvalsButton={
                                                 showAddToEvalsButton
                                             }
-                                            onAddToEvals={
-                                                setAddToEvalsPromptUuid
+                                            renderArtifactsInline={
+                                                renderArtifactsInline
                                             }
                                         />
                                     )}
