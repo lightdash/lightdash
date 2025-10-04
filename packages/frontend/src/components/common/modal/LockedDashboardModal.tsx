@@ -1,8 +1,13 @@
 import { Modal, Stack, Text, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 
-export const LockedDashboardModal: FC<Pick<ModalProps, 'opened'>> = ({
+type LockedDashboardModalProps = Pick<ModalProps, 'opened'> & {
+    customMessage?: string;
+};
+
+export const LockedDashboardModal: FC<LockedDashboardModalProps> = ({
     opened,
+    customMessage,
 }) => (
     <Modal
         opened={opened}
@@ -20,7 +25,7 @@ export const LockedDashboardModal: FC<Pick<ModalProps, 'opened'>> = ({
         })}
     >
         <Text fw={600} fz="lg" ta="center" mb="lg">
-            Set filter values to get started
+            {customMessage || 'Set filter values to get started'}
         </Text>
         <Stack spacing="xs">
             <Text>
