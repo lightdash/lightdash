@@ -292,5 +292,5 @@ const selectModals = createSelector(
 
 export const selectItemDetailModal = createSelector(
     [selectModals],
-    (modals) => modals.itemDetail,
+    (modals) => modals?.itemDetail ?? { isOpen: false },
 );

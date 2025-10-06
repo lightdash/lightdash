@@ -441,6 +441,8 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.customDimensions = [];
                 return;
             }
+
+            // Update the custom dimension in the array
             const index =
                 state.unsavedChartVersion.metricQuery.customDimensions.findIndex(
                     (cd) => cd.id === oldId,
@@ -448,6 +450,29 @@ const explorerSlice = createSlice({
             if (index > -1) {
                 state.unsavedChartVersion.metricQuery.customDimensions[index] =
                     customDimension;
+            }
+
+            // The ID might have changed (if name changed), so update dimensions array
+            const newId = getItemId(customDimension);
+            if (oldId !== newId) {
+                state.unsavedChartVersion.metricQuery.dimensions =
+                    state.unsavedChartVersion.metricQuery.dimensions.map(
+                        (dim) => (dim === oldId ? newId : dim),
+                    );
+
+                // Update sorts if the field was sorted
+                state.unsavedChartVersion.metricQuery.sorts =
+                    state.unsavedChartVersion.metricQuery.sorts.map((sort) =>
+                        sort.fieldId === oldId
+                            ? { ...sort, fieldId: newId }
+                            : sort,
+                    );
+
+                // Update column order
+                state.unsavedChartVersion.tableConfig.columnOrder =
+                    state.unsavedChartVersion.tableConfig.columnOrder.map(
+                        (col) => (col === oldId ? newId : col),
+                    );
             }
         },
         removeCustomDimension: (state, action: PayloadAction<string>) => {
@@ -516,6 +541,45 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.tableConfig.columnOrder,
                 [...dimensionIds, ...metricIds, ...calcIds],
             );
+        },
+        updateAdditionalMetric: (
+            state,
+            action: PayloadAction<{
+                oldId: string;
+                additionalMetric: AdditionalMetric;
+            }>,
+        ) => {
+            const { oldId, additionalMetric } = action.payload;
+            const newId = getItemId(additionalMetric);
+
+            // Update the additional metric in the array
+            state.unsavedChartVersion.metricQuery.additionalMetrics = (
+                state.unsavedChartVersion.metricQuery.additionalMetrics || []
+            ).map((metric) =>
+                getItemId(metric) === oldId ? additionalMetric : metric,
+            );
+
+            // The ID might have changed (if name changed), so update metrics array
+            if (oldId !== newId) {
+                state.unsavedChartVersion.metricQuery.metrics =
+                    state.unsavedChartVersion.metricQuery.metrics.map(
+                        (metric) => (metric === oldId ? newId : metric),
+                    );
+
+                // Update sorts if the field was sorted
+                state.unsavedChartVersion.metricQuery.sorts =
+                    state.unsavedChartVersion.metricQuery.sorts.map((sort) =>
+                        sort.fieldId === oldId
+                            ? { ...sort, fieldId: newId }
+                            : sort,
+                    );
+
+                // Update column order
+                state.unsavedChartVersion.tableConfig.columnOrder =
+                    state.unsavedChartVersion.tableConfig.columnOrder.map(
+                        (col) => (col === oldId ? newId : col),
+                    );
+            }
         },
         removeAdditionalMetric: (state, action: PayloadAction<string>) => {
             const metricIdToRemove = action.payload;
