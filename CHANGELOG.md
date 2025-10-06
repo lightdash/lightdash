@@ -1,3 +1,10 @@
+## [0.2053.1](https://github.com/lightdash/lightdash/compare/0.2053.0...0.2053.1) (2025-10-06)
+
+
+### Bug Fixes
+
+* save filters in context as well as redux ([#17243](https://github.com/lightdash/lightdash/issues/17243)) ([a87abae](https://github.com/lightdash/lightdash/commit/a87abae0803e8bc6ed4c3224d797e9168a7a5122))
+
 # [0.2053.0](https://github.com/lightdash/lightdash/compare/0.2052.0...0.2053.0) (2025-10-06)
 
 
