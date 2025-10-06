@@ -3,12 +3,6 @@
 # Please see https://confluence.workday.com/pages/viewpage.action?pageId=1943985516
 
 #####################
-# CHANGE LOG
-#####################
-# (re)adding code analysis service webhook: seeking approval on pr [https://ghe.megaleo.com/perftool/lightdash-public/pulls/3]
-# (re)adding code analysis service ac svc-secapi-appsec: seeking approval on pr [https://ghe.megaleo.com/perftool/lightdash-public/pulls/3]
-
-#####################
 # SLACK CONFIGURATION
 #####################
 # Uncomment the below section and provide a Slack channel's name to allow Chimera to
@@ -21,7 +15,7 @@
 # SCAN TOOL  CONFIGURATION
 ##########################
 tools_config:
-  semgrep:
+  sast:
     rulesets:
     - p/docker-compose
     - p/dockerfile
@@ -41,7 +35,8 @@ tools_config:
     - packages/common/node_modules/*
     - packages/e2e/node_modules/*
     - packages/frontend/node_modules/*
-  snyk: {}
-  trufflehog:
+  sca: {}
+  secrets:
     max_commit_depth: 50
-  checkov: {}
+    use_wday_internal_rules: true
+  iac: {}
