@@ -1,19 +1,13 @@
 import {
-    EmbedJwt,
+    AnonymousAccount,
     ForbiddenError,
     JWT_HEADER_NAME,
     Organization,
+    type CreateEmbedJwt,
 } from '@lightdash/common';
 import express from 'express';
+import { fromJwt } from '../../auth/account';
 import { jwtAuthMiddleware } from './jwtAuthMiddleware';
-
-// Mock the JWT utility
-jest.mock('../../auth/lightdashJwt', () => ({
-    decodeLightdashJwt: jest.fn(),
-    JWT_HEADER_NAME: 'lightdash-embed-token',
-}));
-
-const { decodeLightdashJwt } = require('../../auth/lightdashJwt');
 
 describe('Embed Auth Middleware', () => {
     let mockRequest: Partial<express.Request>;
@@ -25,7 +19,7 @@ describe('Embed Auth Middleware', () => {
     const mockEmbedToken = 'test-embed-token';
     const mockEncodedSecret = Buffer.from('test-secret');
 
-    const mockEmbedJwt: EmbedJwt = {
+    const mockEmbedJwt: CreateEmbedJwt = {
         content: {
             type: 'dashboard',
             dashboardUuid: 'test-dashboard-uuid',
@@ -43,18 +37,31 @@ describe('Embed Auth Middleware', () => {
         name: 'Test Organization',
     };
 
-    const mockEmbedService = {
-        getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-            encodedSecret: mockEncodedSecret,
+    const mockAccount: AnonymousAccount = fromJwt({
+        source: mockEmbedToken,
+        decodedToken: mockEmbedJwt,
+        embed: {
+            encodedSecret: mockEncodedSecret.toString(),
             organization: mockOrganization,
-        }),
-        getDashboardUuidFromJwt: jest
-            .fn()
-            .mockResolvedValue('test-dashboard-uuid'),
-        getEmbedUserAttributes: jest.fn().mockResolvedValue({
+            dashboardUuids: ['test-dashboard-uuid'],
+            allowAllDashboards: false,
+            projectUuid: mockProjectUuid,
+            user: {
+                userUuid: 'test-user-uuid',
+                firstName: 'Test',
+                lastName: 'User',
+            },
+            createdAt: '2024-01-01',
+        },
+        dashboardUuid: 'test-dashboard-uuid',
+        userAttributes: {
             userAttributes: {},
             intrinsicUserAttributes: {},
-        }),
+        },
+    });
+
+    const mockEmbedService = {
+        getAccountFromJwt: jest.fn().mockResolvedValue(mockAccount),
     };
 
     beforeEach(() => {
@@ -80,7 +87,6 @@ describe('Embed Auth Middleware', () => {
     describe('Successful authentication scenarios', () => {
         it('should authenticate with embed token from lightdash-embed-token header', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -88,7 +94,12 @@ describe('Embed Auth Middleware', () => {
                 mockNext,
             );
 
+            expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                mockProjectUuid,
+                mockEmbedToken,
+            );
             expect(mockRequest.account).toBeDefined();
+            expect(mockRequest.account).toBe(mockAccount);
             expect(mockNext).toHaveBeenCalledWith();
         });
     });
@@ -152,9 +163,9 @@ describe('Embed Auth Middleware', () => {
             const forbiddenError = new ForbiddenError(
                 'Your embed token has expired.',
             );
-            decodeLightdashJwt.mockImplementation(() => {
-                throw forbiddenError;
-            });
+            mockEmbedService.getAccountFromJwt.mockRejectedValueOnce(
+                forbiddenError,
+            );
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -171,9 +182,9 @@ describe('Embed Auth Middleware', () => {
         it('should return 403 ForbiddenError when token is invalid', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
-            decodeLightdashJwt.mockImplementation(() => {
-                throw new ForbiddenError('Invalid embed token: malformed');
-            });
+            mockEmbedService.getAccountFromJwt.mockRejectedValueOnce(
+                new ForbiddenError('Invalid embed token: malformed'),
+            );
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -191,9 +202,9 @@ describe('Embed Auth Middleware', () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
             const unexpectedError = new Error('Database connection failed');
-            decodeLightdashJwt.mockImplementation(() => {
-                throw unexpectedError;
-            });
+            mockEmbedService.getAccountFromJwt.mockRejectedValueOnce(
+                unexpectedError,
+            );
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -208,6 +219,9 @@ describe('Embed Auth Middleware', () => {
 
         it('should handle embed service errors gracefully', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
+            mockEmbedService.getAccountFromJwt.mockRejectedValueOnce(
+                new Error('Service error'),
+            );
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -234,8 +248,6 @@ describe('Embed Auth Middleware', () => {
             async ({ path, projectUuid }) => {
                 mockRequest.path = path;
                 mockRequest.query = { embedToken: mockEmbedToken };
-
-                decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
                 await jwtAuthMiddleware(
                     mockRequest as express.Request,
@@ -277,7 +289,6 @@ describe('Embed Auth Middleware', () => {
     describe('Token extraction', () => {
         it('should use header token', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -285,9 +296,9 @@ describe('Embed Auth Middleware', () => {
                 mockNext,
             );
 
-            expect(decodeLightdashJwt).toHaveBeenCalledWith(
+            expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                mockProjectUuid,
                 mockEmbedToken,
-                mockEncodedSecret,
             );
             expect(mockRequest.account!.authentication.source).toBe(
                 mockEmbedToken,
