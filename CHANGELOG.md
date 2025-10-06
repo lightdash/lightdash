@@ -1,3 +1,10 @@
+## [0.2053.2](https://github.com/lightdash/lightdash/compare/0.2053.1...0.2053.2) (2025-10-06)
+
+
+### Bug Fixes
+
+* add missing indicies on 3 tables ([#17238](https://github.com/lightdash/lightdash/issues/17238)) ([aefc1ea](https://github.com/lightdash/lightdash/commit/aefc1ea457da296a9819310c53aa9c938e1de059))
+
 ## [0.2053.1](https://github.com/lightdash/lightdash/compare/0.2053.0...0.2053.1) (2025-10-06)
 
 
