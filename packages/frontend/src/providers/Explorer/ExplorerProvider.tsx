@@ -194,17 +194,8 @@ export function reducer(
         }
 
         case ActionType.ADD_CUSTOM_DIMENSION: {
-            console.log('ADD_CUSTOM_DIMENSION action:', action.payload);
             return produce(state, (draft) => {
                 const newCustomDimension = action.payload;
-                console.log(
-                    'Before customDimensions:',
-                    draft.unsavedChartVersion.metricQuery.customDimensions,
-                );
-                console.log(
-                    'Before dimensions:',
-                    draft.unsavedChartVersion.metricQuery.dimensions,
-                );
                 draft.unsavedChartVersion.metricQuery.customDimensions = [
                     ...(draft.unsavedChartVersion.metricQuery
                         .customDimensions || []),
@@ -221,14 +212,6 @@ export function reducer(
                         customDimensionId,
                     );
                 }
-                console.log(
-                    'After customDimensions:',
-                    draft.unsavedChartVersion.metricQuery.customDimensions,
-                );
-                console.log(
-                    'After dimensions:',
-                    draft.unsavedChartVersion.metricQuery.dimensions,
-                );
 
                 const dimensionIds =
                     draft.unsavedChartVersion.metricQuery.dimensions;

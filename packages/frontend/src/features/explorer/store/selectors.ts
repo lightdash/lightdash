@@ -1,5 +1,9 @@
 import { createSelector } from '@reduxjs/toolkit';
-import { getTotalFilterRules } from '@lightdash/common';
+import {
+    getTotalFilterRules,
+    type AdditionalMetric,
+    type CustomDimension,
+} from '@lightdash/common';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 
@@ -79,50 +83,18 @@ export const selectIsEditMode = createSelector(
     (explorer) => explorer.isEditMode ?? true, // Default to true for Explorer page
 );
 
-// Cached additional metrics with stable reference
-let cachedAdditionalMetrics: any[] | null = null;
-let cachedAdditionalMetricsKey: string | null = null;
+// Stable empty arrays to prevent unnecessary re-renders
+const EMPTY_ADDITIONAL_METRICS: AdditionalMetric[] = [];
+const EMPTY_CUSTOM_DIMENSIONS: CustomDimension[] = [];
 
 export const selectAdditionalMetrics = createSelector(
     [selectMetricQuery],
-    (metricQuery) => {
-        const metrics = metricQuery.additionalMetrics ?? [];
-        const key = metrics
-            .map((m) => m.uuid || m.name)
-            .sort()
-            .join(',');
-
-        if (cachedAdditionalMetricsKey === key && cachedAdditionalMetrics) {
-            return cachedAdditionalMetrics;
-        }
-
-        cachedAdditionalMetricsKey = key;
-        cachedAdditionalMetrics = metrics;
-        return cachedAdditionalMetrics;
-    },
+    (metricQuery) => metricQuery.additionalMetrics ?? EMPTY_ADDITIONAL_METRICS,
 );
-
-// Cached custom dimensions with stable reference
-let cachedCustomDimensions: any[] | null = null;
-let cachedCustomDimensionsKey: string | null = null;
 
 export const selectCustomDimensions = createSelector(
     [selectMetricQuery],
-    (metricQuery) => {
-        const dimensions = metricQuery.customDimensions ?? [];
-        const key = dimensions
-            .map((d) => d.id || d.name)
-            .sort()
-            .join(',');
-
-        if (cachedCustomDimensionsKey === key && cachedCustomDimensions) {
-            return cachedCustomDimensions;
-        }
-
-        cachedCustomDimensionsKey = key;
-        cachedCustomDimensions = dimensions;
-        return cachedCustomDimensions;
-    },
+    (metricQuery) => metricQuery.customDimensions ?? EMPTY_CUSTOM_DIMENSIONS,
 );
 
 export const selectTableCalculations = createSelector(
@@ -242,12 +214,12 @@ export const selectActiveFields = createSelector(
         // Create stable key by sorting - same contents = same key regardless of order
         const activeFieldsKey = [...activeFieldsArray].sort().join(',');
 
-        // Check if contents changed by comparing keys
+        // If contents haven't changed, return cached Set with same reference
+        // This prevents re-renders in components that subscribe to this selector
         if (
             cachedActiveFieldsKey === activeFieldsKey &&
             cachedActiveFieldsSet
         ) {
-            // Contents haven't changed - return cached Set with same reference
             return cachedActiveFieldsSet;
         }
 

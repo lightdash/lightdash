@@ -8,6 +8,7 @@ import {
     selectDimensions,
     selectFromDashboard,
     selectIsEditMode,
+    selectMetricQuery,
     selectMetrics,
     selectParameterReferences,
     selectPivotConfig,
@@ -54,7 +55,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             selectPreviouslyFetchedState,
         );
         const pivotConfig = useExplorerSelector(selectPivotConfig);
-        // metricQuery removed - MetricQueryDataProvider will read it from Redux
+        const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
@@ -168,19 +169,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }, [parameterDefinitions, dispatch]);
 
-        // Set default sort when table changes and no sorts exist
-        useEffect(() => {
-            if (tableName && !sorts.length && defaultSort) {
-                dispatch(explorerActions.setSortFields([defaultSort]));
-            }
-        }, [tableName, sorts.length, defaultSort, dispatch]);
-
         const { data: org } = useOrganization();
 
         return (
             <MetricQueryDataProvider
                 tableName={tableName}
                 explore={explore}
+                metricQuery={metricQuery}
                 queryUuid={queryUuid}
             >
                 <Stack sx={{ flexGrow: 1 }}>

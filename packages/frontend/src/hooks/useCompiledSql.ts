@@ -61,14 +61,6 @@ export const useCompiledSql = (
     const timezone = useExplorerSelector(selectTimezone);
     const queryParameters = useExplorerSelector(selectParameters);
 
-    console.log('useCompiledSql values:', {
-        dimensions,
-        metrics,
-        customDimensions,
-        tableCalculations,
-        additionalMetrics,
-    });
-
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         exploreName: tableId,

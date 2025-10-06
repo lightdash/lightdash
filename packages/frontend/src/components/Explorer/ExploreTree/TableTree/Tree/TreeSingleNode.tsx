@@ -1,5 +1,4 @@
 import {
-    addFilterRule,
     getItemId,
     isAdditionalMetric,
     isCompiledMetric,
@@ -34,17 +33,14 @@ import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
-    selectFilters,
     selectIsFieldActive,
     selectIsFieldFiltered,
-    selectIsFiltersExpanded,
     useExplorerDispatch,
     useExplorerSelector,
-    useExplorerStore,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
-import { ExplorerSection } from '../../../../../providers/Explorer/types';
+import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
@@ -102,35 +98,10 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const onItemClick = useTableTree((context) => context.onItemClick);
     const { track } = useTracking();
 
-    // Create stable addFilter action directly without hook
+    // Use addFilter hook that doesn't subscribe to filters state (prevents re-renders)
+    const addFilter = useAddFilter();
+
     const dispatch = useExplorerDispatch();
-    const store = useExplorerStore();
-    const addFilter = useCallback(
-        (field: FilterableField, value: any) => {
-            const currentFilters = selectFilters(store.getState());
-            const newFilters = addFilterRule({
-                filters: currentFilters,
-                field,
-                value,
-            });
-            dispatch(explorerActions.setFilters(newFilters));
-
-            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
-            if (!isFiltersExpanded) {
-                dispatch(
-                    explorerActions.toggleExpandedSection(
-                        ExplorerSection.FILTERS,
-                    ),
-                );
-            }
-
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-            });
-        },
-        [dispatch, store],
-    );
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
