@@ -122,6 +122,7 @@ import {
     getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
+    getProposeChangeBlocks,
 } from './ai/utils/getSlackBlocks';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
@@ -2556,6 +2557,11 @@ export class AiAgentService {
                 slackPrompt.threadUuid,
             );
 
+        // Get tool results to check for proposeChange results
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            slackPrompt.promptUuid,
+        );
+
         const feedbackBlocks = getFeedbackBlocks(slackPrompt, threadArtifacts);
         const followUpToolBlocks = getFollowUpToolBlocks(
             slackPrompt,
@@ -2566,6 +2572,11 @@ export class AiAgentService {
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
             threadArtifacts,
+        );
+        const proposeChangeBlocks = getProposeChangeBlocks(
+            slackPrompt,
+            this.lightdashConfig.siteUrl,
+            toolResults,
         );
         const historyBlocks = agent
             ? getDeepLinkBlocks(
@@ -2596,6 +2607,7 @@ export class AiAgentService {
                     },
                 },
                 ...exploreBlocks,
+                ...proposeChangeBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
                 ...(historyBlocks || []),
@@ -2733,6 +2745,13 @@ export class AiAgentService {
     // eslint-disable-next-line class-methods-use-this
     public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
+            await ack();
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleViewChangesetsButtonClick(app: App) {
+        app.action('actions.view_changesets_button_click', async ({ ack }) => {
             await ack();
         });
     }
