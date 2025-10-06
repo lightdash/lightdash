@@ -283,3 +283,14 @@ export const selectIsValidQuery = createSelector(
     [selectActiveFields],
     (activeFields) => activeFields.size > 0,
 );
+
+// Modal selectors
+const selectModals = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.modals,
+);
+
+export const selectItemDetailModal = createSelector(
+    [selectModals],
+    (modals) => modals.itemDetail,
+);

@@ -24,6 +24,7 @@ import {
     type TimeZone,
     type TreemapChartConfig,
 } from '@lightdash/common';
+import { type ReactNode } from 'react';
 import { type QueryResultsProps } from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
@@ -228,6 +229,11 @@ export interface ExplorerReduceState {
         writeBack: {
             isOpen: boolean;
             items?: CustomDimension[] | AdditionalMetric[];
+        };
+        itemDetail: {
+            isOpen: boolean;
+            header?: ReactNode;
+            detail?: ReactNode;
         };
     };
 

@@ -1,37 +1,53 @@
 import { Modal } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { useCallback, useState, type FC, type PropsWithChildren } from 'react';
+import { useCallback, type FC, type PropsWithChildren } from 'react';
+import {
+    explorerActions,
+    selectItemDetailModal,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../../features/explorer/store';
 import { ItemDetailContext } from './ItemDetailContext';
 import { type ItemDetailProps } from './types';
 
 /**
  * Exposes the necessary context for a shared modal to display details about
  * a tree item - primarily its description.
+ *
+ * Now uses Redux for state management to prevent re-renders of tree nodes
+ * when the modal opens/closes.
  */
 export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
-    const [itemDetail, setItemDetail] = useState<ItemDetailProps>();
-    const [opened, { open, close }] = useDisclosure();
+    const dispatch = useExplorerDispatch();
+    const itemDetail = useExplorerSelector(selectItemDetailModal);
 
     const showItemDetail = useCallback(
         (newItemDetail: ItemDetailProps) => {
-            setItemDetail(newItemDetail);
-            open();
+            dispatch(
+                explorerActions.openItemDetail({
+                    header: newItemDetail.header,
+                    detail: newItemDetail.detail,
+                }),
+            );
         },
-        [setItemDetail, open],
+        [dispatch],
     );
+
+    const close = useCallback(() => {
+        dispatch(explorerActions.closeItemDetail());
+    }, [dispatch]);
 
     return (
         <ItemDetailContext.Provider
             value={{
                 showItemDetail,
-                isItemDetailOpen: opened,
+                isItemDetailOpen: itemDetail.isOpen,
             }}
         >
-            {itemDetail && opened && (
+            {itemDetail.isOpen && itemDetail.header && itemDetail.detail && (
                 <Modal
                     p="xl"
                     size="lg"
-                    opened={opened}
+                    opened={itemDetail.isOpen}
                     onClose={close}
                     title={itemDetail.header}
                 >

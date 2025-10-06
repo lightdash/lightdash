@@ -1235,6 +1235,7 @@ describe('ExplorerProvider reducer', () => {
                         isOpen: true,
                         item: mockAdditionalMetric,
                     },
+                    itemDetail: { isOpen: false },
                 },
             });
 
@@ -1258,6 +1259,7 @@ describe('ExplorerProvider reducer', () => {
                     additionalMetric: { isOpen: false },
                     customDimension: { isOpen: false },
                     writeBack: { isOpen: false },
+                    itemDetail: { isOpen: false },
                 },
             });
 
@@ -1282,6 +1284,7 @@ describe('ExplorerProvider reducer', () => {
                         isOpen: true,
                         items: [],
                     },
+                    itemDetail: { isOpen: false },
                 },
             });
 

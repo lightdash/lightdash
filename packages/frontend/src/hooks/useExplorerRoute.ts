@@ -257,6 +257,9 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         writeBack: {
                             isOpen: false,
                         },
+                        itemDetail: {
+                            isOpen: false,
+                        },
                     },
                     parameters: {},
                     fromDashboard: fromDashboard ?? undefined,

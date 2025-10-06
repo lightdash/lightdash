@@ -49,7 +49,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
-import { ItemDetailPreview } from '../ItemDetailPreview';
+import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
@@ -100,9 +100,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (context) => context.missingCustomDimensions,
     );
     const onItemClick = useTableTree((context) => context.onItemClick);
-    // TODO: Fix useItemDetail() - it subscribes to ItemDetailContext which causes ALL nodes to re-render
-    // when isItemDetailOpen changes. For now, comment it out for the performance demo.
-    // const { showItemDetail } = useItemDetail();
     const { track } = useTracking();
 
     // Create stable addFilter action directly without hook
@@ -249,25 +246,26 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const onOpenDescriptionView = useCallback(() => {
         toggleHover(false);
-        // TODO: Re-enable showItemDetail once we fix the context subscription issue
-        // showItemDetail({
-        //     header: (
-        //         <Group>
-        //             <FieldIcon
-        //                 item={item}
-        //                 color={getFieldIconColor(item)}
-        //                 size="md"
-        //             />
-        //             <Text size="md">{label}</Text>
-        //         </Group>
-        //     ),
-        //     detail: description ? (
-        //         <ItemDetailMarkdown source={description} />
-        //     ) : (
-        //         <Text color="gray">No description available.</Text>
-        //     ),
-        // });
-    }, [toggleHover]);
+        dispatch(
+            explorerActions.openItemDetail({
+                header: (
+                    <Group>
+                        <FieldIcon
+                            item={item}
+                            color={getFieldIconColor(item)}
+                            size="md"
+                        />
+                        <Text size="md">{label}</Text>
+                    </Group>
+                ),
+                detail: description ? (
+                    <ItemDetailMarkdown source={description} />
+                ) : (
+                    <Text color="gray">No description available.</Text>
+                ),
+            }),
+        );
+    }, [toggleHover, dispatch, item, label, description]);
 
     const onToggleMenu = useCallback(() => {
         toggleHover(false);

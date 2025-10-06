@@ -11,6 +11,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type ReactNode } from 'react';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
@@ -324,6 +325,23 @@ const explorerSlice = createSlice({
             state.modals.format = {
                 isOpen: !state.modals.format.isOpen,
                 ...(action.payload && { ...action.payload }),
+            };
+        },
+        openItemDetail: (
+            state,
+            action: PayloadAction<{ header: ReactNode; detail: ReactNode }>,
+        ) => {
+            state.modals.itemDetail = {
+                isOpen: true,
+                header: action.payload.header,
+                detail: action.payload.detail,
+            };
+        },
+        closeItemDetail: (state) => {
+            state.modals.itemDetail = {
+                isOpen: false,
+                header: undefined,
+                detail: undefined,
             };
         },
 

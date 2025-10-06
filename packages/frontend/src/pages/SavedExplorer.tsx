@@ -112,6 +112,9 @@ const SavedExplorer = () => {
                                   writeBack: {
                                       isOpen: false,
                                   },
+                                  itemDetail: {
+                                      isOpen: false,
+                                  },
                               },
                               queryExecution: defaultQueryExecution,
                           }

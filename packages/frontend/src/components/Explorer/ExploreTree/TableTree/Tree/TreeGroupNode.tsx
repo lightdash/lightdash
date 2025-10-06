@@ -12,12 +12,13 @@ import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {
+    explorerActions,
     selectActiveFields,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
-import { useItemDetail } from '../useItemDetails';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
 import useTableTree from './useTableTree';
@@ -34,13 +35,13 @@ type Props = {
 };
 
 const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
+    const dispatch = useExplorerDispatch();
     const selectedItems = useExplorerSelector(selectActiveFields);
     const isSearching = useTableTree((ctx) => ctx.isSearching);
     const searchQuery = useTableTree((ctx) => ctx.searchQuery);
     const searchResults = useTableTree((ctx) => ctx.searchResults);
     const [isOpen, toggleOpen] = useToggle(false);
     const [isHover, toggleHover] = useToggle(false);
-    const { showItemDetail } = useItemDetail();
 
     const allChildrenKeys = useMemo(() => getAllChildrenKeys([node]), [node]);
 
@@ -73,19 +74,21 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     const onOpenDescriptionView = useCallback(() => {
         toggleHover(false);
 
-        showItemDetail({
-            header: (
-                <Group>
-                    <Text size="md">{label}</Text>
-                </Group>
-            ),
-            detail: description ? (
-                <ItemDetailMarkdown source={description} />
-            ) : (
-                <Text color="gray">No description available.</Text>
-            ),
-        });
-    }, [toggleHover, showItemDetail, label, description]);
+        dispatch(
+            explorerActions.openItemDetail({
+                header: (
+                    <Group>
+                        <Text size="md">{label}</Text>
+                    </Group>
+                ),
+                detail: description ? (
+                    <ItemDetailMarkdown source={description} />
+                ) : (
+                    <Text color="gray">No description available.</Text>
+                ),
+            }),
+        );
+    }, [toggleHover, dispatch, label, description]);
 
     const handleToggleOpen = useCallback(() => toggleOpen(), [toggleOpen]);
     const handleMouseEnter = useCallback(
