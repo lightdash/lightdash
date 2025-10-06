@@ -224,6 +224,7 @@ const getAgentTools = (
         createChange: dependencies.createChange,
         getExplore: dependencies.getExplore,
         getExploreCompiler: dependencies.getExploreCompiler,
+        getActiveChangeset: dependencies.getActiveChangeset,
     });
 
     const searchFieldValues = getSearchFieldValues({

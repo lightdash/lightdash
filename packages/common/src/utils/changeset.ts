@@ -1,15 +1,15 @@
 import * as JsonPatch from 'fast-json-patch';
-import { type Change, type ChangesetWithChanges } from '../types/changeset';
+import { type ChangeBase } from '../types/changeset';
 import {
     ForbiddenError,
     NotImplementedError,
     ParameterError,
 } from '../types/errors';
 import {
+    isExploreError,
     type CompiledTable,
     type Explore,
     type ExploreError,
-    isExploreError,
 } from '../types/explore';
 import { type CompiledDimension, type CompiledMetric } from '../types/field';
 import assertUnreachable from './assertUnreachable';
@@ -17,7 +17,7 @@ import assertUnreachable from './assertUnreachable';
 export class ChangesetUtils {
     private static applyChange<
         T extends CompiledDimension | CompiledMetric | CompiledTable | Explore,
-    >(entity: T | undefined, change: Change): T | undefined {
+    >(entity: T | undefined, change: ChangeBase): T | undefined {
         switch (change.type) {
             case 'create':
                 throw new ParameterError('Create change is not supported');
@@ -47,8 +47,8 @@ export class ChangesetUtils {
         }
     }
 
-    static applyChangeset(
-        changeset: ChangesetWithChanges,
+    static applyChangeset<C extends ChangeBase>(
+        changeset: { changes: C[] },
         explores: Record<string, Explore | ExploreError>,
     ) {
         const changedExplores = Object.entries(explores).reduce<

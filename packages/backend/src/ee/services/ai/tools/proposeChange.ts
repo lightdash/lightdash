@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ChangeBase,
     convertAdditionalMetric,
     Explore,
     getItemId,
@@ -9,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
+    GetActiveChangesetFn,
     GetExploreCompilerFn,
     GetExploreFn,
 } from '../types/aiAgentDependencies';
@@ -16,6 +18,7 @@ import { CreateChangeFn } from '../types/aiAgentDependencies';
 import { populateCustomMetricSQL } from '../utils/populateCustomMetricsSQL';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { validateChangesetApplyChange } from '../utils/validateChangesetApply';
 import {
     validateFieldEntityType,
     validateTableNames,
@@ -25,11 +28,15 @@ export const translateToolProposeChangeArgs = async (
     toolArgs: ToolProposeChangeArgs,
     explore: Explore,
     getExploreCompiler: GetExploreCompilerFn,
-) => {
+): Promise<ChangeBase> => {
     const { entityTableName, change } = toolArgs;
     const { entityType, value } = change;
 
-    let payload: object = {};
+    // Determine entityName based on entityType
+    const entityName =
+        entityType === 'table'
+            ? entityTableName
+            : change.fieldId.replace(new RegExp(`^${entityTableName}_`), '');
 
     switch (value.type) {
         case 'update':
@@ -45,10 +52,13 @@ export const translateToolProposeChangeArgs = async (
                     };
                 });
 
-            payload = {
-                patches,
+            return {
+                type: value.type,
+                entityType,
+                entityTableName,
+                entityName,
+                payload: { patches },
             };
-            break;
         case 'create':
             const exploreCompiler = await getExploreCompiler();
 
@@ -74,41 +84,34 @@ export const translateToolProposeChangeArgs = async (
                 [],
             );
 
-            payload = {
-                type: value.value.entityType,
-                value: compiledMetric,
+            return {
+                type: value.type,
+                entityType,
+                entityTableName,
+                entityName,
+                payload: {
+                    type: value.value.entityType,
+                    value: compiledMetric,
+                },
             };
-            break;
 
         default:
             return assertUnreachable(value, 'Invalid change type');
     }
-
-    // Determine entityName based on entityType
-    const entityName =
-        entityType === 'table'
-            ? entityTableName
-            : change.fieldId.replace(new RegExp(`^${entityTableName}_`), '');
-
-    return {
-        type: value.type,
-        entityType,
-        entityTableName,
-        entityName,
-        payload,
-    };
 };
 
 type GetProposeChangeArgs = {
     createChange: CreateChangeFn;
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
+    getActiveChangeset: GetActiveChangesetFn;
 };
 
 export const getProposeChange = ({
     createChange,
     getExplore,
     getExploreCompiler,
+    getActiveChangeset,
 }: GetProposeChangeArgs) =>
     tool({
         description: toolProposeChangeArgsSchema.description,
@@ -175,7 +178,15 @@ export const getProposeChange = ({
                     explore,
                     getExploreCompiler,
                 );
+                const changeset = await getActiveChangeset();
+                if (changeset) {
+                    validateChangesetApplyChange(translatedArgs, {
+                        [entityTableName]: explore,
+                    });
+                }
+
                 const changeUuid = await createChange(translatedArgs);
+
                 return {
                     result: `Successfully proposed change to ${translatedArgs.entityType} "${translatedArgs.entityName}" in table "${translatedArgs.entityTableName}"`,
                     metadata: {
