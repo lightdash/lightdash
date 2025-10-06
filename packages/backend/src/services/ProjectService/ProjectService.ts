@@ -103,6 +103,7 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -1009,6 +1010,24 @@ export class ProjectService extends BaseService {
                 await this.projectModel.getWarehouseCredentialsForProject(
                     data.upstreamProjectUuid,
                 );
+        } else if (
+            newProjectData.type === ProjectType.PREVIEW &&
+            data.upstreamProjectUuid &&
+            data.warehouseConnection &&
+            !data.copyWarehouseConnectionFromUpstreamProject
+        ) {
+            // When creating a preview from CLI with credentials, merge with upstream credentials
+            // to preserve advanced settings like requireUserCredentials
+            const upstreamCredentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    data.upstreamProjectUuid,
+                );
+            if (upstreamCredentials) {
+                newProjectData.warehouseConnection = mergeWarehouseCredentials(
+                    upstreamCredentials,
+                    data.warehouseConnection,
+                );
+            }
         }
 
         const createProject: CreateProjectOptionalCredentials =
