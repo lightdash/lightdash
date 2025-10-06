@@ -48,7 +48,8 @@ export class ChangesetModel {
 
         const query = this.database(ChangesTableName)
             .select('*')
-            .where('changeset_uuid', activeChangeset.changeset_uuid);
+            .where('changeset_uuid', activeChangeset.changeset_uuid)
+            .orderBy('created_at', 'asc');
 
         if (filters?.tableNames) {
             void query.whereIn('entity_table_name', filters.tableNames);
