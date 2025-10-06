@@ -39,6 +39,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
@@ -180,12 +181,16 @@ const FiltersCard: FC = memo(() => {
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
 
-    // Update filters in Redux
+    const setFiltersInContext = useExplorerContext(
+        (context) => context.actions.setFilters,
+    );
+
     const setFilters = useCallback(
         (newFilters: Filters) => {
             dispatch(explorerActions.setFilters(newFilters));
+            setFiltersInContext(newFilters);
         },
-        [dispatch],
+        [dispatch, setFiltersInContext],
     );
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
