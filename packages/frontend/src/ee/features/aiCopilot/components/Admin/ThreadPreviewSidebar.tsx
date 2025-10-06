@@ -28,6 +28,8 @@ type ThreadPreviewSidebarProps = {
     threadUuid: string;
     isOpen: boolean;
     onClose: () => void;
+    renderArtifactsInline?: boolean;
+    showAddToEvalsButton?: boolean;
 };
 
 export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
@@ -36,6 +38,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     threadUuid,
     isOpen,
     onClose,
+    renderArtifactsInline = false,
+    showAddToEvalsButton = false,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const aiArtifact = useAiAgentStoreSelector(
@@ -116,10 +120,11 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             thread={threadData}
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
-                            showAddToEvalsButton
+                            showAddToEvalsButton={showAddToEvalsButton}
+                            renderArtifactsInline={renderArtifactsInline}
                         />
                     </Box>
-                    {!!aiArtifact && (
+                    {!!aiArtifact && !renderArtifactsInline && (
                         <Modal
                             withinPortal
                             opened={!!aiArtifact}
@@ -135,7 +140,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                 },
                             }}
                         >
-                            {aiArtifact && <AiArtifactPanel />}
+                            {aiArtifact && (
+                                <AiArtifactPanel artifact={aiArtifact} />
+                            )}
                         </Modal>
                     )}
                 </>

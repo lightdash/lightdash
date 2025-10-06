@@ -33,6 +33,7 @@ type Props = {
     artifactUuid: string;
     versionUuid: string;
     message: AiAgentMessageAssistant;
+    showCloseButton?: boolean;
 };
 
 export const AiChartVisualization: FC<Props> = ({
@@ -42,6 +43,7 @@ export const AiChartVisualization: FC<Props> = ({
     artifactUuid,
     versionUuid,
     message,
+    showCloseButton = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useMediaQuery('(max-width: 768px)');
@@ -150,14 +152,16 @@ export const AiChartVisualization: FC<Props> = ({
                                 }}
                                 compiledSql={compiledSql?.query}
                             />
-                            <ActionIcon
-                                size="sm"
-                                variant="subtle"
-                                color="gray"
-                                onClick={() => dispatch(clearArtifact())}
-                            >
-                                <MantineIcon icon={IconX} color="gray" />
-                            </ActionIcon>
+                            {showCloseButton && (
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => dispatch(clearArtifact())}
+                                >
+                                    <MantineIcon icon={IconX} color="gray" />
+                                </ActionIcon>
+                            )}
                         </Group>
                     </Group>
                 }
