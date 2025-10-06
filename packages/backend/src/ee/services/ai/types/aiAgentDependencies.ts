@@ -9,6 +9,7 @@ import {
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    ChangesetWithChanges,
     CreateChangeParams,
     DashboardSearchResult,
     Explore,
@@ -153,3 +154,7 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
+
+export type GetActiveChangesetFn = () => Promise<
+    ChangesetWithChanges | undefined
+>;

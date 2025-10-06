@@ -8,6 +8,7 @@ import {
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
+    GetActiveChangesetFn,
     GetExploreCompilerFn,
     GetExploreFn,
     GetPromptFn,
@@ -71,6 +72,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
+    getActiveChangeset: GetActiveChangesetFn;
     perf: PerformanceMetrics;
 };
 
