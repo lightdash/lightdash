@@ -1,3 +1,15 @@
+# [0.2056.0](https://github.com/lightdash/lightdash/compare/0.2055.0...0.2056.0) (2025-10-06)
+
+
+### Bug Fixes
+
+* dashboard generation with valid visualization tracking ([#17252](https://github.com/lightdash/lightdash/issues/17252)) ([34346fc](https://github.com/lightdash/lightdash/commit/34346fc3519a60e75fb0977930133209b28c1e7e))
+
+
+### Features
+
+* set fixed height for AI dashboard visualization cards ([#17253](https://github.com/lightdash/lightdash/issues/17253)) ([62e660b](https://github.com/lightdash/lightdash/commit/62e660b6d7542708a67737b5b9ed6d194c1e9d82))
+
 # [0.2055.0](https://github.com/lightdash/lightdash/compare/0.2054.0...0.2055.0) (2025-10-06)
 
 

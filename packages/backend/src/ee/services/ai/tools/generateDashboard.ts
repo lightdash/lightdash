@@ -65,12 +65,14 @@ export const getGenerateDashboard = ({
         outputSchema: toolDashboardOutputSchema,
         execute: async (toolArgs) => {
             try {
-                const args = toolDashboardArgsSchemaTransformed.parse(toolArgs);
+                const transformedToolArgs =
+                    toolDashboardArgsSchemaTransformed.parse(toolArgs);
 
                 const errors: string[] = [];
                 const failedVisualizations: string[] = [];
+                const validIndices = new Set<number>();
 
-                const vizPromises = args.visualizations.map(
+                const vizPromises = transformedToolArgs.visualizations.map(
                     async (viz, index) => {
                         try {
                             const explore = await getExplore({
@@ -78,6 +80,7 @@ export const getGenerateDashboard = ({
                             });
 
                             validateVisualization(viz, explore);
+                            validIndices.add(index);
                             return viz;
                         } catch (error) {
                             const errorMessage = toolErrorHandler(
@@ -99,7 +102,7 @@ export const getGenerateDashboard = ({
                 const validVisualizations = validatedVisualizations.filter(
                     (
                         viz,
-                    ): viz is ToolDashboardArgsTransformed['visualizations'][0] =>
+                    ): viz is ToolDashboardArgsTransformed['visualizations'][number] =>
                         viz !== null,
                 );
 
@@ -119,10 +122,6 @@ export const getGenerateDashboard = ({
 
                 // Create dashboard with valid visualizations only
                 const prompt = await getPrompt();
-                const dashboardWithValidViz = {
-                    ...toolArgs,
-                    visualizations: validVisualizations,
-                };
 
                 await createOrUpdateArtifact({
                     threadUuid: prompt.threadUuid,
@@ -130,7 +129,12 @@ export const getGenerateDashboard = ({
                     artifactType: 'dashboard',
                     title: toolArgs.title,
                     description: toolArgs.description,
-                    vizConfig: dashboardWithValidViz,
+                    vizConfig: {
+                        ...toolArgs,
+                        visualizations: toolArgs.visualizations.filter(
+                            (_, index) => validIndices.has(index),
+                        ),
+                    },
                 });
 
                 // Return appropriate message based on whether some visualizations failed

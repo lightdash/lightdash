@@ -91,7 +91,13 @@ export const AiDashboardVisualization: FC<Props> = memo(
                     <Stack gap="md" style={{ minHeight: 'min-content' }}>
                         {dashboardConfig.visualizations.map(
                             (visualization, index) => (
-                                <Card key={index} withBorder p="md" radius="md">
+                                <Card
+                                    key={index}
+                                    withBorder
+                                    p="md"
+                                    radius="md"
+                                    h={400}
+                                >
                                     <ErrorBoundary>
                                         <AiDashboardVisualizationItem
                                             visualization={visualization}
