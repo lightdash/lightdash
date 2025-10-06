@@ -205,7 +205,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
         >
             <Panel
                 id="eval-content"
-                defaultSize={isSidebarOpen ? 50 : 100}
+                defaultSize={isSidebarOpen ? 40 : 100}
                 minSize={30}
             >
                 <Stack gap="sm" mt="lg" pr="md">
@@ -248,7 +248,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                     </PanelResizeHandle>
                     <Panel
                         id="thread-preview"
-                        defaultSize={50}
+                        defaultSize={60}
                         minSize={25}
                         maxSize={70}
                         className={styles.threadPanel}
@@ -262,6 +262,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                                     threadUuid={selectedThreadUuid}
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
+                                    renderArtifactsInline
                                 />
                             )}
                     </Panel>

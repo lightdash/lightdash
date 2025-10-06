@@ -1,3 +1,10 @@
+# [0.2055.0](https://github.com/lightdash/lightdash/compare/0.2054.0...0.2055.0) (2025-10-06)
+
+
+### Features
+
+* add inline artifact rendering option for AI agent evals ([#17070](https://github.com/lightdash/lightdash/issues/17070)) ([02fd1eb](https://github.com/lightdash/lightdash/commit/02fd1eb5d9744a788de6b7c83a082f4945e5f665))
+
 # [0.2054.0](https://github.com/lightdash/lightdash/compare/0.2053.2...0.2054.0) (2025-10-06)
 
 

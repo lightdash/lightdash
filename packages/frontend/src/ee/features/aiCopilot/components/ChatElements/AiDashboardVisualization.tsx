@@ -23,10 +23,17 @@ type Props = {
     projectUuid: string;
     agentUuid: string;
     dashboardConfig: ToolDashboardArgs;
+    showCloseButton?: boolean;
 };
 
 export const AiDashboardVisualization: FC<Props> = memo(
-    ({ artifactData, projectUuid, agentUuid, dashboardConfig }) => {
+    ({
+        artifactData,
+        projectUuid,
+        agentUuid,
+        dashboardConfig,
+        showCloseButton = true,
+    }) => {
         const dispatch = useAiAgentStoreDispatch();
         const isMobile = useMediaQuery('(max-width: 768px)');
 
@@ -58,14 +65,16 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                 agentUuid={agentUuid}
                                 dashboardConfig={dashboardConfig}
                             />
-                            <ActionIcon
-                                size="sm"
-                                variant="subtle"
-                                color="gray"
-                                onClick={() => dispatch(clearArtifact())}
-                            >
-                                <MantineIcon icon={IconX} color="gray" />
-                            </ActionIcon>
+                            {showCloseButton && (
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => dispatch(clearArtifact())}
+                                >
+                                    <MantineIcon icon={IconX} color="gray" />
+                                </ActionIcon>
+                            )}
                         </Group>
                     </Group>
                 </Box>
