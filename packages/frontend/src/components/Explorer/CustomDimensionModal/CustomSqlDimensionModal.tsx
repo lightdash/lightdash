@@ -27,10 +27,11 @@ import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
+import { useCustomDimensionsAutocompletions } from '../../../hooks/codemirror/useExplorerAutocompletions';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useExplore } from '../../../hooks/useExplore';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { SqlEditor as CodeMirrorSqlEditor } from '../../CodeMirror';
 import MantineIcon from '../../common/MantineIcon';
 
 type FormValues = {
@@ -48,7 +49,6 @@ export const CustomSqlDimensionModal: FC<{
     const theme = useMantineTheme();
     const { colors } = theme;
     const { showToastSuccess, showToastError } = useToaster();
-    const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
@@ -60,12 +60,18 @@ export const CustomSqlDimensionModal: FC<{
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
     const addCustomDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
     );
     const editCustomDimension = useExplorerContext(
         (context) => context.actions.editCustomDimension,
     );
+    const explore = useExplore(tableName);
+    const autocompletions = useCustomDimensionsAutocompletions(explore.data);
+
     const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -266,24 +272,19 @@ export const CustomSqlDimensionModal: FC<{
                                     borderRadius: theme.radius.sm,
                                 }}
                             >
-                                <SqlEditor
-                                    mode="sql"
+                                <CodeMirrorSqlEditor
+                                    value={form.values.sql}
+                                    onBlur={(value) =>
+                                        form.setFieldValue('sql', value)
+                                    }
                                     placeholder="Enter SQL"
-                                    theme="github"
-                                    width="100%"
-                                    maxLines={Infinity}
-                                    minLines={isExpanded ? 25 : 8}
-                                    setOptions={{
-                                        autoScrollEditorIntoView: true,
-                                    }}
-                                    onLoad={setAceEditor}
-                                    isFullScreen={isExpanded}
-                                    enableLiveAutocompletion
-                                    enableBasicAutocompletion
-                                    showPrintMargin={false}
+                                    minHeight={isExpanded ? '500px' : '150px'}
+                                    autocompletions={
+                                        autocompletions
+                                            ? [autocompletions]
+                                            : undefined
+                                    }
                                     wrapEnabled={true}
-                                    gutterBackgroundColor={colors.gray['1']}
-                                    {...form.getInputProps('sql')}
                                 />
                             </Box>
                         </Stack>

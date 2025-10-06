@@ -9,7 +9,6 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { Editor } from '@monaco-editor/react';
 import {
     IconClock,
     IconCornerDownLeft,
@@ -17,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
+import { SqlEditor } from '../../../components/CodeMirror';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -84,24 +84,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             {timeAgo}
                         </Text>
                     </Group>
-                    <Editor
-                        height={400}
-                        width={600}
-                        language="sql"
-                        value={sql}
-                        options={{
-                            readOnly: true,
-                            minimap: { enabled: false },
-                            scrollBeyondLastLine: false,
-                            contextmenu: false,
-                            lineNumbers: 'off',
-                            glyphMargin: false,
-                            lineDecorationsWidth: 0,
-                            revealHorizontalRightPadding: 0,
-                            roundedSelection: false,
-                        }}
-                        theme="lightdash"
-                    />
+                    <SqlEditor height="400px" width="600px" value={sql} />
                 </HoverCard.Dropdown>
             </HoverCard>
         </Stack>

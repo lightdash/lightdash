@@ -1,7 +1,6 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
 import { compression } from 'vite-plugin-compression2';
-import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
 
@@ -31,10 +30,6 @@ export default defineConfig(async () => {
             compression({
                 include: [/\.(js)$/, /\.(css)$/],
                 filename: '[path][base].gzip',
-            }),
-            monacoEditorPlugin({
-                forceBuildCDN: true,
-                languageWorkers: ['json'],
             }),
             sentryVitePlugin({
                 org: 'lightdash',
@@ -84,7 +79,6 @@ export default defineConfig(async () => {
                             '@tanstack/react-virtual',
                         ],
                         echarts: ['echarts'],
-                        ace: ['ace-builds', 'react-ace/lib'],
                         modules: [
                             // TODO: removed because of PNPM
                             // 'ajv',

@@ -139,6 +139,7 @@ const TableCalculationModal: FC<Props> = ({
     });
 
     const handleSubmit = form.onSubmit((data) => {
+        console.log(data);
         const { name, sql } = data;
         // throw error if sql is empty
         if (sql.length === 0 && editMode === EditMode.SQL) {

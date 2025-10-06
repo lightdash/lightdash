@@ -15,7 +15,7 @@ import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
-import { type MonacoHighlightChar } from '../components/SqlEditor';
+import { type HighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 import { runSqlQuery } from './thunks';
@@ -131,7 +131,7 @@ export interface SqlRunnerState {
     mode: 'default' | 'virtualView';
     queryIsLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
-    editorHighlightError: MonacoHighlightChar | undefined;
+    editorHighlightError: HighlightChar | undefined;
     parameterValues: ParametersValuesMap;
 }
 
@@ -358,7 +358,7 @@ export const sqlRunnerSlice = createSlice({
         },
         setEditorHighlightError: (
             state,
-            action: PayloadAction<MonacoHighlightChar | undefined>,
+            action: PayloadAction<HighlightChar | undefined>,
         ) => {
             state.editorHighlightError = action.payload;
         },

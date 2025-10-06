@@ -7,16 +7,16 @@ import {
 } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
-import AceEditor, { type IAceEditorProps } from 'react-ace';
-import styled, { css } from 'styled-components';
+import styled from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useTableCalculationAutocompletions } from '../../../hooks/codemirror/useExplorerAutocompletions';
 import { type TableCalculationForm } from '../types';
 
 import { useLocalStorage } from '@mantine/hooks';
-import 'ace-builds/src-noconflict/mode-sql';
-import 'ace-builds/src-noconflict/theme-github';
+import { SqlEditor as CodeMirrorSqlEditor } from '../../../components/CodeMirror';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
+import { useExplore } from '../../../hooks/useExplore';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
 const SOFT_WRAP_LOCAL_STORAGE_KEY = 'lightdash-sql-form-soft-wrap';
@@ -28,28 +28,19 @@ type Props = {
     onCmdEnter?: () => void;
 };
 
-export const SqlEditor = styled(AceEditor)<
-    IAceEditorProps & { isFullScreen: boolean; gutterBackgroundColor: string }
->`
+const EditorWrapper = styled.div<{ isFullScreen: boolean }>`
     width: 100%;
-    & > .ace_gutter {
-        background-color: ${({ gutterBackgroundColor }) =>
-            gutterBackgroundColor};
+    min-height: ${({ isFullScreen }) => (isFullScreen ? '100px' : '250px')};
+
+    .cm-editor {
+        height: 100%;
     }
-    ${({ isFullScreen }) =>
-        isFullScreen
-            ? css`
-                  min-height: 100px;
-              `
-            : css`
-                  min-height: 250px;
-              `}
 `;
 
 export const SqlForm: FC<Props> = ({
     form,
     isFullScreen,
-    focusOnRender = false,
+    focusOnRender: _focusOnRender = false,
     onCmdEnter,
 }) => {
     const theme = useMantineTheme();
@@ -58,52 +49,50 @@ export const SqlForm: FC<Props> = ({
         defaultValue: true,
     });
 
-    const { setAceEditor } = useTableCalculationAceEditorCompleter();
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
+    );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const explore = useExplore(tableName);
 
-    const handleEditorLoad = (editor: any) => {
-        setAceEditor(editor);
-        editor.commands.addCommand({
-            name: 'executeCmdEnter',
-            bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' },
-            exec: () => {
-                if (onCmdEnter) {
-                    onCmdEnter();
-                }
-            },
-        });
-        if (focusOnRender) {
-            // set timeout throws the focus to the end of the event loop (after the render)
-            // without it the focus would be set before the editor is fully rendered (and not work)
-            setTimeout(() => {
-                editor.focus(); // focus the editor
-                editor.navigateFileEnd(); // navigate to the end of the content
-            }, 0);
-        }
-    };
+    const autocompletions = useTableCalculationAutocompletions({
+        explore: explore.data,
+        activeFields,
+        additionalMetrics,
+        customDimensions,
+        tableCalculations,
+    });
 
     return (
         <>
             <ScrollArea h={isFullScreen ? '90%' : '150px'}>
-                <SqlEditor
-                    mode="sql"
-                    theme="github"
-                    width="100%"
-                    placeholder={SQL_PLACEHOLDER}
-                    maxLines={Infinity}
-                    minLines={isFullScreen ? 40 : 8}
-                    setOptions={{
-                        autoScrollEditorIntoView: true,
-                    }}
-                    style={{ zIndex: 0 }}
-                    onLoad={handleEditorLoad}
-                    enableLiveAutocompletion
-                    enableBasicAutocompletion
-                    showPrintMargin={false}
-                    isFullScreen={isFullScreen}
-                    wrapEnabled={isSoftWrapEnabled}
-                    gutterBackgroundColor={theme.colors.gray['1']}
-                    {...form.getInputProps('sql')}
-                />
+                <EditorWrapper isFullScreen={isFullScreen}>
+                    <CodeMirrorSqlEditor
+                        value={form.values.sql}
+                        onChange={(value) => form.setFieldValue('sql', value)}
+                        placeholder={SQL_PLACEHOLDER}
+                        minHeight={isFullScreen ? '600px' : '150px'}
+                        autocompletions={
+                            autocompletions ? [autocompletions] : undefined
+                        }
+                        wrapEnabled={isSoftWrapEnabled}
+                        onSubmit={onCmdEnter}
+                    />
+                </EditorWrapper>
                 <SqlEditorActions
                     isSoftWrapEnabled={isSoftWrapEnabled}
                     onToggleSoftWrap={() =>
