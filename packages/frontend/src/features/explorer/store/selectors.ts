@@ -1,4 +1,3 @@
-// import { type FieldId } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -6,7 +5,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 // Base selectors
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
-const selectUnsavedChartVersion = createSelector(
+export const selectUnsavedChartVersion = createSelector(
     [selectExplorerState],
     (explorer) => explorer.unsavedChartVersion,
 );
