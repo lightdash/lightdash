@@ -1,3 +1,10 @@
+## [0.2056.2](https://github.com/lightdash/lightdash/compare/0.2056.1...0.2056.2) (2025-10-06)
+
+
+### Bug Fixes
+
+* use base credentials from main project on cli previews ([#17257](https://github.com/lightdash/lightdash/issues/17257)) ([85d31e9](https://github.com/lightdash/lightdash/commit/85d31e9220f4f21e71d16def54f6e32d9a45accf))
+
 ## [0.2056.1](https://github.com/lightdash/lightdash/compare/0.2056.0...0.2056.1) (2025-10-06)
 
 
