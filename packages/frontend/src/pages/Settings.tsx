@@ -43,6 +43,7 @@ import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel'
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
+import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
@@ -143,6 +144,10 @@ const Settings: FC = () => {
     // This allows us to enable service accounts in the UI for on-premise installations
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
+
+    const isWarehouseCredentialsEnabled = useFeatureFlagEnabled(
+        CommercialFeatureFlags.OrganizationWarehouseCredentials,
+    );
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -269,6 +274,19 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/userAttributes',
                 element: <UserAttributesPanel />,
+            });
+        }
+        if (
+            user?.ability.can(
+                'manage',
+                subject('OrganizationWarehouseCredentials', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/warehouseCredentials',
+                element: <OrganizationWarehouseCredentialsPanel />,
             });
         }
         if (
@@ -571,6 +589,29 @@ const Settings: FC = () => {
                                         icon={<MantineIcon icon={IconPlug} />}
                                     />
                                 )}
+
+                                {user.ability.can(
+                                    'manage',
+                                    subject(
+                                        'OrganizationWarehouseCredentials',
+                                        {
+                                            organizationUuid:
+                                                organization?.organizationUuid,
+                                        },
+                                    ),
+                                ) &&
+                                    isWarehouseCredentialsEnabled && (
+                                        <RouterNavLink
+                                            label="Warehouse credentials"
+                                            exact
+                                            to="/generalSettings/warehouseCredentials"
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabaseCog}
+                                                />
+                                            }
+                                        />
+                                    )}
 
                                 {organization &&
                                     !organization.needsProject &&

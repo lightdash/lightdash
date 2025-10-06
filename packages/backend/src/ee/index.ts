@@ -27,6 +27,7 @@ import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { McpService } from './services/McpService/McpService';
+import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -164,6 +165,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            organizationWarehouseCredentialsService: ({ models, context }) =>
+                new OrganizationWarehouseCredentialsService({
+                    analytics: context.lightdashAnalytics,
+                    organizationWarehouseCredentialsModel:
+                        models.getOrganizationWarehouseCredentialsModel(),
+                    userModel: models.getUserModel(),
                 }),
             projectService: ({ models, context, clients, utils }) =>
                 new ProjectService({

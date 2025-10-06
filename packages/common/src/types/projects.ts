@@ -68,6 +68,8 @@ export const sensitiveCredentialsFieldNames = [
     'sslcert',
     'sslkey',
     'sslrootcert',
+    'token',
+    'refreshToken',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
@@ -195,7 +197,8 @@ export type CreateSnowflakeCredentials = {
     privateKey?: string;
     privateKeyPass?: string;
     authenticationType?: SnowflakeAuthenticationType;
-    token?: string; // oauth token for sso
+    refreshToken?: string; // Refresh token for sso, this is used to generate a new access token
+    token?: string; // Access token for sso, this has a low expiry time
     role?: string;
     database: string;
     warehouse: string;
@@ -423,6 +426,7 @@ export type Project = {
     dbtVersion: DbtVersionOption;
     schedulerTimezone: string;
     createdByUserUuid: string | null;
+    organizationWarehouseCredentialsUuid?: string;
 };
 
 export type ProjectSummary = Pick<
