@@ -33,6 +33,7 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('users')
                 .onDelete('SET NULL');
 
+            table.index('created_by_user_uuid');
             table.index('organization_uuid');
         },
     );

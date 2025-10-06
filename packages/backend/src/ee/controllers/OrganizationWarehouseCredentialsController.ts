@@ -27,6 +27,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { OrganizationWarehouseCredentialsService } from '../services/OrganizationWarehouseCredentialsService';
 
 @Route('/api/v1/org/warehouse-credentials')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -168,8 +169,6 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
      * Helper to get the typed service
      */
     protected getOrganizationWarehouseCredentialsService() {
-        return this.services.getOrganizationWarehouseCredentialsService<
-            import('../../ee/services/OrganizationWarehouseCredentialsService').OrganizationWarehouseCredentialsService
-        >();
+        return this.services.getOrganizationWarehouseCredentialsService<OrganizationWarehouseCredentialsService>();
     }
 }
