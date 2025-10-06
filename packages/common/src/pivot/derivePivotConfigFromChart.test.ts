@@ -13,6 +13,7 @@ import {
     mockCartesianChartConfig,
     mockItems,
     mockMetricQuery,
+    mockMetricQueryWithMultipleIndexColumns,
 } from './derivePivotConfigFromChart.mock';
 
 // Jest provides describe/it/expect globals
@@ -43,10 +44,54 @@ describe('derivePivotConfigurationFromChart', () => {
         );
 
         expect(result).toEqual({
-            indexColumn: {
-                reference: 'payments_payment_method',
-                type: VizIndexType.CATEGORY,
+            indexColumn: [
+                {
+                    reference: 'payments_payment_method',
+                    type: VizIndexType.CATEGORY,
+                },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            sortBy: [
+                {
+                    reference: 'payments_payment_method',
+                    direction: SortByDirection.ASC,
+                },
+            ],
+        });
+    });
+
+    it('derives pivot configuration for Cartesian charts with pivot config and multiple index columns', () => {
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: mockCartesianChartConfig,
+            pivotConfig: {
+                columns: ['orders_status'],
             },
+        };
+
+        const result = derivePivotConfigurationFromChart(
+            savedChart,
+            mockMetricQueryWithMultipleIndexColumns,
+            mockItems,
+        );
+
+        expect(result).toEqual({
+            indexColumn: [
+                {
+                    reference: 'payments_payment_method',
+                    type: VizIndexType.CATEGORY,
+                },
+                // added by derivePivotConfigurationFromChart since this is not being pivoted on
+                {
+                    reference: 'customers_customer_id',
+                    type: VizIndexType.CATEGORY,
+                },
+            ],
             valuesColumns: [
                 {
                     reference: 'payments_total_revenue',
@@ -220,10 +265,12 @@ describe('derivePivotConfigurationFromChart', () => {
         const result = derivePivotConfigurationFromChart(savedChart, mq, items);
 
         expect(result).toEqual({
-            indexColumn: {
-                reference: 'amount_range',
-                type: VizIndexType.CATEGORY,
-            },
+            indexColumn: [
+                {
+                    reference: 'amount_range',
+                    type: VizIndexType.CATEGORY,
+                },
+            ],
             valuesColumns: [
                 {
                     reference: 'payments_total_revenue',
