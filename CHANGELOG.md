@@ -1,3 +1,10 @@
+# [0.2054.0](https://github.com/lightdash/lightdash/compare/0.2053.2...0.2054.0) (2025-10-06)
+
+
+### Features
+
+* organizationw warehouse credentials ([#17192](https://github.com/lightdash/lightdash/issues/17192)) ([541a57b](https://github.com/lightdash/lightdash/commit/541a57b9f7b63cf6359c9fe302eae7985689b62d))
+
 ## [0.2053.2](https://github.com/lightdash/lightdash/compare/0.2053.1...0.2053.2) (2025-10-06)
 
 
