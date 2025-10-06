@@ -856,7 +856,7 @@ const ExplorerProvider: FC<
         }
     }, []);
 
-    const setPivotFields = useCallback((fields: FieldId[] = []) => {
+    const setPivgotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
             type: ActionType.SET_PIVOT_FIELDS,
             payload: fields,
