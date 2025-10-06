@@ -8,12 +8,19 @@ import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectDimensions,
     selectFilters,
+    selectMetrics,
+    selectParameters,
+    selectQueryLimit,
     selectSorts,
+    selectTableCalculations,
     selectTableName,
+    selectTimezone,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -40,24 +47,27 @@ export const useCompiledSql = (
     queryOptions?: UseQueryOptions<ApiCompiledQueryResults, ApiError>,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    // Read all values from Redux instead of Context
     const tableId = useExplorerSelector(selectTableName);
+    const dimensions = useExplorerSelector(selectDimensions);
+    const metrics = useExplorerSelector(selectMetrics);
     const filters = useExplorerSelector(selectFilters);
     const sorts = useExplorerSelector(selectSorts);
-    const {
+    const limit = useExplorerSelector(selectQueryLimit);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const timezone = useExplorerSelector(selectTimezone);
+    const queryParameters = useExplorerSelector(selectParameters);
+
+    console.log('useCompiledSql values:', {
         dimensions,
         metrics,
-        limit,
+        customDimensions,
         tableCalculations,
         additionalMetrics,
-        customDimensions,
-        timezone,
-    } = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery,
-    );
-
-    const queryParameters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.parameters || {},
-    );
+    });
 
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {

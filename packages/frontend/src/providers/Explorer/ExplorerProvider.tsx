@@ -194,8 +194,17 @@ export function reducer(
         }
 
         case ActionType.ADD_CUSTOM_DIMENSION: {
+            console.log('ADD_CUSTOM_DIMENSION action:', action.payload);
             return produce(state, (draft) => {
                 const newCustomDimension = action.payload;
+                console.log(
+                    'Before customDimensions:',
+                    draft.unsavedChartVersion.metricQuery.customDimensions,
+                );
+                console.log(
+                    'Before dimensions:',
+                    draft.unsavedChartVersion.metricQuery.dimensions,
+                );
                 draft.unsavedChartVersion.metricQuery.customDimensions = [
                     ...(draft.unsavedChartVersion.metricQuery
                         .customDimensions || []),
@@ -212,6 +221,14 @@ export function reducer(
                         customDimensionId,
                     );
                 }
+                console.log(
+                    'After customDimensions:',
+                    draft.unsavedChartVersion.metricQuery.customDimensions,
+                );
+                console.log(
+                    'After dimensions:',
+                    draft.unsavedChartVersion.metricQuery.dimensions,
+                );
 
                 const dimensionIds =
                     draft.unsavedChartVersion.metricQuery.dimensions;
@@ -706,6 +723,31 @@ const ExplorerProvider: FC<
             reduxDispatch(explorerActions.setTableName(contextTableName));
         }
     }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
+
+    // Keep Redux dimensions in sync with Context dimensions
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setDimensions(
+                unsavedChartVersion.metricQuery.dimensions,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.dimensions, reduxDispatch]);
+
+    // Keep Redux metrics in sync with Context metrics
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setMetrics(unsavedChartVersion.metricQuery.metrics),
+        );
+    }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
+
+    // Keep Redux columnOrder in sync with Context columnOrder
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setColumnOrder(
+                unsavedChartVersion.tableConfig.columnOrder,
+            ),
+        );
+    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
 
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
