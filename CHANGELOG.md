@@ -1,3 +1,10 @@
+## [0.2056.1](https://github.com/lightdash/lightdash/compare/0.2056.0...0.2056.1) (2025-10-06)
+
+
+### Bug Fixes
+
+* order changeset changes by creation time ([#17256](https://github.com/lightdash/lightdash/issues/17256)) ([2b60bf6](https://github.com/lightdash/lightdash/commit/2b60bf60d270ffbaaa5ebf80d27016e54628bc5e))
+
 # [0.2056.0](https://github.com/lightdash/lightdash/compare/0.2055.0...0.2056.0) (2025-10-06)
 
 
