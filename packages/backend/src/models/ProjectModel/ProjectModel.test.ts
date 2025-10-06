@@ -205,4 +205,50 @@ describe('ProjectModel', () => {
             expect(result.password).toEqual('new_password');
         });
     });
+
+    describe('removing sensitive credentials from API', () => {
+        test('should remove sensitive credentials like token and refreshToken', async () => {
+            tracker.on
+                .select(queryMatcher(ProjectTableName, [projectUuid]))
+                .response([projectMock]);
+
+            const project = await model.get(projectUuid);
+
+            // Verify that sensitive fields are not present in the returned project
+            expect(project.warehouseConnection).toBeDefined();
+            expect(
+                (project.warehouseConnection as AnyType).token,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).refreshToken,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).password,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).keyfileContents,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).personalAccessToken,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).privateKey,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).privateKeyPass,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).sshTunnelPrivateKey,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).sslcert,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).sslkey,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).sslrootcert,
+            ).toBeUndefined();
+        });
+    });
 });

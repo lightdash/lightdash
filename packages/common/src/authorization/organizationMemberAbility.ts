@@ -319,6 +319,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Group', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'OrganizationWarehouseCredentials', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'AiAgentThread', {
             organizationUuid: member.organizationUuid,
         });
