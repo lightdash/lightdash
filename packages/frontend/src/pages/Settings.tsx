@@ -400,12 +400,20 @@ const Settings: FC = () => {
     const routeElements = useRoutes(routes);
 
     const location = useLocation();
-    const isChangesetsPage = useMemo(() => {
-        return matchPath(
-            {
-                path: '/generalSettings/projectManagement/:projectUuid/changesets',
-            },
-            location.pathname,
+    const isFixedContent = useMemo(() => {
+        return (
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/changesets',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/scheduledDeliveries',
+                },
+                location.pathname,
+            )
         );
     }, [location.pathname]);
 
@@ -438,7 +446,7 @@ const Settings: FC = () => {
         <Page
             withFullHeight
             withSidebarFooter
-            withFixedContent={!isChangesetsPage}
+            withFixedContent={isFixedContent}
             withPaddedContent
             title="Settings"
             sidebar={

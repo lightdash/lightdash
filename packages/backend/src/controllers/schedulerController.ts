@@ -41,6 +41,13 @@ export class SchedulerController extends BaseController {
     /**
      * Get scheduled logs
      * @param req express request
+     * @param projectUuid The uuid of the project
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery search query to filter logs by scheduler name
+     * @param statuses filter by log statuses (comma-separated)
+     * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -48,20 +55,50 @@ export class SchedulerController extends BaseController {
     @OperationId('getSchedulerLogs')
     async getLogs(
         @Path() projectUuid: string,
-
         @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() statuses?: string,
+        @Query() createdByUserUuids?: string,
+        @Query() destinations?: string,
     ): Promise<ApiSchedulerLogsResponse> {
         this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
+        const filters = {
+            statuses: statuses
+                ? (statuses.split(',') as SchedulerJobStatus[])
+                : undefined,
+            createdByUserUuids: createdByUserUuids
+                ? createdByUserUuids.split(',')
+                : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
+        };
+
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getSchedulerLogs(req.user!, projectUuid),
+                .getSchedulerLogs(
+                    req.user!,
+                    projectUuid,
+                    paginateArgs,
+                    searchQuery,
+                    filters,
+                ),
         };
     }
 
     /**
-     * List all schedulers with pagination, search, and sorting
+     * List all schedulers with pagination, search, sorting, and filtering
      * @param req express request
      * @param projectUuid
      * @param pageSize number of items per page
@@ -69,6 +106,11 @@ export class SchedulerController extends BaseController {
      * @param searchQuery search query to filter schedulers by name
      * @param sortBy column to sort by
      * @param sortDirection sort direction (asc or desc)
+     * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
+     * @param formats filter by scheduler formats (comma-separated)
+     * @param resourceType filter by resource type (chart or dashboard)
+     * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -80,8 +122,13 @@ export class SchedulerController extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() searchQuery?: string,
-        @Query() sortBy?: 'name',
+        @Query() sortBy?: 'name' | 'createdAt',
         @Query() sortDirection?: 'asc' | 'desc',
+        @Query() createdByUserUuids?: string,
+        @Query() formats?: string,
+        @Query() resourceType?: 'chart' | 'dashboard',
+        @Query() resourceUuids?: string,
+        @Query() destinations?: string,
     ): Promise<ApiSchedulersResponse> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -101,6 +148,16 @@ export class SchedulerController extends BaseController {
             };
         }
 
+        const filters = {
+            createdByUserUuids: createdByUserUuids
+                ? createdByUserUuids.split(',')
+                : undefined,
+            formats: formats ? formats.split(',') : undefined,
+            resourceType,
+            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
+        };
+
         return {
             status: 'ok',
             results: await this.services
@@ -111,6 +168,7 @@ export class SchedulerController extends BaseController {
                     paginateArgs,
                     searchQuery,
                     sort,
+                    filters,
                 ),
         };
     }

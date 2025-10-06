@@ -1,4 +1,6 @@
 import { type AnyType } from './any';
+import { type ApiSuccess } from './api/success';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type SchedulerAndTargets, type SchedulerJobStatus } from './scheduler';
 import { type SchedulerTaskName } from './schedulerTaskList';
 
@@ -30,7 +32,6 @@ export type SchedulerWithLogs = {
     logs: SchedulerLog[];
 };
 
-export type ApiSchedulerLogsResponse = {
-    status: 'ok';
-    results: SchedulerWithLogs;
-};
+export type ApiSchedulerLogsResponse = ApiSuccess<
+    KnexPaginatedData<SchedulerWithLogs>
+>;
