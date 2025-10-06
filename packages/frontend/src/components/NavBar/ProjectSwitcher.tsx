@@ -104,17 +104,19 @@ const GroupHeader: FC<{
     );
 };
 
-const InactiveProjectItem: FC<{
+const ProjectItem: FC<{
     item: OrganizationProject;
     handleProjectChange: (newUuid: string) => void;
     searchQuery?: string;
-}> = ({ item, handleProjectChange, searchQuery }) => {
+    isActive?: boolean;
+}> = ({ item, handleProjectChange, searchQuery, isActive = false }) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
 
     return (
         <Menu.Item
             key={item.projectUuid}
-            onClick={() => handleProjectChange(item.projectUuid)}
+            onClick={() => !isActive && handleProjectChange(item.projectUuid)}
+            disabled={isActive}
         >
             <Group spacing="sm" position="apart" noWrap>
                 <Tooltip
@@ -136,14 +138,16 @@ const InactiveProjectItem: FC<{
                         {...MENU_TEXT_PROPS}
                         truncate
                         maw={350}
+                        fw={isActive ? 600 : 500}
+                        c={isActive ? 'gray.5' : 'inherit'}
                     >
                         {item.name}
                     </Highlight>
                 </Tooltip>
 
-                {item.type === ProjectType.PREVIEW && (
+                {(item.type === ProjectType.PREVIEW || isActive) && (
                     <Badge
-                        color="yellow.1"
+                        color={isActive ? 'green' : 'yellow.1'}
                         variant="light"
                         size="xs"
                         radius="sm"
@@ -152,7 +156,7 @@ const InactiveProjectItem: FC<{
                             textTransform: 'none',
                         }}
                     >
-                        Preview
+                        {isActive ? 'Active' : 'Preview'}
                     </Badge>
                 )}
             </Group>
@@ -321,34 +325,31 @@ const ProjectSwitcher = () => {
                     shouldShowPreview: false,
                 };
 
-            const availableProjects = projects
-                .filter((p) => p.projectUuid !== activeProjectUuid)
-                .filter((project) => {
-                    switch (project.type) {
-                        case ProjectType.DEFAULT:
-                            return true;
-                        case ProjectType.PREVIEW:
-                            // check if user has permission to create preview project on an organization level (developer, admin)
-                            // or check if user has permission to create preview project on a project level
-                            // - they should have permission (developer, admin) to the upstream project
-                            return (
-                                orgRoleCanCreatePreviews ||
-                                user.data?.ability.can(
-                                    'create',
-                                    subject('Project', {
-                                        upstreamProjectUuid:
-                                            project.projectUuid,
-                                        type: ProjectType.PREVIEW,
-                                    }),
-                                )
-                            );
-                        default:
-                            return assertUnreachable(
-                                project.type,
-                                `Unknown project type: ${project.type}`,
-                            );
-                    }
-                });
+            const availableProjects = projects.filter((project) => {
+                switch (project.type) {
+                    case ProjectType.DEFAULT:
+                        return true;
+                    case ProjectType.PREVIEW:
+                        // check if user has permission to create preview project on an organization level (developer, admin)
+                        // or check if user has permission to create preview project on a project level
+                        // - they should have permission (developer, admin) to the upstream project
+                        return (
+                            orgRoleCanCreatePreviews ||
+                            user.data?.ability.can(
+                                'create',
+                                subject('Project', {
+                                    upstreamProjectUuid: project.projectUuid,
+                                    type: ProjectType.PREVIEW,
+                                }),
+                            )
+                        );
+                    default:
+                        return assertUnreachable(
+                            project.type,
+                            `Unknown project type: ${project.type}`,
+                        );
+                }
+            });
 
             // Apply search filter if query exists
             const searchFiltered =
@@ -520,7 +521,7 @@ const ProjectSwitcher = () => {
                                     >
                                         <Stack spacing={0}>
                                             {baseProjects.map((item) => (
-                                                <InactiveProjectItem
+                                                <ProjectItem
                                                     key={item.projectUuid}
                                                     item={item}
                                                     handleProjectChange={
@@ -528,6 +529,10 @@ const ProjectSwitcher = () => {
                                                     }
                                                     searchQuery={
                                                         debouncedSearchQuery
+                                                    }
+                                                    isActive={
+                                                        item.projectUuid ===
+                                                        activeProjectUuid
                                                     }
                                                 />
                                             ))}
@@ -560,7 +565,7 @@ const ProjectSwitcher = () => {
                                     >
                                         <Stack spacing={0}>
                                             {previewProjects.map((item) => (
-                                                <InactiveProjectItem
+                                                <ProjectItem
                                                     key={item.projectUuid}
                                                     item={item}
                                                     handleProjectChange={
@@ -568,6 +573,10 @@ const ProjectSwitcher = () => {
                                                     }
                                                     searchQuery={
                                                         debouncedSearchQuery
+                                                    }
+                                                    isActive={
+                                                        item.projectUuid ===
+                                                        activeProjectUuid
                                                     }
                                                 />
                                             ))}
