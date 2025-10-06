@@ -365,6 +365,198 @@ export class CatalogModel {
         };
     }
 
+    async indexCatalogReverts({
+        projectUuid,
+        revertedChanges,
+        originalChangeset,
+        originalExplores,
+    }: {
+        projectUuid: string;
+        revertedChanges: ChangesetWithChanges['changes'];
+        originalChangeset: ChangesetWithChanges;
+        originalExplores: Record<string, Explore | ExploreError>;
+    }): Promise<{
+        catalogUpdates: DbCatalog[];
+    }> {
+        return wrapSentryTransaction(
+            'indexCatalog.indexCatalogReverts',
+            {
+                projectUuid,
+                revertedChangesCount: revertedChanges.length,
+                originalChangesetLength: originalChangeset.changes.length,
+            },
+            async () => {
+                // map of changeUuid -> state BEFORE that change
+                const stateMap = new Map<
+                    string,
+                    Record<string, Explore | ExploreError>
+                >();
+                let currentState = originalExplores;
+
+                for (const change of originalChangeset.changes) {
+                    stateMap.set(change.changeUuid, currentState);
+
+                    currentState = ChangesetUtils.applyChangeset(
+                        {
+                            ...originalChangeset,
+                            changes: [change],
+                        },
+                        structuredClone(currentState),
+                    );
+                }
+
+                return this.database.transaction(async (trx) => {
+                    const catalogUpdatesResult: DbCatalog[] = [];
+
+                    // un-apply each reverted change in the reverse order, using previous state for values
+                    const sortedRevertedChanges = [...revertedChanges].sort(
+                        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+                    );
+
+                    for (const revertedChange of sortedRevertedChanges) {
+                        const preChangeState = stateMap.get(
+                            revertedChange.changeUuid,
+                        );
+
+                        if (!preChangeState) {
+                            Logger.warn(
+                                `Could not find pre-change state for ${revertedChange.changeUuid}`,
+                            );
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+                        const explore =
+                            preChangeState[revertedChange.entityTableName];
+
+                        if (!explore || isExploreError(explore)) {
+                            Logger.warn(
+                                `Explore ${revertedChange.entityTableName} not found in pre-change state`,
+                            );
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+
+                        const table =
+                            explore.tables[revertedChange.entityTableName];
+
+                        if (!table) {
+                            Logger.warn(
+                                `Table ${revertedChange.entityTableName} not found in pre-change state`,
+                            );
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+
+                        switch (revertedChange.type) {
+                            case 'create': {
+                                // eslint-disable-next-line no-await-in-loop
+                                await trx(CatalogTableName)
+                                    .where(
+                                        'table_name',
+                                        revertedChange.entityTableName,
+                                    )
+                                    .andWhere('project_uuid', projectUuid)
+                                    .andWhere('name', revertedChange.entityName)
+                                    .andWhere('type', CatalogType.Field)
+                                    .delete();
+                                break;
+                            }
+
+                            case 'update': {
+                                let fieldToRestore:
+                                    | CompiledDimension
+                                    | CompiledMetric
+                                    | CompiledTable;
+
+                                switch (revertedChange.entityType) {
+                                    case 'table':
+                                        fieldToRestore = table;
+                                        break;
+                                    case 'dimension':
+                                        fieldToRestore =
+                                            table.dimensions[
+                                                revertedChange.entityName
+                                            ];
+                                        break;
+                                    case 'metric':
+                                        fieldToRestore =
+                                            table.metrics[
+                                                revertedChange.entityName
+                                            ];
+                                        break;
+                                    default:
+                                        assertUnreachable(
+                                            revertedChange.entityType,
+                                            `Unknown entity type`,
+                                        );
+                                }
+
+                                if (!fieldToRestore) {
+                                    Logger.warn(
+                                        `Field ${revertedChange.entityName} not found in pre-change state`,
+                                    );
+                                    break;
+                                }
+
+                                const isTable =
+                                    revertedChange.entityType === 'table';
+
+                                // eslint-disable-next-line no-await-in-loop
+                                const [result] = await trx(CatalogTableName)
+                                    .where(
+                                        'table_name',
+                                        revertedChange.entityTableName,
+                                    )
+                                    .andWhere('project_uuid', projectUuid)
+                                    .andWhere('name', revertedChange.entityName)
+                                    .andWhere(
+                                        'type',
+                                        isTable
+                                            ? CatalogType.Table
+                                            : CatalogType.Field,
+                                    )
+                                    .update({
+                                        label: fieldToRestore.label ?? null,
+                                        description:
+                                            fieldToRestore.description ?? null,
+                                        ai_hints:
+                                            convertToAiHints(
+                                                fieldToRestore.aiHint,
+                                            ) ?? null,
+                                    })
+                                    .returning('*');
+
+                                if (result) {
+                                    catalogUpdatesResult.push(result);
+                                }
+
+                                break;
+                            }
+
+                            case 'delete': {
+                                // TODO: Implement when delete operations are fully supported
+                                Logger.warn(
+                                    `Delete revert not yet implemented for ${revertedChange.changeUuid}`,
+                                );
+                                break;
+                            }
+
+                            default:
+                                assertUnreachable(
+                                    revertedChange,
+                                    'Invalid change type',
+                                );
+                        }
+                    }
+
+                    return {
+                        catalogUpdates: catalogUpdatesResult,
+                    };
+                });
+            },
+        );
+    }
+
     private async getTagsPerItem(catalogSearchUuids: string[]) {
         const itemTags = await this.database(CatalogTagsTableName)
             .select()

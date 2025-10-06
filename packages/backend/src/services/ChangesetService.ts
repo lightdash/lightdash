@@ -52,41 +52,6 @@ export class ChangesetService extends BaseService {
         );
     }
 
-    /**
-     * @ref CatalogService.indexCatalogUpdates
-     * Repeated the logic here to avoid injecting CatalogService
-     */
-    private async indexCatalogUpdates(
-        projectUuid: string,
-        exploreNames: string[],
-    ) {
-        const cachedExploreMap = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-            exploreNames,
-        );
-
-        const changeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                projectUuid,
-                {
-                    tableNames: exploreNames,
-                },
-            );
-
-        if (!changeset) {
-            return {
-                catalogUpdates: [],
-            };
-        }
-
-        return this.catalogModel.indexCatalogUpdates({
-            projectUuid,
-            cachedExploreMap,
-            changeset,
-        });
-    }
-
     async revertChange(
         user: SessionUser,
         projectUuid: string,
@@ -106,10 +71,36 @@ export class ChangesetService extends BaseService {
             );
         }
 
+        // Get the full changeset BEFORE deleting the change
+        const originalChangeset =
+            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                projectUuid,
+            );
+
+        if (!originalChangeset) {
+            return;
+        }
+
         const change = await this.changesetModel.getChange(changeUuid);
+
+        // Get original explores WITHOUT any changes for revert reconstruction
+        const originalExplores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            originalChangeset.changes.map((c) => c.entityTableName),
+            { applyChangeset: false },
+        );
+
+        // Delete the change
         await this.changesetModel.revertChange(changeUuid);
 
-        await this.indexCatalogUpdates(projectUuid, [change.entityTableName]);
+        // Update catalog using revert logic
+        await this.catalogModel.indexCatalogReverts({
+            projectUuid,
+            revertedChanges: [change],
+            originalChangeset,
+            originalExplores,
+        });
     }
 
     async revertAllChanges(
@@ -143,13 +134,21 @@ export class ChangesetService extends BaseService {
             (change) => change.changeUuid,
         );
 
+        // Get original explores WITHOUT any changes for revert reconstruction
+        const originalExplores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            changeset.changes.map((change) => change.entityTableName),
+            { applyChangeset: false },
+        );
+
         await this.changesetModel.revertChanges({ changeUuids });
 
-        const uniqueTableNames = [
-            ...new Set(
-                changeset.changes.map((change) => change.entityTableName),
-            ),
-        ];
-        await this.indexCatalogUpdates(projectUuid, uniqueTableNames);
+        await this.catalogModel.indexCatalogReverts({
+            projectUuid,
+            revertedChanges: changeset.changes,
+            originalChangeset: changeset,
+            originalExplores,
+        });
     }
 }
