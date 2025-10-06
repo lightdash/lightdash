@@ -28,7 +28,6 @@ import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 export const useExplorerQueryResults = () => {
     const dispatch = useExplorerDispatch();
 
-    // Only subscribe to query execution state
     const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
     const queryUuidHistory = useExplorerSelector(selectQueryUuidHistory);
 
@@ -39,7 +38,6 @@ export const useExplorerQueryResults = () => {
         [dispatch],
     );
 
-    // Main query state - no missingRequiredParameters needed for minimal mode
     const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         null, // missingRequiredParameters not needed

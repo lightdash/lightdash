@@ -27,7 +27,6 @@ export const useAddFilter = () => {
 
     const addFilter = useCallback(
         (field: FilterableField, value: any) => {
-            // Read at call time instead of closure time to avoid stale values
             const currentFilters = selectFilters(store.getState());
             const newFilters = addFilterRule({
                 filters: currentFilters,
@@ -84,7 +83,6 @@ export const useFilteredFields = () => {
             });
             dispatch(explorerActions.setFilters(newFilters));
 
-            // Read isFiltersExpanded at call time, not at callback creation time
             const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
             if (!isFiltersExpanded) {
                 dispatch(
@@ -121,7 +119,6 @@ export const useFilters = () => {
         [filters],
     );
 
-    // Optimize isFilteredField to prevent re-renders in tree components
     const isFilteredField = useCallback(
         (field: Field): boolean => {
             const fieldId = getItemId(field);

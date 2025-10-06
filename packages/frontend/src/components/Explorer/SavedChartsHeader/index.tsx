@@ -133,11 +133,9 @@ const SavedChartsHeader: FC = () => {
         ? isUnsavedChartChanged(unsavedChartVersion)
         : false;
 
-    // Get query state from hook instead of Context
     const { query } = useExplorerQuery();
     const itemsMap = query.data?.fields;
 
-    // Read isValidQuery from Redux instead of Context
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
 
     const isPinned = useMemo(() => {

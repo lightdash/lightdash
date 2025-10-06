@@ -39,6 +39,7 @@ export enum ExplorerSection {
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
+    SET_FILTERS,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
     SET_COLUMN_ORDER,
@@ -82,6 +83,7 @@ export type Action =
           payload: MetricQuery;
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
+    | { type: ActionType.SET_FILTERS; payload: MetricQuery['filters'] }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -267,6 +269,7 @@ export interface ExplorerContextType {
         setTableName: (tableName: string) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
+        setFilters: (filters: MetricQuery['filters']) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,

@@ -373,9 +373,7 @@ describe('Date tests', () => {
         // Filter by year
         cy.get('[data-testid=Filters-card-expand]').click();
         cy.contains('Add filter').click();
-        cy.findByPlaceholderText('Search field...').type(
-            'Created year{downArrow}{enter}',
-        );
+        cy.contains('Created year').click();
 
         cy.wait('@compileQuery'); // wait for default filter
 
@@ -406,9 +404,7 @@ describe('Date tests', () => {
 
         // Filter by month
         cy.contains('Add filter').click();
-        cy.findByPlaceholderText('Search field...').type(
-            'Created month{downArrow}{enter}',
-        );
+        cy.contains('Created month').click();
 
         cy.wait('@compileQuery'); // wait for default filter
         cy.contains('button', dayjs().format('MMMM YYYY')).click();

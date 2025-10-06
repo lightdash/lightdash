@@ -20,6 +20,7 @@ import {
     type CustomFormat,
     type FieldId,
     type Metric,
+    type MetricQuery,
     type ReplaceCustomFields,
     type SavedChart,
     type TableCalculation,
@@ -68,6 +69,12 @@ const calcColumnOrder = (
     );
 
     if (dimensions !== undefined) {
+        // Handle empty dimensions array - append to end like the else branch
+        // Math.max() returns -Infinity for empty array, causing incorrect splice behavior
+        if (dimensions.length === 0) {
+            return [...cleanColumnOrder, ...missingColumns];
+        }
+
         const positionDimensionColumn = Math.max(
             ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
         );
@@ -150,6 +157,11 @@ export function reducer(
                 draft.unsavedChartVersion.tableName = action.payload;
                 draft.unsavedChartVersion.metricQuery.exploreName =
                     action.payload;
+            });
+        }
+        case ActionType.SET_FILTERS: {
+            return produce(state, (draft) => {
+                draft.unsavedChartVersion.metricQuery.filters = action.payload;
             });
         }
         case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
@@ -856,7 +868,19 @@ const ExplorerProvider: FC<
         }
     }, []);
 
-    const setPivgotFields = useCallback((fields: FieldId[] = []) => {
+    const setFilters = useCallback(
+        (filters: MetricQuery['filters']) => {
+            dispatch({
+                type: ActionType.SET_FILTERS,
+                payload: filters,
+            });
+            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
+            reduxDispatch(explorerActions.setFilters(filters));
+        },
+        [reduxDispatch],
+    );
+
+    const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
             type: ActionType.SET_PIVOT_FIELDS,
             payload: fields,
@@ -1238,6 +1262,7 @@ const ExplorerProvider: FC<
             setFilters,
             setRowLimit,
             setTimeZone,
+            setFilters,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,
@@ -1271,6 +1296,7 @@ const ExplorerProvider: FC<
             toggleActiveField,
             setRowLimit,
             setTimeZone,
+            setFilters,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,

@@ -4,8 +4,11 @@ import {
     type AdditionalMetric,
     type ChartConfig,
     type CustomDimension,
+    type Dimension,
     type FieldId,
+    type Metric,
     type MetricQuery,
+    type MetricType,
     type ParameterValue,
     type SortField,
     type TableCalculation,
@@ -19,12 +22,10 @@ import {
     type ExplorerSection,
 } from '../../../providers/Explorer/types';
 
-// Use the existing ExplorerReduceState type from the current implementation
 export type ExplorerSliceState = ExplorerReduceState;
 
 const initialState: ExplorerSliceState = defaultState;
 
-// Helper function for calculating column order when toggling fields
 const calcColumnOrder = (
     columnOrder: FieldId[],
     fieldIds: FieldId[],
@@ -38,6 +39,10 @@ const calcColumnOrder = (
     );
 
     if (dimensions !== undefined) {
+        if (dimensions.length === 0) {
+            return [...cleanColumnOrder, ...missingColumns];
+        }
+
         const positionDimensionColumn = Math.max(
             ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
         );
@@ -56,7 +61,6 @@ const explorerSlice = createSlice({
     name: 'explorer',
     initialState,
     reducers: {
-        // Core state management
         reset: (state, action: PayloadAction<ExplorerSliceState>) => {
             return action.payload;
         },
@@ -74,7 +78,6 @@ const explorerSlice = createSlice({
             state.previouslyFetchedState = action.payload;
         },
 
-        // UI state
         toggleExpandedSection: (
             state,
             action: PayloadAction<ExplorerSection>,
@@ -87,17 +90,14 @@ const explorerSlice = createSlice({
             }
         },
 
-        // Filters
         setFilters: (state, action: PayloadAction<MetricQuery['filters']>) => {
             state.unsavedChartVersion.metricQuery.filters = action.payload;
         },
 
-        // Sorting actions
         setSortFields: (state, action: PayloadAction<SortField[]>) => {
             state.unsavedChartVersion.metricQuery.sorts = action.payload;
         },
 
-        // Dimensions and Metrics
         setDimensions: (state, action: PayloadAction<string[]>) => {
             state.unsavedChartVersion.metricQuery.dimensions = action.payload;
         },
@@ -105,25 +105,21 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.metrics = action.payload;
         },
 
-        // Toggle dimension - adds/removes and updates related state
         toggleDimension: (state, action: PayloadAction<FieldId>) => {
             const fieldId = action.payload;
             const currentDimensions =
                 state.unsavedChartVersion.metricQuery.dimensions;
 
-            // Toggle the dimension in the array
             state.unsavedChartVersion.metricQuery.dimensions = toggleArrayValue(
                 currentDimensions,
                 fieldId,
             );
 
-            // Remove any sort for this field
             state.unsavedChartVersion.metricQuery.sorts =
                 state.unsavedChartVersion.metricQuery.sorts.filter(
                     (s) => s.fieldId !== fieldId,
                 );
 
-            // Recalculate column order
             const dimensionIds =
                 state.unsavedChartVersion.metricQuery.dimensions;
             const metricIds = state.unsavedChartVersion.metricQuery.metrics;
@@ -139,25 +135,21 @@ const explorerSlice = createSlice({
             );
         },
 
-        // Toggle metric - adds/removes and updates related state
         toggleMetric: (state, action: PayloadAction<FieldId>) => {
             const fieldId = action.payload;
             const currentMetrics =
                 state.unsavedChartVersion.metricQuery.metrics;
 
-            // Toggle the metric in the array
             state.unsavedChartVersion.metricQuery.metrics = toggleArrayValue(
                 currentMetrics,
                 fieldId,
             );
 
-            // Remove any sort for this field
             state.unsavedChartVersion.metricQuery.sorts =
                 state.unsavedChartVersion.metricQuery.sorts.filter(
                     (s) => s.fieldId !== fieldId,
                 );
 
-            // Filter metricOverrides to only include active metrics
             state.unsavedChartVersion.metricQuery.metricOverrides =
                 Object.fromEntries(
                     Object.entries(
@@ -170,7 +162,6 @@ const explorerSlice = createSlice({
                     ),
                 );
 
-            // Recalculate column order
             const dimensionIds =
                 state.unsavedChartVersion.metricQuery.dimensions;
             const metricIds = state.unsavedChartVersion.metricQuery.metrics;
@@ -185,35 +176,29 @@ const explorerSlice = createSlice({
             );
         },
 
-        // Remove field - removes from all relevant arrays
         removeField: (state, action: PayloadAction<FieldId>) => {
             const fieldToRemove = action.payload;
 
-            // Remove from dimensions
             state.unsavedChartVersion.metricQuery.dimensions =
                 state.unsavedChartVersion.metricQuery.dimensions.filter(
                     (fieldId) => fieldId !== fieldToRemove,
                 );
 
-            // Remove from metrics
             state.unsavedChartVersion.metricQuery.metrics =
                 state.unsavedChartVersion.metricQuery.metrics.filter(
                     (fieldId) => fieldId !== fieldToRemove,
                 );
 
-            // Remove from sorts
             state.unsavedChartVersion.metricQuery.sorts =
                 state.unsavedChartVersion.metricQuery.sorts.filter(
                     (s) => s.fieldId !== fieldToRemove,
                 );
 
-            // Remove from tableCalculations
             state.unsavedChartVersion.metricQuery.tableCalculations =
                 state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tc) => tc.name !== fieldToRemove,
                 );
 
-            // Remove from columnOrder
             state.unsavedChartVersion.tableConfig.columnOrder =
                 state.unsavedChartVersion.tableConfig.columnOrder.filter(
                     (fieldId) => fieldId !== fieldToRemove,
@@ -224,14 +209,17 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.limit = action.payload;
         },
 
-        // Column order
         setColumnOrder: (state, action: PayloadAction<string[]>) => {
-            // When user explicitly sets column order (e.g., drag-and-drop), respect it exactly
-            // Don't run through calcColumnOrder as that might reorder things
             state.unsavedChartVersion.tableConfig.columnOrder = action.payload;
         },
 
-        // Parameters
+        setPivotConfig: (
+            state,
+            action: PayloadAction<{ columns: string[] } | undefined>,
+        ) => {
+            state.unsavedChartVersion.pivotConfig = action.payload;
+        },
+
         setParameter: (
             state,
             action: PayloadAction<{
@@ -268,7 +256,6 @@ const explorerSlice = createSlice({
             state.parameterDefinitions = action.payload;
         },
 
-        // Visualization config
         openVisualizationConfig: (state) => {
             state.isVisualizationConfigOpen = true;
         },
@@ -276,14 +263,13 @@ const explorerSlice = createSlice({
             state.isVisualizationConfigOpen = false;
         },
 
-        // Modal actions
         toggleCustomDimensionModal: (
             state,
             action: PayloadAction<
                 | {
                       isEditing: boolean;
                       table?: string;
-                      item?: any;
+                      item?: Dimension | CustomDimension;
                   }
                 | undefined
             >,
@@ -297,8 +283,8 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<
                 | {
-                      type?: any;
-                      item?: any;
+                      type?: MetricType;
+                      item?: Dimension | AdditionalMetric | CustomDimension;
                       isEditing: boolean;
                   }
                 | undefined
@@ -311,7 +297,9 @@ const explorerSlice = createSlice({
         },
         toggleWriteBackModal: (
             state,
-            action: PayloadAction<{ items?: any[] } | undefined>,
+            action: PayloadAction<
+                { items?: CustomDimension[] | AdditionalMetric[] } | undefined
+            >,
         ) => {
             state.modals.writeBack = {
                 isOpen: !state.modals.writeBack.isOpen,
@@ -320,7 +308,7 @@ const explorerSlice = createSlice({
         },
         toggleFormatModal: (
             state,
-            action: PayloadAction<{ metric?: any } | undefined>,
+            action: PayloadAction<{ metric?: Metric } | undefined>,
         ) => {
             state.modals.format = {
                 isOpen: !state.modals.format.isOpen,
@@ -391,7 +379,6 @@ const explorerSlice = createSlice({
                 action.payload;
         },
 
-        // Custom dimensions
         addCustomDimension: (state, action: PayloadAction<CustomDimension>) => {
             const newCustomDimension = action.payload;
 
@@ -402,7 +389,6 @@ const explorerSlice = createSlice({
                 newCustomDimension,
             );
 
-            // Automatically select the custom dimension (add to dimensions array)
             const customDimensionId = getItemId(newCustomDimension);
             if (
                 !state.unsavedChartVersion.metricQuery.dimensions.includes(
@@ -414,7 +400,6 @@ const explorerSlice = createSlice({
                 );
             }
 
-            // Recalculate column order
             const dimensionIds =
                 state.unsavedChartVersion.metricQuery.dimensions;
             const metricIds = state.unsavedChartVersion.metricQuery.metrics;
@@ -442,7 +427,6 @@ const explorerSlice = createSlice({
                 return;
             }
 
-            // Update the custom dimension in the array
             const index =
                 state.unsavedChartVersion.metricQuery.customDimensions.findIndex(
                     (cd) => cd.id === oldId,
@@ -452,7 +436,6 @@ const explorerSlice = createSlice({
                     customDimension;
             }
 
-            // The ID might have changed (if name changed), so update dimensions array
             const newId = getItemId(customDimension);
             if (oldId !== newId) {
                 state.unsavedChartVersion.metricQuery.dimensions =
@@ -460,7 +443,6 @@ const explorerSlice = createSlice({
                         (dim) => (dim === oldId ? newId : dim),
                     );
 
-                // Update sorts if the field was sorted
                 state.unsavedChartVersion.metricQuery.sorts =
                     state.unsavedChartVersion.metricQuery.sorts.map((sort) =>
                         sort.fieldId === oldId
@@ -468,7 +450,6 @@ const explorerSlice = createSlice({
                             : sort,
                     );
 
-                // Update column order
                 state.unsavedChartVersion.tableConfig.columnOrder =
                     state.unsavedChartVersion.tableConfig.columnOrder.map(
                         (col) => (col === oldId ? newId : col),
@@ -493,7 +474,6 @@ const explorerSlice = createSlice({
                 action.payload;
         },
 
-        // Additional metrics
         setAdditionalMetrics: (
             state,
             action: PayloadAction<AdditionalMetric[] | undefined>,
@@ -518,7 +498,6 @@ const explorerSlice = createSlice({
                 ];
             }
 
-            // Automatically select the metric (add to metrics array)
             const metricId = getItemId(newMetric);
             if (
                 !state.unsavedChartVersion.metricQuery.metrics.includes(
@@ -528,7 +507,6 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.metrics.push(metricId);
             }
 
-            // Recalculate column order
             const dimensionIds =
                 state.unsavedChartVersion.metricQuery.dimensions;
             const metricIds = state.unsavedChartVersion.metricQuery.metrics;
@@ -552,21 +530,18 @@ const explorerSlice = createSlice({
             const { oldId, additionalMetric } = action.payload;
             const newId = getItemId(additionalMetric);
 
-            // Update the additional metric in the array
             state.unsavedChartVersion.metricQuery.additionalMetrics = (
                 state.unsavedChartVersion.metricQuery.additionalMetrics || []
             ).map((metric) =>
                 getItemId(metric) === oldId ? additionalMetric : metric,
             );
 
-            // The ID might have changed (if name changed), so update metrics array
             if (oldId !== newId) {
                 state.unsavedChartVersion.metricQuery.metrics =
                     state.unsavedChartVersion.metricQuery.metrics.map(
                         (metric) => (metric === oldId ? newId : metric),
                     );
 
-                // Update sorts if the field was sorted
                 state.unsavedChartVersion.metricQuery.sorts =
                     state.unsavedChartVersion.metricQuery.sorts.map((sort) =>
                         sort.fieldId === oldId
@@ -574,7 +549,6 @@ const explorerSlice = createSlice({
                             : sort,
                     );
 
-                // Update column order
                 state.unsavedChartVersion.tableConfig.columnOrder =
                     state.unsavedChartVersion.tableConfig.columnOrder.map(
                         (col) => (col === oldId ? newId : col),
@@ -584,31 +558,26 @@ const explorerSlice = createSlice({
         removeAdditionalMetric: (state, action: PayloadAction<string>) => {
             const metricIdToRemove = action.payload;
 
-            // Remove from additionalMetrics array
             state.unsavedChartVersion.metricQuery.additionalMetrics = (
                 state.unsavedChartVersion.metricQuery.additionalMetrics || []
             ).filter((metric) => getItemId(metric) !== metricIdToRemove);
 
-            // Remove from metrics array
             state.unsavedChartVersion.metricQuery.metrics =
                 state.unsavedChartVersion.metricQuery.metrics.filter(
                     (metric) => metric !== metricIdToRemove,
                 );
 
-            // Remove from sorts
             state.unsavedChartVersion.metricQuery.sorts =
                 state.unsavedChartVersion.metricQuery.sorts.filter(
                     (sort) => sort.fieldId !== metricIdToRemove,
                 );
 
-            // Remove from columnOrder
             state.unsavedChartVersion.tableConfig.columnOrder =
                 state.unsavedChartVersion.tableConfig.columnOrder.filter(
                     (fieldId) => fieldId !== metricIdToRemove,
                 );
         },
 
-        // Query execution state management
         setValidQueryArgs: (
             state,
             action: PayloadAction<QueryResultsProps | null>,

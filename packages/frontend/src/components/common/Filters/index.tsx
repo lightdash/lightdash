@@ -277,7 +277,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         </Group>
                     ) : (
                         <FieldSelect
-                            limit={25}
                             size="xs"
                             withinPortal
                             maw={300}

@@ -1,9 +1,16 @@
-import { createSelector } from '@reduxjs/toolkit';
 import {
+    convertFieldRefToFieldId,
+    getAllReferences,
+    getItemId,
     getTotalFilterRules,
+    getVisibleFields,
+    isCustomBinDimension,
+    isCustomSqlDimension,
     type AdditionalMetric,
     type CustomDimension,
+    type Explore,
 } from '@lightdash/common';
+import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 
@@ -197,42 +204,127 @@ export const selectPivotConfig = createSelector(
     (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
 );
 
+// Stable empty Set to prevent unnecessary re-renders
+const EMPTY_ACTIVE_FIELDS_SET: Set<string> = new Set();
+
 // Active fields selector - computed from dimensions, metrics, and table calculations
 // Returns a Set of all selected field IDs
-let cachedActiveFieldsSet: Set<string> | null = null;
-let cachedActiveFieldsKey: string | null = null;
-
 export const selectActiveFields = createSelector(
     [selectDimensions, selectMetrics, selectTableCalculations],
     (dimensions, metrics, tableCalculations) => {
-        const activeFieldsArray = [
+        if (
+            dimensions.length === 0 &&
+            metrics.length === 0 &&
+            tableCalculations.length === 0
+        ) {
+            return EMPTY_ACTIVE_FIELDS_SET;
+        }
+
+        return new Set([
             ...dimensions,
             ...metrics,
             ...tableCalculations.map(({ name }) => name),
-        ];
+        ]);
+    },
+);
 
-        // Create stable key by sorting - same contents = same key regardless of order
-        const activeFieldsKey = [...activeFieldsArray].sort().join(',');
+// Stable empty arrays to prevent unnecessary re-renders
+const EMPTY_MISSING_CUSTOM_METRICS: AdditionalMetric[] = [];
+const EMPTY_MISSING_CUSTOM_DIMENSIONS: CustomDimension[] = [];
+const EMPTY_MISSING_FIELDS: string[] = [];
 
-        // If contents haven't changed, return cached Set with same reference
-        // This prevents re-renders in components that subscribe to this selector
-        if (
-            cachedActiveFieldsKey === activeFieldsKey &&
-            cachedActiveFieldsSet
-        ) {
-            return cachedActiveFieldsSet;
+// Missing fields selectors - compute fields that are selected but no longer available
+export const selectMissingCustomMetrics = createSelector(
+    [
+        selectAdditionalMetrics,
+        (_state: ExplorerStoreState, explore: Explore | undefined) => explore,
+    ],
+    (additionalMetrics, explore) => {
+        if (!explore || !additionalMetrics || additionalMetrics.length === 0) {
+            return EMPTY_MISSING_CUSTOM_METRICS;
         }
 
-        // Contents changed - create new Set and cache it
-        cachedActiveFieldsKey = activeFieldsKey;
-        cachedActiveFieldsSet = new Set(activeFieldsArray);
-        return cachedActiveFieldsSet;
+        const missing = additionalMetrics.filter((metric) => {
+            const table = explore.tables[metric.table];
+            return (
+                !table ||
+                (metric.baseDimensionName &&
+                    !table.dimensions[metric.baseDimensionName])
+            );
+        });
+
+        return missing.length > 0 ? missing : EMPTY_MISSING_CUSTOM_METRICS;
+    },
+);
+
+export const selectMissingCustomDimensions = createSelector(
+    [
+        selectCustomDimensions,
+        selectAdditionalMetrics,
+        (_state: ExplorerStoreState, explore: Explore | undefined) => explore,
+    ],
+    (customDimensions, additionalMetrics, explore) => {
+        if (!explore || !customDimensions || customDimensions.length === 0) {
+            return EMPTY_MISSING_CUSTOM_DIMENSIONS;
+        }
+
+        const visibleFields = getVisibleFields(explore);
+        const allFields = [
+            ...visibleFields,
+            ...(additionalMetrics || []),
+            ...(customDimensions || []),
+        ];
+        const fieldIds = allFields.map((field) => getItemId(field));
+
+        const missing = customDimensions.filter((customDimension) => {
+            const isCustomBinDimensionMissing =
+                isCustomBinDimension(customDimension) &&
+                !fieldIds.includes(customDimension.dimensionId);
+
+            const isCustomSqlDimensionMissing =
+                isCustomSqlDimension(customDimension) &&
+                getAllReferences(customDimension.sql)
+                    .map((ref) => convertFieldRefToFieldId(ref))
+                    .some((refFieldId) => !fieldIds.includes(refFieldId));
+
+            return isCustomBinDimensionMissing || isCustomSqlDimensionMissing;
+        });
+
+        return missing.length > 0 ? missing : EMPTY_MISSING_CUSTOM_DIMENSIONS;
+    },
+);
+
+// Selector for all missing field IDs (dimensions/metrics that are selected but not in explore)
+export const selectMissingFieldIds = createSelector(
+    [
+        selectDimensions,
+        selectMetrics,
+        selectAdditionalMetrics,
+        selectCustomDimensions,
+        (_state: ExplorerStoreState, explore: Explore | undefined) => explore,
+    ],
+    (dimensions, metrics, additionalMetrics, customDimensions, explore) => {
+        if (!explore) return EMPTY_MISSING_FIELDS;
+
+        const selectedFields = [...dimensions, ...metrics];
+        if (selectedFields.length === 0) return EMPTY_MISSING_FIELDS;
+
+        const visibleFields = getVisibleFields(explore);
+        const allFields = [
+            ...visibleFields,
+            ...(additionalMetrics || []),
+            ...(customDimensions || []),
+        ];
+        const fieldIds = allFields.map((field) => getItemId(field));
+
+        const missing = selectedFields.filter(
+            (node) => !fieldIds.includes(node),
+        );
+        return missing.length > 0 ? missing : EMPTY_MISSING_FIELDS;
     },
 );
 
 // Item-level active/selected selector for TreeSingleNode performance
-// This allows each node to subscribe only to its own selection status,
-// preventing re-renders of all nodes when a single field is toggled
 export const selectIsFieldActive = createSelector(
     [
         selectDimensions,
@@ -241,11 +333,9 @@ export const selectIsFieldActive = createSelector(
         (_state: ExplorerStoreState, fieldId: string) => fieldId,
     ],
     (dimensions, metrics, tableCalculations, fieldId) => {
-        // Check if fieldId exists in dimensions or metrics
         if (dimensions.includes(fieldId) || metrics.includes(fieldId)) {
             return true;
         }
-        // Check if fieldId matches a table calculation name
         return tableCalculations.some((tc) => tc.name === fieldId);
     },
 );

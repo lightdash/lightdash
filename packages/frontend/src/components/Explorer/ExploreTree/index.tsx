@@ -2,7 +2,6 @@ import {
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
-    type CustomDimension,
     type Dimension,
     type Explore,
     type Metric,
@@ -29,6 +28,9 @@ import {
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectMissingCustomDimensions,
+    selectMissingCustomMetrics,
+    selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import MantineIcon from '../../common/MantineIcon';
@@ -37,29 +39,27 @@ import { getSearchResults } from './TableTree/Tree/utils';
 
 type ExploreTreeProps = {
     explore: Explore;
-    additionalMetrics: AdditionalMetric[];
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
-    customDimensions?: CustomDimension[];
-    selectedDimensions?: string[];
-    missingFields?: {
-        all: string[];
-        customDimensions: CustomDimension[] | undefined;
-        customMetrics: AdditionalMetric[] | undefined;
-    };
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
 const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
-    additionalMetrics: _additionalMetricsProp, // deprecated - read from Redux
     onSelectedFieldChange,
-    customDimensions: _customDimensionsProp, // deprecated - read from Redux
-    selectedDimensions,
-    missingFields,
 }) => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+
+    const missingCustomMetrics = useExplorerSelector((state) =>
+        selectMissingCustomMetrics(state, explore),
+    );
+    const missingCustomDimensions = useExplorerSelector((state) =>
+        selectMissingCustomDimensions(state, explore),
+    );
+    const missingFieldIds = useExplorerSelector((state) =>
+        selectMissingFieldIds(state, explore),
+    );
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
@@ -172,20 +172,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                             additionalMetrics={additionalMetrics}
                             onSelectedNodeChange={onSelectedFieldChange}
                             customDimensions={customDimensions}
-                            missingCustomMetrics={
-                                table.name === explore.baseTable &&
-                                missingFields?.customMetrics
-                                    ? missingFields.customMetrics
-                                    : []
-                            }
-                            missingCustomDimensions={
-                                table.name === explore.baseTable &&
-                                missingFields?.customDimensions
-                                    ? missingFields.customDimensions
-                                    : []
-                            }
-                            missingFields={missingFields}
-                            selectedDimensions={selectedDimensions}
+                            missingCustomMetrics={missingCustomMetrics}
+                            missingCustomDimensions={missingCustomDimensions}
+                            missingFieldIds={missingFieldIds}
                             searchResults={searchResultsMap[table.name]}
                             isSearching={isSearching}
                         />

@@ -44,7 +44,6 @@ import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
-        // Get state from Redux
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -75,12 +74,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { fetchResults } = useExplorerQuery();
 
-        // TODO: Read from Redux once savedChart is migrated
         const isSavedChart = useExplorerContext(
             (context) => !!context.state.savedChart,
         );
 
-        // Auto-fetch effect
         useEffect(() => {
             const hasPivotConfig = !!pivotConfig;
             const shouldAutoFetch =
@@ -98,7 +95,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             pivotConfig,
         ]);
 
-        // Construct object for default sort calculation
         const chartVersionForSort = useMemo(
             () => ({
                 tableName,
@@ -115,7 +111,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const defaultSort = useDefaultSortField(chartVersionForSort as any);
 
-        // Set default sort when table changes and no sorts exist
         useEffect(() => {
             if (tableName && !sorts.length && defaultSort) {
                 dispatch(explorerActions.setSortFields([defaultSort]));
@@ -136,7 +131,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             }
         }, [parameterReferences, dispatch, isError]);
 
-        // Fetch project parameters based on parameter references
         const { data: projectParameters } = useParameters(
             projectUuid,
             parameterReferencesFromRedux ?? undefined,
@@ -145,7 +139,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             },
         );
 
-        // Compute parameter definitions from explore tables
         const exploreParameterDefinitions = useMemo(() => {
             return explore
                 ? getAvailableParametersFromTables(
@@ -154,7 +147,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 : {};
         }, [explore]);
 
-        // Merge project and explore parameter definitions
         const parameterDefinitions = useMemo(() => {
             return {
                 ...(projectParameters ?? {}),
@@ -162,7 +154,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             };
         }, [projectParameters, exploreParameterDefinitions]);
 
-        // Sync parameter definitions to Redux
         useEffect(() => {
             dispatch(
                 explorerActions.setParameterDefinitions(parameterDefinitions),

@@ -64,7 +64,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { addFilter } = useFilteredFields();
     const { track } = useTracking();
 
-    // Use Redux for all operations - no Context needed!
     const dispatch = useExplorerDispatch();
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {

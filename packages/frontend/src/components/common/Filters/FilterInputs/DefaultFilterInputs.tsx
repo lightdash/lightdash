@@ -56,7 +56,6 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                 case FilterType.STRING:
                     return !field || isTableCalculation(field) ? (
                         <FilterMultiStringInput
-                            limit={25}
                             disabled={disabled}
                             placeholder={placeholder}
                             autoFocus={true}
@@ -73,7 +72,6 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         />
                     ) : (
                         <FilterStringAutoComplete
-                            limit={25}
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}

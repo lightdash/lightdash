@@ -45,12 +45,9 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     customDimensions?: CustomDimension[];
-    missingFields?: {
-        all: string[];
-        customDimensions: CustomDimension[] | undefined;
-        customMetrics: AdditionalMetric[] | undefined;
-    };
-    selectedDimensions?: string[]; // DEPRECATED - read from Redux instead
+    missingCustomMetrics: AdditionalMetric[];
+    missingCustomDimensions: CustomDimension[];
+    missingFieldIds: string[];
     searchResults: string[];
     isSearching: boolean;
 };
@@ -59,8 +56,9 @@ const TableTreeSections: FC<Props> = ({
     table,
     additionalMetrics,
     customDimensions,
-    missingFields,
-    selectedDimensions: _selectedDimensionsProp, // deprecated, unused
+    missingCustomMetrics,
+    missingCustomDimensions,
+    missingFieldIds,
     onSelectedNodeChange,
     searchResults,
     isSearching,
@@ -77,11 +75,8 @@ const TableTreeSections: FC<Props> = ({
         }),
     );
 
-    // Use Redux dispatch for modal actions - no Context needed!
     const dispatch = useExplorerDispatch();
 
-    // Read from Redux with shallowEqual to prevent re-renders when parent object changes
-    // but actual array values haven't changed
     const allAdditionalMetrics = useExplorerSelector(
         selectAllAdditionalMetrics,
         shallowEqual,
@@ -110,14 +105,10 @@ const TableTreeSections: FC<Props> = ({
             (metric) => metric.table === table.name,
         );
 
-        return [
-            ...customMetricsTable,
-            ...(missingFields?.customMetrics ?? []),
-        ].reduce<Record<string, AdditionalMetric>>(
-            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-            {},
-        );
-    }, [additionalMetrics, missingFields?.customMetrics, table.name]);
+        return [...customMetricsTable, ...missingCustomMetrics].reduce<
+            Record<string, AdditionalMetric>
+        >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
+    }, [additionalMetrics, missingCustomMetrics, table.name]);
 
     const customDimensionsMap = useMemo(() => {
         if (customDimensions === undefined) return undefined;
@@ -242,7 +233,7 @@ const TableTreeSections: FC<Props> = ({
 
     return (
         <>
-            {missingFields && missingFields.all.length > 0 && (
+            {missingFieldIds.length > 0 && (
                 <>
                     <Group mt="sm" mb="xs">
                         <Text fw={600} color="gray.6">
@@ -250,7 +241,7 @@ const TableTreeSections: FC<Props> = ({
                         </Text>
                     </Group>
 
-                    {missingFields.all.map((missingField) => {
+                    {missingFieldIds.map((missingField) => {
                         return (
                             <Tooltip
                                 key={missingField}
@@ -410,7 +401,7 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={customMetrics}
-                    missingCustomMetrics={missingFields?.customMetrics}
+                    missingCustomMetrics={missingCustomMetrics}
                     itemsAlerts={customMetricsIssues}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickMetric}
@@ -465,7 +456,7 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={customDimensionsMap}
-                    missingCustomDimensions={missingFields?.customDimensions}
+                    missingCustomDimensions={missingCustomDimensions}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
                     searchResults={searchResults}

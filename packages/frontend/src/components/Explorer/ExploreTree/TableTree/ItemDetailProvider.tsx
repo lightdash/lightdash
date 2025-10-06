@@ -12,9 +12,6 @@ import { type ItemDetailProps } from './types';
 /**
  * Exposes the necessary context for a shared modal to display details about
  * a tree item - primarily its description.
- *
- * Now uses Redux for state management to prevent re-renders of tree nodes
- * when the modal opens/closes.
  */
 export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
     const dispatch = useExplorerDispatch();

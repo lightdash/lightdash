@@ -84,7 +84,6 @@ const mapCustomDimensionsToCompletions = (
 export const useTableCalculationAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    // Read from Redux instead of Context
     const activeFields = useExplorerSelector(selectActiveFields);
     const tableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);

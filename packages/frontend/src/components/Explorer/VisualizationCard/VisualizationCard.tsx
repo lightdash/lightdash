@@ -72,7 +72,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.state.savedChart,
     );
 
-    // Get query state from new hook
     const { query, queryResults, isLoading, getDownloadQueryUuid } =
         useExplorerQuery();
     const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
@@ -110,13 +109,11 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [dispatch],
     );
 
-    // Build unsavedChartVersion from Redux selectors
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
     const pivotConfig = useExplorerSelector(selectPivotConfig);
 
-    // Read chartConfig from Context (not migrated yet)
     const chartConfig = useExplorerContext(
         (context) => context.state.unsavedChartVersion.chartConfig,
     );

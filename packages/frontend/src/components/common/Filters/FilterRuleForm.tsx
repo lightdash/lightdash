@@ -114,7 +114,6 @@ const FilterRuleForm: FC<Props> = ({
                 baseTable={baseTable}
             />
             <Select
-                limit={25}
                 size="xs"
                 w="175px"
                 sx={{ flexShrink: 0 }}

@@ -94,13 +94,8 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
-    missingCustomDimensions?: CustomDimension[];
-    missingFields?: {
-        all: string[];
-        customDimensions: CustomDimension[] | undefined;
-        customMetrics: AdditionalMetric[] | undefined;
-    };
-    selectedDimensions?: string[];
+    missingCustomDimensions: CustomDimension[];
+    missingFieldIds: string[];
     searchResults: string[];
     isSearching: boolean;
 };
@@ -134,9 +129,8 @@ const TableTreeComponent: FC<Props> = ({
     customDimensions,
     missingCustomMetrics,
     missingCustomDimensions,
+    missingFieldIds,
     searchQuery,
-    missingFields,
-    selectedDimensions,
     isSearching,
     ...rest
 }) => {
@@ -156,8 +150,9 @@ const TableTreeComponent: FC<Props> = ({
                         searchQuery={searchQuery}
                         additionalMetrics={additionalMetrics}
                         customDimensions={customDimensions}
-                        missingFields={missingFields}
-                        selectedDimensions={selectedDimensions}
+                        missingCustomMetrics={missingCustomMetrics}
+                        missingCustomDimensions={missingCustomDimensions}
+                        missingFieldIds={missingFieldIds}
                         isSearching={isSearching}
                         {...rest}
                     />

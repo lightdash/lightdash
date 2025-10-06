@@ -242,25 +242,21 @@ const BasePanel = () => {
 
 const ExploreSideBar = memo(() => {
     const projectUuid = useProjectUuid();
-    // Get table name from Redux
+
     const tableName = useExplorerSelector(selectTableName);
     const ability = useAbilityContext();
     const { data: org } = useOrganization();
 
-    // Use Redux and query client directly - no Context needed!
     const queryClient = useQueryClient();
     const dispatch = useExplorerDispatch();
     const navigate = useNavigate();
 
     const clearExplore = useCallback(async () => {
-        // Cancel any pending query creation
         void queryClient.cancelQueries({
             queryKey: ['create-query'],
             exact: false,
         });
-        // Reset Redux store to default state
         dispatch(explorerActions.reset(defaultState));
-        // Reset query execution state
         dispatch(explorerActions.resetQueryExecution());
     }, [queryClient, dispatch]);
 

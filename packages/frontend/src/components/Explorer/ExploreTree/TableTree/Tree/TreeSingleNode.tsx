@@ -84,7 +84,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const itemsMap = useTableTree((context) => {
         return context.itemsMap;
     });
-    // Note: selectedItems removed - using Redux selector instead for better performance
     const isSearching = useTableTree((context) => context.isSearching);
     const searchResults = useTableTree((context) => context.searchResults);
     const searchQuery = useTableTree((context) => context.searchQuery);
@@ -98,7 +97,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const onItemClick = useTableTree((context) => context.onItemClick);
     const { track } = useTracking();
 
-    // Use addFilter hook that doesn't subscribe to filters state (prevents re-renders)
     const addFilter = useAddFilter();
 
     const dispatch = useExplorerDispatch();
@@ -110,8 +108,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
 
     const item = itemsMap[node.key];
 
-    // Use item-level selectors with equality check to prevent unnecessary re-renders
-    // Each node only subscribes to its own state, not the entire activeFields/filters
     const fieldId = useMemo(() => getItemId(item), [item]);
 
     const selectIsFiltered = useMemo(
@@ -125,7 +121,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         [fieldId],
     );
 
-    // Use strict equality since these are booleans - only re-render if value actually changes
     const isFieldFiltered = useExplorerSelector(
         selectIsFiltered,
         (a, b) => a === b,

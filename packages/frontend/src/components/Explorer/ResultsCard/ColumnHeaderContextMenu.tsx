@@ -54,7 +54,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const item = meta?.item;
     const sort = meta?.sort?.sort;
 
-    // Get state from Redux
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const dispatch = useExplorerDispatch();
 

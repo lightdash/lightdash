@@ -20,7 +20,6 @@ import { useParams } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
-    selectCustomDimensions,
     selectIsVisualizationConfigOpen,
     selectTableName,
     useExplorerDispatch,
@@ -72,7 +71,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const customDimensions = useExplorerSelector(selectCustomDimensions);
 
     // Keep reading these from Context for now (will migrate later)
     const chartUuid = useExplorerContext(
@@ -84,7 +82,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const dispatch = useExplorerDispatch();
 
-    // Toggle dimension or metric using Redux
     const toggleActiveField = useCallback(
         (fieldId: string, isDimension: boolean) => {
             if (isDimension) {
@@ -142,11 +139,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         projectUuid,
         chartUuid,
     ]);
-
-    // TODO: missingFields computation removed to avoid re-rendering ExplorePanel
-    // when dimensions/metrics change. Need to restore this logic after performance
-    // optimization demo, possibly in a separate component or computed lazily.
-    const missingFields = undefined;
 
     const handleEditVirtualView = useCallback(() => {
         startTransition(() => setIsEditVirtualViewOpen(true));
@@ -251,10 +243,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 <ItemDetailProvider>
                     <ExploreTree
                         explore={explore}
-                        additionalMetrics={additionalMetrics || []}
                         onSelectedFieldChange={toggleActiveField}
-                        customDimensions={customDimensions}
-                        missingFields={missingFields}
                     />
                 </ItemDetailProvider>
 

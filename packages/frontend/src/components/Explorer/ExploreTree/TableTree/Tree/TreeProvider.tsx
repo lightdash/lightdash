@@ -61,5 +61,4 @@ const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     );
 };
 
-// TreeProvider uses normal React memo - all components now read selection state from Redux
 export const TreeProvider = memo(TreeProviderComponent);

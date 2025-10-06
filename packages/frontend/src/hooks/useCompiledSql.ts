@@ -48,7 +48,6 @@ export const useCompiledSql = (
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    // Read all values from Redux instead of Context
     const tableId = useExplorerSelector(selectTableName);
     const dimensions = useExplorerSelector(selectDimensions);
     const metrics = useExplorerSelector(selectMetrics);
@@ -94,7 +93,6 @@ export const useCompiledSql = (
         onError: (result) => setErrorResponse(result),
         keepPreviousData: true,
         ...queryOptions,
-        // Ensure enabled check happens AFTER spread to prevent override
         enabled: (queryOptions?.enabled ?? true) && !!tableId && !!projectUuid,
     });
 };
