@@ -252,6 +252,34 @@ export const maybeOverrideWarehouseConnection = <
     };
 };
 
+/**
+ * Merges new warehouse credentials with base credentials, preserving advanced settings
+ * like requireUserCredentials from the base credentials.
+ *
+ * This is useful when creating preview projects where we want to use new connection details
+ * (like from dbt profiles) but preserve advanced configuration from the parent project.
+ */
+export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
+    baseCredentials: T,
+    newCredentials: T,
+): T => {
+    // If types don't match, return newCredentials as-is (can't merge different warehouse types)
+    if (baseCredentials.type !== newCredentials.type) {
+        return newCredentials;
+    }
+
+    // Merge credentials, with newCredentials taking precedence for connection details
+    // but baseCredentials providing advanced settings like requireUserCredentials
+    const merged = {
+        ...baseCredentials,
+        ...newCredentials,
+        // Keep requireUserCredentials from base credentials, since this is a security setting and should not be overridden
+        requireUserCredentials: baseCredentials.requireUserCredentials,
+    };
+
+    return merged as T;
+};
+
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
 }
