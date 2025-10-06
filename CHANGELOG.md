@@ -1,3 +1,10 @@
+# [0.2053.0](https://github.com/lightdash/lightdash/compare/0.2052.0...0.2053.0) (2025-10-06)
+
+
+### Features
+
+* add filters to project switcher ([#17041](https://github.com/lightdash/lightdash/issues/17041)) ([aa5c741](https://github.com/lightdash/lightdash/commit/aa5c741d4a8ad48005d04e207c66d17b5f11a361))
+
 # [0.2052.0](https://github.com/lightdash/lightdash/compare/0.2051.0...0.2052.0) (2025-10-03)
 
 
