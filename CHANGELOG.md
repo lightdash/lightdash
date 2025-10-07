@@ -1,3 +1,10 @@
+## [0.2057.2](https://github.com/lightdash/lightdash/compare/0.2057.1...0.2057.2) (2025-10-07)
+
+
+### Bug Fixes
+
+* update instance embed ([#17267](https://github.com/lightdash/lightdash/issues/17267)) ([074fef7](https://github.com/lightdash/lightdash/commit/074fef745a8887bddec5cdf79c10f933f8de3c1b))
+
 ## [0.2057.1](https://github.com/lightdash/lightdash/compare/0.2057.0...0.2057.1) (2025-10-07)
 
 
