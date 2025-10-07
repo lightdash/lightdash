@@ -1,3 +1,15 @@
+# [0.2059.0](https://github.com/lightdash/lightdash/compare/0.2058.0...0.2059.0) (2025-10-07)
+
+
+### Bug Fixes
+
+* validate pat expiration when on dst transition ([#17276](https://github.com/lightdash/lightdash/issues/17276)) ([70dde71](https://github.com/lightdash/lightdash/commit/70dde7182bc9488002cd1664e8e6c866e8f7da81))
+
+
+### Features
+
+* send email notification when schedule fails ([#17274](https://github.com/lightdash/lightdash/issues/17274)) ([a585e0b](https://github.com/lightdash/lightdash/commit/a585e0b9c65f41f32fafafe87de8fca09f5bb7d1))
+
 # [0.2058.0](https://github.com/lightdash/lightdash/compare/0.2057.3...0.2058.0) (2025-10-07)
 
 
