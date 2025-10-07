@@ -69,7 +69,11 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                     {...props}
                 >
                     <Group gap="xs">
-                        <SearchFilter search={search} setSearch={setSearch} />
+                        <SearchFilter
+                            search={search}
+                            setSearch={setSearch}
+                            placeholder="Search threads by title"
+                        />
 
                         <Divider
                             orientation="vertical"

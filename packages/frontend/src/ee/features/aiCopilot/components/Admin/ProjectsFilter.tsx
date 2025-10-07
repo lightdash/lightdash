@@ -20,11 +20,14 @@ import classes from './ProjectsFilter.module.css';
 type ProjectsFilterProps = Pick<
     ReturnType<typeof useAiAgentAdminFilters>,
     'selectedProjectUuids' | 'setSelectedProjectUuids'
->;
+> & {
+    tooltipLabel?: string;
+};
 
 const ProjectsFilter: FC<ProjectsFilterProps> = ({
     selectedProjectUuids,
     setSelectedProjectUuids,
+    tooltipLabel = 'Filter threads by project',
 }) => {
     const { data: projects, isLoading } = useProjects();
     const organizationAiAgents = useAiAgentAdminAgents();
@@ -58,11 +61,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
         <Group gap="two">
             <Popover width={300} position="bottom-start">
                 <Popover.Target>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Filter threads by project"
-                    >
+                    <Tooltip withinPortal variant="xs" label={tooltipLabel}>
                         <Button
                             h={32}
                             c="gray.7"
