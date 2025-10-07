@@ -1,3 +1,10 @@
+## [0.2061.3](https://github.com/lightdash/lightdash/compare/0.2061.2...0.2061.3) (2025-10-07)
+
+
+### Bug Fixes
+
+* wrap in config and do not duplicate meta ([#17295](https://github.com/lightdash/lightdash/issues/17295)) ([d303121](https://github.com/lightdash/lightdash/commit/d3031215d74fd190a35f8db54b7bd06f9c1f7a0d))
+
 ## [0.2061.2](https://github.com/lightdash/lightdash/compare/0.2061.1...0.2061.2) (2025-10-07)
 
 
