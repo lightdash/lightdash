@@ -1,3 +1,11 @@
+# [0.2060.0](https://github.com/lightdash/lightdash/compare/0.2059.0...0.2060.0) (2025-10-07)
+
+
+### Features
+
+* display proposed changes in slack messages ([#17258](https://github.com/lightdash/lightdash/issues/17258)) ([5846435](https://github.com/lightdash/lightdash/commit/584643514a17ae3989d7d41784acea7462db34f0))
+* display slack message when AI Agent is not found for channel ([#17251](https://github.com/lightdash/lightdash/issues/17251)) ([38cd347](https://github.com/lightdash/lightdash/commit/38cd3471118c8d80c1bfcb673e7910e9b5f28de9))
+
 # [0.2059.0](https://github.com/lightdash/lightdash/compare/0.2058.0...0.2059.0) (2025-10-07)
 
 
