@@ -1,3 +1,17 @@
+# [0.2058.0](https://github.com/lightdash/lightdash/compare/0.2057.3...0.2058.0) (2025-10-07)
+
+
+### Bug Fixes
+
+* if a change is deleted, show it as reverted in the Agent ui ([#17275](https://github.com/lightdash/lightdash/issues/17275)) ([c76bd96](https://github.com/lightdash/lightdash/commit/c76bd9635b77ef40c834bd60e3e6aecd79c5153f))
+
+
+### Features
+
+* add ability to revert changes in project changesets ([#17236](https://github.com/lightdash/lightdash/issues/17236)) ([a8db9ee](https://github.com/lightdash/lightdash/commit/a8db9ee18c91a3f980ba9be4d84146ccf44d3968))
+* add API endpoints to revert changes in changesets ([#17235](https://github.com/lightdash/lightdash/issues/17235)) ([3a699be](https://github.com/lightdash/lightdash/commit/3a699bef93bae5e57612378b3e086497eba20d61))
+* implement catalog revert functionality for changeset changes ([#17259](https://github.com/lightdash/lightdash/issues/17259)) ([1fbe7b9](https://github.com/lightdash/lightdash/commit/1fbe7b94b8e528228cfbd9ff9ac9e6a0b72f1a6a))
+
 ## [0.2057.3](https://github.com/lightdash/lightdash/compare/0.2057.2...0.2057.3) (2025-10-07)
 
 
