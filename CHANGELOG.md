@@ -1,3 +1,10 @@
+# [0.2057.0](https://github.com/lightdash/lightdash/compare/0.2056.2...0.2057.0) (2025-10-07)
+
+
+### Features
+
+* add ai agents table overview ([#17246](https://github.com/lightdash/lightdash/issues/17246)) ([b535c13](https://github.com/lightdash/lightdash/commit/b535c13f12bc47e5bd4f36303c896806f1082bd8))
+
 ## [0.2056.2](https://github.com/lightdash/lightdash/compare/0.2056.1...0.2056.2) (2025-10-06)
 
 
