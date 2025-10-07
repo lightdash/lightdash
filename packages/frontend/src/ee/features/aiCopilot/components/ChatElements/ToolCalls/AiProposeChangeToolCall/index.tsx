@@ -11,6 +11,7 @@ import {
 } from '@mantine-8/core';
 import { IconExternalLink, IconGitBranch, IconX } from '@tabler/icons-react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { useChange } from '../../../../../../../features/changesets/hooks/useChange';
 import { useRevertChangeMutation } from '../../../../hooks/useProjectAiAgents';
 import { ToolCallPaper } from '../ToolCallPaper';
 import { ChangeRenderer } from './ChangeRenderer';
@@ -58,7 +59,19 @@ export const AiProposeChangeToolCall = ({
 
     const changeUuid = metadata?.changeUuid;
 
-    const isRejected = metadata?.userFeedback === 'rejected';
+    const { isLoading: isLoadingChange, error: changeError } = useChange(
+        projectUuid,
+        changeUuid,
+    );
+
+    const isChangeDeleted = changeError?.error?.statusCode === 404;
+    const isRejectedByMetadata = metadata?.userFeedback === 'rejected';
+
+    const buttonText = isChangeDeleted
+        ? 'Reverted'
+        : isRejectedByMetadata
+        ? 'Rejected'
+        : 'Reject';
 
     const handleReject = () => {
         if (changeUuid) {
@@ -114,10 +127,16 @@ export const AiProposeChangeToolCall = ({
                         size="compact-xs"
                         leftSection={<MantineIcon icon={IconX} size={12} />}
                         onClick={handleReject}
-                        disabled={!changeUuid || isRejected || isLoading}
+                        disabled={
+                            !changeUuid ||
+                            isRejectedByMetadata ||
+                            isChangeDeleted ||
+                            isLoading ||
+                            isLoadingChange
+                        }
                         loading={isLoading}
                     >
-                        {isRejected ? 'Rejected' : 'Reject'}
+                        {buttonText}
                     </Button>
                 </Group>
             </Stack>
