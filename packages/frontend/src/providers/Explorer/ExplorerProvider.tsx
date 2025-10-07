@@ -843,6 +843,14 @@ const ExplorerProvider: FC<
             ),
         );
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
+
+    // Keep Redux chart config in sync with Context chart config
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setChartConfig(unsavedChartVersion.chartConfig),
+        );
+    }, [unsavedChartVersion.chartConfig, reduxDispatch]);
+
     // END TRANSITIONAL SYNC CODE
 
     const [activeFields, isValidQuery] = useMemo<
