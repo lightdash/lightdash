@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     validateCustomMetricsDefinition,
+    validateFieldEntityType,
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
@@ -17,17 +18,12 @@ export const validateTimeSeriesVizConfig = (
     explore: Explore,
 ) => {
     const filterRules = getTotalFilterRules(vizTool.filters);
-    const fieldsToValidate = [
+    const selectedDimensions = [
         vizTool.vizConfig.xDimension,
         vizTool.vizConfig.breakdownByDimension,
-        ...vizTool.vizConfig.yMetrics,
-        ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
     ].filter((x) => typeof x === 'string');
-    validateSelectedFieldsExistence(
-        explore,
-        fieldsToValidate,
-        vizTool.customMetrics,
-    );
+    validateFieldEntityType(explore, selectedDimensions, 'dimension');
+    validateFieldEntityType(explore, vizTool.vizConfig.yMetrics, 'metric');
     validateCustomMetricsDefinition(explore, vizTool.customMetrics);
     validateFilterRules(explore, filterRules, vizTool.customMetrics);
     validateMetricDimensionFilterPlacement(
@@ -35,10 +31,10 @@ export const validateTimeSeriesVizConfig = (
         vizTool.filters,
         vizTool.customMetrics,
     );
-    const selectedDimensions = [
-        vizTool.vizConfig.xDimension,
-        vizTool.vizConfig.breakdownByDimension,
-    ].filter((x) => typeof x === 'string');
+    validateSelectedFieldsExistence(
+        explore,
+        vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
+    );
     validateSortFieldsAreSelected(
         vizTool.vizConfig.sorts,
         selectedDimensions,
