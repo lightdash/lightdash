@@ -42,9 +42,11 @@ export class PersonalAccessTokenService extends BaseService {
 
         const { maxExpirationTimeInDays } = this.lightdashConfig.auth.pat;
         if (maxExpirationTimeInDays) {
-            const maxDate: Date = new Date(
-                Date.now() + maxExpirationTimeInDays * 24 * 60 * 60 * 1000,
-            );
+            // Use calendar days to avoid DST issues
+            const maxDate = new Date();
+            maxDate.setDate(maxDate.getDate() + maxExpirationTimeInDays);
+            maxDate.setHours(23, 59, 59, 999); // End of day to be more lenient
+
             if (!expiresAtDate || expiresAtDate.getTime() > maxDate.getTime()) {
                 throw new ParameterError(
                     `Expiration time can't be greater than ${maxExpirationTimeInDays} days`,
