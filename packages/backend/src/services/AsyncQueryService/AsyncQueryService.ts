@@ -331,7 +331,7 @@ export class AsyncQueryService extends ProjectService {
             await this.getWarehouseCredentials({
                 projectUuid: queryHistory.projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.isSessionUser(),
+                isRegisteredUser: account.isRegisteredUser(),
             }),
         );
 
@@ -1261,7 +1261,6 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQuery({
         userId,
         isRegisteredUser,
-        isSessionUser,
         projectUuid,
         query,
         fieldsMap,
@@ -1299,7 +1298,7 @@ export class AsyncQueryService extends ProjectService {
             const warehouseCredentials = await this.getWarehouseCredentials({
                 projectUuid,
                 userId,
-                isSessionUser,
+                isRegisteredUser,
             });
 
             warehouseCredentialsType = warehouseCredentials.type;
@@ -1593,7 +1592,7 @@ export class AsyncQueryService extends ProjectService {
                         await this.getWarehouseCredentials({
                             projectUuid,
                             userId: account.user.id,
-                            isSessionUser: account.isSessionUser(),
+                            isRegisteredUser: account.isRegisteredUser(),
                         });
 
                     const warehouseCredentialsType = warehouseCredentials.type;
@@ -1767,7 +1766,6 @@ export class AsyncQueryService extends ProjectService {
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
-                        isSessionUser: account.isSessionUser(),
                         projectUuid,
                         query,
                         fieldsMap,
@@ -1857,7 +1855,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
-            isSessionUser: account.isSessionUser(),
+            isRegisteredUser: account.isRegisteredUser(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2023,7 +2021,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
-            isSessionUser: account.isSessionUser(),
+            isRegisteredUser: account.isRegisteredUser(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2275,7 +2273,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
-            isSessionUser: account.isSessionUser(),
+            isRegisteredUser: account.isRegisteredUser(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2476,7 +2474,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
-            isSessionUser: account.isSessionUser(),
+            isRegisteredUser: account.isRegisteredUser(),
         });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -2651,7 +2649,7 @@ export class AsyncQueryService extends ProjectService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.authentication.type === 'session',
+                isRegisteredUser: account.isRegisteredUser(),
             }),
         );
 

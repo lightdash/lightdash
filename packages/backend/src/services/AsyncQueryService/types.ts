@@ -144,8 +144,6 @@ export const isExecuteAsyncSqlChartByUuid = (
 
 export type RunAsyncWarehouseQueryArgs = {
     userId: string;
-    // Can the user have credentials?
-    isSessionUser: boolean;
     // Is the user in the database?
     isRegisteredUser: boolean;
     projectUuid: string;
