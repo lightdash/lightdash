@@ -110,6 +110,8 @@ const createMockService = (overrides: AnyType = {}) => {
         emailModel: {} as AnyType,
         projectService: {} as AnyType,
         serviceAccountModel: serviceAccountModel as AnyType,
+        embedModel: {} as AnyType,
+        encryptionUtil: { encrypt: jest.fn() } as AnyType,
     });
 };
 

@@ -205,7 +205,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                 }),
-            instanceConfigurationService: ({ models, context, repository }) =>
+            instanceConfigurationService: ({
+                models,
+                context,
+                repository,
+                utils,
+            }) =>
                 new InstanceConfigurationService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -219,6 +224,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     projectService: repository.getProjectService(),
                     serviceAccountModel: models.getServiceAccountModel(),
+                    embedModel: models.getEmbedModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                 }),
             asyncQueryService: ({
                 models,

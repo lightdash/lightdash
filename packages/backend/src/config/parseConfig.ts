@@ -477,6 +477,11 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
         dbt: {
             personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
         },
+        embed: {
+            allowAllDashboards:
+                process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
+            secret: process.env.LD_SETUP_EMBED_SECRET,
+        },
     };
 };
 
@@ -828,6 +833,10 @@ export type LightdashConfig = {
         serviceAccount?: {
             token: string;
             expirationTime: Date | null;
+        };
+        embed?: {
+            allowAllDashboards?: boolean;
+            secret?: string;
         };
     };
     mcp: {
