@@ -109,7 +109,7 @@ describe('DashboardModel', () => {
             )
             .response([]);
 
-        const dashboard = await model.getById(expectedDashboard.uuid);
+        const dashboard = await model.getByIdOrSlug(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
         expect(tracker.history.select).toHaveLength(4);
@@ -171,7 +171,7 @@ describe('DashboardModel', () => {
             .response([]);
 
         // Fetch the dashboard
-        const dashboard = await model.getById(expectedDashboard.uuid);
+        const dashboard = await model.getByIdOrSlug(expectedDashboard.uuid);
 
         // Assert that tiles are returned in the expected order
         // First by y_offset (ascending), then x_offset (ascending)
@@ -189,7 +189,7 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.getById(expectedDashboard.uuid),
+            model.getByIdOrSlug(expectedDashboard.uuid),
         ).rejects.toThrowError(NotFoundError);
     });
 
@@ -289,7 +289,7 @@ describe('DashboardModel', () => {
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
         tracker.on.select(DashboardsTableName).responseOnce('slug');
 
-        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
         jest.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
@@ -475,7 +475,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileMarkdownsTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -583,7 +583,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -660,7 +660,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 

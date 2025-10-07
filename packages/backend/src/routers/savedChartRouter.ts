@@ -9,13 +9,16 @@ import {
 export const savedChartRouter = express.Router();
 
 savedChartRouter.get(
-    '/:savedQueryUuid',
+    '/:savedQueryUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .get(getObjectValue(req.params, 'savedQueryUuid'), req.account!)
+            .get(
+                getObjectValue(req.params, 'savedQueryUuidOrSlug'),
+                req.account!,
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',

@@ -8,7 +8,7 @@ import {
 export const dashboardRouter = express.Router({ mergeParams: true });
 
 dashboardRouter.get(
-    '/:dashboardUuid',
+    '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -17,7 +17,7 @@ dashboardRouter.get(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .getById(req.user!, req.params.dashboardUuid),
+                    .getByIdOrSlug(req.user!, req.params.dashboardUuidOrSlug),
             });
         } catch (e) {
             next(e);
@@ -44,7 +44,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.patch(
-    '/:dashboardUuid',
+    '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -54,7 +54,11 @@ dashboardRouter.patch(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .update(req.user!, req.params.dashboardUuid, req.body),
+                    .update(
+                        req.user!,
+                        req.params.dashboardUuidOrSlug,
+                        req.body,
+                    ),
             });
         } catch (e) {
             next(e);

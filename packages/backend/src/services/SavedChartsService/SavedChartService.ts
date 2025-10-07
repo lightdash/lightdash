@@ -811,8 +811,11 @@ export class SavedChartService
         return access;
     }
 
-    async get(savedChartUuid: string, account: Account): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(savedChartUuid);
+    async get(
+        savedChartUuidOrSlug: string,
+        account: Account,
+    ): Promise<SavedChart> {
+        const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
@@ -820,7 +823,7 @@ export class SavedChartService
         const access = await this.checkPermissions(account, space, savedChart);
 
         await this.analyticsModel.addChartViewEvent(
-            savedChartUuid,
+            savedChart.uuid,
             account.isRegisteredUser() ? account.user.id : null,
         );
 
@@ -862,7 +865,7 @@ export class SavedChartService
                 savedChart.spaceUuid,
             );
         } else if (savedChart.dashboardUuid) {
-            const dashboard = await this.dashboardModel.getById(
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
                 savedChart.dashboardUuid,
             );
             const space = await this.spaceModel.getSpaceSummary(
@@ -1319,7 +1322,7 @@ export class SavedChartService
             }
 
             if (savedChart.dashboardUuid) {
-                const dashboard = await this.dashboardModel.getById(
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
                     savedChart.dashboardUuid,
                 );
                 spaceUuid = dashboard.spaceUuid;

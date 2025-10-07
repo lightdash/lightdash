@@ -517,7 +517,7 @@ export class CoderService extends BaseService {
         );
 
         const dashboardPromises = limitedDashboardSummaries.map((dash) =>
-            this.dashboardModel.getById(dash.uuid),
+            this.dashboardModel.getByIdOrSlug(dash.uuid),
         );
         const dashboards = await Promise.all(dashboardPromises);
 
@@ -1055,7 +1055,7 @@ export class CoderService extends BaseService {
         }
         // Use promote service to update existing dashboard
 
-        const dashboard = await this.dashboardModel.getById(
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardSummary.uuid,
         );
 

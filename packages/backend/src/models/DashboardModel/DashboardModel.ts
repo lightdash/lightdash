@@ -8,7 +8,6 @@ import {
     DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
-    DashboardParameterValue,
     DashboardSqlChartTile,
     DashboardTab,
     DashboardTileTypes,
@@ -32,7 +31,7 @@ import {
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     DashboardTable,
     DashboardTabsTableName,
@@ -659,8 +658,8 @@ export class DashboardModel {
         );
     }
 
-    async getById(dashboardUuid: string): Promise<DashboardDAO> {
-        const [dashboard] = await this.database(DashboardsTableName)
+    async getByIdOrSlug(dashboardUuidOrSlug: string): Promise<DashboardDAO> {
+        const query = this.database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -722,9 +721,29 @@ export class DashboardModel {
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
             ])
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
+
+        if (isValidUuid(dashboardUuidOrSlug)) {
+            void query.where((builder) => {
+                void builder
+                    .where(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuidOrSlug,
+                    )
+                    .orWhere(
+                        `${DashboardsTableName}.slug`,
+                        dashboardUuidOrSlug,
+                    );
+            });
+        } else {
+            void query.where(
+                `${DashboardsTableName}.slug`,
+                dashboardUuidOrSlug,
+            );
+        }
+
+        const [dashboard] = await query;
 
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
@@ -1053,11 +1072,11 @@ export class DashboardModel {
 
             return newDashboard.dashboard_uuid;
         });
-        return this.getById(dashboardId);
+        return this.getByIdOrSlug(dashboardId);
     }
 
     async update(
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         dashboard: DashboardUnversionedFields,
     ): Promise<DashboardDAO> {
         const withSpaceId = dashboard.spaceUuid
@@ -1070,14 +1089,25 @@ export class DashboardModel {
                   )?.spaceId,
               }
             : {};
-        await this.database(DashboardsTableName)
-            .update({
-                name: dashboard.name,
-                description: dashboard.description,
-                ...withSpaceId,
-            })
-            .where('dashboard_uuid', dashboardUuid);
-        return this.getById(dashboardUuid);
+        const query = this.database(DashboardsTableName).update({
+            name: dashboard.name,
+            description: dashboard.description,
+            ...withSpaceId,
+        });
+
+        if (isValidUuid(dashboardUuidOrSlug)) {
+            void query.where((builder) => {
+                void builder
+                    .where('dashboard_uuid', dashboardUuidOrSlug)
+                    .orWhere('slug', dashboardUuidOrSlug);
+            });
+        } else {
+            void query.where('slug', dashboardUuidOrSlug);
+        }
+
+        await query;
+
+        return this.getByIdOrSlug(dashboardUuidOrSlug);
     }
 
     async updateMultiple(
@@ -1109,12 +1139,14 @@ export class DashboardModel {
         });
 
         return Promise.all(
-            dashboards.map(async (dashboard) => this.getById(dashboard.uuid)),
+            dashboards.map(async (dashboard) =>
+                this.getByIdOrSlug(dashboard.uuid),
+            ),
         );
     }
 
     async delete(dashboardUuid: string): Promise<DashboardDAO> {
-        const dashboard = await this.getById(dashboardUuid);
+        const dashboard = await this.getByIdOrSlug(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
@@ -1141,7 +1173,7 @@ export class DashboardModel {
                 updatedByUser: user,
             });
         });
-        return this.getById(dashboardUuid);
+        return this.getByIdOrSlug(dashboardUuid);
     }
 
     /*

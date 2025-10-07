@@ -247,7 +247,9 @@ export class AiService {
     ) {
         await AiService.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardCharts = await this.getDashboardChartsResults(
             user,
             dashboard,
@@ -304,7 +306,7 @@ export class AiService {
         const timeOpenAi = new Date().getTime() - startTime - timeGetCharts;
 
         const dashboardSummary = await this.dashboardSummaryModel.save(
-            dashboardUuid,
+            dashboard.uuid,
             dashboard.dashboardVersionId,
             dashboardSummaryText,
             tone,
@@ -351,11 +353,15 @@ export class AiService {
     async getDashboardSummary(
         user: SessionUser,
         projectUuid: string,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ) {
         await AiService.throwOnFeatureDisabled(user);
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+        );
         const dashboardSummary =
-            await this.dashboardSummaryModel.getByDashboardUuid(dashboardUuid);
+            await this.dashboardSummaryModel.getByDashboardUuid(dashboard.uuid);
 
         this.analytics.track<DashboardSummaryViewed>({
             userId: user.userUuid,
@@ -363,7 +369,7 @@ export class AiService {
             properties: {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
-                dashboardId: dashboardUuid,
+                dashboardId: dashboard.uuid,
                 dashboardSummaryUuid: dashboardSummary.dashboardSummaryUuid,
             },
         });

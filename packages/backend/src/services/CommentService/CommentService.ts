@@ -157,7 +157,9 @@ export class CommentService extends BaseService {
     ): Promise<string> {
         await CommentService.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -214,11 +216,13 @@ export class CommentService extends BaseService {
 
     async findCommentsForDashboard(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<Record<string, Comment[]>> {
         await CommentService.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+        );
 
         if (
             user.ability.cannot(
@@ -247,7 +251,7 @@ export class CommentService extends BaseService {
         );
 
         return this.commentModel.findCommentsForDashboard(
-            dashboardUuid,
+            dashboard.uuid,
             user.userUuid,
             canUserRemoveAnyComment,
         );
@@ -260,7 +264,9 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await CommentService.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
@@ -303,7 +309,9 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await CommentService.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(

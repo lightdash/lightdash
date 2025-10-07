@@ -6,6 +6,7 @@ import {
     type Comment,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 
 type CreateDashboardTileComment = Pick<
@@ -39,6 +40,7 @@ const createDashboardTileComment = async ({
 
 export const useCreateComment = () => {
     const queryClient = useQueryClient();
+    const params = useParams();
 
     return useMutation<
         ApiCreateComment['results'],
@@ -47,7 +49,13 @@ export const useCreateComment = () => {
     >((data) => createDashboardTileComment(data), {
         mutationKey: ['create-comment'],
         onSuccess: async (_, { dashboardUuid }) => {
-            await queryClient.invalidateQueries(['comments', dashboardUuid]);
+            await Promise.all([
+                queryClient.invalidateQueries(['comments', dashboardUuid]),
+                queryClient.invalidateQueries([
+                    'comments',
+                    params.dashboardUuid,
+                ]),
+            ]);
         },
     });
 };
@@ -89,15 +97,19 @@ const removeComment = async ({
 
 export const useRemoveComment = () => {
     const queryClient = useQueryClient();
+    const params = useParams();
 
     return useMutation<ApiDeleteComment, ApiError, RemoveCommentParams>(
         (data) => removeComment(data),
         {
             mutationKey: ['remove-comment'],
             onSuccess: async (_, { dashboardUuid }) => {
-                await queryClient.invalidateQueries([
-                    'comments',
-                    dashboardUuid,
+                await Promise.all([
+                    queryClient.invalidateQueries(['comments', dashboardUuid]),
+                    queryClient.invalidateQueries([
+                        'comments',
+                        params.dashboardUuid,
+                    ]),
                 ]);
             },
         },

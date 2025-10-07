@@ -108,7 +108,7 @@ export class SchedulerService extends BaseService {
     ): Promise<ChartSummary | DashboardDAO> {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
-            : this.dashboardModel.getById(scheduler.dashboardUuid);
+            : this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid);
     }
 
     public async getCreateSchedulerResource(
@@ -118,7 +118,7 @@ export class SchedulerService extends BaseService {
             return this.savedChartModel.getSummary(scheduler.savedChartUuid);
         }
         if (isDashboardCreateScheduler(scheduler)) {
-            return this.dashboardModel.getById(scheduler.dashboardUuid);
+            return this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid);
         }
         throw new ParameterError('Invalid scheduler type');
     }
@@ -204,7 +204,9 @@ export class SchedulerService extends BaseService {
                 throw new ForbiddenError();
         } else if (scheduler.dashboardUuid) {
             const { organizationUuid, spaceUuid, projectUuid } =
-                await this.dashboardModel.getById(scheduler.dashboardUuid);
+                await this.dashboardModel.getByIdOrSlug(
+                    scheduler.dashboardUuid,
+                );
             const [space] = await this.spaceModel.find({ spaceUuid });
             const spaceAccess = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,

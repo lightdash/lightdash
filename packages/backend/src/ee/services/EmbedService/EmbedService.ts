@@ -355,7 +355,9 @@ export class EmbedService extends BaseService {
                 dashboardUuid,
             );
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -801,7 +803,9 @@ export class EmbedService extends BaseService {
             await this.embedModel.get(projectUuid);
 
         const dashboardUuid = account.access.dashboardId;
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -879,7 +883,9 @@ export class EmbedService extends BaseService {
             await this.embedModel.get(projectUuid);
 
         const dashboardUuid = account.access.dashboardId;
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1000,7 +1006,9 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
     ) {
         const dashboardUuid = account.access.dashboardId;
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -1082,7 +1090,9 @@ export class EmbedService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // No parameters are passed in embed requests, just combine the saved parameters
@@ -1168,7 +1178,9 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // No parameters are passed in embed requests, just combine the saved parameters
@@ -1309,7 +1321,9 @@ export class EmbedService extends BaseService {
             },
             dashboardUuid,
         );
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
         if (!filter) {
