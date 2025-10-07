@@ -84,6 +84,7 @@ export class EmbedModel {
         encodedSecret: Buffer,
         dashboardUuids: string[],
         userUuid: string,
+        allowAllDashboards: boolean = false,
     ): Promise<void> {
         await this.database('embedding')
             .insert({
@@ -91,6 +92,7 @@ export class EmbedModel {
                 encoded_secret: encodedSecret,
                 dashboard_uuids: dashboardUuids,
                 created_by: userUuid,
+                allow_all_dashboards: allowAllDashboards,
             })
             .onConflict('project_uuid')
             .merge();

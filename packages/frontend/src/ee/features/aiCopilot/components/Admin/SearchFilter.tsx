@@ -1,4 +1,9 @@
-import { ActionIcon, TextInput, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    TextInput,
+    type TextInputProps,
+    Tooltip,
+} from '@mantine-8/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
@@ -7,9 +12,14 @@ import classes from './SearchFilter.module.css';
 type SearchFilterProps = Pick<
     ReturnType<typeof useAiAgentAdminFilters>,
     'search' | 'setSearch'
->;
+> &
+    Pick<TextInputProps, 'placeholder'>;
 
-export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
+export const SearchFilter = ({
+    search,
+    setSearch,
+    placeholder,
+}: SearchFilterProps) => {
     return (
         <Tooltip withinPortal variant="xs" label="Search by title">
             <TextInput
@@ -22,7 +32,7 @@ export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
                 }}
                 type="search"
                 variant="default"
-                placeholder="Search threads by title"
+                placeholder={placeholder}
                 value={search ?? ''}
                 leftSection={
                     <MantineIcon size="md" color="gray.6" icon={IconSearch} />

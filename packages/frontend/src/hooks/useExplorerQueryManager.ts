@@ -1,5 +1,4 @@
 import {
-    ChartType,
     deepEqual,
     derivePivotConfigurationFromChart,
     FeatureFlags,
@@ -27,6 +26,7 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
+    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -79,6 +79,7 @@ export const useExplorerQueryManager = (options?: {
     const unpivotedQueryUuidHistory = useExplorerSelector(
         selectUnpivotedQueryUuidHistory,
     );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     // Auto-fetch configuration
     const [autoFetchEnabled] = useLocalStorage({
@@ -135,16 +136,18 @@ export const useExplorerQueryManager = (options?: {
 
         const items = getFieldsFromMetricQuery(metricQuery, explore);
         const pivotConfiguration = derivePivotConfigurationFromChart(
-            {
-                chartConfig: { type: ChartType.TABLE }, // Default for detection
-                pivotConfig: undefined,
-            },
+            unsavedChartVersion,
             metricQuery,
             items,
         );
 
         return !!pivotConfiguration;
-    }, [useSqlPivotResults?.enabled, explore, metricQuery]);
+    }, [
+        useSqlPivotResults?.enabled,
+        explore,
+        metricQuery,
+        unsavedChartVersion,
+    ]);
 
     // Dispatch functions for query UUID history
     const setQueryUuidHistory = useCallback(
@@ -197,6 +200,7 @@ export const useExplorerQueryManager = (options?: {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
+            savedChart: unsavedChartVersion,
         });
 
         if (mainQueryArgs) {
@@ -221,6 +225,7 @@ export const useExplorerQueryManager = (options?: {
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
+        unsavedChartVersion,
         dispatch,
     ]);
 

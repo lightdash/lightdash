@@ -928,6 +928,7 @@ export class ProjectModel {
         projectUuid: string,
         key: 'name' | 'uuid',
         exploreNamesWithDuplicates?: string[],
+        { applyChangeset = true }: { applyChangeset?: boolean } = {},
     ): Promise<{ [exploreNameOrUuid: string]: Explore | ExploreError }> {
         // dedupe values
         const exploreNames = exploreNamesWithDuplicates
@@ -949,7 +950,7 @@ export class ProjectModel {
                 const cachedExplores = this.exploreCache?.getExplores(
                     projectUuid,
                     exploreNames,
-                    changeset?.updatedAt,
+                    applyChangeset ? changeset?.updatedAt : undefined,
                 );
                 // NOTE: Explores are cached with the name key, so we don't need to return the cached explores if the key is uuid
                 if (cachedExplores && key === 'name') {
@@ -979,20 +980,20 @@ export class ProjectModel {
                     return acc;
                 }, {});
 
-                if (changeset) {
+                if (changeset && applyChangeset) {
                     finalExplores = await ChangesetUtils.applyChangeset(
                         changeset,
                         finalExplores,
                     );
                 }
 
-                // Store in cache
                 this.exploreCache?.setExplores(
                     projectUuid,
                     exploreNames,
-                    changeset?.updatedAt,
+                    applyChangeset ? changeset?.updatedAt : undefined,
                     finalExplores,
                 );
+
                 return finalExplores;
             },
         );

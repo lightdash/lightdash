@@ -395,7 +395,6 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     userId: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
-                    isSessionUser: sessionAccount.isSessionUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
                     queryHistoryUuid: 'test-query-uuid',
@@ -473,7 +472,6 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     userId: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
-                    isSessionUser: sessionAccount.isSessionUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
                     queryHistoryUuid: 'test-query-uuid',
@@ -570,7 +568,6 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     userId: sessionAccount.user.id,
                     isRegisteredUser: sessionAccount.isRegisteredUser(),
-                    isSessionUser: sessionAccount.isSessionUser(),
                     projectUuid,
                     query: 'SELECT * FROM test',
                     queryHistoryUuid: 'test-query-uuid',
@@ -1110,7 +1107,6 @@ describe('AsyncQueryService', () => {
 
                 const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
                     userId: sessionAccount.user.id,
-                    isSessionUser: true,
                     isRegisteredUser: true,
                     projectUuid,
                     query: 'SELECT * FROM test',
@@ -1203,7 +1199,6 @@ describe('AsyncQueryService', () => {
 
             const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
                 userId: sessionAccount.user.id,
-                isSessionUser: true,
                 isRegisteredUser: true,
                 projectUuid,
                 query: 'SELECT * FROM test_table',

@@ -9,6 +9,7 @@ type EmbeddedAbilityBuilderPayload = {
     dashboardUuid: string;
     embed: OssEmbed;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
+    externalId: string;
 };
 
 type EmbeddedAbilityBuilder = (
@@ -19,6 +20,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
     embed,
+    externalId,
     builder,
 }) => {
     const { organization } = embed;
@@ -46,13 +48,14 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    return { embedUser, dashboardUuid, embed, builder };
+    return { embedUser, dashboardUuid, embed, builder, externalId };
 };
 
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
     embed,
+    externalId,
     builder,
 }) => {
     const { content } = embedUser;
@@ -73,13 +76,14 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    return { embedUser, dashboardUuid, embed, builder };
+    return { embedUser, dashboardUuid, embed, externalId, builder };
 };
 
 const exportAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
     embed,
+    externalId,
     builder,
 }) => {
     const { content } = embedUser;
@@ -90,6 +94,12 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         can('export', 'Dashboard', {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
+        });
+
+        can('view', 'JobStatus', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+            createdByUserUuid: externalId,
         });
     }
 
@@ -107,7 +117,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    return { embedUser, dashboardUuid, embed, builder };
+    return { embedUser, dashboardUuid, embed, externalId, builder };
 };
 
 const applyAbilities = flow(
@@ -120,7 +130,8 @@ export function applyEmbeddedAbility(
     embedUser: CreateEmbedJwt,
     dashboardUuid: string,
     embed: OssEmbed,
+    externalId: string,
     builder: AbilityBuilder<MemberAbility>,
 ) {
-    applyAbilities({ embedUser, dashboardUuid, embed, builder });
+    applyAbilities({ embedUser, dashboardUuid, embed, externalId, builder });
 }

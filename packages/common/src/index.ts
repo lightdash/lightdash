@@ -71,6 +71,7 @@ import {
 } from './types/api/comments';
 import { type Email } from './types/api/email';
 import { type ApiSuccessEmpty } from './types/api/success';
+import { type ApiGetChangeResponse } from './types/changeset';
 import { type DbtExposure } from './types/dbt';
 import { type EmailStatusExpiring } from './types/email';
 import { type FieldValueSearchResult } from './types/fieldMatch';
@@ -971,7 +972,8 @@ type ApiResults =
     | ApiAiAgentEvaluationRunSummaryListResponse['results']
     | ApiAiAgentEvaluationRunResultsResponse['results']
     | ApiCreateEvaluationResponse['results']
-    | ApiAppendInstructionResponse['results'];
+    | ApiAppendInstructionResponse['results']
+    | ApiGetChangeResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

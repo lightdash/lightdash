@@ -1762,7 +1762,7 @@ export default class SchedulerTask {
         }
     }
 
-    private async logWrapper<TRecordValues = string>(
+    protected async logWrapper<TRecordValues = string>(
         baseLog: Pick<
             SchedulerLog,
             'task' | 'jobId' | 'scheduledTime' | 'details'
@@ -3023,6 +3023,43 @@ export default class SchedulerTask {
                 },
             });
 
+            // Send failure notification email to scheduler creator
+            try {
+                const user = await this.userService.getSessionByUserUuid(
+                    scheduler.createdBy,
+                );
+                if (user.email) {
+                    const schedulerUrlParam = setUuidParam(
+                        'scheduler_uuid',
+                        schedulerUuid,
+                    );
+                    const schedulerUrl =
+                        scheduler.savedChartUuid || scheduler.dashboardUuid
+                            ? `${this.lightdashConfig.siteUrl}/projects/${
+                                  schedulerPayload.projectUuid
+                              }/${
+                                  scheduler.savedChartUuid
+                                      ? 'saved'
+                                      : 'dashboards'
+                              }/${
+                                  scheduler.savedChartUuid ||
+                                  scheduler.dashboardUuid
+                              }/view?${schedulerUrlParam}`
+                            : this.lightdashConfig.siteUrl;
+
+                    await this.emailClient.sendScheduledDeliveryFailureEmail(
+                        user.email,
+                        scheduler.name,
+                        schedulerUrl,
+                        getErrorMessage(e),
+                    );
+                }
+            } catch (emailError) {
+                Logger.error(
+                    `Failed to send scheduled delivery failure email: ${emailError}`,
+                );
+                // Don't throw - we still want to handle the original error
+            }
             if (e instanceof NotEnoughResults) {
                 Logger.warn(
                     `Scheduler ${schedulerUuid} did not return enough results for threshold alert`,

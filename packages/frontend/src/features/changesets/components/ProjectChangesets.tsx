@@ -7,6 +7,7 @@ import {
     Alert,
     Badge,
     Box,
+    Button,
     Group,
     Loader,
     Stack,
@@ -15,7 +16,13 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
-import { IconAlertCircle, IconClock, IconTable } from '@tabler/icons-react';
+import { modals } from '@mantine/modals';
+import {
+    IconAlertCircle,
+    IconArrowBackUp,
+    IconClock,
+    IconTable,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
@@ -25,9 +32,14 @@ import {
 } from 'mantine-react-table';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useActiveChangesets } from '../hooks';
+import {
+    useActiveChangesets,
+    useRevertAllChanges,
+    useRevertChange,
+} from '../hooks';
 
 dayjs.extend(relativeTime);
 
@@ -93,6 +105,7 @@ const getUserDisplayName = (
 
 export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     const {
         data: changesets,
@@ -102,11 +115,82 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
 
     const { data: organizationUsers } = useOrganizationUsers();
 
+    const revertChangeMutation = useRevertChange(projectUuid);
+    const revertAllChangesMutation = useRevertAllChanges(projectUuid);
+
     const allChanges = useMemo(() => {
         if (!changesets) return [];
 
         return changesets.changes.flatMap((change) => change);
     }, [changesets]);
+
+    const handleRevertChange = (changeUuid: string, entityName: string) => {
+        modals.openConfirmModal({
+            title: 'Revert change',
+            children: (
+                <Text>
+                    Are you sure you want to revert the change to{' '}
+                    <Text span fw={600}>
+                        {entityName}
+                    </Text>
+                    ? This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Revert', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: () => {
+                revertChangeMutation.mutate(
+                    { changeUuid },
+                    {
+                        onSuccess: () => {
+                            showToastSuccess({
+                                title: 'Change reverted successfully',
+                            });
+                        },
+                        onError: (e) => {
+                            showToastApiError({
+                                title: 'Failed to revert change',
+                                apiError: e.error,
+                            });
+                        },
+                    },
+                );
+            },
+        });
+    };
+
+    const handleRevertAllChanges = () => {
+        modals.openConfirmModal({
+            title: 'Revert all changes',
+            children: (
+                <Text>
+                    Are you sure you want to revert all{' '}
+                    <Text span fw={600}>
+                        {allChanges.length} change
+                        {allChanges.length !== 1 ? 's' : ''}
+                    </Text>
+                    ? This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Revert All', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: () => {
+                revertAllChangesMutation.mutate(undefined, {
+                    onSuccess: () => {
+                        showToastSuccess({
+                            title: 'All changes reverted successfully',
+                        });
+                    },
+                    onError: (e) => {
+                        showToastApiError({
+                            title: 'Failed to revert all changes',
+                            apiError: e.error,
+                        });
+                    },
+                });
+            },
+        });
+    };
 
     const columns: MRT_ColumnDef<ChangesetWithChanges['changes'][0]>[] =
         useMemo(
@@ -366,7 +450,39 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                 </Text>
             </Box>
         ),
-        enableRowActions: false,
+        enableRowActions: true,
+        positionActionsColumn: 'last',
+        renderRowActions: ({ row }) => {
+            const isLastRow = row.index === allChanges.length - 1;
+            const isReverting =
+                revertChangeMutation.isLoading &&
+                revertChangeMutation.variables?.changeUuid ===
+                    row.original.changeUuid;
+
+            if (!isLastRow) {
+                return null;
+            }
+
+            return (
+                <Box>
+                    <Button
+                        variant="default"
+                        size="compact-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRevertChange(
+                                row.original.changeUuid,
+                                row.original.entityName,
+                            );
+                        }}
+                        loading={isReverting}
+                        leftSection={<MantineIcon icon={IconArrowBackUp} />}
+                    >
+                        Revert
+                    </Button>
+                </Box>
+            );
+        },
     });
 
     // Handle loading state
@@ -415,13 +531,27 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Stack gap="sm">
-            <Stack gap="xs">
-                <Title order={5}>Changesets</Title>
-                <Text c="gray.6" fz="sm">
-                    Track changes to your project over time. Changesets are
-                    updates to your Lightdash Semantic Layer.
-                </Text>
-            </Stack>
+            <Group justify="space-between" align="flex-start">
+                <Stack gap="xs">
+                    <Title order={5}>Changesets</Title>
+                    <Text c="gray.6" fz="sm">
+                        Track changes to your project over time. Changesets are
+                        updates to your Lightdash Semantic Layer.
+                    </Text>
+                </Stack>
+                {allChanges.length > 0 && (
+                    <Button
+                        variant="default"
+                        radius="md"
+                        size="compact-sm"
+                        onClick={handleRevertAllChanges}
+                        loading={revertAllChangesMutation.isLoading}
+                        leftSection={<MantineIcon icon={IconArrowBackUp} />}
+                    >
+                        Revert All
+                    </Button>
+                )}
+            </Group>
             <MantineReactTable table={table} />
         </Stack>
     );

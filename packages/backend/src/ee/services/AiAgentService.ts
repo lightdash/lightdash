@@ -76,7 +76,10 @@ import { fromSession } from '../../auth/account';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
+import {
+    CatalogModel,
+    CatalogSearchContext,
+} from '../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../models/ChangesetModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
@@ -119,6 +122,7 @@ import {
     getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
+    getProposeChangeBlocks,
 } from './ai/utils/getSlackBlocks';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
@@ -132,6 +136,7 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
+    catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
     searchModel: SearchModel;
     spaceModel: SpaceModel;
@@ -158,6 +163,8 @@ export class AiAgentService {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly catalogService: CatalogService;
+
+    private readonly catalogModel: CatalogModel;
 
     private readonly changesetModel: ChangesetModel;
 
@@ -194,6 +201,7 @@ export class AiAgentService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
+        this.catalogModel = dependencies.catalogModel;
         this.changesetModel = dependencies.changesetModel;
         this.searchModel = dependencies.searchModel;
         this.featureFlagService = dependencies.featureFlagService;
@@ -1548,7 +1556,6 @@ export class AiAgentService {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        // Check if user has access to update this thread
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -1560,10 +1567,34 @@ export class AiAgentService {
             );
         }
 
-        // Revert the change
+        const originalChangeset =
+            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                agent.projectUuid,
+            );
+
+        if (!originalChangeset) {
+            throw new NotFoundError(
+                `No active changeset found for project: ${agent.projectUuid}`,
+            );
+        }
+
+        const change = await this.changesetModel.getChange(changeUuid);
+
+        const originalExplores = await this.projectModel.findExploresFromCache(
+            agent.projectUuid,
+            'name',
+            originalChangeset.changes.map((c) => c.entityTableName),
+            { applyChangeset: false },
+        );
+
         await this.changesetModel.revertChange(changeUuid);
 
-        // Get the tool result that corresponds to this change to update metadata
+        await this.catalogModel.indexCatalogReverts({
+            projectUuid: agent.projectUuid,
+            revertedChanges: [change],
+            originalChangeset,
+            originalExplores,
+        });
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             promptUuid,
         );
@@ -2526,6 +2557,11 @@ export class AiAgentService {
                 slackPrompt.threadUuid,
             );
 
+        // Get tool results to check for proposeChange results
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            slackPrompt.promptUuid,
+        );
+
         const feedbackBlocks = getFeedbackBlocks(slackPrompt, threadArtifacts);
         const followUpToolBlocks = getFollowUpToolBlocks(
             slackPrompt,
@@ -2536,6 +2572,11 @@ export class AiAgentService {
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
             threadArtifacts,
+        );
+        const proposeChangeBlocks = getProposeChangeBlocks(
+            slackPrompt,
+            this.lightdashConfig.siteUrl,
+            toolResults,
         );
         const historyBlocks = agent
             ? getDeepLinkBlocks(
@@ -2566,6 +2607,7 @@ export class AiAgentService {
                     },
                 },
                 ...exploreBlocks,
+                ...proposeChangeBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
                 ...(historyBlocks || []),
@@ -2703,6 +2745,13 @@ export class AiAgentService {
     // eslint-disable-next-line class-methods-use-this
     public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
+            await ack();
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleViewChangesetsButtonClick(app: App) {
+        app.action('actions.view_changesets_button_click', async ({ ack }) => {
             await ack();
         });
     }
@@ -3110,6 +3159,10 @@ export class AiAgentService {
 
             if (e instanceof AiAgentNotFoundError) {
                 Logger.debug('Failed to find ai agent:', e);
+                await say({
+                    text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${this.lightdashConfig.siteUrl}/ai-agents to configure one.`,
+                    thread_ts: event.ts,
+                });
                 return;
             }
 

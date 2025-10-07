@@ -17,6 +17,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { EmbedModel } from '../../ee/models/EmbedModel';
 import { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -24,6 +25,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationA
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -39,6 +41,8 @@ type InstanceConfigurationServiceArguments = {
     emailModel: EmailModel;
     projectService: ProjectService; // For compiling project on new setup
     serviceAccountModel?: ServiceAccountModel; // For creating service account on new setup
+    embedModel?: EmbedModel; // For updating embed settings on new setup
+    encryptionUtil: EncryptionUtil; // For encrypting embed secrets
 };
 
 export class InstanceConfigurationService extends BaseService {
@@ -62,6 +66,10 @@ export class InstanceConfigurationService extends BaseService {
 
     private readonly serviceAccountModel?: ServiceAccountModel;
 
+    private readonly embedModel?: EmbedModel;
+
+    private readonly encryptionUtil: EncryptionUtil;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -73,6 +81,8 @@ export class InstanceConfigurationService extends BaseService {
         emailModel,
         projectService,
         serviceAccountModel,
+        embedModel,
+        encryptionUtil,
     }: InstanceConfigurationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -86,6 +96,8 @@ export class InstanceConfigurationService extends BaseService {
         this.emailModel = emailModel;
         this.projectService = projectService;
         this.serviceAccountModel = serviceAccountModel;
+        this.embedModel = embedModel;
+        this.encryptionUtil = encryptionUtil;
     }
 
     async initializeInstance() {
@@ -254,6 +266,13 @@ export class InstanceConfigurationService extends BaseService {
             } else {
                 this.logger.info(
                     `Initial setup: No API key provided, skipping`,
+                );
+            }
+
+            // Setup embed if configured
+            if (this.lightdashConfig.updateSetup?.embed) {
+                await this.updateEmbedSettingsForInstance(
+                    this.lightdashConfig.updateSetup,
                 );
             }
         } catch (error) {
@@ -501,6 +520,64 @@ export class InstanceConfigurationService extends BaseService {
         );
     }
 
+    private async updateEmbedSettingsForInstance(
+        config: NonNullable<LightdashConfig['updateSetup']>,
+    ) {
+        if (!config.embed || !this.embedModel) return;
+
+        const { allowAllDashboards, secret } = config.embed;
+        if (allowAllDashboards === undefined && !secret) return;
+
+        try {
+            const projectUuid = await this.getSingleProject();
+
+            // If config embed secret is provided, we need to call .save to upsert the embed record
+            // This requires a user UUID, we get it from the admin email
+            if (secret) {
+                let userUuid: string | undefined;
+                const adminEmail = config.organization?.admin?.email;
+                if (adminEmail) {
+                    const sessionUser =
+                        await this.userModel.findSessionUserByPrimaryEmail(
+                            adminEmail,
+                        );
+                    userUuid = sessionUser?.userUuid;
+                }
+
+                if (!userUuid) {
+                    throw new ParameterError(
+                        `Setting embed secret LD_SETUP_EMBED_SECRET requires an admin email LD_SETUP_ADMIN_EMAIL`,
+                    );
+                }
+
+                const encodedSecret = this.encryptionUtil.encrypt(secret);
+
+                await this.embedModel.save(
+                    projectUuid,
+                    encodedSecret,
+                    [],
+                    userUuid,
+                    allowAllDashboards ?? false,
+                );
+                this.logger.info(
+                    `Embed created for project ${projectUuid} with allowAllDashboards=${
+                        allowAllDashboards ?? false
+                    }`,
+                );
+            } else if (allowAllDashboards) {
+                this.logger.info(
+                    'No embed secret provided, enabling allowAllDashboards if configured',
+                );
+                await this.embedModel.updateDashboards(projectUuid, {
+                    dashboardUuids: [],
+                    allowAllDashboards,
+                });
+            }
+        } catch (error) {
+            this.logger.error(`Error updating embed settings: ${error}`);
+        }
+    }
+
     async updateInstanceConfiguration() {
         const config = this.lightdashConfig.updateSetup;
         if (!config) {
@@ -517,5 +594,7 @@ export class InstanceConfigurationService extends BaseService {
         await this.updateProjectConfiguration(config);
 
         await this.updateOrganizationDefaultRole(config);
+
+        await this.updateEmbedSettingsForInstance(config);
     }
 }

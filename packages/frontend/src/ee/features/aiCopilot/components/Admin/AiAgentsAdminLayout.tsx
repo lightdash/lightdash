@@ -4,6 +4,7 @@ import {
     Button,
     Group,
     Modal,
+    SegmentedControl,
     Stack,
     Text,
     Title,
@@ -14,16 +15,20 @@ import {
     IconChartDots,
     IconGripVertical,
     IconLock,
+    IconMessageCircle,
     IconMessageCircleShare,
+    IconRobotFace,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useLocation, useNavigate } from 'react-router';
 import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useHealth from '../../../../../hooks/health/useHealth';
 import useApp from '../../../../../providers/App/useApp';
+import AiAgentAdminAgentsTable from './AiAgentAdminAgentsTable';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
 import styles from './AiAgentsAdminLayout.module.css';
 import { AnalyticsEmbedDashboard } from './AnalyticsEmbedDashboard';
@@ -33,6 +38,13 @@ export const AiAgentsAdminLayout = () => {
     const { user } = useApp();
     const { data: health } = useHealth();
     const theme = useMantineTheme();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const activeTab = location.pathname.endsWith('/agents')
+        ? 'agents'
+        : 'threads';
+
     const [selectedThread, setSelectedThread] =
         useState<AiAgentAdminThreadSummary | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -90,42 +102,100 @@ export const AiAgentsAdminLayout = () => {
                         <Box>
                             <Group>
                                 <Title order={2}>AI Agents Admin Panel</Title>
-                                {isAnalyticsEmbedEnabled && (
-                                    <Button
-                                        onClick={toggleAnalyticsEmbed}
-                                        variant="filled"
-                                        size="compact-sm"
-                                        color="indigo"
-                                        leftSection={
-                                            <MantineIcon icon={IconChartDots} />
-                                        }
-                                    >
-                                        Insights
-                                    </Button>
-                                )}
+                                {activeTab === 'threads' &&
+                                    isAnalyticsEmbedEnabled && (
+                                        <Button
+                                            onClick={toggleAnalyticsEmbed}
+                                            variant="filled"
+                                            size="compact-sm"
+                                            color="indigo"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconChartDots}
+                                                />
+                                            }
+                                        >
+                                            Insights
+                                        </Button>
+                                    )}
                             </Group>
                             <Text c="gray.6" size="sm" fw={400}>
-                                View and manage AI Agents threads
+                                {activeTab === 'threads'
+                                    ? 'View and manage AI Agents threads'
+                                    : 'View and manage AI Agents'}
                             </Text>
                         </Box>
-                        <LinkButton
-                            href="/ai-agents"
-                            leftIcon={IconMessageCircleShare}
-                            variant="default"
-                            radius="md"
-                        >
-                            New Thread
-                        </LinkButton>
+                        <Group>
+                            <SegmentedControl
+                                size="xs"
+                                radius="md"
+                                value={activeTab}
+                                onChange={(value) => {
+                                    if (value === 'agents') {
+                                        handleCloseSidebar();
+                                    }
+                                    void navigate(`/ai-agents/admin/${value}`);
+                                }}
+                                data={[
+                                    {
+                                        value: 'threads',
+                                        label: (
+                                            <Group gap="xs" wrap="nowrap">
+                                                <MantineIcon
+                                                    icon={IconMessageCircle}
+                                                />
+                                                <Text fz="sm">Threads</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: 'agents',
+                                        label: (
+                                            <Group gap="xs" wrap="nowrap">
+                                                <MantineIcon
+                                                    icon={IconRobotFace}
+                                                />
+                                                <Text fz="sm">Agents</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                ]}
+                            />
+                            {activeTab === 'threads' && (
+                                <LinkButton
+                                    href="/ai-agents"
+                                    leftIcon={IconMessageCircleShare}
+                                    variant="default"
+                                    radius="md"
+                                >
+                                    New Thread
+                                </LinkButton>
+                            )}
+                            {activeTab === 'agents' && (
+                                <LinkButton
+                                    href="/ai-agents/new"
+                                    leftIcon={IconRobotFace}
+                                    variant="default"
+                                    radius="md"
+                                >
+                                    New Agent
+                                </LinkButton>
+                            )}
+                        </Group>
                     </Group>
 
-                    <AiAgentAdminThreadsTable
-                        onThreadSelect={handleThreadSelect}
-                        selectedThread={selectedThread}
-                        setSelectedThread={setSelectedThread}
-                    />
+                    {activeTab === 'threads' ? (
+                        <AiAgentAdminThreadsTable
+                            onThreadSelect={handleThreadSelect}
+                            selectedThread={selectedThread}
+                            setSelectedThread={setSelectedThread}
+                        />
+                    ) : (
+                        <AiAgentAdminAgentsTable />
+                    )}
                 </Panel>
 
-                {isSidebarOpen && (
+                {isSidebarOpen && activeTab === 'threads' && (
                     <>
                         <PanelResizeHandle
                             className={styles.resizeHandle}

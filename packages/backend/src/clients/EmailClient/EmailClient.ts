@@ -4,6 +4,7 @@ import {
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
+    sanitizeHtml,
     SchedulerFormat,
     SessionUser,
     SmptError,
@@ -273,6 +274,47 @@ export default class EmailClient {
                 schedulerUrl,
             },
             text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
+        });
+    }
+
+    public async sendScheduledDeliveryFailureEmail(
+        recipient: string,
+        schedulerName: string,
+        schedulerUrl: string,
+        errorMessage: string,
+    ) {
+        if (!this.canSendEmail()) {
+            Logger.error(
+                'Cannot send scheduled delivery failure email - email transporter not configured',
+                {
+                    recipient: recipient ? '***@***' : undefined,
+                    schedulerName,
+                },
+            );
+            throw new Error('Email transporter not configured');
+        }
+
+        const message = `
+            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
+            <br />
+            <br />
+            <br />
+            <p><strong>Error:</strong> ${sanitizeHtml(errorMessage)}</p>
+            <br />
+            <br />
+            <p>Please check your <a href="${schedulerUrl}">scheduled delivery settings</a> and try again.</p>
+        `;
+
+        return this.sendEmail({
+            to: recipient,
+            subject: `Failed to send scheduled delivery - "${schedulerName}"`,
+            template: 'genericNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                title: 'Scheduled delivery failure',
+                message,
+            },
+            text: `Warning: Your scheduled delivery "${schedulerName}" failed to send. Error: ${errorMessage}. Please check your settings at ${schedulerUrl}`,
         });
     }
 

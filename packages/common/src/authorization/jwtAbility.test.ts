@@ -57,7 +57,8 @@ const defineAbilityForEmbedUser = (
     dashboardUuid: string,
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    applyEmbeddedAbility(embedUser, dashboardUuid, embed, builder);
+    const externalId = 'external-id-1';
+    applyEmbeddedAbility(embedUser, dashboardUuid, embed, externalId, builder);
     return builder.build();
 };
 

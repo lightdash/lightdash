@@ -22,6 +22,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateCustomMetricsDefinition,
+    validateFieldEntityType,
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
@@ -44,23 +45,22 @@ export const getRunMetricQuery = ({
         explore: Explore,
     ) => {
         const filterRules = getTotalFilterRules(vizTool.filters);
-        const fieldsToValidate = [
-            ...vizTool.vizConfig.dimensions,
-            ...vizTool.vizConfig.metrics,
-            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
-        ].filter((x) => typeof x === 'string');
-
-        validateSelectedFieldsExistence(
+        validateFieldEntityType(
             explore,
-            fieldsToValidate,
-            vizTool.customMetrics,
+            vizTool.vizConfig.dimensions,
+            'dimension',
         );
+        validateFieldEntityType(explore, vizTool.vizConfig.metrics, 'metric');
         validateCustomMetricsDefinition(explore, vizTool.customMetrics);
         validateFilterRules(explore, filterRules, vizTool.customMetrics);
         validateMetricDimensionFilterPlacement(
             explore,
             vizTool.filters,
             vizTool.customMetrics,
+        );
+        validateSelectedFieldsExistence(
+            explore,
+            vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
         );
         validateSortFieldsAreSelected(
             vizTool.vizConfig.sorts,

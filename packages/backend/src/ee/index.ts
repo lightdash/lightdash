@@ -101,6 +101,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
                     changesetModel: models.getChangesetModel(),
+                    catalogModel: models.getCatalogModel(),
                     groupsModel: models.getGroupsModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
@@ -205,7 +206,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                 }),
-            instanceConfigurationService: ({ models, context, repository }) =>
+            instanceConfigurationService: ({
+                models,
+                context,
+                repository,
+                utils,
+            }) =>
                 new InstanceConfigurationService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -219,6 +225,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     projectService: repository.getProjectService(),
                     serviceAccountModel: models.getServiceAccountModel(),
+                    embedModel: models.getEmbedModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                 }),
             asyncQueryService: ({
                 models,
@@ -342,6 +350,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 renameService: context.serviceRepository.getRenameService(),
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
+                embedService: context.serviceRepository.getEmbedService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

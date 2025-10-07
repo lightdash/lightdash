@@ -1,3 +1,86 @@
+## [0.2061.2](https://github.com/lightdash/lightdash/compare/0.2061.1...0.2061.2) (2025-10-07)
+
+
+### Bug Fixes
+
+* embedded dashboards should download results using the same underlying API as normal dashboards ([#17239](https://github.com/lightdash/lightdash/issues/17239)) ([0bab11b](https://github.com/lightdash/lightdash/commit/0bab11b37e254df1249cb3c27da73bfc90c34c45))
+
+## [0.2061.1](https://github.com/lightdash/lightdash/compare/0.2061.0...0.2061.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* check if registered user when user creds required ([#17287](https://github.com/lightdash/lightdash/issues/17287)) ([bba99a0](https://github.com/lightdash/lightdash/commit/bba99a08f603d860201f21dc36f340c28f51caab))
+
+# [0.2061.0](https://github.com/lightdash/lightdash/compare/0.2060.0...0.2061.0) (2025-10-07)
+
+
+### Features
+
+* validate field entity types in AI visualization tools ([#17281](https://github.com/lightdash/lightdash/issues/17281)) ([a9f3b2f](https://github.com/lightdash/lightdash/commit/a9f3b2fe27adbfee209e57bd17a2779891cc5e13))
+
+# [0.2060.0](https://github.com/lightdash/lightdash/compare/0.2059.0...0.2060.0) (2025-10-07)
+
+
+### Features
+
+* display proposed changes in slack messages ([#17258](https://github.com/lightdash/lightdash/issues/17258)) ([5846435](https://github.com/lightdash/lightdash/commit/584643514a17ae3989d7d41784acea7462db34f0))
+* display slack message when AI Agent is not found for channel ([#17251](https://github.com/lightdash/lightdash/issues/17251)) ([38cd347](https://github.com/lightdash/lightdash/commit/38cd3471118c8d80c1bfcb673e7910e9b5f28de9))
+
+# [0.2059.0](https://github.com/lightdash/lightdash/compare/0.2058.0...0.2059.0) (2025-10-07)
+
+
+### Bug Fixes
+
+* validate pat expiration when on dst transition ([#17276](https://github.com/lightdash/lightdash/issues/17276)) ([70dde71](https://github.com/lightdash/lightdash/commit/70dde7182bc9488002cd1664e8e6c866e8f7da81))
+
+
+### Features
+
+* send email notification when schedule fails ([#17274](https://github.com/lightdash/lightdash/issues/17274)) ([a585e0b](https://github.com/lightdash/lightdash/commit/a585e0b9c65f41f32fafafe87de8fca09f5bb7d1))
+
+# [0.2058.0](https://github.com/lightdash/lightdash/compare/0.2057.3...0.2058.0) (2025-10-07)
+
+
+### Bug Fixes
+
+* if a change is deleted, show it as reverted in the Agent ui ([#17275](https://github.com/lightdash/lightdash/issues/17275)) ([c76bd96](https://github.com/lightdash/lightdash/commit/c76bd9635b77ef40c834bd60e3e6aecd79c5153f))
+
+
+### Features
+
+* add ability to revert changes in project changesets ([#17236](https://github.com/lightdash/lightdash/issues/17236)) ([a8db9ee](https://github.com/lightdash/lightdash/commit/a8db9ee18c91a3f980ba9be4d84146ccf44d3968))
+* add API endpoints to revert changes in changesets ([#17235](https://github.com/lightdash/lightdash/issues/17235)) ([3a699be](https://github.com/lightdash/lightdash/commit/3a699bef93bae5e57612378b3e086497eba20d61))
+* implement catalog revert functionality for changeset changes ([#17259](https://github.com/lightdash/lightdash/issues/17259)) ([1fbe7b9](https://github.com/lightdash/lightdash/commit/1fbe7b94b8e528228cfbd9ff9ac9e6a0b72f1a6a))
+
+## [0.2057.3](https://github.com/lightdash/lightdash/compare/0.2057.2...0.2057.3) (2025-10-07)
+
+
+### Bug Fixes
+
+* slack app in socket mode ([#17169](https://github.com/lightdash/lightdash/issues/17169)) ([9eff960](https://github.com/lightdash/lightdash/commit/9eff9604b6a5689725b9e91194a79a48c603bdbb))
+
+## [0.2057.2](https://github.com/lightdash/lightdash/compare/0.2057.1...0.2057.2) (2025-10-07)
+
+
+### Bug Fixes
+
+* update instance embed ([#17267](https://github.com/lightdash/lightdash/issues/17267)) ([074fef7](https://github.com/lightdash/lightdash/commit/074fef745a8887bddec5cdf79c10f933f8de3c1b))
+
+## [0.2057.1](https://github.com/lightdash/lightdash/compare/0.2057.0...0.2057.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* results table always loading when pivoting enabled ([#17262](https://github.com/lightdash/lightdash/issues/17262)) ([78bc037](https://github.com/lightdash/lightdash/commit/78bc037cf7083a37980e2ebdd829456140c2640a))
+
+# [0.2057.0](https://github.com/lightdash/lightdash/compare/0.2056.2...0.2057.0) (2025-10-07)
+
+
+### Features
+
+* add ai agents table overview ([#17246](https://github.com/lightdash/lightdash/issues/17246)) ([b535c13](https://github.com/lightdash/lightdash/commit/b535c13f12bc47e5bd4f36303c896806f1082bd8))
+
 ## [0.2056.2](https://github.com/lightdash/lightdash/compare/0.2056.1...0.2056.2) (2025-10-06)
 
 
