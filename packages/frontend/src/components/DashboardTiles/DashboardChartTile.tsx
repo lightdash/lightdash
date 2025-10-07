@@ -119,7 +119,6 @@ import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import { DashboardExportImage } from './DashboardExportImage';
-import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase/index';
@@ -450,7 +449,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         explore,
     } = dashboardChartReadyQuery;
 
-    const { rows, initialQueryExecutionMs } = resultsData;
+    const { totalResults, initialQueryExecutionMs } = resultsData;
 
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
@@ -858,6 +857,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         chart.uuid,
         projectUuid,
         dashboardUuid,
+        dashboardChartReadyQuery.executeQueryResponse.queryUuid,
     );
 
     const closeDataExportModal = useCallback(
@@ -1349,7 +1349,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 isOpen={isDataExportModalOpen}
                 onClose={closeDataExportModal}
                 projectUuid={projectUuid!}
-                totalResults={rows.length}
+                totalResults={totalResults}
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames
                 chartName={title || chart.name}
@@ -1370,6 +1370,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         left: number;
         top: number;
     }>();
+    const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
 
     const {
         tile: {
@@ -1386,18 +1387,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const {
         chart,
         explore,
-        executeQueryResponse: { fields, metricQuery },
+        executeQueryResponse: { metricQuery },
     } = dashboardChartReadyQuery;
     const projectUuid = useProjectUuid();
     const ability = useAbilityContext();
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
-
-    const resultsDataWithFields = useMemo(
-        () => ({ ...resultsData, fields }),
-        [resultsData, fields],
-    );
 
     const handleExploreFromHere = useCallback(() => {
         if (onExplore) {
@@ -1497,101 +1493,143 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const isEmbeddedExploreEnabled =
         canExplore && typeof onExplore === 'function';
 
+    const closeDataExportModal = useCallback(
+        () => setIsDataExportModalOpen(false),
+        [],
+    );
+
+    // For minimal tiles, we can reuse the existing queryUuid from dashboardChartReadyQuery
+    const getDownloadQueryUuid = useCallback(
+        async (_limit: number | null): Promise<string> => {
+            // The query has already been executed by dashboardChartReadyQuery
+            // We can simply return the queryUuid
+            return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
+        },
+        [dashboardChartReadyQuery.executeQueryResponse.queryUuid],
+    );
+
     return (
-        <TileBase
-            title={title || chart.name || ''}
-            titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
-            description={chart.description}
-            isLoading={false}
-            minimal={true}
-            extraMenuItems={
-                canExportCsv ||
-                (canExportImages &&
-                    !isTableChartConfig(chart.chartConfig.config)) ||
-                isEmbeddedExploreEnabled ? (
-                    <>
-                        {isEmbeddedExploreEnabled && (
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTelescope} />}
-                                onClick={handleExploreFromHere}
-                            >
-                                Explore from here
-                            </Menu.Item>
-                        )}
-                        {canExportCsv && (
-                            <DashboardMinimalDownloadCsv
-                                explore={explore}
-                                resultsData={resultsDataWithFields}
-                                chart={chart}
-                            />
-                        )}
-                        {canExportImages &&
-                            chart.chartConfig.type !== ChartType.TABLE &&
-                            chart.chartConfig.type !== ChartType.BIG_NUMBER && (
-                                <DashboardExportImage
-                                    echartRef={echartRef}
-                                    chartName={chart.name}
-                                    isMinimal={true}
-                                />
+        <>
+            <TileBase
+                title={title || chart.name || ''}
+                titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+                description={chart.description}
+                isLoading={false}
+                minimal={true}
+                extraMenuItems={
+                    canExportCsv ||
+                    (canExportImages &&
+                        !isTableChartConfig(chart.chartConfig.config)) ||
+                    isEmbeddedExploreEnabled ? (
+                        <>
+                            {isEmbeddedExploreEnabled && (
+                                <Menu.Item
+                                    icon={<MantineIcon icon={IconTelescope} />}
+                                    onClick={handleExploreFromHere}
+                                >
+                                    Explore from here
+                                </Menu.Item>
                             )}
-                    </>
-                ) : undefined
-            }
-            {...props}
-        >
-            <>
-                <Menu
-                    opened={contextMenuIsOpen}
-                    onClose={() => setContextMenuIsOpen(false)}
-                    withinPortal
-                    closeOnItemClick
-                    closeOnEscape
-                    shadow="md"
-                    radius={0}
-                    position="bottom-start"
-                    offset={{
-                        crossAxis: 0,
-                        mainAxis: 0,
-                    }}
-                >
-                    <Portal>
-                        <Menu.Target>
-                            <div
-                                onContextMenu={handleCancelContextMenu}
-                                style={{
-                                    position: 'absolute',
-                                    ...contextMenuTargetOffset,
-                                }}
-                            />
-                        </Menu.Target>
-                    </Portal>
-                    <Can
-                        I="view"
-                        this={subject('UnderlyingData', {
-                            organizationUuid: chart.organizationUuid,
-                            projectUuid,
-                        })}
+                            {canExportCsv && (
+                                <Menu.Item
+                                    icon={
+                                        <MantineIcon icon={IconTableExport} />
+                                    }
+                                    onClick={() =>
+                                        setIsDataExportModalOpen(true)
+                                    }
+                                >
+                                    Download data
+                                </Menu.Item>
+                            )}
+                            {canExportImages &&
+                                chart.chartConfig.type !== ChartType.TABLE &&
+                                chart.chartConfig.type !==
+                                    ChartType.BIG_NUMBER && (
+                                    <DashboardExportImage
+                                        echartRef={echartRef}
+                                        chartName={chart.name}
+                                        isMinimal={true}
+                                    />
+                                )}
+                        </>
+                    ) : undefined
+                }
+                {...props}
+            >
+                <>
+                    <Menu
+                        opened={contextMenuIsOpen}
+                        onClose={() => setContextMenuIsOpen(false)}
+                        withinPortal
+                        closeOnItemClick
+                        closeOnEscape
+                        shadow="md"
+                        radius={0}
+                        position="bottom-start"
+                        offset={{
+                            crossAxis: 0,
+                            mainAxis: 0,
+                        }}
                     >
-                        <Menu.Dropdown>
-                            <UnderlyingDataMenuItem
-                                metricQuery={metricQuery}
-                                onViewUnderlyingData={handleViewUnderlyingData}
-                            />
-                        </Menu.Dropdown>
-                    </Can>
-                </Menu>
-                <ValidDashboardChartTileMinimal
-                    tileUuid={tileUuid}
-                    isTitleHidden={hideTitle}
-                    chart={chart}
-                    dashboardChartReadyQuery={dashboardChartReadyQuery}
-                    onSeriesContextMenu={onSeriesContextMenu}
-                    resultsData={resultsData}
-                    title={title || chart.name}
-                    setEchartsRef={setEchartRef}
+                        <Portal>
+                            <Menu.Target>
+                                <div
+                                    onContextMenu={handleCancelContextMenu}
+                                    style={{
+                                        position: 'absolute',
+                                        ...contextMenuTargetOffset,
+                                    }}
+                                />
+                            </Menu.Target>
+                        </Portal>
+                        <Can
+                            I="view"
+                            this={subject('UnderlyingData', {
+                                organizationUuid: chart.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <Menu.Dropdown>
+                                <UnderlyingDataMenuItem
+                                    metricQuery={metricQuery}
+                                    onViewUnderlyingData={
+                                        handleViewUnderlyingData
+                                    }
+                                />
+                            </Menu.Dropdown>
+                        </Can>
+                    </Menu>
+                    <ValidDashboardChartTileMinimal
+                        tileUuid={tileUuid}
+                        isTitleHidden={hideTitle}
+                        chart={chart}
+                        dashboardChartReadyQuery={dashboardChartReadyQuery}
+                        onSeriesContextMenu={onSeriesContextMenu}
+                        resultsData={resultsData}
+                        title={title || chart.name}
+                        setEchartsRef={setEchartRef}
+                    />
+                </>
+            </TileBase>
+            {canExportCsv && (
+                <ExportDataModal
+                    isOpen={isDataExportModalOpen}
+                    onClose={closeDataExportModal}
+                    projectUuid={projectUuid!}
+                    totalResults={resultsData.totalResults}
+                    getDownloadQueryUuid={getDownloadQueryUuid}
+                    showTableNames
+                    chartName={title || chart.name}
+                    columnOrder={chart.tableConfig.columnOrder}
+                    customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    hiddenFields={getHiddenTableFields(chart.chartConfig)}
+                    pivotConfig={getPivotConfig(chart)}
                 />
-            </>
-        </TileBase>
+            )}
+        </>
     );
 };
 

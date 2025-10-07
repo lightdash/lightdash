@@ -25,17 +25,12 @@ import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import { Limit } from './types';
 
 type ExportCsvRenderProps = {
     onExport: () => Promise<unknown>;
     isExporting: boolean;
 };
-
-enum Limit {
-    TABLE = 'table',
-    ALL = 'all',
-    CUSTOM = 'custom',
-}
 
 enum Values {
     FORMATTED = 'formatted',
@@ -45,7 +40,10 @@ enum Values {
 export type ExportResultsProps = {
     projectUuid: string;
     totalResults: number | undefined;
-    getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        limitType: Limit,
+    ) => Promise<string>;
     columnOrder?: string[];
     customLabels?: Record<string, string>;
     hiddenFields?: string[];
@@ -77,7 +75,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
         const user = useUser(true);
         const health = useHealth();
-        const [limit, setLimit] = useState<string>(Limit.TABLE);
+        const [limit, setLimit] = useState<Limit>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
         const [fileType, setFileType] = useState<DownloadFileType>(
@@ -94,8 +92,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             : limit === Limit.TABLE
                             ? totalResults ?? 0
                             : null,
+                        limit,
                     );
-                    return scheduleDownloadQuery(projectUuid, queryUuid, {
+
+                    const downloadOptions = {
                         fileType,
                         onlyRaw: format === Values.RAW,
                         columnOrder,
@@ -106,7 +106,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         attachmentDownloadName: chartName
                             ? `${chartName}_${formatDate(new Date())}`
                             : undefined,
-                    });
+                    };
+
+                    return scheduleDownloadQuery(
+                        projectUuid,
+                        queryUuid,
+                        downloadOptions,
+                    );
                 },
                 {
                     onMutate: () => {
@@ -228,7 +234,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                             size={'xs'}
                                             value={limit}
                                             onChange={(value) =>
-                                                setLimit(value)
+                                                setLimit(value as Limit)
                                             }
                                             data={[
                                                 {
