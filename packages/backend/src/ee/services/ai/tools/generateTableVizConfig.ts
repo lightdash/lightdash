@@ -66,15 +66,15 @@ export const getGenerateTableVizConfig = ({
 
                 const prompt = await getPrompt();
 
-                // Create or update artifact
-                await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'chart',
-                    title: toolArgs.title,
-                    description: toolArgs.description,
-                    vizConfig: toolArgs,
-                });
+                const createOrUpdateArtifactHook = () =>
+                    createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: toolArgs.title,
+                        description: toolArgs.description,
+                        vizConfig: toolArgs,
+                    });
 
                 const selfImprovementResultFollowUp =
                     enableSelfImprovement &&
@@ -101,6 +101,8 @@ export const getGenerateTableVizConfig = ({
 
                 const rowCount = queryResults.rows.length;
                 const csv = convertQueryResultsToCsv(queryResults);
+
+                await createOrUpdateArtifactHook();
 
                 // Always send CSV file to Slack if it's a Slack prompt, unless there are no results
                 if (isSlackPrompt(prompt) && rowCount > 0) {
