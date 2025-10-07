@@ -1,3 +1,10 @@
+# [0.2061.0](https://github.com/lightdash/lightdash/compare/0.2060.0...0.2061.0) (2025-10-07)
+
+
+### Features
+
+* validate field entity types in AI visualization tools ([#17281](https://github.com/lightdash/lightdash/issues/17281)) ([a9f3b2f](https://github.com/lightdash/lightdash/commit/a9f3b2fe27adbfee209e57bd17a2779891cc5e13))
+
 # [0.2060.0](https://github.com/lightdash/lightdash/compare/0.2059.0...0.2060.0) (2025-10-07)
 
 
