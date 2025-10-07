@@ -98,10 +98,8 @@ const generateModelYml = ({
         description: '',
         ...(includeMeta
             ? wrapInConfig(dbtVersion, {
-                  meta: {
-                      dimension: {
-                          type: dimensionType,
-                      },
+                  dimension: {
+                      type: dimensionType,
                   },
               })
             : {}),
