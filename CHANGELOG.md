@@ -1,3 +1,10 @@
+## [0.2061.2](https://github.com/lightdash/lightdash/compare/0.2061.1...0.2061.2) (2025-10-07)
+
+
+### Bug Fixes
+
+* embedded dashboards should download results using the same underlying API as normal dashboards ([#17239](https://github.com/lightdash/lightdash/issues/17239)) ([0bab11b](https://github.com/lightdash/lightdash/commit/0bab11b37e254df1249cb3c27da73bfc90c34c45))
+
 ## [0.2061.1](https://github.com/lightdash/lightdash/compare/0.2061.0...0.2061.1) (2025-10-07)
 
 
