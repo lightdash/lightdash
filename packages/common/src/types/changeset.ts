@@ -88,6 +88,11 @@ export type ApiChangesetsResponse = {
     results: ChangesetWithChanges;
 };
 
+export type ApiGetChangeResponse = {
+    status: 'ok';
+    results: Change;
+};
+
 export type CreateChangeParams = Pick<
     Change,
     | 'createdByUserUuid'
@@ -101,8 +106,14 @@ export type CreateChangeParams = Pick<
 
 // tsoa does not support z.infer schemas - https://github.com/lukeautry/tsoa/issues/1256
 type ChangesetTSOACompat = Record<string, unknown>;
+type ChangeTSOACompat = Record<string, unknown>;
 
 export type ApiChangesetsResponseTSOACompat = {
     status: 'ok';
     results: ChangesetTSOACompat[];
+};
+
+export type ApiGetChangeResponseTSOACompat = {
+    status: 'ok';
+    results: ChangeTSOACompat;
 };

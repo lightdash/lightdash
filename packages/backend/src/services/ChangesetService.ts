@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Change,
     ChangesetWithChanges,
     ForbiddenError,
     SessionUser,
@@ -50,6 +51,28 @@ export class ChangesetService extends BaseService {
         return this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
             projectUuid,
         );
+    }
+
+    async getChange(
+        user: SessionUser,
+        projectUuid: string,
+        changeUuid: string,
+    ): Promise<Change> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', {
+                    projectUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view changes in this project',
+            );
+        }
+
+        return this.changesetModel.getChange(changeUuid);
     }
 
     async revertChange(

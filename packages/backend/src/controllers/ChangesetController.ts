@@ -1,6 +1,7 @@
 import {
     ApiChangesetsResponseTSOACompat,
     ApiErrorPayload,
+    ApiGetChangeResponseTSOACompat,
     ApiRevertChangeResponse,
 } from '@lightdash/common';
 import {
@@ -46,6 +47,30 @@ export class ChangesetController extends BaseController {
             status: 'ok',
             results:
                 changesets as unknown as ApiChangesetsResponseTSOACompat['results'],
+        };
+    }
+
+    /**
+     * Get a specific change by UUID
+     * @summary Get change
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/changes/{changeUuid}')
+    @OperationId('getChange')
+    async getChange(
+        @Path() projectUuid: string,
+        @Path() changeUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetChangeResponseTSOACompat> {
+        const change = await this.services
+            .getChangesetService()
+            .getChange(req.user!, projectUuid, changeUuid);
+
+        return {
+            status: 'ok',
+            results:
+                change as unknown as ApiGetChangeResponseTSOACompat['results'],
         };
     }
 
