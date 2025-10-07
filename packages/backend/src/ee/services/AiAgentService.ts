@@ -76,7 +76,10 @@ import { fromSession } from '../../auth/account';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
+import {
+    CatalogModel,
+    CatalogSearchContext,
+} from '../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../models/ChangesetModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
@@ -132,6 +135,7 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
+    catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
     searchModel: SearchModel;
     spaceModel: SpaceModel;
@@ -158,6 +162,8 @@ export class AiAgentService {
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly catalogService: CatalogService;
+
+    private readonly catalogModel: CatalogModel;
 
     private readonly changesetModel: ChangesetModel;
 
@@ -194,6 +200,7 @@ export class AiAgentService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
+        this.catalogModel = dependencies.catalogModel;
         this.changesetModel = dependencies.changesetModel;
         this.searchModel = dependencies.searchModel;
         this.featureFlagService = dependencies.featureFlagService;
@@ -1548,7 +1555,6 @@ export class AiAgentService {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        // Check if user has access to update this thread
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -1560,9 +1566,18 @@ export class AiAgentService {
             );
         }
 
-        // Revert the change
+        const originalChangeset =
+            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                agent.projectUuid,
+            );
+
+        if (!originalChangeset) {
+            throw new NotFoundError(
+                `No active changeset found for project: ${agent.projectUuid}`,
+            );
+        }
+
         const change = await this.changesetModel.getChange(changeUuid);
-        await this.changesetModel.revertChange(changeUuid);
 
         const originalExplores = await this.projectModel.findExploresFromCache(
             agent.projectUuid,
@@ -1573,7 +1588,12 @@ export class AiAgentService {
 
         await this.changesetModel.revertChange(changeUuid);
 
-        // Get the tool result that corresponds to this change to update metadata
+        await this.catalogModel.indexCatalogReverts({
+            projectUuid: agent.projectUuid,
+            revertedChanges: [change],
+            originalChangeset,
+            originalExplores,
+        });
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             promptUuid,
         );
