@@ -217,6 +217,7 @@ const FieldSelect = <T extends Item = Item>({
 
     return (
         <Select
+            limit={50}
             ref={inputRef}
             w="100%"
             searchable
