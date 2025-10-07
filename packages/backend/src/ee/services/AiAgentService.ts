@@ -3140,6 +3140,10 @@ export class AiAgentService {
 
             if (e instanceof AiAgentNotFoundError) {
                 Logger.debug('Failed to find ai agent:', e);
+                await say({
+                    text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${this.lightdashConfig.siteUrl}/ai-agents to configure one.`,
+                    thread_ts: event.ts,
+                });
                 return;
             }
 
