@@ -14,7 +14,9 @@ import {
     Block,
     ExpressReceiver,
     LogLevel as SlackLogLevel,
+    type InstallationStore,
 } from '@slack/bolt';
+import { InstallProvider } from '@slack/oauth';
 import {
     ChatPostMessageArguments,
     ChatUpdateArguments,
@@ -676,45 +678,60 @@ export class SlackClient {
         }
 
         let app: App | undefined;
+        const slackOptions = this.getSlackOptions();
+        const logLevel = lightdashLogLevelToSlackLogLevel(
+            this.lightdashConfig.logging.level ?? 'info',
+        );
+        const installationStore: InstallationStore = {
+            storeInstallation: (i) =>
+                this.slackAuthenticationModel.createInstallation(i),
+            fetchInstallation: (i) =>
+                this.slackAuthenticationModel.getInstallation(i),
+            deleteInstallation: (i) =>
+                this.slackAuthenticationModel.deleteInstallation(i),
+        };
 
         try {
             if (this.lightdashConfig.slack?.socketMode) {
-                app = new App({
-                    ...this.getSlackOptions(),
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                        deleteInstallation: (i) =>
-                            this.slackAuthenticationModel.deleteInstallation(i),
+                if (!this.lightdashConfig.slack.appToken) {
+                    throw new MissingConfigError(
+                        'Missing "SLACK_APP_TOKEN" to start Slack Client in socket mode',
+                    );
+                }
+
+                // Create InstallProvider for OAuth routes
+                const installProvider = new InstallProvider({
+                    ...slackOptions,
+                    installationStore,
+                    logLevel,
+                });
+
+                // Register OAuth routes manually, the SocketModeReceiver doesn't seem to handle the oauth flow
+                expressApp.get(
+                    slackOptions.installerOptions.redirectUriPath,
+                    async (req, res) => {
+                        await installProvider.handleCallback(req, res);
                     },
-                    logLevel: lightdashLogLevelToSlackLogLevel(
-                        this.lightdashConfig.logging.level ?? 'info',
-                    ),
-                    port: this.lightdashConfig.slack.port,
+                );
+
+                app = new App({
+                    ...slackOptions,
                     socketMode: this.lightdashConfig.slack.socketMode,
                     appToken: this.lightdashConfig.slack.appToken,
+                    port: this.lightdashConfig.slack.port,
+                    installationStore,
+                    logLevel,
                 });
             } else {
                 const slackReceiver = new ExpressReceiver({
-                    ...this.getSlackOptions(),
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                        deleteInstallation: (i) =>
-                            this.slackAuthenticationModel.deleteInstallation(i),
-                    },
-                    logLevel: lightdashLogLevelToSlackLogLevel(
-                        this.lightdashConfig.logging.level ?? 'info',
-                    ),
+                    ...slackOptions,
+                    installationStore,
+                    logLevel,
                     app: expressApp,
                 });
 
                 app = new App({
-                    ...this.getSlackOptions(),
+                    ...slackOptions,
                     receiver: slackReceiver,
                 });
             }
@@ -724,7 +741,13 @@ export class SlackClient {
 
         if (app) {
             this.slackApp = app;
-            Logger.info('Slack app initialized successfully');
+
+            try {
+                await app.start();
+                Logger.info('Slack app initialized successfully');
+            } catch (e) {
+                Logger.error(`Unable to start Slack app ${e}`);
+            }
         }
     }
 }
