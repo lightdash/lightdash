@@ -14,7 +14,7 @@ import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 
-export const MAX_AUTOCOMPLETE_RESULTS = 100;
+export const MAX_AUTOCOMPLETE_RESULTS = 50;
 
 const getEmbedFilterValues = async (options: {
     embedToken: string;
