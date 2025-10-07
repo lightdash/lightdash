@@ -14,6 +14,7 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
+    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -58,6 +59,7 @@ export const useExplorerQuery = (options?: {
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
     const queryUuidHistory = useExplorerSelector(selectQueryUuidHistory);
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const unpivotedQueryUuidHistory = useExplorerSelector(
         selectUnpivotedQueryUuidHistory,
     );
@@ -179,12 +181,14 @@ export const useExplorerQuery = (options?: {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
+            savedChart: unsavedChartVersion,
         });
 
         if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
         }
     }, [
+        unsavedChartVersion,
         activeFields,
         tableName,
         projectUuid,

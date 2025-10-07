@@ -1,5 +1,4 @@
 import {
-    ChartType,
     derivePivotConfigurationFromChart,
     getFieldsFromMetricQuery,
     type DateGranularity,
@@ -7,6 +6,7 @@ import {
     type FieldId,
     type MetricQuery,
     type ParametersValuesMap,
+    type SavedChartDAO,
 } from '@lightdash/common';
 import type { QueryResultsProps } from '../useQueryResults';
 
@@ -30,6 +30,7 @@ export function buildQueryArgs(options: {
         | { chartUuid: string; chartVersionUuid: string };
     dateZoomGranularity?: DateGranularity;
     minimal: boolean;
+    savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
 }): QueryResultsProps | null {
     const {
         activeFields,
@@ -56,15 +57,11 @@ export function buildQueryArgs(options: {
     if (useSqlPivotResults) {
         const items = getFieldsFromMetricQuery(computedMetricQuery, explore);
         pivotConfiguration = derivePivotConfigurationFromChart(
-            {
-                chartConfig: { type: ChartType.TABLE },
-                pivotConfig: undefined,
-            },
+            options.savedChart,
             computedMetricQuery,
             items,
         );
     }
-
     return {
         projectUuid,
         tableId: tableName,
