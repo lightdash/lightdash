@@ -260,7 +260,6 @@ export interface ExplorerReduceState {
 export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
-    hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
 }
@@ -326,5 +325,8 @@ export interface ExplorerContextType {
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
         setParameterReferences: (parameterReferences: string[] | null) => void;
+        isUnsavedChartChanged: (
+            chartVersion: CreateSavedChartVersion,
+        ) => boolean;
     };
 }

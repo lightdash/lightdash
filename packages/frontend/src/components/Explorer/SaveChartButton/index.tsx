@@ -2,6 +2,10 @@ import { getItemId, getMetrics } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine-8/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import {
+    selectUnsavedChartVersion,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
@@ -11,16 +15,25 @@ import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
-    );
-    const hasUnsavedChanges = useExplorerContext(
-        (context) => context.state.hasUnsavedChanges,
-    );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    // Get savedChart, comparison function, and isValidQuery from Context
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    const isUnsavedChartChanged = useExplorerContext(
+        (context) => context.actions.isUnsavedChartChanged,
+    );
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
+    );
     const spaceUuid = useSearchParams('fromSpace');
+
+    // For new charts, button is enabled when query is valid
+    // For existing charts, button is enabled when there are unsaved changes
+    const hasUnsavedChanges = savedChart
+        ? isUnsavedChartChanged(unsavedChartVersion)
+        : isValidQuery;
 
     const { missingRequiredParameters } = useExplorerQuery();
 
