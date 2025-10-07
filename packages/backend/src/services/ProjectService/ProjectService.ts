@@ -780,16 +780,16 @@ export class ProjectService extends BaseService {
         This method is used when the user is making requests to the warehouse
         and .
         Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
-        If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like nowflake on SSO).
+        If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like Snowflake on SSO).
     */
     protected async getWarehouseCredentials({
         projectUuid,
         userId,
-        isSessionUser,
+        isRegisteredUser,
     }: {
         projectUuid: string;
         userId: string;
-        isSessionUser: boolean;
+        isRegisteredUser: boolean;
     }) {
         let credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -798,7 +798,7 @@ export class ProjectService extends BaseService {
         let userWarehouseCredentialsUuid: string | undefined;
 
         if (credentials.requireUserCredentials) {
-            if (!isSessionUser) {
+            if (!isRegisteredUser) {
                 throw new ForbiddenError(
                     'Embedded users cannot use personal warehouse credentials',
                 );
@@ -829,7 +829,7 @@ export class ProjectService extends BaseService {
             credentials = await this.refreshCredentials(credentials, userId);
 
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
-        } else if (isSessionUser) {
+        } else if (isRegisteredUser) {
             credentials = await this.refreshCredentials(credentials, userId);
         }
 
@@ -1896,7 +1896,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.isSessionUser(),
+                isRegisteredUser: account.isRegisteredUser(),
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -2738,7 +2738,7 @@ export class ProjectService extends BaseService {
                             await this.getWarehouseCredentials({
                                 projectUuid,
                                 userId: account.user.id,
-                                isSessionUser: account.isSessionUser(),
+                                isRegisteredUser: account.isRegisteredUser(),
                             }),
                             {
                                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -2886,7 +2886,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: user.userUuid,
-                isSessionUser: true,
+                isRegisteredUser: true,
             }),
         );
         this.logger.debug(`Run query against warehouse`);
@@ -2942,7 +2942,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: userUuid,
-                isSessionUser: true,
+                isRegisteredUser: true,
             }),
         );
         this.logger.debug(`Stream query against warehouse`);
@@ -3012,7 +3012,7 @@ export class ProjectService extends BaseService {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: userUuid,
-            isSessionUser: true,
+            isRegisteredUser: true,
         });
 
         this.analytics.track({
@@ -3354,7 +3354,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: user.userUuid,
-                isSessionUser: true,
+                isRegisteredUser: true,
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -4141,7 +4141,7 @@ export class ProjectService extends BaseService {
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: user.userUuid,
-            isSessionUser: true,
+            isRegisteredUser: true,
         });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -4194,7 +4194,7 @@ export class ProjectService extends BaseService {
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: user.userUuid,
-            isSessionUser: true,
+            isRegisteredUser: true,
         });
 
         let catalog: WarehouseTablesCatalog | null = null;
@@ -4247,7 +4247,7 @@ export class ProjectService extends BaseService {
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: user.userUuid,
-            isSessionUser: true,
+            isRegisteredUser: true,
         });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5176,7 +5176,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.isSessionUser(),
+                isRegisteredUser: account.isRegisteredUser(),
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -5237,7 +5237,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.authentication.type === 'session',
+                isRegisteredUser: account.isRegisteredUser(),
             }),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
@@ -5828,7 +5828,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: true,
+                isRegisteredUser: true,
             }),
         );
         const virtualView = await this.projectModel.createVirtualView(
@@ -5885,7 +5885,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isSessionUser: account.authentication.type === 'session',
+                isRegisteredUser: account.isRegisteredUser(),
             }),
         );
 
