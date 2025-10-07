@@ -1,3 +1,10 @@
+## [0.2057.3](https://github.com/lightdash/lightdash/compare/0.2057.2...0.2057.3) (2025-10-07)
+
+
+### Bug Fixes
+
+* slack app in socket mode ([#17169](https://github.com/lightdash/lightdash/issues/17169)) ([9eff960](https://github.com/lightdash/lightdash/commit/9eff9604b6a5689725b9e91194a79a48c603bdbb))
+
 ## [0.2057.2](https://github.com/lightdash/lightdash/compare/0.2057.1...0.2057.2) (2025-10-07)
 
 
