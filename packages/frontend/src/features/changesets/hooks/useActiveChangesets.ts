@@ -15,4 +15,7 @@ export const useActiveChangesets = (projectUuid: string) =>
         queryKey: ['activeChangesets', projectUuid],
         queryFn: () => getActiveChangesets(projectUuid),
         enabled: !!projectUuid,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
     });
