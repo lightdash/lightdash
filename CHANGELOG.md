@@ -1,3 +1,10 @@
+## [0.2057.1](https://github.com/lightdash/lightdash/compare/0.2057.0...0.2057.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* results table always loading when pivoting enabled ([#17262](https://github.com/lightdash/lightdash/issues/17262)) ([78bc037](https://github.com/lightdash/lightdash/commit/78bc037cf7083a37980e2ebdd829456140c2640a))
+
 # [0.2057.0](https://github.com/lightdash/lightdash/compare/0.2056.2...0.2057.0) (2025-10-07)
 
 
