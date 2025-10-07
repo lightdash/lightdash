@@ -1,3 +1,10 @@
+## [0.2061.1](https://github.com/lightdash/lightdash/compare/0.2061.0...0.2061.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* check if registered user when user creds required ([#17287](https://github.com/lightdash/lightdash/issues/17287)) ([bba99a0](https://github.com/lightdash/lightdash/commit/bba99a08f603d860201f21dc36f340c28f51caab))
+
 # [0.2061.0](https://github.com/lightdash/lightdash/compare/0.2060.0...0.2061.0) (2025-10-07)
 
 
