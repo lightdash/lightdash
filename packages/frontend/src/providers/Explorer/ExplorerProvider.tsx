@@ -891,7 +891,11 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: initialState || defaultStateWithConfig,
         });
-    }, [defaultStateWithConfig, initialState]);
+        // Reset Redux state as well
+        reduxDispatch(
+            explorerActions.reset(initialState || defaultStateWithConfig),
+        );
+    }, [defaultStateWithConfig, initialState, reduxDispatch]);
 
     const setTableName = useCallback(
         (tableName: string) => {
