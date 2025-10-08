@@ -7,6 +7,7 @@ import {
     toolTableVizOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     GetExploreFn,
@@ -97,15 +98,23 @@ export const getGenerateTableVizConfig = ({
                     maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
-                await updateProgress('✅ Done.');
 
-                const rowCount = queryResults.rows.length;
+                if (queryResults.rows.length === 0) {
+                    return {
+                        result: NO_RESULTS_RETRY_PROMPT,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
+                }
+
                 const csv = convertQueryResultsToCsv(queryResults);
 
                 await createOrUpdateArtifactHook();
 
-                // Always send CSV file to Slack if it's a Slack prompt, unless there are no results
-                if (isSlackPrompt(prompt) && rowCount > 0) {
+                // Always send CSV file to Slack if it's a Slack prompt
+                if (isSlackPrompt(prompt)) {
+                    await updateProgress('✅ Done.');
                     await sendFile({
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,
@@ -117,17 +126,8 @@ export const getGenerateTableVizConfig = ({
                     });
                 }
 
-                if (rowCount === 0) {
-                    return {
-                        result: `The query returned no results`,
-                        metadata: {
-                            status: 'success',
-                        },
-                    };
-                }
-
                 if (!enableDataAccess) {
-                    if (rowCount === 1) {
+                    if (queryResults.rows.length === 1) {
                         return {
                             result: `Here's the result:\n${serializeData(
                                 csv,

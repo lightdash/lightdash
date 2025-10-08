@@ -7,6 +7,7 @@ import {
     toolTimeSeriesOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     GetExploreFn,
@@ -103,11 +104,21 @@ export const getGenerateTimeSeriesVizConfig = ({
                         vizTool.tableCalculations,
                     ),
                 });
+
                 const queryResults = await runMiniMetricQuery(
                     metricQuery,
                     maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
+
+                if (queryResults.rows.length === 0) {
+                    return {
+                        result: NO_RESULTS_RETRY_PROMPT,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
+                }
 
                 await createOrUpdateArtifactHook();
 
