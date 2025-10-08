@@ -1,3 +1,10 @@
+## [0.2068.1](https://github.com/lightdash/lightdash/compare/0.2068.0...0.2068.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* include non grouped dimensions in index ([#17263](https://github.com/lightdash/lightdash/issues/17263)) ([64b45da](https://github.com/lightdash/lightdash/commit/64b45da9ea84464b99d8e107164ad3a3b7ec6c7f))
+
 # [0.2068.0](https://github.com/lightdash/lightdash/compare/0.2067.2...0.2068.0) (2025-10-08)
 
 
