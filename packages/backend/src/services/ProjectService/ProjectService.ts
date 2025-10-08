@@ -652,29 +652,47 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                let { token } = args;
+                // On old project configs we were storing refreshToken inside the token field (legacy)
+                let refreshToken = args.refreshToken || args.token;
 
                 // We pass the refresh token for snowflake on args
                 // This is used on user warehouse credentials.
                 // If this is provided, use this instead of getting the refresh token from the openid table
-                if (token === undefined) {
-                    token = await this.userModel.getRefreshToken(
+                if (refreshToken === undefined) {
+                    refreshToken = await this.userModel.getRefreshToken(
                         userUuid,
                         OpenIdIdentityIssuerType.SNOWFLAKE,
                     );
                 }
 
+                // Token format validation
+                if (refreshToken?.startsWith('ver:1-hint')) {
+                    // This is an invalid refresh token format,
+                    // we are using `access token` as refresh token (refresh token starts with ver:2-hint)
+                    // Review the calls to this method and ensure we pass {token: refreshToken} instead
+                    // This might affect older projects that were not storing correctly refresh token
+                    // They should be recompiled to store the refresh token correctly
+                    // see _resolveWarehouseClientCredentials for more details.
+                    throw new UnexpectedServerError(
+                        'Invalid snowflake refresh token format, please recompile your project',
+                    );
+                }
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
                 const accessToken =
-                    await UserService.generateSnowflakeAccessToken(token);
+                    await UserService.generateSnowflakeAccessToken(
+                        refreshToken,
+                    );
                 return {
                     ...args,
                     authenticationType: 'sso',
                     token: accessToken,
                 };
             } catch (e: unknown) {
+                if (e instanceof LightdashError) {
+                    throw e;
+                }
                 this.logger.error(
                     `Error refreshing snowflake token: ${JSON.stringify(e)}`,
                 );
@@ -759,6 +777,7 @@ export class ProjectService extends BaseService {
                 userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
+            // Validate refresh token and generate new access token
             const credentials = await this.refreshCredentials(
                 { ...args.warehouseConnection, token: refreshToken },
                 userUuid,
@@ -768,6 +787,7 @@ export class ProjectService extends BaseService {
                 warehouseConnection: {
                     ...args.warehouseConnection,
                     ...credentials,
+                    refreshToken, // Store refresh token from user so we can generate new access tokens later
                 },
             };
         }
