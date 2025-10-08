@@ -52,6 +52,8 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         columnOrder,
         fetchMoreRows,
         pagination,
+        columnProperties,
+        minMaxMap,
     } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
@@ -164,6 +166,10 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 ],
             },
             pagination: paginationState,
+        },
+        meta: {
+            columnProperties,
+            minMaxMap,
         },
         enableColumnPinning: true,
         onColumnVisibilityChange: setColumnVisibility,

@@ -60,6 +60,15 @@ export const ExplorerResults = memo(() => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
 
+    // Get chart config for column properties
+    const chartConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.chartConfig,
+    );
+    const columnProperties =
+        chartConfig.type === 'table' && chartConfig.config?.columns
+            ? chartConfig.config.columns
+            : undefined;
+
     // Get query state from new hook
     const {
         query,
@@ -258,6 +267,7 @@ export const ExplorerResults = memo(() => {
                     pagination={pagination}
                     footer={footer}
                     showSubtotals={false}
+                    columnProperties={columnProperties}
                 />
                 <JsonViewerModal
                     heading={`Field: ${expandData.name}`}

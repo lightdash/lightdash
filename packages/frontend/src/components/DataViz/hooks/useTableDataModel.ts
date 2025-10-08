@@ -13,6 +13,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
+import { calculateColumnStats } from '../utils/columnStats';
 
 // TODO: this name could change or we could replace this with useVirtualTable.
 // It's not really clear what is doing with the table data model for a consumer.
@@ -33,6 +34,20 @@ export const useTableDataModel = ({
     const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
     const rows = useMemo(() => tableModel.getRows(), [tableModel]);
 
+    // Calculate stats for columns with bar display style
+    const columnStats = useMemo(() => {
+        if (!config?.columns) return {};
+
+        // Find columns that need bar chart display
+        const barColumns = columns.filter(
+            (col) => config?.columns?.[col]?.displayStyle === 'bar',
+        );
+
+        if (barColumns.length === 0) return {};
+
+        return calculateColumnStats(rows, barColumns);
+    }, [rows, columns, config?.columns]);
+
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columns.map((column) => ({
             id: column,
@@ -49,6 +64,10 @@ export const useTableDataModel = ({
         data: rows,
         columns: tanstackColumns,
         getCoreRowModel: getCoreRowModel(),
+        meta: {
+            columnStats,
+            columnsConfig: config?.columns ?? undefined,
+        },
     });
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
