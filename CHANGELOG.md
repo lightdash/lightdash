@@ -1,3 +1,10 @@
+## [0.2061.4](https://github.com/lightdash/lightdash/compare/0.2061.3...0.2061.4) (2025-10-08)
+
+
+### Bug Fixes
+
+* changes to chart sorting not saving correctly ([#17288](https://github.com/lightdash/lightdash/issues/17288)) ([e37623b](https://github.com/lightdash/lightdash/commit/e37623bb01ded207295053ff27b13574834c70d2))
+
 ## [0.2061.3](https://github.com/lightdash/lightdash/compare/0.2061.2...0.2061.3) (2025-10-07)
 
 

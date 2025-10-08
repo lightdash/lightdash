@@ -260,9 +260,11 @@ export interface ExplorerReduceState {
 export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
-    hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
+    // Merged version combining Context fields (chartConfig, pivotConfig) with Redux fields
+    // This is the complete version that should be used when saving charts
+    mergedUnsavedChartVersion: CreateSavedChartVersion;
 }
 
 export interface ExplorerContextType {
@@ -326,5 +328,8 @@ export interface ExplorerContextType {
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
         setParameterReferences: (parameterReferences: string[] | null) => void;
+        isUnsavedChartChanged: (
+            chartVersion: CreateSavedChartVersion,
+        ) => boolean;
     };
 }

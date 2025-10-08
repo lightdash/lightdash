@@ -110,16 +110,23 @@ const SavedChartsHeader: FC = () => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
+
     const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
+        (context) => context.state.mergedUnsavedChartVersion,
     );
-    const hasUnsavedChanges = useExplorerContext(
-        (context) => context.state.hasUnsavedChanges,
-    );
+
+    // Get savedChart, comparison function, and isValidQuery from Context
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    const isUnsavedChartChanged = useExplorerContext(
+        (context) => context.actions.isUnsavedChartChanged,
+    );
     const reset = useExplorerContext((context) => context.actions.reset);
+
+    const hasUnsavedChanges = savedChart
+        ? isUnsavedChartChanged(unsavedChartVersion)
+        : false;
 
     // Get query state from hook instead of Context
     const { query } = useExplorerQuery();
