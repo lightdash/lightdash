@@ -50,7 +50,7 @@ const allowedTextStylingProperties: NonNullable<
     'text-decoration': [/^(?:none|underline|overline|line-through)$/], //  none, underline, overline, line-through
     color: colorRegexes,
     'background-color': colorRegexes,
-    background: colorRegexes,
+    background: [...colorRegexes, /^transparent$/, /^none$/],
     'border-radius': [/^(\d+(?:px|em|rem|%))(\s+\d+(?:px|em|rem|%))*$/],
     'border-top-left-radius': [/^\d+(?:px|em|rem|%)$/],
     'border-top-right-radius': [/^\d+(?:px|em|rem|%)$/],

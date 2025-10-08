@@ -130,7 +130,7 @@ describe('sanitizeHtml', () => {
                 ],
                 [
                     '<p style="text-align:right;background: red;">Paragraph</p>',
-                    '<p style="text-align:right">Paragraph</p>',
+                    '<p style="text-align:right;background:red">Paragraph</p>',
                 ],
                 [
                     '<p style="color:rgba(1,1,1,0)">Paragraph</p>',
