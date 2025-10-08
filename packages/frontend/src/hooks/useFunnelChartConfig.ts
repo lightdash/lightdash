@@ -98,7 +98,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     );
 
     const allNumericFieldIds = useMemo(
-        () => Object.keys(numericFields),
+        () => (numericFields ? Object.keys(numericFields) : []),
         [numericFields],
     );
 
