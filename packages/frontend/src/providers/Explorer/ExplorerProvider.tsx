@@ -917,16 +917,30 @@ const ExplorerProvider: FC<
                     : ActionType.TOGGLE_METRIC,
                 payload: fieldId,
             });
+
+            // Remove it from the sort for an unsaved chart
+            const filteredSorts = unsavedChartVersion.metricQuery.sorts.filter(
+                (s) => s.fieldId !== fieldId,
+            );
+            reduxDispatch(explorerActions.setSortFields(filteredSorts));
         },
-        [],
+        [reduxDispatch, unsavedChartVersion.metricQuery.sorts],
     );
 
-    const removeActiveField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_FIELD,
-            payload: fieldId,
-        });
-    }, []);
+    const removeActiveField = useCallback(
+        (fieldId: FieldId) => {
+            dispatch({
+                type: ActionType.REMOVE_FIELD,
+                payload: fieldId,
+            });
+            // Remove it from the sort for an unsaved chart
+            const filteredSorts = unsavedChartVersion.metricQuery.sorts.filter(
+                (s) => s.fieldId !== fieldId,
+            );
+            reduxDispatch(explorerActions.setSortFields(filteredSorts));
+        },
+        [reduxDispatch, unsavedChartVersion.metricQuery.sorts],
+    );
 
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
