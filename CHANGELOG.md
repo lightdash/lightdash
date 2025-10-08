@@ -1,3 +1,10 @@
+# [0.2064.0](https://github.com/lightdash/lightdash/compare/0.2063.2...0.2064.0) (2025-10-08)
+
+
+### Features
+
+* improve schedulers table&logs ux ([#17260](https://github.com/lightdash/lightdash/issues/17260)) ([14683ae](https://github.com/lightdash/lightdash/commit/14683ae92d7a6a39b6f2881c8eda4cc5fa3db86b))
+
 ## [0.2063.2](https://github.com/lightdash/lightdash/compare/0.2063.1...0.2063.2) (2025-10-08)
 
 
