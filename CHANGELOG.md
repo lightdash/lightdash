@@ -1,3 +1,10 @@
+# [0.2066.0](https://github.com/lightdash/lightdash/compare/0.2065.2...0.2066.0) (2025-10-08)
+
+
+### Features
+
+* organization warehouse credentials form for snowflake ([#17223](https://github.com/lightdash/lightdash/issues/17223)) ([6bd8a69](https://github.com/lightdash/lightdash/commit/6bd8a694d88165c7b24c1a6abbf22e2139c9ac21))
+
 ## [0.2065.2](https://github.com/lightdash/lightdash/compare/0.2065.1...0.2065.2) (2025-10-08)
 
 
