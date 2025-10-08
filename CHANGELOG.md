@@ -1,3 +1,10 @@
+# [0.2062.0](https://github.com/lightdash/lightdash/compare/0.2061.4...0.2062.0) (2025-10-08)
+
+
+### Features
+
+* improve error handling for propose change tools ui ([#17230](https://github.com/lightdash/lightdash/issues/17230)) ([e525aa3](https://github.com/lightdash/lightdash/commit/e525aa3ae1369629467eacf373eb63bd7c696291))
+
 ## [0.2061.4](https://github.com/lightdash/lightdash/compare/0.2061.3...0.2061.4) (2025-10-08)
 
 
