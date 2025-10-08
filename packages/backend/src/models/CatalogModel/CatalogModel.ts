@@ -3,6 +3,7 @@ import {
     CatalogItemIcon,
     CatalogItemsWithIcons,
     CatalogType,
+    ChangesetUtils,
     ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
