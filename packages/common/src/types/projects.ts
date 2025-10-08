@@ -485,6 +485,7 @@ export type PreviewContentMapping = {
     dashboardVersions: IdContentMapping[];
     savedSql: IdContentMapping[];
     savedSqlVersions: IdContentMapping[];
+    aiAgents: IdContentMapping[];
 };
 
 export type UpdateSchedulerSettings = {
