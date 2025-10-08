@@ -1,3 +1,10 @@
+## [0.2067.2](https://github.com/lightdash/lightdash/compare/0.2067.1...0.2067.2) (2025-10-08)
+
+
+### Bug Fixes
+
+* claude sonnet default name fix ([#17324](https://github.com/lightdash/lightdash/issues/17324)) ([51c7f7b](https://github.com/lightdash/lightdash/commit/51c7f7b3c0751801e97743dc089949f38f87b88b))
+
 ## [0.2067.1](https://github.com/lightdash/lightdash/compare/0.2067.0...0.2067.1) (2025-10-08)
 
 
