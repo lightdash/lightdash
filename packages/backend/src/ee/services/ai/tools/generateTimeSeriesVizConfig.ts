@@ -66,15 +66,15 @@ export const getGenerateTimeSeriesVizConfig = ({
 
                 const prompt = await getPrompt();
 
-                // Create or update artifact
-                await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'chart',
-                    title: toolArgs.title,
-                    description: toolArgs.description,
-                    vizConfig: toolArgs,
-                });
+                const createOrUpdateArtifactHook = () =>
+                    createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: toolArgs.title,
+                        description: toolArgs.description,
+                        vizConfig: toolArgs,
+                    });
 
                 const selfImprovementResultFollowUp =
                     enableSelfImprovement &&
@@ -84,6 +84,8 @@ export const getGenerateTimeSeriesVizConfig = ({
                         : '';
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    await createOrUpdateArtifactHook();
+
                     return {
                         result: `Success`,
                         metadata: {
@@ -106,6 +108,8 @@ export const getGenerateTimeSeriesVizConfig = ({
                     maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
+
+                await createOrUpdateArtifactHook();
 
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderTimeSeriesViz({
