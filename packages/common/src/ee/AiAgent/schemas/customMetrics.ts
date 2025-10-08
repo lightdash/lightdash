@@ -12,6 +12,11 @@ export const customMetricBaseSchema = z.object({
         .describe(
             'Human-readable label for the metric (e.g., "Average Customer Age", "Total Revenue")',
         ),
+    description: z
+        .string()
+        .describe(
+            'Brief explanation of what the metric represents, how it is calculated, and why it matters. Example: "Calculates the total revenue by summing all transaction amounts in the sales table."',
+        ),
     baseDimensionName: z
         .string()
         .describe(
