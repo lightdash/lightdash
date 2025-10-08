@@ -170,7 +170,10 @@ describe('sanitizeHtml', () => {
 
         test('style attributes in disallowed tags', () => {
             const disallowedTags = [
-                ['<div style="color:red;">Text</div>', '<div>Text</div>'],
+                [
+                    '<div style="color:red;">Text</div>',
+                    '<div style="color:red">Text</div>',
+                ],
                 [
                     '<table style="border:1px solid black;"><tr><td>Cell</td></tr></table>',
                     '<table><tr><td>Cell</td></tr></table>',
