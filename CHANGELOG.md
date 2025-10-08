@@ -1,3 +1,10 @@
+## [0.2063.2](https://github.com/lightdash/lightdash/compare/0.2063.1...0.2063.2) (2025-10-08)
+
+
+### Bug Fixes
+
+* move artifact creation after error handling in dashboard generation ([#17293](https://github.com/lightdash/lightdash/issues/17293)) ([24e81dc](https://github.com/lightdash/lightdash/commit/24e81dc3af7af0281ae159049a77ff277a63a7b2))
+
 ## [0.2063.1](https://github.com/lightdash/lightdash/compare/0.2063.0...0.2063.1) (2025-10-08)
 
 
