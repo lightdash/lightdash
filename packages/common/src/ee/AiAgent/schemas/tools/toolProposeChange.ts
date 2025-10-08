@@ -10,32 +10,21 @@ import { createToolSchema } from '../toolSchemaBuilder';
 // ============================================================================
 
 export const TOOL_PROPOSE_CHANGE_DESCRIPTION = `
-Use this tool to propose changes to a table's metadata in the semantic layer. This tool creates a change proposal that can be reviewed and approved before being applied.
+Creates a change proposal for tables, metrics, and dimensions. Changes are applied immediately but can be reviewed and rejected afterward.
 
-- When updating descriptions, ensure to preserve as much original content as possible. Remember that descriptions are enclosed in "description" tags and you should take the whole value into account as well as its format.
-- If modifying tables, _always_ use the findExplores tool to check existing descriptions before proposing changes to ensure no important content is removed.
-- If modifying metrics or dimensions, _always_ use the findFields tool to check existing descriptions before proposing changes to ensure no important content is removed.
-- If creating a new metric, _always_ use the findFields tool to check existing metrics before proposing changes to ensure no content is duplicated.
+**Supported Operations:**
+- Update table descriptions and labels
+- Update metric/dimension descriptions and labels
+- Create new metrics
 
-- **When to use the Propose Change Tool:**
-  - User requests to update a table description: "Update the description of the customers table"
-  - User wants to improve a dimension description: "Add a better description for the customer_name field"
-  - User asks to clarify a metric description: "Update the total_revenue metric description to explain it's net revenue"
-  - User wants to document business logic in descriptions: "Add a note that active_users excludes test accounts"
-
-- **What this tool does:**
-  - Creates a change proposal and applies it to a changeset (batch of changes)
-  - Changes are applied immediately but can be reviewed and rejected afterward
-  - Supports updating descriptions for tables, dimensions, and metrics
-  - Supports creating new metrics
-  - Tracks who proposed the change and when
-  - Applied changes can be reviewed and rejected by authorized users
-
-- **Examples:**
-
-  User: "Update the customers table description to mention it includes both B2B and B2C customers"
-  User: "The revenue_net field should explain it's after taxes and discounts"
-  User: "Create a new metric called 'Median Order Amount' that calculates the median order amount"
+**Technical Requirements:**
+- When updating descriptions or labels, must preserve as much original content as possible
+- Descriptions should maintain their original format (preserve complete value and formatting)
+- Must provide entity table name, rationale, and change details
+- Changes are tracked with proposer information and timestamp
+- For updates: use "replace" operation with complete updated value (not partial)
+- For adding new properties: use "add" operation (creates property if it does not exist)
+- For new metrics: use "create" operation with full metric definition
 `;
 
 // ============================================================================
