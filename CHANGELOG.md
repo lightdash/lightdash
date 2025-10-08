@@ -1,3 +1,10 @@
+## [0.2066.1](https://github.com/lightdash/lightdash/compare/0.2066.0...0.2066.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* display base dimension name in proposed metric label ([#17307](https://github.com/lightdash/lightdash/issues/17307)) ([27ab80d](https://github.com/lightdash/lightdash/commit/27ab80d89a270e5e6607de8a19e5c468a4b271b5))
+
 # [0.2066.0](https://github.com/lightdash/lightdash/compare/0.2065.2...0.2066.0) (2025-10-08)
 
 
