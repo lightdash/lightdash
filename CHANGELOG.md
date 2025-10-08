@@ -1,3 +1,10 @@
+# [0.2067.0](https://github.com/lightdash/lightdash/compare/0.2066.1...0.2067.0) (2025-10-08)
+
+
+### Features
+
+* enhance AI agent learning and change proposal workflows with detailed guidelines ([#17326](https://github.com/lightdash/lightdash/issues/17326)) ([97b5887](https://github.com/lightdash/lightdash/commit/97b58875d1cdd5dd668104dbbf39040640570fef))
+
 ## [0.2066.1](https://github.com/lightdash/lightdash/compare/0.2066.0...0.2066.1) (2025-10-08)
 
 
