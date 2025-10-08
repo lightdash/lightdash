@@ -1,3 +1,10 @@
+## [0.2063.1](https://github.com/lightdash/lightdash/compare/0.2063.0...0.2063.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* fix project refresh token for snowflake ([#17298](https://github.com/lightdash/lightdash/issues/17298)) ([6f8aaa8](https://github.com/lightdash/lightdash/commit/6f8aaa803a00c6710b5b38f01271177cc21aee00))
+
 # [0.2063.0](https://github.com/lightdash/lightdash/compare/0.2062.0...0.2063.0) (2025-10-08)
 
 
