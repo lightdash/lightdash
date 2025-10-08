@@ -512,6 +512,7 @@ export const SEED_PROJECT = {
     dbt_connection_type: DbtProjectType.DBT,
     dbt_connection: null,
     copied_from_project_uuid: null,
+    organization_warehouse_credentials_uuid: null,
 };
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,
