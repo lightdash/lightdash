@@ -1,3 +1,10 @@
+# [0.2063.0](https://github.com/lightdash/lightdash/compare/0.2062.0...0.2063.0) (2025-10-08)
+
+
+### Features
+
+* expand HTML sanitization with additional tags and styling properties ([#17297](https://github.com/lightdash/lightdash/issues/17297)) ([73f1646](https://github.com/lightdash/lightdash/commit/73f164644b2594c8ef7ff8f550c9ee97a19cdb06))
+
 # [0.2062.0](https://github.com/lightdash/lightdash/compare/0.2061.4...0.2062.0) (2025-10-08)
 
 
