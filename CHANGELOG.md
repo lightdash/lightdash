@@ -1,3 +1,10 @@
+## [0.2065.2](https://github.com/lightdash/lightdash/compare/0.2065.1...0.2065.2) (2025-10-08)
+
+
+### Bug Fixes
+
+* only override requireuser credentials when merging config ([#17304](https://github.com/lightdash/lightdash/issues/17304)) ([58620af](https://github.com/lightdash/lightdash/commit/58620afad8a0318a9c5278e0c1bd90910987dd6d))
+
 ## [0.2065.1](https://github.com/lightdash/lightdash/compare/0.2065.0...0.2065.1) (2025-10-08)
 
 
