@@ -356,3 +356,8 @@ export const selectItemDetailModal = createSelector(
     [selectModals],
     (modals) => modals?.itemDetail ?? { isOpen: false },
 );
+
+export const selectFormatModal = createSelector(
+    [selectModals],
+    (modals) => modals?.format ?? { isOpen: false },
+);
