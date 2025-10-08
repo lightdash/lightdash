@@ -154,7 +154,3 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
-
-export type GetActiveChangesetFn = () => Promise<
-    ChangesetWithChanges | undefined
->;

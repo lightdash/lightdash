@@ -108,7 +108,6 @@ import {
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
-    GetActiveChangesetFn,
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -2108,11 +2107,6 @@ export class AiAgentService {
             );
         };
 
-        const getActiveChangeset: GetActiveChangesetFn = () =>
-            this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                projectUuid,
-            );
-
         const createChange: CreateChangeFn = async (params) => {
             const change = await this.changesetModel.createChange(projectUuid, {
                 createdByUserUuid: user.userUuid,
@@ -2140,7 +2134,6 @@ export class AiAgentService {
             storeToolCall,
             storeToolResults,
             searchFieldValues,
-            getActiveChangeset,
             createChange,
             getExploreCompiler,
         };
@@ -2218,7 +2211,6 @@ export class AiAgentService {
             searchFieldValues,
             getExploreCompiler,
             createChange,
-            getActiveChangeset,
         } = this.getAiAgentDependencies(user, prompt);
 
         const modelProperties = getModel(this.lightdashConfig.ai.copilot);
@@ -2268,7 +2260,6 @@ export class AiAgentService {
             storeToolResults,
             searchFieldValues,
             getExploreCompiler,
-            getActiveChangeset,
             createChange,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (

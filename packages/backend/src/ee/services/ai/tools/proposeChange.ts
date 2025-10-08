@@ -10,7 +10,6 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
-    GetActiveChangesetFn,
     GetExploreCompilerFn,
     GetExploreFn,
 } from '../types/aiAgentDependencies';
@@ -104,14 +103,12 @@ type GetProposeChangeArgs = {
     createChange: CreateChangeFn;
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
-    getActiveChangeset: GetActiveChangesetFn;
 };
 
 export const getProposeChange = ({
     createChange,
     getExplore,
     getExploreCompiler,
-    getActiveChangeset,
 }: GetProposeChangeArgs) =>
     tool({
         description: toolProposeChangeArgsSchema.description,
@@ -178,12 +175,10 @@ export const getProposeChange = ({
                     explore,
                     getExploreCompiler,
                 );
-                const changeset = await getActiveChangeset();
-                if (changeset) {
-                    validateChangesetApplyChange(translatedArgs, {
-                        [entityTableName]: explore,
-                    });
-                }
+
+                validateChangesetApplyChange(translatedArgs, {
+                    [entityTableName]: explore,
+                });
 
                 const changeUuid = await createChange(translatedArgs);
 
