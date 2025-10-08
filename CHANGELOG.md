@@ -1,3 +1,10 @@
+# [0.2069.0](https://github.com/lightdash/lightdash/compare/0.2068.1...0.2069.0) (2025-10-08)
+
+
+### Features
+
+* add no results retry prompt for AI visualization tools ([#17313](https://github.com/lightdash/lightdash/issues/17313)) ([7d37955](https://github.com/lightdash/lightdash/commit/7d37955b74a632c7e6bc6ef74831edc074287e24))
+
 ## [0.2068.1](https://github.com/lightdash/lightdash/compare/0.2068.0...0.2068.1) (2025-10-08)
 
 
