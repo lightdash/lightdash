@@ -1,3 +1,10 @@
+## [0.2067.1](https://github.com/lightdash/lightdash/compare/0.2067.0...0.2067.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* get correct breadcrumb & prompt list is scrollable ([#17310](https://github.com/lightdash/lightdash/issues/17310)) ([ffb3881](https://github.com/lightdash/lightdash/commit/ffb3881f2aee56cad7496e281482560b29f35d6e))
+
 # [0.2067.0](https://github.com/lightdash/lightdash/compare/0.2066.1...0.2067.0) (2025-10-08)
 
 
