@@ -27,10 +27,12 @@ import {
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
+    Explore,
     ExploreCompiler,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    isExploreError,
     isSlackPrompt,
     KnexPaginateArgs,
     LightdashUser,
@@ -43,6 +45,7 @@ import {
     toolDashboardArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    UserAttributeValueMap,
     type SessionUser,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -94,6 +97,10 @@ import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
+import {
+    doesExploreMatchRequiredAttributes,
+    getFilteredExplore,
+} from '../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
@@ -110,6 +117,7 @@ import {
     FindFieldFn,
     GetExploreFn,
     GetPromptFn,
+    ListExploresFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -1787,6 +1795,22 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
+        const listExplores: ListExploresFn = async () => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
+
+            return this.getAvailableExplores(
+                projectUuid,
+                agentSettings.tags,
+                userAttributes,
+            );
+        };
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
@@ -2141,6 +2165,7 @@ export class AiAgentService {
         };
 
         return {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -2216,6 +2241,7 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -2267,6 +2293,7 @@ export class AiAgentService {
         };
 
         const dependencies: AiAgentDependencies = {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -3308,36 +3335,73 @@ export class AiAgentService {
         return undefined;
     }
 
+    async getAvailableExplores(
+        projectUuid: string,
+        availableTags: string[] | null,
+        userAttributes: UserAttributeValueMap,
+    ) {
+        return wrapSentryTransaction(
+            'AiAgent.getAvailableExplores',
+            {
+                projectUuid,
+                availableTags,
+                userAttributes,
+            },
+            async () => {
+                const allExplores = Object.values(
+                    await this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                );
+
+                return allExplores
+                    .filter(
+                        (explore): explore is Explore =>
+                            !isExploreError(explore),
+                    )
+                    .filter((explore) =>
+                        doesExploreMatchRequiredAttributes(
+                            explore.tables[explore.baseTable]
+                                .requiredAttributes,
+                            userAttributes,
+                        ),
+                    )
+                    .map((explore) =>
+                        getFilteredExplore(explore, userAttributes),
+                    )
+                    .filter((explore) =>
+                        filterExploreByTags({ explore, availableTags }),
+                    )
+                    .filter((explore): explore is Explore => !!explore);
+            },
+        );
+    }
+
     public async getAgentExploreAccessSummary(
-        account: Account,
+        user: SessionUser,
         projectUuid: string,
         tags: string[] | null,
     ) {
-        const exploreSummaries =
-            await this.projectService.getAllExploresSummary(
-                account,
-                projectUuid,
-                true,
-                true,
-            );
+        const { organizationUuid } = user;
 
-        const allExplores = await Promise.all(
-            exploreSummaries.map((explore) =>
-                this.projectService.getExplore(
-                    account,
-                    projectUuid,
-                    explore.name,
-                ),
-            ),
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const availableExplores = await this.getAvailableExplores(
+            projectUuid,
+            tags,
+            userAttributes,
         );
 
-        const filteredExplores = allExplores
-            .map((explore) =>
-                filterExploreByTags({ availableTags: tags, explore }),
-            )
-            .filter((explore) => explore !== undefined);
-
-        const exploreAccessSummary = filteredExplores.map((explore) => ({
+        const exploreAccessSummary = availableExplores.map((explore) => ({
             exploreName: explore.label,
             joinedTables: explore.joinedTables.map(
                 (table) => explore.tables[table.table].label,
