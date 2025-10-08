@@ -6,6 +6,7 @@ import {
     isDimension,
     isField,
     isNumericItem,
+    isResultValue,
     itemsInMetricQuery,
     type AdditionalMetric,
     type CustomDimension,
@@ -41,6 +42,7 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { renderBarChartDisplay } from './barChartDisplay';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
@@ -60,12 +62,80 @@ export const formatCellContent = (data?: { value: ResultValue }) => {
     return data?.value.formatted ?? '-';
 };
 
+const isBarDisplay = (
+    info:
+        | CellContext<ResultRow, { value: ResultValue }>
+        | CellContext<RawResultRow, string>,
+) => {
+    const minMaxMap = (info.table as any).options.meta?.minMaxMap;
+    const columnProperties = (info.table as any).options.meta?.columnProperties;
+    const displayStyle = columnProperties?.[info.column.id]?.displayStyle;
+    return minMaxMap && displayStyle === 'bar';
+};
+
+const formatBarDisplayCell = (
+    info:
+        | CellContext<ResultRow, { value: ResultValue }>
+        | CellContext<RawResultRow, string>,
+) => {
+    const cellValue = info.getValue();
+    const columnId = info.column.id;
+
+    const minMaxMap = (info.table as any).options.meta?.minMaxMap;
+
+    let formatted, value: number;
+
+    if (isResultValue(cellValue)) {
+        // Parse value - numeric metrics may return strings from the database (e.g., "1" for count_distinct)
+        const rawValue = cellValue.value.raw;
+        value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+        formatted = cellValue.value.formatted;
+
+        // Only render bar if value is a valid number
+        if (Number.isNaN(value)) {
+            return formatCellContent(cellValue);
+        }
+    } else {
+        value = Number(cellValue);
+        formatted = formatRowValueFromWarehouse(cellValue);
+    }
+
+    // Get min/max from minMaxMap (same as conditional formatting)
+    const min = minMaxMap[columnId]?.min ?? 0;
+    const max = minMaxMap[columnId]?.max ?? 100;
+
+    return renderBarChartDisplay({
+        value,
+        formatted,
+        min,
+        max,
+    });
+};
+
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => formatCellContent(info.getValue());
+) => {
+    const cellValue = info.getValue();
+
+    try {
+        if (isBarDisplay(info)) return formatBarDisplayCell(info);
+    } catch (error) {
+        console.error(`Unable to format value for bar display cell ${error}`);
+    }
+
+    return formatCellContent(cellValue);
+};
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
+
+    try {
+        if (isBarDisplay(info)) return formatBarDisplayCell(info);
+    } catch (error) {
+        console.error(`Unable to get value for bar display cell ${error}`);
+    }
+
+    // Default text rendering
     const formatted = formatRowValueFromWarehouse(value);
     return <span>{formatted}</span>;
 };
