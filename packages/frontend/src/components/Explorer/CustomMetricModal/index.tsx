@@ -240,9 +240,7 @@ export const CustomMetricModal = () => {
                         ? { ...item, ...data }
                         : metric,
                 );
-                dispatch(
-                    explorerActions.setAdditionalMetrics(updatedMetrics),
-                );
+                dispatch(explorerActions.setAdditionalMetrics(updatedMetrics));
                 showToastSuccess({
                     title: 'Custom metric edited successfully',
                 });
