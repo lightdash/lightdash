@@ -1,3 +1,10 @@
+## [0.2064.1](https://github.com/lightdash/lightdash/compare/0.2064.0...0.2064.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* cancelling a chart edit should reset editing ([#17302](https://github.com/lightdash/lightdash/issues/17302)) ([42f9722](https://github.com/lightdash/lightdash/commit/42f972273c3ebc8cee7a15da05ab915e1724ebcd))
+
 # [0.2064.0](https://github.com/lightdash/lightdash/compare/0.2063.2...0.2064.0) (2025-10-08)
 
 
