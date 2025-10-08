@@ -1,5 +1,6 @@
 import {
     type AdditionalMetric,
+    type ChartConfig,
     type CustomDimension,
     type MetricQuery,
     type ParameterValue,
@@ -121,6 +122,11 @@ const explorerSlice = createSlice({
         },
         closeVisualizationConfig: (state) => {
             state.isVisualizationConfigOpen = false;
+        },
+
+        // Chart config
+        setChartConfig: (state, action: PayloadAction<ChartConfig>) => {
+            state.unsavedChartVersion.chartConfig = action.payload;
         },
 
         // Table calculations

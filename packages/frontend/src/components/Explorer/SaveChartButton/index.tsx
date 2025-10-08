@@ -12,15 +12,26 @@ import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
+        (context) => context.state.mergedUnsavedChartVersion,
     );
-    const hasUnsavedChanges = useExplorerContext(
-        (context) => context.state.hasUnsavedChanges,
-    );
+
+    // Get savedChart, comparison function, and isValidQuery from Context
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    const isUnsavedChartChanged = useExplorerContext(
+        (context) => context.actions.isUnsavedChartChanged,
+    );
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
+    );
     const spaceUuid = useSearchParams('fromSpace');
+
+    // For new charts, button is enabled when query is valid
+    // For existing charts, button is enabled when there are unsaved changes
+    const hasUnsavedChanges = savedChart
+        ? isUnsavedChartChanged(unsavedChartVersion)
+        : isValidQuery;
 
     const { missingRequiredParameters } = useExplorerQuery();
 

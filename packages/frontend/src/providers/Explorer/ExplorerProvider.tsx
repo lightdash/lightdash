@@ -15,6 +15,7 @@ import {
     updateFieldIdInFilters,
     type AdditionalMetric,
     type ChartConfig,
+    type CreateSavedChartVersion,
     type CustomDimension,
     type CustomFormat,
     type FieldId,
@@ -38,8 +39,10 @@ import {
 import { useNavigate } from 'react-router';
 import {
     explorerActions,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerInitialization,
+    useExplorerSelector,
 } from '../../features/explorer/store';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
@@ -756,6 +759,23 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
+    const unsavedChartVersionFromRedux = useExplorerSelector(
+        selectUnsavedChartVersion,
+    );
+
+    const mergedUnsavedChartVersion = useMemo(
+        () => ({
+            ...unsavedChartVersionFromRedux,
+            chartConfig: unsavedChartVersion.chartConfig,
+            pivotConfig: unsavedChartVersion.pivotConfig,
+        }),
+        [
+            unsavedChartVersionFromRedux,
+            unsavedChartVersion.chartConfig,
+            unsavedChartVersion.pivotConfig,
+        ],
+    );
+
     // Create initial state with isEditMode
     const initialStateWithEditMode = useMemo(
         () => ({
@@ -842,6 +862,7 @@ const ExplorerProvider: FC<
             ),
         );
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
+
     // END TRANSITIONAL SYNC CODE
 
     const [activeFields, isValidQuery] = useMemo<
@@ -1183,30 +1204,6 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const hasUnsavedChanges = useMemo<boolean>(() => {
-        if (savedChart) {
-            return !deepEqual(
-                removeEmptyProperties({
-                    tableName: savedChart.tableName,
-                    chartConfig: cleanConfig(savedChart.chartConfig),
-                    metricQuery: savedChart.metricQuery,
-                    tableConfig: savedChart.tableConfig,
-                    pivotConfig: savedChart.pivotConfig,
-                    parameters: savedChart.parameters,
-                }),
-                removeEmptyProperties({
-                    tableName: unsavedChartVersion.tableName,
-                    chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
-                    metricQuery: unsavedChartVersion.metricQuery,
-                    tableConfig: unsavedChartVersion.tableConfig,
-                    pivotConfig: unsavedChartVersion.pivotConfig,
-                    parameters: unsavedChartVersion.parameters,
-                }),
-            );
-        }
-        return isValidQuery;
-    }, [unsavedChartVersion, isValidQuery, savedChart]);
-
     const state = useMemo(
         () => ({
             // Don't use Redux state directly here to avoid re-renders
@@ -1214,16 +1211,17 @@ const ExplorerProvider: FC<
             isEditMode,
             activeFields,
             isValidQuery,
-            hasUnsavedChanges,
             savedChart,
+            // Provide merged version with Context chartConfig/pivotConfig + Redux fields for saving
+            mergedUnsavedChartVersion,
         }),
         [
             isEditMode,
             reducerState,
             activeFields,
             isValidQuery,
-            hasUnsavedChanges,
             savedChart,
+            mergedUnsavedChartVersion,
         ],
     );
 
@@ -1295,6 +1293,35 @@ const ExplorerProvider: FC<
         },
         [reduxDispatch],
     );
+
+    const isUnsavedChartChanged = useCallback(
+        (chartVersion: CreateSavedChartVersion) => {
+            if (savedChart) {
+                return !deepEqual(
+                    removeEmptyProperties({
+                        tableName: savedChart.tableName,
+                        chartConfig: cleanConfig(savedChart.chartConfig),
+                        metricQuery: savedChart.metricQuery,
+                        tableConfig: savedChart.tableConfig,
+                        pivotConfig: savedChart.pivotConfig,
+                        parameters: savedChart.parameters,
+                    }),
+                    removeEmptyProperties({
+                        tableName: chartVersion.tableName,
+                        chartConfig: cleanConfig(chartVersion.chartConfig),
+                        metricQuery: chartVersion.metricQuery,
+                        tableConfig: chartVersion.tableConfig,
+                        pivotConfig: chartVersion.pivotConfig,
+                        parameters: chartVersion.parameters,
+                    }),
+                );
+            }
+            // If there's no saved chart, return true if the query is valid (allows saving new charts)
+            return isValidQuery;
+        },
+        [savedChart, isValidQuery],
+    );
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1328,6 +1355,7 @@ const ExplorerProvider: FC<
             openVisualizationConfig,
             closeVisualizationConfig,
             setParameterReferences,
+            isUnsavedChartChanged,
         }),
         [
             clearExplore,
@@ -1361,6 +1389,7 @@ const ExplorerProvider: FC<
             openVisualizationConfig,
             closeVisualizationConfig,
             setParameterReferences,
+            isUnsavedChartChanged,
         ],
     );
 
