@@ -4,40 +4,23 @@ import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_IMPROVE_CONTEXT_DESCRIPTION = `
+Captures learnings from user corrections, clarifications, and guidance to improve future responses.
 
-  - **When to use the Improve Context Tool:**
-    - User guides table/explore selection: "You can use the main_table for summary queries - you don't need the detailed table"
-    - User shares business methodology: "Generally we use higher-level categories to have fewer groupings"
-    - User clarifies where to find data: "Use the dimension table to get category details"
-    - User corrects field usage: "Filter by order_number not order_id"
-    - User corrects terminology: "Actually, 'total revenue' means revenue_after_tax"
-    - User provides better formatting/structure: "I'd structure the examples like this: Category: X, Feedback: Y"
-    - User clarifies business rules: "Customer count should exclude test accounts"
-    - Your confidence this is a learnable correction (not just a new request) is above 0.7
+**Supported Learning Categories:**
+- explore_selection: Which tables/explores to use for specific types of queries
+- field_selection: Which fields to use for specific metrics or dimensions
+- filter_logic: How to apply filters for calculations
+- calculation: How to perform specific calculations or aggregations
+- other: General preferences, formatting, or methodologies
 
- - **Learning Categories and Examples:**
-
-    Category: explore_selection
-    Feedback: "Use the sales_data explore instead of the orders table for revenue analysis"
-    Generated instruction: "For revenue analysis queries, use the sales_data explore instead of the orders table"
-
-    Category: field_selection
-    Feedback1: "No, use net_revenue instead of gross_revenue"
-    Generated instruction1: "When users ask for revenue, use the net_revenue field instead of gross_revenue"
-    Feedback2: "Actually, 'total revenue' should always refer to the revenue_after_tax field"
-    Generated instruction2: "When users mention 'total revenue', they mean the revenue_after_tax field"
-
-    Category: filter_logic
-    Feedback: "The customer_count should exclude test accounts"
-    Generated instruction: "When calculating customer_count, always exclude test accounts using the filter is_test_account = false"
-
-    Category: other
-    Feedback1: "Always show results in descending order by default"
-    Generated instruction1: "When showing metric results, default to descending order unless explicitly requested otherwise"
-    Feedback2: "We prefer to analyze by region rather than individual store locations"
-    Generated instruction2: "When analyzing geographic data, use region-level aggregations instead of individual store locations"
-
- `;
+**Technical Requirements:**
+- Must provide original query context that led to the learning
+- Must capture what was incorrect and what the correct approach is
+- Must categorize the learning into one of the supported categories
+- Must provide a confidence score (0-1) indicating if this is a learnable pattern
+- Must generate a clear, actionable instruction to append to agent settings
+- Instructions should be specific and context-aware (not overly generic)
+`;
 
 export const toolImproveContextArgsSchema = createToolSchema(
     AiResultType.IMPROVE_CONTEXT,
