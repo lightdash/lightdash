@@ -268,10 +268,9 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         return newCredentials;
     }
 
-    // Merge credentials, with newCredentials taking precedence for connection details
-    // but baseCredentials providing advanced settings like requireUserCredentials
+    // We will use new credentials for connection, this might contain new authentication method
+    // do not include all baseCredentials here, to avoid conflicts on authentication (that will cause a mix of serviceaccounts/sso/passwords)
     const merged = {
-        ...baseCredentials,
         ...newCredentials,
         // Keep requireUserCredentials from base credentials, since this is a security setting and should not be overridden
         requireUserCredentials: baseCredentials.requireUserCredentials,
