@@ -80,7 +80,7 @@ const CreateMetric = ({ change }: CreateMetricProps) => {
                 {metric.label}
             </Text>
             <Text size="xs" fw={600} c="dimmed">
-                ({friendlyName(metric.type)})
+                ({friendlyName(metric.type)} of {metric.baseDimensionName})
             </Text>
         </Paper>
     );
