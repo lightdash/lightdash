@@ -89,6 +89,36 @@ describe('Dashboard', () => {
         cy.url().should('not.include', '?');
     });
 
+    it('views underlying data with dimensions and metrics', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+
+        // wait for the dashboard to load
+        cy.findByText('Loading dashboards').should('not.exist');
+
+        cy.contains('a', 'Jaffle dashboard').click();
+
+        cy.get('.react-grid-layout').within(() => {
+            cy.findByText("What's our total revenue to date?");
+        });
+
+        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+
+        cy.contains('855').click();
+        cy.contains('View underlying data').click();
+
+        cy.get('section[role="dialog"]').within(() => {
+            // Metrics
+            cy.contains('Payments Unique payment count');
+            cy.contains('Orders Average order size');
+            cy.contains('Customers Date of most recent created customer');
+
+            // Dimensions
+            cy.contains('Orders Status');
+            cy.contains('Orders Order date');
+            cy.contains('Payments Amount');
+        });
+    });
+
     it('Should create dashboard with saved chart + charts within dashboard + filters + tile targets', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
