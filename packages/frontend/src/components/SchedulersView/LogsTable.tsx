@@ -607,7 +607,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 500px)' },
+            style: { maxHeight: 'calc(100dvh - 420px)' },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },

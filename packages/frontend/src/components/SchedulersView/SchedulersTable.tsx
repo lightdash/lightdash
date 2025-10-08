@@ -592,7 +592,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: '600px' },
+            style: { maxHeight: 'calc(100dvh - 420px)' },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },

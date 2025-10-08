@@ -9,6 +9,19 @@ import { ChartType, type CartesianChartConfig } from '../types/savedCharts';
 
 // Items (fields) map derived from issue description
 export const mockItems: ItemsMap = {
+    customers_customer_id: {
+        sql: '${TABLE}.customer_id',
+        name: 'customer_id',
+        type: DimensionType.STRING,
+        index: 1,
+        label: 'Customer ID',
+        table: 'customers',
+        groups: [],
+        hidden: false,
+        fieldType: FieldType.DIMENSION,
+        tableLabel: 'Customers',
+        description: 'Unique identifier for each customer',
+    },
     payments_payment_method: {
         sql: '${TABLE}.payment_method',
         name: 'payment_method',
@@ -60,6 +73,27 @@ export const mockItems: ItemsMap = {
 export const mockMetricQuery: MetricQuery = {
     exploreName: 'payments',
     dimensions: ['payments_payment_method', 'orders_status'],
+    metrics: ['payments_total_revenue'],
+    filters: {},
+    sorts: [
+        {
+            fieldId: 'payments_payment_method',
+            descending: false,
+        },
+    ],
+    limit: 500,
+    tableCalculations: [],
+    additionalMetrics: [],
+    metricOverrides: {},
+};
+
+export const mockMetricQueryWithMultipleIndexColumns: MetricQuery = {
+    exploreName: 'payments',
+    dimensions: [
+        'payments_payment_method',
+        'orders_status',
+        'customers_customer_id',
+    ],
     metrics: ['payments_total_revenue'],
     filters: {},
     sorts: [

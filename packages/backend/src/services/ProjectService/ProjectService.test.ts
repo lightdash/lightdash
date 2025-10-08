@@ -22,6 +22,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -149,6 +150,8 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
+        organizationWarehouseCredentialsModel:
+            {} as unknown as OrganizationWarehouseCredentialsModel,
     });
 
 const account = buildAccount({

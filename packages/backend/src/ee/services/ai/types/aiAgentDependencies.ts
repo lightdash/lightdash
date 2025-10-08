@@ -9,6 +9,7 @@ import {
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    ChangesetWithChanges,
     CreateChangeParams,
     DashboardSearchResult,
     Explore,

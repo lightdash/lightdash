@@ -2209,8 +2209,8 @@ export class AiAgentService {
             storeToolCall,
             storeToolResults,
             searchFieldValues,
-            createChange,
             getExploreCompiler,
+            createChange,
         } = this.getAiAgentDependencies(user, prompt);
 
         const modelProperties = getModel(this.lightdashConfig.ai.copilot);
@@ -2260,6 +2260,7 @@ export class AiAgentService {
             storeToolResults,
             searchFieldValues,
             getExploreCompiler,
+            createChange,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -2270,8 +2271,6 @@ export class AiAgentService {
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
-
-            createChange,
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

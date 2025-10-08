@@ -200,6 +200,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -270,6 +271,7 @@ export type ProjectServiceArguments = {
     userModel: UserModel;
     featureFlagModel: FeatureFlagModel;
     projectParametersModel: ProjectParametersModel;
+    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 };
 
 export class ProjectService extends BaseService {
@@ -329,6 +331,8 @@ export class ProjectService extends BaseService {
 
     projectParametersModel: ProjectParametersModel;
 
+    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -357,6 +361,7 @@ export class ProjectService extends BaseService {
         userModel,
         featureFlagModel,
         projectParametersModel,
+        organizationWarehouseCredentialsModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -387,6 +392,8 @@ export class ProjectService extends BaseService {
         this.userModel = userModel;
         this.featureFlagModel = featureFlagModel;
         this.projectParametersModel = projectParametersModel;
+        this.organizationWarehouseCredentialsModel =
+            organizationWarehouseCredentialsModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -642,6 +649,10 @@ export class ProjectService extends BaseService {
     This method is used to refresh the credentials for the warehouse client
     This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
     Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
+
+    If organizationWarehouseCredentialsUuid is provided, this means the project is using organization-level
+    credentials and the refresh token is already stored in the credentials (fetched from the org credentials table).
+    Otherwise, fetch the refresh token from the user's OpenID table.
     */
     private async refreshCredentials<T extends CreateWarehouseCredentials>(
         args: T,
@@ -664,9 +675,14 @@ export class ProjectService extends BaseService {
                         OpenIdIdentityIssuerType.SNOWFLAKE,
                     );
                 }
-
+                // If we still don't have a token, we can't refresh
+                if (!refreshToken) {
+                    throw new Error(
+                        'No refresh token available for Snowflake SSO authentication',
+                    );
+                }
                 // Token format validation
-                if (refreshToken?.startsWith('ver:1-hint')) {
+                if (refreshToken.startsWith('ver:1-hint')) {
                     // This is an invalid refresh token format,
                     // we are using `access token` as refresh token (refresh token starts with ver:2-hint)
                     // Review the calls to this method and ensure we pass {token: refreshToken} instead
@@ -680,6 +696,7 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
+
                 const accessToken =
                     await UserService.generateSnowflakeAccessToken(
                         refreshToken,
@@ -717,10 +734,63 @@ export class ProjectService extends BaseService {
     This method is used when the user is creating a project
     This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
     In here, we will load on runtime SSH credentials or refresh tokens for SSO
+
+    If organizationWarehouseCredentialsUuid is provided, load the credentials from the organization
+    credentials table instead of using the inline warehouseConnection.
     */
     private async _resolveWarehouseClientCredentials<
-        T extends { warehouseConnection: CreateWarehouseCredentials },
+        T extends {
+            warehouseConnection: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
     >(args: T, userUuid: string): Promise<T> {
+        // If using organization credentials, load them from the organization table
+        const organizationWarehouseCredentialsUuid =
+            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
+                ? args.organizationWarehouseCredentialsUuid ||
+                  args.warehouseConnection.organizationWarehouseCredentialsUuid
+                : undefined;
+
+        if (organizationWarehouseCredentialsUuid) {
+            this.logger.debug(
+                `Resolving organization warehouse credentials with uuid ${organizationWarehouseCredentialsUuid}`,
+            );
+
+            const { credentials: orgCredentials } =
+                await this.organizationWarehouseCredentialsModel.getByUuid(
+                    organizationWarehouseCredentialsUuid,
+                    true, // withSensitiveData
+                );
+
+            if (orgCredentials.type !== WarehouseTypes.SNOWFLAKE) {
+                throw new UnexpectedServerError(
+                    'Organization warehouse credentials are not compatible with Snowflake SSO authentication',
+                );
+            }
+            // Replace the warehouseConnection with the organization credentials
+            // The organizationWarehouseCredentialsUuid will be stored in the projects table
+            // but we don't store duplicate credentials in warehouse_credentials table
+            const mergedWarehouseConnection = {
+                ...args.warehouseConnection,
+                ...orgCredentials,
+            } as CreateSnowflakeCredentials;
+            this.logger.debug(
+                `Refreshing snowflake warehouse credentials from organization credentials uuid: ${organizationWarehouseCredentialsUuid}`,
+            );
+            const credentials = await this.refreshCredentials(
+                mergedWarehouseConnection,
+                userUuid,
+            );
+
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...mergedWarehouseConnection,
+                    ...credentials,
+                },
+            };
+        }
+
         if (
             (args.warehouseConnection.type === WarehouseTypes.REDSHIFT ||
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
@@ -771,13 +841,17 @@ export class ProjectService extends BaseService {
 
         if (
             args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
-            args.warehouseConnection.authenticationType === 'sso'
+            args.warehouseConnection.authenticationType === 'sso' &&
+            !organizationWarehouseCredentialsUuid
         ) {
             const refreshToken = await this.userModel.getRefreshToken(
                 userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
             // Validate refresh token and generate new access token
+            this.logger.debug(
+                `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
+            );
             const credentials = await this.refreshCredentials(
                 { ...args.warehouseConnection, token: refreshToken },
                 userUuid,
@@ -811,12 +885,32 @@ export class ProjectService extends BaseService {
         userId: string;
         isRegisteredUser: boolean;
     }) {
-        let credentials =
+        // First, check if project uses organization-level credentials
+        const project = await this.projectModel.get(projectUuid);
+        const { organizationWarehouseCredentialsUuid } = project;
+
+        // Load base credentials from either organization or project table
+        let credentials: CreateWarehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
 
+        if (
+            organizationWarehouseCredentialsUuid &&
+            !credentials.requireUserCredentials
+        ) {
+            this.logger.debug(
+                `Refreshing warehouse credentials from organization credentials`,
+            );
+            credentials = await this.refreshCredentials(
+                credentials, // This credentials are already loaded from organization
+                userId,
+            );
+        }
+
+        // If requireUserCredentials is true, we need to override the existing credentials with the user credentials
+        // even if we use organization credentials
         if (credentials.requireUserCredentials) {
             if (!isRegisteredUser) {
                 throw new ForbiddenError(
@@ -846,10 +940,16 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+            this.logger.debug(
+                `Refreshing warehouse credentials for user ${userId} with requireUserCredentials`,
+            );
             credentials = await this.refreshCredentials(credentials, userId);
 
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
-        } else if (isRegisteredUser) {
+        } else if (isRegisteredUser && !organizationWarehouseCredentialsUuid) {
+            this.logger.debug(
+                `Refreshing warehouse credentials for session user ${userId}`,
+            );
             credentials = await this.refreshCredentials(credentials, userId);
         }
 
@@ -1057,6 +1157,7 @@ export class ProjectService extends BaseService {
                       user.userUuid,
                   )
                 : newProjectData;
+
         const projectUuid =
             await this.projectModel.createWithOptionalCredentials(
                 user.userUuid,
@@ -1715,6 +1816,21 @@ export class ProjectService extends BaseService {
         }
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
+
+        if (
+            project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            project.warehouseConnection.authenticationType === 'sso' &&
+            project.warehouseConnection.refreshToken
+        ) {
+            this.logger.debug(
+                `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
+            );
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                project.warehouseConnection.refreshToken,
+            );
+            project.warehouseConnection.token = accessToken;
+        }
+
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
 

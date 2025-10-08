@@ -340,6 +340,8 @@ export const CreateMetricChurnRate: Story = {
                         name: 'churn_rate',
                         type: MetricType.AVERAGE,
                         label: 'Churn Rate (No Orders in Last 1 Month)',
+                        description:
+                            'Churn rate is the percentage of customers who stop ordering in the last 30 days.',
                         table: 'customers',
                         baseDimensionName: 'customer_id',
                     },
@@ -364,6 +366,8 @@ export const CreateMetricTotalRevenue: Story = {
                         name: 'total_revenue',
                         type: MetricType.SUM,
                         label: 'Total Revenue',
+                        description:
+                            'Total revenue from all orders, including taxes and discounts.',
                         table: 'orders',
                         baseDimensionName: 'order_total',
                     },
@@ -388,6 +392,8 @@ export const CreateMetricCustomerCount: Story = {
                         name: 'customer_count',
                         type: MetricType.COUNT,
                         label: 'Total Customers',
+                        description:
+                            'Total number of customers in the database.',
                         table: 'customers',
                         baseDimensionName: 'customer_id',
                     },
@@ -412,6 +418,8 @@ export const CreateMetricAverageOrderValue: Story = {
                         name: 'average_order_value',
                         type: MetricType.AVERAGE,
                         label: 'Average Order Value',
+                        description:
+                            'Average order value from all orders, including taxes and discounts.',
                         table: 'orders',
                         baseDimensionName: 'order_total',
                     },

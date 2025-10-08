@@ -1,3 +1,53 @@
+## [0.2068.1](https://github.com/lightdash/lightdash/compare/0.2068.0...0.2068.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* include non grouped dimensions in index ([#17263](https://github.com/lightdash/lightdash/issues/17263)) ([64b45da](https://github.com/lightdash/lightdash/commit/64b45da9ea84464b99d8e107164ad3a3b7ec6c7f))
+
+# [0.2068.0](https://github.com/lightdash/lightdash/compare/0.2067.2...0.2068.0) (2025-10-08)
+
+
+### Features
+
+* add description field to custom metric schema ([#17244](https://github.com/lightdash/lightdash/issues/17244)) ([de87986](https://github.com/lightdash/lightdash/commit/de87986c61cd17a02059bc4dede846a0a536ad51))
+* validate changes against active changeset in proposeChange tool ([#17245](https://github.com/lightdash/lightdash/issues/17245)) ([0cadf2c](https://github.com/lightdash/lightdash/commit/0cadf2cbe1c23da789b683c827c7cd9fe0643d67))
+
+## [0.2067.2](https://github.com/lightdash/lightdash/compare/0.2067.1...0.2067.2) (2025-10-08)
+
+
+### Bug Fixes
+
+* claude sonnet default name fix ([#17324](https://github.com/lightdash/lightdash/issues/17324)) ([51c7f7b](https://github.com/lightdash/lightdash/commit/51c7f7b3c0751801e97743dc089949f38f87b88b))
+
+## [0.2067.1](https://github.com/lightdash/lightdash/compare/0.2067.0...0.2067.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* get correct breadcrumb & prompt list is scrollable ([#17310](https://github.com/lightdash/lightdash/issues/17310)) ([ffb3881](https://github.com/lightdash/lightdash/commit/ffb3881f2aee56cad7496e281482560b29f35d6e))
+
+# [0.2067.0](https://github.com/lightdash/lightdash/compare/0.2066.1...0.2067.0) (2025-10-08)
+
+
+### Features
+
+* enhance AI agent learning and change proposal workflows with detailed guidelines ([#17326](https://github.com/lightdash/lightdash/issues/17326)) ([97b5887](https://github.com/lightdash/lightdash/commit/97b58875d1cdd5dd668104dbbf39040640570fef))
+
+## [0.2066.1](https://github.com/lightdash/lightdash/compare/0.2066.0...0.2066.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* display base dimension name in proposed metric label ([#17307](https://github.com/lightdash/lightdash/issues/17307)) ([27ab80d](https://github.com/lightdash/lightdash/commit/27ab80d89a270e5e6607de8a19e5c468a4b271b5))
+
+# [0.2066.0](https://github.com/lightdash/lightdash/compare/0.2065.2...0.2066.0) (2025-10-08)
+
+
+### Features
+
+* organization warehouse credentials form for snowflake ([#17223](https://github.com/lightdash/lightdash/issues/17223)) ([6bd8a69](https://github.com/lightdash/lightdash/commit/6bd8a694d88165c7b24c1a6abbf22e2139c9ac21))
+
 ## [0.2065.2](https://github.com/lightdash/lightdash/compare/0.2065.1...0.2065.2) (2025-10-08)
 
 
