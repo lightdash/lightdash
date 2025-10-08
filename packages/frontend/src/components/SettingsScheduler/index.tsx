@@ -1,5 +1,5 @@
 import { getErrorMessage, isApiError } from '@lightdash/common';
-import { LoadingOverlay, Stack, Title } from '@mantine/core';
+import { Card, Group, LoadingOverlay, Title } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import type { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -8,8 +8,7 @@ import {
     useProjectUpdateSchedulerSettings,
 } from '../../hooks/useProject';
 import SchedulersView from '../SchedulersView';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
-import SchedulerSettingsForm from './schedulerSettingsForm';
+import { SchedulerSettingsForm } from './SchedulerSettingsForm';
 import { type schedulerSettingsSchema } from './types';
 
 type SettingsSchedulerProps = {
@@ -52,17 +51,18 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
     return (
         <>
             <LoadingOverlay visible={isLoadingProject} />
-            <SettingsGridCard>
-                <Stack spacing="sm">
-                    <Title order={4}>Scheduled deliveries settings</Title>
-                </Stack>
+            <Card>
+                <Group justify="space-between">
+                    <Title order={4}>Settings</Title>
 
-                <SchedulerSettingsForm
-                    isLoading={false}
-                    project={project}
-                    onSubmit={handleSubmit}
-                />
-            </SettingsGridCard>
+                    <SchedulerSettingsForm
+                        isLoading={false}
+                        project={project}
+                        onSubmit={handleSubmit}
+                    />
+                </Group>
+            </Card>
+
             <SchedulersView projectUuid={projectUuid} />
         </>
     );

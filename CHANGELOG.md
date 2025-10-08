@@ -1,3 +1,24 @@
+# [0.2064.0](https://github.com/lightdash/lightdash/compare/0.2063.2...0.2064.0) (2025-10-08)
+
+
+### Features
+
+* improve schedulers table&logs ux ([#17260](https://github.com/lightdash/lightdash/issues/17260)) ([14683ae](https://github.com/lightdash/lightdash/commit/14683ae92d7a6a39b6f2881c8eda4cc5fa3db86b))
+
+## [0.2063.2](https://github.com/lightdash/lightdash/compare/0.2063.1...0.2063.2) (2025-10-08)
+
+
+### Bug Fixes
+
+* move artifact creation after error handling in dashboard generation ([#17293](https://github.com/lightdash/lightdash/issues/17293)) ([24e81dc](https://github.com/lightdash/lightdash/commit/24e81dc3af7af0281ae159049a77ff277a63a7b2))
+
+## [0.2063.1](https://github.com/lightdash/lightdash/compare/0.2063.0...0.2063.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* fix project refresh token for snowflake ([#17298](https://github.com/lightdash/lightdash/issues/17298)) ([6f8aaa8](https://github.com/lightdash/lightdash/commit/6f8aaa803a00c6710b5b38f01271177cc21aee00))
+
 # [0.2063.0](https://github.com/lightdash/lightdash/compare/0.2062.0...0.2063.0) (2025-10-08)
 
 

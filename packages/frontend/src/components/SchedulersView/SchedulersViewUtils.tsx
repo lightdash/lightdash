@@ -4,7 +4,7 @@ import {
     SchedulerJobStatus,
     type SchedulerWithLogs,
 } from '@lightdash/common';
-import { Tooltip, type MantineTheme } from '@mantine/core';
+import { Tooltip, type MantineTheme } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -33,32 +33,14 @@ export type SchedulerColumnName =
     | 'deliveryStarted'
     | 'status';
 
-export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
+export const getSchedulerIcon = (item: SchedulerItem) => {
     switch (item.format) {
         case SchedulerFormat.CSV:
-            return (
-                <IconBox
-                    icon={IconCsv}
-                    color="indigo.6"
-                    style={{ color: theme.colors.indigo[6] }}
-                />
-            );
+            return <IconBox icon={IconCsv} color="indigo.6" />;
         case SchedulerFormat.XLSX:
-            return (
-                <IconBox
-                    icon={IconFileTypeXls}
-                    color="indigo.6"
-                    style={{ color: theme.colors.indigo[6] }}
-                />
-            );
+            return <IconBox icon={IconFileTypeXls} color="indigo.6" />;
         case SchedulerFormat.IMAGE:
-            return (
-                <IconBox
-                    icon={IconPhoto}
-                    color="indigo.6"
-                    style={{ color: theme.colors.indigo[6] }}
-                />
-            );
+            return <IconBox icon={IconPhoto} color="indigo.6" />;
         case SchedulerFormat.GSHEETS:
             return <IconBox icon={GSheetsIconFilled} color="green" />;
         default:
@@ -133,3 +115,12 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 
 export const formatTime = (date: Date) =>
     dayjs(date).format('YYYY/MM/DD hh:mm A');
+
+export const formatTaskName = (task: string): string => {
+    // Convert camelCase to Title Case with spaces
+    // e.g., "sendSlackNotification" → "Send Slack Notification"
+    return task
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim();
+};

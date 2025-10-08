@@ -1,0 +1,16 @@
+.segmentedControl {
+    border: 1px solid var(--mantine-color-gray-3);
+    background: var(--mantine-color-white);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.indicator {
+    background: var(--mantine-color-indigo-0);
+    border: 1px solid var(--mantine-color-indigo-2);
+}
+
+.label {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-gray-7);
+}

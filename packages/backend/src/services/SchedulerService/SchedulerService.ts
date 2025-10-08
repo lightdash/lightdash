@@ -26,6 +26,7 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerWithLogs,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
     type Account,
@@ -242,6 +243,13 @@ export class SchedulerService extends BaseService {
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
         sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            createdByUserUuids?: string[];
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        },
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -265,6 +273,7 @@ export class SchedulerService extends BaseService {
             paginateArgs,
             searchQuery,
             sort,
+            filters,
         });
     }
 
@@ -479,7 +488,17 @@ export class SchedulerService extends BaseService {
         return job;
     }
 
-    async getSchedulerLogs(user: SessionUser, projectUuid: string) {
+    async getSchedulerLogs(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        filters?: {
+            statuses?: SchedulerJobStatus[];
+            createdByUserUuids?: string[];
+            destinations?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerWithLogs>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         // Only allow editors to view scheduler logs
         if (
@@ -494,9 +513,12 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const schedulerLogs = await this.schedulerModel.getSchedulerLogs(
+        const schedulerLogs = await this.schedulerModel.getSchedulerLogs({
             projectUuid,
-        );
+            paginateArgs,
+            searchQuery,
+            filters,
+        });
 
         this.analytics.track({
             userId: user.userUuid,
@@ -504,7 +526,7 @@ export class SchedulerService extends BaseService {
             properties: {
                 projectId: projectUuid,
                 organizationId: user.organizationUuid,
-                numScheduledDeliveries: schedulerLogs.schedulers.length,
+                numScheduledDeliveries: schedulerLogs.data.schedulers.length,
             },
         });
         return schedulerLogs;

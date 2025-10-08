@@ -66,14 +66,16 @@ export const getGenerateBarVizConfig = ({
 
                 const prompt = await getPrompt();
 
-                await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'chart',
-                    title: toolArgs.title,
-                    description: toolArgs.description,
-                    vizConfig: toolArgs,
-                });
+                const createOrUpdateArtifactHook = () =>
+                    createOrUpdateArtifact({
+                        threadUuid: prompt.threadUuid,
+                        promptUuid: prompt.promptUuid,
+                        artifactType: 'chart',
+                        title: toolArgs.title,
+                        description: toolArgs.description,
+                        vizConfig: toolArgs,
+                    });
+
                 const selfImprovementResultFollowUp =
                     enableSelfImprovement &&
                     vizTool.customMetrics &&
@@ -82,6 +84,8 @@ export const getGenerateBarVizConfig = ({
                         : '';
 
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    await createOrUpdateArtifactHook();
+
                     return {
                         result: `Success`,
                         metadata: {
@@ -104,6 +108,8 @@ export const getGenerateBarVizConfig = ({
                     maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
+
+                await createOrUpdateArtifactHook();
 
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderVerticalBarViz({

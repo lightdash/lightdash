@@ -1,25 +1,40 @@
-import { ActionIcon, Group, Stack, Tabs, Title, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Card,
+    Group,
+    Stack,
+    Tabs,
+    Title,
+    Tooltip,
+} from '@mantine-8/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 import { useSchedulerLogs } from '../../features/scheduler/hooks/useScheduler';
-import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
 import useToaster from '../../hooks/toaster/useToaster';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
-import { SettingsCard } from '../common/Settings/SettingsCard';
-import Logs from './LogsView';
-import Schedulers from './SchedulersView';
+import LogsTable from './LogsTable';
+import SchedulersTable from './SchedulersTable';
+import classes from './SchedulersView.module.css';
 
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const { data, isInitialLoading } = useSchedulerLogs(projectUuid);
-    const tableTabStyles = useTableTabStyles();
+    const { data, isInitialLoading } = useSchedulerLogs({
+        projectUuid,
+        paginateArgs: { page: 1, pageSize: 1 },
+    });
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
 
+    // Extract data from paginated response
+    const schedulersData = data?.pages?.[0]?.data;
+
     const handleRefresh = async () => {
-        await queryClient.invalidateQueries(['schedulerLogs']);
+        await Promise.all([
+            queryClient.invalidateQueries(['schedulerLogs']),
+            queryClient.invalidateQueries(['paginatedSchedulers']),
+        ]);
 
         showToastSuccess({
             title: 'Scheduled deliveries refreshed successfully',
@@ -30,70 +45,63 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         return <LoadingState title="Loading scheduled deliveries" />;
     }
     return (
-        <Stack spacing="sm">
-            <Group spacing="xs" align="center" pr="md">
-                <Title order={5}>Scheduled Deliveries</Title>
-                <Tooltip label="Click to refresh the status of the scheduled deliveries">
-                    <ActionIcon onClick={handleRefresh}>
-                        <MantineIcon
-                            icon={IconRefresh}
-                            size="lg"
-                            color="gray.6"
-                            stroke={2}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
+        <Card>
+            <Stack gap="sm">
+                <Tabs
+                    keepMounted={false}
+                    defaultValue="scheduled-deliveries"
+                    variant="pills"
+                    classNames={{
+                        list: classes.tabsList,
+                        tab: classes.tab,
+                        tabSection: classes.tabSection,
+                        panel: classes.panel,
+                    }}
+                >
+                    <Group
+                        gap="xs"
+                        align="center"
+                        justify="space-between"
+                        className={classes.header}
+                    >
+                        <Title order={5}>Scheduled Deliveries</Title>
+                        <Tooltip label="Click to refresh the status of the scheduled deliveries">
+                            <ActionIcon
+                                onClick={handleRefresh}
+                                variant="subtle"
+                                size="xs"
+                            >
+                                <MantineIcon
+                                    icon={IconRefresh}
+                                    color="gray.6"
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
+                    <Tabs.List>
+                        <Tabs.Tab
+                            value="scheduled-deliveries"
+                            leftSection={<MantineIcon icon={IconSend} />}
+                        >
+                            All schedulers
+                        </Tabs.Tab>
+                        <Tabs.Tab
+                            value="run-history"
+                            leftSection={<MantineIcon icon={IconClock} />}
+                        >
+                            Run history
+                        </Tabs.Tab>
+                    </Tabs.List>
 
-            <Tabs
-                classNames={tableTabStyles.classes}
-                keepMounted={false}
-                defaultValue="scheduled-deliveries"
-            >
-                <Tabs.List>
-                    <Tabs.Tab
-                        value="scheduled-deliveries"
-                        icon={
-                            <MantineIcon
-                                icon={IconSend}
-                                size="md"
-                                color="gray.7"
-                            />
-                        }
-                    >
-                        All schedulers
-                    </Tabs.Tab>
-                    <Tabs.Tab
-                        value="run-history"
-                        icon={
-                            <MantineIcon
-                                icon={IconClock}
-                                size="md"
-                                color="gray.7"
-                            />
-                        }
-                    >
-                        Run history
-                    </Tabs.Tab>
-                </Tabs.List>
-                <Tabs.Panel value="scheduled-deliveries">
-                    <SettingsCard
-                        style={{ overflow: 'visible' }}
-                        p={0}
-                        shadow="none"
-                    >
-                        <Schedulers projectUuid={projectUuid} />
-                    </SettingsCard>
-                </Tabs.Panel>
-                <Tabs.Panel value="run-history">
-                    <SettingsCard
-                        style={{ overflow: 'visible' }}
-                        p={0}
-                        shadow="none"
-                    >
-                        {data && data.schedulers.length > 0 ? (
-                            data.logs.length > 0 ? (
-                                <Logs {...data} projectUuid={projectUuid} />
+                    <Tabs.Panel value="scheduled-deliveries">
+                        <SchedulersTable projectUuid={projectUuid} />
+                    </Tabs.Panel>
+                    <Tabs.Panel value="run-history">
+                        {schedulersData &&
+                        schedulersData.schedulers.length > 0 ? (
+                            schedulersData.logs.length > 0 ? (
+                                <LogsTable projectUuid={projectUuid} />
                             ) : (
                                 <ResourceEmptyState
                                     title="Scheduled deliveries have not run any jobs as of now"
@@ -106,10 +114,10 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 description="Go to a chart or dashboard to set up your first scheduled delivery"
                             />
                         )}
-                    </SettingsCard>
-                </Tabs.Panel>
-            </Tabs>
-        </Stack>
+                    </Tabs.Panel>
+                </Tabs>
+            </Stack>
+        </Card>
     );
 };
 
