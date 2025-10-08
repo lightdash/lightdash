@@ -1,6 +1,5 @@
 import {
     AiArtifactTSOACompat,
-    ApiAiAgentArtifactResponse,
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -490,7 +489,7 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentService().getAgentExploreAccessSummary(
-                    req.account!,
+                    req.user!,
                     projectUuid,
                     body.tags,
                 ),
