@@ -165,20 +165,19 @@ export const CustomBinDimensionModal: FC<{
 
             if (isEditing && isCustomDimension(item)) {
                 // Edit by updating the entire array
+                const updatedDimension: CustomBinDimension = {
+                    id: item.id,
+                    name: values.customDimensionLabel,
+                    type: CustomDimensionType.BIN,
+                    dimensionId: item.dimensionId,
+                    binType: values.binType,
+                    binNumber: values.binConfig.fixedNumber.binNumber,
+                    binWidth: values.binConfig.fixedWidth.binWidth,
+                    table: item.table,
+                    customRange: values.binConfig.customRange,
+                };
                 const updatedDimensions = (customDimensions ?? []).map((dim) =>
-                    dim.id === item.id
-                        ? {
-                              id: item.id,
-                              name: values.customDimensionLabel,
-                              type: CustomDimensionType.BIN,
-                              dimensionId: item.dimensionId,
-                              binType: values.binType,
-                              binNumber: values.binConfig.fixedNumber.binNumber,
-                              binWidth: values.binConfig.fixedWidth.binWidth,
-                              table: item.table,
-                              customRange: values.binConfig.customRange,
-                          }
-                        : dim,
+                    dim.id === item.id ? updatedDimension : dim,
                 );
                 dispatch(
                     explorerActions.setCustomDimensions(updatedDimensions),

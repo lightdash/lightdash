@@ -3,7 +3,6 @@ import {
     ChartSourceType,
     ContentType,
     DashboardTileTypes,
-    deepEqual,
     FeatureFlags,
     ResourceViewItemType,
     type ResourceViewChartItem,

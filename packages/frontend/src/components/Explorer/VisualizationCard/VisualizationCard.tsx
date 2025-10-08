@@ -28,7 +28,6 @@ import {
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
     selectMetricQuery,
-    selectPivotConfig,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -112,10 +111,13 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
-    const pivotConfig = useExplorerSelector(selectPivotConfig);
 
+    // Read chartConfig and pivotConfig from Context (not synced to Redux)
     const chartConfig = useExplorerContext(
         (context) => context.state.unsavedChartVersion.chartConfig,
+    );
+    const pivotConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.pivotConfig,
     );
 
     const unsavedChartVersion = useMemo(

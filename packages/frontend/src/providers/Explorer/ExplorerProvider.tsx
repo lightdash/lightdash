@@ -39,8 +39,9 @@ import {
 import { useNavigate } from 'react-router';
 import {
     explorerActions,
-    selectUnsavedChartVersion,
+    selectIsValidQuery,
     selectTableName,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerInitialization,
     useExplorerSelector,
@@ -677,19 +678,47 @@ const ExplorerProvider: FC<
     const unsavedChartVersionFromRedux = useExplorerSelector(
         selectUnsavedChartVersion,
     );
+    const isValidQuery = useExplorerSelector(selectIsValidQuery);
 
-    const mergedUnsavedChartVersion = useMemo(
-        () => ({
-            ...unsavedChartVersionFromRedux,
-            chartConfig: unsavedChartVersion.chartConfig,
-            pivotConfig: unsavedChartVersion.pivotConfig,
-        }),
-        [
-            unsavedChartVersionFromRedux,
+    // Use refs to track previous values for deep equality check
+    const prevChartConfigRef = useRef(unsavedChartVersion.chartConfig);
+    const prevPivotConfigRef = useRef(unsavedChartVersion.pivotConfig);
+
+    const mergedUnsavedChartVersion = useMemo(() => {
+        // Check if chartConfig or pivotConfig actually changed (deep equality)
+        const chartConfigChanged = !deepEqual(
+            prevChartConfigRef.current,
             unsavedChartVersion.chartConfig,
-            unsavedChartVersion.pivotConfig,
-        ],
-    );
+        );
+        const pivotConfigChanged =
+            prevPivotConfigRef.current === undefined
+                ? unsavedChartVersion.pivotConfig !== undefined
+                : unsavedChartVersion.pivotConfig === undefined
+                ? true
+                : !deepEqual(
+                      prevPivotConfigRef.current,
+                      unsavedChartVersion.pivotConfig,
+                  );
+
+        // Update refs if changed
+        if (chartConfigChanged) {
+            prevChartConfigRef.current = unsavedChartVersion.chartConfig;
+        }
+        if (pivotConfigChanged) {
+            prevPivotConfigRef.current = unsavedChartVersion.pivotConfig;
+        }
+
+        return {
+            ...unsavedChartVersionFromRedux,
+            // Use the ref values to keep stable references when content hasn't changed
+            chartConfig: prevChartConfigRef.current,
+            pivotConfig: prevPivotConfigRef.current,
+        };
+    }, [
+        unsavedChartVersionFromRedux,
+        unsavedChartVersion.chartConfig,
+        unsavedChartVersion.pivotConfig,
+    ]);
 
     // Create initial state with isEditMode
     const initialStateWithEditMode = useMemo(
@@ -706,6 +735,28 @@ const ExplorerProvider: FC<
 
     // TODO: REDUX-MIGRATION - Remove these sync effects once all components use Redux directly
     // START TRANSITIONAL SYNC CODE
+
+    // When savedChart changes (e.g., after saving a new chart), update Context state
+    // This ensures pivotConfig and chartConfig are synced when transitioning to saved mode
+    useEffect(() => {
+        if (savedChart?.pivotConfig !== undefined) {
+            const fields = savedChart.pivotConfig.columns;
+            dispatch({
+                type: ActionType.SET_PIVOT_FIELDS,
+                payload: fields,
+            });
+        }
+        if (savedChart?.chartConfig) {
+            dispatch({
+                type: ActionType.SET_CHART_CONFIG,
+                payload: {
+                    chartConfig: savedChart.chartConfig,
+                    cachedConfigs: {},
+                },
+            });
+        }
+    }, [savedChart?.pivotConfig, savedChart?.chartConfig]);
+
     // Keep Redux isEditMode in sync with prop changes
     useEffect(() => {
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
@@ -789,19 +840,6 @@ const ExplorerProvider: FC<
 
     // END TRANSITIONAL SYNC CODE
 
-    const [, isValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
-        const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
-        ]);
-        return [fields, fields.size > 0];
-    }, [unsavedChartVersion]);
-
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
     const resetCachedChartConfig = () => {
@@ -835,22 +873,34 @@ const ExplorerProvider: FC<
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
-            dispatch({
-                type: isDimension
-                    ? ActionType.TOGGLE_DIMENSION
-                    : ActionType.TOGGLE_METRIC,
-                payload: fieldId,
-            });
+            if (isDimension) {
+                reduxDispatch(explorerActions.toggleDimension(fieldId));
+            } else {
+                reduxDispatch(explorerActions.toggleMetric(fieldId));
+            }
         },
-        [],
+        [reduxDispatch],
     );
 
-    const removeActiveField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_FIELD,
-            payload: fieldId,
-        });
-    }, []);
+    const removeActiveField = useCallback(
+        (fieldId: FieldId) => {
+            const isDimension =
+                unsavedChartVersionFromRedux.metricQuery.dimensions.includes(
+                    fieldId,
+                );
+            const isMetric =
+                unsavedChartVersionFromRedux.metricQuery.metrics.includes(
+                    fieldId,
+                );
+
+            if (isDimension) {
+                reduxDispatch(explorerActions.toggleDimension(fieldId));
+            } else if (isMetric) {
+                reduxDispatch(explorerActions.toggleMetric(fieldId));
+            }
+        },
+        [reduxDispatch, unsavedChartVersionFromRedux.metricQuery],
+    );
 
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
@@ -1143,17 +1193,9 @@ const ExplorerProvider: FC<
             ...reducerState,
             isEditMode,
             savedChart,
-            isValidQuery,
-            // Provide merged version with Context chartConfig/pivotConfig + Redux fields for saving
             mergedUnsavedChartVersion,
         }),
-        [
-            isEditMode,
-            reducerState,
-            isValidQuery,
-            savedChart,
-            mergedUnsavedChartVersion,
-        ],
+        [isEditMode, reducerState, savedChart, mergedUnsavedChartVersion],
     );
 
     const queryClient = useQueryClient();
@@ -1262,7 +1304,6 @@ const ExplorerProvider: FC<
             setFilters,
             setRowLimit,
             setTimeZone,
-            setFilters,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,

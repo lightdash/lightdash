@@ -251,8 +251,8 @@ export interface ExplorerReduceState {
 }
 
 export interface ExplorerState extends ExplorerReduceState {
-    activeFields: Set<FieldId>;
-    isValidQuery: boolean;
+    // activeFields removed - use selectActiveFields Redux selector instead
+    // isValidQuery removed - use selectIsValidQuery Redux selector instead
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
     // Merged version combining Context fields (chartConfig, pivotConfig) with Redux fields

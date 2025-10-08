@@ -11,7 +11,6 @@ import {
     selectMetricQuery,
     selectMetrics,
     selectParameterReferences,
-    selectPivotConfig,
     selectPreviouslyFetchedState,
     selectSorts,
     selectTableName,
@@ -53,7 +52,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const previouslyFetchedState = useExplorerSelector(
             selectPreviouslyFetchedState,
         );
-        const pivotConfig = useExplorerSelector(selectPivotConfig);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
@@ -78,8 +76,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => !!context.state.savedChart,
         );
 
+        // Get boolean for pivot config existence directly from Context
+        const hasPivotConfig = useExplorerContext(
+            (context) => !!context.state.unsavedChartVersion.pivotConfig,
+        );
+
         useEffect(() => {
-            const hasPivotConfig = !!pivotConfig;
             const shouldAutoFetch =
                 !previouslyFetchedState &&
                 (!!fromDashboard || isSavedChart || hasPivotConfig);
@@ -92,7 +94,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             fetchResults,
             fromDashboard,
             isSavedChart,
-            pivotConfig,
+            hasPivotConfig,
         ]);
 
         const chartVersionForSort = useMemo(

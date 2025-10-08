@@ -199,11 +199,6 @@ export const selectPreviouslyFetchedState = createSelector(
     (explorer) => explorer.previouslyFetchedState,
 );
 
-export const selectPivotConfig = createSelector(
-    [selectUnsavedChartVersion],
-    (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
-);
-
 // Stable empty Set to prevent unnecessary re-renders
 const EMPTY_ACTIVE_FIELDS_SET: Set<string> = new Set();
 
