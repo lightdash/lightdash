@@ -92,6 +92,15 @@ import { DbSavedSql, InsertSql } from '../../database/entities/savedSql';
 import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import {
+    AiAgentGroupAccessTableName,
+    AiAgentInstructionVersionsTableName,
+    AiAgentIntegrationTableName,
+    AiAgentSlackIntegrationTableName,
+    AiAgentTableName,
+    AiAgentUserAccessTableName,
+    type DbAiAgent,
+} from '../../ee/database/entities/aiAgent';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -2279,6 +2288,161 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_markdowns');
             await copyDashboardTileContent('dashboard_tile_sql_charts');
 
+            // Get AI Agents from the source project
+            const aiAgents = await trx(AiAgentTableName)
+                .where('project_uuid', projectUuid)
+                .select<DbAiAgent[]>('*');
+
+            Logger.info(
+                `Duplicating ${aiAgents.length} AI agents on ${previewProjectUuid}`,
+            );
+
+            type CloneAiAgent = Omit<
+                DbAiAgent,
+                'ai_agent_uuid' | 'created_at' | 'updated_at'
+            > & {
+                ai_agent_uuid?: string;
+                created_at?: Date;
+                updated_at?: Date;
+            };
+
+            const newAiAgents =
+                aiAgents.length > 0
+                    ? await trx(AiAgentTableName)
+                          .insert(
+                              aiAgents.map((agent) => {
+                                  const createAgent: CloneAiAgent = {
+                                      ...agent,
+                                      ai_agent_uuid: undefined,
+                                      project_uuid: previewProjectUuid,
+                                      created_at: undefined,
+                                      updated_at: undefined,
+                                  };
+                                  delete createAgent.ai_agent_uuid;
+                                  delete createAgent.created_at;
+                                  delete createAgent.updated_at;
+                                  return createAgent;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const aiAgentMapping = aiAgents.map((agent, i) => ({
+                id: agent.ai_agent_uuid,
+                newId: newAiAgents[i]?.ai_agent_uuid,
+            }));
+
+            const aiAgentUuids = aiAgents.map((agent) => agent.ai_agent_uuid);
+
+            // Copy AI Agent instruction versions
+            if (aiAgentUuids.length > 0) {
+                const aiAgentInstructionVersions = await trx(
+                    AiAgentInstructionVersionsTableName,
+                )
+                    .whereIn('ai_agent_uuid', aiAgentUuids)
+                    .select('*');
+
+                Logger.debug(
+                    `Copying ${aiAgentInstructionVersions.length} AI agent instruction versions`,
+                );
+
+                if (aiAgentInstructionVersions.length > 0) {
+                    await trx(AiAgentInstructionVersionsTableName).insert(
+                        aiAgentInstructionVersions.map((version) => {
+                            const newAiAgentUuid = aiAgentMapping.find(
+                                (m) => m.id === version.ai_agent_uuid,
+                            )?.newId;
+                            if (!newAiAgentUuid) {
+                                throw new Error(
+                                    `Cannot find new AI agent UUID for ${version.ai_agent_uuid}`,
+                                );
+                            }
+                            const createVersion = {
+                                ...version,
+                                ai_agent_instruction_version_uuid: undefined,
+                                ai_agent_uuid: newAiAgentUuid,
+                                created_at: undefined,
+                            };
+                            delete createVersion.ai_agent_instruction_version_uuid;
+                            delete createVersion.created_at;
+                            return createVersion;
+                        }),
+                    );
+                }
+
+                // Skip copying AI Agent integrations (including Slack) for preview projects
+                // due to organization-wide constraints (e.g., one agent per Slack channel)
+                Logger.debug(
+                    `Skipping AI agent integrations for preview project ${previewProjectUuid}`,
+                );
+
+                // Copy AI Agent group access
+                const aiAgentGroupAccesses = await trx(
+                    AiAgentGroupAccessTableName,
+                )
+                    .whereIn('ai_agent_uuid', aiAgentUuids)
+                    .select('*');
+
+                Logger.debug(
+                    `Copying ${aiAgentGroupAccesses.length} AI agent group accesses`,
+                );
+
+                if (aiAgentGroupAccesses.length > 0) {
+                    await trx(AiAgentGroupAccessTableName).insert(
+                        aiAgentGroupAccesses.map((groupAccess) => {
+                            const newAiAgentUuid = aiAgentMapping.find(
+                                (m) => m.id === groupAccess.ai_agent_uuid,
+                            )?.newId;
+                            if (!newAiAgentUuid) {
+                                throw new Error(
+                                    `Cannot find new AI agent UUID for ${groupAccess.ai_agent_uuid}`,
+                                );
+                            }
+                            const createGroupAccess = {
+                                ...groupAccess,
+                                ai_agent_uuid: newAiAgentUuid,
+                                created_at: undefined,
+                            };
+                            delete createGroupAccess.created_at;
+                            return createGroupAccess;
+                        }),
+                    );
+                }
+
+                // Copy AI Agent user access
+                const aiAgentUserAccesses = await trx(
+                    AiAgentUserAccessTableName,
+                )
+                    .whereIn('ai_agent_uuid', aiAgentUuids)
+                    .select('*');
+
+                Logger.debug(
+                    `Copying ${aiAgentUserAccesses.length} AI agent user accesses`,
+                );
+
+                if (aiAgentUserAccesses.length > 0) {
+                    await trx(AiAgentUserAccessTableName).insert(
+                        aiAgentUserAccesses.map((userAccess) => {
+                            const newAiAgentUuid = aiAgentMapping.find(
+                                (m) => m.id === userAccess.ai_agent_uuid,
+                            )?.newId;
+                            if (!newAiAgentUuid) {
+                                throw new Error(
+                                    `Cannot find new AI agent UUID for ${userAccess.ai_agent_uuid}`,
+                                );
+                            }
+                            const createUserAccess = {
+                                ...userAccess,
+                                ai_agent_uuid: newAiAgentUuid,
+                                created_at: undefined,
+                            };
+                            delete createUserAccess.created_at;
+                            return createUserAccess;
+                        }),
+                    );
+                }
+            }
+
             const contentMapping: PreviewContentMapping = {
                 charts: chartMapping,
                 chartVersions: chartVersionMapping,
@@ -2287,6 +2451,7 @@ export class ProjectModel {
                 dashboardVersions: dashboardVersionsMapping,
                 savedSql: savedSQLMapping,
                 savedSqlVersions: savedSQLVersionMapping,
+                aiAgents: aiAgentMapping,
             };
             // Insert mapping on database
             await trx('preview_content').insert({
