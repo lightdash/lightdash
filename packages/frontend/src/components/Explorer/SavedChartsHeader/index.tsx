@@ -41,10 +41,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
-import {
-    selectUnsavedChartVersion,
-    useExplorerSelector,
-} from '../../../features/explorer/store';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -114,8 +110,10 @@ const SavedChartsHeader: FC = () => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
-    // Read unsavedChartVersion from Redux instead of Context
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.mergedUnsavedChartVersion,
+    );
 
     // Get savedChart, comparison function, and isValidQuery from Context
     const savedChart = useExplorerContext(

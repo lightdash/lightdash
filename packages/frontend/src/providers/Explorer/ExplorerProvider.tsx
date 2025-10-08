@@ -39,8 +39,10 @@ import {
 import { useNavigate } from 'react-router';
 import {
     explorerActions,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerInitialization,
+    useExplorerSelector,
 } from '../../features/explorer/store';
 import ExplorerContext from './context';
 import { defaultState } from './defaultState';
@@ -757,6 +759,23 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
+    const unsavedChartVersionFromRedux = useExplorerSelector(
+        selectUnsavedChartVersion,
+    );
+
+    const mergedUnsavedChartVersion = useMemo(
+        () => ({
+            ...unsavedChartVersionFromRedux,
+            chartConfig: unsavedChartVersion.chartConfig,
+            pivotConfig: unsavedChartVersion.pivotConfig,
+        }),
+        [
+            unsavedChartVersionFromRedux,
+            unsavedChartVersion.chartConfig,
+            unsavedChartVersion.pivotConfig,
+        ],
+    );
+
     // Create initial state with isEditMode
     const initialStateWithEditMode = useMemo(
         () => ({
@@ -843,13 +862,6 @@ const ExplorerProvider: FC<
             ),
         );
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
-
-    // Keep Redux chart config in sync with Context chart config
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setChartConfig(unsavedChartVersion.chartConfig),
-        );
-    }, [unsavedChartVersion.chartConfig, reduxDispatch]);
 
     // END TRANSITIONAL SYNC CODE
 
@@ -1200,8 +1212,17 @@ const ExplorerProvider: FC<
             activeFields,
             isValidQuery,
             savedChart,
+            // Provide merged version with Context chartConfig/pivotConfig + Redux fields for saving
+            mergedUnsavedChartVersion,
         }),
-        [isEditMode, reducerState, activeFields, isValidQuery, savedChart],
+        [
+            isEditMode,
+            reducerState,
+            activeFields,
+            isValidQuery,
+            savedChart,
+            mergedUnsavedChartVersion,
+        ],
     );
 
     const queryClient = useQueryClient();

@@ -262,6 +262,9 @@ export interface ExplorerState extends ExplorerReduceState {
     isValidQuery: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
+    // Merged version combining Context fields (chartConfig, pivotConfig) with Redux fields
+    // This is the complete version that should be used when saving charts
+    mergedUnsavedChartVersion: CreateSavedChartVersion;
 }
 
 export interface ExplorerContextType {
