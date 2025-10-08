@@ -3,10 +3,10 @@ import {
     Box,
     Button,
     Center,
-    Divider,
     Group,
     Loader,
     Paper,
+    ScrollArea,
     Stack,
     Text,
     Title,
@@ -100,95 +100,123 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     return (
         <Stack gap="xs">
             <Paper>
-                <Group justify="space-between" align="center" p="sm">
-                    <Group align="center" gap="xs">
-                        <Paper p="xxs" withBorder radius="sm">
-                            <MantineIcon icon={IconTarget} size="md" />
-                        </Paper>
-                        <Title order={5} c="gray.9" fw={500}>
-                            Details: {evaluation.title}
-                        </Title>
-                        <Tooltip
-                            label={
-                                <>
-                                    {evaluation.description && (
-                                        <Text fz="xs">
-                                            {evaluation.description}
-                                        </Text>
-                                    )}
-
-                                    <Text fz="xs">
-                                        Created{' '}
-                                        {new Date(
-                                            evaluation.createdAt,
-                                        ).toLocaleDateString()}
-                                    </Text>
-                                </>
-                            }
-                        >
-                            <MantineIcon icon={IconInfoCircle} size="sm" />
-                        </Tooltip>
-                    </Group>
-                    <Button
-                        variant="subtle"
-                        size="sm"
-                        leftSection={<MantineIcon icon={IconEdit} />}
-                        onClick={handleEditModalOpen}
-                    >
-                        Edit
-                    </Button>
-                </Group>
-
                 <Stack>
                     {evaluation.prompts && evaluation.prompts.length > 0 && (
                         <>
-                            <Divider />
-                            <Stack gap="sm" px="sm" pb="sm">
-                                <Group align="center" gap="xs">
-                                    <Title order={6} c="gray.8" fw={500}>
-                                        Test Prompts
-                                    </Title>
-                                </Group>
-                                <Stack gap="sm">
-                                    {evaluation.prompts.map((prompt) => (
-                                        <Group
-                                            gap="sm"
-                                            align="flex-start"
-                                            key={prompt.evalPromptUuid}
-                                        >
-                                            <Box style={{ flex: 1 }}>
-                                                {prompt.type === 'string' ? (
-                                                    <EvalPromptText
-                                                        prompt={prompt.prompt}
-                                                    />
-                                                ) : prompt.type === 'thread' ? (
-                                                    <EvalPromptThreadReference
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                        agentUuid={agentUuid}
-                                                        threadUuid={
-                                                            prompt.threadUuid
-                                                        }
-                                                        promptUuid={
-                                                            prompt.promptUuid
-                                                        }
-                                                        openInSidebar={true}
-                                                    />
-                                                ) : (
-                                                    <Text
-                                                        size="sm"
-                                                        c="dimmed"
-                                                        fs="italic"
-                                                    >
-                                                        Invalid prompt
-                                                        configuration
-                                                    </Text>
-                                                )}
-                                            </Box>
+                            <Stack gap="sm" p="sm">
+                                <Group justify="space-between" align="center">
+                                    <Group align="center" gap="xs">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconTarget}
+                                                size="md"
+                                            />
+                                        </Paper>
+                                        <Group gap="two">
+                                            <Title
+                                                order={6}
+                                                c="gray.8"
+                                                fw={500}
+                                            >
+                                                Test Prompts
+                                            </Title>
+                                            <Tooltip
+                                                label={
+                                                    <>
+                                                        {evaluation.description && (
+                                                            <Text fz="xs">
+                                                                {
+                                                                    evaluation.description
+                                                                }
+                                                            </Text>
+                                                        )}
+
+                                                        <Text fz="xs">
+                                                            Created{' '}
+                                                            {new Date(
+                                                                evaluation.createdAt,
+                                                            ).toLocaleDateString()}
+                                                        </Text>
+                                                    </>
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="gray.6"
+                                                />
+                                            </Tooltip>
                                         </Group>
-                                    ))}
-                                </Stack>
+                                    </Group>
+                                    <Button
+                                        variant="subtle"
+                                        size="sm"
+                                        leftSection={
+                                            <MantineIcon icon={IconEdit} />
+                                        }
+                                        onClick={handleEditModalOpen}
+                                    >
+                                        Edit
+                                    </Button>
+                                </Group>
+                                <ScrollArea.Autosize
+                                    mah={230}
+                                    scrollbars="y"
+                                    offsetScrollbars="y"
+                                    type="scroll"
+                                    scrollbarSize={4}
+                                >
+                                    <Stack
+                                        gap="sm"
+                                        style={{
+                                            boxSizing: 'border-box',
+                                        }}
+                                    >
+                                        {evaluation.prompts.map((prompt) => (
+                                            <Group
+                                                gap="sm"
+                                                align="flex-start"
+                                                key={prompt.evalPromptUuid}
+                                            >
+                                                <Box style={{ flex: 1 }}>
+                                                    {prompt.type ===
+                                                    'string' ? (
+                                                        <EvalPromptText
+                                                            prompt={
+                                                                prompt.prompt
+                                                            }
+                                                        />
+                                                    ) : prompt.type ===
+                                                      'thread' ? (
+                                                        <EvalPromptThreadReference
+                                                            projectUuid={
+                                                                projectUuid
+                                                            }
+                                                            agentUuid={
+                                                                agentUuid
+                                                            }
+                                                            threadUuid={
+                                                                prompt.threadUuid
+                                                            }
+                                                            promptUuid={
+                                                                prompt.promptUuid
+                                                            }
+                                                            openInSidebar={true}
+                                                        />
+                                                    ) : (
+                                                        <Text
+                                                            size="sm"
+                                                            c="dimmed"
+                                                            fs="italic"
+                                                        >
+                                                            Invalid prompt
+                                                            configuration
+                                                        </Text>
+                                                    )}
+                                                </Box>
+                                            </Group>
+                                        ))}
+                                    </Stack>
+                                </ScrollArea.Autosize>
                             </Stack>
                         </>
                     )}

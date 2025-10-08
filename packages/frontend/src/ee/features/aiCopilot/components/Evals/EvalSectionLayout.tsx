@@ -88,7 +88,9 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     };
 
     const handleNavigateToEvaluations = () => {
-        void navigate(`/projects/${projectUuid}/ai-agents/${agentUuid}/edit`);
+        void navigate(
+            `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals`,
+        );
     };
 
     const handleNavigateToEvaluation = () => {
