@@ -1,3 +1,10 @@
+## [0.2065.1](https://github.com/lightdash/lightdash/compare/0.2065.0...0.2065.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* removing a sorted field causes a query error ([#17305](https://github.com/lightdash/lightdash/issues/17305)) ([009d17e](https://github.com/lightdash/lightdash/commit/009d17e2bed1c63063686c79ae1c4a952fd4211b))
+
 # [0.2065.0](https://github.com/lightdash/lightdash/compare/0.2064.1...0.2065.0) (2025-10-08)
 
 
