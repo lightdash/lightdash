@@ -71,9 +71,8 @@ const extractChangeValue = (
 ): string | { path: string; value: string }[] => {
     switch (change.type) {
         case 'create':
-            return 'Create new item';
         case 'delete':
-            return 'Delete item';
+            return '';
         case 'update':
             return change.payload.patches.map((patch) => ({
                 path: patch.path.replace('/', ''),
