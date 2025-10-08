@@ -304,24 +304,94 @@ export class SlackClient {
         return getCachedChannels();
     }
 
+    private static async isBotInChannel(
+        webClient: WebClient,
+        channelId: string,
+    ): Promise<boolean> {
+        try {
+            // Use conversations.info to check if bot is a member
+            // This works with channels:read and groups:read scopes
+            const response = await webClient.conversations.info({
+                channel: channelId,
+            });
+
+            return response.channel?.is_member ?? false;
+        } catch (e: AnyType) {
+            // If we can't check membership (e.g., private channel we're not in), assume we're not in it
+            Logger.debug(
+                `Unable to check bot membership for channel ${channelId}: ${
+                    e?.message || e
+                }`,
+            );
+            return false;
+        }
+    }
+
     async joinChannels(organizationUuid: string, channels: string[]) {
         if (channels.length === 0) return;
+
         try {
             const webClient = await this.getWebClient(organizationUuid);
-            const joinPromises = channels.map((channel) => {
-                // Don't need to join user channels (DM)
-                if (channel.startsWith('U')) return undefined;
 
-                return webClient.conversations.join({
+            // Filter out DM channels
+            const channelsToJoin = channels.filter(
+                (channel) => !channel.startsWith('U'),
+            );
+
+            if (channelsToJoin.length === 0) return;
+
+            // Check which channels we're already in
+            const membershipChecks = await Promise.allSettled(
+                channelsToJoin.map(async (channel) => ({
                     channel,
-                });
-            });
+                    isMember: await SlackClient.isBotInChannel(
+                        webClient,
+                        channel,
+                    ),
+                })),
+            );
+
+            const channelsNeedingJoin = membershipChecks
+                .filter(
+                    (result) =>
+                        result.status === 'fulfilled' && !result.value.isMember,
+                )
+                .map((result) =>
+                    result.status === 'fulfilled' ? result.value.channel : '',
+                )
+                .filter(Boolean);
+
+            if (channelsNeedingJoin.length === 0) {
+                Logger.debug(
+                    `Bot is already a member of all channels: ${channelsToJoin.join(
+                        ', ',
+                    )}`,
+                );
+                return;
+            }
+
+            const joinPromises = channelsNeedingJoin.map((channel) =>
+                webClient.conversations.join({ channel }),
+            );
             await Promise.all(joinPromises);
+            Logger.debug(
+                `Successfully joined channels: ${channelsNeedingJoin.join(
+                    ', ',
+                )}`,
+            );
         } catch (e: AnyType) {
-            // If the channels:join scope is missing, log a warning but don't throw
+            Logger.error(
+                `Unable to join channels ${channels.join(
+                    ', ',
+                )} on organization ${organizationUuid}`,
+                e,
+            );
+            // If the channels:join scope is missing, provide a helpful error
             if (e?.data?.error === 'missing_scope') {
                 Logger.warn(
-                    `Unable to join channels ${channels} on organization ${organizationUuid}: missing channels:join scope. The app can still be added to channels manually.`,
+                    `Unable to join channels ${channels.join(
+                        ', ',
+                    )} on organization ${organizationUuid}: missing channels:join scope. The app can still be added to channels manually.`,
                 );
                 throw new SlackError(
                     `Unable to join channel(s): missing channels:join scope. Add the app to the channel(s) manually.`,
@@ -329,7 +399,9 @@ export class SlackClient {
             }
             slackErrorHandler(
                 e,
-                `Unable to join channels ${channels} on organization ${organizationUuid}`,
+                `Unable to join channels ${channels.join(
+                    ', ',
+                )} on organization ${organizationUuid}`,
             );
         }
     }
