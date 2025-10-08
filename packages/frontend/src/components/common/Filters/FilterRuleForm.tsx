@@ -13,6 +13,7 @@ import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
+import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
@@ -114,7 +115,7 @@ const FilterRuleForm: FC<Props> = ({
                 baseTable={baseTable}
             />
             <Select
-                limit={50}
+                limit={FILTER_SELECT_LIMIT}
                 size="xs"
                 w="175px"
                 sx={{ flexShrink: 0 }}
