@@ -9,6 +9,7 @@ import {
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
+import { FILTER_SELECT_LIMIT } from '../constants';
 import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiStringInput from './FilterMultiStringInput';
@@ -56,7 +57,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                 case FilterType.STRING:
                     return !field || isTableCalculation(field) ? (
                         <FilterMultiStringInput
-                            limit={50}
+                            limit={FILTER_SELECT_LIMIT}
                             disabled={disabled}
                             placeholder={placeholder}
                             autoFocus={true}
@@ -73,7 +74,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         />
                     ) : (
                         <FilterStringAutoComplete
-                            limit={50}
+                            limit={FILTER_SELECT_LIMIT}
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}

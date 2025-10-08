@@ -33,6 +33,7 @@ import {
 } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
+import { FILTER_SELECT_LIMIT } from './constants';
 import FilterGroupForm from './FilterGroupForm';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 import useFiltersContext from './useFiltersContext';
@@ -277,7 +278,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         </Group>
                     ) : (
                         <FieldSelect
-                            limit={50}
+                            limit={FILTER_SELECT_LIMIT}
                             size="xs"
                             withinPortal
                             maw={300}
