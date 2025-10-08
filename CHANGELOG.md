@@ -1,3 +1,11 @@
+# [0.2068.0](https://github.com/lightdash/lightdash/compare/0.2067.2...0.2068.0) (2025-10-08)
+
+
+### Features
+
+* add description field to custom metric schema ([#17244](https://github.com/lightdash/lightdash/issues/17244)) ([de87986](https://github.com/lightdash/lightdash/commit/de87986c61cd17a02059bc4dede846a0a536ad51))
+* validate changes against active changeset in proposeChange tool ([#17245](https://github.com/lightdash/lightdash/issues/17245)) ([0cadf2c](https://github.com/lightdash/lightdash/commit/0cadf2cbe1c23da789b683c827c7cd9fe0643d67))
+
 ## [0.2067.2](https://github.com/lightdash/lightdash/compare/0.2067.1...0.2067.2) (2025-10-08)
 
 
