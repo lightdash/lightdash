@@ -17,6 +17,8 @@ import {
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
+    isEmailTarget,
+    isMsTeamsTarget,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
     isUpdateSchedulerMsTeamsTarget,
@@ -224,11 +226,19 @@ export class SchedulerModel {
         paginateArgs,
         searchQuery,
         sort,
+        filters,
     }: {
         projectUuid?: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            createdByUserUuids?: string[];
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
 
@@ -238,8 +248,102 @@ export class SchedulerModel {
                 `${SchedulerTableName}.name`,
             ]);
         }
+
+        if (
+            filters?.createdByUserUuids &&
+            filters.createdByUserUuids.length > 0
+        ) {
+            baseQuery = baseQuery.whereIn(
+                `${SchedulerTableName}.created_by`,
+                filters.createdByUserUuids,
+            );
+        }
+
+        if (filters?.formats && filters.formats.length > 0) {
+            baseQuery = baseQuery.whereIn(
+                `${SchedulerTableName}.format`,
+                filters.formats,
+            );
+        }
+
+        if (filters?.destinations && filters.destinations.length > 0) {
+            baseQuery = baseQuery.where((builder) => {
+                let isFirst = true;
+                const destinations = filters.destinations!;
+
+                if (destinations.includes('email')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerEmailTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerEmailTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+
+                if (destinations.includes('slack')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerSlackTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerSlackTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+
+                if (destinations.includes('msteams')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerMsTeamsTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerMsTeamsTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+            });
+        }
+
         // Create a union of two queries: one for saved charts and one for dashboards
-        const schedulerCharts = baseQuery
+        let schedulerCharts = baseQuery
             .clone()
             .leftJoin(SpaceTableName, function joinSpaces() {
                 this.on(
@@ -256,7 +360,7 @@ export class SchedulerModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
 
-        const schedulerDashboards = baseQuery
+        let schedulerDashboards = baseQuery
             .clone()
             .leftJoin(
                 SpaceTableName,
@@ -270,6 +374,29 @@ export class SchedulerModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        // Apply resource type filter
+        if (filters?.resourceType === 'chart') {
+            // Only include charts
+            schedulerDashboards = schedulerDashboards.where(
+                this.database.raw('1 = 0'),
+            ); // Make dashboards query return no results
+        } else if (filters?.resourceType === 'dashboard') {
+            // Only include dashboards
+            schedulerCharts = schedulerCharts.where(this.database.raw('1 = 0')); // Make charts query return no results
+        }
+
+        // Apply resource UUID filter
+        if (filters?.resourceUuids && filters.resourceUuids.length > 0) {
+            schedulerCharts = schedulerCharts.whereIn(
+                `${SchedulerTableName}.saved_chart_uuid`,
+                filters.resourceUuids,
+            );
+            schedulerDashboards = schedulerDashboards.whereIn(
+                `${SchedulerTableName}.dashboard_uuid`,
+                filters.resourceUuids,
+            );
+        }
 
         // Use union to combine both queries
         let query = schedulerCharts.unionAll(schedulerDashboards);
@@ -745,10 +872,73 @@ export class SchedulerModel {
         return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
     }
 
-    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
+    async getSchedulerLogs({
+        projectUuid,
+        paginateArgs,
+        searchQuery,
+        filters,
+    }: {
+        projectUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        filters?: {
+            statuses?: SchedulerJobStatus[];
+            createdByUserUuids?: string[];
+            destinations?: string[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerWithLogs>> {
         const schedulers = await this.getSchedulerForProject(projectUuid);
+
+        // Filter schedulers based on filters
+        let filteredSchedulers = schedulers;
+
+        // Apply search filter on scheduler name
+        if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase();
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                s.name.toLowerCase().includes(searchLower),
+            );
+        }
+
+        // Apply createdBy filter
+        if (
+            filters?.createdByUserUuids &&
+            filters.createdByUserUuids.length > 0
+        ) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                filters.createdByUserUuids!.includes(s.createdBy),
+            );
+        }
+
+        // Apply destinations filter
+        if (filters?.destinations && filters.destinations.length > 0) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                s.targets.some((target) => {
+                    if (
+                        filters.destinations!.includes('slack') &&
+                        isSlackTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('email') &&
+                        isEmailTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('msteams') &&
+                        isMsTeamsTarget(target)
+                    ) {
+                        return true;
+                    }
+                    return false;
+                }),
+            );
+        }
+
         const { schedulerUuids, userUuids, chartUuids, dashboardUuids } =
-            schedulers.reduce<{
+            filteredSchedulers.reduce<{
                 schedulerUuids: string[];
                 userUuids: string[];
                 chartUuids: string[];
@@ -772,15 +962,43 @@ export class SchedulerModel {
                 },
             );
 
+        if (schedulerUuids.length === 0) {
+            // No schedulers match filters
+            return {
+                pagination: {
+                    page: paginateArgs?.page || 1,
+                    pageSize: paginateArgs?.pageSize || 10,
+                    totalPageCount: 0,
+                    totalResults: 0,
+                },
+                data: {
+                    schedulers: filteredSchedulers,
+                    users: [],
+                    charts: [],
+                    dashboards: [],
+                    logs: [],
+                },
+            };
+        }
+
         const sevenDaysAgo: Date = new Date(
             Date.now() - 7 * 24 * 60 * 60 * 1000,
         );
-        const logs = await this.database(SchedulerLogTableName)
+
+        let logsQuery = this.database(SchedulerLogTableName)
             .select()
             .whereIn(`scheduler_uuid`, schedulerUuids)
             .where(`scheduled_time`, '>', sevenDaysAgo)
-            .where(`scheduled_time`, '<', new Date())
-            .orderBy('created_at', 'desc');
+            .where(`scheduled_time`, '<', new Date());
+
+        // Apply status filter
+        if (filters?.statuses && filters.statuses.length > 0) {
+            logsQuery = logsQuery.whereIn(`status`, filters.statuses);
+        }
+
+        logsQuery = logsQuery.orderBy('created_at', 'desc');
+
+        const logs = await logsQuery;
 
         const schedulerLogs: SchedulerLog[] = logs.map(
             SchedulerModel.parseSchedulerLog,
@@ -797,6 +1015,16 @@ export class SchedulerModel {
             }
             return [...acc, log];
         }, []);
+
+        // Paginate the unique logs
+        const page = paginateArgs?.page || 1;
+        const pageSize = paginateArgs?.pageSize || 10;
+        const startIndex = (page - 1) * pageSize;
+        const paginatedLogs = uniqueLogs.slice(
+            startIndex,
+            startIndex + pageSize,
+        );
+
         const users = await this.database(UserTableName)
             .select('first_name', 'last_name', 'user_uuid')
             .whereIn('user_uuid', userUuids);
@@ -808,21 +1036,29 @@ export class SchedulerModel {
             .whereIn('dashboard_uuid', dashboardUuids);
 
         return {
-            schedulers,
-            users: users.map((u) => ({
-                firstName: u.first_name,
-                lastName: u.last_name,
-                userUuid: u.user_uuid,
-            })),
-            charts: charts.map((c) => ({
-                name: c.name,
-                savedChartUuid: c.saved_query_uuid,
-            })),
-            dashboards: dashboards.map((d) => ({
-                name: d.name,
-                dashboardUuid: d.dashboard_uuid,
-            })),
-            logs: uniqueLogs,
+            pagination: {
+                page,
+                pageSize,
+                totalPageCount: Math.ceil(uniqueLogs.length / pageSize),
+                totalResults: uniqueLogs.length,
+            },
+            data: {
+                schedulers: filteredSchedulers,
+                users: users.map((u) => ({
+                    firstName: u.first_name,
+                    lastName: u.last_name,
+                    userUuid: u.user_uuid,
+                })),
+                charts: charts.map((c) => ({
+                    name: c.name,
+                    savedChartUuid: c.saved_query_uuid,
+                })),
+                dashboards: dashboards.map((d) => ({
+                    name: d.name,
+                    dashboardUuid: d.dashboard_uuid,
+                })),
+                logs: paginatedLogs,
+            },
         };
     }
 

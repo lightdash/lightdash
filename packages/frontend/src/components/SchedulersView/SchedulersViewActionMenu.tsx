@@ -1,4 +1,4 @@
-import { ActionIcon, Menu } from '@mantine/core';
+import { ActionIcon, Menu } from '@mantine-8/core';
 import {
     IconDots,
     IconEdit,
@@ -55,14 +55,8 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon
-                        sx={(theme) => ({
-                            ':hover': {
-                                backgroundColor: theme.colors.gray[1],
-                            },
-                        })}
-                    >
-                        <IconDots size={16} />
+                    <ActionIcon variant="subtle">
+                        <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>
 
@@ -70,7 +64,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                     <Menu.Item
                         component={Link}
                         role="menuitem"
-                        icon={<IconEdit size={18} />}
+                        leftSection={<MantineIcon icon={IconEdit} />}
                         to={getSchedulerLink(item, projectUuid)}
                     >
                         Edit schedule
@@ -78,7 +72,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                     <Menu.Item
                         component={Link}
                         role="menuitem"
-                        icon={<IconSquarePlus size={18} />}
+                        leftSection={<MantineIcon icon={IconSquarePlus} />}
                         to={getItemLink(item, projectUuid)}
                     >
                         Go to {item.savedChartUuid ? 'chart' : 'dashboard'}
@@ -86,7 +80,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                     <Menu.Item
                         component="button"
                         role="menuitem"
-                        icon={<IconSend size={18} />}
+                        leftSection={<MantineIcon icon={IconSend} />}
                         onClick={() => setIsConfirmOpen(true)}
                     >
                         Send now
@@ -96,7 +90,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         component="button"
                         role="menuitem"
                         color="red"
-                        icon={<MantineIcon icon={IconTrash} size={18} />}
+                        leftSection={<MantineIcon icon={IconTrash} />}
                         onClick={() => setIsDeleting(true)}
                     >
                         Delete schedule
