@@ -360,8 +360,6 @@ export const AiAgentFormSetup = ({
                                 })}
                             />
                             <Switch
-                                // TODO: enable this once we have a way to enable self-improvement
-                                disabled
                                 variant="subtle"
                                 label={
                                     <Group gap="xs">
@@ -390,7 +388,7 @@ export const AiAgentFormSetup = ({
                                                 />
                                             }
                                         >
-                                            Coming soon
+                                            Beta
                                         </Badge>
                                     </Group>
                                 }
