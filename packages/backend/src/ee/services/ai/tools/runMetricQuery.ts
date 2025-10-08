@@ -12,6 +12,7 @@ import {
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
+import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetExploreFn,
     RunMiniMetricQueryFn,
@@ -100,6 +101,15 @@ export const getRunMetricQuery = ({
                     maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
+
+                if (results.rows.length === 0) {
+                    return {
+                        result: NO_RESULTS_RETRY_PROMPT,
+                        metadata: {
+                            status: 'success',
+                        },
+                    };
+                }
 
                 const fieldIds = results.rows[0]
                     ? Object.keys(results.rows[0])
