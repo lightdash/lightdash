@@ -1,3 +1,11 @@
+## [0.2070.2](https://github.com/lightdash/lightdash/compare/0.2070.1...0.2070.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* Agent should not ask for a permission to generate a dashboard ([#17345](https://github.com/lightdash/lightdash/issues/17345)) ([d62f5e5](https://github.com/lightdash/lightdash/commit/d62f5e5c69fe69e1d575c8345baf37806ef40977))
+* show retry option when assistant has no response ([#17341](https://github.com/lightdash/lightdash/issues/17341)) ([dbbac0a](https://github.com/lightdash/lightdash/commit/dbbac0a49b094dfae5fd45d21123318f473df6dc))
+
 ## [0.2070.1](https://github.com/lightdash/lightdash/compare/0.2070.0...0.2070.1) (2025-10-09)
 
 
