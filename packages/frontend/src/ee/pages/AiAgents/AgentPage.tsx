@@ -25,7 +25,7 @@ import {
 import { type FC, useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { AgentSwitcher } from '../../features/aiCopilot/components/AgentSwitcher';
+import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
@@ -233,7 +233,7 @@ const AgentPage = () => {
                 <Group align="center" justify="space-between">
                     <Box>
                         {agentsList && agentsList.length && (
-                            <AgentSwitcher
+                            <AgentSelector
                                 projectUuid={projectUuid!}
                                 agents={agentsList}
                                 selectedAgent={agent}

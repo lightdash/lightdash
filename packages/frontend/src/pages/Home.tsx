@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { useLocalStorage } from '@mantine-8/hooks';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
@@ -10,8 +10,11 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
+import AiSearchBox from '../ee/components/Home/AiSearchBox';
 
 import { subject } from '@casl/ability';
+import { Stack } from '@mantine-8/core';
+import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import {
@@ -36,6 +39,11 @@ const Home: FC = () => {
     } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
+    const isAiAgentsEnabled = useAiAgentButtonVisibility();
+    const [isAiSearchBoxEnabled] = useLocalStorage({
+        key: 'home_ai_search_box',
+        defaultValue: false,
+    });
 
     const isLoading =
         onboarding.isInitialLoading ||
@@ -65,7 +73,7 @@ const Home: FC = () => {
 
     return (
         <Page withFixedContent withPaddedContent withFooter>
-            <Stack spacing="xl">
+            <Stack gap="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}
@@ -77,6 +85,11 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
+                        {isAiAgentsEnabled && isAiSearchBoxEnabled && (
+                            <AiSearchBox
+                                projectUuid={project.data.projectUuid}
+                            />
+                        )}
                         <PinnedItemsProvider
                             organizationUuid={project.data.organizationUuid}
                             projectUuid={project.data.projectUuid}

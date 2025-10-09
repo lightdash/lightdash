@@ -1,43 +1,19 @@
-import { type AiAgent } from '@lightdash/common';
-import { type ComboboxItem, Group, Select, Text } from '@mantine-8/core';
-import { IconPointFilled } from '@tabler/icons-react';
+import { Select } from '@mantine-8/core';
 import { useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../components/Avatar';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import {
+    type Agent,
+    getAgentOptions,
+    renderSelectOption,
+} from './AgentSelectorUtils';
 
 type Props = {
-    agents: Pick<AiAgent, 'name' | 'uuid' | 'imageUrl'>[];
-    selectedAgent: AiAgent;
+    agents: Agent[];
+    selectedAgent: Agent;
     projectUuid: string;
 };
 
-interface AgentSelectOption extends ComboboxItem {
-    imageUrl?: AiAgent['imageUrl'];
-}
-
-const renderSelectOption = ({
-    option,
-    checked,
-}: {
-    option: AgentSelectOption;
-    checked?: boolean;
-}) => (
-    <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-        <LightdashUserAvatar
-            size={20}
-            variant="filled"
-            name={option.label}
-            src={option.imageUrl}
-        />
-        <Text size="xs" truncate="end" flex={1}>
-            {option.label}
-        </Text>
-
-        {checked && <MantineIcon icon={IconPointFilled} size={12} />}
-    </Group>
-);
-
-export const AgentSwitcher = ({
+export const AgentSelector = ({
     agents,
     selectedAgent,
     projectUuid,
@@ -49,14 +25,7 @@ export const AgentSwitcher = ({
                 viewTransition: true,
             });
     };
-    const agentOptions = agents.map(
-        ({ name, uuid, imageUrl }) =>
-            ({
-                label: name,
-                value: uuid,
-                imageUrl: imageUrl,
-            } satisfies AgentSelectOption),
-    );
+    const agentOptions = getAgentOptions(agents);
 
     return (
         <Select
