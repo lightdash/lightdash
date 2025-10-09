@@ -894,6 +894,22 @@ export class MetricQueryBuilder {
         }, []);
 
         const allMetricsObjects = [...metricsObjects, ...metricsFromFilters];
+
+        // Add all tables with metrics to inflation set if there are any inflated tables
+        // This handles cascading inflation where a table's metrics are inflated by a chain of joins
+        if (tablesWithMetricInflation.size > 0) {
+            allMetricsObjects.forEach((metric) => {
+                if (
+                    joinedTables.has(metric.table) &&
+                    !tablesWithMetricInflation.has(metric.table)
+                ) {
+                    // This table has metrics and is joined, but not marked as inflated
+                    // In a query with ANY fanout joins, all tables with metrics need protection
+                    tablesWithMetricInflation.add(metric.table);
+                }
+            });
+        }
+
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -965,7 +981,7 @@ export class MetricQueryBuilder {
                 tables: [tableName],
             });
             const metricsFromTable = [
-                ...metricsObjects,
+                ...allMetricsObjects,
                 ...referencedMetricObjects,
             ].filter((metric) => metric.table === tableName);
             metricsFromTable.forEach((metric) => {
@@ -985,7 +1001,7 @@ export class MetricQueryBuilder {
         tablesWithMetricInflation.forEach((tableName) => {
             const table = explore.tables[tableName];
             const metricsFromTable = [
-                ...metricsObjects,
+                ...allMetricsObjects,
                 ...referencedMetricObjects,
             ].filter((metric) => metric.table === tableName);
             const metricsInCte: CompiledMetric[] = [];
@@ -1157,8 +1173,7 @@ export class MetricQueryBuilder {
             ];
             const hasUnaffectedCte: boolean =
                 unaffectedMetrics.length > 0 ||
-                Object.keys(dimensionSelects).length > 0 ||
-                !!dimensionFilters;
+                Object.keys(dimensionSelects).length > 0;
 
             const finalMetricSelects = [
                 ...metricsWithCteReferences.map((metric) => {
@@ -1181,9 +1196,11 @@ export class MetricQueryBuilder {
                 }),
                 ...metricCtes.flatMap<string>((metricCte) =>
                     metricCte.metrics
-                        // excludes metrics only used for references
+                        // Include all metrics (both selected and filter-only) so WHERE clauses can reference them
                         .filter((metric) =>
-                            metricsObjects.find((m) => metric === getItemId(m)),
+                            allMetricsObjects.find(
+                                (m) => metric === getItemId(m),
+                            ),
                         )
                         .map(
                             (metricName) =>
