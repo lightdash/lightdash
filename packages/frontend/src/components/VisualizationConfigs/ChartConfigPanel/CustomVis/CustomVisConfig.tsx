@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Flex, Group, Loader, Text } from '@mantine/core';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
@@ -10,8 +10,8 @@ import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
-import { GenerateVizWithAi } from './components/CustomVisAi';
-import { SelectTemplate } from './components/CustomVisTemplate';
+import { GenerateVisWithAi } from './components/CustomVisAi';
+import { CustomVisTemplate } from './components/CustomVisTemplate';
 import { type Schema } from './types/types';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
@@ -205,62 +205,58 @@ export const ConfigTabs: React.FC = memo(() => {
     const isEditorEmpty = (editorConfig || '')?.length === 0;
 
     return (
-        <>
+        <Stack>
             <Config>
                 <Config.Section>
                     <Config.Group>
                         <Config.Heading>
-                            <Flex justify="space-between" gap="xs">
-                                <Text>Vega-Lite JSON</Text>
+                            <Group gap="two">
+                                <Text fw={500} fz="sm">
+                                    Vega-Lite JSON
+                                </Text>
                                 <DocumentationHelpButton
                                     pos="relative"
                                     top="2px"
                                     href="https://docs.lightdash.com/references/custom-charts#custom-charts"
                                 />
-                            </Flex>
+                            </Group>
                         </Config.Heading>
 
-                        <Button.Group>
-                            <SelectTemplate
+                        <Group gap="0">
+                            <CustomVisTemplate
                                 itemsMap={itemsMap}
                                 isCustomConfig={isCustomConfig}
                                 isEditorEmpty={isEditorEmpty}
                                 setEditorConfig={setEditorConfig}
+                                isInGroup={isAiEnabled}
                             />
 
                             {isAiEnabled && (
-                                <GenerateVizWithAi
+                                <GenerateVisWithAi
                                     itemsMap={itemsMap}
                                     sampleResults={series.slice(0, 3)}
                                     setEditorConfig={setEditorConfig}
                                     editorConfig={editorConfig}
                                 />
                             )}
-                        </Button.Group>
+                        </Group>
                     </Config.Group>
                 </Config.Section>
             </Config>
-            <Group
-                h="calc(100vh - 300px)"
-                align="top"
-                mt="4px"
-                sx={{
-                    borderTop: '0.125rem solid #dee2e6',
-                }}
-            >
+            <Group h="calc(100vh - 300px)" align="top">
                 {/* Hack to show a monaco placeholder */}
                 {isEditorEmpty ? (
                     <Text
                         pos="absolute"
                         w="330px"
-                        color="gray.5"
-                        sx={{
+                        c="gray.5"
+                        fz="xs"
+                        lh="19px"
+                        ml="35px" // Style to match Monaco text
+                        ff="monospace"
+                        style={{
                             pointerEvents: 'none',
                             zIndex: 100,
-                            fontFamily: 'monospace',
-                            marginLeft: '35px', // Stye to match Monaco text
-                            fontSize: '12px',
-                            lineHeight: '19px',
                             letterSpacing: '0px',
                         }}
                     >
@@ -299,6 +295,6 @@ export const ConfigTabs: React.FC = memo(() => {
                     }}
                 />
             </Group>
-        </>
+        </Stack>
     );
 });

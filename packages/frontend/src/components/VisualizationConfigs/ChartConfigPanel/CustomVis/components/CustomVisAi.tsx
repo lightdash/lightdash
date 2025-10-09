@@ -1,12 +1,12 @@
 import { type ItemsMap } from '@lightdash/common';
-import { Button, Popover, Textarea } from '@mantine/core';
+import { Button, Group, Popover, Stack, Textarea } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomVis } from '../hooks/useCustomVisAi';
 
-export const GenerateVizWithAi = ({
+export const GenerateVisWithAi = ({
     itemsMap,
     sampleResults,
     editorConfig,
@@ -29,6 +29,7 @@ export const GenerateVizWithAi = ({
     useEffect(() => {
         if (data) setEditorConfig(data);
     }, [data, setEditorConfig]);
+
     const handleSubmit = useCallback(() => {
         if (isLoading) return;
 
@@ -50,44 +51,62 @@ export const GenerateVizWithAi = ({
     ]);
 
     return (
-        <Popover width="400px" position="bottom" withArrow shadow="md">
+        <Popover
+            width="400px"
+            position="bottom"
+            withArrow
+            shadow="md"
+            withinPortal
+        >
             <Popover.Target>
                 <Button
-                    compact
+                    size="compact-sm"
                     variant="default"
                     fz="xs"
-                    leftIcon={<MantineIcon icon={IconSparkles} />}
+                    leftSection={<MantineIcon icon={IconSparkles} />}
+                    styles={{
+                        root: {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            borderLeftColor: 'transparent',
+                        },
+                    }}
                 >
                     AI
                 </Button>
             </Popover.Target>
 
             <Popover.Dropdown>
-                <Textarea
-                    placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
-                    autosize
-                    autoFocus={true}
-                    minRows={1}
-                    maxRows={20}
-                    onChange={(event) => {
-                        setPrompt(event.currentTarget.value);
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            handleSubmit();
-                        }
-                    }}
-                />
+                <Stack gap="xs">
+                    <Textarea
+                        placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
+                        autosize
+                        radius="md"
+                        autoFocus={true}
+                        minRows={1}
+                        maxRows={20}
+                        onChange={(event) => {
+                            setPrompt(event.currentTarget.value);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' && !event.shiftKey) {
+                                event.preventDefault();
+                                handleSubmit();
+                            }
+                        }}
+                    />
 
-                <Button
-                    mt="sm"
-                    type="submit"
-                    disabled={isLoading}
-                    onClick={handleSubmit}
-                >
-                    {isLoading ? 'Generating...' : 'Generate'}
-                </Button>
+                    <Group justify="flex-end">
+                        <Button
+                            type="submit"
+                            size="compact-sm"
+                            loading={isLoading}
+                            onClick={handleSubmit}
+                        >
+                            {isLoading ? 'Generating...' : 'Generate'}
+                        </Button>
+                    </Group>
+                </Stack>
             </Popover.Dropdown>
         </Popover>
     );
