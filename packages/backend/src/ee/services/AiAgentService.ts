@@ -347,28 +347,110 @@ export class AiAgentService {
         return false;
     }
 
+    async getAvailableExplores(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+    ) {
+        return wrapSentryTransaction(
+            'AiAgent.getAvailableExplores',
+            {
+                projectUuid,
+                availableTags,
+            },
+            async () => {
+                const { organizationUuid } = user;
+                if (!organizationUuid) {
+                    throw new ForbiddenError('Organization not found');
+                }
+
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        { organizationUuid, userUuid: user.userUuid },
+                    );
+
+                const allExplores = Object.values(
+                    await this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                );
+
+                return allExplores
+                    .filter(
+                        (explore): explore is Explore =>
+                            !isExploreError(explore),
+                    )
+                    .filter((explore) =>
+                        doesExploreMatchRequiredAttributes(
+                            explore.tables[explore.baseTable]
+                                .requiredAttributes,
+                            userAttributes,
+                        ),
+                    )
+                    .map((explore) =>
+                        getFilteredExplore(explore, userAttributes),
+                    )
+                    .filter((explore) =>
+                        filterExploreByTags({ explore, availableTags }),
+                    )
+                    .filter((explore): explore is Explore => !!explore);
+            },
+        );
+    }
+
     private async getExplore(
-        account: Account,
+        user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explore = await this.projectService.getExplore(
-            account,
+        const explores = await this.getAvailableExplores(
+            user,
             projectUuid,
-            exploreName,
+            availableTags,
         );
 
-        const filteredExplore = filterExploreByTags({
-            explore,
-            availableTags,
-        });
+        const explore = explores.find((e) => e.name === exploreName);
 
-        if (!filteredExplore) {
+        if (!explore) {
             throw new NotFoundError('Explore not found');
         }
 
-        return filteredExplore;
+        return explore;
+    }
+
+    public async getAgentExploreAccessSummary(
+        user: SessionUser,
+        projectUuid: string,
+        tags: string[] | null,
+    ) {
+        const { organizationUuid } = user;
+
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            tags,
+        );
+
+        const exploreAccessSummary = availableExplores.map((explore) => ({
+            exploreName: explore.label,
+            joinedTables: explore.joinedTables.map(
+                (table) => explore.tables[table.table].label,
+            ),
+            dimensions: Object.values(
+                explore.tables[explore.baseTable].dimensions,
+            ).map((dimension) => dimension.label),
+            metrics: Object.values(
+                explore.tables[explore.baseTable].metrics,
+            ).map((metric) => metric.label),
+        }));
+
+        return exploreAccessSummary;
     }
 
     private async executeAsyncAiMetricQuery(
@@ -376,9 +458,8 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
-        const account = fromSession(user);
         const explore = await this.getExplore(
-            account,
+            user,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -397,7 +478,7 @@ export class AiAgentService {
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
-                account,
+                account: fromSession(user),
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
@@ -1798,16 +1879,10 @@ export class AiAgentService {
         const listExplores: ListExploresFn = async () => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
             return this.getAvailableExplores(
+                user,
                 projectUuid,
                 agentSettings.tags,
-                userAttributes,
             );
         };
 
@@ -1933,9 +2008,8 @@ export class AiAgentService {
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const account = fromSession(user);
             const explore = await this.getExplore(
-                account,
+                user,
                 projectUuid,
                 agentSettings.tags,
                 exploreName,
@@ -3333,88 +3407,6 @@ export class AiAgentService {
         }
 
         return undefined;
-    }
-
-    async getAvailableExplores(
-        projectUuid: string,
-        availableTags: string[] | null,
-        userAttributes: UserAttributeValueMap,
-    ) {
-        return wrapSentryTransaction(
-            'AiAgent.getAvailableExplores',
-            {
-                projectUuid,
-                availableTags,
-                userAttributes,
-            },
-            async () => {
-                const allExplores = Object.values(
-                    await this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                    ),
-                );
-
-                return allExplores
-                    .filter(
-                        (explore): explore is Explore =>
-                            !isExploreError(explore),
-                    )
-                    .filter((explore) =>
-                        doesExploreMatchRequiredAttributes(
-                            explore.tables[explore.baseTable]
-                                .requiredAttributes,
-                            userAttributes,
-                        ),
-                    )
-                    .map((explore) =>
-                        getFilteredExplore(explore, userAttributes),
-                    )
-                    .filter((explore) =>
-                        filterExploreByTags({ explore, availableTags }),
-                    )
-                    .filter((explore): explore is Explore => !!explore);
-            },
-        );
-    }
-
-    public async getAgentExploreAccessSummary(
-        user: SessionUser,
-        projectUuid: string,
-        tags: string[] | null,
-    ) {
-        const { organizationUuid } = user;
-
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const availableExplores = await this.getAvailableExplores(
-            projectUuid,
-            tags,
-            userAttributes,
-        );
-
-        const exploreAccessSummary = availableExplores.map((explore) => ({
-            exploreName: explore.label,
-            joinedTables: explore.joinedTables.map(
-                (table) => explore.tables[table.table].label,
-            ),
-            dimensions: Object.values(
-                explore.tables[explore.baseTable].dimensions,
-            ).map((dimension) => dimension.label),
-            metrics: Object.values(
-                explore.tables[explore.baseTable].metrics,
-            ).map((metric) => metric.label),
-        }));
-
-        return exploreAccessSummary;
     }
 
     async cloneThread(
