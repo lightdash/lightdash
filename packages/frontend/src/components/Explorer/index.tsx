@@ -23,7 +23,6 @@ import { useCompiledSql } from '../../hooks/useCompiledSql';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
-import { useExplorerQueryResults } from '../../hooks/useExplorerQueryResults';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
@@ -61,7 +60,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const projectUuid = useProjectUuid();
 
-        const { query } = useExplorerQueryResults();
+        const { query, fetchResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
 
         const { data: explore } = useExplore(tableName);
@@ -69,8 +68,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!tableName,
         });
-
-        const { fetchResults } = useExplorerQuery();
 
         const isSavedChart = useExplorerContext(
             (context) => !!context.state.savedChart,
