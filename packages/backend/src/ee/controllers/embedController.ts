@@ -280,6 +280,7 @@ export class EmbedController extends BaseController {
                 dateZoom: body.dateZoom,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
+                pivotResults: body.pivotResults,
             });
 
         return {

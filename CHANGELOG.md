@@ -1,3 +1,10 @@
+## [0.2071.2](https://github.com/lightdash/lightdash/compare/0.2071.1...0.2071.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* allow backend pivoted results on embedded dashboards ([#17358](https://github.com/lightdash/lightdash/issues/17358)) ([3b143d8](https://github.com/lightdash/lightdash/commit/3b143d85d54fd98ca97db07260d46acde33bcc95))
+
 ## [0.2071.1](https://github.com/lightdash/lightdash/compare/0.2071.0...0.2071.1) (2025-10-09)
 
 
