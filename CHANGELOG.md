@@ -1,3 +1,12 @@
+## [0.2071.1](https://github.com/lightdash/lightdash/compare/0.2071.0...0.2071.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* custom metrics validation ([#17349](https://github.com/lightdash/lightdash/issues/17349)) ([7eaf82c](https://github.com/lightdash/lightdash/commit/7eaf82cba6938b4d8bb7a87745968b098c233092))
+* hide axis without hiding grid ([#17335](https://github.com/lightdash/lightdash/issues/17335)) ([74b32bc](https://github.com/lightdash/lightdash/commit/74b32bce54713d6a1743a3bb74c50762706b7cbf))
+* include table calculations and custom metrics in sort field validation ([#17348](https://github.com/lightdash/lightdash/issues/17348)) ([5bd0fdf](https://github.com/lightdash/lightdash/commit/5bd0fdf746a69ad724d09de8555abae8b236cea8))
+
 # [0.2071.0](https://github.com/lightdash/lightdash/compare/0.2070.2...0.2071.0) (2025-10-09)
 
 
