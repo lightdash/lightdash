@@ -19,7 +19,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconCode, IconTable } from '@tabler/icons-react';
+import { IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
@@ -93,7 +93,7 @@ export const ItemDetailPreview: FC<{
                 <>
                     <Group spacing="xs" position="apart">
                         <Text fz="sm" fw={500} c="dark.7">
-                            {metricInfo.name}
+                            {metricInfo.name} xx
                         </Text>
                         <Badge
                             radius="sm"
@@ -104,7 +104,7 @@ export const ItemDetailPreview: FC<{
                                 border: `1px solid ${theme.colors.indigo[1]}`,
                             })}
                         >
-                            {friendlyName(metricInfo.type)}
+                            {friendlyName(metricInfo.type)} yy
                         </Badge>
                     </Group>
                 </>
@@ -274,17 +274,9 @@ export const TableItemDetailPreview = ({
         closePreview();
         dispatch(
             explorerActions.openItemDetail({
-                header: (
-                    <Group spacing="sm">
-                        <MantineIcon
-                            icon={IconTable}
-                            size="lg"
-                            color="gray.7"
-                        />
-                        <Text size="md">{label}</Text>
-                    </Group>
-                ),
-                detail: <ItemDetailMarkdown source={description ?? ''} />,
+                itemType: 'table',
+                label,
+                description,
             }),
         );
     };

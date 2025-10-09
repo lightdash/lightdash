@@ -18,7 +18,7 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
-import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
+import { ItemDetailPreview } from '../ItemDetailPreview';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
 import useTableTree from './useTableTree';
@@ -76,16 +76,9 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
 
         dispatch(
             explorerActions.openItemDetail({
-                header: (
-                    <Group>
-                        <Text size="md">{label}</Text>
-                    </Group>
-                ),
-                detail: description ? (
-                    <ItemDetailMarkdown source={description} />
-                ) : (
-                    <Text color="gray">No description available.</Text>
-                ),
+                itemType: 'group',
+                label,
+                description,
             }),
         );
     }, [toggleHover, dispatch, label, description]);

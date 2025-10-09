@@ -11,6 +11,7 @@ import {
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
+    type Item,
     type Metric,
     type MetricQuery,
     type MetricType,
@@ -24,7 +25,6 @@ import {
     type TimeZone,
     type TreemapChartConfig,
 } from '@lightdash/common';
-import { type ReactNode } from 'react';
 import { type QueryResultsProps } from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
@@ -234,8 +234,10 @@ export interface ExplorerReduceState {
         };
         itemDetail: {
             isOpen: boolean;
-            header?: ReactNode;
-            detail?: ReactNode;
+            itemType?: 'field' | 'table' | 'group';
+            label?: string;
+            description?: string;
+            fieldItem?: Item | AdditionalMetric;
         };
     };
 

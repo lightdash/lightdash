@@ -6,6 +6,7 @@ import {
     type CustomDimension,
     type Dimension,
     type FieldId,
+    type Item,
     type Metric,
     type MetricQuery,
     type MetricType,
@@ -14,7 +15,6 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { type ReactNode } from 'react';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
@@ -317,19 +317,28 @@ const explorerSlice = createSlice({
         },
         openItemDetail: (
             state,
-            action: PayloadAction<{ header: ReactNode; detail: ReactNode }>,
+            action: PayloadAction<{
+                itemType: 'field' | 'table' | 'group';
+                label: string;
+                description?: string;
+                fieldItem?: Item | AdditionalMetric;
+            }>,
         ) => {
             state.modals.itemDetail = {
                 isOpen: true,
-                header: action.payload.header,
-                detail: action.payload.detail,
+                itemType: action.payload.itemType,
+                label: action.payload.label,
+                description: action.payload.description,
+                fieldItem: action.payload.fieldItem,
             };
         },
         closeItemDetail: (state) => {
             state.modals.itemDetail = {
                 isOpen: false,
-                header: undefined,
-                detail: undefined,
+                itemType: undefined,
+                label: undefined,
+                description: undefined,
+                fieldItem: undefined,
             };
         },
 

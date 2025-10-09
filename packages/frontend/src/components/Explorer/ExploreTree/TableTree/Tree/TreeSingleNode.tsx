@@ -6,8 +6,6 @@ import {
     isDimension,
     isField,
     isFilterableField,
-    isMetric,
-    isTableCalculation,
     isTimeInterval,
     timeFrameConfigs,
     type AdditionalMetric,
@@ -45,20 +43,11 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
-import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
+import { ItemDetailPreview } from '../ItemDetailPreview';
+import { getFieldIconColor } from '../utils';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
-
-// TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION)
-const getFieldIconColor = (field: Item | AdditionalMetric) => {
-    if (isCustomDimension(field) || isDimension(field)) return 'blue.9';
-    if (isAdditionalMetric(field)) return 'yellow.9';
-    if (isTableCalculation(field)) return 'green.9';
-    if (isMetric(field)) return 'yellow.9';
-
-    return 'yellow.9';
-};
 
 const NavItemIcon = ({
     isMissing,
@@ -214,21 +203,10 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         toggleHover(false);
         dispatch(
             explorerActions.openItemDetail({
-                header: (
-                    <Group>
-                        <FieldIcon
-                            item={item}
-                            color={getFieldIconColor(item)}
-                            size="md"
-                        />
-                        <Text size="md">{label}</Text>
-                    </Group>
-                ),
-                detail: description ? (
-                    <ItemDetailMarkdown source={description} />
-                ) : (
-                    <Text color="gray">No description available.</Text>
-                ),
+                itemType: 'field',
+                label,
+                description,
+                fieldItem: item,
             }),
         );
     }, [toggleHover, dispatch, item, label, description]);
