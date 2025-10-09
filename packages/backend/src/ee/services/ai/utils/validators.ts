@@ -474,33 +474,48 @@ export function validateFieldEntityType(
     explore: Explore,
     fieldIds: string[],
     expectedEntityType: 'dimension' | 'metric',
+    customMetrics?: CustomMetricBase[] | null,
 ) {
     const exploreFields = getFields(explore);
+    const customMetricsProvided =
+        customMetrics?.length && customMetrics.length > 0;
+    const customMetricFields = (customMetrics as AdditionalMetric[]) ?? [];
+    const allFields = [...exploreFields, ...customMetricFields];
     const errors: string[] = [];
 
     fieldIds.forEach((fieldId) => {
-        const field = exploreFields.find((f) => getItemId(f) === fieldId);
+        const field = allFields.find((f) => getItemId(f) === fieldId);
 
         if (!field) {
             errors.push(
-                `Error: Field with id "${fieldId}" does not exist in the explore.`,
+                `Error: Field with id "${fieldId}" does not exist in the explore or custom metrics.`,
             );
             return;
         }
 
         const isValidType =
             (expectedEntityType === 'dimension' && isDimension(field)) ||
-            (expectedEntityType === 'metric' && isMetric(field));
+            (expectedEntityType === 'metric' &&
+                (isMetric(field) ||
+                    (customMetricsProvided && isAdditionalMetric(field))));
 
         if (!isValidType) {
+            const isCustomMetric = customMetricFields.some(
+                (cm) => getItemId(cm) === fieldId,
+            );
+            const fieldSource = isCustomMetric ? 'custom metric' : 'explore';
+            const fieldType =
+                'fieldType' in field ? field.fieldType : 'custom metric';
+
             errors.push(
-                `Error: Field "${fieldId}" is a ${field.fieldType}, but expected a ${expectedEntityType}.
+                `Error: Field "${fieldId}" from ${fieldSource} is a ${fieldType}, but expected a ${expectedEntityType}.
 
 Field Details:
 - Field ID: ${fieldId}
 - Field Label: ${field.label}
-- Field Type: ${field.fieldType}
+- Field Type: ${fieldType}
 - Table: ${field.table}
+- Source: ${fieldSource}
 - Expected Type: ${expectedEntityType}`,
             );
         }
@@ -512,7 +527,10 @@ Field Details:
 ${errors.join('\n\n')}
 
 Available fields:
-${exploreFields.map((f) => `- ${getItemId(f)} (${f.fieldType})`).join('\n')}`;
+${exploreFields.map((f) => `- ${getItemId(f)} (${f.fieldType})`).join('\n')}
+${customMetricFields
+    .map((f) => `- ${getItemId(f)} (custom metric)`)
+    .join('\n')}`;
 
         Logger.error(`[AiAgent][Validate Field Entity Type] ${errorMessage}`);
 
