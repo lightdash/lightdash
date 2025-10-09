@@ -19,28 +19,30 @@ function hasMatchingTags(tags: string[], availableTags: string[]) {
     return intersection(tags, availableTags).length > 0;
 }
 
-function checkIfTableFieldsHasMatchingTags<T extends FilterableTable>(
-    table: T,
+function checkIfExploreFieldsHasMatchingTags<E extends FilterableExplore>(
+    explore: E,
     availableTags: string[],
 ) {
+    const fields = concat(
+        flatMap(explore.tables, (t) => Object.values(t.metrics)),
+        flatMap(explore.tables, (t) => Object.values(t.dimensions)),
+    );
+
     return hasMatchingTags(
-        concat(
-            flatMap(table.metrics, (m) => m.tags ?? []),
-            flatMap(table.dimensions, (d) => d.tags ?? []),
-        ),
+        flatMap(fields, (f) => f.tags ?? []),
         availableTags,
     );
 }
 
-function checkIfExploreHasMatchingTags<
-    E extends FilterableExplore,
-    T extends FilterableTable,
->(e: E, baseTable: T, availableTags: string[]) {
-    if (hasMatchingTags(e.tags, availableTags)) {
+function checkIfExploreHasMatchingTags<E extends FilterableExplore>(
+    explore: E,
+    availableTags: string[],
+) {
+    if (hasMatchingTags(explore.tags, availableTags)) {
         return true;
     }
 
-    if (checkIfTableFieldsHasMatchingTags(baseTable, availableTags)) {
+    if (checkIfExploreFieldsHasMatchingTags(explore, availableTags)) {
         return true;
     }
 
@@ -74,20 +76,13 @@ export function filterExploreByTags<E extends FilterableExplore>({
     explore: E;
     availableTags: string[] | null;
 }) {
-    if (!availableTags) {
-        return explore;
-    }
+    if (availableTags === null) return explore;
 
-    const baseTable = explore.tables[explore.baseTable];
-    if (!baseTable) {
-        throw new Error(`Base table not found`);
-    }
-
-    if (!checkIfExploreHasMatchingTags(explore, baseTable, availableTags)) {
+    if (!checkIfExploreHasMatchingTags(explore, availableTags)) {
         return undefined;
     }
 
-    if (!checkIfTableFieldsHasMatchingTags(baseTable, availableTags)) {
+    if (!checkIfExploreFieldsHasMatchingTags(explore, availableTags)) {
         return explore;
     }
 

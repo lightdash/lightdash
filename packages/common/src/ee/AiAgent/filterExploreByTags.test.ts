@@ -1,25 +1,6 @@
 import { filterExploreByTags } from './filterExploreByTags';
 
 describe('AiService', () => {
-    test('should throw when explore does not have a base table', async () => {
-        expect(() =>
-            filterExploreByTags({
-                availableTags: ['ai-enabled'],
-                explore: {
-                    baseTable: 'customers',
-                    tags: ['marketing', 'ai-enabled'],
-                    tables: {
-                        // customer_data instead of customers
-                        customer_data: {
-                            dimensions: {},
-                            metrics: {},
-                        },
-                    },
-                },
-            }),
-        ).toThrow('Base table not found');
-    });
-
     test('should return entire explore when no AI tags are configured in settings', async () => {
         expect(
             filterExploreByTags({
@@ -183,46 +164,7 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should return undefined when only joined table fields match but base table does not', async () => {
-        expect(
-            filterExploreByTags({
-                availableTags: ['marketing', 'ai-enabled'],
-                explore: {
-                    baseTable: 'customers',
-                    tags: ['analytics'],
-                    tables: {
-                        customers: {
-                            dimensions: {
-                                customer_name: {
-                                    tags: [],
-                                },
-                                internal_id: {
-                                    tags: ['analytics'],
-                                },
-                            },
-                            metrics: {
-                                revenue: {},
-                            },
-                        },
-                        sales: {
-                            dimensions: {
-                                user_email: {
-                                    tags: ['marketing', 'ai-enabled'],
-                                },
-                            },
-                            metrics: {
-                                sales_total: {
-                                    tags: ['marketing', 'ai-enabled'],
-                                },
-                            },
-                        },
-                    },
-                },
-            }),
-        ).toBeUndefined();
-    });
-
-    test('should expose all fields when explore is tagged but base table fields lack matching tags', async () => {
+    test('should expose fields from the joined tables if explore is tagged but base table fields lack matching tags', async () => {
         const explore = {
             baseTable: 'customers',
             tags: ['ai-enabled'],
@@ -260,7 +202,28 @@ describe('AiService', () => {
                 availableTags: ['marketing', 'ai-enabled'],
                 explore,
             }),
-        ).toStrictEqual(explore);
+        ).toStrictEqual({
+            baseTable: 'customers',
+            tags: ['ai-enabled'],
+            tables: {
+                customers: {
+                    dimensions: {},
+                    metrics: {},
+                },
+                sales: {
+                    dimensions: {
+                        user_email: {
+                            tags: ['marketing', 'ai-enabled'],
+                        },
+                    },
+                    metrics: {
+                        sales_total: {
+                            tags: ['marketing', 'ai-enabled'],
+                        },
+                    },
+                },
+            },
+        });
     });
 
     test('should filter fields when explore lacks tags but base table fields have matching tags', async () => {
