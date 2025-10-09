@@ -1,3 +1,78 @@
+## [0.2071.1](https://github.com/lightdash/lightdash/compare/0.2071.0...0.2071.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* custom metrics validation ([#17349](https://github.com/lightdash/lightdash/issues/17349)) ([7eaf82c](https://github.com/lightdash/lightdash/commit/7eaf82cba6938b4d8bb7a87745968b098c233092))
+* hide axis without hiding grid ([#17335](https://github.com/lightdash/lightdash/issues/17335)) ([74b32bc](https://github.com/lightdash/lightdash/commit/74b32bce54713d6a1743a3bb74c50762706b7cbf))
+* include table calculations and custom metrics in sort field validation ([#17348](https://github.com/lightdash/lightdash/issues/17348)) ([5bd0fdf](https://github.com/lightdash/lightdash/commit/5bd0fdf746a69ad724d09de8555abae8b236cea8))
+
+# [0.2071.0](https://github.com/lightdash/lightdash/compare/0.2070.2...0.2071.0) (2025-10-09)
+
+
+### Features
+
+* add search to ai search box ([#17342](https://github.com/lightdash/lightdash/issues/17342)) ([759c338](https://github.com/lightdash/lightdash/commit/759c3388b716a60eeac380a354eba7fb3014c5a3)), closes [#17285](https://github.com/lightdash/lightdash/issues/17285)
+* create new thread from AI search box ([#17303](https://github.com/lightdash/lightdash/issues/17303)) ([4afc644](https://github.com/lightdash/lightdash/commit/4afc644f3c09d58068ae8b1d275d312e3a454605)), closes [#17286](https://github.com/lightdash/lightdash/issues/17286)
+* introduce ai search box to homepage ([#17299](https://github.com/lightdash/lightdash/issues/17299)) ([e5053e9](https://github.com/lightdash/lightdash/commit/e5053e99e1ebaf77c3bd04f467499f79c400bf5d)), closes [#17289](https://github.com/lightdash/lightdash/issues/17289)
+
+## [0.2070.2](https://github.com/lightdash/lightdash/compare/0.2070.1...0.2070.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* Agent should not ask for a permission to generate a dashboard ([#17345](https://github.com/lightdash/lightdash/issues/17345)) ([d62f5e5](https://github.com/lightdash/lightdash/commit/d62f5e5c69fe69e1d575c8345baf37806ef40977))
+* show retry option when assistant has no response ([#17341](https://github.com/lightdash/lightdash/issues/17341)) ([dbbac0a](https://github.com/lightdash/lightdash/commit/dbbac0a49b094dfae5fd45d21123318f473df6dc))
+
+## [0.2070.1](https://github.com/lightdash/lightdash/compare/0.2070.0...0.2070.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* remove resize calc from vega-lite to depend on css only ([#17343](https://github.com/lightdash/lightdash/issues/17343)) ([1abcfea](https://github.com/lightdash/lightdash/commit/1abcfeae7a1a3e96efa0e6789d1bbe9ed2a33baa))
+
+# [0.2070.0](https://github.com/lightdash/lightdash/compare/0.2069.5...0.2070.0) (2025-10-09)
+
+
+### Features
+
+* allow fetching dashboards and charts by slug ([#17292](https://github.com/lightdash/lightdash/issues/17292)) ([0299884](https://github.com/lightdash/lightdash/commit/0299884c6c7a64e4864cf225df84aff189638102))
+
+## [0.2069.5](https://github.com/lightdash/lightdash/compare/0.2069.4...0.2069.5) (2025-10-09)
+
+
+### Bug Fixes
+
+* create dashboard artifact before returning error messages ([#17338](https://github.com/lightdash/lightdash/issues/17338)) ([a22d6e9](https://github.com/lightdash/lightdash/commit/a22d6e9f43624ca565555b1e946dc9bdeab421d3))
+
+## [0.2069.4](https://github.com/lightdash/lightdash/compare/0.2069.3...0.2069.4) (2025-10-09)
+
+
+### Bug Fixes
+
+* error when removing sort by metric ([#17332](https://github.com/lightdash/lightdash/issues/17332)) ([156536a](https://github.com/lightdash/lightdash/commit/156536a562d3c8a8a9aa1805639e5b1c1503fbc4))
+
+## [0.2069.3](https://github.com/lightdash/lightdash/compare/0.2069.2...0.2069.3) (2025-10-09)
+
+
+### Bug Fixes
+
+* always use enterprise scopes with custom role builder ([#17320](https://github.com/lightdash/lightdash/issues/17320)) ([35e97ca](https://github.com/lightdash/lightdash/commit/35e97cad6d10320bfd183885c7357dbda5352cac))
+
+## [0.2069.2](https://github.com/lightdash/lightdash/compare/0.2069.1...0.2069.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* do not attempt to join channel if app is in it already ([#17319](https://github.com/lightdash/lightdash/issues/17319)) ([0f3343c](https://github.com/lightdash/lightdash/commit/0f3343cb9041dac6e2c307e7584a8074fbd0cf38))
+
+## [0.2069.1](https://github.com/lightdash/lightdash/compare/0.2069.0...0.2069.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* remove selection when no warehouse credentials ([#17312](https://github.com/lightdash/lightdash/issues/17312)) ([4c809d9](https://github.com/lightdash/lightdash/commit/4c809d965f4aea6b19732c03da1da3a11402956a))
+
 # [0.2069.0](https://github.com/lightdash/lightdash/compare/0.2068.1...0.2069.0) (2025-10-08)
 
 

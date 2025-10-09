@@ -28,6 +28,7 @@ import {
     SupportedDbtAdapter,
     TableCalcSchema,
     TableCalcsSchema,
+    TableCalculation,
     ToolSortField,
     WeekDay,
 } from '@lightdash/common';
@@ -35,20 +36,25 @@ import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
 /**
- * Validate that all selected fields exist in the explore
+ * Validate that all selected fields exist in the explore, custom metrics or table calculations
  * @param explore
  * @param selectedFieldIds
+ * @param customMetrics
+ * @param tableCalculations
  */
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
     customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const customMetricIds = customMetrics?.map(getItemId);
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name);
     const nonExploreFields = selectedFieldIds
         .filter((f) => !exploreFieldIds.includes(f))
-        .filter((f) => !customMetricIds?.includes(f));
+        .filter((f) => !customMetricIds?.includes(f))
+        .filter((f) => !tableCalculationNames?.includes(f));
 
     if (nonExploreFields.length) {
         const errorMessage = `The following fields are neither in the explore nor in the custom metrics.
@@ -410,22 +416,26 @@ Remember:
  * @param selectedDimensions - Array of selected dimension field IDs
  * @param selectedMetrics - Array of selected metric field IDs
  * @param customMetrics - Custom metrics that may be used in sorts
+ * @param tableCalculations - Table calculations that may be used in sorts
  */
 export function validateSortFieldsAreSelected(
     sorts: ToolSortField[],
     selectedDimensions: string[],
     selectedMetrics: string[],
     customMetrics?: CustomMetricBase[] | null,
+    tableCalculations?: TableCalcsSchema,
 ) {
     if (!sorts || sorts.length === 0) {
         return;
     }
 
     const customMetricIds = customMetrics?.map(getItemId) || [];
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name) || [];
     const allSelectedFieldIds = [
         ...selectedDimensions,
         ...selectedMetrics,
         ...customMetricIds,
+        ...tableCalculationNames,
     ];
 
     const errors: string[] = [];
@@ -464,33 +474,48 @@ export function validateFieldEntityType(
     explore: Explore,
     fieldIds: string[],
     expectedEntityType: 'dimension' | 'metric',
+    customMetrics?: CustomMetricBase[] | null,
 ) {
     const exploreFields = getFields(explore);
+    const customMetricsProvided =
+        customMetrics?.length && customMetrics.length > 0;
+    const customMetricFields = (customMetrics as AdditionalMetric[]) ?? [];
+    const allFields = [...exploreFields, ...customMetricFields];
     const errors: string[] = [];
 
     fieldIds.forEach((fieldId) => {
-        const field = exploreFields.find((f) => getItemId(f) === fieldId);
+        const field = allFields.find((f) => getItemId(f) === fieldId);
 
         if (!field) {
             errors.push(
-                `Error: Field with id "${fieldId}" does not exist in the explore.`,
+                `Error: Field with id "${fieldId}" does not exist in the explore or custom metrics.`,
             );
             return;
         }
 
         const isValidType =
             (expectedEntityType === 'dimension' && isDimension(field)) ||
-            (expectedEntityType === 'metric' && isMetric(field));
+            (expectedEntityType === 'metric' &&
+                (isMetric(field) ||
+                    (customMetricsProvided && isAdditionalMetric(field))));
 
         if (!isValidType) {
+            const isCustomMetric = customMetricFields.some(
+                (cm) => getItemId(cm) === fieldId,
+            );
+            const fieldSource = isCustomMetric ? 'custom metric' : 'explore';
+            const fieldType =
+                'fieldType' in field ? field.fieldType : 'custom metric';
+
             errors.push(
-                `Error: Field "${fieldId}" is a ${field.fieldType}, but expected a ${expectedEntityType}.
+                `Error: Field "${fieldId}" from ${fieldSource} is a ${fieldType}, but expected a ${expectedEntityType}.
 
 Field Details:
 - Field ID: ${fieldId}
 - Field Label: ${field.label}
-- Field Type: ${field.fieldType}
+- Field Type: ${fieldType}
 - Table: ${field.table}
+- Source: ${fieldSource}
 - Expected Type: ${expectedEntityType}`,
             );
         }
@@ -502,7 +527,10 @@ Field Details:
 ${errors.join('\n\n')}
 
 Available fields:
-${exploreFields.map((f) => `- ${getItemId(f)} (${f.fieldType})`).join('\n')}`;
+${exploreFields.map((f) => `- ${getItemId(f)} (${f.fieldType})`).join('\n')}
+${customMetricFields
+    .map((f) => `- ${getItemId(f)} (custom metric)`)
+    .join('\n')}`;
 
         Logger.error(`[AiAgent][Validate Field Entity Type] ${errorMessage}`);
 
@@ -569,7 +597,7 @@ export function validateTableCalculations(
     explore: Explore,
     tableCalcs: TableCalcsSchema,
     selectedMetrics: string[],
-    customMetrics?: CustomMetricBase[] | null,
+    customMetrics: CustomMetricBase[] | null,
 ) {
     if (!tableCalcs?.length) return;
 
@@ -592,6 +620,7 @@ export function validateTableCalculations(
                 explore,
                 orderByFieldIds,
                 customMetrics,
+                tableCalcs,
             );
         } catch (e) {
             errors.push(

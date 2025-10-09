@@ -238,11 +238,13 @@ export class DashboardService
         });
     }
 
-    async getById(
+    async getByIdOrSlug(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+        );
 
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
@@ -379,7 +381,7 @@ export class DashboardService
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
 
-        const dashboardDao = await this.dashboardModel.getById(
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             newDashboard.uuid,
         );
 
@@ -396,7 +398,9 @@ export class DashboardService
         dashboardUuid: string,
         data: DuplicateDashboardParams,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
@@ -569,7 +573,7 @@ export class DashboardService
             },
         });
 
-        const updatedNewDashboard = await this.dashboardModel.getById(
+        const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             newDashboard.uuid,
         );
 
@@ -582,11 +586,11 @@ export class DashboardService
 
     async update(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        const existingDashboardDao = await this.dashboardModel.getById(
-            dashboardUuid,
+        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
         );
 
         const canUpdateDashboardInCurrentSpace = user.ability.can(
@@ -630,7 +634,7 @@ export class DashboardService
             }
 
             const updatedDashboard = await this.dashboardModel.update(
-                dashboardUuid,
+                existingDashboardDao.uuid,
                 {
                     name: dashboard.name,
                     description: dashboard.description,
@@ -667,7 +671,7 @@ export class DashboardService
             );
 
             const updatedDashboard = await this.dashboardModel.addVersion(
-                dashboardUuid,
+                existingDashboardDao.uuid,
                 {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
@@ -684,11 +688,14 @@ export class DashboardService
                 properties:
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
-            await this.deleteOrphanedChartsInDashboards(user, dashboardUuid);
+            await this.deleteOrphanedChartsInDashboards(
+                user,
+                existingDashboardDao.uuid,
+            );
         }
 
-        const updatedNewDashboard = await this.dashboardModel.getById(
-            dashboardUuid,
+        const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
+            existingDashboardDao.uuid,
         );
         const space = await this.spaceModel.getSpaceSummary(
             updatedNewDashboard.spaceUuid,
@@ -709,7 +716,7 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<TogglePinnedItemInfo> {
-        const existingDashboardDao = await this.dashboardModel.getById(
+        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
         );
         const space = await this.spaceModel.getSpaceSummary(
@@ -789,7 +796,7 @@ export class DashboardService
     ): Promise<Dashboard[]> {
         const userHasAccessToDashboards = await Promise.all(
             dashboards.map(async (dashboardToUpdate) => {
-                const dashboard = await this.dashboardModel.getById(
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
                     dashboardToUpdate.uuid,
                 );
                 const canUpdateDashboardInCurrentSpace = user.ability.can(
@@ -865,7 +872,7 @@ export class DashboardService
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const dashboardToDelete = await this.dashboardModel.getById(
+        const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
         );
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
@@ -1046,7 +1053,9 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
@@ -1095,7 +1104,7 @@ export class DashboardService
             spaceUuid?: string;
         },
     ) {
-        const dashboard = await this.dashboardModel.getById(
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
         const space = await this.spaceModel.getSpaceSummary(
@@ -1259,7 +1268,7 @@ export class DashboardService
 
             await this.update(user, dashboard.uuid, updateFields);
 
-            return await this.getById(user, dashboard.uuid);
+            return await this.getByIdOrSlug(user, dashboard.uuid);
         } catch (error) {
             try {
                 await this.delete(user, dashboard.uuid);

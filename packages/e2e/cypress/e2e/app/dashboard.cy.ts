@@ -306,4 +306,90 @@ describe('Dashboard', () => {
 
         cy.get('div').contains('Success', { timeout: 20000 }).should('exist');
     });
+
+    it('Should access dashboard by slug instead of UUID', () => {
+        // First, verify we can access via slug
+        const slug = 'jaffle-dashboard';
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards/${slug}`);
+
+        // Verify the dashboard loads correctly
+        cy.get('.react-grid-layout').within(() => {
+            cy.findByText("What's our total revenue to date?");
+            cy.findByText("What's the average spend per customer?");
+        });
+
+        cy.findAllByText('Loading chart').should('have.length', 0);
+
+        // Verify URL contains the slug
+        cy.url().should('include', `/dashboards/${slug}`);
+
+        // Verify charts render
+        cy.get('.echarts-for-react').should('have.length', 3);
+    });
+
+    it('Should maintain dashboard filters when using slug', () => {
+        const slug = 'jaffle-dashboard';
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards/${slug}`);
+
+        cy.get('.react-grid-layout').within(() => {
+            cy.contains('How much revenue');
+        });
+
+        cy.findAllByText('Loading chart').should('have.length', 0);
+
+        // Add filter
+        cy.contains('Add filter').click();
+
+        cy.findByTestId('FilterConfiguration/FieldSelect')
+            .click()
+            .type('payment method{downArrow}{enter}');
+        cy.findByPlaceholderText('Start typing to filter results').type(
+            'credit_card',
+        );
+        cy.findByRole('option', { name: 'credit_card' }).click();
+        cy.findAllByRole('tab').eq(0).click();
+        cy.contains('button', 'Apply').click({ force: true });
+
+        cy.contains('bank_transfer').should('have.length', 0);
+
+        // Verify URL still uses slug with temp filters
+        cy.url().should('include', `/dashboards/${slug}`);
+        cy.url().should('include', 'tempFilters=');
+        cy.url().should('include', 'credit_card');
+
+        // Reload and verify slug is preserved
+        cy.reload();
+        cy.url().should('include', `/dashboards/${slug}`);
+        cy.contains('Payment method is credit_card');
+    });
+
+    it('Should access dashboard via API using slug', () => {
+        const slug = 'jaffle-dashboard';
+
+        // Test API endpoint with slug
+        cy.request({
+            method: 'GET',
+            url: `/api/v1/dashboards/${slug}`,
+        }).then((response) => {
+            expect(response.status).to.eq(200);
+            expect(response.body).to.have.property('status', 'ok');
+            expect(response.body.results).to.have.property(
+                'name',
+                'Jaffle dashboard',
+            );
+            expect(response.body.results).to.have.property('slug', slug);
+            expect(response.body.results).to.have.property('uuid');
+            expect(response.body.results.tiles).to.be.an('array');
+        });
+    });
+
+    it('Should handle invalid dashboard slug gracefully', () => {
+        cy.visit(
+            `/projects/${SEED_PROJECT.project_uuid}/dashboards/non-existent-slug`,
+            { failOnStatusCode: false },
+        );
+
+        // Should show an error message
+        cy.contains('Dashboard not found').should('exist');
+    });
 });

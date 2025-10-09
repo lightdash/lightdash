@@ -90,7 +90,6 @@ const CustomVisualization: FC<Props> = (props) => {
                     }}
                     config={{
                         autosize: {
-                            resize: true,
                             type: 'fit',
                         },
                     }}

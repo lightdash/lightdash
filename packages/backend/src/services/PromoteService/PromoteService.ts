@@ -724,7 +724,9 @@ export class PromoteService extends BaseService {
     }
 
     async getPromoteDashboardDiff(user: SessionUser, dashboardUuid: string) {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,
@@ -1415,7 +1417,9 @@ export class PromoteService extends BaseService {
     }
 
     async promoteDashboard(user: SessionUser, dashboardUuid: string) {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,

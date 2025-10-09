@@ -123,6 +123,20 @@ export const getGenerateDashboard = ({
                 // Create dashboard with valid visualizations only
                 const prompt = await getPrompt();
 
+                await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'dashboard',
+                    title: toolArgs.title,
+                    description: toolArgs.description,
+                    vizConfig: {
+                        ...toolArgs,
+                        visualizations: toolArgs.visualizations.filter(
+                            (_, index) => validIndices.has(index),
+                        ),
+                    },
+                });
+
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
                     return {
@@ -138,20 +152,6 @@ export const getGenerateDashboard = ({
                         },
                     };
                 }
-
-                await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'dashboard',
-                    title: toolArgs.title,
-                    description: toolArgs.description,
-                    vizConfig: {
-                        ...toolArgs,
-                        visualizations: toolArgs.visualizations.filter(
-                            (_, index) => validIndices.has(index),
-                        ),
-                    },
-                });
 
                 return {
                     result: `Success`,

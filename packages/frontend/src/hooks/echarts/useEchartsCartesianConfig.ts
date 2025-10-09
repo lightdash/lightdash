@@ -1091,12 +1091,28 @@ const getEchartAxes = ({
         longestLabelWidth,
         rotate,
         defaultNameGap,
+        show,
     }: {
         axisItem: ItemsMap[string] | undefined;
         longestLabelWidth?: number;
         rotate?: number;
         defaultNameGap?: number;
+        show?: boolean;
     }) => {
+        // Remove axis labels, lines, and ticks if the axis is not shown
+        // This is done to prevent the grid from disappearing when the axis is not shown
+        if (!show) {
+            return {
+                axisLabel: undefined,
+                axisLine: {
+                    show,
+                },
+                axisTick: {
+                    show,
+                },
+            };
+        }
+
         const isTimestamp =
             isField(axisItem) &&
             (axisItem.type === DimensionType.DATE ||
@@ -1461,26 +1477,30 @@ const getEchartAxes = ({
         xAxis: [
             {
                 type: bottomAxisType,
-                show: showXAxis,
-                name: validCartesianConfig.layout.flipAxes
-                    ? getAxisName({
-                          isAxisTheSameForAllSeries,
-                          selectedAxisIndex,
-                          axisIndex: 0,
-                          axisReference: 'yRef',
-                          axisName: xAxisConfiguration?.[0]?.name,
-                          itemsMap,
-                          series: validCartesianConfig.eChartsConfig.series,
-                      })
-                    : xAxisConfiguration?.[0]?.name ||
-                      (xAxisItem
-                          ? getDateGroupLabel(xAxisItem) ||
-                            getItemLabelWithoutTableName(xAxisItem)
-                          : undefined),
-                nameLocation: 'center',
-                nameTextStyle: {
-                    fontWeight: 'bold',
-                },
+                ...(showXAxis
+                    ? {
+                          name: validCartesianConfig.layout.flipAxes
+                              ? getAxisName({
+                                    isAxisTheSameForAllSeries,
+                                    selectedAxisIndex,
+                                    axisIndex: 0,
+                                    axisReference: 'yRef',
+                                    axisName: xAxisConfiguration?.[0]?.name,
+                                    itemsMap,
+                                    series: validCartesianConfig.eChartsConfig
+                                        .series,
+                                })
+                              : xAxisConfiguration?.[0]?.name ||
+                                (xAxisItem
+                                    ? getDateGroupLabel(xAxisItem) ||
+                                      getItemLabelWithoutTableName(xAxisItem)
+                                    : undefined),
+                          nameLocation: 'center',
+                          nameTextStyle: {
+                              fontWeight: 'bold',
+                          },
+                      }
+                    : {}),
                 ...getAxisFormatter({
                     axisItem: bottomAxisXField,
                     longestLabelWidth: calculateWidthText(
@@ -1488,6 +1508,7 @@ const getEchartAxes = ({
                     ),
                     rotate: xAxisConfiguration?.[0]?.rotate,
                     defaultNameGap: 30,
+                    show: showXAxis,
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1500,18 +1521,26 @@ const getEchartAxes = ({
             },
             {
                 type: topAxisType,
-                show: showXAxis,
-                name: validCartesianConfig.layout.flipAxes
-                    ? getAxisName({
-                          isAxisTheSameForAllSeries,
-                          selectedAxisIndex,
-                          axisIndex: 1,
-                          axisReference: 'yRef',
-                          axisName: xAxisConfiguration?.[1]?.name,
-                          itemsMap,
-                          series: validCartesianConfig.eChartsConfig.series,
-                      })
-                    : undefined,
+                ...(showXAxis
+                    ? {
+                          name: validCartesianConfig.layout.flipAxes
+                              ? getAxisName({
+                                    isAxisTheSameForAllSeries,
+                                    selectedAxisIndex,
+                                    axisIndex: 1,
+                                    axisReference: 'yRef',
+                                    axisName: xAxisConfiguration?.[1]?.name,
+                                    itemsMap,
+                                    series: validCartesianConfig.eChartsConfig
+                                        .series,
+                                })
+                              : undefined,
+                          nameLocation: 'center',
+                          nameTextStyle: {
+                              fontWeight: 'bold',
+                          },
+                      }
+                    : {}),
                 min:
                     topAxisType === 'value'
                         ? xAxisConfiguration?.[1]?.min ||
@@ -1526,15 +1555,12 @@ const getEchartAxes = ({
                               allowSecondAxisDefaultRange,
                           )
                         : undefined,
-                nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
                     longestLabelWidth: calculateWidthText(longestValueXAxisTop),
                     defaultNameGap: 30,
+                    show: showXAxis,
                 }),
-                nameTextStyle: {
-                    fontWeight: 'bold',
-                },
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
@@ -1544,32 +1570,37 @@ const getEchartAxes = ({
         yAxis: [
             {
                 type: leftAxisType,
-                show: showYAxis,
-                name: validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.name ||
-                      (yAxisItem
-                          ? getDateGroupLabel(yAxisItem) ||
-                            getItemLabelWithoutTableName(yAxisItem)
-                          : undefined)
-                    : getAxisName({
-                          isAxisTheSameForAllSeries,
-                          selectedAxisIndex,
-                          axisIndex: 0,
-                          axisReference: 'yRef',
-                          axisName: yAxisConfiguration?.[0]?.name,
-                          itemsMap,
-                          series: validCartesianConfig.eChartsConfig.series,
-                      }),
+                ...(showYAxis
+                    ? {
+                          name: validCartesianConfig.layout.flipAxes
+                              ? yAxisConfiguration?.[0]?.name ||
+                                (yAxisItem
+                                    ? getDateGroupLabel(yAxisItem) ||
+                                      getItemLabelWithoutTableName(yAxisItem)
+                                    : undefined)
+                              : getAxisName({
+                                    isAxisTheSameForAllSeries,
+                                    selectedAxisIndex,
+                                    axisIndex: 0,
+                                    axisReference: 'yRef',
+                                    axisName: yAxisConfiguration?.[0]?.name,
+                                    itemsMap,
+                                    series: validCartesianConfig.eChartsConfig
+                                        .series,
+                                }),
+                          nameLocation: 'center',
+                          nameTextStyle: {
+                              fontWeight: 'bold',
+                              align: 'center',
+                          },
+                      }
+                    : {}),
                 min: minYAxisValue,
                 max: maxYAxisValue,
-                nameTextStyle: {
-                    fontWeight: 'bold',
-                    align: 'center',
-                },
-                nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: leftAxisYField,
                     defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
+                    show: showYAxis,
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1581,18 +1612,28 @@ const getEchartAxes = ({
             },
             {
                 type: rightAxisType,
-                show: showYAxis,
-                name: validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[1]?.name
-                    : getAxisName({
-                          isAxisTheSameForAllSeries,
-                          selectedAxisIndex,
-                          axisIndex: 1,
-                          axisReference: 'yRef',
-                          axisName: yAxisConfiguration?.[1]?.name,
-                          itemsMap,
-                          series: validCartesianConfig.eChartsConfig.series,
-                      }),
+                ...(showYAxis
+                    ? {
+                          name: validCartesianConfig.layout.flipAxes
+                              ? yAxisConfiguration?.[1]?.name
+                              : getAxisName({
+                                    isAxisTheSameForAllSeries,
+                                    selectedAxisIndex,
+                                    axisIndex: 1,
+                                    axisReference: 'yRef',
+                                    axisName: yAxisConfiguration?.[1]?.name,
+                                    itemsMap,
+                                    series: validCartesianConfig.eChartsConfig
+                                        .series,
+                                }),
+                          nameLocation: 'center',
+                          nameRotate: -90,
+                          nameTextStyle: {
+                              fontWeight: 'bold',
+                              align: 'center',
+                          },
+                      }
+                    : {}),
                 min:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.min ||
@@ -1609,16 +1650,11 @@ const getEchartAxes = ({
                               allowSecondAxisDefaultRange,
                           )
                         : undefined,
-                nameTextStyle: {
-                    fontWeight: 'bold',
-                    align: 'center',
-                },
                 ...getAxisFormatter({
                     axisItem: rightAxisYField,
                     defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
+                    show: showYAxis,
                 }),
-                nameLocation: 'center',
-                nameRotate: -90,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
