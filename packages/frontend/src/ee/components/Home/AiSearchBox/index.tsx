@@ -9,26 +9,34 @@ import {
     Text,
     TextInput,
 } from '@mantine-8/core';
+import { useForm } from '@mantine/form';
 import { IconArrowUp, IconSettings, IconSparkles } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { Link } from 'react-router';
+import { Provider } from 'react-redux';
+import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useProjectAiAgents } from '../../../features/aiCopilot/hooks/useProjectAiAgents';
+import {
+    useCreateAgentThreadMutation,
+    useProjectAiAgents,
+} from '../../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../../features/aiCopilot/hooks/useUserAgentPreferences';
+import { store } from '../../../features/aiCopilot/store';
+import { AiAgentThreadStreamAbortControllerContextProvider } from '../../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
 
 type Props = {
     projectUuid: string;
 };
 
 const MOCK_LIGHTDASH_AGENT = {
-    uuid: 'LIGHTDASH',
+    uuid: '',
     name: 'Lightdash',
     imageUrl: '/favicon-32x32.png',
 };
 
-const AiSearchBox: FC<Props> = ({ projectUuid }) => {
+const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
+    const navigate = useNavigate();
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
@@ -65,6 +73,30 @@ const AiSearchBox: FC<Props> = ({ projectUuid }) => {
 
     const [selectedAgent, setSelectedAgent] = useState(initialSelectedAgent);
 
+    const form = useForm({
+        initialValues: {
+            prompt: '',
+        },
+        validate: {
+            prompt: (value) =>
+                value.trim().length === 0 ? 'Please enter a message' : null,
+        },
+    });
+
+    const { mutateAsync: createAgentThread } = useCreateAgentThreadMutation(
+        noAgentsAvailable ? undefined : selectedAgent.uuid,
+        projectUuid,
+    );
+
+    const handleSubmit = form.onSubmit(async (values) => {
+        if (noAgentsAvailable) {
+            await navigate(`/projects/${projectUuid}/ai-agents`);
+        } else {
+            await createAgentThread({ prompt: values.prompt.trim() });
+            form.reset();
+        }
+    });
+
     const onSelect = (agentUuid: string) => {
         setSelectedAgent(
             (currentSelection) =>
@@ -92,17 +124,28 @@ const AiSearchBox: FC<Props> = ({ projectUuid }) => {
     return (
         <Paper style={{ overflow: 'hidden' }}>
             <Box p="md">
-                <Group>
-                    <CompactAgentSelector
-                        agents={agentsWithMock}
-                        selectedAgent={selectedAgent}
-                        onSelect={onSelect}
-                    />
-                    <TextInput flex={1} />
-                    <ActionIcon color="gray" radius="lg">
-                        <MantineIcon icon={IconArrowUp} />
-                    </ActionIcon>
-                </Group>
+                <form onSubmit={handleSubmit}>
+                    <Group>
+                        <CompactAgentSelector
+                            agents={agentsWithMock}
+                            selectedAgent={selectedAgent}
+                            onSelect={onSelect}
+                        />
+                        <TextInput
+                            flex={1}
+                            placeholder="Ask a question..."
+                            {...form.getInputProps('prompt')}
+                        />
+                        <ActionIcon
+                            color="gray"
+                            radius="lg"
+                            type="submit"
+                            disabled={!form.values.prompt.trim()}
+                        >
+                            <MantineIcon icon={IconArrowUp} />
+                        </ActionIcon>
+                    </Group>
+                </form>
             </Box>
             {canManageAgents && (
                 <>
@@ -145,5 +188,13 @@ const AiSearchBox: FC<Props> = ({ projectUuid }) => {
         </Paper>
     );
 };
+
+const AiSearchBox: FC<Props> = (props) => (
+    <Provider store={store}>
+        <AiAgentThreadStreamAbortControllerContextProvider>
+            <AiSearchBoxInner {...props} />
+        </AiAgentThreadStreamAbortControllerContextProvider>
+    </Provider>
+);
 
 export default AiSearchBox;
