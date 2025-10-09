@@ -28,6 +28,7 @@ import {
     SupportedDbtAdapter,
     TableCalcSchema,
     TableCalcsSchema,
+    TableCalculation,
     ToolSortField,
     WeekDay,
 } from '@lightdash/common';
@@ -35,20 +36,25 @@ import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
 /**
- * Validate that all selected fields exist in the explore
+ * Validate that all selected fields exist in the explore, custom metrics or table calculations
  * @param explore
  * @param selectedFieldIds
+ * @param customMetrics
+ * @param tableCalculations
  */
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
     customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const customMetricIds = customMetrics?.map(getItemId);
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name);
     const nonExploreFields = selectedFieldIds
         .filter((f) => !exploreFieldIds.includes(f))
-        .filter((f) => !customMetricIds?.includes(f));
+        .filter((f) => !customMetricIds?.includes(f))
+        .filter((f) => !tableCalculationNames?.includes(f));
 
     if (nonExploreFields.length) {
         const errorMessage = `The following fields are neither in the explore nor in the custom metrics.
@@ -410,22 +416,26 @@ Remember:
  * @param selectedDimensions - Array of selected dimension field IDs
  * @param selectedMetrics - Array of selected metric field IDs
  * @param customMetrics - Custom metrics that may be used in sorts
+ * @param tableCalculations - Table calculations that may be used in sorts
  */
 export function validateSortFieldsAreSelected(
     sorts: ToolSortField[],
     selectedDimensions: string[],
     selectedMetrics: string[],
     customMetrics?: CustomMetricBase[] | null,
+    tableCalculations?: TableCalcsSchema,
 ) {
     if (!sorts || sorts.length === 0) {
         return;
     }
 
     const customMetricIds = customMetrics?.map(getItemId) || [];
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name) || [];
     const allSelectedFieldIds = [
         ...selectedDimensions,
         ...selectedMetrics,
         ...customMetricIds,
+        ...tableCalculationNames,
     ];
 
     const errors: string[] = [];
@@ -569,7 +579,7 @@ export function validateTableCalculations(
     explore: Explore,
     tableCalcs: TableCalcsSchema,
     selectedMetrics: string[],
-    customMetrics?: CustomMetricBase[] | null,
+    customMetrics: CustomMetricBase[] | null,
 ) {
     if (!tableCalcs?.length) return;
 
@@ -592,6 +602,7 @@ export function validateTableCalculations(
                 explore,
                 orderByFieldIds,
                 customMetrics,
+                tableCalcs,
             );
         } catch (e) {
             errors.push(

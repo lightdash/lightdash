@@ -31,15 +31,19 @@ export const validateBarVizConfig = (
         vizTool.filters,
         vizTool.customMetrics,
     );
+    // validate sort fields exist
     validateSelectedFieldsExistence(
         explore,
         vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
+        vizTool.customMetrics,
+        vizTool.tableCalculations,
     );
     validateSortFieldsAreSelected(
         vizTool.vizConfig.sorts,
         selectedDimensions,
         vizTool.vizConfig.yMetrics,
         vizTool.customMetrics,
+        vizTool.tableCalculations,
     );
     validateTableCalculations(
         explore,
