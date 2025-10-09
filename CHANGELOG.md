@@ -1,3 +1,10 @@
+## [0.2069.4](https://github.com/lightdash/lightdash/compare/0.2069.3...0.2069.4) (2025-10-09)
+
+
+### Bug Fixes
+
+* error when removing sort by metric ([#17332](https://github.com/lightdash/lightdash/issues/17332)) ([156536a](https://github.com/lightdash/lightdash/commit/156536a562d3c8a8a9aa1805639e5b1c1503fbc4))
+
 ## [0.2069.3](https://github.com/lightdash/lightdash/compare/0.2069.2...0.2069.3) (2025-10-09)
 
 
