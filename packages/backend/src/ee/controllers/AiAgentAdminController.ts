@@ -4,14 +4,19 @@ import {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
+    ApiAiOrganizationSettingsResponse,
     ApiErrorPayload,
+    ApiUpdateAiOrganizationSettingsResponse,
     KnexPaginateArgs,
+    UpdateAiOrganizationSettings,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Query,
     Request,
     Response,
@@ -25,6 +30,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentAdminService } from '../services/AiAgentAdminService';
+import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
 
 @Route('/api/v1/aiAgents/admin')
 @Hidden()
@@ -127,7 +133,59 @@ export class AiAgentAdminController extends BaseController {
         };
     }
 
+    /**
+     * Get AI organization settings
+     * @summary Get AI settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Retrieved AI organization settings')
+    @Get('/settings')
+    @OperationId('getAiOrganizationSettings')
+    async getSettings(
+        @Request() req: express.Request,
+    ): Promise<ApiAiOrganizationSettingsResponse> {
+        const settings =
+            await this.getAiOrganizationSettingsService().getSettings(
+                req.user!,
+            );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Update AI organization settings
+     * @summary Update AI settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Updated AI organization settings')
+    @Patch('/settings')
+    @OperationId('upsertAiOrganizationSettings')
+    async upsertSettings(
+        @Request() req: express.Request,
+        @Body() body: UpdateAiOrganizationSettings,
+    ): Promise<ApiUpdateAiOrganizationSettingsResponse> {
+        const settings =
+            await this.getAiOrganizationSettingsService().upsertSettings(
+                req.user!,
+                body,
+            );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
     protected getAiAgentAdminService() {
         return this.services.getAiAgentAdminService<AiAgentAdminService>();
+    }
+
+    protected getAiOrganizationSettingsService() {
+        return this.services.getAiOrganizationSettingsService<AiOrganizationSettingsService>();
     }
 }

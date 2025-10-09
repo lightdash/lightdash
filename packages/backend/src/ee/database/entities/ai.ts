@@ -179,3 +179,18 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
     Partial<Pick<DbAiAgentToolResult, 'metadata'>>
 >;
+
+export const AiOrganizationSettingsTableName = 'ai_organization_settings';
+
+export type DbAiOrganizationSettings = {
+    organization_uuid: string;
+    ai_agents_visible: boolean;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiOrganizationSettingsTable = Knex.CompositeTableType<
+    DbAiOrganizationSettings,
+    Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'>,
+    Partial<Pick<DbAiOrganizationSettings, 'ai_agents_visible'>>
+>;
