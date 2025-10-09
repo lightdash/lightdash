@@ -1,3 +1,10 @@
+## [0.2070.1](https://github.com/lightdash/lightdash/compare/0.2070.0...0.2070.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* remove resize calc from vega-lite to depend on css only ([#17343](https://github.com/lightdash/lightdash/issues/17343)) ([1abcfea](https://github.com/lightdash/lightdash/commit/1abcfeae7a1a3e96efa0e6789d1bbe9ed2a33baa))
+
 # [0.2070.0](https://github.com/lightdash/lightdash/compare/0.2069.5...0.2070.0) (2025-10-09)
 
 
