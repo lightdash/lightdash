@@ -39,8 +39,6 @@ export class AiOrganizationSettingsService {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        AiOrganizationSettingsService.checkManageAiAgentAccess(user);
-
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 user.organizationUuid,

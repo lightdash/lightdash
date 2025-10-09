@@ -3,6 +3,7 @@ import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../../../hooks/useFeatureFlagEnabled';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentPermission } from './useAiAgentPermission';
+import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useProjectAiAgents } from './useProjectAiAgents';
 
 /**
@@ -21,12 +22,11 @@ export const useAiAgentButtonVisibility = () => {
         projectUuid: projectUuid ?? undefined,
     });
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
-    const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
+    const settings = useAiOrganizationSettings();
     const agents = useProjectAiAgents({
         projectUuid,
         options: {
-            enabled:
-                aiAgentFlagQuery.isSuccess && aiAgentFlagQuery.data.enabled,
+            enabled: settings.isSuccess && settings.data.aiAgentsVisible,
         },
         redirectOnUnauthorized: false,
     });
@@ -41,13 +41,13 @@ export const useAiAgentButtonVisibility = () => {
     if (
         !appQuery.user.isSuccess ||
         !aiCopilotFlagQuery.isSuccess ||
-        !aiAgentFlagQuery.isSuccess
+        !settings.isSuccess
     ) {
         return false;
     }
 
     const isAiCopilotEnabled = aiCopilotFlagQuery.data.enabled;
-    const isAiAgentEnabled = aiAgentFlagQuery.data.enabled;
+    const isAiAgentEnabled = settings.data.aiAgentsVisible;
 
     if (
         !canViewButton ||
