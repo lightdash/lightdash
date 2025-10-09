@@ -871,37 +871,6 @@ const ExplorerProvider: FC<
         [dispatch, reduxDispatch],
     );
 
-    const toggleActiveField = useCallback(
-        (fieldId: FieldId, isDimension: boolean) => {
-            if (isDimension) {
-                reduxDispatch(explorerActions.toggleDimension(fieldId));
-            } else {
-                reduxDispatch(explorerActions.toggleMetric(fieldId));
-            }
-        },
-        [reduxDispatch],
-    );
-
-    const removeActiveField = useCallback(
-        (fieldId: FieldId) => {
-            const isDimension =
-                unsavedChartVersionFromRedux.metricQuery.dimensions.includes(
-                    fieldId,
-                );
-            const isMetric =
-                unsavedChartVersionFromRedux.metricQuery.metrics.includes(
-                    fieldId,
-                );
-
-            if (isDimension) {
-                reduxDispatch(explorerActions.toggleDimension(fieldId));
-            } else if (isMetric) {
-                reduxDispatch(explorerActions.toggleMetric(fieldId));
-            }
-        },
-        [reduxDispatch, unsavedChartVersionFromRedux.metricQuery],
-    );
-
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
@@ -1299,8 +1268,6 @@ const ExplorerProvider: FC<
             clearQuery,
             reset,
             setTableName,
-            removeActiveField,
-            toggleActiveField,
             setFilters,
             setRowLimit,
             setTimeZone,
@@ -1333,8 +1300,6 @@ const ExplorerProvider: FC<
             clearQuery,
             reset,
             setTableName,
-            removeActiveField,
-            toggleActiveField,
             setRowLimit,
             setTimeZone,
             setFilters,
