@@ -6,7 +6,6 @@ import {
     getItemId,
     isSqlTableCalculation,
     type ChartConfig,
-    type Filters,
     type TimeZone,
 } from '@lightdash/common';
 
@@ -333,87 +332,6 @@ describe('ExplorerProvider reducer', () => {
 
             expect(newState.unsavedChartVersion.metricQuery.timezone).toEqual(
                 'America/New_York',
-            );
-        });
-    });
-
-    describe.skip('SET_FILTERS', () => {
-        it('sets filters without fetching results', () => {
-            const filters = {
-                dimensions: mockFilterGroup(),
-            };
-
-            const state = mockExplorerState();
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
-            );
-        });
-
-        it('sets filters', () => {
-            const filters = {
-                metrics: mockFilterGroup({
-                    id: 'metrics-group',
-                    and: [
-                        {
-                            id: 'rule-2',
-                            target: { fieldId: 'metric_1' },
-                            operator: FilterOperator.GREATER_THAN,
-                            values: [100],
-                        },
-                    ],
-                }),
-            };
-
-            const state = mockExplorerState();
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
-            );
-        });
-
-        it('preserves other parts of state', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: mockMetricQuery({
-                        dimensions: ['d1'],
-                        metrics: ['m1'],
-                        limit: 50,
-                    }),
-                },
-            });
-
-            const filters: Filters = {
-                dimensions: {
-                    id: 'x',
-                    and: [
-                        {
-                            id: 'mock-rule',
-                            target: { fieldId: 'mock_field' },
-                            operator: FilterOperator.EQUALS,
-                            values: ['mock-value'],
-                        },
-                    ],
-                },
-            };
-
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.limit).toEqual(50);
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
             );
         });
     });
