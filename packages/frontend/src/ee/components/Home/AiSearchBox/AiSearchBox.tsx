@@ -1,3 +1,4 @@
+import { type AiAgentSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -7,11 +8,11 @@ import {
     Paper,
     Skeleton,
     Text,
-    TextInput,
+    UnstyledButton,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconArrowUp, IconSettings, IconSparkles } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -24,19 +25,23 @@ import {
 import { useGetUserAgentPreferences } from '../../../features/aiCopilot/hooks/useUserAgentPreferences';
 import { store } from '../../../features/aiCopilot/store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
+import { SearchDropdown } from './SearchDropdown';
+// eslint-disable-next-line css-modules/no-unused-class
+import styles from './aiSearchBox.module.css';
 
 type Props = {
     projectUuid: string;
 };
 
 const MOCK_LIGHTDASH_AGENT = {
-    uuid: '',
+    uuid: 'MOCK_LIGHTDASH_AGENT',
     name: 'Lightdash',
     imageUrl: '/favicon-32x32.png',
 };
 
 const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
+
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
@@ -45,63 +50,54 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,
     } = useGetUserAgentPreferences(projectUuid);
-
+    const [selectedAgent, setSelectedAgent] = useState<AiAgentSummary>();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
     });
 
-    const noAgentsAvailable = !agents || agents.length === 0;
+    const noAgentsAvailable =
+        !isLoadingAgents && (!agents || agents.length === 0);
 
-    const agentsWithMock = useMemo(
-        () => (noAgentsAvailable ? [MOCK_LIGHTDASH_AGENT] : agents),
-        [agents, noAgentsAvailable],
-    );
+    useEffect(() => {
+        if (!agents || agents.length === 0) return;
 
-    const initialSelectedAgent = useMemo(() => {
-        if (noAgentsAvailable) return MOCK_LIGHTDASH_AGENT;
-
-        const defaultAgent = userAgentPreferences?.defaultAgentUuid
-            ? agentsWithMock.find(
-                  (agent) =>
-                      agent.uuid === userAgentPreferences.defaultAgentUuid,
-              )
-            : null;
-
-        return defaultAgent || agentsWithMock[0];
-    }, [noAgentsAvailable, userAgentPreferences, agentsWithMock]);
-
-    const [selectedAgent, setSelectedAgent] = useState(initialSelectedAgent);
+        const preferredAgent =
+            agents.find(
+                (agent) =>
+                    agent.uuid === userAgentPreferences?.defaultAgentUuid,
+            ) ?? agents[0];
+        setSelectedAgent(preferredAgent);
+    }, [agents, userAgentPreferences?.defaultAgentUuid]);
 
     const form = useForm({
         initialValues: {
             prompt: '',
         },
-        validate: {
-            prompt: (value) =>
-                value.trim().length === 0 ? 'Please enter a message' : null,
-        },
     });
 
     const { mutateAsync: createAgentThread } = useCreateAgentThreadMutation(
-        noAgentsAvailable ? undefined : selectedAgent.uuid,
+        selectedAgent?.uuid,
         projectUuid,
     );
 
     const handleSubmit = form.onSubmit(async (values) => {
-        if (noAgentsAvailable) {
-            await navigate(`/projects/${projectUuid}/ai-agents`);
+        if (!selectedAgent) {
+            void navigate(`/projects/${projectUuid}/ai-agents`);
         } else {
             await createAgentThread({ prompt: values.prompt.trim() });
-            form.reset();
         }
     });
 
+    const handleSearchItemSelect = () => {
+        form.reset();
+    };
+
     const onSelect = (agentUuid: string) => {
+        if (!agents) return;
         setSelectedAgent(
             (currentSelection) =>
-                agentsWithMock.find((a) => a.uuid === agentUuid) ??
-                currentSelection,
+                agents.find((a) => a.uuid === agentUuid) ?? currentSelection,
         );
     };
 
@@ -126,15 +122,76 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
             <Box p="md">
                 <form onSubmit={handleSubmit}>
                     <Group>
-                        <CompactAgentSelector
-                            agents={agentsWithMock}
-                            selectedAgent={selectedAgent}
-                            onSelect={onSelect}
-                        />
-                        <TextInput
-                            flex={1}
-                            placeholder="Ask a question..."
-                            {...form.getInputProps('prompt')}
+                        {noAgentsAvailable ? (
+                            <CompactAgentSelector
+                                agents={[MOCK_LIGHTDASH_AGENT]}
+                                selectedAgent={MOCK_LIGHTDASH_AGENT}
+                                onSelect={() => {}}
+                                disabled
+                            />
+                        ) : (
+                            <CompactAgentSelector
+                                agents={agents}
+                                selectedAgent={selectedAgent ?? agents[0]}
+                                onSelect={onSelect}
+                            />
+                        )}
+                        <SearchDropdown
+                            projectUuid={projectUuid}
+                            value={form.values.prompt}
+                            onChange={(value) =>
+                                form.setFieldValue('prompt', value)
+                            }
+                            onSearchItemSelect={handleSearchItemSelect}
+                            placeholder={
+                                selectedAgent
+                                    ? `Ask ${selectedAgent.name} or search your data`
+                                    : 'Search your data'
+                            }
+                            inputProps={{
+                                classNames: {
+                                    root: styles.searchDropdownInput,
+                                },
+                            }}
+                            footer={
+                                <UnstyledButton
+                                    p="xs"
+                                    className={styles.askAiFooter}
+                                    onClick={() => {
+                                        void handleSubmit();
+                                    }}
+                                >
+                                    <Group
+                                        gap="xs"
+                                        align="flex-start"
+                                        wrap="nowrap"
+                                    >
+                                        <MantineIcon
+                                            style={{
+                                                marginTop: 2,
+                                                flexShrink: 0,
+                                            }}
+                                            icon={IconSparkles}
+                                            color="violet.4"
+                                            size={16}
+                                        />
+                                        <Text size="sm" c="violet.4">
+                                            Ask{' '}
+                                            {selectedAgent
+                                                ? selectedAgent.name
+                                                : 'AI'}
+                                            :{' '}
+                                            <Text
+                                                component="span"
+                                                fw={500}
+                                                c="violet.9"
+                                            >
+                                                "{form.values.prompt.trim()}"
+                                            </Text>
+                                        </Text>
+                                    </Group>
+                                </UnstyledButton>
+                            }
                         />
                         <ActionIcon
                             color="gray"
@@ -173,9 +230,9 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                     }
                                     component={Link}
                                     to={
-                                        noAgentsAvailable
-                                            ? `/projects/${projectUuid}/ai-agents`
-                                            : `/projects/${projectUuid}/ai-agents/${selectedAgent.uuid}/edit`
+                                        selectedAgent
+                                            ? `/projects/${projectUuid}/ai-agents/${selectedAgent.uuid}/edit`
+                                            : `/projects/${projectUuid}/ai-agents`
                                     }
                                 >
                                     Admin Settings

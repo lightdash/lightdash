@@ -1,7 +1,9 @@
 import {
-    SearchItemType,
     assertUnreachable,
+    getSearchItemTypeFromResultKey,
+    SearchItemType,
     type SavedChartSearchResult,
+    type SearchResults,
 } from '@lightdash/common';
 import {
     Icon123,
@@ -14,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { type SearchItem } from '../types/searchItem';
+import { type SearchResultMap } from '../types/searchResultMap';
 
 export const getOmnibarItemColor = (itemType: SearchItemType) => {
     switch (itemType) {
@@ -71,3 +74,17 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             );
     }
 };
+
+export const getSearchResultsGroupsSorted = (results: SearchResultMap) =>
+    Object.entries(results)
+        .map((items) => {
+            return [
+                getSearchItemTypeFromResultKey(items[0] as keyof SearchResults),
+                items[1],
+            ] as [SearchItemType, SearchItem[]];
+        })
+        .filter(([_type, items]) => items.length > 0)
+        .sort(
+            ([_a, itemsA], [_b, itemsB]) =>
+                (itemsB[0].searchRank ?? 0) - (itemsA[0].searchRank ?? 0),
+        );
