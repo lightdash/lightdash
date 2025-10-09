@@ -1,3 +1,10 @@
+## [0.2069.5](https://github.com/lightdash/lightdash/compare/0.2069.4...0.2069.5) (2025-10-09)
+
+
+### Bug Fixes
+
+* create dashboard artifact before returning error messages ([#17338](https://github.com/lightdash/lightdash/issues/17338)) ([a22d6e9](https://github.com/lightdash/lightdash/commit/a22d6e9f43624ca565555b1e946dc9bdeab421d3))
+
 ## [0.2069.4](https://github.com/lightdash/lightdash/compare/0.2069.3...0.2069.4) (2025-10-09)
 
 
