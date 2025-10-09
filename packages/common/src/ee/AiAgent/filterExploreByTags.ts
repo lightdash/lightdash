@@ -15,15 +15,15 @@ type FilterableExplore<T extends FilterableTable = FilterableTable> = {
     tables: { [tableName: string]: T };
 };
 
-function hasMatchingTags(tags: string[], availableTags: string[]) {
+function matcher(tags: string[], availableTags: string[]) {
     return intersection(tags, availableTags).length > 0;
 }
 
-function checkIfTableFieldsHasMatchingTags<T extends FilterableTable>(
+function hasFieldMatchingTags<T extends FilterableTable>(
     table: T,
     availableTags: string[],
 ) {
-    return hasMatchingTags(
+    return matcher(
         concat(
             flatMap(table.metrics, (m) => m.tags ?? []),
             flatMap(table.dimensions, (d) => d.tags ?? []),
@@ -32,15 +32,23 @@ function checkIfTableFieldsHasMatchingTags<T extends FilterableTable>(
     );
 }
 
-function checkIfExploreHasMatchingTags<
+function hasTableAnyFieldTags<T extends FilterableTable>(table: T) {
+    const allFields = concat(
+        Object.values(table.metrics),
+        Object.values(table.dimensions),
+    );
+    return allFields.some((field) => field.tags !== undefined);
+}
+
+function hasMatchingTags<
     E extends FilterableExplore,
     T extends FilterableTable,
->(e: E, baseTable: T, availableTags: string[]) {
-    if (hasMatchingTags(e.tags, availableTags)) {
+>(explore: E, baseTable: T, availableTags: string[]) {
+    if (matcher(explore.tags, availableTags)) {
         return true;
     }
 
-    if (checkIfTableFieldsHasMatchingTags(baseTable, availableTags)) {
+    if (hasFieldMatchingTags(baseTable, availableTags)) {
         return true;
     }
 
@@ -49,23 +57,34 @@ function checkIfExploreHasMatchingTags<
 
 /**
  * @description
+ * Filters an explore based on available tags configured in AI settings.
  *
- * No tags are configured in settings UI:
+ * ## Base Table Requirement
+ * An explore is only visible if the base table has matching tags at either:
+ * - Explore level (explore.tags matches availableTags), OR
+ * - Field level (at least one base table field has matching tags)
  *
- * | Tagging Scenario                  | AI Visibility                    |
- * |-----------------------------------|----------------------------------|
- * | No tags configured in settings UI | Everything is visible by default |
+ * ## Per-Table Filtering Modes
+ * Each table in the explore is filtered independently:
  *
- * ---
+ * **Field-Level Mode** (if table has ANY field with tags defined):
+ * - Expose only fields where field.tags matches availableTags
+ * - Empty tags arrays (tags: []) activate this mode but match nothing
  *
- * Tags are configured in settings UI:
+ * **Explore-Level Mode** (if table has NO fields with tags defined):
+ * - If explore.tags matches → expose ALL fields in this table
+ * - If explore.tags doesn't match → expose NO fields (empty dimensions/metrics)
  *
- * | Tagging Scenario                     | AI Visibility               |
- * |--------------------------------------|-----------------------------|
- * | Explore only (with matching tag)     | All fields in the Explore   |
- * | Some fields only (with matching tag) | Only those tagged fields    |
- * | Explore + some fields (with match)   | Only those tagged fields    |
- * | No matching tags                     | Nothing is visible          |
+ * ## Tagging Scenarios
+ *
+ * | Scenario                                        | Result                                    |
+ * |-------------------------------------------------|-------------------------------------------|
+ * | No tags configured (availableTags = null)       | Everything is visible                     |
+ * | Explore tagged, no field tags                   | All tables/fields visible (explore-level) |
+ * | Explore tagged, some fields tagged              | Per-table: field-level or explore-level   |
+ * | No explore tag, base table fields tagged        | Only matching fields visible              |
+ * | No explore tag, only joined table fields tagged | Explore hidden (base table requirement)   |
+ * | No matching tags anywhere                       | Explore hidden                            |
  */
 export function filterExploreByTags<E extends FilterableExplore>({
     explore,
@@ -83,25 +102,40 @@ export function filterExploreByTags<E extends FilterableExplore>({
         throw new Error(`Base table not found`);
     }
 
-    if (!checkIfExploreHasMatchingTags(explore, baseTable, availableTags)) {
+    if (!hasMatchingTags(explore, baseTable, availableTags)) {
         return undefined;
     }
 
-    if (!checkIfTableFieldsHasMatchingTags(baseTable, availableTags)) {
-        return explore;
-    }
-
+    // Apply per-table filtering logic
     const filteredExplore: E = {
         ...explore,
-        tables: mapValues(explore.tables, (table) => ({
-            ...table,
-            dimensions: pickBy(table.dimensions, (d) =>
-                hasMatchingTags(d.tags ?? [], availableTags),
-            ),
-            metrics: pickBy(table.metrics, (m) =>
-                hasMatchingTags(m.tags ?? [], availableTags),
-            ),
-        })),
+        tables: mapValues(explore.tables, (table) => {
+            if (hasTableAnyFieldTags(table)) {
+                // Field-level tagging mode: expose only fields with matching tags
+                return {
+                    ...table,
+                    dimensions: pickBy(table.dimensions, (d) =>
+                        matcher(d.tags ?? [], availableTags),
+                    ),
+                    metrics: pickBy(table.metrics, (m) =>
+                        matcher(m.tags ?? [], availableTags),
+                    ),
+                };
+            }
+
+            // Explore-level tagging mode
+            if (matcher(explore.tags, availableTags)) {
+                // Explore tagged: expose all fields in this table
+                return table;
+            }
+
+            // Explore not tagged: expose no fields
+            return {
+                ...table,
+                dimensions: {},
+                metrics: {},
+            };
+        }),
     };
 
     return filteredExplore;

@@ -222,7 +222,41 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should expose all fields when explore is tagged but base table fields lack matching tags', async () => {
+    test('should expose all fields when explore is tagged and no fields have tags', async () => {
+        const explore = {
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: {
+                        order_id: {},
+                        customer_id: {},
+                    },
+                    metrics: {
+                        total: {},
+                    },
+                },
+                customers: {
+                    dimensions: {
+                        email: {},
+                        phone: {},
+                    },
+                    metrics: {
+                        count: {},
+                    },
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({
+                availableTags: ['ai-enabled'],
+                explore,
+            }),
+        ).toStrictEqual(explore);
+    });
+
+    test('should use per-table field-level filtering when tables have field tags', async () => {
         const explore = {
             baseTable: 'customers',
             tags: ['ai-enabled'],
@@ -260,7 +294,28 @@ describe('AiService', () => {
                 availableTags: ['marketing', 'ai-enabled'],
                 explore,
             }),
-        ).toStrictEqual(explore);
+        ).toStrictEqual({
+            baseTable: 'customers',
+            tags: ['ai-enabled'],
+            tables: {
+                customers: {
+                    dimensions: {},
+                    metrics: {},
+                },
+                sales: {
+                    dimensions: {
+                        user_email: {
+                            tags: ['marketing', 'ai-enabled'],
+                        },
+                    },
+                    metrics: {
+                        sales_total: {
+                            tags: ['marketing', 'ai-enabled'],
+                        },
+                    },
+                },
+            },
+        });
     });
 
     test('should filter fields when explore lacks tags but base table fields have matching tags', async () => {
@@ -430,6 +485,90 @@ describe('AiService', () => {
         );
     });
 
+    test('should use mixed mode per-table (base table no field tags, joined table with field tags)', async () => {
+        const explore = {
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: {
+                        id: {},
+                        status: {},
+                    },
+                    metrics: {
+                        total: {},
+                    },
+                },
+                customers: {
+                    dimensions: {
+                        email: { tags: ['ai-enabled'] },
+                        phone: {},
+                    },
+                    metrics: {},
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({
+                availableTags: ['ai-enabled'],
+                explore,
+            }),
+        ).toStrictEqual({
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: {
+                        id: {},
+                        status: {},
+                    },
+                    metrics: {
+                        total: {},
+                    },
+                },
+                customers: {
+                    dimensions: {
+                        email: { tags: ['ai-enabled'] },
+                    },
+                    metrics: {},
+                },
+            },
+        });
+    });
+
+    test('should activate field-level mode when field has empty tags array', async () => {
+        const explore = {
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: {
+                        id: { tags: [] },
+                        status: {},
+                    },
+                    metrics: {},
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({
+                availableTags: ['ai-enabled'],
+                explore,
+            }),
+        ).toStrictEqual({
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: {},
+                    metrics: {},
+                },
+            },
+        });
+    });
+
     test('should handle duplicate tags in available tags list', async () => {
         expect(
             filterExploreByTags({
@@ -468,6 +607,88 @@ describe('AiService', () => {
                 },
             }),
         ).toBeDefined();
+    });
+
+    test('should handle multiple joined tables with different tagging modes', async () => {
+        const explore = {
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: { id: {}, status: {} },
+                    metrics: { total: {} },
+                },
+                customers: {
+                    dimensions: {
+                        email: { tags: ['ai-enabled'] },
+                        phone: {},
+                    },
+                    metrics: {},
+                },
+                products: {
+                    dimensions: { name: {}, sku: {} },
+                    metrics: { price: {} },
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({
+                availableTags: ['ai-enabled'],
+                explore,
+            }),
+        ).toStrictEqual({
+            baseTable: 'orders',
+            tags: ['ai-enabled'],
+            tables: {
+                orders: {
+                    dimensions: { id: {}, status: {} },
+                    metrics: { total: {} },
+                },
+                customers: {
+                    dimensions: { email: { tags: ['ai-enabled'] } },
+                    metrics: {},
+                },
+                products: {
+                    dimensions: { name: {}, sku: {} },
+                    metrics: { price: {} },
+                },
+            },
+        });
+    });
+
+    test('should handle table with only metrics tagged', async () => {
+        const explore = {
+            baseTable: 'orders',
+            tags: [],
+            tables: {
+                orders: {
+                    dimensions: {},
+                    metrics: {
+                        total: { tags: ['ai-enabled'] },
+                        count: { tags: [] },
+                    },
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({
+                availableTags: ['ai-enabled'],
+                explore,
+            }),
+        ).toStrictEqual({
+            baseTable: 'orders',
+            tags: [],
+            tables: {
+                orders: {
+                    dimensions: {},
+                    metrics: {
+                        total: { tags: ['ai-enabled'] },
+                    },
+                },
+            },
+        });
     });
 
     test('should return undefined when base table has no dimensions or metrics', async () => {
