@@ -167,42 +167,44 @@ const SnowflakeForm: FC<{
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Radio.Group
-                    value={useOrgCredentials ? 'org' : 'manual'}
-                    name="useOrgCredentials"
-                    onChange={(value) => {
-                        const useOrg = value === 'org';
-                        setUseOrgCredentials(useOrg);
-                        if (useOrg) {
-                            // Clear manual fields when switching to org credentials
-                            form.setFieldValue(
-                                'organizationWarehouseCredentialsUuid',
-                                snowflakeOrgCredentials[0]
-                                    ?.organizationWarehouseCredentialsUuid,
-                            );
-                        } else {
-                            form.setFieldValue(
-                                'organizationWarehouseCredentialsUuid',
-                                undefined,
-                            );
-                        }
-                    }}
-                    label="Credentials source"
-                    description="Choose whether to use organization-level credentials or configure new credentials"
-                >
-                    <Stack mt="xs">
-                        <Radio
-                            value="org"
-                            label="Use organization credentials"
-                            disabled={disabled}
-                        />
-                        <Radio
-                            value="manual"
-                            label="Configure new credentials"
-                            disabled={disabled}
-                        />
-                    </Stack>
-                </Radio.Group>
+                {snowflakeOrgCredentials?.length > 0 && (
+                    <Radio.Group
+                        value={useOrgCredentials ? 'org' : 'manual'}
+                        name="useOrgCredentials"
+                        onChange={(value) => {
+                            const useOrg = value === 'org';
+                            setUseOrgCredentials(useOrg);
+                            if (useOrg) {
+                                // Clear manual fields when switching to org credentials
+                                form.setFieldValue(
+                                    'organizationWarehouseCredentialsUuid',
+                                    snowflakeOrgCredentials[0]
+                                        ?.organizationWarehouseCredentialsUuid,
+                                );
+                            } else {
+                                form.setFieldValue(
+                                    'organizationWarehouseCredentialsUuid',
+                                    undefined,
+                                );
+                            }
+                        }}
+                        label="Credentials source"
+                        description="Choose whether to use organization-level credentials or configure new credentials"
+                    >
+                        <Stack mt="xs">
+                            <Radio
+                                value="org"
+                                label="Use organization credentials"
+                                disabled={disabled}
+                            />
+                            <Radio
+                                value="manual"
+                                label="Configure new credentials"
+                                disabled={disabled}
+                            />
+                        </Stack>
+                    </Radio.Group>
+                )}
                 {useOrgCredentials && snowflakeOrgCredentials.length > 0 && (
                     <Select
                         label="Organization credentials"
