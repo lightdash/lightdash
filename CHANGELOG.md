@@ -1,3 +1,10 @@
+## [0.2069.3](https://github.com/lightdash/lightdash/compare/0.2069.2...0.2069.3) (2025-10-09)
+
+
+### Bug Fixes
+
+* always use enterprise scopes with custom role builder ([#17320](https://github.com/lightdash/lightdash/issues/17320)) ([35e97ca](https://github.com/lightdash/lightdash/commit/35e97cad6d10320bfd183885c7357dbda5352cac))
+
 ## [0.2069.2](https://github.com/lightdash/lightdash/compare/0.2069.1...0.2069.2) (2025-10-09)
 
 
