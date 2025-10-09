@@ -6,6 +6,8 @@ export const tableCalcRunningTotalSchema = baseTableCalcSchema.extend({
     type: z.literal('running_total'),
     fieldId: getFieldIdSchema({
         additionalDescription: 'Field to calculate running total of',
+        includeCustomMetrics: true,
+        includeTableCalculations: true,
     }),
 });
 

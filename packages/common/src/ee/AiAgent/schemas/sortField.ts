@@ -2,7 +2,11 @@ import { z } from 'zod';
 import { getFieldIdSchema } from './fieldId';
 
 const sortFieldSchema = z.object({
-    fieldId: getFieldIdSchema({ additionalDescription: null }),
+    fieldId: getFieldIdSchema({
+        additionalDescription: null,
+        includeCustomMetrics: true,
+        includeTableCalculations: true,
+    }),
     descending: z
         .boolean()
         .describe(
