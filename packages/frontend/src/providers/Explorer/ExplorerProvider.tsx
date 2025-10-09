@@ -863,6 +863,15 @@ const ExplorerProvider: FC<
         );
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
 
+    // Keep Redux sorts in sync with Context sorts
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setSortFields(
+                unsavedChartVersion.metricQuery.sorts,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
+
     // END TRANSITIONAL SYNC CODE
 
     const [activeFields, isValidQuery] = useMemo<
@@ -917,30 +926,16 @@ const ExplorerProvider: FC<
                     : ActionType.TOGGLE_METRIC,
                 payload: fieldId,
             });
-
-            // Remove it from the sort for an unsaved chart
-            const filteredSorts = unsavedChartVersion.metricQuery.sorts.filter(
-                (s) => s.fieldId !== fieldId,
-            );
-            reduxDispatch(explorerActions.setSortFields(filteredSorts));
         },
-        [reduxDispatch, unsavedChartVersion.metricQuery.sorts],
+        [],
     );
 
-    const removeActiveField = useCallback(
-        (fieldId: FieldId) => {
-            dispatch({
-                type: ActionType.REMOVE_FIELD,
-                payload: fieldId,
-            });
-            // Remove it from the sort for an unsaved chart
-            const filteredSorts = unsavedChartVersion.metricQuery.sorts.filter(
-                (s) => s.fieldId !== fieldId,
-            );
-            reduxDispatch(explorerActions.setSortFields(filteredSorts));
-        },
-        [reduxDispatch, unsavedChartVersion.metricQuery.sorts],
-    );
+    const removeActiveField = useCallback((fieldId: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_FIELD,
+            payload: fieldId,
+        });
+    }, []);
 
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
