@@ -1,3 +1,10 @@
+## [0.2069.2](https://github.com/lightdash/lightdash/compare/0.2069.1...0.2069.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* do not attempt to join channel if app is in it already ([#17319](https://github.com/lightdash/lightdash/issues/17319)) ([0f3343c](https://github.com/lightdash/lightdash/commit/0f3343cb9041dac6e2c307e7584a8074fbd0cf38))
+
 ## [0.2069.1](https://github.com/lightdash/lightdash/compare/0.2069.0...0.2069.1) (2025-10-09)
 
 
