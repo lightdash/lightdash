@@ -1890,6 +1890,13 @@ export class AiAgentService {
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
 
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    agentSettings.tags,
+                    args.exploreName,
+                );
+
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
@@ -1898,110 +1905,55 @@ export class AiAgentService {
                         },
                     );
 
-                const { data: tables, pagination } =
+                const sharedArgs = {
+                    projectUuid,
+                    catalogSearch: {
+                        type: CatalogType.Field,
+                        yamlTags: agentSettings.tags ?? undefined,
+                        tables: [explore.baseTable],
+                    },
+                    userAttributes,
+                    context: CatalogSearchContext.AI_AGENT,
+                    paginateArgs: {
+                        page: 1,
+                        pageSize: args.fieldSearchSize,
+                    },
+                    sortArgs: {
+                        sort: 'chartUsage',
+                        order: 'desc' as const,
+                    },
+                };
+
+                const { data: dimensions } =
                     await this.catalogService.searchCatalog({
-                        projectUuid,
+                        ...sharedArgs,
                         catalogSearch: {
-                            type: CatalogType.Table,
-                            yamlTags: agentSettings.tags ?? undefined,
-                            tables: args.tableName
-                                ? [args.tableName]
-                                : undefined,
-                        },
-                        userAttributes,
-                        context: CatalogSearchContext.AI_AGENT,
-                        paginateArgs: {
-                            page: args.page,
-                            pageSize: args.pageSize,
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Dimensions,
                         },
                         fullTextSearchOperator: 'OR',
                     });
 
-                const tablesWithFields = await Promise.all(
-                    tables
-                        .filter((table) => table.type === CatalogType.Table)
-                        .map(async (table) => {
-                            if (!args.includeFields) {
-                                return {
-                                    table,
-                                    dimensions: [],
-                                    metrics: [],
-                                    dimensionsPagination: undefined,
-                                    metricsPagination: undefined,
-                                };
-                            }
-
-                            if (
-                                !args.fieldSearchSize ||
-                                !args.fieldOverviewSearchSize
-                            ) {
-                                throw new Error(
-                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
-                                );
-                            }
-
-                            const sharedArgs = {
-                                projectUuid,
-                                catalogSearch: {
-                                    type: CatalogType.Field,
-                                    yamlTags: agentSettings.tags ?? undefined,
-                                    tables: [table.name],
-                                },
-                                userAttributes,
-                                context: CatalogSearchContext.AI_AGENT,
-                                paginateArgs: {
-                                    page: 1,
-                                    pageSize: args.tableName
-                                        ? args.fieldSearchSize
-                                        : args.fieldOverviewSearchSize,
-                                },
-                                sortArgs: {
-                                    sort: 'chartUsage',
-                                    order: 'desc' as const,
-                                },
-                            };
-
-                            const {
-                                data: dimensions,
-                                pagination: dimensionsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Dimensions,
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-
-                            const {
-                                data: metrics,
-                                pagination: metricsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Metrics,
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-
-                            return {
-                                table,
-                                dimensions: dimensions.filter(
-                                    (d) => d.type === CatalogType.Field,
-                                ),
-                                metrics: metrics.filter(
-                                    (m) => m.type === CatalogType.Field,
-                                ),
-                                dimensionsPagination,
-                                metricsPagination,
-                            };
-                        }),
-                );
+                const { data: metrics } =
+                    await this.catalogService.searchCatalog({
+                        ...sharedArgs,
+                        catalogSearch: {
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Metrics,
+                        },
+                        fullTextSearchOperator: 'OR',
+                    });
 
                 return {
-                    tablesWithFields,
-                    pagination,
+                    explore,
+                    catalogFields: {
+                        dimensions: dimensions.filter(
+                            (d) => d.type === CatalogType.Field,
+                        ),
+                        metrics: metrics.filter(
+                            (m) => m.type === CatalogType.Field,
+                        ),
+                    },
                 };
             });
 

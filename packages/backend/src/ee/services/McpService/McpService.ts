@@ -5,8 +5,12 @@ import {
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
+    Explore,
+    filterExploreByTags,
     ForbiddenError,
+    isExploreError,
     MissingConfigError,
+    NotFoundError,
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
@@ -48,6 +52,10 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import {
+    doesExploreMatchRequiredAttributes,
+    getFilteredExplore,
+} from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { getFindCharts } from '../ai/tools/findCharts';
@@ -257,9 +265,7 @@ export class McpService extends BaseService {
                 const findExploresTool = getFindExplores({
                     findExplores,
                     pageSize: 15,
-                    maxDescriptionLength: 100,
                     fieldSearchSize: 200,
-                    fieldOverviewSearchSize: 5,
                 });
                 const result = await findExploresTool.execute!(
                     argsWithProject,
@@ -756,6 +762,79 @@ export class McpService extends BaseService {
         return projectUuid;
     }
 
+    async getAvailableExplores(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+    ) {
+        return wrapSentryTransaction(
+            'AiAgent.getAvailableExplores',
+            {
+                projectUuid,
+                availableTags,
+            },
+            async () => {
+                const { organizationUuid } = user;
+                if (!organizationUuid) {
+                    throw new ForbiddenError('Organization not found');
+                }
+
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        { organizationUuid, userUuid: user.userUuid },
+                    );
+
+                const allExplores = Object.values(
+                    await this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                );
+
+                return allExplores
+                    .filter(
+                        (explore): explore is Explore =>
+                            !isExploreError(explore),
+                    )
+                    .filter((explore) =>
+                        doesExploreMatchRequiredAttributes(
+                            explore.tables[explore.baseTable]
+                                .requiredAttributes,
+                            userAttributes,
+                        ),
+                    )
+                    .map((explore) =>
+                        getFilteredExplore(explore, userAttributes),
+                    )
+                    .filter((explore) =>
+                        filterExploreByTags({ explore, availableTags }),
+                    )
+                    .filter((explore): explore is Explore => !!explore);
+            },
+        );
+    }
+
+    private async getExplore(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+        exploreName: string,
+    ) {
+        const explores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            availableTags,
+        );
+
+        const explore = explores.find((e) => e.name === exploreName);
+
+        if (!explore) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        return explore;
+    }
+
     async getFindExploresFunction(
         toolArgs: ToolFindExploresArgs & { projectUuid: string },
         context: McpProtocolContext,
@@ -798,107 +877,60 @@ export class McpService extends BaseService {
                         },
                     );
 
-                const { data: tables, pagination } =
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    tagsFromContext,
+                    args.exploreName,
+                );
+
+                const sharedArgs = {
+                    projectUuid,
+                    catalogSearch: {
+                        type: CatalogType.Field,
+                        yamlTags: tagsFromContext || undefined,
+                        tables: [args.exploreName],
+                    },
+                    userAttributes,
+                    context: CatalogSearchContext.MCP,
+                    paginateArgs: {
+                        page: 1,
+                        pageSize: args.fieldSearchSize,
+                    },
+                    sortArgs: {
+                        sort: 'chartUsage',
+                        order: 'desc' as const,
+                    },
+                };
+
+                const { data: dimensions } =
                     await this.catalogService.searchCatalog({
-                        projectUuid,
+                        ...sharedArgs,
                         catalogSearch: {
-                            type: CatalogType.Table,
-                            yamlTags: tagsFromContext || undefined,
-                            tables: args.tableName
-                                ? [args.tableName]
-                                : undefined,
-                        },
-                        userAttributes,
-                        context: CatalogSearchContext.MCP,
-                        paginateArgs: {
-                            page: args.page,
-                            pageSize: args.pageSize,
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Dimensions,
                         },
                     });
 
-                const tablesWithFields = await Promise.all(
-                    tables
-                        .filter((table) => table.type === CatalogType.Table)
-                        .map(async (table) => {
-                            if (!args.includeFields) {
-                                return {
-                                    table,
-                                    dimensions: [],
-                                    metrics: [],
-                                    dimensionsPagination: undefined,
-                                    metricsPagination: undefined,
-                                };
-                            }
-
-                            if (
-                                !args.fieldSearchSize ||
-                                !args.fieldOverviewSearchSize
-                            ) {
-                                throw new Error(
-                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
-                                );
-                            }
-
-                            const sharedArgs = {
-                                projectUuid,
-                                catalogSearch: {
-                                    type: CatalogType.Field,
-                                    yamlTags: tagsFromContext || undefined,
-                                    tables: [table.name],
-                                },
-                                userAttributes,
-                                context: CatalogSearchContext.MCP,
-                                paginateArgs: {
-                                    page: 1,
-                                    pageSize: args.tableName
-                                        ? args.fieldSearchSize
-                                        : args.fieldOverviewSearchSize,
-                                },
-                                sortArgs: {
-                                    sort: 'chartUsage',
-                                    order: 'desc' as const,
-                                },
-                            };
-
-                            const {
-                                data: dimensions,
-                                pagination: dimensionsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Dimensions,
-                                },
-                            });
-
-                            const {
-                                data: metrics,
-                                pagination: metricsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Metrics,
-                                },
-                            });
-
-                            return {
-                                table,
-                                dimensions: dimensions.filter(
-                                    (d) => d.type === CatalogType.Field,
-                                ),
-                                metrics: metrics.filter(
-                                    (m) => m.type === CatalogType.Field,
-                                ),
-                                dimensionsPagination,
-                                metricsPagination,
-                            };
-                        }),
-                );
+                const { data: metrics } =
+                    await this.catalogService.searchCatalog({
+                        ...sharedArgs,
+                        catalogSearch: {
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Metrics,
+                        },
+                    });
 
                 return {
-                    tablesWithFields,
-                    pagination,
+                    explore,
+                    catalogFields: {
+                        dimensions: dimensions.filter(
+                            (d) => d.type === CatalogType.Field,
+                        ),
+                        metrics: metrics.filter(
+                            (m) => m.type === CatalogType.Field,
+                        ),
+                    },
                 };
             });
 
