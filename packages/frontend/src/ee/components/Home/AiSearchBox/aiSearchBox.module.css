@@ -1,0 +1,27 @@
+.askAiFooter {
+    border-bottom-left-radius: var(--mantine-radius-md);
+    border-bottom-right-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    background: linear-gradient(
+        90deg,
+        var(--mantine-color-grape-0) 0%,
+        var(--mantine-color-violet-0) 40%,
+        var(--mantine-color-indigo-0) 100%
+    );
+    width: 100%;
+}
+
+.searchDropdownInput {
+    flex: 1;
+}
+
+.searchDropdownScrollContent > div {
+    max-width: 100%;
+}
+
+.comboboxOption:hover > div,
+.comboboxOption[data-combobox-selected],
+.comboboxOption[data-combobox-selected] > div {
+    background-color: var(--mantine-color-gray-0);
+    color: inherit;
+}
