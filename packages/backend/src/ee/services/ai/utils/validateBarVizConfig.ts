@@ -23,7 +23,12 @@ export const validateBarVizConfig = (
         vizTool.vizConfig.breakdownByDimension,
     ].filter((x) => typeof x === 'string');
     validateFieldEntityType(explore, selectedDimensions, 'dimension');
-    validateFieldEntityType(explore, vizTool.vizConfig.yMetrics, 'metric');
+    validateFieldEntityType(
+        explore,
+        vizTool.vizConfig.yMetrics,
+        'metric',
+        vizTool.customMetrics,
+    );
     validateCustomMetricsDefinition(explore, vizTool.customMetrics);
     validateFilterRules(explore, filterRules, vizTool.customMetrics);
     validateMetricDimensionFilterPlacement(

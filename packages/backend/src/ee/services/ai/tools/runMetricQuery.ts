@@ -51,7 +51,12 @@ export const getRunMetricQuery = ({
             vizTool.vizConfig.dimensions,
             'dimension',
         );
-        validateFieldEntityType(explore, vizTool.vizConfig.metrics, 'metric');
+        validateFieldEntityType(
+            explore,
+            vizTool.vizConfig.metrics,
+            'metric',
+            vizTool.customMetrics,
+        );
         validateCustomMetricsDefinition(explore, vizTool.customMetrics);
         validateFilterRules(explore, filterRules, vizTool.customMetrics);
         validateMetricDimensionFilterPlacement(
