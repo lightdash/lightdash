@@ -1,13 +1,26 @@
 import {
     assertUnreachable,
-    type Field,
-    FieldType,
+    type Change,
     friendlyName,
     getItemColor,
 } from '@lightdash/common';
-import { Group, Paper, Stack, Text } from '@mantine-8/core';
+import {
+    Badge,
+    Box,
+    Code,
+    Collapse,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine-8/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { toPairs } from 'lodash';
 import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
+import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { mergeCreateMetricData } from './changeDataMerger';
 import { OperationRenderer } from './OperationRenderer';
 import { FieldBreadcrumb, TableBreadcrumb } from './SupportElements';
 import type {
@@ -54,35 +67,76 @@ const UpdateChange = ({ patch }: UpdateChangeProps) => {
 
 type CreateMetricProps = {
     change: CreateMetricPayload;
+    changePayload: Change['payload'] | undefined;
 };
 
-const CreateMetric = ({ change }: CreateMetricProps) => {
-    const metric = {
-        ...change.value.metric,
-        fieldType: FieldType.METRIC,
-        tableLabel: '',
-        sql: '',
-        hidden: false,
-    } satisfies Field;
+const CreateMetric = ({ change, changePayload }: CreateMetricProps) => {
+    const [opened, { toggle }] = useDisclosure(false);
+
+    const metric = mergeCreateMetricData(change, changePayload);
+
+    if (!metric) {
+        return null;
+    }
+
     const color = getItemColor(metric);
 
     return (
-        <Paper
-            bg="gray.0"
-            mx="xs"
-            p="xs"
-            component={Group}
-            gap={6}
-            align="center"
-        >
-            <FieldIcon item={metric} color={color} size="md" />
-            <Text size="xs" fw={600}>
-                {metric.label}
-            </Text>
-            <Text size="xs" fw={600} c="dimmed">
-                ({friendlyName(metric.type)} of {metric.baseDimensionName})
-            </Text>
-        </Paper>
+        <Box mx="xs">
+            <Paper bg="gray.0" component={Group} p="xs" w="100%">
+                <UnstyledButton onClick={toggle} w="100%">
+                    <Group justify="space-between" w="100%">
+                        <Group gap="xs">
+                            <FieldIcon item={metric} color={color} size="md" />
+                            <Text size="xs" fw={500}>
+                                {metric.label}
+                            </Text>
+                        </Group>
+                        <MantineIcon
+                            icon={opened ? IconChevronDown : IconChevronRight}
+                            size="sm"
+                            color="gray"
+                        />
+                    </Group>
+                </UnstyledButton>
+
+                <Collapse in={opened}>
+                    <Stack gap="xs">
+                        <Text size="xs" fw={400} c="dimmed">
+                            Aggregation:{' '}
+                            <Badge
+                                radius="sm"
+                                color="indigo"
+                                variant="light"
+                                size="sm"
+                            >
+                                {friendlyName(metric.type)}
+                            </Badge>
+                        </Text>
+
+                        <Text size="xs" fw={400} c="dimmed">
+                            Base dimension:{' '}
+                            <Text fw={500} span c="gray.8">
+                                {metric.baseDimensionName}
+                            </Text>
+                        </Text>
+
+                        {metric.description && (
+                            <Text size="xs" fw={400} c="dimmed">
+                                Description:{' '}
+                                <Text span c="gray.8">
+                                    {metric.description}
+                                </Text>
+                            </Text>
+                        )}
+
+                        <Text size="xs" fw={400} c="dimmed">
+                            SQL: <Code c="gray.8">{metric.compiledSql}</Code>
+                        </Text>
+                    </Stack>
+                </Collapse>
+            </Paper>
+        </Box>
     );
 };
 
@@ -152,9 +206,14 @@ const DimensionChangeRender = ({
 type MetricChangeProps = {
     change: MetricChange;
     entityTableName: string;
+    changePayload: Change['payload'] | undefined;
 };
 
-const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
+const MetricChangeRender = ({
+    change,
+    entityTableName,
+    changePayload,
+}: MetricChangeProps) => {
     switch (change.value.type) {
         case 'update':
             return (
@@ -175,7 +234,10 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
                         fieldType="metric"
                         fieldId={change.fieldId}
                     />
-                    <CreateMetric change={change.value} />
+                    <CreateMetric
+                        change={change.value}
+                        changePayload={changePayload}
+                    />
                 </Stack>
             );
         default:
@@ -192,11 +254,13 @@ const MetricChangeRender = ({ change, entityTableName }: MetricChangeProps) => {
 
 type ChangeRendererProps = {
     change: EntityChange;
+    changePayload: Change['payload'] | undefined;
     entityTableName: string;
 };
 
 export const ChangeRenderer = ({
     change,
+    changePayload,
     entityTableName,
 }: ChangeRendererProps) => {
     switch (change.entityType) {
@@ -218,6 +282,7 @@ export const ChangeRenderer = ({
             return (
                 <MetricChangeRender
                     change={change}
+                    changePayload={changePayload}
                     entityTableName={entityTableName}
                 />
             );
