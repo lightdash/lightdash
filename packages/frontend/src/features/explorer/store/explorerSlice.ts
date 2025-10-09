@@ -21,41 +21,11 @@ import {
     type ExplorerReduceState,
     type ExplorerSection,
 } from '../../../providers/Explorer/types';
+import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
 
 const initialState: ExplorerSliceState = defaultState;
-
-const calcColumnOrder = (
-    columnOrder: FieldId[],
-    fieldIds: FieldId[],
-    dimensions?: FieldId[],
-): FieldId[] => {
-    const cleanColumnOrder = columnOrder.filter((column) =>
-        fieldIds.includes(column),
-    );
-    const missingColumns = fieldIds.filter(
-        (fieldId) => !cleanColumnOrder.includes(fieldId),
-    );
-
-    if (dimensions !== undefined) {
-        if (dimensions.length === 0) {
-            return [...cleanColumnOrder, ...missingColumns];
-        }
-
-        const positionDimensionColumn = Math.max(
-            ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
-        );
-        cleanColumnOrder.splice(
-            positionDimensionColumn + 1,
-            0,
-            ...missingColumns,
-        );
-        return cleanColumnOrder;
-    } else {
-        return [...cleanColumnOrder, ...missingColumns];
-    }
-};
 
 const explorerSlice = createSlice({
     name: 'explorer',

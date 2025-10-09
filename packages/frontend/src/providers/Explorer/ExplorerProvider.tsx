@@ -38,6 +38,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import {
+    calcColumnOrder,
     explorerActions,
     selectIsValidQuery,
     selectTableName,
@@ -56,39 +57,6 @@ import {
     type ExplorerReduceState,
 } from './types';
 import { cleanConfig, getValidChartConfig } from './utils';
-
-const calcColumnOrder = (
-    columnOrder: FieldId[],
-    fieldIds: FieldId[],
-    dimensions?: FieldId[],
-): FieldId[] => {
-    const cleanColumnOrder = columnOrder.filter((column) =>
-        fieldIds.includes(column),
-    );
-    const missingColumns = fieldIds.filter(
-        (fieldId) => !cleanColumnOrder.includes(fieldId),
-    );
-
-    if (dimensions !== undefined) {
-        // Handle empty dimensions array - append to end like the else branch
-        // Math.max() returns -Infinity for empty array, causing incorrect splice behavior
-        if (dimensions.length === 0) {
-            return [...cleanColumnOrder, ...missingColumns];
-        }
-
-        const positionDimensionColumn = Math.max(
-            ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
-        );
-        cleanColumnOrder.splice(
-            positionDimensionColumn + 1,
-            0,
-            ...missingColumns,
-        );
-        return cleanColumnOrder;
-    } else {
-        return [...cleanColumnOrder, ...missingColumns];
-    }
-};
 
 const updateChartConfigWithTableCalc = (
     prevChartConfig: ChartConfig,

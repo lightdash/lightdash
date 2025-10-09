@@ -335,10 +335,10 @@ export const selectIsFieldActive = createSelector(
     },
 );
 
-// Is valid query selector - true if there are any active fields
+// Is valid query selector - true if there are any active fields AND a table is selected
 export const selectIsValidQuery = createSelector(
-    [selectActiveFields],
-    (activeFields) => activeFields.size > 0,
+    [selectActiveFields, selectTableName],
+    (activeFields, tableName) => activeFields.size > 0 && !!tableName,
 );
 
 // Modal selectors

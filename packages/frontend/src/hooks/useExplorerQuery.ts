@@ -138,15 +138,14 @@ export const useExplorerQuery = (options?: {
         [metricQuery, filters],
     );
 
-    // Compute active fields and query validity
-    const [activeFields, isValidQuery] = useMemo(() => {
-        const fields = new Set([
+    // Compute active fields
+    const activeFields = useMemo(() => {
+        return new Set([
             ...metricQuery.dimensions,
             ...metricQuery.metrics,
             ...metricQuery.tableCalculations.map(({ name }) => name),
         ]);
-        return [fields, fields.size > 0 && !!tableName];
-    }, [metricQuery, tableName]);
+    }, [metricQuery]);
 
     // Compute loading state
     const isLoading = useMemo(() => {
@@ -275,7 +274,6 @@ export const useExplorerQuery = (options?: {
 
         // Computed state
         isLoading,
-        isValidQuery,
         activeFields,
         missingRequiredParameters,
         validQueryArgs,
