@@ -29,8 +29,6 @@ export class AiOrganizationSettingsModel {
         return {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
-            createdAt: db.created_at,
-            updatedAt: db.updated_at,
         };
     }
 

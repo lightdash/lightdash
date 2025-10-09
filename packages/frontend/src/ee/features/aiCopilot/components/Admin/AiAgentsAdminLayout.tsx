@@ -1,9 +1,11 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
 import {
+    Alert,
     Box,
     Button,
     Group,
     Modal,
+    Paper,
     SegmentedControl,
     Stack,
     Text,
@@ -14,6 +16,7 @@ import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconChartDots,
     IconGripVertical,
+    IconInfoCircle,
     IconLock,
     IconMessageCircle,
     IconMessageCircleShare,
@@ -28,8 +31,10 @@ import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useHealth from '../../../../../hooks/health/useHealth';
 import useApp from '../../../../../providers/App/useApp';
+import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import AiAgentAdminAgentsTable from './AiAgentAdminAgentsTable';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
+import { AiAgentsAdminEnableFeatureToggle } from './AiAgentsAdminEnableFeatureToggle';
 import styles from './AiAgentsAdminLayout.module.css';
 import { AnalyticsEmbedDashboard } from './AnalyticsEmbedDashboard';
 import { ThreadPreviewSidebar } from './ThreadPreviewSidebar';
@@ -40,7 +45,7 @@ export const AiAgentsAdminLayout = () => {
     const theme = useMantineTheme();
     const location = useLocation();
     const navigate = useNavigate();
-
+    const { data: settings } = useAiOrganizationSettings();
     const activeTab = location.pathname.endsWith('/agents')
         ? 'agents'
         : 'threads';
@@ -126,6 +131,9 @@ export const AiAgentsAdminLayout = () => {
                             </Text>
                         </Box>
                         <Group>
+                            <AiAgentsAdminEnableFeatureToggle
+                                enabled={settings?.aiAgentsVisible}
+                            />
                             <SegmentedControl
                                 size="xs"
                                 radius="md"
@@ -184,6 +192,24 @@ export const AiAgentsAdminLayout = () => {
                         </Group>
                     </Group>
 
+                    {settings?.aiAgentsVisible === false && (
+                        <Paper mb="md">
+                            <Alert
+                                icon={<IconInfoCircle />}
+                                radius="md"
+                                variant="outline"
+                                color="orange"
+                                title="AI Features Currently Disabled for All Users"
+                            >
+                                <Text c="gray.7" size="sm">
+                                    AI features on the homepage and navbar are
+                                    turned off. Users cannot interact with AI
+                                    Agents until you re-enable this feature
+                                    using the toggle above.
+                                </Text>
+                            </Alert>
+                        </Paper>
+                    )}
                     {activeTab === 'threads' ? (
                         <AiAgentAdminThreadsTable
                             onThreadSelect={handleThreadSelect}
