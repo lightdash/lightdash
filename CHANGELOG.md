@@ -1,3 +1,12 @@
+# [0.2071.0](https://github.com/lightdash/lightdash/compare/0.2070.2...0.2071.0) (2025-10-09)
+
+
+### Features
+
+* add search to ai search box ([#17342](https://github.com/lightdash/lightdash/issues/17342)) ([759c338](https://github.com/lightdash/lightdash/commit/759c3388b716a60eeac380a354eba7fb3014c5a3)), closes [#17285](https://github.com/lightdash/lightdash/issues/17285)
+* create new thread from AI search box ([#17303](https://github.com/lightdash/lightdash/issues/17303)) ([4afc644](https://github.com/lightdash/lightdash/commit/4afc644f3c09d58068ae8b1d275d312e3a454605)), closes [#17286](https://github.com/lightdash/lightdash/issues/17286)
+* introduce ai search box to homepage ([#17299](https://github.com/lightdash/lightdash/issues/17299)) ([e5053e9](https://github.com/lightdash/lightdash/commit/e5053e99e1ebaf77c3bd04f467499f79c400bf5d)), closes [#17289](https://github.com/lightdash/lightdash/issues/17289)
+
 ## [0.2070.2](https://github.com/lightdash/lightdash/compare/0.2070.1...0.2070.2) (2025-10-09)
 
 
