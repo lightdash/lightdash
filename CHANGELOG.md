@@ -1,3 +1,10 @@
+# [0.2070.0](https://github.com/lightdash/lightdash/compare/0.2069.5...0.2070.0) (2025-10-09)
+
+
+### Features
+
+* allow fetching dashboards and charts by slug ([#17292](https://github.com/lightdash/lightdash/issues/17292)) ([0299884](https://github.com/lightdash/lightdash/commit/0299884c6c7a64e4864cf225df84aff189638102))
+
 ## [0.2069.5](https://github.com/lightdash/lightdash/compare/0.2069.4...0.2069.5) (2025-10-09)
 
 
