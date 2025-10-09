@@ -55,12 +55,12 @@ export class AiController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/dashboard/:dashboardUuid/summary')
+    @Get('/dashboard/:dashboardUuidOrSlug/summary')
     @OperationId('getDashboardSummary')
     async getDashboardSummary(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() dashboardUuid: string,
+        @Path() dashboardUuidOrSlug: string,
     ): Promise<ApiAiGetDashboardSummaryResponse> {
         this.setStatus(200);
         return {
@@ -68,7 +68,7 @@ export class AiController extends BaseController {
             results: await this.getAiService().getDashboardSummary(
                 req.user!,
                 projectUuid,
-                dashboardUuid,
+                dashboardUuidOrSlug,
             ),
         };
     }

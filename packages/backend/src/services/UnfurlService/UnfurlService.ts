@@ -301,7 +301,7 @@ export class UnfurlService extends BaseService {
                     throw new ParameterError(
                         `Missing dashboardUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
-                const dashboard = await this.dashboardModel.getById(
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
                     parsedUrl.dashboardUuid,
                 );
 
@@ -524,7 +524,9 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
         selectedTabs: string[] | null,
     ): Promise<string> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,

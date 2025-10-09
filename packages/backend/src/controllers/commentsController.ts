@@ -79,15 +79,15 @@ export class CommentsController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/dashboards/{dashboardUuid}')
+    @Get('/dashboards/{dashboardUuidOrSlug}')
     @OperationId('getComments')
     async getComments(
-        @Path() dashboardUuid: string,
+        @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetComments> {
         const results = await this.services
             .getCommentService()
-            .findCommentsForDashboard(req.user!, dashboardUuid);
+            .findCommentsForDashboard(req.user!, dashboardUuidOrSlug);
         this.setStatus(200);
         return {
             status: 'ok',

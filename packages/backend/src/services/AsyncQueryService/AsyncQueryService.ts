@@ -2287,7 +2287,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -2976,7 +2978,9 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first

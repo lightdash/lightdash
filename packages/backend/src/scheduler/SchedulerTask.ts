@@ -249,7 +249,7 @@ export default class SchedulerTask {
 
         if (dashboardUuid) {
             const dashboard =
-                await this.schedulerService.dashboardModel.getById(
+                await this.schedulerService.dashboardModel.getByIdOrSlug(
                     dashboardUuid,
                 );
 
@@ -480,7 +480,7 @@ export default class SchedulerTask {
                             properties: baseAnalyticsProperties,
                         });
                         const dashboard =
-                            await this.schedulerService.dashboardModel.getById(
+                            await this.schedulerService.dashboardModel.getByIdOrSlug(
                                 dashboardUuid,
                             );
 
@@ -730,7 +730,7 @@ export default class SchedulerTask {
                 let csvSchedulerParameters: ParametersValuesMap | undefined;
                 if (dashboardUuid) {
                     const dashboard =
-                        await this.schedulerService.dashboardModel.getById(
+                        await this.schedulerService.dashboardModel.getByIdOrSlug(
                             dashboardUuid,
                         );
                     const dashboardParameters = dashboard.parameters || {};
@@ -2512,7 +2512,7 @@ export default class SchedulerTask {
                     );
                 }
             } else if (dashboardUuid) {
-                const dashboard = await this.dashboardService.getById(
+                const dashboard = await this.dashboardService.getByIdOrSlug(
                     sessionUser,
                     dashboardUuid,
                 );

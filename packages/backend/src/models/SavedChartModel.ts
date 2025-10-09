@@ -40,6 +40,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     DashboardsTableName,
@@ -777,7 +778,7 @@ export class SavedChartModel {
     }
 
     async get(
-        savedChartUuid: string,
+        savedChartUuidOrSlug: string,
         versionUuid?: string,
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
@@ -786,6 +787,9 @@ export class SavedChartModel {
                 name: 'SavedChartModel.get',
             },
             async () => {
+                const isUuid = isValidUuid(savedChartUuidOrSlug);
+                const filterField = isUuid ? 'saved_query_uuid' : 'slug';
+
                 const chartQuery = this.database
                     .from<DbSavedChartDetails>(SavedChartsTableName)
                     .leftJoin(
@@ -876,12 +880,27 @@ export class SavedChartModel {
                         `${SpaceTableName}.name as spaceName`,
                         `${PinnedListTableName}.pinned_list_uuid`,
                     ])
-                    .where(
-                        `${SavedChartsTableName}.saved_query_uuid`,
-                        savedChartUuid,
-                    )
                     .orderBy('saved_queries_versions.created_at', 'desc')
                     .limit(1);
+
+                if (isUuid) {
+                    void chartQuery.where((builder) => {
+                        void builder
+                            .where(
+                                `${SavedChartsTableName}.saved_query_uuid`,
+                                savedChartUuidOrSlug,
+                            )
+                            .orWhere(
+                                `${SavedChartsTableName}.slug`,
+                                savedChartUuidOrSlug,
+                            );
+                    });
+                } else {
+                    void chartQuery.where(
+                        `${SavedChartsTableName}.slug`,
+                        savedChartUuidOrSlug,
+                    );
+                }
 
                 if (versionUuid) {
                     void chartQuery.where(

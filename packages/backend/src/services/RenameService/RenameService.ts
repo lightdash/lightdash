@@ -622,7 +622,7 @@ export class RenameService extends BaseService {
                 `Rename resources: Found ${dashboardSummaries.length} dashboard summaries to rename`,
             );
             const dashboardPromises = dashboardSummaries.map((dashboard) =>
-                this.dashboardModel.getById(dashboard.uuid),
+                this.dashboardModel.getByIdOrSlug(dashboard.uuid),
             );
             const dashboards = await Promise.all(dashboardPromises);
 
