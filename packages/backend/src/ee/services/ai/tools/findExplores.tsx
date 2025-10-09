@@ -1,10 +1,13 @@
 import {
+    CatalogField,
+    CompiledDimension,
+    CompiledMetric,
+    convertToAiHints,
     getItemId,
     toolFindExploresArgsSchema,
     toolFindExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { truncate } from 'lodash';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -13,116 +16,164 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     pageSize: number;
     fieldSearchSize: number;
-    fieldOverviewSearchSize: number;
-    maxDescriptionLength: number;
     findExplores: FindExploresFn;
 };
 
+function getCatalogChartUsage(
+    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
+    type: 'dimension',
+    field: CompiledDimension,
+): number;
+function getCatalogChartUsage(
+    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
+    type: 'metric',
+    field: CompiledMetric,
+): number;
+function getCatalogChartUsage(
+    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
+    type: 'dimension' | 'metric',
+    field: CompiledDimension | CompiledMetric,
+) {
+    const catalogField = catalogFields[
+        type === 'dimension' ? 'dimensions' : 'metrics'
+    ].find((f) => f.name === field.name);
+    return catalogField?.chartUsage ?? 0;
+}
+
 const generateExploreResponse = ({
-    table,
-    dimensions,
-    metrics,
-    dimensionsPagination,
-    metricsPagination,
-    shouldTruncate,
-    maxDescriptionLength,
-}: Awaited<ReturnType<FindExploresFn>>['tablesWithFields'][number] & {
-    shouldTruncate: boolean;
-    maxDescriptionLength: number;
-}) => {
-    const description = shouldTruncate
-        ? truncate(table.description || '', {
-              length: maxDescriptionLength,
-              omission: '...(truncated)',
-          })
-        : table.description || '';
+    explore,
+    catalogFields,
+}: Awaited<ReturnType<FindExploresFn>>) => {
+    const baseTable = explore.tables[explore.baseTable];
+    const aiHints = baseTable.aiHint
+        ? convertToAiHints(baseTable.aiHint)
+        : null;
 
     return (
-        <explore tableName={table.name}>
-            <label>{table.label}</label>
-            <basetable alt="ID of the base table">{table.name}</basetable>
-            {table.aiHints && table.aiHints.length > 0 && (
+        <explore tableName={explore.name}>
+            <label>{explore.label}</label>
+            <basetable alt="ID of the base table">{baseTable.name}</basetable>
+            {aiHints && aiHints.length > 0 && (
                 <aihints>
-                    {table.aiHints.map((hint: string) => (
+                    {aiHints.map((hint: string) => (
                         <hint>{hint}</hint>
                     ))}
                 </aihints>
             )}
-            <description alt="Description of the base table">
-                {description}
-            </description>
-            {table.joinedTables && table.joinedTables.length > 0 && (
+            {baseTable.description && (
+                <description alt="Description of the base table">
+                    {baseTable.description}
+                </description>
+            )}
+            {explore.joinedTables && explore.joinedTables.length > 0 && (
                 <joinedtables
                     alt="IDs of the joined tables"
-                    totalCount={table.joinedTables.length}
+                    totalCount={explore.joinedTables.length}
                 >
-                    {table.joinedTables.map((joinedTable: string) => (
-                        <tablename>{joinedTable}</tablename>
+                    {explore.joinedTables.map((joinedTable) => (
+                        <tablename>{joinedTable.table}</tablename>
                     ))}
                 </joinedtables>
             )}
-            {dimensions &&
-                metrics &&
-                dimensions.length > 0 &&
-                metrics.length > 0 && (
-                    <fields
-                        alt="most popular dimensions and metrics"
-                        totalCount={
-                            (dimensionsPagination?.totalResults ?? 0) +
-                            (metricsPagination?.totalResults ?? 0)
-                        }
-                        displayedResults={dimensions.length + metrics.length}
+
+            {Object.values(explore.tables).length > 0 &&
+                Object.values(explore.tables).map((table) => (
+                    <table
+                        name={table.name}
+                        isBaseTable={table.name === explore.baseTable}
                     >
-                        <dimensions
-                            alt="most popular dimensions"
-                            totalResults={
-                                dimensionsPagination?.totalResults ?? 0
-                            }
-                            displayedResults={dimensions.length}
-                        >
-                            {dimensions.map((d) => (
-                                <dimension
-                                    table={d.tableName}
-                                    name={d.name}
-                                    fieldId={getItemId({
-                                        name: d.name,
-                                        table: d.tableName,
-                                    })}
-                                >
-                                    {d.label}
-                                </dimension>
-                            ))}
-                        </dimensions>
-                        <metrics
-                            alt="most popular metrics"
-                            totalResults={metricsPagination?.totalResults ?? 0}
-                            displayedResults={metrics.length}
-                        >
-                            {metrics.map((m) => (
-                                <metric
-                                    table={m.tableName}
-                                    name={m.name}
-                                    fieldId={getItemId({
-                                        name: m.name,
-                                        table: m.tableName,
-                                    })}
-                                >
-                                    {m.label}
-                                </metric>
-                            ))}
-                        </metrics>
-                    </fields>
-                )}
+                        <fields alt="dimensions and metrics">
+                            {Object.values(table.dimensions).length > 0 && (
+                                <dimensions alt="dimensions">
+                                    {Object.values(table.dimensions).map(
+                                        (dimension) => (
+                                            <dimension
+                                                usageInCharts={getCatalogChartUsage(
+                                                    catalogFields,
+                                                    'dimension',
+                                                    dimension,
+                                                )}
+                                                name={dimension.name}
+                                                label={dimension.label}
+                                                fieldId={getItemId(dimension)}
+                                            >
+                                                {dimension.aiHint &&
+                                                    (
+                                                        convertToAiHints(
+                                                            dimension.aiHint,
+                                                        ) ?? []
+                                                    ).length > 0 && (
+                                                        <aihints>
+                                                            {dimension.aiHint &&
+                                                                convertToAiHints(
+                                                                    dimension.aiHint,
+                                                                )?.map(
+                                                                    (hint) => (
+                                                                        <hint>
+                                                                            {
+                                                                                hint
+                                                                            }
+                                                                        </hint>
+                                                                    ),
+                                                                )}
+                                                        </aihints>
+                                                    )}
+                                            </dimension>
+                                        ),
+                                    )}
+                                </dimensions>
+                            )}
+
+                            {Object.values(table.metrics).length > 0 && (
+                                <metrics alt="metrics">
+                                    {Object.values(table.metrics).map(
+                                        (metric) => (
+                                            <metric
+                                                usageInCharts={getCatalogChartUsage(
+                                                    catalogFields,
+                                                    'metric',
+                                                    metric,
+                                                )}
+                                                name={metric.name}
+                                                label={metric.label}
+                                                fieldId={getItemId(metric)}
+                                            >
+                                                {metric.aiHint &&
+                                                    (
+                                                        convertToAiHints(
+                                                            metric.aiHint,
+                                                        ) ?? []
+                                                    ).length > 0 && (
+                                                        <aihints>
+                                                            {metric.aiHint &&
+                                                                convertToAiHints(
+                                                                    metric.aiHint,
+                                                                )?.map(
+                                                                    (hint) => (
+                                                                        <hint>
+                                                                            {
+                                                                                hint
+                                                                            }
+                                                                        </hint>
+                                                                    ),
+                                                                )}
+                                                        </aihints>
+                                                    )}
+                                            </metric>
+                                        ),
+                                    )}
+                                </metrics>
+                            )}
+                        </fields>
+                    </table>
+                ))}
         </explore>
     );
 };
-
 export const getFindExplores = ({
     findExplores,
     pageSize,
-    maxDescriptionLength,
     fieldSearchSize,
-    fieldOverviewSearchSize,
 }: Dependencies) =>
     tool({
         description: toolFindExploresArgsSchema.description,
@@ -130,55 +181,18 @@ export const getFindExplores = ({
         outputSchema: toolFindExploresOutputSchema,
         execute: async (args) => {
             try {
-                if (args.page && args.page < 1) {
-                    return {
-                        result: `Error: Page must be greater than 0.`,
-                        metadata: {
-                            status: 'error',
-                        },
-                    };
-                }
-
-                const { pagination, tablesWithFields } = await findExplores({
-                    tableName: args.exploreName,
-                    page: args.page ?? 1,
+                const { explore, catalogFields } = await findExplores({
+                    exploreName: args.exploreName,
+                    page: 1,
                     pageSize,
-                    includeFields: !!args.exploreName,
                     fieldSearchSize,
-                    fieldOverviewSearchSize,
                 });
 
-                const exploreElements = tablesWithFields.map(
-                    (tableWithFields) =>
-                        generateExploreResponse({
-                            ...tableWithFields,
-                            shouldTruncate: !args.exploreName,
-                            maxDescriptionLength,
-                        }),
-                );
-
-                if (args.exploreName) {
-                    return {
-                        result: (
-                            <explores>{exploreElements}</explores>
-                        ) as string,
-                        metadata: {
-                            status: 'success',
-                        },
-                    };
-                }
-
                 return {
-                    result: (
-                        <explores
-                            page={pagination?.page ?? 0}
-                            pageSize={pagination?.pageSize ?? 0}
-                            totalPageCount={pagination?.totalPageCount ?? 0}
-                            totalResults={pagination?.totalResults ?? 0}
-                        >
-                            {exploreElements}
-                        </explores>
-                    ) as string,
+                    result: generateExploreResponse({
+                        explore,
+                        catalogFields,
+                    }) as string,
                     metadata: {
                         status: 'success',
                     },

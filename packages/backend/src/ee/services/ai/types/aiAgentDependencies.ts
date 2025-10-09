@@ -39,20 +39,15 @@ export type ListExploresFn = () => Promise<Explore[]>;
 
 export type FindExploresFn = (
     args: {
-        tableName: string | null;
-        fieldOverviewSearchSize?: number;
-        fieldSearchSize?: number;
-        includeFields: boolean;
+        exploreName: string;
+        fieldSearchSize: number;
     } & KnexPaginateArgs,
 ) => Promise<{
-    tablesWithFields: {
-        table: CatalogTable;
-        dimensions?: CatalogField[];
-        metrics?: CatalogField[];
-        dimensionsPagination?: Pagination;
-        metricsPagination?: Pagination;
-    }[];
-    pagination: Pagination | undefined;
+    explore: Explore;
+    catalogFields: {
+        dimensions: CatalogField[];
+        metrics: CatalogField[];
+    };
 }>;
 
 export type FindFieldFn = (

@@ -5,14 +5,11 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Lists available Explores along with their field labels, joined tables, hints for you (Ai Hints) and descriptions.
+Lists Explore along with their joined tables, all fields, hints for you (Ai Hints) and descriptions.
 
 Usage Tips:
 - Use this to understand the structure of an Explore before calling findFields.
-- Only a subset of fields is returned
-- Results are paginated — use the next page token to retrieve additional pages.
-- It's advised to look for tables first and then use the exploreName parameter to narrow results to a specific Explore.
-- When using the exploreName parameter, all fields and full description are returned for that explore.
+- All fields are returned as well as their field ids, descriptions labels and ai hints.
 `;
 
 export const toolFindExploresArgsSchema = createToolSchema(
@@ -22,12 +19,8 @@ export const toolFindExploresArgsSchema = createToolSchema(
     .extend({
         exploreName: z
             .string()
-            .nullable()
-            .describe(
-                'Name of the table to focus on. If omitted, all tables are returned. For a single table, all dimensions, metrics, and full descriptions are loaded',
-            ),
+            .describe('Name of the explore that you have access to'),
     })
-    .withPagination()
     .build();
 
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
