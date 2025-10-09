@@ -62,12 +62,15 @@ export const getRunMetricQuery = ({
         validateSelectedFieldsExistence(
             explore,
             vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
+            vizTool.customMetrics,
+            vizTool.tableCalculations,
         );
         validateSortFieldsAreSelected(
             vizTool.vizConfig.sorts,
             vizTool.vizConfig.dimensions,
             vizTool.vizConfig.metrics,
             vizTool.customMetrics,
+            vizTool.tableCalculations,
         );
     };
 
