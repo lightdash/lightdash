@@ -18,12 +18,22 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
-import { defaultQueryExecution } from '../providers/Explorer/defaultState';
+import {
+    explorerActions,
+    selectMetricQuery,
+    selectTableName,
+    selectUnsavedChartVersion,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../features/explorer/store';
+import {
+    defaultQueryExecution,
+    defaultState,
+} from '../providers/Explorer/defaultState';
 import {
     ExplorerSection,
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
@@ -158,22 +168,15 @@ export const useExplorerRoute = () => {
         tableId: string | undefined;
     }>();
 
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
-    );
-    const metricQuery = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery,
-    );
-    const clearExplore = useExplorerContext(
-        (context) => context.actions.clearExplore,
-    );
-    const setTableName = useExplorerContext(
-        (context) => context.actions.setTableName,
-    );
+    const dispatch = useExplorerDispatch();
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const tableName = useExplorerSelector(selectTableName);
 
     // Update url params based on pristine state
+    // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
-        if (metricQuery && unsavedChartVersion.tableName) {
+        if (pathParams.tableId && metricQuery && tableName) {
             void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
@@ -185,15 +188,23 @@ export const useExplorerRoute = () => {
                 { replace: true },
             );
         }
-    }, [metricQuery, navigate, pathParams.projectUuid, unsavedChartVersion]);
+    }, [
+        metricQuery,
+        navigate,
+        pathParams.projectUuid,
+        pathParams.tableId,
+        unsavedChartVersion,
+        tableName,
+    ]);
 
     useEffect(() => {
         if (!pathParams.tableId) {
-            clearExplore();
+            dispatch(explorerActions.reset(defaultState));
+            dispatch(explorerActions.resetQueryExecution());
         } else {
-            setTableName(pathParams.tableId);
+            dispatch(explorerActions.setTableName(pathParams.tableId));
         }
-    }, [pathParams.tableId, clearExplore, setTableName]);
+    }, [pathParams.tableId, dispatch]);
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
