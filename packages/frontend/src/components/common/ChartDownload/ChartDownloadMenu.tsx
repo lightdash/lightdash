@@ -3,8 +3,8 @@ import {
     ChartType,
     getCustomLabelsFromColumnProperties,
     getHiddenTableFields,
+    getPivotConfig,
     type ApiScheduledDownloadCsv,
-    type PivotConfig,
 } from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
@@ -21,10 +21,12 @@ import {
 } from '../CollapsableCard/constants';
 import MantineIcon from '../MantineIcon';
 import ChartDownloadOptions from './ChartDownloadOptions';
-import { createPivotConfigFromVisualization } from './chartDownloadUtils';
 
 export type ChartDownloadMenuProps = {
-    getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+    getDownloadQueryUuid: (
+        limit: number | null,
+        exportPivotedResults: boolean,
+    ) => Promise<string>;
     projectUuid: string;
     chartName?: string;
     getGsheetLink?: (
@@ -36,8 +38,14 @@ export type ChartDownloadMenuProps = {
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getDownloadQueryUuid, getGsheetLink, projectUuid, chartName }) => {
-        const { chartRef, visualizationConfig, resultsData, pivotDimensions } =
-            useVisualizationContext();
+        const {
+            chartRef,
+            visualizationConfig,
+            resultsData,
+            pivotDimensions,
+            chartConfig,
+            columnOrder,
+        } = useVisualizationContext();
 
         const eChartsOptions = useEchartsCartesianConfig();
 
@@ -54,19 +62,29 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [chartRef],
         );
 
-        // Build pivot config for table visualizations with pivot dimensions
-        const pivotConfig: PivotConfig | undefined =
-            isTableVisualizationConfig(visualizationConfig) &&
-            pivotDimensions &&
-            pivotDimensions.length > 0
-                ? createPivotConfigFromVisualization(
-                      visualizationConfig,
-                      pivotDimensions,
-                  )
-                : undefined;
+        // Build pivot config with pivot dimensions
+        const pivotConfig = getPivotConfig({
+            chartConfig,
+            pivotConfig: pivotDimensions
+                ? {
+                      columns: pivotDimensions,
+                  }
+                : undefined,
+            tableConfig: {
+                columnOrder,
+            },
+        });
+
+        // ChartDownloadMenu downloads pivoted results when they are available
+        const getChartDownloadQueryUuid = useCallback(
+            (limit: number | null) => {
+                return getDownloadQueryUuid(limit, true);
+            },
+            [getDownloadQueryUuid],
+        );
 
         return isTableVisualizationConfig(visualizationConfig) &&
-            getDownloadQueryUuid ? (
+            getChartDownloadQueryUuid ? (
             <Can
                 I="manage"
                 this={subject('ExportCsv', {
@@ -93,7 +111,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                         <ExportSelector
                             projectUuid={projectUuid}
                             totalResults={resultsData?.totalResults}
-                            getDownloadQueryUuid={getDownloadQueryUuid}
+                            getDownloadQueryUuid={getChartDownloadQueryUuid}
                             columnOrder={
                                 visualizationConfig.chartConfig.columnOrder
                             }
