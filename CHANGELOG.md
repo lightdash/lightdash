@@ -1,3 +1,10 @@
+## [0.2069.1](https://github.com/lightdash/lightdash/compare/0.2069.0...0.2069.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* remove selection when no warehouse credentials ([#17312](https://github.com/lightdash/lightdash/issues/17312)) ([4c809d9](https://github.com/lightdash/lightdash/commit/4c809d965f4aea6b19732c03da1da3a11402956a))
+
 # [0.2069.0](https://github.com/lightdash/lightdash/compare/0.2068.1...0.2069.0) (2025-10-08)
 
 
