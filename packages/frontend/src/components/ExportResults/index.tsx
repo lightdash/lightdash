@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DownloadFileType,
     formatDate,
+    type DownloadOptions,
     type PivotConfig,
 } from '@lightdash/common';
 import {
@@ -95,7 +96,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         limit,
                     );
 
-                    const downloadOptions = {
+                    const downloadOptions: DownloadOptions = {
                         fileType,
                         onlyRaw: format === Values.RAW,
                         columnOrder,

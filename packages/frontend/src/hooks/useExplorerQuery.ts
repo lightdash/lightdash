@@ -220,8 +220,14 @@ export const useExplorerQuery = (options?: {
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null) => {
-            let queryUuid = queryResults.queryUuid;
+        async (limit: number | null, exportPivotedResults: boolean = false) => {
+            // When unpivotedResultsEnabled it means that queryResults are pivoted results
+            // therefore we need to use unpivotedQueryResults if we want to download raw results
+            let queryUuid =
+                unpivotedEnabled && !exportPivotedResults
+                    ? unpivotedQueryResults.queryUuid
+                    : queryResults.queryUuid;
+
             if (limit === null || limit !== queryResults.totalResults) {
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
@@ -229,7 +235,9 @@ export const useExplorerQuery = (options?: {
                               ...validQueryArgs,
                               csvLimit: limit,
                               invalidateCache: minimal,
-                              pivotResults: useSqlPivotResults?.enabled,
+                              pivotResults:
+                                  exportPivotedResults &&
+                                  useSqlPivotResults?.enabled,
                           }
                         : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
@@ -243,11 +251,13 @@ export const useExplorerQuery = (options?: {
             return queryUuid;
         },
         [
+            unpivotedEnabled,
+            unpivotedQueryResults.queryUuid,
             queryResults.queryUuid,
             queryResults.totalResults,
             validQueryArgs,
             minimal,
-            useSqlPivotResults,
+            useSqlPivotResults?.enabled,
         ],
     );
 
