@@ -4,11 +4,13 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
+    type ChartTypeOption,
+    type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
 } from '@lightdash/common';
-import { Box, Center, Loader, Stack, Text } from '@mantine-8/core';
+import { Box, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
@@ -27,6 +29,7 @@ import { useOrganization } from '../../../../../hooks/organization/useOrganizati
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
+import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 
@@ -36,7 +39,11 @@ type Props = {
         ApiAiAgentThreadMessageVizQuery,
         ApiError
     >;
-    chartConfig: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    chartConfig:
+        | ToolTableVizArgs
+        | ToolTimeSeriesArgs
+        | ToolVerticalBarArgs
+        | ToolRunQueryArgs;
     headerContent?: ReactNode;
 };
 
@@ -54,6 +61,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
+    const [selectedChartType, setSelectedChartType] =
+        useState<ChartTypeOption | null>(null);
 
     const resultsData = useMemo(
         () => ({
@@ -75,6 +84,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             rows: results.rows,
             maxQueryLimit: health?.query.maxLimit,
             fieldsMap: fields,
+            overrideChartType: selectedChartType ?? undefined,
         });
     }, [
         chartConfig,
@@ -82,6 +92,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
         results.rows,
         health?.query.maxLimit,
         fields,
+        selectedChartType,
     ]);
 
     if (resultsData?.isFetchingRows) {
@@ -105,6 +116,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
         );
     }
 
+    console.log(echartsConfig);
+
     return (
         <MetricQueryDataProvider
             metricQuery={metricQuery}
@@ -113,6 +126,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             queryUuid={queryExecutionHandle.data.query.queryUuid}
         >
             <VisualizationProvider
+                key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={echartsConfig}
                 parameters={
@@ -132,6 +146,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     echartsConfig.type === ChartType.CARTESIAN &&
                     vizTool.vizConfig.breakdownByDimension
                         ? [vizTool.vizConfig.breakdownByDimension as string]
+                        : aiResultType === AiResultType.QUERY_RESULT &&
+                          echartsConfig.type === ChartType.CARTESIAN &&
+                          vizTool.chartConfig?.pivot
+                        ? [vizTool.queryConfig.dimensions[1] as string]
                         : undefined
                 }
                 colorPalette={
@@ -148,6 +166,22 @@ export const AiVisualizationRenderer: FC<Props> = ({
             >
                 <Stack gap="md" h="100%">
                     {headerContent && headerContent}
+                    {aiResultType === AiResultType.QUERY_RESULT && (
+                        <Group justify="flex-end">
+                            <AgentVisualizationChartTypeSwitcher
+                                metricQuery={metricQuery}
+                                selectedChartType={
+                                    selectedChartType ??
+                                    (chartConfig.type ===
+                                    AiResultType.QUERY_RESULT
+                                        ? chartConfig.chartConfig
+                                              ?.defaultVizType ?? 'table'
+                                        : 'table')
+                                }
+                                onChartTypeChange={setSelectedChartType}
+                            />
+                        </Group>
+                    )}
                     <Box
                         flex="1 0 0"
                         style={{
@@ -178,7 +212,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         <ErrorBoundary>
                             {queryExecutionHandle.data &&
                                 queryExecutionHandle.data.type !==
-                                    AiResultType.TABLE_RESULT && (
+                                    AiResultType.TABLE_RESULT &&
+                                queryExecutionHandle.data.type !==
+                                    AiResultType.QUERY_RESULT && (
                                     <AgentVisualizationMetricsAndDimensions
                                         metricQuery={
                                             queryExecutionHandle.data.query

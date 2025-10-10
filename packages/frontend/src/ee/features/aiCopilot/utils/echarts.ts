@@ -5,7 +5,9 @@ import {
     ChartType,
     formatItemValue,
     friendlyName,
+    getChartConfigFromRunQuery,
     getItemLabelWithoutTableName,
+    getPivotedData,
     isField,
     parseVizConfig,
     type AiVizMetadata,
@@ -15,13 +17,13 @@ import {
     type PivotReference,
     type ResultRow,
     type TimeSeriesMetricVizConfigSchemaType,
+    type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
 import { type Axis } from 'echarts';
-import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
 const formatFieldLabel = (fieldId: string, fieldsMap: ItemsMap): string => {
     const field = fieldsMap[fieldId];
@@ -243,12 +245,18 @@ export const getChartConfigFromAiAgentVizConfig = ({
     rows,
     maxQueryLimit,
     fieldsMap,
+    overrideChartType,
 }: {
-    vizConfig: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    vizConfig:
+        | ToolTableVizArgs
+        | ToolTimeSeriesArgs
+        | ToolVerticalBarArgs
+        | ToolRunQueryArgs;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;
+    overrideChartType?: 'table' | 'bar' | 'line';
 }) => {
     const parsedConfig = parseVizConfig(vizConfig, maxQueryLimit);
     if (!parsedConfig) {
@@ -288,6 +296,19 @@ export const getChartConfigFromAiAgentVizConfig = ({
             return {
                 ...parsedConfig,
                 echartsConfig: getTableMetricEchartsConfig(),
+            };
+        case AiResultType.QUERY_RESULT:
+            return {
+                type: parsedConfig.type,
+                vizTool: parsedConfig.vizTool,
+                metricQuery: parsedConfig.metricQuery,
+                echartsConfig: getChartConfigFromRunQuery({
+                    queryTool: parsedConfig.vizTool,
+                    metricQuery,
+                    rows,
+                    fieldsMap,
+                    overrideChartType,
+                }),
             };
         default:
             return assertUnreachable(parsedConfig, 'Invalid chart type');
