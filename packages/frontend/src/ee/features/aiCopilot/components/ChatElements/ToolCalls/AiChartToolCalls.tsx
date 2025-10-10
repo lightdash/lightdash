@@ -57,6 +57,7 @@ const getToolIcon = (toolName: ToolName) => {
             findCharts: IconChartDots3,
             improveContext: IconSchool,
             proposeChange: IconPencil,
+            runQuery: IconTable,
         };
 
     return iconMap[toolName];
@@ -194,6 +195,21 @@ const ToolCallDescription: FC<{
                         tableVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
                     metrics={tableVizConfigToolArgs.vizConfig.metrics}
+                />
+            );
+        case AiResultType.QUERY_RESULT:
+            const queryToolArgs = toolArgs;
+            return (
+                <AiChartGenerationToolCallDescription
+                    title={queryToolArgs.title}
+                    dimensions={queryToolArgs.queryConfig.dimensions ?? []}
+                    metrics={queryToolArgs.queryConfig.metrics}
+                    breakdownByDimension={
+                        queryToolArgs.chartConfig?.pivot &&
+                        queryToolArgs.queryConfig.dimensions.length > 1
+                            ? queryToolArgs.queryConfig.dimensions[1]
+                            : undefined
+                    }
                 />
             );
         case AiResultType.TIME_SERIES_RESULT:

@@ -105,7 +105,14 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
+import {
+    generateAgentResponse as generateAgentResponseV1,
+    streamAgentResponse as streamAgentResponseV1,
+} from './ai/agents/agent';
+import {
+    generateAgentResponse as generateAgentResponseV2,
+    streamAgentResponse as streamAgentResponseV2,
+} from './ai/agents/agentV2';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -916,6 +923,7 @@ export class AiAgentService {
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            version: body.version,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -973,6 +981,7 @@ export class AiAgentService {
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            version: body.version,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -1124,7 +1133,7 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>> {
+    ): Promise<ReturnType<typeof streamAgentResponseV1>> {
         try {
             const {
                 user: validatedUser,
@@ -2217,7 +2226,10 @@ export class AiAgentService {
             stream: true;
             canManageAgent: boolean;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>>;
+    ): Promise<
+        | ReturnType<typeof streamAgentResponseV1>
+        | ReturnType<typeof streamAgentResponseV2>
+    >;
     async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: ModelMessage[],
@@ -2255,7 +2267,11 @@ export class AiAgentService {
                         stream: false;
                     }
               ),
-    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
+    ): Promise<
+        | string
+        | ReturnType<typeof streamAgentResponseV1>
+        | ReturnType<typeof streamAgentResponseV2>
+    > {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -2358,9 +2374,24 @@ export class AiAgentService {
             },
         };
 
-        return stream
-            ? streamAgentResponse({ args, dependencies })
-            : generateAgentResponse({ args, dependencies });
+        // Route to correct agent version based on agentSettings.version
+        const agentVersion = agentSettings.version;
+
+        if (agentVersion === 1) {
+            return stream
+                ? streamAgentResponseV1({ args, dependencies })
+                : generateAgentResponseV1({ args, dependencies });
+        }
+
+        if (agentVersion === 2) {
+            return stream
+                ? streamAgentResponseV2({ args, dependencies })
+                : generateAgentResponseV2({ args, dependencies });
+        }
+
+        throw new Error(
+            `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
+        );
     }
 
     // TODO: user permissions

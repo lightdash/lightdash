@@ -14,6 +14,8 @@ import {
     type ToolImproveContextOutput,
     toolProposeChangeArgsSchema,
     type ToolProposeChangeOutput,
+    toolRunQueryArgsSchema,
+    type ToolRunQueryOutput,
     toolSearchFieldValuesArgsSchema,
     type ToolSearchFieldValuesOutput,
     toolTableVizArgsSchema,
@@ -39,6 +41,7 @@ export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
     toolFindFieldsArgsSchema,
     toolImproveContextArgsSchema,
     toolProposeChangeArgsSchema,
+    toolRunQueryArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolVerticalBarArgsSchema,
     toolTableVizArgsSchema,
@@ -56,6 +59,7 @@ export type AgentToolOutput =
     | ToolFindFieldsOutput
     | ToolImproveContextOutput
     | ToolProposeChangeOutput
+    | ToolRunQueryOutput
     | ToolSearchFieldValuesOutput
     | ToolTableVizOutput
     | ToolTimeSeriesOutput

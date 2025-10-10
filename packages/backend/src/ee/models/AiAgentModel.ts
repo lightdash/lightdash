@@ -198,6 +198,7 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -306,6 +307,7 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -387,6 +389,7 @@ export class AiAgentModel {
             | 'userAccess'
             | 'enableDataAccess'
             | 'enableSelfImprovement'
+            | 'version'
         > & {
             organizationUuid: string;
         },
@@ -402,6 +405,7 @@ export class AiAgentModel {
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
+                    version: args.version,
                 })
                 .returning('*');
 
@@ -473,6 +477,7 @@ export class AiAgentModel {
                 userAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
+                version: agent.version,
             };
         });
     }
@@ -507,6 +512,9 @@ export class AiAgentModel {
                               enable_self_improvement:
                                   args.enableSelfImprovement,
                           }
+                        : {}),
+                    ...(args.version !== undefined
+                        ? { version: args.version }
                         : {}),
                 })
                 .returning('*');
@@ -594,6 +602,7 @@ export class AiAgentModel {
                 userAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
+                version: agent.version,
             };
         });
     }

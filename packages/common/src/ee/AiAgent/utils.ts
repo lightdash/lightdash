@@ -4,11 +4,13 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
+    toolRunQueryArgsSchemaTransformed,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
 } from './schemas';
 import { AiResultType } from './types';
+import { getValidAiQueryLimit } from './validators';
 
 export const parseVizConfig = (
     vizConfigUnknown: object | null,
@@ -74,6 +76,38 @@ export const parseVizConfig = (
         });
         return {
             type: AiResultType.TABLE_RESULT,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+
+    // Parse runQuery tool
+    const toolRunQueryArgsParsed =
+        toolRunQueryArgsSchemaTransformed.safeParse(vizConfigUnknown);
+    if (toolRunQueryArgsParsed.success) {
+        const vizTool = toolRunQueryArgsParsed.data;
+
+        const metricQuery = {
+            exploreName: vizTool.queryConfig.exploreName,
+            dimensions: vizTool.queryConfig.dimensions,
+            metrics: vizTool.queryConfig.metrics,
+            sorts: vizTool.queryConfig.sorts.map((sort) => ({
+                ...sort,
+                nullsFirst: sort.nullsFirst ?? undefined,
+            })),
+            limit: getValidAiQueryLimit(
+                vizTool.queryConfig.limit,
+                maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
+            ),
+            filters: vizTool.filters,
+            additionalMetrics: vizTool.customMetrics ?? [],
+            tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                vizTool.tableCalculations,
+            ),
+        };
+
+        return {
+            type: AiResultType.QUERY_RESULT,
             vizTool,
             metricQuery,
         } as const;
