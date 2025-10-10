@@ -866,34 +866,9 @@ export class MetricQueryBuilder {
                 joinedTables,
             });
 
-        // Get metrics from selected fields
         const metricsObjects = metrics.map((field) =>
             getMetricFromId(field, explore, compiledMetricQuery),
         );
-
-        // Also include metrics that are only used in filters (not selected for display)
-        const metricsFromFilters = getFilterRulesFromGroup(
-            compiledMetricQuery.filters.metrics,
-        ).reduce<CompiledMetric[]>((acc, filter) => {
-            const metricInSelect = metrics.find(
-                (metric) => metric === filter.target.fieldId,
-            );
-            if (metricInSelect !== undefined) {
-                return acc; // Already in selected metrics
-            }
-            const metric = getMetricFromId(
-                filter.target.fieldId,
-                explore,
-                compiledMetricQuery,
-            );
-            // Avoid duplicates
-            const alreadyIncluded = acc.find(
-                (m) => getItemId(m) === getItemId(metric),
-            );
-            return alreadyIncluded ? acc : [...acc, metric];
-        }, []);
-
-        const allMetricsObjects = [...metricsObjects, ...metricsFromFilters];
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1117,7 +1092,7 @@ export class MetricQueryBuilder {
         });
         if (ctes.length > 0) {
             const unaffectedMetrics = [
-                ...allMetricsObjects,
+                ...metricsObjects,
                 ...referencedMetricObjects,
             ].filter((metric) => {
                 const notInMetricCtes = !metricCtes.some((metricCte) =>
@@ -1241,10 +1216,6 @@ export class MetricQueryBuilder {
             ctes,
             finalSelectParts,
             warnings,
-            metricCtes,
-            dimensionSelects,
-            metricsObjects,
-            fieldQuoteChar,
         };
     }
 

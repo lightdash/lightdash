@@ -52,7 +52,6 @@ export const CompactAgentSelector = ({
                     <Group gap="xxs">
                         <LightdashUserAvatar
                             size="md"
-                            variant="filled"
                             name={selectedAgent.name}
                             src={selectedAgent.imageUrl}
                         />

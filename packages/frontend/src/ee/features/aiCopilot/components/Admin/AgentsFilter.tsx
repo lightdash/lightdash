@@ -190,7 +190,6 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                                                                         size={
                                                                             16
                                                                         }
-                                                                        variant="filled"
                                                                         name={
                                                                             agent.name
                                                                         }

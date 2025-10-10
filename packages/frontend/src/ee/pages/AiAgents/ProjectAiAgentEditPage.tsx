@@ -247,7 +247,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         </Group>
                         <LightdashUserAvatar
                             name={isCreateMode ? '+' : form.values.name}
-                            variant="filled"
                             src={
                                 !isCreateMode ? form.values.imageUrl : undefined
                             }

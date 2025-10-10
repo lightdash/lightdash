@@ -59,3 +59,22 @@ export type AiAgentAdminConversationsSummary = {
 export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
 >;
+
+// AI Organization Settings Types
+export type AiOrganizationSettings = {
+    organizationUuid: string;
+    aiAgentsVisible: boolean;
+};
+
+export type CreateAiOrganizationSettings = AiOrganizationSettings;
+
+export type UpdateAiOrganizationSettings = Omit<
+    AiOrganizationSettings,
+    'organizationUuid'
+>;
+
+export type ApiAiOrganizationSettingsResponse =
+    ApiSuccess<AiOrganizationSettings>;
+
+export type ApiUpdateAiOrganizationSettingsResponse =
+    ApiSuccess<AiOrganizationSettings>;

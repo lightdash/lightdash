@@ -1,3 +1,37 @@
+# [0.2074.0](https://github.com/lightdash/lightdash/compare/0.2073.0...0.2074.0) (2025-10-10)
+
+
+### Features
+
+* ai feature visibility defaults to true ([#17380](https://github.com/lightdash/lightdash/issues/17380)) ([e670e2c](https://github.com/lightdash/lightdash/commit/e670e2cbdeb318577f23299242436ffbb2905a64))
+* ai organization settings crud ([#17353](https://github.com/lightdash/lightdash/issues/17353)) ([35b80f5](https://github.com/lightdash/lightdash/commit/35b80f5fa614fcec68debb90a669ce202fdf2c6e))
+* create ai_organization_settings table ([#17352](https://github.com/lightdash/lightdash/issues/17352)) ([753c4ae](https://github.com/lightdash/lightdash/commit/753c4aea28f756dbde5b80a67b96aa264728cbd9))
+* enable ai visibility in admin panel ([#17355](https://github.com/lightdash/lightdash/issues/17355)) ([f0677cf](https://github.com/lightdash/lightdash/commit/f0677cf575cdc831c76599eb082665eebd7ad455))
+* improve ai admin panel buttons hierarchy ([#17375](https://github.com/lightdash/lightdash/issues/17375)) ([2a7e1a9](https://github.com/lightdash/lightdash/commit/2a7e1a95d2415bddb983eacd914c1dd230ee4c96))
+* use settings to display ai agent feature ([#17357](https://github.com/lightdash/lightdash/issues/17357)) ([b17c30c](https://github.com/lightdash/lightdash/commit/b17c30c1df0e63063ed41d5da33e2b79ff71c760))
+
+# [0.2073.0](https://github.com/lightdash/lightdash/compare/0.2072.1...0.2073.0) (2025-10-10)
+
+
+### Features
+
+* improve loading state ai search box ([#17374](https://github.com/lightdash/lightdash/issues/17374)) ([cc78c62](https://github.com/lightdash/lightdash/commit/cc78c6241c454f50588856dc2e0306a84a85db8a))
+
+## [0.2072.1](https://github.com/lightdash/lightdash/compare/0.2072.0...0.2072.1) (2025-10-10)
+
+
+### Bug Fixes
+
+* [revert] "fix: error when filtering by metric with fanout ([#17356](https://github.com/lightdash/lightdash/issues/17356))" ([#17376](https://github.com/lightdash/lightdash/issues/17376)) ([b82e68f](https://github.com/lightdash/lightdash/commit/b82e68f6eb0a7bbd827a776bf1e11c6d2c526576))
+
+# [0.2072.0](https://github.com/lightdash/lightdash/compare/0.2071.4...0.2072.0) (2025-10-10)
+
+
+### Features
+
+* allow metrics in view underlying data ([#17325](https://github.com/lightdash/lightdash/issues/17325)) ([94e8fca](https://github.com/lightdash/lightdash/commit/94e8fca716335ddd2779d687f8c40a9fb50120e8))
+* use avatar light version for ai agents ([#17377](https://github.com/lightdash/lightdash/issues/17377)) ([6349cfc](https://github.com/lightdash/lightdash/commit/6349cfce24aa63afad3fb82a183db83ac05c6053)), closes [#17317](https://github.com/lightdash/lightdash/issues/17317)
+
 ## [0.2071.4](https://github.com/lightdash/lightdash/compare/0.2071.3...0.2071.4) (2025-10-10)
 
 

@@ -236,7 +236,6 @@ const AiAgentAdminThreadsTable = ({
                         <Group gap="two" wrap="nowrap">
                             <LightdashUserAvatar
                                 size={12}
-                                variant="filled"
                                 name={thread.agent.name}
                                 src={thread.agent.imageUrl}
                             />

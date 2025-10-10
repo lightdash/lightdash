@@ -34,3 +34,18 @@ models:
               total_revenue:
                 type: sum
                 description: Sum of all payments
+                # E2E tests rely on these values
+                show_underlying_values:
+                  # Metrics
+                  - unique_payment_count
+                  - orders.average_order_size
+                  - orders.total_order_amount
+                  - customers.date_of_most_recent_created_customer
+                  # Dimensions
+                  - amount
+                  - orders.status
+                  - orders.customer_id
+                  - orders.order_date
+                  - orders.order_id
+                  - orders.order_source
+                  - orders.shipping_method
