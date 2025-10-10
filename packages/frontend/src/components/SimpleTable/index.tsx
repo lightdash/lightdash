@@ -202,6 +202,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
                             showSubtotals={showSubtotals}
+                            columnProperties={
+                                visualizationConfig.chartConfig.columnProperties
+                            }
                             {...rest}
                         />
                         {showResultsTotal && (

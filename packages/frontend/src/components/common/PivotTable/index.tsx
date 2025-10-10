@@ -9,6 +9,7 @@ import {
     isHexCodeColor,
     isNumericItem,
     isSummable,
+    type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
@@ -93,6 +94,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
+        columnProperties?: ColumnProperties;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -104,6 +106,7 @@ const PivotTable: FC<PivotTableProps> = ({
     getField,
     className,
     showSubtotals = false,
+    columnProperties = {},
     ...tableProps
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -262,6 +265,10 @@ const PivotTable: FC<PivotTableProps> = ({
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
         getCoreRowModel: getCoreRowModel(),
+        meta: {
+            columnProperties,
+            minMaxMap,
+        },
     });
 
     const { rows } = table.getRowModel();

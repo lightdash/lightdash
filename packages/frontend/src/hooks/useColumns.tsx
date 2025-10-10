@@ -1,5 +1,6 @@
 import {
     formatItemValue,
+    getItemId,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -69,7 +70,13 @@ const isBarDisplay = (
 ) => {
     const minMaxMap = (info.table as any).options.meta?.minMaxMap;
     const columnProperties = (info.table as any).options.meta?.columnProperties;
-    const displayStyle = columnProperties?.[info.column.id]?.displayStyle;
+
+    // For pivot tables, get the base field ID from the item in meta
+    // This is needed because pivoted columns have different IDs than the base field
+    const item = info.column.columnDef.meta?.item;
+    const baseFieldId = item ? getItemId(item) : info.column.id;
+    const displayStyle = columnProperties?.[baseFieldId]?.displayStyle;
+
     return minMaxMap && displayStyle === 'bar';
 };
 
@@ -82,6 +89,11 @@ const formatBarDisplayCell = (
     const columnId = info.column.id;
 
     const minMaxMap = (info.table as any).options.meta?.minMaxMap;
+
+    // For pivot tables, get the base field ID from the item in meta
+    // This is needed because pivoted columns have different IDs than the base field
+    const item = info.column.columnDef.meta?.item;
+    const baseFieldId = item ? getItemId(item) : columnId;
 
     let formatted, value: number;
 
@@ -101,8 +113,9 @@ const formatBarDisplayCell = (
     }
 
     // Get min/max from minMaxMap (same as conditional formatting)
-    const min = minMaxMap[columnId]?.min ?? 0;
-    const max = minMaxMap[columnId]?.max ?? 100;
+    // Use baseFieldId for pivot tables to get the correct min/max values
+    const min = minMaxMap[baseFieldId]?.min ?? 0;
+    const max = minMaxMap[baseFieldId]?.max ?? 100;
 
     return renderBarChartDisplay({
         value,
