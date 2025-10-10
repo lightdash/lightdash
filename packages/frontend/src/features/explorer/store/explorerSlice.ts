@@ -4,6 +4,7 @@ import {
     type AdditionalMetric,
     type ChartConfig,
     type CustomDimension,
+    type CustomFormat,
     type Dimension,
     type FieldId,
     type Item,
@@ -291,6 +292,22 @@ const explorerSlice = createSlice({
             state.modals.format = {
                 isOpen: !state.modals.format.isOpen,
                 ...(action.payload && { ...action.payload }),
+            };
+        },
+        updateMetricFormat: (
+            state,
+            action: PayloadAction<{
+                metric: Metric;
+                formatOptions: CustomFormat;
+            }>,
+        ) => {
+            const { metric, formatOptions } = action.payload;
+            const metricId = getItemId(metric);
+            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
+                state.unsavedChartVersion.metricQuery.metricOverrides = {};
+            }
+            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
+                formatOptions,
             };
         },
         openItemDetail: (
