@@ -6480,19 +6480,6 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
                                             }
                                         ]
                                     },
@@ -9036,14 +9023,22 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "UpdateAiOrganizationSettings": {
+            "Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__": {
                 "properties": {
                     "aiAgentsVisible": {
                         "type": "boolean"
                     }
                 },
                 "required": ["aiAgentsVisible"],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_AiOrganizationSettings.organizationUuid_": {
+                "$ref": "#/components/schemas/Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "UpdateAiOrganizationSettings": {
+                "$ref": "#/components/schemas/Omit_AiOrganizationSettings.organizationUuid_"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -20680,7 +20675,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2069.5",
+        "version": "0.2071.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

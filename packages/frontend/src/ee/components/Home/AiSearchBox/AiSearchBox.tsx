@@ -229,11 +229,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                         <MantineIcon icon={IconSettings} />
                                     }
                                     component={Link}
-                                    to={
-                                        selectedAgent
-                                            ? `/projects/${projectUuid}/ai-agents/${selectedAgent.uuid}/edit`
-                                            : `/projects/${projectUuid}/ai-agents`
-                                    }
+                                    to="/ai-agents/admin/threads"
                                 >
                                     Admin Settings
                                 </Button>

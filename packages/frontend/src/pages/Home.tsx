@@ -1,4 +1,3 @@
-import { useLocalStorage } from '@mantine-8/hooks';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
@@ -40,10 +39,6 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    const [isAiSearchBoxEnabled] = useLocalStorage({
-        key: 'home_ai_search_box',
-        defaultValue: false,
-    });
 
     const isLoading =
         onboarding.isInitialLoading ||
@@ -85,7 +80,7 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
-                        {isAiAgentsEnabled && isAiSearchBoxEnabled && (
+                        {isAiAgentsEnabled && (
                             <AiSearchBox
                                 projectUuid={project.data.projectUuid}
                             />
