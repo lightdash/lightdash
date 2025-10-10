@@ -11,7 +11,14 @@ import {
     type Metric,
 } from '@lightdash/common';
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
+import {
+    selectActiveFields,
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import { useExplore } from './useExplore';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
@@ -77,24 +84,11 @@ const mapCustomDimensionsToCompletions = (
 export const useTableCalculationAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    const activeFields = useExplorerContext(
-        (context) => context.state.activeFields,
-    );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
+    const activeFields = useExplorerSelector(selectActiveFields);
+    const tableName = useExplorerSelector(selectTableName);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
@@ -180,9 +174,7 @@ export const useTableCalculationAceEditorCompleter = (): {
 export const useCustomDimensionsAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    const tableName = useExplorerSelector(selectTableName);
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 

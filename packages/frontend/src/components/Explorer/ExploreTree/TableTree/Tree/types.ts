@@ -29,7 +29,6 @@ export type TreeProviderProps = {
     orderFieldsBy?: OrderFieldsByStrategy;
     searchQuery?: string;
     itemsMap: Record<string, NodeItem>;
-    selectedItems: Set<string>;
     missingCustomMetrics?: AdditionalMetric[];
     itemsAlerts?: {
         [id: string]: {

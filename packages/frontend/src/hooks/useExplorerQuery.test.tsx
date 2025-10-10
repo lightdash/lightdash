@@ -69,7 +69,6 @@ describe('useExplorerQuery', () => {
         expect(result.current).toHaveProperty('resetQueryResults');
         expect(result.current).toHaveProperty('getDownloadQueryUuid');
         expect(result.current).toHaveProperty('activeFields');
-        expect(result.current).toHaveProperty('isValidQuery');
     });
 
     it('should compute loading state correctly', () => {
@@ -87,7 +86,6 @@ describe('useExplorerQuery', () => {
         });
 
         expect(result.current.activeFields.size).toBe(0);
-        expect(result.current.isValidQuery).toBe(false);
     });
 
     it('should provide validQueryArgs as null initially', () => {

@@ -12,13 +12,53 @@ import {
     selectIsFiltersExpanded,
     useExplorerDispatch,
     useExplorerSelector,
+    useExplorerStore,
 } from '../features/explorer/store';
 import { ExplorerSection } from '../providers/Explorer/types';
 
+/**
+ * Hook that provides ONLY the addFilter function without subscribing to filter state.
+ * Use this in components that need to add filters but don't need to know which fields are filtered.
+ * This prevents unnecessary re-renders when filters change.
+ */
+export const useAddFilter = () => {
+    const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
+
+    const addFilter = useCallback(
+        (field: FilterableField, value: any) => {
+            const currentFilters = selectFilters(store.getState());
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
+            dispatch(explorerActions.setFilters(newFilters));
+
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
+            if (!isFiltersExpanded) {
+                dispatch(
+                    explorerActions.toggleExpandedSection(
+                        ExplorerSection.FILTERS,
+                    ),
+                );
+            }
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [dispatch, store],
+    );
+
+    return addFilter;
+};
+
 export const useFilteredFields = () => {
     const filters = useExplorerSelector(selectFilters);
-    const isFiltersExpanded = useExplorerSelector(selectIsFiltersExpanded);
     const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
 
     const filteredFieldIds = useMemo(() => {
         const allFilterRules = getTotalFilterRules(filters);
@@ -35,7 +75,70 @@ export const useFilteredFields = () => {
 
     const addFilter = useCallback(
         (field: FilterableField, value: any) => {
-            const newFilters = addFilterRule({ filters, field, value });
+            const currentFilters = selectFilters(store.getState());
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
+            dispatch(explorerActions.setFilters(newFilters));
+
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
+            if (!isFiltersExpanded) {
+                dispatch(
+                    explorerActions.toggleExpandedSection(
+                        ExplorerSection.FILTERS,
+                    ),
+                );
+            }
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [dispatch, store],
+    );
+
+    return useMemo(
+        () => ({
+            isFilteredField,
+            addFilter,
+        }),
+        [isFilteredField, addFilter],
+    );
+};
+
+export const useFilters = () => {
+    const filters = useExplorerSelector(selectFilters);
+    const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
+
+    const allFilterRules = useMemo(
+        () => getTotalFilterRules(filters),
+        [filters],
+    );
+
+    const isFilteredField = useCallback(
+        (field: Field): boolean => {
+            const fieldId = getItemId(field);
+            return allFilterRules.some(
+                (rule) => rule.target.fieldId === fieldId,
+            );
+        },
+        [allFilterRules],
+    );
+
+    const addFilter = useCallback(
+        (field: FilterableField, value: any) => {
+            const currentFilters = selectFilters(store.getState());
+            const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
+
+            const newFilters = addFilterRule({
+                filters: currentFilters,
+                field,
+                value,
+            });
             dispatch(explorerActions.setFilters(newFilters));
 
             if (!isFiltersExpanded) {
@@ -51,64 +154,7 @@ export const useFilteredFields = () => {
                 behavior: 'smooth',
             });
         },
-        [filters, dispatch, isFiltersExpanded],
-    );
-
-    return useMemo(
-        () => ({
-            isFilteredField,
-            addFilter,
-        }),
-        [isFilteredField, addFilter],
-    );
-};
-
-export const useFilters = () => {
-    const filters = useExplorerSelector(selectFilters);
-    const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
-    const dispatch = useExplorerDispatch();
-
-    const setFilters = useCallback(
-        (newFilters: typeof filters) => {
-            dispatch(explorerActions.setFilters(newFilters));
-        },
-        [dispatch],
-    );
-
-    const toggleExpandedSection = useCallback(
-        (section: ExplorerSection) => {
-            dispatch(explorerActions.toggleExpandedSection(section));
-        },
-        [dispatch],
-    );
-
-    const allFilterRules = useMemo(
-        () => getTotalFilterRules(filters),
-        [filters],
-    );
-
-    // Optimize isFilteredField to prevent re-renders in tree components
-    const isFilteredField = useCallback(
-        (field: Field): boolean => {
-            const fieldId = getItemId(field);
-            return allFilterRules.some(
-                (rule) => rule.target.fieldId === fieldId,
-            );
-        },
-        [allFilterRules],
-    );
-
-    const addFilter = useCallback(
-        (field: FilterableField, value: any) => {
-            setFilters(addFilterRule({ filters, field, value }));
-            if (!filterIsOpen) toggleExpandedSection(ExplorerSection.FILTERS);
-
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-            });
-        },
-        [filters, setFilters, filterIsOpen, toggleExpandedSection],
+        [dispatch, store],
     );
 
     return useMemo(

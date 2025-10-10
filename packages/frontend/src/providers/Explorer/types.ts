@@ -11,6 +11,7 @@ import {
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
+    type Item,
     type Metric,
     type MetricQuery,
     type MetricType,
@@ -38,12 +39,9 @@ export enum ExplorerSection {
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
-    REMOVE_FIELD,
-    TOGGLE_DIMENSION,
-    TOGGLE_METRIC,
+    SET_FILTERS,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
-    SET_FILTERS,
     SET_COLUMN_ORDER,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
@@ -85,14 +83,8 @@ export type Action =
           payload: MetricQuery;
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
+    | { type: ActionType.SET_FILTERS; payload: MetricQuery['filters'] }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
-    | {
-          type:
-              | ActionType.REMOVE_FIELD
-              | ActionType.TOGGLE_DIMENSION
-              | ActionType.TOGGLE_METRIC;
-          payload: FieldId;
-      }
     | {
           type: ActionType.SET_ROW_LIMIT;
           payload: number;
@@ -100,10 +92,6 @@ export type Action =
     | {
           type: ActionType.SET_TIME_ZONE;
           payload: TimeZone;
-      }
-    | {
-          type: ActionType.SET_FILTERS;
-          payload: MetricQuery['filters'];
       }
     | {
           type: ActionType.ADD_TABLE_CALCULATION;
@@ -244,6 +232,13 @@ export interface ExplorerReduceState {
             isOpen: boolean;
             items?: CustomDimension[] | AdditionalMetric[];
         };
+        itemDetail: {
+            isOpen: boolean;
+            itemType?: 'field' | 'table' | 'group';
+            label?: string;
+            description?: string;
+            fieldItem?: Item | AdditionalMetric;
+        };
     };
 
     // Query execution state - manages TanStack Query arguments and history
@@ -258,8 +253,8 @@ export interface ExplorerReduceState {
 }
 
 export interface ExplorerState extends ExplorerReduceState {
-    activeFields: Set<FieldId>;
-    isValidQuery: boolean;
+    // activeFields removed - use selectActiveFields Redux selector instead
+    // isValidQuery removed - use selectIsValidQuery Redux selector instead
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
     // Merged version combining Context fields (chartConfig, pivotConfig) with Redux fields
@@ -274,8 +269,6 @@ export interface ExplorerContextType {
         clearQuery: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
-        removeActiveField: (fieldId: FieldId) => void;
-        toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;

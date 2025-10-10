@@ -27,8 +27,13 @@ import { IconX } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
+import {
+    explorerActions,
+    selectCustomDimensions,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 
 // TODO: preview custom dimension results
@@ -47,19 +52,11 @@ export const CustomBinDimensionModal: FC<{
     item: Dimension | CustomBinDimension;
 }> = ({ isEditing, item }) => {
     const { showToastSuccess } = useToaster();
-    const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const addCustomDimension = useExplorerContext(
-        (context) => context.actions.addCustomDimension,
-    );
-    const editCustomDimension = useExplorerContext(
-        (context) => context.actions.editCustomDimension,
-    );
+    const dispatch = useExplorerDispatch();
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+
+    const toggleModal = () =>
+        dispatch(explorerActions.toggleCustomDimensionModal());
 
     const formSchema = z.object({
         customDimensionLabel: z.string().refine(
@@ -167,36 +164,42 @@ export const CustomBinDimensionModal: FC<{
             );
 
             if (isEditing && isCustomDimension(item)) {
-                editCustomDimension(
-                    {
-                        id: item.id,
-                        name: values.customDimensionLabel,
-                        type: CustomDimensionType.BIN,
-                        dimensionId: item.dimensionId,
-                        binType: values.binType,
-                        binNumber: values.binConfig.fixedNumber.binNumber,
-                        binWidth: values.binConfig.fixedWidth.binWidth,
-                        table: item.table,
-                        customRange: values.binConfig.customRange,
-                    },
-                    item.id,
+                // Edit by updating the entire array
+                const updatedDimension: CustomBinDimension = {
+                    id: item.id,
+                    name: values.customDimensionLabel,
+                    type: CustomDimensionType.BIN,
+                    dimensionId: item.dimensionId,
+                    binType: values.binType,
+                    binNumber: values.binConfig.fixedNumber.binNumber,
+                    binWidth: values.binConfig.fixedWidth.binWidth,
+                    table: item.table,
+                    customRange: values.binConfig.customRange,
+                };
+                const updatedDimensions = (customDimensions ?? []).map((dim) =>
+                    dim.id === item.id ? updatedDimension : dim,
+                );
+                dispatch(
+                    explorerActions.setCustomDimensions(updatedDimensions),
                 );
 
                 showToastSuccess({
                     title: 'Custom dimension edited successfully',
                 });
             } else {
-                addCustomDimension({
-                    id: sanitizedId,
-                    name: values.customDimensionLabel,
-                    type: CustomDimensionType.BIN,
-                    dimensionId: getItemId(item),
-                    binType: values.binType,
-                    binNumber: values.binConfig.fixedNumber.binNumber,
-                    binWidth: values.binConfig.fixedWidth.binWidth,
-                    table: item.table,
-                    customRange: values.binConfig.customRange,
-                });
+                dispatch(
+                    explorerActions.addCustomDimension({
+                        id: sanitizedId,
+                        name: values.customDimensionLabel,
+                        type: CustomDimensionType.BIN,
+                        dimensionId: getItemId(item),
+                        binType: values.binType,
+                        binNumber: values.binConfig.fixedNumber.binNumber,
+                        binWidth: values.binConfig.fixedWidth.binWidth,
+                        table: item.table,
+                        customRange: values.binConfig.customRange,
+                    }),
+                );
 
                 showToastSuccess({
                     title: 'Custom dimension added successfully',
@@ -226,7 +229,7 @@ export const CustomBinDimensionModal: FC<{
             onClick={(e) => e.stopPropagation()}
             opened={true}
             onClose={() => {
-                toggleModal(undefined);
+                toggleModal();
                 form.reset();
             }}
             title={

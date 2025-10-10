@@ -14,11 +14,14 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
+    explorerActions,
     selectTableName,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -26,7 +29,7 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { defaultState } from '../../../providers/Explorer/defaultState';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -239,15 +242,23 @@ const BasePanel = () => {
 
 const ExploreSideBar = memo(() => {
     const projectUuid = useProjectUuid();
-    // Get table name from Redux
+
     const tableName = useExplorerSelector(selectTableName);
     const ability = useAbilityContext();
     const { data: org } = useOrganization();
 
-    const clearExplore = useExplorerContext(
-        (context) => context.actions.clearExplore,
-    );
+    const queryClient = useQueryClient();
+    const dispatch = useExplorerDispatch();
     const navigate = useNavigate();
+
+    const clearExplore = useCallback(async () => {
+        void queryClient.cancelQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+        dispatch(explorerActions.reset(defaultState));
+        dispatch(explorerActions.resetQueryExecution());
+    }, [queryClient, dispatch]);
 
     const canManageExplore = ability.can(
         'manage',
@@ -257,7 +268,7 @@ const ExploreSideBar = memo(() => {
         }),
     );
     const handleBack = useCallback(() => {
-        clearExplore();
+        void clearExplore();
         void navigate(`/projects/${projectUuid}/tables`);
     }, [clearExplore, navigate, projectUuid]);
 
@@ -273,5 +284,7 @@ const ExploreSideBar = memo(() => {
         </TrackSection>
     );
 });
+
+ExploreSideBar.displayName = 'ExploreSideBar';
 
 export default ExploreSideBar;

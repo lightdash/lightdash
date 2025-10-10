@@ -51,6 +51,9 @@ export const defaultState: ExplorerReduceState = {
         writeBack: {
             isOpen: false,
         },
+        itemDetail: {
+            isOpen: false,
+        },
     },
     queryExecution: defaultQueryExecution,
 };

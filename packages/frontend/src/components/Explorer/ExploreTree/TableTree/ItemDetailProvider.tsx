@@ -1,45 +1,89 @@
-import { Modal } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { useCallback, useState, type FC, type PropsWithChildren } from 'react';
-import { ItemDetailContext } from './ItemDetailContext';
-import { type ItemDetailProps } from './types';
+import { Group, Modal, Text } from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
+import { useCallback, type FC, type PropsWithChildren } from 'react';
+import {
+    explorerActions,
+    selectItemDetailModal,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../../features/explorer/store';
+import FieldIcon from '../../../common/Filters/FieldIcon';
+import MantineIcon from '../../../common/MantineIcon';
+import { ItemDetailMarkdown } from './ItemDetailPreview';
+import { getFieldIconColor } from './utils';
 
 /**
- * Exposes the necessary context for a shared modal to display details about
- * a tree item - primarily its description.
+ * Provider for a shared modal to display details about tree items
  */
 export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
-    const [itemDetail, setItemDetail] = useState<ItemDetailProps>();
-    const [opened, { open, close }] = useDisclosure();
+    const dispatch = useExplorerDispatch();
+    const itemDetail = useExplorerSelector(selectItemDetailModal);
 
-    const showItemDetail = useCallback(
-        (newItemDetail: ItemDetailProps) => {
-            setItemDetail(newItemDetail);
-            open();
-        },
-        [setItemDetail, open],
-    );
+    const close = useCallback(() => {
+        dispatch(explorerActions.closeItemDetail());
+    }, [dispatch]);
+
+    const renderHeader = useCallback(() => {
+        if (!itemDetail.itemType || !itemDetail.label) return null;
+
+        switch (itemDetail.itemType) {
+            case 'field':
+                return (
+                    <Group>
+                        {itemDetail.fieldItem && (
+                            <FieldIcon
+                                item={itemDetail.fieldItem}
+                                color={getFieldIconColor(itemDetail.fieldItem)}
+                                size="md"
+                            />
+                        )}
+                        <Text size="md">{itemDetail.label}</Text>
+                    </Group>
+                );
+            case 'table':
+                return (
+                    <Group spacing="sm">
+                        <MantineIcon
+                            icon={IconTable}
+                            size="lg"
+                            color="gray.7"
+                        />
+                        <Text size="md">{itemDetail.label}</Text>
+                    </Group>
+                );
+            case 'group':
+                return (
+                    <Group>
+                        <Text size="md">{itemDetail.label}</Text>
+                    </Group>
+                );
+            default:
+                return null;
+        }
+    }, [itemDetail.itemType, itemDetail.label, itemDetail.fieldItem]);
+
+    const renderDetail = useCallback(() => {
+        if (itemDetail.description) {
+            return <ItemDetailMarkdown source={itemDetail.description} />;
+        }
+        return <Text color="gray">No description available.</Text>;
+    }, [itemDetail.description]);
 
     return (
-        <ItemDetailContext.Provider
-            value={{
-                showItemDetail,
-                isItemDetailOpen: opened,
-            }}
-        >
-            {itemDetail && opened && (
+        <>
+            {itemDetail.isOpen && (
                 <Modal
                     p="xl"
                     size="lg"
-                    opened={opened}
+                    opened={itemDetail.isOpen}
                     onClose={close}
-                    title={itemDetail.header}
+                    title={renderHeader()}
                 >
-                    {itemDetail.detail}
+                    {renderDetail()}
                 </Modal>
             )}
 
             {children}
-        </ItemDetailContext.Provider>
+        </>
     );
 };

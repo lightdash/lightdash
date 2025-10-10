@@ -12,6 +12,7 @@ import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {
     explorerActions,
+    selectIsValidQuery,
     selectQueryLimit,
     useExplorerDispatch,
     useExplorerSelector,
@@ -32,11 +33,11 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
 
     // Get state and actions from Redux
     const limit = useExplorerSelector(selectQueryLimit);
+    const isValidQuery = useExplorerSelector(selectIsValidQuery);
     const dispatch = useExplorerDispatch();
 
     // Get query state and actions from hooks
-    const { isValidQuery, isLoading, fetchResults, cancelQuery } =
-        useExplorerQuery();
+    const { isLoading, fetchResults, cancelQuery } = useExplorerQuery();
 
     const setRowLimit = useCallback(
         (newLimit: number) => {

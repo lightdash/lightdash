@@ -26,11 +26,11 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
-    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
@@ -79,7 +79,12 @@ export const useExplorerQueryManager = (options?: {
     const unpivotedQueryUuidHistory = useExplorerSelector(
         selectUnpivotedQueryUuidHistory,
     );
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    // Get merged version with chartConfig and pivotConfig from Context
+    // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
+    const mergedUnsavedChartVersion = useExplorerContext(
+        (context) => context.state.mergedUnsavedChartVersion,
+    );
 
     // Auto-fetch configuration
     const [autoFetchEnabled] = useLocalStorage({
@@ -136,7 +141,7 @@ export const useExplorerQueryManager = (options?: {
 
         const items = getFieldsFromMetricQuery(metricQuery, explore);
         const pivotConfiguration = derivePivotConfigurationFromChart(
-            unsavedChartVersion,
+            mergedUnsavedChartVersion,
             metricQuery,
             items,
         );
@@ -146,7 +151,7 @@ export const useExplorerQueryManager = (options?: {
         useSqlPivotResults?.enabled,
         explore,
         metricQuery,
-        unsavedChartVersion,
+        mergedUnsavedChartVersion,
     ]);
 
     // Dispatch functions for query UUID history
@@ -200,7 +205,7 @@ export const useExplorerQueryManager = (options?: {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
-            savedChart: unsavedChartVersion,
+            savedChart: mergedUnsavedChartVersion,
         });
 
         if (mainQueryArgs) {
@@ -225,7 +230,7 @@ export const useExplorerQueryManager = (options?: {
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
-        unsavedChartVersion,
+        mergedUnsavedChartVersion,
         dispatch,
     ]);
 

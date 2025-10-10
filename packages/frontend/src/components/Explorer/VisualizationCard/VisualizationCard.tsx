@@ -23,9 +23,12 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectMetricQuery,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -68,7 +71,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.state.savedChart,
     );
 
-    // Get query state from new hook
     const { query, queryResults, isLoading, getDownloadQueryUuid } =
         useExplorerQuery();
     const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
@@ -105,9 +107,30 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         },
         [dispatch],
     );
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
+
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const columnOrder = useExplorerSelector(selectColumnOrder);
+
+    // Read chartConfig and pivotConfig from Context (not synced to Redux)
+    const chartConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.chartConfig,
     );
+    const pivotConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.pivotConfig,
+    );
+
+    const unsavedChartVersion = useMemo(
+        () => ({
+            tableName,
+            metricQuery,
+            tableConfig: { columnOrder },
+            chartConfig,
+            pivotConfig,
+        }),
+        [tableName, metricQuery, columnOrder, chartConfig, pivotConfig],
+    );
+
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
@@ -193,7 +216,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     }
 
     const getGsheetLink = async (
-        columnOrder: string[],
+        exportColumnOrder: string[],
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => {
@@ -202,7 +225,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,
-                columnOrder,
+                columnOrder: exportColumnOrder,
                 showTableNames,
                 customLabels,
                 hiddenFields: getHiddenTableFields(
