@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
 import {
     selectAdditionalMetrics,
+    selectColumnOrder,
     selectIsEditMode,
     selectTableCalculations,
     selectTableName,
@@ -60,7 +61,6 @@ export const ExplorerResults = memo(() => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
 
-    // Get query state from new hook
     const {
         query,
         queryResults,
@@ -73,14 +73,10 @@ export const ExplorerResults = memo(() => {
         FeatureFlags.UseSqlPivotResults,
     );
 
-    // Get metric query from new hook instead of context
     const dimensions = query.data?.metricQuery?.dimensions ?? [];
     const metrics = query.data?.metricQuery?.metrics ?? [];
-    const explorerColumnOrder = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
-    );
+    const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
 
-    // Get pivot config state outside useMemo
     const hasPivotConfig = useExplorerContext(
         (context) => !!context.state.unsavedChartVersion.pivotConfig,
     );

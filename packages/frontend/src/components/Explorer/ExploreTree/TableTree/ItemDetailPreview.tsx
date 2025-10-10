@@ -19,14 +19,17 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconCode, IconTable } from '@tabler/icons-react';
+import { IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../../features/explorer/store';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
-import { useItemDetail } from './useItemDetails';
 
 /**
  * Renders markdown for an item's description, with additional constraints
@@ -265,19 +268,17 @@ export const TableItemDetailPreview = ({
     label: string;
     offset?: number;
 }>) => {
-    const { showItemDetail } = useItemDetail();
+    const dispatch = useExplorerDispatch();
 
     const onOpenDescriptionView = () => {
         closePreview();
-        showItemDetail({
-            header: (
-                <Group spacing="sm">
-                    <MantineIcon icon={IconTable} size="lg" color="gray.7" />
-                    <Text size="md">{label}</Text>
-                </Group>
-            ),
-            detail: <ItemDetailMarkdown source={description ?? ''} />,
-        });
+        dispatch(
+            explorerActions.openItemDetail({
+                itemType: 'table',
+                label,
+                description,
+            }),
+        );
     };
 
     return (

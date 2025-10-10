@@ -77,6 +77,9 @@ const getInitialState = (exploreId: string, savedChart: SavedChart) => ({
         writeBack: {
             isOpen: false,
         },
+        itemDetail: {
+            isOpen: false,
+        },
     },
     queryExecution: defaultQueryExecution,
 });

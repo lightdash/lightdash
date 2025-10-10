@@ -6,7 +6,6 @@ import {
     getItemId,
     isSqlTableCalculation,
     type ChartConfig,
-    type Filters,
     type TimeZone,
 } from '@lightdash/common';
 
@@ -18,7 +17,6 @@ import {
     mockCustomDimension,
     mockExplorerState,
     mockFilterGroup,
-    mockFormatOptions,
     mockMetricQuery,
     mockSortField,
     mockTableCalculation,
@@ -254,356 +252,6 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('REMOVE_FIELD', () => {
-        it('removes field from dimensions, metrics, sorts, tableCalculations, and columnOrder', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    tableName: 'orders',
-                    metricQuery: {
-                        exploreName: 'orders',
-                        filters: {},
-                        limit: 500,
-                        dimensions: ['revenue', 'user_id'],
-                        metrics: ['revenue'],
-                        tableCalculations: [
-                            { name: 'calc1', displayName: 'calc1', sql: '' },
-                        ],
-                        sorts: [
-                            {
-                                fieldId: 'revenue',
-                                descending: false,
-                            },
-                            {
-                                fieldId: 'user_id',
-                                descending: true,
-                            },
-                        ],
-                    },
-                    tableConfig: {
-                        columnOrder: ['user_id', 'revenue', 'calc1'],
-                    },
-                    chartConfig: mockCartesianChartConfig,
-                },
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.REMOVE_FIELD,
-                payload: 'revenue',
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.dimensions).toEqual(
-                ['user_id'],
-            );
-            expect(newState.unsavedChartVersion.metricQuery.metrics).toEqual(
-                [],
-            );
-            expect(
-                newState.unsavedChartVersion.metricQuery.tableCalculations,
-            ).toEqual([{ name: 'calc1', displayName: 'calc1', sql: '' }]);
-            expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                {
-                    fieldId: 'user_id',
-                    descending: true,
-                },
-            ]);
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toEqual(['user_id', 'calc1']);
-        });
-
-        it('preserves other parts of the state', () => {
-            const state = mockExplorerState({
-                previouslyFetchedState: mockMetricQuery(),
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.REMOVE_FIELD,
-                payload: 'non_existent_field',
-            });
-
-            expect(newState.previouslyFetchedState).toEqual(mockMetricQuery());
-        });
-
-        it('does not throw if field is not present anywhere', () => {
-            const state = mockExplorerState();
-
-            expect(() =>
-                reducer(state, {
-                    type: ActionType.REMOVE_FIELD,
-                    payload: 'non_existent_field',
-                }),
-            ).not.toThrow();
-        });
-    });
-
-    describe('TOGGLE_DIMENSION', () => {
-        it('adds a dimension when not present', () => {
-            const initial = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        dimensions: [],
-                        metrics: ['metric_1'],
-                        tableCalculations: [
-                            { name: 'calc_1', displayName: 'Calc', sql: '1' },
-                        ],
-                        sorts: [
-                            {
-                                fieldId: 'dim_1',
-                                descending: false,
-                            },
-                        ],
-                    },
-                    tableConfig: {
-                        columnOrder: [],
-                    },
-                },
-            });
-
-            const next = reducer(initial, {
-                type: ActionType.TOGGLE_DIMENSION,
-                payload: 'dim_1',
-            });
-
-            expect(next.unsavedChartVersion.metricQuery.dimensions).toEqual([
-                'dim_1',
-            ]);
-            expect(
-                next.unsavedChartVersion.metricQuery.sorts.find(
-                    (s) => s.fieldId === 'dim_1',
-                ),
-            ).toBeUndefined();
-            expect(next.unsavedChartVersion.tableConfig.columnOrder).toEqual([
-                'dim_1',
-                'metric_1',
-                'calc_1',
-            ]);
-        });
-
-        it('removes a dimension if already present', () => {
-            const initial = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        dimensions: ['dim_1'],
-                        metrics: ['metric_1'],
-                        tableCalculations: [],
-                        sorts: [],
-                    },
-                    tableConfig: {
-                        columnOrder: ['dim_1', 'metric_1'],
-                    },
-                },
-            });
-
-            const next = reducer(initial, {
-                type: ActionType.TOGGLE_DIMENSION,
-                payload: 'dim_1',
-            });
-
-            expect(next.unsavedChartVersion.metricQuery.dimensions).toEqual([]);
-            expect(next.unsavedChartVersion.tableConfig.columnOrder).toEqual([
-                'metric_1',
-            ]);
-        });
-
-        it('updates column order correctly when toggling', () => {
-            const initial = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        dimensions: ['dim_1'],
-                        metrics: ['metric_1'],
-                        tableCalculations: [
-                            { name: 'calc_1', displayName: 'Calc', sql: '1' },
-                        ],
-                    },
-                    tableConfig: {
-                        columnOrder: ['dim_1', 'metric_1', 'calc_1'],
-                    },
-                },
-            });
-
-            const next = reducer(initial, {
-                type: ActionType.TOGGLE_DIMENSION,
-                payload: 'dim_2',
-            });
-
-            expect(next.unsavedChartVersion.metricQuery.dimensions).toContain(
-                'dim_2',
-            );
-            // NOTE: only dimension columns are sorted in this reducer
-            expect(next.unsavedChartVersion.tableConfig.columnOrder).toEqual([
-                'dim_1',
-                'dim_2',
-                'metric_1',
-                'calc_1',
-            ]);
-        });
-
-        it('does not mutate previous state', () => {
-            const frozen = Object.freeze(
-                mockExplorerState({
-                    unsavedChartVersion: {
-                        ...mockExplorerState().unsavedChartVersion,
-                        metricQuery: {
-                            ...mockMetricQuery(),
-                            dimensions: ['dim_1'],
-                        },
-                    },
-                }),
-            );
-
-            expect(() =>
-                reducer(frozen, {
-                    type: ActionType.TOGGLE_DIMENSION,
-                    payload: 'dim_2',
-                }),
-            ).not.toThrow();
-        });
-    });
-
-    describe('TOGGLE_METRIC', () => {
-        it('adds a metric if not already present', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        metrics: [],
-                        metricOverrides: {
-                            metric_1: { formatOptions: mockFormatOptions },
-                        },
-                        sorts: [mockSortField('metric_1')],
-                    },
-                    tableConfig: {
-                        columnOrder: [],
-                    },
-                },
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.TOGGLE_METRIC,
-                payload: 'metric_1',
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.metrics).toContain(
-                'metric_1',
-            );
-            expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([]);
-            expect(
-                newState.unsavedChartVersion.metricQuery.metricOverrides,
-            ).toEqual({});
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toContain('metric_1');
-        });
-
-        it('removes a metric if already present', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        metrics: ['metric_1'],
-                        metricOverrides: {
-                            metric_1: { formatOptions: mockFormatOptions },
-                        },
-                        sorts: [mockSortField('metric_1')],
-                    },
-                    tableConfig: {
-                        columnOrder: ['metric_1'],
-                    },
-                },
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.TOGGLE_METRIC,
-                payload: 'metric_1',
-            });
-
-            expect(
-                newState.unsavedChartVersion.metricQuery.metrics,
-            ).not.toContain('metric_1');
-            expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([]);
-            expect(
-                newState.unsavedChartVersion.metricQuery.metricOverrides,
-            ).toEqual({});
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).not.toContain('metric_1');
-        });
-
-        it('correctly recalculates columnOrder with dimensions, metrics, and calcs', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: {
-                        ...mockMetricQuery(),
-                        dimensions: ['dim_1'],
-                        metrics: ['metric_1'],
-                        tableCalculations: [
-                            { name: 'calc_1', displayName: 'c1', sql: '1' },
-                        ],
-                        metricOverrides: {
-                            metric_2: { formatOptions: mockFormatOptions },
-                        },
-                        sorts: [mockSortField('metric_2')],
-                    },
-                    tableConfig: {
-                        columnOrder: ['dim_1', 'metric_1', 'calc_1'],
-                    },
-                },
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.TOGGLE_METRIC,
-                payload: 'metric_2',
-            });
-
-            // metric_2 was added; should be included in metrics and columnOrder
-            expect(newState.unsavedChartVersion.metricQuery.metrics).toEqual(
-                expect.arrayContaining(['metric_1', 'metric_2']),
-            );
-
-            // NOTE: this reducer only sorts the metrics. This doesn't seem
-            // quite right, but the goal of these tests is to check for breaking behavior
-            // in refactoring and this is how it works now
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toEqual(['dim_1', 'metric_1', 'calc_1', 'metric_2']);
-        });
-
-        it('does not mutate the previous state', () => {
-            const state = Object.freeze(
-                mockExplorerState({
-                    unsavedChartVersion: {
-                        ...mockExplorerState().unsavedChartVersion,
-                        metricQuery: {
-                            ...mockMetricQuery(),
-                            metrics: [],
-                            metricOverrides: {},
-                            sorts: [],
-                        },
-                        tableConfig: {
-                            columnOrder: [],
-                        },
-                    },
-                }),
-            );
-
-            expect(() =>
-                reducer(state, {
-                    type: ActionType.TOGGLE_METRIC,
-                    payload: 'metric_1',
-                }),
-            ).not.toThrow();
-        });
-    });
-
     describe('SET_ROW_LIMIT', () => {
         it('sets a new row limit', () => {
             const state = mockExplorerState({
@@ -688,87 +336,6 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('SET_FILTERS', () => {
-        it('sets filters without fetching results', () => {
-            const filters = {
-                dimensions: mockFilterGroup(),
-            };
-
-            const state = mockExplorerState();
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
-            );
-        });
-
-        it('sets filters', () => {
-            const filters = {
-                metrics: mockFilterGroup({
-                    id: 'metrics-group',
-                    and: [
-                        {
-                            id: 'rule-2',
-                            target: { fieldId: 'metric_1' },
-                            operator: FilterOperator.GREATER_THAN,
-                            values: [100],
-                        },
-                    ],
-                }),
-            };
-
-            const state = mockExplorerState();
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
-            );
-        });
-
-        it('preserves other parts of state', () => {
-            const state = mockExplorerState({
-                unsavedChartVersion: {
-                    ...mockExplorerState().unsavedChartVersion,
-                    metricQuery: mockMetricQuery({
-                        dimensions: ['d1'],
-                        metrics: ['m1'],
-                        limit: 50,
-                    }),
-                },
-            });
-
-            const filters: Filters = {
-                dimensions: {
-                    id: 'x',
-                    and: [
-                        {
-                            id: 'mock-rule',
-                            target: { fieldId: 'mock_field' },
-                            operator: FilterOperator.EQUALS,
-                            values: ['mock-value'],
-                        },
-                    ],
-                },
-            };
-
-            const newState = reducer(state, {
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-
-            expect(newState.unsavedChartVersion.metricQuery.limit).toEqual(50);
-            expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
-                filters,
-            );
-        });
-    });
-
     describe('ADD_ADDITIONAL_METRIC', () => {
         it('adds an additional metric when not already present', () => {
             const state = mockExplorerState();
@@ -806,7 +373,7 @@ describe('ExplorerProvider reducer', () => {
     });
 
     describe('ADD_CUSTOM_DIMENSION', () => {
-        it('adds a custom dimension and updates dimensions/columnOrder', () => {
+        it('adds a custom dimension to customDimensions array', () => {
             const state = mockExplorerState();
 
             const newState = reducer(state, {
@@ -818,17 +385,14 @@ describe('ExplorerProvider reducer', () => {
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).toContainEqual(mockCustomDimension);
 
-            expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).toContain('custom-dim-1');
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toContain('custom-dim-1');
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
     });
 
     describe('EDIT_CUSTOM_DIMENSION', () => {
-        it('updates an existing custom dimension and updates dimension list', () => {
+        it('updates an existing custom dimension in customDimensions array', () => {
             const state = mockExplorerState({
                 unsavedChartVersion: {
                     ...mockExplorerState().unsavedChartVersion,
@@ -853,17 +417,17 @@ describe('ExplorerProvider reducer', () => {
             const newState = reducer(state, action);
 
             expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).toContain(getItemId(mockUpdatedDimension));
-
-            expect(
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).toContainEqual(mockUpdatedDimension);
+
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
     });
 
     describe('REMOVE_CUSTOM_DIMENSION', () => {
-        it('removes the dimension and updates sorts and column order', () => {
+        it('removes the dimension from customDimensions array', () => {
             const dimensionId = getItemId(mockCustomDimension);
             const state = mockExplorerState({
                 unsavedChartVersion: {
@@ -888,19 +452,12 @@ describe('ExplorerProvider reducer', () => {
             });
 
             expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).not.toContain(dimensionId);
-            expect(
-                newState.unsavedChartVersion.metricQuery.sorts,
-            ).not.toContainEqual(
-                expect.objectContaining({ fieldId: dimensionId }),
-            );
-            expect(
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).not.toContainEqual(mockCustomDimension);
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).not.toContain(dimensionId);
+
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
 
         it('does nothing if dimension is not present', () => {
@@ -1217,6 +774,7 @@ describe('ExplorerProvider reducer', () => {
                         isOpen: true,
                         item: mockAdditionalMetric,
                     },
+                    itemDetail: { isOpen: false },
                 },
             });
 
@@ -1240,6 +798,7 @@ describe('ExplorerProvider reducer', () => {
                     additionalMetric: { isOpen: false },
                     customDimension: { isOpen: false },
                     writeBack: { isOpen: false },
+                    itemDetail: { isOpen: false },
                 },
             });
 
@@ -1264,6 +823,7 @@ describe('ExplorerProvider reducer', () => {
                         isOpen: true,
                         items: [],
                     },
+                    itemDetail: { isOpen: false },
                 },
             });
 

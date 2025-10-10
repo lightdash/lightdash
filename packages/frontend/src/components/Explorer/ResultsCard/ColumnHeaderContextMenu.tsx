@@ -18,7 +18,9 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import {
+    explorerActions,
     selectAdditionalMetrics,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import {
@@ -52,13 +54,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const item = meta?.item;
     const sort = meta?.sort?.sort;
 
-    // Get state from Redux
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-
-    // Use Context action for removeActiveField (not yet migrated to Redux)
-    const removeActiveField = useExplorerContext(
-        (context) => context.actions.removeActiveField,
-    );
+    const dispatch = useExplorerDispatch();
 
     const additionalMetric = useMemo(
         () =>
@@ -137,7 +134,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
-                        removeActiveField(itemFieldId);
+                        dispatch(explorerActions.removeField(itemFieldId));
                     }}
                 >
                     Remove
@@ -151,7 +148,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
-                        removeActiveField(header.column.id);
+                        dispatch(explorerActions.removeField(header.column.id));
                     }}
                 >
                     Remove
@@ -201,7 +198,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
-                        removeActiveField(getItemId(item));
+                        dispatch(explorerActions.removeField(getItemId(item)));
                     }}
                 >
                     Remove

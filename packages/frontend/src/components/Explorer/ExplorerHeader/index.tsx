@@ -7,6 +7,7 @@ import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
+    selectIsValidQuery,
     selectQueryLimit,
     selectTimezone,
     useExplorerSelector,
@@ -34,7 +35,8 @@ const ExplorerHeader: FC = memo(() => {
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
     const selectedTimezone = useExplorerSelector(selectTimezone);
-    const { query, queryResults, isValidQuery } = useExplorerQuery();
+    const isValidQuery = useExplorerSelector(selectIsValidQuery);
+    const { query, queryResults } = useExplorerQuery();
 
     // Compute values from new hook data
     const showLimitWarning = useMemo(
