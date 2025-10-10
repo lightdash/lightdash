@@ -686,11 +686,14 @@ const ExplorerProvider: FC<
         console.log('[ExplorerProvider] tableName sync effect:', {
             'Context tableName': contextTableName,
             'Redux tableName': reduxTableName,
-            'Will sync': contextTableName !== reduxTableName,
+            'Will sync':
+                reduxTableName !== '' && contextTableName !== reduxTableName,
             timestamp: new Date().toISOString(),
         });
 
-        if (contextTableName !== reduxTableName) {
+        // Only sync when Redux has a value AND it differs from Context
+        // This prevents syncing during initialization when both are empty
+        if (reduxTableName !== '' && contextTableName !== reduxTableName) {
             console.log(
                 '[ExplorerProvider] Syncing Redux → Context:',
                 reduxTableName,
