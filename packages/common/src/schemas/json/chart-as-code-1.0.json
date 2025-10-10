@@ -1,0 +1,436 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/chart-as-code.json",
+    "title": "Lightdash Chart as Code",
+    "description": "Schema for defining Lightdash charts in YAML format for version control",
+    "type": "object",
+    "required": [
+        "name",
+        "tableName",
+        "metricQuery",
+        "slug",
+        "spaceSlug",
+        "version"
+    ],
+    "properties": {
+        "version": {
+            "type": "number",
+            "description": "Schema version for this chart configuration",
+            "const": 1
+        },
+        "name": {
+            "type": "string",
+            "description": "Display name of the chart",
+            "minLength": 1
+        },
+        "description": {
+            "type": "string",
+            "description": "Optional description of what this chart displays"
+        },
+        "slug": {
+            "type": "string",
+            "description": "Unique identifier slug for this chart",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "spaceSlug": {
+            "type": "string",
+            "description": "Path to the space containing this chart (e.g., 'sales/reports' or 'marketing')"
+        },
+        "tableName": {
+            "type": "string",
+            "description": "The explore/table name this chart queries from"
+        },
+        "dashboardSlug": {
+            "type": ["string", "null"],
+            "description": "Optional dashboard slug if this chart is saved within a dashboard",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the chart was last updated (readonly)"
+        },
+        "downloadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when this chart was downloaded from Lightdash (readonly)"
+        },
+        "metricQuery": {
+            "type": "object",
+            "description": "The query configuration defining what data to fetch",
+            "required": ["exploreName"],
+            "properties": {
+                "exploreName": {
+                    "type": "string",
+                    "description": "The name of the explore to query"
+                },
+                "dimensions": {
+                    "type": "array",
+                    "description": "List of dimension field IDs to include",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "metrics": {
+                    "type": "array",
+                    "description": "List of metric field IDs to include",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "type": "object",
+                    "description": "Filter rules to apply to the query using 'and'/'or' filter groups",
+                    "properties": {
+                        "dimensions": {
+                            "type": "object",
+                            "description": "Dimension filter group",
+                            "properties": {
+                                "and": {
+                                    "type": "array",
+                                    "description": "Array of filters combined with AND logic",
+                                    "items": {
+                                        "type": "object",
+                                        "required": ["target", "operator"],
+                                        "properties": {
+                                            "target": {
+                                                "type": "object",
+                                                "required": ["fieldId"],
+                                                "properties": {
+                                                    "fieldId": {
+                                                        "type": "string",
+                                                        "description": "Field ID to filter on"
+                                                    }
+                                                }
+                                            },
+                                            "operator": {
+                                                "type": "string",
+                                                "description": "Filter operator",
+                                                "enum": [
+                                                    "equals",
+                                                    "notEquals",
+                                                    "isNull",
+                                                    "notNull",
+                                                    "startsWith",
+                                                    "endsWith",
+                                                    "include",
+                                                    "doesNotInclude",
+                                                    "lessThan",
+                                                    "lessThanOrEqual",
+                                                    "greaterThan",
+                                                    "greaterThanOrEqual",
+                                                    "inThePast",
+                                                    "notInThePast",
+                                                    "inTheNext",
+                                                    "inTheCurrent",
+                                                    "notInTheCurrent",
+                                                    "inBetween",
+                                                    "notInBetween"
+                                                ]
+                                            },
+                                            "values": {
+                                                "type": "array",
+                                                "description": "Values to filter by"
+                                            },
+                                            "required": {
+                                                "type": "boolean",
+                                                "description": "Whether this filter is required"
+                                            }
+                                        }
+                                    }
+                                },
+                                "or": {
+                                    "type": "array",
+                                    "description": "Array of filters combined with OR logic",
+                                    "items": {
+                                        "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and/items"
+                                    }
+                                }
+                            }
+                        },
+                        "metrics": {
+                            "type": "object",
+                            "description": "Metric filter group",
+                            "properties": {
+                                "and": {
+                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and"
+                                },
+                                "or": {
+                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/or"
+                                }
+                            }
+                        },
+                        "tableCalculations": {
+                            "type": "object",
+                            "description": "Table calculation filter group",
+                            "properties": {
+                                "and": {
+                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and"
+                                },
+                                "or": {
+                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/or"
+                                }
+                            }
+                        }
+                    }
+                },
+                "sorts": {
+                    "type": "array",
+                    "description": "Sort configuration for query results",
+                    "items": {
+                        "type": "object",
+                        "required": ["fieldId", "descending"],
+                        "properties": {
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to sort by"
+                            },
+                            "descending": {
+                                "type": "boolean",
+                                "description": "Sort in descending order"
+                            }
+                        }
+                    }
+                },
+                "limit": {
+                    "type": "number",
+                    "description": "Maximum number of rows to return",
+                    "minimum": 1
+                },
+                "metricOverrides": {
+                    "type": "object",
+                    "description": "Override formatting and display options for existing metrics",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "formatOptions": {
+                                "type": "object",
+                                "description": "Formatting configuration for the metric",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "currency",
+                                            "number",
+                                            "percent"
+                                        ],
+                                        "description": "Format type"
+                                    },
+                                    "round": {
+                                        "type": "number",
+                                        "description": "Number of decimal places"
+                                    },
+                                    "currency": {
+                                        "type": "string",
+                                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                                    },
+                                    "separator": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "commaPeriod",
+                                            "spacePeriod",
+                                            "periodComma",
+                                            "spaceComma"
+                                        ],
+                                        "description": "Thousands separator style"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "tableCalculations": {
+                    "type": "array",
+                    "description": "Custom calculations to perform on query results (like window functions)",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "displayName", "sql"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Internal name of the table calculation"
+                            },
+                            "displayName": {
+                                "type": "string",
+                                "description": "Display name shown in the UI"
+                            },
+                            "sql": {
+                                "type": "string",
+                                "description": "SQL expression for the calculation (can reference fields with ${table.field})"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["string", "number", "date", "boolean"],
+                                "description": "Data type of the calculation result"
+                            },
+                            "format": {
+                                "type": "object",
+                                "description": "Formatting options for the calculation",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "currency",
+                                            "number",
+                                            "percent"
+                                        ],
+                                        "description": "Format type"
+                                    },
+                                    "round": {
+                                        "type": "number",
+                                        "description": "Number of decimal places"
+                                    },
+                                    "currency": {
+                                        "type": "string",
+                                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                                    },
+                                    "separator": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "commaPeriod",
+                                            "spacePeriod",
+                                            "periodComma",
+                                            "spaceComma"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "additionalMetrics": {
+                    "type": "array",
+                    "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "label", "sql", "table", "type"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Internal name of the metric"
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Display label for the metric"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Description of what the metric measures"
+                            },
+                            "sql": {
+                                "type": "string",
+                                "description": "SQL expression (e.g., ${TABLE}.column_name)"
+                            },
+                            "table": {
+                                "type": "string",
+                                "description": "Table name the metric belongs to"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "count",
+                                    "count_distinct",
+                                    "sum",
+                                    "average",
+                                    "min",
+                                    "max"
+                                ],
+                                "description": "Aggregation type"
+                            },
+                            "baseDimensionName": {
+                                "type": "string",
+                                "description": "Name of the base dimension/column this metric aggregates"
+                            },
+                            "formatOptions": {
+                                "type": "object",
+                                "description": "Formatting configuration",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "currency",
+                                            "number",
+                                            "percent"
+                                        ]
+                                    },
+                                    "separator": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "commaPeriod",
+                                            "spacePeriod",
+                                            "periodComma",
+                                            "spaceComma"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "customDimensions": {
+                    "type": "array",
+                    "description": "Custom dimensions defined inline",
+                    "items": {
+                        "type": "object"
+                    }
+                }
+            }
+        },
+        "chartConfig": {
+            "type": "object",
+            "description": "Visualization configuration for the chart",
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "Type of chart visualization",
+                    "enum": [
+                        "cartesian",
+                        "pie",
+                        "table",
+                        "big_number",
+                        "funnel",
+                        "treemap",
+                        "custom"
+                    ]
+                },
+                "config": {
+                    "type": "object",
+                    "description": "Chart-specific configuration (varies by chart type)"
+                }
+            }
+        },
+        "tableConfig": {
+            "type": "object",
+            "description": "Table view configuration",
+            "properties": {
+                "columnOrder": {
+                    "type": "array",
+                    "description": "Order of columns in table view",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "pivotConfig": {
+            "type": "object",
+            "description": "Pivot table configuration",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "description": "Fields to use as pivot columns",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

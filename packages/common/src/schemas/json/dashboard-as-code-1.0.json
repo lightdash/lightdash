@@ -1,0 +1,349 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/dashboard-as-code.json",
+    "title": "Lightdash Dashboard as Code",
+    "description": "Schema for defining Lightdash dashboards in YAML format for version control",
+    "type": "object",
+    "required": [
+        "name",
+        "slug",
+        "spaceSlug",
+        "version",
+        "tiles",
+        "filters",
+        "tabs"
+    ],
+    "properties": {
+        "version": {
+            "type": "number",
+            "description": "Schema version for this dashboard configuration",
+            "const": 1
+        },
+        "name": {
+            "type": "string",
+            "description": "Display name of the dashboard",
+            "minLength": 1
+        },
+        "description": {
+            "type": "string",
+            "description": "Optional description of what this dashboard displays"
+        },
+        "slug": {
+            "type": "string",
+            "description": "Unique identifier slug for this dashboard",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "spaceSlug": {
+            "type": "string",
+            "description": "Path to the space containing this dashboard (e.g., 'sales/reports' or 'marketing')"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the dashboard was last updated (readonly)"
+        },
+        "downloadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when this dashboard was downloaded from Lightdash (readonly)"
+        },
+        "tiles": {
+            "type": "array",
+            "description": "Array of tiles (charts, markdown, loom videos) positioned on the dashboard",
+            "items": {
+                "type": "object",
+                "required": ["type", "x", "y", "h", "w"],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "Optional UUID for the tile (generated if not provided)"
+                    },
+                    "tileSlug": {
+                        "type": "string",
+                        "description": "Optional slug identifier for the tile"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Type of dashboard tile",
+                        "enum": ["saved_chart", "markdown", "loom"]
+                    },
+                    "x": {
+                        "type": "number",
+                        "description": "Horizontal position in grid units",
+                        "minimum": 0
+                    },
+                    "y": {
+                        "type": "number",
+                        "description": "Vertical position in grid units",
+                        "minimum": 0
+                    },
+                    "h": {
+                        "type": "number",
+                        "description": "Height in grid units",
+                        "minimum": 1
+                    },
+                    "w": {
+                        "type": "number",
+                        "description": "Width in grid units",
+                        "minimum": 1
+                    },
+                    "tabUuid": {
+                        "type": ["string", "null"],
+                        "description": "UUID of the tab this tile belongs to, or null for default tab"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "description": "Tile-specific properties (varies by tile type)",
+                        "oneOf": [
+                            {
+                                "description": "Properties for a saved chart tile",
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Optional custom title override for the chart"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean",
+                                        "description": "Whether to hide the chart title"
+                                    },
+                                    "chartSlug": {
+                                        "type": "string",
+                                        "description": "Slug of the chart to display"
+                                    },
+                                    "chartName": {
+                                        "type": "string",
+                                        "description": "Name of the chart"
+                                    }
+                                },
+                                "required": ["chartSlug"]
+                            },
+                            {
+                                "description": "Properties for a markdown tile",
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Title of the markdown tile"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean",
+                                        "description": "Whether to hide the markdown tile title"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "description": "Markdown content to display"
+                                    }
+                                },
+                                "required": ["title", "content"]
+                            },
+                            {
+                                "description": "Properties for a Loom video tile",
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Title of the Loom tile"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean",
+                                        "description": "Whether to hide the tile title"
+                                    },
+                                    "url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "description": "URL of the Loom video"
+                                    }
+                                },
+                                "required": ["title", "url"]
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "tabs": {
+            "type": "array",
+            "description": "Dashboard tabs for organizing tiles into separate views",
+            "items": {
+                "type": "object",
+                "required": ["uuid", "name", "order"],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "description": "Unique identifier for the tab"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the tab",
+                        "minLength": 1
+                    },
+                    "order": {
+                        "type": "number",
+                        "description": "Sort order of the tab (lower numbers appear first)",
+                        "minimum": 0
+                    }
+                }
+            }
+        },
+        "filters": {
+            "type": "object",
+            "description": "Dashboard-level filters that can be applied across all tiles",
+            "required": ["dimensions"],
+            "properties": {
+                "dimensions": {
+                    "type": "array",
+                    "description": "Dimension filters applied to the dashboard",
+                    "items": {
+                        "type": "object",
+                        "required": ["operator", "target"],
+                        "properties": {
+                            "operator": {
+                                "type": "string",
+                                "description": "Filter operator determining how values are compared",
+                                "enum": [
+                                    "isNull",
+                                    "notNull",
+                                    "equals",
+                                    "notEquals",
+                                    "startsWith",
+                                    "endsWith",
+                                    "include",
+                                    "doesNotInclude",
+                                    "lessThan",
+                                    "lessThanOrEqual",
+                                    "greaterThan",
+                                    "greaterThanOrEqual",
+                                    "inThePast",
+                                    "notInThePast",
+                                    "inTheNext",
+                                    "inTheCurrent",
+                                    "notInTheCurrent",
+                                    "inBetween",
+                                    "notInBetween"
+                                ]
+                            },
+                            "values": {
+                                "type": "array",
+                                "description": "Values to filter by (varies by operator)",
+                                "items": {}
+                            },
+                            "target": {
+                                "type": "object",
+                                "description": "Field to apply the filter to",
+                                "required": ["fieldId", "tableName"],
+                                "properties": {
+                                    "fieldId": {
+                                        "type": "string",
+                                        "description": "ID of the field to filter (e.g., 'orders_status')"
+                                    },
+                                    "fieldName": {
+                                        "type": "string",
+                                        "description": "Human-readable name of the field (e.g., 'status')"
+                                    },
+                                    "tableName": {
+                                        "type": "string",
+                                        "description": "Table containing the field (e.g., 'orders')"
+                                    },
+                                    "isSqlColumn": {
+                                        "type": "boolean",
+                                        "description": "Whether the fieldId refers to a SQL column name"
+                                    },
+                                    "fallbackType": {
+                                        "type": "string",
+                                        "description": "Fallback type when field is not available",
+                                        "enum": [
+                                            "string",
+                                            "number",
+                                            "boolean",
+                                            "date",
+                                            "timestamp"
+                                        ]
+                                    }
+                                }
+                            },
+                            "settings": {
+                                "type": "object",
+                                "description": "Additional settings for date/time filters",
+                                "properties": {
+                                    "unitOfTime": {
+                                        "type": "string",
+                                        "enum": [
+                                            "milliseconds",
+                                            "seconds",
+                                            "minutes",
+                                            "hours",
+                                            "days",
+                                            "weeks",
+                                            "months",
+                                            "quarters",
+                                            "years"
+                                        ]
+                                    },
+                                    "completed": {
+                                        "type": "boolean",
+                                        "description": "For date filters, whether to include completed periods"
+                                    }
+                                }
+                            },
+                            "disabled": {
+                                "type": "boolean",
+                                "description": "Whether this filter is currently disabled"
+                            },
+                            "required": {
+                                "type": "boolean",
+                                "description": "Whether this filter must be set by users"
+                            },
+                            "tileTargets": {
+                                "type": "object",
+                                "description": "Per-tile filter configuration (tile UUID -> field mapping or false to disable)",
+                                "additionalProperties": {
+                                    "oneOf": [
+                                        {
+                                            "type": "boolean",
+                                            "const": false
+                                        },
+                                        {
+                                            "type": "object",
+                                            "required": [
+                                                "fieldId",
+                                                "tableName"
+                                            ],
+                                            "properties": {
+                                                "fieldId": {
+                                                    "type": "string"
+                                                },
+                                                "tableName": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "label": {
+                                "type": ["string", "null"],
+                                "description": "Custom label for the filter"
+                            },
+                            "singleValue": {
+                                "type": "boolean",
+                                "description": "Whether the filter only accepts a single value"
+                            }
+                        }
+                    }
+                },
+                "metrics": {
+                    "type": "array",
+                    "description": "Metric filters applied to the dashboard",
+                    "items": {
+                        "$ref": "#/properties/filters/properties/dimensions/items"
+                    }
+                },
+                "tableCalculations": {
+                    "type": "array",
+                    "description": "Table calculation filters applied to the dashboard",
+                    "items": {
+                        "$ref": "#/properties/filters/properties/dimensions/items"
+                    }
+                }
+            }
+        }
+    }
+}
