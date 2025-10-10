@@ -1,5 +1,6 @@
 import {
     Combobox,
+    Group,
     Loader,
     ScrollArea,
     TextInput,
@@ -93,10 +94,6 @@ export const SearchDropdown: FC<Props> = ({
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             handleInputChange(e.currentTarget.value)
                         }
-                        rightSection={
-                            value.length >= OMNIBAR_MIN_QUERY_LENGTH &&
-                            !isSuccess && <Loader size={12} color="gray" />
-                        }
                     />
                 </Combobox.EventsTarget>
             </Combobox.Target>
@@ -110,9 +107,19 @@ export const SearchDropdown: FC<Props> = ({
                         scrollbars="y"
                         className={styles.searchDropdownScrollContent}
                     >
-                        {allSearchItems.length === 0 && (
-                            <Combobox.Empty>Nothing found</Combobox.Empty>
+                        {!isSuccess ? (
+                            <Combobox.Empty>
+                                <Group align="center" justify="center" gap="xs">
+                                    <Loader size={12} color="gray" />
+                                    Loading results
+                                </Group>
+                            </Combobox.Empty>
+                        ) : (
+                            allSearchItems.length === 0 && (
+                                <Combobox.Empty>Nothing found</Combobox.Empty>
+                            )
                         )}
+
                         {allSearchItemsGrouped.map(([groupType, items], i) => (
                             <Combobox.Group
                                 key={groupType}
