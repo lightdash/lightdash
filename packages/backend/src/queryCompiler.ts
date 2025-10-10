@@ -16,6 +16,7 @@ import {
     TableCalculation,
     TableCalculationTemplate,
     TableCalculationTemplateType,
+    WindowFunctionType,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 
@@ -30,7 +31,10 @@ const compileTableCalculationFromTemplate = (
 ): string => {
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const floatType = warehouseSqlBuilder.getFloatingType();
-    const quotedFieldId = `${quoteChar}${template.fieldId}${quoteChar}`;
+    const quotedFieldId =
+        'fieldId' in template
+            ? `${quoteChar}${template.fieldId}${quoteChar}`
+            : '';
 
     // Build ORDER BY clause if needed
     const buildOrderByClause = (
@@ -92,6 +96,51 @@ const compileTableCalculationFromTemplate = (
             return `SUM(${quotedFieldId}) OVER (ORDER BY ${quotedFieldId} DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
         }
 
+        case TableCalculationTemplateType.WINDOW_FUNCTION: {
+            // Build the window function name
+            let functionName: string;
+            switch (template.windowFunction) {
+                case WindowFunctionType.ROW_NUMBER:
+                    functionName = 'ROW_NUMBER';
+                    break;
+                case WindowFunctionType.PERCENT_RANK:
+                    functionName = 'PERCENT_RANK';
+                    break;
+                default:
+                    return assertUnreachable(
+                        template.windowFunction,
+                        `Unknown window function type`,
+                    );
+            }
+
+            // Build OVER clause components
+            const overParts: string[] = [];
+
+            // Add PARTITION BY if specified
+            if (template.partitionBy.length > 0) {
+                const partitionFields = template.partitionBy
+                    .map((fieldId) => `${quoteChar}${fieldId}${quoteChar}`)
+                    .join(', ');
+                overParts.push(`PARTITION BY ${partitionFields}`);
+            }
+
+            // Add ORDER BY if specified
+            if (template.orderBy.length > 0) {
+                const orderByFields = template.orderBy
+                    .map(({ fieldId: orderFieldId, order }) => {
+                        const quotedOrderFieldId = `${quoteChar}${orderFieldId}${quoteChar}`;
+                        const orderDirection =
+                            order === 'desc' ? 'DESC' : 'ASC';
+                        return `${quotedOrderFieldId} ${orderDirection}`;
+                    })
+                    .join(', ');
+                overParts.push(`ORDER BY ${orderByFields}`);
+            }
+
+            const overClause = overParts.join(' ');
+            return `${functionName}() OVER (${overClause})`;
+        }
+
         default:
             return assertUnreachable(
                 templateType,
@@ -117,20 +166,21 @@ const buildTableCalculationDependencyGraph = (
         }
 
         if (isTemplateTableCalculation(calc)) {
+            const fieldIdDependency =
+                'fieldId' in calc.template ? [calc.template.fieldId] : [];
+
             const orderByFields =
                 'orderBy' in calc.template
                     ? calc.template.orderBy.map((ob) => ob.fieldId)
                     : [];
 
             const partitionByFields =
-                'partitionBy' in calc.template && calc.template.partitionBy
-                    ? calc.template.partitionBy
-                    : [];
+                'partitionBy' in calc.template ? calc.template.partitionBy : [];
 
             return {
                 name: calc.name,
                 dependencies: [
-                    calc.template.fieldId,
+                    ...fieldIdDependency,
                     ...orderByFields,
                     ...partitionByFields,
                 ],

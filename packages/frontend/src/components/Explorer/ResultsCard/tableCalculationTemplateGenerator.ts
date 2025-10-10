@@ -1,5 +1,6 @@
 import {
     TableCalculationTemplateType,
+    WindowFunctionType,
     assertUnreachable,
     getItemId,
     type Field,
@@ -58,13 +59,23 @@ export function generateTableCalculationTemplate(
             return {
                 type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
                 fieldId,
-                partitionBy: null,
+                partitionBy: [],
             };
 
         case TableCalculationTemplateType.RANK_IN_COLUMN:
             return {
                 type: TableCalculationTemplateType.RANK_IN_COLUMN,
                 fieldId,
+            };
+
+        case TableCalculationTemplateType.WINDOW_FUNCTION:
+            // Window functions are not available in quick calculations
+            // This case should never be reached, but is required for type safety
+            return {
+                type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                windowFunction: WindowFunctionType.ROW_NUMBER,
+                orderBy: [],
+                partitionBy: [],
             };
 
         default:

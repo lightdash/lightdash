@@ -6,6 +6,7 @@ import {
     MetricType,
     TableCalculation,
     TableCalculationTemplateType,
+    WindowFunctionType,
 } from '@lightdash/common';
 import { compileMetricQuery } from './queryCompiler';
 import {
@@ -532,7 +533,7 @@ test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () =
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
                     fieldId: 'table_3_metric_1',
-                    partitionBy: null,
+                    partitionBy: [],
                 },
             } as TableCalculation,
         ],
@@ -553,4 +554,116 @@ test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () =
     expect(percentOfTotal?.compiledSql).toBe(
         '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(SUM("table_3_metric_1") OVER(), 0) AS FLOAT))',
     );
+});
+
+test('Should compile WINDOW_FUNCTION template with ROW_NUMBER', () => {
+    const metricQueryWithRowNumber = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1'],
+        tableCalculations: [
+            {
+                name: 'row_num',
+                displayName: 'Row Number',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.ROW_NUMBER,
+                    orderBy: [
+                        {
+                            fieldId: 'table1_dim_1',
+                            order: 'asc',
+                        },
+                    ],
+                    partitionBy: [],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithRowNumber,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const rowNum = result.compiledTableCalculations.find(
+        (c) => c.name === 'row_num',
+    );
+
+    // Should generate ROW_NUMBER() with ORDER BY
+    expect(rowNum?.compiledSql).toBe(
+        'ROW_NUMBER() OVER (ORDER BY "table1_dim_1" ASC)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template with PERCENT_RANK and partitionBy', () => {
+    const metricQueryWithPercentRank = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'table3_dim_3'],
+        tableCalculations: [
+            {
+                name: 'rank_by_category',
+                displayName: 'Rank by Category',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.PERCENT_RANK,
+                    orderBy: [
+                        {
+                            fieldId: 'table_3_metric_1',
+                            order: 'desc',
+                        },
+                    ],
+                    partitionBy: ['table1_dim_1'],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithPercentRank,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const rankByCategory = result.compiledTableCalculations.find(
+        (c) => c.name === 'rank_by_category',
+    );
+
+    // Should generate PERCENT_RANK() with PARTITION BY and ORDER BY
+    expect(rankByCategory?.compiledSql).toBe(
+        'PERCENT_RANK() OVER (PARTITION BY "table1_dim_1" ORDER BY "table_3_metric_1" DESC)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template without orderBy or partitionBy', () => {
+    const metricQueryMinimal = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'simple_row_num',
+                displayName: 'Simple Row Number',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.ROW_NUMBER,
+                    orderBy: [],
+                    partitionBy: [],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryMinimal,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const simpleRowNum = result.compiledTableCalculations.find(
+        (c) => c.name === 'simple_row_num',
+    );
+
+    // Should generate window function with empty OVER clause
+    expect(simpleRowNum?.compiledSql).toBe('ROW_NUMBER() OVER ()');
 });

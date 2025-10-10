@@ -13,6 +13,7 @@ export const TemplateTypeLabels: Record<TableCalculationTemplateType, string> =
             'Percent of column total',
         [TableCalculationTemplateType.RANK_IN_COLUMN]: 'Rank in column',
         [TableCalculationTemplateType.RUNNING_TOTAL]: 'Running total',
+        [TableCalculationTemplateType.WINDOW_FUNCTION]: 'Window function',
     };
 
 export const formatTemplateType = (
@@ -35,6 +36,8 @@ export const getTemplateDescription = (
             return 'Ranks values within the column from highest to lowest.';
         case TableCalculationTemplateType.RUNNING_TOTAL:
             return 'Calculates a cumulative sum across rows.';
+        case TableCalculationTemplateType.WINDOW_FUNCTION:
+            return 'Applies SQL window functions (e.g., ROW_NUMBER, PERCENT_RANK) to the result set.';
         default:
             return assertUnreachable(type, `Unknown template type`);
     }

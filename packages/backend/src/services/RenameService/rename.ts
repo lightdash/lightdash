@@ -555,12 +555,17 @@ export const renameMetricQuery = (
             ...(isTemplateTableCalculation(tc) && {
                 template: {
                     ...tc.template,
-                    fieldId: replaceId(tc.template.fieldId),
+                    ...('fieldId' in tc.template && {
+                        fieldId: replaceId(tc.template.fieldId),
+                    }),
                     ...('orderBy' in tc.template && {
                         orderBy: tc.template.orderBy.map((o) => ({
                             ...o,
                             fieldId: replaceId(o.fieldId),
                         })),
+                    }),
+                    ...('partitionBy' in tc.template && {
+                        partitionBy: tc.template.partitionBy.map(replaceId),
                     }),
                 },
             }),
