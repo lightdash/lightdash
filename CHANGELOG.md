@@ -1,3 +1,10 @@
+# [0.2075.0](https://github.com/lightdash/lightdash/compare/0.2074.0...0.2075.0) (2025-10-10)
+
+
+### Features
+
+* migrate custom dimensions and metrics from Context to Redux ([#17224](https://github.com/lightdash/lightdash/issues/17224)) ([894890d](https://github.com/lightdash/lightdash/commit/894890d4192d9f67a0482c5acd7778fe86171ddd))
+
 # [0.2074.0](https://github.com/lightdash/lightdash/compare/0.2073.0...0.2074.0) (2025-10-10)
 
 
