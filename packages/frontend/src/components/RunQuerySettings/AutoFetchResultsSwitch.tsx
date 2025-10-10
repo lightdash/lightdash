@@ -1,13 +1,9 @@
 import { Switch, Tooltip, type MantineSize } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
 import { memo, type FC } from 'react';
-import { AUTO_FETCH_ENABLED_DEFAULT, AUTO_FETCH_ENABLED_KEY } from './defaults';
+import { useAutoFetch } from '../../hooks/useAutoFetch';
 
 const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
-    const [autoFetchEnabled, setAutoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
+    const [autoFetchEnabled, setAutoFetchEnabled] = useAutoFetch();
 
     return (
         <Tooltip

@@ -6,13 +6,8 @@ import {
     type DateGranularity,
     type FieldId,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router';
-import {
-    AUTO_FETCH_ENABLED_DEFAULT,
-    AUTO_FETCH_ENABLED_KEY,
-} from '../components/RunQuerySettings/defaults';
 import {
     explorerActions,
     selectFilters,
@@ -33,6 +28,7 @@ import {
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
+import { useAutoFetch } from './useAutoFetch';
 import { useExplore } from './useExplore';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 
@@ -87,10 +83,7 @@ export const useExplorerQueryManager = (options?: {
     );
 
     // Auto-fetch configuration
-    const [autoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
+    const [autoFetchEnabled] = useAutoFetch();
 
     // Project UUID from props or route params
     const { projectUuid: projectUuidFromParams } = useParams<{
