@@ -24,6 +24,7 @@ import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import { getImproveContext } from '../tools/improveContext';
 import { getProposeChange } from '../tools/proposeChange';
+import { getRunQuery } from '../tools/runQuery';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -207,6 +208,17 @@ const getAgentTools = (
         enableSelfImprovement: args.enableSelfImprovement,
     });
 
+    const runQuery = getRunQuery({
+        getExplore: dependencies.getExplore,
+        updateProgress: dependencies.updateProgress,
+        runMiniMetricQuery: dependencies.runMiniMetricQuery,
+        getPrompt: dependencies.getPrompt,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
+        enableSelfImprovement: args.enableSelfImprovement,
+    });
+
     const generateDashboard = getGenerateDashboard({
         getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
@@ -235,10 +247,11 @@ const getAgentTools = (
         findDashboards,
         findExplores,
         findFields,
-        generateBarVizConfig,
+        // generateBarVizConfig,
         generateDashboard,
-        generateTimeSeriesVizConfig,
-        generateTableVizConfig,
+        // generateTimeSeriesVizConfig,
+        // generateTableVizConfig,
+        runQuery,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(args.enableSelfImprovement && args.canManageAgent
             ? { proposeChange }
