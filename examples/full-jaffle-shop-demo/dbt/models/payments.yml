@@ -5,6 +5,18 @@ models:
     config:
       tags: ["ai"]
       meta:
+        sets: 
+          base_set:
+            fields:
+              - orders.status
+              - orders.shipping_method
+              - orders.order_date
+              - orders.order_id
+          test_set:
+            fields:
+              - amount
+              - base_set*
+              - -orders.order_id
         primary_key: payment_id
         joins:
           - join: orders
@@ -37,15 +49,10 @@ models:
                 # E2E tests rely on these values
                 show_underlying_values:
                   # Metrics
+                  - test_set*
                   - unique_payment_count
                   - orders.average_order_size
                   - orders.total_order_amount
-                  - customers.date_of_most_recent_created_customer
-                  # Dimensions
-                  - amount
-                  - orders.status
+                  # # Dimensions
                   - orders.customer_id
-                  - orders.order_date
-                  - orders.order_id
-                  - orders.order_source
-                  - orders.shipping_method
+                  
