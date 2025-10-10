@@ -79,6 +79,14 @@ const ResultsCard: FC = memo(() => {
         }
     };
 
+    // ResultsCard always downloads raw unpivoted results
+    const getResultsCardDownloadQueryUuid = useCallback(
+        (limit: number | null) => {
+            return getDownloadQueryUuid(limit, false);
+        },
+        [getDownloadQueryUuid],
+    );
+
     return (
         <CollapsableCard
             title="Results"
@@ -134,7 +142,7 @@ const ResultsCard: FC = memo(() => {
                                         projectUuid={projectUuid}
                                         totalResults={totalResults}
                                         getDownloadQueryUuid={
-                                            getDownloadQueryUuid
+                                            getResultsCardDownloadQueryUuid
                                         }
                                         getGsheetLink={getGsheetLink}
                                         columnOrder={columnOrder}
