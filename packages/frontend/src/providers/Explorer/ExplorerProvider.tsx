@@ -679,36 +679,6 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
-    useEffect(() => {
-        const contextTableName = reducerState.unsavedChartVersion.tableName;
-        const reduxTableName = unsavedChartVersionFromRedux.tableName;
-
-        console.log('[ExplorerProvider] tableName sync effect:', {
-            'Context tableName': contextTableName,
-            'Redux tableName': reduxTableName,
-            'Will sync':
-                reduxTableName !== '' && contextTableName !== reduxTableName,
-            timestamp: new Date().toISOString(),
-        });
-
-        // Only sync when Redux has a value AND it differs from Context
-        // This prevents syncing during initialization when both are empty
-        if (reduxTableName !== '' && contextTableName !== reduxTableName) {
-            console.log(
-                '[ExplorerProvider] Syncing Redux → Context:',
-                reduxTableName,
-            );
-            dispatch({
-                type: ActionType.SET_TABLE_NAME,
-                payload: reduxTableName,
-            });
-        }
-    }, [
-        unsavedChartVersionFromRedux.tableName,
-        reducerState.unsavedChartVersion.tableName,
-        dispatch,
-    ]);
-
     // Keep Redux dimensions in sync with Context dimensions
     useEffect(() => {
         reduxDispatch(

@@ -34,6 +34,7 @@ import {
     ExplorerSection,
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
@@ -163,19 +164,18 @@ const parseChartFromExplorerSearchParams = (
 
 export const useExplorerRoute = () => {
     const navigate = useNavigate();
-    const location = useLocation();
     const pathParams = useParams<{
         projectUuid: string;
         tableId: string | undefined;
     }>();
 
-    console.log('[useExplorerRoute] Component render:', {
-        pathname: location.pathname,
-        pathParams: pathParams,
-        tableId: pathParams.tableId,
-    });
-
-    const dispatch = useExplorerDispatch();
+    const reduxDispatch = useExplorerDispatch();
+    const setTableNameContext = useExplorerContext(
+        (context) => context.actions.setTableName,
+    );
+    const clearExplore = useExplorerContext(
+        (context) => context.actions.clearExplore,
+    );
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
@@ -183,23 +183,17 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
-        console.log('[useExplorerRoute] URL sync effect:', {
-            tableId: pathParams.tableId,
-            tableName: tableName,
-            hasMetricQuery: !!metricQuery,
-            willNavigate: !!(pathParams.tableId && metricQuery && tableName),
-        });
-
         if (pathParams.tableId && metricQuery && tableName) {
-            const newUrl = getExplorerUrlFromCreateSavedChartVersion(
-                pathParams.projectUuid,
-                {
-                    ...unsavedChartVersion,
-                    metricQuery,
-                },
+            void navigate(
+                getExplorerUrlFromCreateSavedChartVersion(
+                    pathParams.projectUuid,
+                    {
+                        ...unsavedChartVersion,
+                        metricQuery,
+                    },
+                ),
+                { replace: true },
             );
-            console.log('[useExplorerRoute] Navigating to:', newUrl);
-            void navigate(newUrl, { replace: true });
         }
     }, [
         metricQuery,
@@ -211,25 +205,14 @@ export const useExplorerRoute = () => {
     ]);
 
     useEffect(() => {
-        console.log('[useExplorerRoute] Effect running:', {
-            tableId: pathParams.tableId,
-            timestamp: new Date().toISOString(),
-        });
-
         if (!pathParams.tableId) {
-            console.log(
-                '[useExplorerRoute] No tableId - resetting Redux state',
-            );
-            dispatch(explorerActions.reset(defaultState));
-            dispatch(explorerActions.resetQueryExecution());
+            reduxDispatch(explorerActions.reset(defaultState));
+            reduxDispatch(explorerActions.resetQueryExecution());
+            clearExplore();
         } else {
-            console.log(
-                '[useExplorerRoute] Setting Redux tableName to:',
-                pathParams.tableId,
-            );
-            dispatch(explorerActions.setTableName(pathParams.tableId));
+            setTableNameContext(pathParams.tableId);
         }
-    }, [pathParams.tableId, dispatch]);
+    }, [pathParams.tableId, reduxDispatch, setTableNameContext, clearExplore]);
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
@@ -244,19 +227,14 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
     const fromDashboard = searchParams.get('fromDashboard');
 
     return useMemo(() => {
-        console.log('[useExplorerUrlState] Computing state:', {
-            tableId: pathParams.tableId,
-            hasSearchParams: search.length > 0,
-        });
-
         if (pathParams.tableId) {
             try {
                 const unsavedChartVersion = parseChartFromExplorerSearchParams(
                     search,
                 ) || {
-                    tableName: '',
+                    tableName: pathParams.tableId,
                     metricQuery: {
-                        exploreName: '',
+                        exploreName: pathParams.tableId,
                         dimensions: [],
                         metrics: [],
                         filters: {},
