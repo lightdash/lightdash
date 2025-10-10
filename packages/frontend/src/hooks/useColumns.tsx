@@ -1,5 +1,6 @@
 import {
     formatItemValue,
+    getItemId,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -71,7 +72,12 @@ export const getFormattedValueCell = (
     // Bar display requires minMaxMap to be provided (similar to conditional formatting)
     const minMaxMap = (info.table as any).options.meta?.minMaxMap;
     const columnProperties = (info.table as any).options.meta?.columnProperties;
-    const displayStyle = columnProperties?.[columnId]?.displayStyle;
+
+    // For pivot tables, get the base field ID from the item in meta
+    // This is needed because pivoted columns have different IDs than the base field
+    const item = info.column.columnDef.meta?.item;
+    const baseFieldId = item ? getItemId(item) : columnId;
+    const displayStyle = columnProperties?.[baseFieldId]?.displayStyle;
 
     // Get item from column meta to check if it's numeric
     const item = info.column.columnDef.meta?.item;
