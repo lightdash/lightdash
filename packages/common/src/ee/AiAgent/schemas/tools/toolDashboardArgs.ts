@@ -24,7 +24,7 @@ Create "summary" or "executive" level dashboards that provide high-level overvie
 Recommended Dashboard Structure:
 1. **Summary Metrics at the Top**: Start with key performance indicators (KPIs) as tables showing overall summary metrics
 2. **Time-Series Analysis**: Include time-series charts with appropriate granularities to show how metrics trend over time:
-   - Use line charts for smaller granularities (daily, weekly) 
+   - Use line charts for smaller granularities (daily, weekly)
    - Use bar charts for more grouped data (monthly, quarterly)
 3. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
    - Show problematic areas that need attention (e.g., longest response times, highest churn segments)
@@ -81,10 +81,10 @@ export type DashboardVisualization = z.infer<
     typeof dashboardVisualizationSchema
 >;
 
-export const toolDashboardArgsSchema = createToolSchema(
-    AiResultType.DASHBOARD_RESULT,
-    TOOL_DASHBOARD_DESCRIPTION,
-)
+export const toolDashboardArgsSchema = createToolSchema({
+    type: AiResultType.DASHBOARD_RESULT,
+    description: TOOL_DASHBOARD_DESCRIPTION,
+})
     .extend({
         title: z.string().describe('A descriptive title for the dashboard'),
         description: z

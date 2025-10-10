@@ -17,10 +17,10 @@ Usage tips:
 - It doesn't provide a dashboard summary yet, so don't suggest this capability
 `;
 
-export const toolFindDashboardsArgsSchema = createToolSchema(
-    'find_dashboards',
-    TOOL_FIND_DASHBOARDS_DESCRIPTION,
-)
+export const toolFindDashboardsArgsSchema = createToolSchema({
+    type: 'find_dashboards',
+    description: TOOL_FIND_DASHBOARDS_DESCRIPTION,
+})
     .extend({
         dashboardSearchQueries: z.array(
             z.object({
