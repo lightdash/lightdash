@@ -359,6 +359,9 @@ const explorerSlice = createSlice({
             }>,
         ) => {
             const { oldName, tableCalculation } = action.payload;
+            const newName = tableCalculation.name;
+
+            // Update table calculation
             const index =
                 state.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     (tc) => tc.name === oldName,
@@ -367,6 +370,20 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.tableCalculations[index] =
                     tableCalculation;
             }
+
+            // Update sorts to use new name
+            state.unsavedChartVersion.metricQuery.sorts =
+                state.unsavedChartVersion.metricQuery.sorts.map((field) =>
+                    field.fieldId === oldName
+                        ? { ...field, fieldId: newName }
+                        : field,
+                );
+
+            // Update column order to use new name
+            state.unsavedChartVersion.tableConfig.columnOrder =
+                state.unsavedChartVersion.tableConfig.columnOrder.map(
+                    (column) => (column === oldName ? newName : column),
+                );
         },
         deleteTableCalculation: (state, action: PayloadAction<string>) => {
             const nameToRemove = action.payload;
