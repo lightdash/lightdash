@@ -1,3 +1,10 @@
+# [0.2073.0](https://github.com/lightdash/lightdash/compare/0.2072.1...0.2073.0) (2025-10-10)
+
+
+### Features
+
+* improve loading state ai search box ([#17374](https://github.com/lightdash/lightdash/issues/17374)) ([cc78c62](https://github.com/lightdash/lightdash/commit/cc78c6241c454f50588856dc2e0306a84a85db8a))
+
 ## [0.2072.1](https://github.com/lightdash/lightdash/compare/0.2072.0...0.2072.1) (2025-10-10)
 
 
