@@ -12,7 +12,6 @@ import {
     selectMetrics,
     selectParameterReferences,
     selectPivotConfig,
-    selectPreviouslyFetchedState,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -20,6 +19,7 @@ import {
 } from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
+import { useAutoFetch } from '../../hooks/useAutoFetch';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
@@ -58,6 +58,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const projectUuid = useProjectUuid();
 
+        const [autoFetchEnabled] = useAutoFetch();
+
         // Get query state and actions from hook
         const { query, fetchResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
@@ -75,27 +77,27 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         // Get navigation context from Redux
         const fromDashboard = useExplorerSelector(selectFromDashboard);
-        const previouslyFetchedState = useExplorerSelector(
-            selectPreviouslyFetchedState,
-        );
         const pivotConfig = useExplorerSelector(selectPivotConfig);
 
         const hasPivotConfig = !!pivotConfig;
 
         useEffect(() => {
             const shouldAutoFetch =
-                !previouslyFetchedState &&
-                (!!fromDashboard || isSavedChart || hasPivotConfig);
+                (!query.isFetched && isEditMode && autoFetchEnabled) ||
+                (!query.isFetched && !!hasPivotConfig) ||
+                (!query.isFetched && !!fromDashboard);
 
             if (shouldAutoFetch) {
                 fetchResults();
             }
         }, [
-            previouslyFetchedState,
+            query.isFetched,
             fetchResults,
             fromDashboard,
             isSavedChart,
             hasPivotConfig,
+            autoFetchEnabled,
+            isEditMode,
         ]);
 
         useEffect(() => {
