@@ -4,7 +4,6 @@ import {
     isCustomDimension,
     isDimension,
     isField,
-    isFilterableItem,
     isMetric,
     isNumericItem,
     isTableCalculation,
@@ -464,20 +463,35 @@ const useTableConfig = (
     );
 
     const minMaxMap = useMemo(() => {
-        if (
-            !itemsMap ||
-            !resultsData ||
-            resultsData.rows.length === 0 ||
-            !conditionalFormattings ||
-            conditionalFormattings.length === 0
-        ) {
+        if (!itemsMap || !resultsData || resultsData.rows.length === 0) {
+            return undefined;
+        }
+
+        // Build set of fieldIds that need min/max calculation
+        const fieldsNeedingMinMax = new Set<string>();
+
+        // Add fields with conditional formatting
+        conditionalFormattings?.forEach((config) => {
+            if (config.target) {
+                fieldsNeedingMinMax.add(config.target.fieldId);
+            }
+        });
+
+        // Add fields with bar chart display style
+        Object.entries(columnProperties).forEach(([fieldId, props]) => {
+            if (props.displayStyle === 'bar') {
+                fieldsNeedingMinMax.add(fieldId);
+            }
+        });
+
+        // If no fields need min/max, return undefined
+        if (fieldsNeedingMinMax.size === 0) {
             return undefined;
         }
 
         return Object.entries(itemsMap)
-            .filter(
-                ([_, field]) => isNumericItem(field) && isFilterableItem(field),
-            )
+            .filter(([_, field]) => isNumericItem(field))
+            .filter(([fieldId]) => fieldsNeedingMinMax.has(fieldId))
             .filter(([fieldId]) => isColumnVisible(fieldId))
             .filter(([fieldId]) => fieldId in resultsData.rows[0])
             .reduce<ConditionalFormattingMinMaxMap>((acc, [fieldId, field]) => {
@@ -500,7 +514,13 @@ const useTableConfig = (
                     },
                 };
             }, {});
-    }, [conditionalFormattings, isColumnVisible, itemsMap, resultsData]);
+    }, [
+        conditionalFormattings,
+        columnProperties,
+        isColumnVisible,
+        itemsMap,
+        resultsData,
+    ]);
 
     const validConfig: TableChart = useMemo(
         () => ({

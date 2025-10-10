@@ -1,4 +1,5 @@
 import type {
+    ColumnProperties,
     ConditionalFormattingConfig,
     ConditionalFormattingMinMaxMap,
     CustomDimension,
@@ -68,6 +69,7 @@ export type ProviderProps = {
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];
     minMaxMap?: ConditionalFormattingMinMaxMap;
+    columnProperties?: Record<string, ColumnProperties>;
     footer?: {
         show?: boolean;
     };
