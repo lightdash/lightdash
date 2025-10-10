@@ -28,6 +28,7 @@ function useEmbed(): EmbedContext {
             languageMap: undefined,
             onExplore: (_options: { chart: SavedChart }) => {},
             t: (_input: string) => undefined,
+            mode: 'direct',
         };
     }
 

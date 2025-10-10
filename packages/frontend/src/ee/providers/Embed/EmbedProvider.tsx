@@ -10,7 +10,7 @@ import {
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import EmbedProviderContext from './context';
-import { EMBED_KEY, type InMemoryEmbed } from './types';
+import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
 type Props = {
     embedToken?: string;
@@ -25,7 +25,7 @@ type Props = {
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
-    embedToken = window.location.hash.replace('#', ''),
+    embedToken: encodedToken,
     filters,
     projectUuid: projectUuidFromProps,
     contentOverrides,
@@ -33,6 +33,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onBackToDashboard,
     savedChart,
 }) => {
+    const embedToken = encodedToken || window.location.hash.replace('#', '');
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
@@ -71,6 +72,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             onExplore,
             savedChart,
             onBackToDashboard,
+            mode: (encodedToken ? 'sdk' : 'direct') as EmbedMode,
         };
     }, [
         embed?.projectUuid,
@@ -82,6 +84,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         onExplore,
         savedChart,
         onBackToDashboard,
+        encodedToken,
     ]);
 
     return (

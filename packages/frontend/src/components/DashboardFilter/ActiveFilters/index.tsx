@@ -231,6 +231,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             {!isEditMode && haveFiltersChanged && (
                 <Tooltip label="Reset all filters">
                     <Button
+                        aria-label="Reset all filters"
                         size="xs"
                         variant="default"
                         radius="md"

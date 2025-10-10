@@ -1,13 +1,12 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
-    getItemId,
-    type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { useLocation, useNavigate } from 'react-router';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
@@ -25,7 +24,6 @@ import EmbedDashboardHeader from './EmbedDashboardHeader';
 
 import { Group, Tabs, Title } from '@mantine/core';
 import '../../../../../styles/react-grid.css';
-import { convertSdkFilterToDashboardFilter } from '../utils';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -128,62 +126,12 @@ const EmbedDashboard: FC<{
     containerStyles?: React.CSSProperties;
 }> = ({ containerStyles }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const setDashboardFilters = useDashboardContext(
-        (c) => c.setDashboardFilters,
-    );
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
 
-    const { embedToken, filters } = useEmbed();
-
-    const sdkDashboardFilters = useMemo(() => {
-        if (
-            !filters ||
-            filters.length === 0 ||
-            Object.keys(allFilterableFieldsMap).length === 0
-        ) {
-            return undefined;
-        }
-
-        const dimensionFilters = filters
-            ?.map((filter) => {
-                const fieldId = getItemId({
-                    table: filter.model,
-                    name: filter.field,
-                });
-
-                const field = allFilterableFieldsMap[fieldId];
-
-                if (!field) {
-                    console.warn(`Field ${filter.field} not found`, filter);
-                    console.warn(
-                        `Here are all the fields:`,
-                        allFilterableFieldsMap,
-                    );
-                    return null;
-                }
-
-                return convertSdkFilterToDashboardFilter(filter);
-            })
-            .filter((filter) => filter !== null);
-
-        if (!dimensionFilters) {
-            return undefined;
-        }
-
-        return {
-            dimensions: dimensionFilters,
-            metrics: [],
-            tableCalculations: [],
-        };
-    }, [filters, allFilterableFieldsMap]);
-
-    useEffect(() => {
-        if (sdkDashboardFilters) {
-            setDashboardFilters(sdkDashboardFilters);
-        }
-    }, [sdkDashboardFilters, setDashboardFilters]);
+    const { embedToken, mode } = useEmbed();
+    const navigate = useNavigate();
+    const { pathname, search } = useLocation();
 
     if (!embedToken) {
         throw new Error('Embed token is required');
@@ -213,9 +161,6 @@ const EmbedDashboard: FC<{
             [dashboard],
         ) || false;
 
-    // Tab state
-    const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
-
     // Sort tabs by order
     const sortedTabs = useMemo(() => {
         if (!dashboard?.tabs || dashboard.tabs.length === 0) {
@@ -224,12 +169,16 @@ const EmbedDashboard: FC<{
         return dashboard.tabs.sort((a, b) => a.order - b.order);
     }, [dashboard?.tabs]);
 
-    // Set active tab to first tab if no active tab is set
+    // Set active tab to first tab if no active tab is set and no tab in URL
     useEffect(() => {
-        if (sortedTabs.length > 0 && !activeTab) {
+        if (
+            sortedTabs.length > 0 &&
+            !activeTab &&
+            !pathname.includes('/tabs/')
+        ) {
             setActiveTab(sortedTabs[0]);
         }
-    }, [sortedTabs, activeTab]);
+    }, [sortedTabs, activeTab, pathname, setActiveTab]);
 
     // Filter tiles by active tab
     const filteredTiles = useMemo(() => {
@@ -327,6 +276,34 @@ const EmbedDashboard: FC<{
     // Check if current tab is empty
     const isTabEmpty = tabsEnabled && filteredTiles.length === 0;
 
+    // Sync tabs with URL when user changes tab for iframes.
+    // SDK mode does not sync URL when user changes tab because
+    // the SDK app uses the same URL as the embedding app.
+    const handleTabChange = (tabUuid: string) => {
+        const tab = sortedTabs.find((t) => t.uuid === tabUuid);
+        if (tab) {
+            setActiveTab(tab);
+
+            if (mode === 'direct') {
+                const newParams = new URLSearchParams(search);
+                const currentPath = pathname;
+
+                // Update URL to include tab UUID
+                const newPath = currentPath.includes('/tabs/')
+                    ? currentPath.replace(/\/tabs\/[^/]+$/, `/tabs/${tab.uuid}`)
+                    : `${currentPath}/tabs/${tab.uuid}`;
+
+                void navigate(
+                    {
+                        pathname: newPath,
+                        search: newParams.toString(),
+                    },
+                    { replace: true },
+                );
+            }
+        }
+    };
+
     return (
         <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
             <EmbedDashboardHeader
@@ -341,12 +318,7 @@ const EmbedDashboard: FC<{
             {tabsEnabled ? (
                 <Tabs
                     value={activeTab?.uuid}
-                    onTabChange={(e) => {
-                        const tab = sortedTabs.find((t) => t.uuid === e);
-                        if (tab) {
-                            setActiveTab(tab);
-                        }
-                    }}
+                    onTabChange={handleTabChange}
                     mt="md"
                     styles={{
                         tabsList: {
