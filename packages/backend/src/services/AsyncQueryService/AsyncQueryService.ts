@@ -41,9 +41,9 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
-    getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
+    getMetrics,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -72,7 +72,6 @@ import {
     ResultRow,
     type RunQueryTags,
     S3Error,
-    SCHEDULER_TASKS,
     SchedulerFormat,
     sleep,
     type SpaceShare,
@@ -2448,6 +2447,16 @@ export class AsyncQueryService extends ProjectService {
                       )
                     : true),
         );
+        const availableMetrics = getMetrics(explore).filter(
+            (metric) =>
+                availableTables.has(metric.table) &&
+                !metric.hidden &&
+                ((itemShowUnderlyingValues?.includes(metric.name) &&
+                    itemShowUnderlyingTable === metric.table) ||
+                    itemShowUnderlyingValues?.includes(
+                        `${metric.table}.${metric.name}`,
+                    )),
+        );
 
         const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
             context,
@@ -2472,7 +2481,7 @@ export class AsyncQueryService extends ProjectService {
                 (dimension) => !isCustomBinDimension(dimension),
             ),
             filters,
-            metrics: [],
+            metrics: availableMetrics.map(getItemId),
             sorts: [],
             limit: limit ?? 500,
             tableCalculations: [],

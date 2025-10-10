@@ -410,16 +410,19 @@ export class ExploreCompiler {
             tables,
             availableParameters,
         );
-        metric.showUnderlyingValues?.forEach((dimReference) => {
+        metric.showUnderlyingValues?.forEach((fieldRef) => {
             const { refTable, refName } = getParsedReference(
-                dimReference,
+                fieldRef,
                 metric.table,
             );
             const referencedTable = getReferencedTable(refTable, tables);
-            const isValidReference = !!referencedTable?.dimensions[refName];
+            const isValidReference = !!(
+                referencedTable?.dimensions[refName] ||
+                referencedTable?.metrics[refName]
+            );
             if (!isValidReference) {
                 throw new CompileError(
-                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown dimension: ${dimReference} in table "${metric.table}"`,
+                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown field: ${fieldRef} in table "${metric.table}"`,
                 );
             }
         });
