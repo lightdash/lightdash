@@ -683,7 +683,18 @@ const ExplorerProvider: FC<
         const contextTableName = reducerState.unsavedChartVersion.tableName;
         const reduxTableName = unsavedChartVersionFromRedux.tableName;
 
+        console.log('[ExplorerProvider] tableName sync effect:', {
+            'Context tableName': contextTableName,
+            'Redux tableName': reduxTableName,
+            'Will sync': contextTableName !== reduxTableName,
+            timestamp: new Date().toISOString(),
+        });
+
         if (contextTableName !== reduxTableName) {
+            console.log(
+                '[ExplorerProvider] Syncing Redux → Context:',
+                reduxTableName,
+            );
             dispatch({
                 type: ActionType.SET_TABLE_NAME,
                 payload: reduxTableName,

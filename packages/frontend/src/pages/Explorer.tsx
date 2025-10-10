@@ -63,6 +63,13 @@ const ExplorerPage = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const explorerUrlState = useExplorerUrlState();
+    console.log('[ExplorerPage] explorerUrlState:', {
+        tableName: explorerUrlState?.unsavedChartVersion.tableName,
+        exploreName:
+            explorerUrlState?.unsavedChartVersion.metricQuery.exploreName,
+        'full state': explorerUrlState,
+    });
+
     const { user, health } = useApp();
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
