@@ -51,8 +51,6 @@ export class AiOrganizationSettingsService {
             return {
                 organizationUuid: user.organizationUuid,
                 aiAgentsVisible: false,
-                createdAt: new Date(),
-                updatedAt: new Date(),
             };
         }
 

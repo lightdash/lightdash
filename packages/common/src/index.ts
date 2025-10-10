@@ -139,9 +139,11 @@ import type {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
@@ -974,7 +976,9 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResultsResponse['results']
     | ApiCreateEvaluationResponse['results']
     | ApiAppendInstructionResponse['results']
-    | ApiGetChangeResponse['results'];
+    | ApiGetChangeResponse['results']
+    | ApiAiOrganizationSettingsResponse['results']
+    | ApiUpdateAiOrganizationSettingsResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
