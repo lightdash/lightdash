@@ -4,6 +4,7 @@ import {
     NumberSeparator,
     TableCalculationTemplateType,
     TableCalculationType,
+    WindowFunctionType,
     type TableCalculation,
 } from '../../../../types/field';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -12,6 +13,7 @@ import { tableCalcPercentOfColumnTotalSchema } from './tableCalcPercentOfColumnT
 import { tableCalcPercentOfPreviousValueSchema } from './tableCalcPercentOfPreviousValue';
 import { tableCalcRankInColumnSchema } from './tableCalcRankInColumn';
 import { tableCalcRunningTotalSchema } from './tableCalcRunningTotal';
+import { tableCalcWindowFunctionSchema } from './tableCalcWindowFunction';
 
 const tableCalcSchema = z.discriminatedUnion('type', [
     tableCalcPercentChangeFromPreviousSchema,
@@ -19,6 +21,7 @@ const tableCalcSchema = z.discriminatedUnion('type', [
     tableCalcPercentOfColumnTotalSchema,
     tableCalcRankInColumnSchema,
     tableCalcRunningTotalSchema,
+    tableCalcWindowFunctionSchema,
 ]);
 
 export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
@@ -47,6 +50,10 @@ Create table calculations when:
 - User requests running total
   Examples: "Show cumulative revenue over time", "Running sum of orders by month"
   Recommended visualization type: Line chart for the table calculation as Y axis and time as X axis
+
+- User requests row numbering or percentile ranking
+  Examples: "Number rows by order date", "Rank customers within each country by revenue", "Calculate percentile rank of sales"
+  Recommended visualization type: Table, Bar chart
 `);
 
 export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
@@ -54,7 +61,7 @@ export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
 function convertTableCalcSchemaToTableCalc(
     tableCalc: TableCalcSchema,
 ): TableCalculation {
-    const { type, name, displayName, fieldId } = tableCalc;
+    const { type, name, displayName } = tableCalc;
 
     // Build the template
     const baseCalc: Omit<TableCalculation, 'format'> = {
@@ -69,8 +76,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
-                    fieldId,
-                    orderBy: tableCalc.orderBy,
+                    fieldId: tableCalc.fieldId,
+                    orderBy: tableCalc.orderBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -82,8 +89,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
-                    fieldId,
-                    orderBy: tableCalc.orderBy,
+                    fieldId: tableCalc.fieldId,
+                    orderBy: tableCalc.orderBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -95,8 +102,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
-                    fieldId,
-                    partitionBy: tableCalc.partitionBy,
+                    fieldId: tableCalc.fieldId,
+                    partitionBy: tableCalc.partitionBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -108,7 +115,7 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.RANK_IN_COLUMN,
-                    fieldId,
+                    fieldId: tableCalc.fieldId,
                 },
                 format: {
                     type: CustomFormatType.NUMBER,
@@ -120,13 +127,45 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.RUNNING_TOTAL,
-                    fieldId,
+                    fieldId: tableCalc.fieldId,
                 },
                 format: {
                     type: CustomFormatType.NUMBER,
                     separator: NumberSeparator.DEFAULT,
                 },
             };
+        case 'window_function': {
+            // Map string window function to enum
+            const windowFunctionMap: Record<
+                'row_number' | 'percent_rank',
+                WindowFunctionType
+            > = {
+                row_number: WindowFunctionType.ROW_NUMBER,
+                percent_rank: WindowFunctionType.PERCENT_RANK,
+            };
+
+            const format =
+                tableCalc.windowFunction === 'percent_rank'
+                    ? {
+                          type: CustomFormatType.PERCENT,
+                          separator: NumberSeparator.DEFAULT,
+                      }
+                    : {
+                          type: CustomFormatType.NUMBER,
+                          separator: NumberSeparator.DEFAULT,
+                      };
+
+            return {
+                ...baseCalc,
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: windowFunctionMap[tableCalc.windowFunction],
+                    orderBy: tableCalc.orderBy ?? [],
+                    partitionBy: tableCalc.partitionBy ?? [],
+                },
+                format,
+            };
+        }
         default:
             return assertUnreachable(type, 'Unknown table calc type');
     }
