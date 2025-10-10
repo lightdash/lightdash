@@ -1,3 +1,11 @@
+# [0.2072.0](https://github.com/lightdash/lightdash/compare/0.2071.4...0.2072.0) (2025-10-10)
+
+
+### Features
+
+* allow metrics in view underlying data ([#17325](https://github.com/lightdash/lightdash/issues/17325)) ([94e8fca](https://github.com/lightdash/lightdash/commit/94e8fca716335ddd2779d687f8c40a9fb50120e8))
+* use avatar light version for ai agents ([#17377](https://github.com/lightdash/lightdash/issues/17377)) ([6349cfc](https://github.com/lightdash/lightdash/commit/6349cfce24aa63afad3fb82a183db83ac05c6053)), closes [#17317](https://github.com/lightdash/lightdash/issues/17317)
+
 ## [0.2071.4](https://github.com/lightdash/lightdash/compare/0.2071.3...0.2071.4) (2025-10-10)
 
 
