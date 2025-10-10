@@ -361,11 +361,11 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       nodemailer:
-        specifier: ^6.9.9
-        version: 6.9.9
+        specifier: ^7.0.7
+        version: 7.0.7
       nodemailer-express-handlebars:
         specifier: ^6.1.0
-        version: 6.1.0(express-handlebars@7.1.2)(nodemailer@6.9.9)
+        version: 6.1.0(express-handlebars@7.1.2)(nodemailer@7.0.7)
       octokit:
         specifier: ^3.1.2
         version: 3.1.2
@@ -13311,8 +13311,8 @@ packages:
       express-handlebars: '>= 6.0.0'
       nodemailer: '>= 6.0.0'
 
-  nodemailer@6.9.9:
-    resolution: {integrity: sha512-dexTll8zqQoVJEZPwQAKzxxtFn0qTnjdQTchoU6Re9BUUGBJiOy3YMn/0ShTW6J5M0dfQ1NeDeRTTl4oIWgQMA==}
+  nodemailer@7.0.7:
+    resolution: {integrity: sha512-jGOaRznodf62TVzdyhKt/f1Q/c3kYynk8629sgJHpRzGZj01ezbgMMWJSAjHADcwTKxco3B68/R+KHJY2T5BaA==}
     engines: {node: '>=6.0.0'}
 
   nodemon@3.1.9:
@@ -20250,7 +20250,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -25805,7 +25805,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -25839,7 +25839,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -32854,7 +32854,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -32953,12 +32953,12 @@ snapshots:
       nodejs-polars-linux-x64-musl: 0.15.0
       nodejs-polars-win32-x64-msvc: 0.15.0
 
-  nodemailer-express-handlebars@6.1.0(express-handlebars@7.1.2)(nodemailer@6.9.9):
+  nodemailer-express-handlebars@6.1.0(express-handlebars@7.1.2)(nodemailer@7.0.7):
     dependencies:
       express-handlebars: 7.1.2
-      nodemailer: 6.9.9
+      nodemailer: 7.0.7
 
-  nodemailer@6.9.9: {}
+  nodemailer@7.0.7: {}
 
   nodemon@3.1.9:
     dependencies:
@@ -35269,7 +35269,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
