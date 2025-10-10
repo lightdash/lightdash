@@ -58,6 +58,7 @@ export function generateTableCalculationTemplate(
             return {
                 type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
                 fieldId,
+                partitionBy: null,
             };
 
         case TableCalculationTemplateType.RANK_IN_COLUMN:

@@ -4,6 +4,8 @@ import {
     CustomDimensionType,
     DimensionType,
     MetricType,
+    TableCalculation,
+    TableCalculationTemplateType,
 } from '@lightdash/common';
 import { compileMetricQuery } from './queryCompiler';
 import {
@@ -480,5 +482,75 @@ test('Should compile table calculations that reference both custom dimensions an
     // Should successfully reference both custom dimension and additional metric
     expect(combinedCalc?.compiledSql).toBe(
         'CASE WHEN "age_range" = \'Young\' THEN "table1_custom_count" * 2 ELSE "table1_custom_count" END',
+    );
+});
+
+test('Should compile PERCENT_OF_COLUMN_TOTAL template with partitionBy', () => {
+    const metricQueryWithPartitionBy = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'table3_dim_3'],
+        tableCalculations: [
+            {
+                name: 'percent_by_category',
+                displayName: 'Percent by Category',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                    fieldId: 'table_3_metric_1',
+                    partitionBy: ['table1_dim_1'],
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithPartitionBy,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const percentByCategory = result.compiledTableCalculations.find(
+        (c) => c.name === 'percent_by_category',
+    );
+
+    // Should generate SQL with PARTITION BY clause
+    expect(percentByCategory?.compiledSql).toBe(
+        '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(SUM("table_3_metric_1") OVER(PARTITION BY "table1_dim_1"), 0) AS FLOAT))',
+    );
+
+    // dependsOn only tracks dependencies on OTHER table calculations, not fields
+    expect(percentByCategory?.dependsOn).toEqual([]);
+});
+
+test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () => {
+    const metricQueryWithoutPartitionBy = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'percent_of_total',
+                displayName: 'Percent of Total',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                    fieldId: 'table_3_metric_1',
+                    partitionBy: null,
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithoutPartitionBy,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const percentOfTotal = result.compiledTableCalculations.find(
+        (c) => c.name === 'percent_of_total',
+    );
+
+    // Should generate SQL without PARTITION BY clause
+    expect(percentOfTotal?.compiledSql).toBe(
+        '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(SUM("table_3_metric_1") OVER(), 0) AS FLOAT))',
     );
 });
