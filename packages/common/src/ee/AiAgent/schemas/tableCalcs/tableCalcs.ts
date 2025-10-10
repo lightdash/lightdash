@@ -37,7 +37,7 @@ Create table calculations when:
   Recommended visualization type: Table, bar chart
 
 - User requests percentage of column total
-  Examples: "Show each product as % of total sales", "What percentage does each region contribute to overall revenue"
+  Examples: "Show each product as % of total sales", "What percentage does each region contribute to overall revenue", "Show sales as % of total for each category"
   Recommended visualization type: Table, Bar chart
 
 - User requests rank within a column
@@ -96,6 +96,7 @@ function convertTableCalcSchemaToTableCalc(
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
                     fieldId,
+                    partitionBy: tableCalc.partitionBy,
                 },
                 format: {
                     type: CustomFormatType.PERCENT,

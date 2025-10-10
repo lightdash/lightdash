@@ -71,11 +71,19 @@ const compileTableCalculationFromTemplate = (
             );
         }
 
-        case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:
+        case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL: {
+            let overClause = '';
+            if (template.partitionBy && template.partitionBy.length > 0) {
+                const partitionFields = template.partitionBy
+                    .map((fieldId) => `${quoteChar}${fieldId}${quoteChar}`)
+                    .join(', ');
+                overClause = `PARTITION BY ${partitionFields}`;
+            }
             return (
                 `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(SUM(${quotedFieldId}) OVER(), 0) AS ${floatType}))`
+                `CAST(NULLIF(SUM(${quotedFieldId}) OVER(${overClause}), 0) AS ${floatType}))`
             );
+        }
 
         case TableCalculationTemplateType.RANK_IN_COLUMN:
             return `RANK() OVER (ORDER BY ${quotedFieldId} ASC)`;
@@ -114,9 +122,18 @@ const buildTableCalculationDependencyGraph = (
                     ? calc.template.orderBy.map((ob) => ob.fieldId)
                     : [];
 
+            const partitionByFields =
+                'partitionBy' in calc.template && calc.template.partitionBy
+                    ? calc.template.partitionBy
+                    : [];
+
             return {
                 name: calc.name,
-                dependencies: [calc.template.fieldId, ...orderByFields],
+                dependencies: [
+                    calc.template.fieldId,
+                    ...orderByFields,
+                    ...partitionByFields,
+                ],
             };
         }
 

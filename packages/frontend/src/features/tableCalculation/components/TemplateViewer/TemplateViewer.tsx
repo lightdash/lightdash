@@ -80,6 +80,21 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
                         </Text>
                     </Group>
                 )}
+
+            {'partitionBy' in template &&
+                template.partitionBy &&
+                template.partitionBy.length > 0 && (
+                    <Group>
+                        <Text fw={600} size="sm">
+                            Partition By:
+                        </Text>
+                        <Text size="sm">
+                            {template.partitionBy
+                                .map((fieldId) => getLabel(fieldId))
+                                .join(', ')}
+                        </Text>
+                    </Group>
+                )}
         </Stack>
     );
 };
