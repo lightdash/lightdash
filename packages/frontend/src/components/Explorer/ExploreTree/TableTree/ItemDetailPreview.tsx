@@ -93,7 +93,7 @@ export const ItemDetailPreview: FC<{
                 <>
                     <Group spacing="xs" position="apart">
                         <Text fz="sm" fw={500} c="dark.7">
-                            {metricInfo.name} xx
+                            {metricInfo.name}
                         </Text>
                         <Badge
                             radius="sm"
@@ -104,7 +104,7 @@ export const ItemDetailPreview: FC<{
                                 border: `1px solid ${theme.colors.indigo[1]}`,
                             })}
                         >
-                            {friendlyName(metricInfo.type)} yy
+                            {friendlyName(metricInfo.type)}
                         </Badge>
                     </Group>
                 </>

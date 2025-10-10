@@ -23,8 +23,7 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
         dispatch(explorerActions.closeItemDetail());
     }, [dispatch]);
 
-    // Render header based on item type
-    const renderHeader = () => {
+    const renderHeader = useCallback(() => {
         if (!itemDetail.itemType || !itemDetail.label) return null;
 
         switch (itemDetail.itemType) {
@@ -61,19 +60,18 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
             default:
                 return null;
         }
-    };
+    }, [itemDetail.itemType, itemDetail.label, itemDetail.fieldItem]);
 
-    // Render detail content
-    const renderDetail = () => {
+    const renderDetail = useCallback(() => {
         if (itemDetail.description) {
             return <ItemDetailMarkdown source={itemDetail.description} />;
         }
         return <Text color="gray">No description available.</Text>;
-    };
+    }, [itemDetail.description]);
 
     return (
         <>
-            {itemDetail.isOpen && itemDetail.itemType && itemDetail.label && (
+            {itemDetail.isOpen && (
                 <Modal
                     p="xl"
                     size="lg"
