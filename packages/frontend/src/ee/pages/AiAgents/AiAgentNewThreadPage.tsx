@@ -42,7 +42,6 @@ const AiAgentNewThreadPage = () => {
                     <Stack align="center" gap="xxs">
                         <LightdashUserAvatar
                             size="lg"
-                            variant="filled"
                             name={agent.name || 'AI'}
                             src={agent.imageUrl}
                         />

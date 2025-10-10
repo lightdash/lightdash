@@ -40,7 +40,6 @@ export const AgentSelector = ({
             leftSection={
                 <LightdashUserAvatar
                     size={22}
-                    variant="filled"
                     name={selectedAgent.name}
                     src={selectedAgent.imageUrl}
                 />

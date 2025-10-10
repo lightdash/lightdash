@@ -20,7 +20,6 @@ export const renderSelectOption = ({
     <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
         <LightdashUserAvatar
             size={20}
-            variant="filled"
             name={option.label}
             src={option.imageUrl}
         />

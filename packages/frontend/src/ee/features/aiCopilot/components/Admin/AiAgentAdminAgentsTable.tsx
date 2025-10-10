@@ -142,7 +142,6 @@ const AiAgentAdminAgentsTable = () => {
                             <Group gap="two" wrap="nowrap">
                                 <LightdashUserAvatar
                                     size={16}
-                                    variant="filled"
                                     name={agent.name}
                                     src={agent.imageUrl}
                                 />
