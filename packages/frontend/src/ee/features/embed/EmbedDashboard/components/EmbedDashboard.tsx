@@ -2,12 +2,12 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     getItemId,
-    type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { useLocation, useNavigate } from 'react-router';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
@@ -134,8 +134,12 @@ const EmbedDashboard: FC<{
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
 
-    const { embedToken, filters } = useEmbed();
+    const { embedToken, filters, mode } = useEmbed();
+    const navigate = useNavigate();
+    const { pathname, search } = useLocation();
 
     const sdkDashboardFilters = useMemo(() => {
         if (
@@ -213,9 +217,6 @@ const EmbedDashboard: FC<{
             [dashboard],
         ) || false;
 
-    // Tab state
-    const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
-
     // Sort tabs by order
     const sortedTabs = useMemo(() => {
         if (!dashboard?.tabs || dashboard.tabs.length === 0) {
@@ -224,12 +225,16 @@ const EmbedDashboard: FC<{
         return dashboard.tabs.sort((a, b) => a.order - b.order);
     }, [dashboard?.tabs]);
 
-    // Set active tab to first tab if no active tab is set
+    // Set active tab to first tab if no active tab is set and no tab in URL
     useEffect(() => {
-        if (sortedTabs.length > 0 && !activeTab) {
+        if (
+            sortedTabs.length > 0 &&
+            !activeTab &&
+            !pathname.includes('/tabs/')
+        ) {
             setActiveTab(sortedTabs[0]);
         }
-    }, [sortedTabs, activeTab]);
+    }, [sortedTabs, activeTab, pathname, setActiveTab]);
 
     // Filter tiles by active tab
     const filteredTiles = useMemo(() => {
@@ -341,10 +346,32 @@ const EmbedDashboard: FC<{
             {tabsEnabled ? (
                 <Tabs
                     value={activeTab?.uuid}
-                    onTabChange={(e) => {
-                        const tab = sortedTabs.find((t) => t.uuid === e);
+                    onTabChange={(tabUuid) => {
+                        const tab = sortedTabs.find((t) => t.uuid === tabUuid);
                         if (tab) {
                             setActiveTab(tab);
+
+                            // Only sync URL in direct mode when user explicitly changes tab
+                            if (mode === 'direct') {
+                                const newParams = new URLSearchParams(search);
+                                const currentPath = pathname;
+
+                                // Update URL to include tab UUID
+                                const newPath = currentPath.includes('/tabs/')
+                                    ? currentPath.replace(
+                                          /\/tabs\/[^/]+$/,
+                                          `/tabs/${tab.uuid}`,
+                                      )
+                                    : `${currentPath}/tabs/${tab.uuid}`;
+
+                                void navigate(
+                                    {
+                                        pathname: newPath,
+                                        search: newParams.toString(),
+                                    },
+                                    { replace: true },
+                                );
+                            }
                         }
                     }}
                     mt="md"

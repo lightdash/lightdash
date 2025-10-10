@@ -169,6 +169,7 @@ const Dashboard: FC<Props> = ({
                 filters={filters}
                 contentOverrides={contentOverrides}
                 onExplore={onExplore}
+                mode="sdk"
             >
                 <EmbedDashboard
                     containerStyles={{
@@ -241,6 +242,7 @@ const Explore: FC<Props & { exploreId: string; savedChart: SavedChart }> = ({
                 filters={filters}
                 contentOverrides={contentOverrides}
                 onExplore={onExplore}
+                mode="sdk"
             >
                 <EmbedExplore
                     exploreId={exploreId}

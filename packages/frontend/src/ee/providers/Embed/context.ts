@@ -11,6 +11,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     onExplore: (_options: { chart: SavedChart }) => {},
     savedChart: undefined,
     onBackToDashboard: undefined,
+    mode: 'direct',
 });
 
 export default EmbedProviderContext;

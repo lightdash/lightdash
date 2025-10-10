@@ -65,6 +65,7 @@ const DashboardProvider: React.FC<
         embedToken?: string;
         dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
         defaultInvalidateCache?: boolean;
+        embedMode?: 'sdk' | 'direct';
     }>
 > = ({
     schedulerFilters,
@@ -74,6 +75,7 @@ const DashboardProvider: React.FC<
     embedToken,
     dashboardCommentsCheck,
     defaultInvalidateCache,
+    embedMode,
     children,
 }) => {
     const { search, pathname } = useLocation();
@@ -418,7 +420,12 @@ const DashboardProvider: React.FC<
         useState<Set<string>>();
 
     // Update dashboard url date zoom change
+    // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
     useEffect(() => {
+        if (embedMode === 'sdk') {
+            return;
+        }
+
         const newParams = new URLSearchParams(search);
         if (dateZoomGranularity === undefined) {
             newParams.delete('dateZoom');
@@ -433,7 +440,7 @@ const DashboardProvider: React.FC<
             },
             { replace: true },
         );
-    }, [dateZoomGranularity, search, navigate, pathname]);
+    }, [dateZoomGranularity, search, navigate, pathname, embedMode]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -490,8 +497,15 @@ const DashboardProvider: React.FC<
     }, [dashboard, dashboardFilters, overridesForSavedDashboardFilters]);
 
     // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
+    // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
     useDeepCompareEffect(() => {
+        if (embedMode === 'sdk') {
+            return;
+        }
+
+        const currentParams = new URLSearchParams(search);
         const newParams = new URLSearchParams(search);
+
         if (
             dashboardTemporaryFilters?.dimensions?.length === 0 &&
             dashboardTemporaryFilters?.metrics?.length === 0
@@ -519,13 +533,18 @@ const DashboardProvider: React.FC<
             );
         }
 
-        void navigate(
-            {
-                pathname,
-                search: newParams.toString(),
-            },
-            { replace: true },
-        );
+        // Only navigate if search params actually changed
+        const newSearch = newParams.toString();
+        const currentSearch = currentParams.toString();
+        if (newSearch !== currentSearch) {
+            void navigate(
+                {
+                    pathname,
+                    search: newSearch,
+                },
+                { replace: true },
+            );
+        }
     }, [
         dashboardFilters,
         dashboardTemporaryFilters,
@@ -533,6 +552,7 @@ const DashboardProvider: React.FC<
         pathname,
         overridesForSavedDashboardFilters,
         search,
+        embedMode,
     ]);
 
     useEffect(() => {

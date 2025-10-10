@@ -1,8 +1,11 @@
 import {
+    CreateDashboard,
     CreateEmbedJwt,
+    DashboardTileTypes,
     FilterInteractivityValues,
     SEED_PROJECT,
 } from '@lightdash/common';
+import { createDashboard } from '../api/dashboard.cy';
 import { updateEmbedConfigDashboards } from '../api/embedManagement.cy';
 
 const getEmbedUrl = (body: CreateEmbedJwt) =>
@@ -161,5 +164,211 @@ describe('Embedded dashboard', () => {
                 });
             });
         });
+    });
+
+    it('URL syncs for dashboard filters in direct mode', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        dashboardFiltersInteractivity: {
+                            enabled: FilterInteractivityValues.all,
+                        },
+                    },
+                }).then((resp) => {
+                    cy.logout();
+                    cy.visit(resp.body.results.url);
+
+                    // Wait for dashboard to load
+                    cy.contains('Welcome to Lightdash!');
+
+                    // Verify initial URL has no filter params
+                    cy.url().should('not.include', 'tempFilters=');
+                    cy.url().should('not.include', 'filters=');
+
+                    // Add a temporary filter
+                    cy.contains('Add filter').click();
+                    cy.findByTestId('FilterConfiguration/FieldSelect')
+                        .click()
+                        .type('payment method{downArrow}{enter}');
+                    cy.findByPlaceholderText(
+                        'Start typing to filter results',
+                    ).type('credit_card');
+                    cy.findByRole('option', { name: 'credit_card' }).click();
+                    cy.findAllByRole('tab').eq(0).click();
+                    cy.contains('button', 'Apply').click({ force: true });
+
+                    // Verify URL contains tempFilters param
+                    cy.url().should('include', 'tempFilters=');
+                    cy.url().should('include', 'credit_card');
+
+                    // Verify filter persists on reload
+                    cy.reload();
+                    cy.contains('Payment method is credit_card');
+
+                    // Remove the filter
+                    cy.contains('Payment method is credit_card')
+                        .parent()
+                        .findByLabelText('Remove filter')
+                        .click();
+
+                    // Verify URL no longer contains tempFilters param
+                    cy.url().should('not.include', 'tempFilters=');
+                });
+            });
+        });
+    });
+
+    it('URL syncs for date zoom in direct mode', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        canDateZoom: true,
+                    },
+                }).then((resp) => {
+                    cy.logout();
+                    cy.visit(resp.body.results.url);
+
+                    // Wait for dashboard to load
+                    cy.contains('Welcome to Lightdash!');
+
+                    // Verify initial URL has no dateZoom param
+                    cy.url().should('not.include', 'dateZoom=');
+
+                    // Check that Date Zoom dropdown is visible
+                    cy.contains('Date Zoom').should('be.visible');
+
+                    // Click the Date Zoom dropdown
+                    cy.contains('Date Zoom').click();
+
+                    // Select a granularity (e.g., Month)
+                    cy.contains('Month').click();
+
+                    // Verify URL contains dateZoom param
+                    cy.url().should('include', 'dateZoom=month');
+
+                    // Verify date zoom persists on reload
+                    cy.reload();
+                    cy.url().should('include', 'dateZoom=month');
+
+                    // Clear date zoom by selecting "None"
+                    cy.contains('Date Zoom').click();
+                    cy.contains('None').click();
+
+                    // Verify URL no longer contains dateZoom param
+                    cy.url().should('not.include', 'dateZoom=');
+                });
+            });
+        });
+    });
+
+    it('URL syncs for tabs in direct mode', () => {
+        const dashboardName = `Test Dashboard with Tabs ${Date.now()}`;
+        const tab1Uuid = 'test-tab-1-uuid';
+        const tab2Uuid = 'test-tab-2-uuid';
+
+        // Create a dashboard with multiple tabs
+        const dashboardWithTabs: CreateDashboard = {
+            name: dashboardName,
+            tiles: [
+                {
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 0,
+                    y: 0,
+                    h: 3,
+                    w: 6,
+                    tabUuid: tab1Uuid,
+                    properties: {
+                        title: 'Tab 1 Content',
+                        content: 'This is content for tab 1',
+                    },
+                },
+                {
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 0,
+                    y: 0,
+                    h: 3,
+                    w: 6,
+                    tabUuid: tab2Uuid,
+                    properties: {
+                        title: 'Tab 2 Content',
+                        content: 'This is content for tab 2',
+                    },
+                },
+            ],
+            tabs: [
+                { uuid: tab1Uuid, name: 'First Tab', order: 0 },
+                { uuid: tab2Uuid, name: 'Second Tab', order: 1 },
+            ],
+        };
+
+        createDashboard(SEED_PROJECT.project_uuid, dashboardWithTabs).then(
+            (newDashboard) => {
+                updateEmbedConfigDashboards([newDashboard.uuid]).then(
+                    (updateResp) => {
+                        expect(updateResp.status).to.eq(200);
+
+                        getEmbedUrl({
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: newDashboard.uuid,
+                            },
+                        }).then((resp) => {
+                            cy.logout();
+                            cy.visit(resp.body.results.url);
+
+                            // Wait for dashboard to load
+                            cy.contains('First Tab').should('be.visible');
+
+                            // Verify initial URL doesn't include /tabs/ route
+                            cy.url().should('not.include', '/tabs/');
+
+                            // Verify first tab content is visible
+                            cy.contains('Tab 1 Content').should('be.visible');
+
+                            // Click on the second tab
+                            cy.contains('Second Tab').click();
+
+                            // Verify URL updates to include the second tab UUID
+                            cy.url().should('include', `/tabs/${tab2Uuid}`);
+
+                            // Verify second tab content is visible
+                            cy.contains('Tab 2 Content').should('be.visible');
+
+                            // Verify first tab content is not visible
+                            cy.contains('Tab 1 Content').should('not.exist');
+
+                            // Click back to the first tab
+                            cy.contains('First Tab').click();
+
+                            // Verify URL updates to include the first tab UUID
+                            cy.url().should('include', `/tabs/${tab1Uuid}`);
+
+                            // Verify first tab content is visible again
+                            cy.contains('Tab 1 Content').should('be.visible');
+
+                            // Verify second tab content is not visible
+                            cy.contains('Tab 2 Content').should('not.exist');
+
+                            // Clean up
+                            cy.deleteDashboardsByName([dashboardName]);
+                        });
+                    },
+                );
+            },
+        );
     });
 });

@@ -31,6 +31,14 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 ),
             },
             {
+                path: '/embed/:projectUuid/tabs/:tabUuid',
+                element: (
+                    <TrackPage name={PageName.EMBED_DASHBOARD}>
+                        <EmbedDashboard />
+                    </TrackPage>
+                ),
+            },
+            {
                 path: '/embed/:projectUuid/explore/:exploreId',
                 element: (
                     <TrackPage name={PageName.EMBED_EXPLORE}>

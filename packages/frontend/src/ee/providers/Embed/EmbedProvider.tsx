@@ -10,7 +10,7 @@ import {
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import EmbedProviderContext from './context';
-import { EMBED_KEY, type InMemoryEmbed } from './types';
+import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
 type Props = {
     embedToken?: string;
@@ -21,6 +21,7 @@ type Props = {
     onExplore?: (options: { chart: SavedChart }) => void;
     onBackToDashboard?: () => void;
     savedChart?: SavedChart;
+    mode?: EmbedMode;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -32,6 +33,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onExplore,
     onBackToDashboard,
     savedChart,
+    mode = 'direct',
 }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
@@ -71,6 +73,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             onExplore,
             savedChart,
             onBackToDashboard,
+            mode,
         };
     }, [
         embed?.projectUuid,
@@ -82,6 +85,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         onExplore,
         savedChart,
         onBackToDashboard,
+        mode,
     ]);
 
     return (

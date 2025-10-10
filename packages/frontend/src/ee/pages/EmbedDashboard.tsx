@@ -13,7 +13,7 @@ const EmbedDashboardPage: FC<{
         projectUuid?: string;
     }>();
 
-    const { embedToken, projectUuid: projectUuidFromEmbed } = useEmbed();
+    const { embedToken, projectUuid: projectUuidFromEmbed, mode } = useEmbed();
 
     const projectUuid = projectUuidFromEmbed ?? projectUuidFromParams;
 
@@ -29,7 +29,11 @@ const EmbedDashboardPage: FC<{
     }
 
     return (
-        <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
+        <DashboardProvider
+            embedToken={embedToken}
+            projectUuid={projectUuid}
+            embedMode={mode}
+        >
             <EmbedDashboard containerStyles={containerStyles} />
         </DashboardProvider>
     );
