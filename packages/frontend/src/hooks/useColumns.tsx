@@ -115,9 +115,11 @@ const formatBarDisplayCell = (
     }
 
     // Get min/max from minMaxMap (same as conditional formatting)
-    // Use baseFieldId for pivot tables to get the correct min/max values
-    const min = minMaxMap[baseFieldId]?.min ?? 0;
-    const max = minMaxMap[baseFieldId]?.max ?? 100;
+    // For pivot tables, try baseFieldId first so all pivoted versions share the same scale
+    // Fall back to columnId for individual column scales
+    const minMax = minMaxMap[baseFieldId] ?? minMaxMap[columnId];
+    const min = minMax?.min ?? 0;
+    const max = minMax?.max ?? 100;
 
     return renderBarChartDisplay({
         value,
