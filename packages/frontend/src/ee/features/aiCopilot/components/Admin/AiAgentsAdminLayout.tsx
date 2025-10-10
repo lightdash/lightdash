@@ -130,70 +130,13 @@ export const AiAgentsAdminLayout = () => {
                                     : 'View and manage AI Agents'}
                             </Text>
                         </Box>
-                        <Group>
-                            <AiAgentsAdminEnableFeatureToggle
-                                enabled={settings?.aiAgentsVisible}
-                            />
-                            <SegmentedControl
-                                size="xs"
-                                radius="md"
-                                value={activeTab}
-                                onChange={(value) => {
-                                    if (value === 'agents') {
-                                        handleCloseSidebar();
-                                    }
-                                    void navigate(`/ai-agents/admin/${value}`);
-                                }}
-                                data={[
-                                    {
-                                        value: 'threads',
-                                        label: (
-                                            <Group gap="xs" wrap="nowrap">
-                                                <MantineIcon
-                                                    icon={IconMessageCircle}
-                                                />
-                                                <Text fz="sm">Threads</Text>
-                                            </Group>
-                                        ),
-                                    },
-                                    {
-                                        value: 'agents',
-                                        label: (
-                                            <Group gap="xs" wrap="nowrap">
-                                                <MantineIcon
-                                                    icon={IconRobotFace}
-                                                />
-                                                <Text fz="sm">Agents</Text>
-                                            </Group>
-                                        ),
-                                    },
-                                ]}
-                            />
-                            {activeTab === 'threads' && (
-                                <LinkButton
-                                    href="/ai-agents"
-                                    leftIcon={IconMessageCircleShare}
-                                    variant="default"
-                                    radius="md"
-                                >
-                                    New Thread
-                                </LinkButton>
-                            )}
-                            {activeTab === 'agents' && (
-                                <LinkButton
-                                    href="/ai-agents/new"
-                                    leftIcon={IconRobotFace}
-                                    variant="default"
-                                    radius="md"
-                                >
-                                    New Agent
-                                </LinkButton>
-                            )}
-                        </Group>
+                        <AiAgentsAdminEnableFeatureToggle
+                            enabled={settings?.aiAgentsVisible}
+                        />
                     </Group>
 
                     {settings?.aiAgentsVisible === false && (
-                        <Paper mb="md">
+                        <Paper my="md">
                             <Alert
                                 icon={<IconInfoCircle />}
                                 radius="md"
@@ -210,6 +153,63 @@ export const AiAgentsAdminLayout = () => {
                             </Alert>
                         </Paper>
                     )}
+
+                    <Group justify="space-between" my="sm">
+                        <SegmentedControl
+                            size="xs"
+                            radius="md"
+                            value={activeTab}
+                            onChange={(value) => {
+                                if (value === 'agents') {
+                                    handleCloseSidebar();
+                                }
+                                void navigate(`/ai-agents/admin/${value}`);
+                            }}
+                            data={[
+                                {
+                                    value: 'threads',
+                                    label: (
+                                        <Group gap="xs" wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconMessageCircle}
+                                            />
+                                            <Text fz="sm">Threads</Text>
+                                        </Group>
+                                    ),
+                                },
+                                {
+                                    value: 'agents',
+                                    label: (
+                                        <Group gap="xs" wrap="nowrap">
+                                            <MantineIcon icon={IconRobotFace} />
+                                            <Text fz="sm">Agents</Text>
+                                        </Group>
+                                    ),
+                                },
+                            ]}
+                        />
+                        {activeTab === 'threads' && (
+                            <LinkButton
+                                href="/ai-agents"
+                                leftIcon={IconMessageCircleShare}
+                                variant="default"
+                                radius="md"
+                            >
+                                New Thread
+                            </LinkButton>
+                        )}
+                        {activeTab === 'agents' && (
+                            <LinkButton
+                                href="/ai-agents/new"
+                                leftIcon={IconRobotFace}
+                                variant="default"
+                                radius="md"
+                            >
+                                New Agent
+                            </LinkButton>
+                        )}
+                    </Group>
+
                     {activeTab === 'threads' ? (
                         <AiAgentAdminThreadsTable
                             onThreadSelect={handleThreadSelect}
