@@ -48,7 +48,7 @@ export class AiOrganizationSettingsService {
         if (!settings) {
             return {
                 organizationUuid: user.organizationUuid,
-                aiAgentsVisible: false,
+                aiAgentsVisible: true,
             };
         }
 
