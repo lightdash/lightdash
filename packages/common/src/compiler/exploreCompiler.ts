@@ -27,6 +27,7 @@ import {
 } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
+import { expandFieldsWithSets } from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
@@ -183,6 +184,15 @@ export class ExploreCompiler {
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
 
+                // Expand field sets if join.fields contains set references
+                let expandedFields: string[] | undefined;
+                if (join.fields) {
+                    expandedFields = expandFieldsWithSets(
+                        join.fields,
+                        tables[join.table],
+                    );
+                }
+
                 const requiredDimensionsForJoin = parseAllReferences(
                     join.sqlOn,
                     join.table,
@@ -214,17 +224,17 @@ export class ExploreCompiler {
                             const isTimeIntervalBaseDimensionVisible =
                                 dimension.timeInterval &&
                                 dimension.timeIntervalBaseDimensionName &&
-                                join.fields
-                                    ? join.fields.includes(
+                                expandedFields
+                                    ? expandedFields.includes(
                                           dimension.timeIntervalBaseDimensionName,
                                       )
                                     : false;
 
                             const isVisible =
-                                join.fields === undefined ||
-                                join.fields.includes(dimensionKey) ||
+                                expandedFields === undefined ||
+                                expandedFields.includes(dimensionKey) ||
                                 (dimension.group !== undefined &&
-                                    join.fields.includes(dimension.group)) ||
+                                    expandedFields.includes(dimension.group)) ||
                                 isTimeIntervalBaseDimensionVisible;
 
                             if (isRequired || isVisible) {
@@ -243,8 +253,8 @@ export class ExploreCompiler {
                         metrics: Object.keys(tables[join.table].metrics)
                             .filter(
                                 (d) =>
-                                    join.fields === undefined ||
-                                    join.fields.includes(d),
+                                    expandedFields === undefined ||
+                                    expandedFields.includes(d),
                             )
                             .reduce<Record<string, Metric>>(
                                 (prevMetrics, metricKey) => {
@@ -410,7 +420,24 @@ export class ExploreCompiler {
             tables,
             availableParameters,
         );
-        metric.showUnderlyingValues?.forEach((fieldRef) => {
+
+        // Expand field sets in show_underlying_values
+        let expandedShowUnderlyingValues = metric.showUnderlyingValues || [];
+        const shouldExpandSetFields =
+            expandedShowUnderlyingValues.length > 0 &&
+            expandedShowUnderlyingValues.some((field) => field.endsWith('*'));
+        if (shouldExpandSetFields) {
+            const currentTable = tables[metric.table];
+
+            if (currentTable) {
+                expandedShowUnderlyingValues = expandFieldsWithSets(
+                    [...expandedShowUnderlyingValues],
+                    currentTable,
+                );
+            }
+        }
+
+        expandedShowUnderlyingValues.forEach((fieldRef) => {
             const { refTable, refName } = getParsedReference(
                 fieldRef,
                 metric.table,
@@ -453,6 +480,7 @@ export class ExploreCompiler {
         return {
             ...metric,
             compiledSql,
+            showUnderlyingValues: expandedShowUnderlyingValues,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }

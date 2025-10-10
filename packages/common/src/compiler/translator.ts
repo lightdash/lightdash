@@ -339,6 +339,86 @@ function normalizePrimaryKey(
     return undefined;
 }
 
+function validateSets(
+    dimensions: Record<string, Dimension>,
+    allMetrics: Record<string, Metric>,
+    model: DbtModelNode,
+    meta: DbtModelNode['meta'],
+) {
+    const allFieldNames = new Set([
+        ...Object.keys(dimensions),
+        ...Object.keys(allMetrics),
+    ]);
+
+    if (!meta.sets) return;
+
+    Object.entries(meta.sets).forEach(([setName, setDef]) => {
+        // Validate set name doesn't conflict with field names
+        if (allFieldNames.has(setName)) {
+            throw new ParseError(
+                `Set name "${setName}" in model "${model.name}" conflicts with an existing field name. Set names must be unique from dimension and metric names.`,
+            );
+        }
+
+        // Validate set definition structure
+        if (!setDef.fields || !Array.isArray(setDef.fields)) {
+            throw new ParseError(
+                `Set "${setName}" in model "${model.name}" must have a "fields" array`,
+            );
+        }
+
+        if (setDef.fields.length === 0) {
+            throw new ParseError(
+                `Set "${setName}" in model "${model.name}" cannot be empty`,
+            );
+        }
+
+        // Validate field names don't have invalid characters
+        setDef.fields.forEach((field) => {
+            if (typeof field !== 'string') {
+                throw new ParseError(
+                    `Set "${setName}" in model "${model.name}" contains non-string field: ${field}`,
+                );
+            }
+
+            // Allow field references ending with * (set references)
+            // Allow field references starting with - (exclusions)
+            const cleanField = field.replace(/^-/, '').replace(/\*$/, '');
+
+            // Validate that the clean field name follows the lightdash variable pattern
+            // (letters, numbers, underscores, and dots only)
+            if (cleanField && !/^[a-zA-Z0-9_.]+$/.test(cleanField)) {
+                throw new ParseError(
+                    `Set "${setName}" in model "${model.name}" contains invalid field name "${field}". Field names must contain only letters, numbers, underscores, and dots.`,
+                );
+            }
+
+            // Validate one-level nesting: if this set references another set,
+            // the referenced set cannot itself contain set references
+            if (field.endsWith('*') && !field.startsWith('-')) {
+                const referencedSetName = field.substring(0, field.length - 1);
+                const referencedSet = meta.sets?.[referencedSetName];
+
+                if (referencedSet) {
+                    // Check if the referenced set contains any set references
+                    const hasNestedSetReferences = referencedSet.fields.some(
+                        (f) =>
+                            typeof f === 'string' &&
+                            f.endsWith('*') &&
+                            !f.startsWith('-'),
+                    );
+
+                    if (hasNestedSetReferences) {
+                        throw new ParseError(
+                            `Set "${setName}" in model "${model.name}" references set "${referencedSetName}", which itself contains set references. Only one level of set nesting is allowed.`,
+                        );
+                    }
+                }
+            }
+        });
+    });
+}
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -585,6 +665,10 @@ export const convertTable = (
         });
     }
 
+    if (meta.sets) {
+        validateSets(dimensions, allMetrics, model, meta);
+    }
+
     const sqlTable = meta.sql_from || model.relation_name;
     return {
         name: model.name,
@@ -621,6 +705,7 @@ export const convertTable = (
             : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
+        ...(meta.sets ? { sets: meta.sets } : {}),
     };
 };
 
