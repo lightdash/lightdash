@@ -19,8 +19,8 @@ import {
     toolFindChartsArgsSchema,
     ToolFindDashboardsArgs,
     toolFindDashboardsArgsSchema,
-    ToolFindExploresArgs,
-    toolFindExploresArgsSchema,
+    toolFindExploresArgsSchemaV2,
+    ToolFindExploresArgsV2,
     ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
     ToolRunMetricQueryArgs,
@@ -237,13 +237,13 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_EXPLORES,
             {
-                description: toolFindExploresArgsSchema.description,
+                description: toolFindExploresArgsSchemaV2.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindExploresArgsSchema,
+                    toolFindExploresArgsSchemaV2,
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolFindExploresArgs;
+                const args = _args as ToolFindExploresArgsV2;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -836,7 +836,7 @@ export class McpService extends BaseService {
     }
 
     async getFindExploresFunction(
-        toolArgs: ToolFindExploresArgs & { projectUuid: string },
+        toolArgs: ToolFindExploresArgsV2 & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindExploresFn> {
         const { user, account } = context.authInfo!.extra;
