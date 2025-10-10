@@ -106,9 +106,25 @@ const ToolCallDescription: FC<{
 
     switch (toolArgs.type) {
         case 'find_explores':
+        case 'find_explores_v2':
             return (
                 <Text c="dimmed" size="xs">
-                    Searched relevant explores
+                    Searched relevant explores{' '}
+                    {toolArgs.exploreName && (
+                        <Badge
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            mx={rem(2)}
+                            radius="sm"
+                            style={{
+                                textTransform: 'none',
+                                fontWeight: 400,
+                            }}
+                        >
+                            {toolArgs.exploreName}
+                        </Badge>
+                    )}
                 </Text>
             );
         case 'find_fields':

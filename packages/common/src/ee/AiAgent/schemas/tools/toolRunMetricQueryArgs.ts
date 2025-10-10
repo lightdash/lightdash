@@ -18,10 +18,10 @@ Usage Tips:
 - The query respects the same limits and permissions as other visualization tools
 `;
 
-export const toolRunMetricQueryArgsSchema = createToolSchema(
-    'run_metric_query',
-    TOOL_RUN_METRIC_QUERY_DESCRIPTION,
-)
+export const toolRunMetricQueryArgsSchema = createToolSchema({
+    type: 'run_metric_query',
+    description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
+})
     .extend({
         vizConfig: tableVizConfigSchema,
         customMetrics: customMetricsSchema,
