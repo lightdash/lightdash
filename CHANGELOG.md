@@ -1,3 +1,10 @@
+## [0.2071.4](https://github.com/lightdash/lightdash/compare/0.2071.3...0.2071.4) (2025-10-10)
+
+
+### Bug Fixes
+
+* downloading pivoted results for cartesian charts ([#17351](https://github.com/lightdash/lightdash/issues/17351)) ([98c3540](https://github.com/lightdash/lightdash/commit/98c35408c9e0d4d22eb86f2cb8cd3e0146255233))
+
 ## [0.2071.3](https://github.com/lightdash/lightdash/compare/0.2071.2...0.2071.3) (2025-10-10)
 
 
