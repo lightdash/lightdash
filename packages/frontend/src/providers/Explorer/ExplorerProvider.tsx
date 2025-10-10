@@ -679,13 +679,21 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
-    // Keep Redux table name in sync with Context state
     useEffect(() => {
         const contextTableName = reducerState.unsavedChartVersion.tableName;
-        if (contextTableName) {
-            reduxDispatch(explorerActions.setTableName(contextTableName));
+        const reduxTableName = unsavedChartVersionFromRedux.tableName;
+
+        if (contextTableName !== reduxTableName) {
+            dispatch({
+                type: ActionType.SET_TABLE_NAME,
+                payload: reduxTableName,
+            });
         }
-    }, [reducerState.unsavedChartVersion.tableName, reduxDispatch]);
+    }, [
+        unsavedChartVersionFromRedux.tableName,
+        reducerState.unsavedChartVersion.tableName,
+        dispatch,
+    ]);
 
     // Keep Redux dimensions in sync with Context dimensions
     useEffect(() => {
