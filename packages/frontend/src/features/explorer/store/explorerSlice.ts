@@ -173,6 +173,14 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.tableConfig.columnOrder.filter(
                     (fieldId) => fieldId !== fieldToRemove,
                 );
+
+            state.unsavedChartVersion.metricQuery.customDimensions = (
+                state.unsavedChartVersion.metricQuery.customDimensions || []
+            ).filter((cd) => cd.id !== fieldToRemove);
+
+            state.unsavedChartVersion.metricQuery.additionalMetrics = (
+                state.unsavedChartVersion.metricQuery.additionalMetrics || []
+            ).filter((am) => getItemId(am) !== fieldToRemove);
         },
 
         setRowLimit: (state, action: PayloadAction<number>) => {
@@ -443,6 +451,21 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.customDimensions =
                 state.unsavedChartVersion.metricQuery.customDimensions.filter(
                     (cd) => cd.id !== idToRemove,
+                );
+
+            state.unsavedChartVersion.metricQuery.dimensions =
+                state.unsavedChartVersion.metricQuery.dimensions.filter(
+                    (dimension) => dimension !== idToRemove,
+                );
+
+            state.unsavedChartVersion.metricQuery.sorts =
+                state.unsavedChartVersion.metricQuery.sorts.filter(
+                    (sort) => sort.fieldId !== idToRemove,
+                );
+
+            state.unsavedChartVersion.tableConfig.columnOrder =
+                state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                    (fieldId) => fieldId !== idToRemove,
                 );
         },
         setCustomDimensions: (

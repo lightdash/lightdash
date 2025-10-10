@@ -373,7 +373,7 @@ describe('ExplorerProvider reducer', () => {
     });
 
     describe('ADD_CUSTOM_DIMENSION', () => {
-        it('adds a custom dimension and updates dimensions/columnOrder', () => {
+        it('adds a custom dimension to customDimensions array', () => {
             const state = mockExplorerState();
 
             const newState = reducer(state, {
@@ -385,17 +385,14 @@ describe('ExplorerProvider reducer', () => {
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).toContainEqual(mockCustomDimension);
 
-            expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).toContain('custom-dim-1');
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toContain('custom-dim-1');
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
     });
 
     describe('EDIT_CUSTOM_DIMENSION', () => {
-        it('updates an existing custom dimension and updates dimension list', () => {
+        it('updates an existing custom dimension in customDimensions array', () => {
             const state = mockExplorerState({
                 unsavedChartVersion: {
                     ...mockExplorerState().unsavedChartVersion,
@@ -420,17 +417,17 @@ describe('ExplorerProvider reducer', () => {
             const newState = reducer(state, action);
 
             expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).toContain(getItemId(mockUpdatedDimension));
-
-            expect(
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).toContainEqual(mockUpdatedDimension);
+
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
     });
 
     describe('REMOVE_CUSTOM_DIMENSION', () => {
-        it('removes the dimension and updates sorts and column order', () => {
+        it('removes the dimension from customDimensions array', () => {
             const dimensionId = getItemId(mockCustomDimension);
             const state = mockExplorerState({
                 unsavedChartVersion: {
@@ -455,19 +452,12 @@ describe('ExplorerProvider reducer', () => {
             });
 
             expect(
-                newState.unsavedChartVersion.metricQuery.dimensions,
-            ).not.toContain(dimensionId);
-            expect(
-                newState.unsavedChartVersion.metricQuery.sorts,
-            ).not.toContainEqual(
-                expect.objectContaining({ fieldId: dimensionId }),
-            );
-            expect(
                 newState.unsavedChartVersion.metricQuery.customDimensions,
             ).not.toContainEqual(mockCustomDimension);
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).not.toContain(dimensionId);
+
+            // NOTE: dimensions, sorts, and columnOrder are now managed in Redux
+            // Context reducer only manages customDimensions array
+            // The Context action dispatches to Redux separately
         });
 
         it('does nothing if dimension is not present', () => {

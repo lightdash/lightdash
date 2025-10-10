@@ -182,54 +182,13 @@ export function reducer(
                         .customDimensions || []),
                     newCustomDimension,
                 ];
-
-                const customDimensionId = getItemId(newCustomDimension);
-                if (
-                    !draft.unsavedChartVersion.metricQuery.dimensions.includes(
-                        customDimensionId,
-                    )
-                ) {
-                    draft.unsavedChartVersion.metricQuery.dimensions.push(
-                        customDimensionId,
-                    );
-                }
-
-                const dimensionIds =
-                    draft.unsavedChartVersion.metricQuery.dimensions;
-                const metricIds = draft.unsavedChartVersion.metricQuery.metrics;
-                const calcIds =
-                    draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        ({ name }) => name,
-                    );
-
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    calcColumnOrder(
-                        draft.unsavedChartVersion.tableConfig.columnOrder,
-                        [...dimensionIds, ...metricIds, ...calcIds],
-                    );
             });
         }
 
         case ActionType.EDIT_CUSTOM_DIMENSION: {
-            //The id of the custom dimension changes on edit if the name was updated, so we need to update the dimension array
             return produce(state, (draft) => {
                 const { previousCustomDimensionId, customDimension } =
                     action.payload;
-                const newCustomDimensionId = getItemId(customDimension);
-
-                draft.unsavedChartVersion.metricQuery.dimensions =
-                    draft.unsavedChartVersion.metricQuery.dimensions.filter(
-                        (dimension) => dimension !== previousCustomDimensionId,
-                    );
-                if (
-                    !draft.unsavedChartVersion.metricQuery.dimensions.includes(
-                        newCustomDimensionId,
-                    )
-                ) {
-                    draft.unsavedChartVersion.metricQuery.dimensions.push(
-                        newCustomDimensionId,
-                    );
-                }
 
                 draft.unsavedChartVersion.metricQuery.customDimensions =
                     draft.unsavedChartVersion.metricQuery.customDimensions?.map(
@@ -250,18 +209,8 @@ export function reducer(
                     (customDimension) =>
                         getItemId(customDimension) !== dimensionIdToRemove,
                 );
-                draft.unsavedChartVersion.metricQuery.dimensions =
-                    draft.unsavedChartVersion.metricQuery.dimensions.filter(
-                        (dimension) => dimension !== dimensionIdToRemove,
-                    );
-                draft.unsavedChartVersion.metricQuery.sorts =
-                    draft.unsavedChartVersion.metricQuery.sorts.filter(
-                        (sort) => sort.fieldId !== dimensionIdToRemove,
-                    );
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    draft.unsavedChartVersion.tableConfig.columnOrder.filter(
-                        (fieldId) => fieldId !== dimensionIdToRemove,
-                    );
+                // NOTE: dimensions, sorts, and columnOrder are managed in Redux
+                // The Context action will dispatch to Redux separately
             });
         }
 
@@ -1072,7 +1021,7 @@ const ExplorerProvider: FC<
                 type: ActionType.REMOVE_CUSTOM_DIMENSION,
                 payload: key,
             });
-            // Sync to Redux for components that have been migrated
+            // Also dispatch to Redux to update dimensions/sorts/columnOrder
             reduxDispatch(explorerActions.removeCustomDimension(key));
         },
         [reduxDispatch],
