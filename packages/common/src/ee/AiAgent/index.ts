@@ -10,6 +10,7 @@ import type {
     ToolDashboardArgs,
     ToolName,
     ToolProposeChangeOutput,
+    ToolRunQueryArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -25,6 +26,8 @@ export * from './requestTypes';
 export * from './schemas';
 export * from './types';
 export * from './utils';
+export * from './utils/chartConfigUtils';
+export * from './validators';
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -363,6 +366,7 @@ export type AiArtifact = {
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
+        | ToolRunQueryArgs
         | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;

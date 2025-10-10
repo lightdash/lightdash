@@ -9,6 +9,7 @@ export const followUpToolsText: FollowUpToolsText = {
     [AiResultType.TABLE_RESULT]: 'Generate a Table',
     [AiResultType.VERTICAL_BAR_RESULT]: 'Generate a Bar Chart',
     [AiResultType.TIME_SERIES_RESULT]: 'Generate a Time Series Chart',
+    [AiResultType.QUERY_RESULT]: 'Run Query',
     [AiResultType.DASHBOARD_RESULT]: 'Generate a Dashboard',
     [AiResultType.IMPROVE_CONTEXT]: 'Improve Context',
     [AiResultType.PROPOSE_CHANGE]: 'Propose a Change',
