@@ -1,3 +1,15 @@
+# [0.2074.0](https://github.com/lightdash/lightdash/compare/0.2073.0...0.2074.0) (2025-10-10)
+
+
+### Features
+
+* ai feature visibility defaults to true ([#17380](https://github.com/lightdash/lightdash/issues/17380)) ([e670e2c](https://github.com/lightdash/lightdash/commit/e670e2cbdeb318577f23299242436ffbb2905a64))
+* ai organization settings crud ([#17353](https://github.com/lightdash/lightdash/issues/17353)) ([35b80f5](https://github.com/lightdash/lightdash/commit/35b80f5fa614fcec68debb90a669ce202fdf2c6e))
+* create ai_organization_settings table ([#17352](https://github.com/lightdash/lightdash/issues/17352)) ([753c4ae](https://github.com/lightdash/lightdash/commit/753c4aea28f756dbde5b80a67b96aa264728cbd9))
+* enable ai visibility in admin panel ([#17355](https://github.com/lightdash/lightdash/issues/17355)) ([f0677cf](https://github.com/lightdash/lightdash/commit/f0677cf575cdc831c76599eb082665eebd7ad455))
+* improve ai admin panel buttons hierarchy ([#17375](https://github.com/lightdash/lightdash/issues/17375)) ([2a7e1a9](https://github.com/lightdash/lightdash/commit/2a7e1a95d2415bddb983eacd914c1dd230ee4c96))
+* use settings to display ai agent feature ([#17357](https://github.com/lightdash/lightdash/issues/17357)) ([b17c30c](https://github.com/lightdash/lightdash/commit/b17c30c1df0e63063ed41d5da33e2b79ff71c760))
+
 # [0.2073.0](https://github.com/lightdash/lightdash/compare/0.2072.1...0.2073.0) (2025-10-10)
 
 
