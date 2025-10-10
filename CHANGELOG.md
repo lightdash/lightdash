@@ -1,3 +1,10 @@
+## [0.2071.3](https://github.com/lightdash/lightdash/compare/0.2071.2...0.2071.3) (2025-10-10)
+
+
+### Bug Fixes
+
+* error when filtering by metric with fanout ([#17356](https://github.com/lightdash/lightdash/issues/17356)) ([00c4af2](https://github.com/lightdash/lightdash/commit/00c4af268a124c28a5ed0dbc90677ce55ff4866d))
+
 ## [0.2071.2](https://github.com/lightdash/lightdash/compare/0.2071.1...0.2071.2) (2025-10-09)
 
 
