@@ -8,6 +8,8 @@ export type InMemoryEmbed = {
     token?: string;
 };
 
+export type EmbedMode = 'sdk' | 'direct';
+
 export interface EmbedContext {
     // The JWT token used to authenticate the user
     embedToken?: string;
@@ -25,4 +27,6 @@ export interface EmbedContext {
     onBackToDashboard?: () => void;
     // The chart that the user is exploring
     savedChart?: SavedChart;
+    // The mode of the embed: 'sdk' when embedded via SDK (no URL sync), 'direct' when navigating directly to /embed (sync URL)
+    mode: EmbedMode;
 }
