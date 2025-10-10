@@ -313,12 +313,18 @@ export enum TableCalculationType {
     BOOLEAN = 'boolean',
 }
 
+export enum WindowFunctionType {
+    ROW_NUMBER = 'row_number',
+    PERCENT_RANK = 'percent_rank',
+}
+
 export enum TableCalculationTemplateType {
     PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
     PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
     PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
     RANK_IN_COLUMN = 'rank_in_column',
     RUNNING_TOTAL = 'running_total',
+    WINDOW_FUNCTION = 'window_function',
 }
 
 export type TableCalculationTemplate =
@@ -341,7 +347,7 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
           fieldId: string;
-          partitionBy: string[] | null;
+          partitionBy: string[];
       }
     | {
           type: TableCalculationTemplateType.RANK_IN_COLUMN;
@@ -350,6 +356,15 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           fieldId: string;
+      }
+    | {
+          type: TableCalculationTemplateType.WINDOW_FUNCTION;
+          windowFunction: WindowFunctionType;
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+          partitionBy: string[];
       };
 
 export type TableCalculation = {
