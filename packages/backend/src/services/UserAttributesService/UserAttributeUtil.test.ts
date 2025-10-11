@@ -19,13 +19,17 @@ describe('doesExploreMatchUserAttributes', () => {
     test('should be true if there are no required attributes', () => {
         expect(
             doesExploreMatchRequiredAttributes(
-                EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+                EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables[
+                    EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.baseTable
+                ].requiredAttributes,
                 {},
             ),
         ).toStrictEqual(true);
         expect(
             doesExploreMatchRequiredAttributes(
-                EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+                EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables[
+                    EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.baseTable
+                ].requiredAttributes,
                 { test: ['1'] },
             ),
         ).toStrictEqual(true);
@@ -33,7 +37,9 @@ describe('doesExploreMatchUserAttributes', () => {
     test('should be true if required attribute value match', () => {
         expect(
             doesExploreMatchRequiredAttributes(
-                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES,
+                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
+                    EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
+                ].requiredAttributes,
                 { access_level: ['2'] },
             ),
         ).toStrictEqual(true);
@@ -41,13 +47,17 @@ describe('doesExploreMatchUserAttributes', () => {
     test('should be false if required attributes dont match', () => {
         expect(
             doesExploreMatchRequiredAttributes(
-                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES,
+                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
+                    EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
+                ].requiredAttributes,
                 {},
             ),
         ).toStrictEqual(false);
         expect(
             doesExploreMatchRequiredAttributes(
-                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES,
+                EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables[
+                    EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.baseTable
+                ].requiredAttributes,
                 { access_level: ['1'] },
             ),
         ).toStrictEqual(false);

@@ -3970,6 +3970,114 @@ export class ProjectService extends BaseService {
             });
     }
 
+    private async getExploreSummariesLegacy(
+        account: Account,
+        projectUuid: string,
+        includeErrors: boolean = true,
+    ) {
+        const cachedExplores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+
+        const explores = Object.values(cachedExplores);
+
+        if (!explores) {
+            return [];
+        }
+
+        const { userAttributes } = await this.getUserAttributes({ account });
+        return explores.reduce<SummaryExplore[]>((acc, explore, index) => {
+            if (isExploreError(explore)) {
+                return includeErrors
+                    ? [
+                          ...acc,
+                          {
+                              name: explore.name,
+                              label: explore.label,
+                              tags: explore.tags,
+                              groupLabel: explore.groupLabel,
+                              errors: explore.errors,
+                              databaseName:
+                                  explore.baseTable &&
+                                  explore.tables?.[explore.baseTable]?.database,
+                              schemaName:
+                                  explore.baseTable &&
+                                  explore.tables?.[explore.baseTable]?.schema,
+                              description:
+                                  explore.baseTable &&
+                                  explore.tables?.[explore.baseTable]
+                                      ?.description,
+                              aiHint: explore.aiHint,
+                          },
+                      ]
+                    : acc;
+            }
+            if (
+                doesExploreMatchRequiredAttributes(
+                    explore.tables[explore.baseTable].requiredAttributes,
+                    userAttributes,
+                )
+            ) {
+                return [
+                    ...acc,
+                    {
+                        name: explore.name,
+                        label: explore.label,
+                        tags: explore.tags,
+                        groupLabel: explore.groupLabel,
+                        databaseName:
+                            explore.tables[explore.baseTable].database,
+                        schemaName: explore.tables[explore.baseTable].schema,
+                        description:
+                            explore.tables[explore.baseTable].description,
+                        type: explore.type ?? ExploreType.DEFAULT,
+                        aiHint: explore.aiHint,
+                    },
+                ];
+            }
+            return acc;
+        }, []);
+    }
+
+    private async getExperimentalExploreSummaries(
+        account: Account,
+        projectUuid: string,
+        includeErrors: boolean = true,
+    ) {
+        // Use optimized query that only fetches summary fields instead of full explore JSON
+        const exploreSummaries = await this.projectModel.getAllExploreSummaries(
+            projectUuid,
+        );
+
+        if (!exploreSummaries || exploreSummaries.length === 0) {
+            return [];
+        }
+        const { userAttributes } = await this.getUserAttributes({ account });
+
+        return exploreSummaries.reduce<SummaryExplore[]>((acc, summary) => {
+            const { baseTableRequiredAttributes, ...rest } = summary;
+            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes
+
+            if (!includeErrors && 'errors' in summaryExplore) {
+                return acc;
+            }
+
+            // Check user attribute access
+            if (
+                !doesExploreMatchRequiredAttributes(
+                    baseTableRequiredAttributes,
+                    userAttributes,
+                )
+            ) {
+                return acc;
+            }
+
+            // Add valid explore summary (databaseName and schemaName are required for non-error explores)
+            return [...acc, summaryExplore];
+        }, []);
+    }
+
     async getAllExploresSummary(
         account: Account,
         projectUuid: string,
@@ -3988,71 +4096,18 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
-        const explores = Object.values(cachedExplores);
-
-        if (!explores) {
-            return [];
-        }
-        const { userAttributes } = await this.getUserAttributes({ account });
-
-        const allExploreSummaries = explores.reduce<SummaryExplore[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) {
-                    return includeErrors
-                        ? [
-                              ...acc,
-                              {
-                                  name: explore.name,
-                                  label: explore.label,
-                                  tags: explore.tags,
-                                  groupLabel: explore.groupLabel,
-                                  errors: explore.errors,
-                                  databaseName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.database,
-                                  schemaName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.schema,
-                                  description:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.description,
-                                  aiHint: explore.aiHint,
-                              },
-                          ]
-                        : acc;
-                }
-                if (
-                    doesExploreMatchRequiredAttributes(explore, userAttributes)
-                ) {
-                    return [
-                        ...acc,
-                        {
-                            name: explore.name,
-                            label: explore.label,
-                            tags: explore.tags,
-                            groupLabel: explore.groupLabel,
-                            databaseName:
-                                explore.tables[explore.baseTable].database,
-                            schemaName:
-                                explore.tables[explore.baseTable].schema,
-                            description:
-                                explore.tables[explore.baseTable].description,
-                            type: explore.type ?? ExploreType.DEFAULT,
-                            aiHint: explore.aiHint,
-                        },
-                    ];
-                }
-                return acc;
-            },
-            [],
-        );
+        const allExploreSummaries =
+            process.env.EXPERIMENTAL_EXPLORE_SUMMARIES === 'true'
+                ? await this.getExperimentalExploreSummaries(
+                      account,
+                      projectUuid,
+                      includeErrors,
+                  )
+                : await this.getExploreSummariesLegacy(
+                      account,
+                      projectUuid,
+                      includeErrors,
+                  );
 
         if (filtered) {
             const {

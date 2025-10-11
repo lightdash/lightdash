@@ -47,6 +47,7 @@ import {
     isExploreError,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    type SummaryExplore,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
@@ -117,6 +118,23 @@ export type ProjectModelArguments = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
+
+type RawSummaryRow = {
+    name: Explore['name'];
+    label: Explore['label'];
+    tags: Explore['tags'];
+    groupLabel: Explore['groupLabel'] | null;
+    type: Explore['type'] | null;
+    errors: ExploreError['errors'] | null;
+    baseTable: Explore['baseTable'];
+    baseTableDatabase: Explore['tables'][string]['database'];
+    baseTableSchema: Explore['tables'][string]['schema'];
+    baseTableDescription: Explore['tables'][string]['description'] | null;
+    baseTableRequiredAttributes:
+        | Explore['tables'][string]['requiredAttributes']
+        | null;
+    aiHint: Explore['aiHint'] | null;
+};
 
 export class ProjectModel {
     protected database: Knex;
@@ -1096,6 +1114,54 @@ export class ProjectModel {
             },
             {},
         );
+    }
+
+    /**
+     * Get all explore summaries with only the fields needed for the summary view.
+     * This is optimized to avoid fetching the full explore JSON by using PostgreSQL JSON operators.
+     * @param projectUuid - The project uuid.
+     * @returns An array of lightweight explore summary objects.
+     */
+    async getAllExploreSummaries(projectUuid: string): Promise<
+        Array<
+            SummaryExplore & {
+                baseTableRequiredAttributes: Explore['tables'][string]['requiredAttributes'];
+            }
+        >
+    > {
+        const summaries = await this.database(CachedExploreTableName)
+            .select<RawSummaryRow[]>(
+                this.database.raw(`
+                    explore->'name' as name,
+                    explore->'label' as label,
+                    explore->'tags' as tags,
+                    explore->'groupLabel' as "groupLabel",
+                    explore->'type' as type,
+                    explore->'errors' as errors,
+                    explore->'baseTable' as "baseTable",
+                    explore->'tables'->(explore->>'baseTable')->>'database' as "baseTableDatabase",
+                    explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
+                    explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
+                    explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
+                    explore->'aiHint' as "aiHint"
+                `),
+            )
+            .where('project_uuid', projectUuid);
+
+        return summaries.map((row) => ({
+            name: row.name,
+            label: row.label,
+            tags: row.tags,
+            groupLabel: row.groupLabel ?? undefined,
+            databaseName: row.baseTableDatabase,
+            schemaName: row.baseTableSchema,
+            description: row.baseTableDescription ?? undefined,
+            aiHint: row.aiHint ?? undefined,
+            type: row.type ?? undefined,
+            baseTableRequiredAttributes:
+                row.baseTableRequiredAttributes ?? undefined,
+            ...(row.errors ? { errors: row.errors } : {}), // Only add errors key if errors are present
+        }));
     }
 
     async getExploreFromCache(

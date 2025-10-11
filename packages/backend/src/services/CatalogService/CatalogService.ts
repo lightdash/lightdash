@@ -134,7 +134,12 @@ export class CatalogService<
             if (isExploreError(explore)) {
                 return acc;
             }
-            if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+            if (
+                doesExploreMatchRequiredAttributes(
+                    explore.tables[explore.baseTable].requiredAttributes,
+                    userAttributes,
+                )
+            ) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
                 ).flatMap((t) => parseFieldsFromCompiledTable(t));
@@ -214,7 +219,12 @@ export class CatalogService<
             ) {
                 return acc;
             }
-            if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+            if (
+                doesExploreMatchRequiredAttributes(
+                    explore.tables[explore.baseTable].requiredAttributes,
+                    userAttributes,
+                )
+            ) {
                 return [
                     ...acc,
                     {
@@ -327,7 +337,10 @@ export class CatalogService<
                     return [...acc, explore];
                 }
                 if (
-                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
+                    !doesExploreMatchRequiredAttributes(
+                        explore.tables[explore.baseTable].requiredAttributes,
+                        userAttributes,
+                    )
                 ) {
                     return acc;
                 }
@@ -676,7 +689,12 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+        if (
+            !doesExploreMatchRequiredAttributes(
+                explore.tables[explore.baseTable].requiredAttributes,
+                userAttributes,
+            )
+        ) {
             throw new ForbiddenError(
                 `You don't have access to the explore ${explore.name}`,
             );
