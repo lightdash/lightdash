@@ -2,7 +2,11 @@ import { z } from 'zod';
 import { getFieldIdSchema } from '../fieldId';
 
 export const orderBySchema = z.object({
-    fieldId: getFieldIdSchema({ additionalDescription: 'Field to order by' }),
+    fieldId: getFieldIdSchema({
+        additionalDescription: 'Field to order by',
+        includeCustomMetrics: true,
+        includeTableCalculations: true,
+    }),
     order: z.enum(['asc', 'desc']).nullable(),
 });
 export const orderBySchemaDescription = [].join('\n');

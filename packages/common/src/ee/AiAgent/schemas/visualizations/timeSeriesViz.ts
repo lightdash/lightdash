@@ -19,7 +19,12 @@ export const timeSeriesMetricVizConfigSchema = z.object({
             'The field id of the time dimension to be displayed on the x-axis.',
     }),
     yMetrics: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
+        .array(
+            getFieldIdSchema({
+                additionalDescription: null,
+                includeCustomMetrics: true,
+            }),
+        )
         .min(1)
         .describe(
             'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',

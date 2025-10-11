@@ -15,12 +15,22 @@ export const tableVizConfigSchema = z
                 'The name of the explore containing the metrics and dimensions used for table query',
             ),
         metrics: z
-            .array(getFieldIdSchema({ additionalDescription: null }))
+            .array(
+                getFieldIdSchema({
+                    additionalDescription: null,
+                    includeCustomMetrics: true,
+                }),
+            )
             .describe(
                 'The field ids of the metrics to be calculated for the table. They will be grouped by the dimensions.',
             ),
         dimensions: z
-            .array(getFieldIdSchema({ additionalDescription: null }))
+            .array(
+                getFieldIdSchema({
+                    additionalDescription: null,
+                    includeTableCalculations: true,
+                }),
+            )
             .describe(
                 'The field id for the dimensions to group the metrics by',
             ),
