@@ -84,7 +84,7 @@ x-lightdash-base: &lightdash-base
 
 services:
     minio:
-        image: bitnami/minio:latest
+        image: minio/minio:latest
         ports:
             - '9000:9000'
             - '9001:9001' # for minio console
