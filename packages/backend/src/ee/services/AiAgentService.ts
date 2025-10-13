@@ -126,6 +126,7 @@ import {
 } from './ai/utils/getSlackBlocks';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
+import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -152,6 +153,7 @@ type AiAgentServiceDependencies = {
     userModel: UserModel;
     spaceService: SpaceService;
     projectModel: ProjectModel;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -196,6 +198,8 @@ export class AiAgentService {
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
+    private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.analytics = dependencies.analytics;
@@ -217,6 +221,8 @@ export class AiAgentService {
         this.spaceService = dependencies.spaceService;
         this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
+        this.aiOrganizationSettingsService =
+            dependencies.aiOrganizationSettingsService;
     }
 
     private async getIsCopilotEnabled(
@@ -226,7 +232,20 @@ export class AiAgentService {
             user,
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
-        return aiCopilotFlag.enabled;
+
+        if (aiCopilotFlag.enabled) {
+            return true;
+        }
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const isEligibleForTrial =
+            await this.aiOrganizationSettingsService.isEligibleForTrial(
+                aiCopilotFlag.enabled,
+                user.organizationUuid,
+            );
+
+        return isEligibleForTrial;
     }
 
     /**

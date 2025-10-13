@@ -1,4 +1,3 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
 import {
     Avatar,
     Box,
@@ -21,9 +20,9 @@ import {
 } from '@tabler/icons-react';
 import { Link, Navigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 
@@ -69,26 +68,28 @@ const AiPageLoading = () => (
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
     const canCreateAgent = useAiAgentPermission({ action: 'manage' });
-    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
+    const organizationSettingsQuery = useAiOrganizationSettings();
 
-    const isAiAgentEnabled =
-        aiCopilotFlagQuery.isSuccess && aiCopilotFlagQuery.data.enabled;
+    const isAiCopilotEnabledOrTrial =
+        (organizationSettingsQuery.isSuccess &&
+            organizationSettingsQuery.data?.isCopilotEnabled) ||
+        organizationSettingsQuery.data?.isTrial;
 
     const agentsQuery = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: true,
         options: {
-            enabled: isAiAgentEnabled,
+            enabled: isAiCopilotEnabledOrTrial,
         },
     });
     const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
-        enabled: isAiAgentEnabled,
+        enabled: isAiCopilotEnabledOrTrial,
     });
 
-    if (aiCopilotFlagQuery.isLoading) {
+    if (organizationSettingsQuery.isLoading) {
         return <AiPageLoading />;
     }
-    if (!isAiAgentEnabled) {
+    if (!isAiCopilotEnabledOrTrial) {
         return <Navigate to="/" replace />;
     }
 

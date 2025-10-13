@@ -8675,6 +8675,45 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComputedAiOrganizationSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                isTrial: { dataType: 'boolean', required: true },
+                isCopilotEnabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'AiOrganizationSettings' },
+                        { ref: 'ComputedAiOrganizationSettings' },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiOrganizationSettingsResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSuccess_AiOrganizationSettings_: {
         dataType: 'refAlias',
         type: {
@@ -8687,17 +8726,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiOrganizationSettingsResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_AiOrganizationSettings_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiUpdateAiOrganizationSettingsResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_AiOrganizationSettings_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__':
+    'Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__':
         {
             dataType: 'refAlias',
             type: {
@@ -8709,18 +8743,19 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_AiOrganizationSettings.organizationUuid_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__',
-            validators: {},
+    'Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__',
+                validators: {},
+            },
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdateAiOrganizationSettings: {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_AiOrganizationSettings.organizationUuid_',
+            ref: 'Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_',
             validators: {},
         },
     },
