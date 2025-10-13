@@ -18,7 +18,7 @@ type Props = {
 };
 
 const CustomVisualization: FC<Props> = (props) => {
-    const { isLoading, visualizationConfig, resultsData } =
+    const { isLoading, visualizationConfig, resultsData, isDashboard } =
         useVisualizationContext();
 
     const [ref, rect] = useResizeObserver();
@@ -91,6 +91,7 @@ const CustomVisualization: FC<Props> = (props) => {
                     config={{
                         autosize: {
                             type: 'fit',
+                            ...(isDashboard && { resize: true }),
                         },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type
