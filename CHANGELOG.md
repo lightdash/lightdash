@@ -1,3 +1,16 @@
+# [0.2077.0](https://github.com/lightdash/lightdash/compare/0.2076.0...0.2077.0) (2025-10-13)
+
+
+### Bug Fixes
+
+* metric formating is not applied after saving ([#17416](https://github.com/lightdash/lightdash/issues/17416)) ([8a6196a](https://github.com/lightdash/lightdash/commit/8a6196a598a6d00345b05aa7a652922b8c98bc45)), closes [#17389](https://github.com/lightdash/lightdash/issues/17389)
+
+
+### Features
+
+* add table calculation validation in filter placement ([#17417](https://github.com/lightdash/lightdash/issues/17417)) ([6ecb889](https://github.com/lightdash/lightdash/commit/6ecb8891b79012e97831635beffc64a3e786af11))
+* add table calculations to filter rule validation ([#17411](https://github.com/lightdash/lightdash/issues/17411)) ([4fa520f](https://github.com/lightdash/lightdash/commit/4fa520f156cfea33edf16a0de07116ae53527ec5))
+
 # [0.2076.0](https://github.com/lightdash/lightdash/compare/0.2075.4...0.2076.0) (2025-10-13)
 
 
