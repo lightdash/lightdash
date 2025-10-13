@@ -91,6 +91,7 @@ const CustomVisualization: FC<Props> = (props) => {
                     config={{
                         autosize: {
                             type: 'fit',
+                            ...(isDashboard && { resize: true }),
                         },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type
@@ -109,7 +110,6 @@ const CustomVisualization: FC<Props> = (props) => {
                     }}
                     data={data}
                     actions={false}
-                    {...(isDashboard && { resize: true })}
                 />
             </Suspense>
         </div>
