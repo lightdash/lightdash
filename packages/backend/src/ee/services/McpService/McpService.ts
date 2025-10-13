@@ -1,6 +1,7 @@
 import {
     Account,
     AnyType,
+    ApiKeyAccount,
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
@@ -94,7 +95,10 @@ type McpServiceArguments = {
     featureFlagService: FeatureFlagService;
 };
 
-export type ExtraContext = { user: SessionUser; account: OauthAccount };
+export type ExtraContext = {
+    user: SessionUser;
+    account: OauthAccount | ApiKeyAccount;
+};
 type McpProtocolContext = {
     authInfo?: AuthInfo & {
         extra: ExtraContext;
@@ -1250,11 +1254,12 @@ export class McpService extends BaseService {
 
         const user = context.authInfo.extra?.user;
         const account = context.authInfo.extra?.account;
-        const { scopes } = account.authentication;
 
         // TODO replace with CASL ability check
         // Do not enforce client scopes for now until more MCP clients support this
         /*
+        //const { scopes } = account.authentication;
+
         if (
             !scopes.includes(OAuthScope.MCP_READ) &&
             !scopes.includes(OAuthScope.MCP_WRITE)

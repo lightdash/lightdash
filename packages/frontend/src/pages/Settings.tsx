@@ -57,6 +57,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
+import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -85,9 +86,11 @@ const Settings: FC = () => {
         CommercialFeatureFlags.Scim,
     );
 
-    const { data: isAiCopilotEnabled } = useFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
-    );
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const isAiCopilotEnabledOrTrial =
+        (aiOrganizationSettingsQuery.isSuccess &&
+            aiOrganizationSettingsQuery.data?.isCopilotEnabled) ||
+        aiOrganizationSettingsQuery.data?.isTrial;
 
     const isServiceAccountFeatureFlagEnabled = useFeatureFlagEnabled(
         CommercialFeatureFlags.ServiceAccounts,
@@ -660,7 +663,7 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
-                                {isAiCopilotEnabled?.enabled &&
+                                {isAiCopilotEnabledOrTrial &&
                                     user.ability.can(
                                         'manage',
                                         subject('AiAgent', {

@@ -467,6 +467,7 @@ describe('McpSchemaCompatLayer', () => {
                             fieldFilterType: 'date',
                         },
                     ],
+                    tableCalculations: null,
                 },
                 tableCalculations: null,
             });

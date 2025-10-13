@@ -1121,6 +1121,18 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+
+        // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
+        if (
+            newProjectData.type === ProjectType.PREVIEW &&
+            newProjectData.upstreamProjectUuid
+        ) {
+            const upstreamProject = data.upstreamProjectUuid
+                ? await this.projectModel.get(data.upstreamProjectUuid)
+                : undefined;
+            newProjectData.organizationWarehouseCredentialsUuid =
+                upstreamProject?.organizationWarehouseCredentialsUuid;
+        }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             data.copyWarehouseConnectionFromUpstreamProject &&
@@ -3970,6 +3982,44 @@ export class ProjectService extends BaseService {
             });
     }
 
+    private async getExploreSummaries(
+        account: Account,
+        projectUuid: string,
+        includeErrors: boolean = true,
+    ) {
+        // Use optimized query that only fetches summary fields instead of full explore JSON
+        const exploreSummaries = await this.projectModel.getAllExploreSummaries(
+            projectUuid,
+        );
+
+        if (!exploreSummaries || exploreSummaries.length === 0) {
+            return [];
+        }
+        const { userAttributes } = await this.getUserAttributes({ account });
+
+        return exploreSummaries.reduce<SummaryExplore[]>((acc, summary) => {
+            const { baseTableRequiredAttributes, ...rest } = summary;
+            const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes
+
+            if (!includeErrors && 'errors' in summaryExplore) {
+                return acc;
+            }
+
+            // Check user attribute access
+            if (
+                !doesExploreMatchRequiredAttributes(
+                    baseTableRequiredAttributes,
+                    userAttributes,
+                )
+            ) {
+                return acc;
+            }
+
+            // Add valid explore summary (databaseName and schemaName are required for non-error explores)
+            return [...acc, summaryExplore];
+        }, []);
+    }
+
     async getAllExploresSummary(
         account: Account,
         projectUuid: string,
@@ -3988,70 +4038,10 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const cachedExplores = await this.projectModel.findExploresFromCache(
+        const allExploreSummaries = await this.getExploreSummaries(
+            account,
             projectUuid,
-            'name',
-        );
-        const explores = Object.values(cachedExplores);
-
-        if (!explores) {
-            return [];
-        }
-        const { userAttributes } = await this.getUserAttributes({ account });
-
-        const allExploreSummaries = explores.reduce<SummaryExplore[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) {
-                    return includeErrors
-                        ? [
-                              ...acc,
-                              {
-                                  name: explore.name,
-                                  label: explore.label,
-                                  tags: explore.tags,
-                                  groupLabel: explore.groupLabel,
-                                  errors: explore.errors,
-                                  databaseName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.database,
-                                  schemaName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.schema,
-                                  description:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.description,
-                                  aiHint: explore.aiHint,
-                              },
-                          ]
-                        : acc;
-                }
-                if (
-                    doesExploreMatchRequiredAttributes(explore, userAttributes)
-                ) {
-                    return [
-                        ...acc,
-                        {
-                            name: explore.name,
-                            label: explore.label,
-                            tags: explore.tags,
-                            groupLabel: explore.groupLabel,
-                            databaseName:
-                                explore.tables[explore.baseTable].database,
-                            schemaName:
-                                explore.tables[explore.baseTable].schema,
-                            description:
-                                explore.tables[explore.baseTable].description,
-                            type: explore.type ?? ExploreType.DEFAULT,
-                            aiHint: explore.aiHint,
-                        },
-                    ];
-                }
-                return acc;
-            },
-            [],
+            includeErrors,
         );
 
         if (filtered) {
@@ -5143,6 +5133,8 @@ export class ProjectService extends BaseService {
                 data.dbtConnectionOverrides ?? {},
             ),
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            organizationWarehouseCredentialsUuid:
+                project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
         };
 
@@ -5151,6 +5143,7 @@ export class ProjectService extends BaseService {
             previewData,
             context,
         );
+
         // Since the project is new, and we have copied some permissions,
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject

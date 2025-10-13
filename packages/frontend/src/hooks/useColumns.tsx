@@ -19,6 +19,7 @@ import {
 import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
+import omit from 'lodash/omit';
 import { useMemo } from 'react';
 import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import MantineIcon from '../components/common/MantineIcon';
@@ -35,6 +36,7 @@ import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectMetricOverrides,
     selectParameters,
     selectSorts,
     selectTableCalculations,
@@ -77,6 +79,7 @@ export const useColumns = (): TableColumn[] => {
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
+    const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
     // Get state from new query hook
     const { activeFields, query } = useExplorerQuery();
@@ -93,24 +96,45 @@ export const useColumns = (): TableColumn[] => {
     const { embedToken } = useEmbed();
 
     const itemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (exploreData) {
-            // Explore items for new columns and result items for existing columns with format overrides
-            return {
-                ...getItemMap(
-                    exploreData,
-                    additionalMetrics,
-                    tableCalculations,
-                    customDimensions,
-                ),
-                ...(resultsFields || {}),
-            };
-        }
+        if (!exploreData) return;
+
+        const baseItemsMap = getItemMap(
+            exploreData,
+            additionalMetrics,
+            tableCalculations,
+            customDimensions,
+        );
+
+        const mergedMap = {
+            ...baseItemsMap,
+            ...(resultsFields || {}),
+        };
+
+        // Apply metric overrides and remove legacy format properties
+        // to ensure formatItemValue uses new formatOptions instead of old format expressions
+        return Object.fromEntries(
+            Object.entries(mergedMap).map(([key, value]) => {
+                if (!metricOverrides?.[key]) return [key, value];
+                const itemWithoutLegacyFormat = omit(value, [
+                    'format',
+                    'round',
+                ]);
+                return [
+                    key,
+                    {
+                        ...itemWithoutLegacyFormat,
+                        ...metricOverrides[key],
+                    },
+                ];
+            }),
+        );
     }, [
         resultsFields,
         exploreData,
         additionalMetrics,
         tableCalculations,
         customDimensions,
+        metricOverrides,
     ]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
@@ -196,7 +220,18 @@ export const useColumns = (): TableColumn[] => {
                             )}
                         </TableHeaderLabelContainer>
                     ),
-                    cell: getFormattedValueCell,
+                    cell: (
+                        info: CellContext<ResultRow, { value: ResultValue }>,
+                    ) => {
+                        const cellValue = info.getValue();
+                        if (!cellValue) return '-';
+                        // Use item from meta to ensure we get the latest version with overrides
+                        const currentItem = info.column.columnDef.meta?.item;
+                        return formatItemValue(
+                            currentItem,
+                            cellValue.value.raw,
+                        );
+                    },
                     footer: () =>
                         totals?.[fieldId]
                             ? formatItemValue(item, totals[fieldId])

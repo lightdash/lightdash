@@ -7,7 +7,8 @@ Accept: application/json"
     "email": "demo@lightdash.com",
     "password": "demo_password!"
 }
-
+### Logout
+GET http://localhost:8080/api/v1/logout
 
 ### List available tools
 POST http://localhost:3000/api/v1/mcp
@@ -26,6 +27,8 @@ Accept: application/json, text/event-stream
 POST http://localhost:3000/api/v1/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
+Authorization: ApiKey ldpat_ff90d7cb9e1f374e2fd8b3678128c6bf
+
 
 {
     "jsonrpc": "2.0",

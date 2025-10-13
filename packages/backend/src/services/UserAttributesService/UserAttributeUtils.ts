@@ -43,20 +43,24 @@ export const exploreHasFilteredAttribute = (explore: Explore) =>
     );
 
 export const doesExploreMatchRequiredAttributes = (
-    explore: Explore,
+    exploreAttributes:
+        | Explore['tables'][string]['requiredAttributes']
+        | undefined,
     userAttributes: UserAttributeValueMap,
 ) =>
-    explore.tables[explore.baseTable].requiredAttributes === undefined ||
-    hasUserAttributes(
-        explore.tables[explore.baseTable].requiredAttributes,
-        userAttributes,
-    );
+    exploreAttributes === undefined ||
+    hasUserAttributes(exploreAttributes, userAttributes);
 
 export const getFilteredExplore = (
     explore: Explore,
     userAttributes: UserAttributeValueMap,
 ): Explore => {
-    if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+    if (
+        !doesExploreMatchRequiredAttributes(
+            explore.tables[explore.baseTable].requiredAttributes,
+            userAttributes,
+        )
+    ) {
         throw new AuthorizationError(
             "You don't have authorization to access this explore",
         );

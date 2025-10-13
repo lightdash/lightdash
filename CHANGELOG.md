@@ -1,3 +1,59 @@
+## [0.2077.1](https://github.com/lightdash/lightdash/compare/0.2077.0...0.2077.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* more "stable" key for ConditionalFormattingItem ([#17421](https://github.com/lightdash/lightdash/issues/17421)) ([7143d34](https://github.com/lightdash/lightdash/commit/7143d342ffaca3ea63b77c48505975d35d256355))
+
+# [0.2077.0](https://github.com/lightdash/lightdash/compare/0.2076.0...0.2077.0) (2025-10-13)
+
+
+### Bug Fixes
+
+* metric formating is not applied after saving ([#17416](https://github.com/lightdash/lightdash/issues/17416)) ([8a6196a](https://github.com/lightdash/lightdash/commit/8a6196a598a6d00345b05aa7a652922b8c98bc45)), closes [#17389](https://github.com/lightdash/lightdash/issues/17389)
+
+
+### Features
+
+* add table calculation validation in filter placement ([#17417](https://github.com/lightdash/lightdash/issues/17417)) ([6ecb889](https://github.com/lightdash/lightdash/commit/6ecb8891b79012e97831635beffc64a3e786af11))
+* add table calculations to filter rule validation ([#17411](https://github.com/lightdash/lightdash/issues/17411)) ([4fa520f](https://github.com/lightdash/lightdash/commit/4fa520f156cfea33edf16a0de07116ae53527ec5))
+
+# [0.2076.0](https://github.com/lightdash/lightdash/compare/0.2075.4...0.2076.0) (2025-10-13)
+
+
+### Features
+
+* enable resize option for custom visualizations in dashboards ([#17413](https://github.com/lightdash/lightdash/issues/17413)) ([f4f9476](https://github.com/lightdash/lightdash/commit/f4f94767f8ac537d39d7c703817e65533607e006))
+
+## [0.2075.4](https://github.com/lightdash/lightdash/compare/0.2075.3...0.2075.4) (2025-10-13)
+
+
+### Bug Fixes
+
+* improve tests for explore summaries and remove feature flag ([#17404](https://github.com/lightdash/lightdash/issues/17404)) ([f051474](https://github.com/lightdash/lightdash/commit/f051474b90f35c81f5e32b3ce4b3b318cd444402))
+
+## [0.2075.3](https://github.com/lightdash/lightdash/compare/0.2075.2...0.2075.3) (2025-10-13)
+
+
+### Bug Fixes
+
+* allow pat authentication mcp ([#17400](https://github.com/lightdash/lightdash/issues/17400)) ([cc2cd5f](https://github.com/lightdash/lightdash/commit/cc2cd5fd3149f3b9c1e6440a1df6f83a4c74aeec))
+* preview from cli can copy organization warehouse credentials ([#17398](https://github.com/lightdash/lightdash/issues/17398)) ([c9af171](https://github.com/lightdash/lightdash/commit/c9af1717d11716f15c361e0ab1b572b8ed1e21f3))
+
+## [0.2075.2](https://github.com/lightdash/lightdash/compare/0.2075.1...0.2075.2) (2025-10-13)
+
+
+### Bug Fixes
+
+* prevent blank message flash in AI agent responses ([#17401](https://github.com/lightdash/lightdash/issues/17401)) ([2cdae05](https://github.com/lightdash/lightdash/commit/2cdae0526b18ffe4092f64789bb24eeeda6e33f1))
+
+## [0.2075.1](https://github.com/lightdash/lightdash/compare/0.2075.0...0.2075.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* **perf:** add experimental explore summary fetching to ([#17382](https://github.com/lightdash/lightdash/issues/17382)) ([2d66c85](https://github.com/lightdash/lightdash/commit/2d66c8504d5aa1b9d2e0fcecbe0f6caa55674ad7))
+
 # [0.2075.0](https://github.com/lightdash/lightdash/compare/0.2074.0...0.2075.0) (2025-10-10)
 
 

@@ -4,6 +4,7 @@ import {
     booleanFilterSchema,
     CompiledField,
     convertAdditionalMetric,
+    convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBase,
     dateFilterSchema,
     Explore,
@@ -19,11 +20,12 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
-    Metric,
+    isTableCalculation,
     MetricType,
     numberFilterSchema,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
+    renderTableCalculationFilterRuleSql,
     stringFilterSchema,
     SupportedDbtAdapter,
     TableCalcSchema,
@@ -151,8 +153,12 @@ export function validateCustomMetricsDefinition(
 
 function validateFilterRule(
     filterRule: FilterRule,
-    field: CompiledField | AdditionalMetric,
+    field: CompiledField | AdditionalMetric | TableCalculation,
 ) {
+    if (!field.type) {
+        throw new Error('Field type is required');
+    }
+
     const filterType = getFilterTypeFromItemType(field.type);
 
     switch (filterType) {
@@ -237,6 +243,17 @@ function validateFilterRule(
                 WeekDay.SUNDAY,
                 SupportedDbtAdapter.BIGQUERY,
             );
+        } else if (isTableCalculation(field)) {
+            renderTableCalculationFilterRuleSql(
+                filterRule,
+                field,
+                // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
+                '"',
+                "'",
+                (string: string) => string.replaceAll('\\', '\\\\'),
+                SupportedDbtAdapter.BIGQUERY,
+                WeekDay.SUNDAY,
+            );
         } else {
             renderFilterRuleSqlFromField(
                 filterRule,
@@ -265,13 +282,21 @@ export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
     customMetrics?: CustomMetricBase[] | null,
+    tableCalculations?: TableCalcsSchema | null,
 ) {
     const exploreFields = getFields(explore);
     const customMetricFields = populateCustomMetricsSQL(
         customMetrics || [],
         explore,
     );
-    const allFields = [...exploreFields, ...customMetricFields];
+    const tableCalcFields = tableCalculations
+        ? convertAiTableCalcsSchemaToTableCalcs(tableCalculations)
+        : [];
+    const allFields = [
+        ...exploreFields,
+        ...customMetricFields,
+        ...tableCalcFields,
+    ];
     const allFieldIds = allFields.map(getItemId);
     const filterRuleErrors: string[] = [];
 
@@ -314,15 +339,21 @@ ${filterRuleErrorStrings}`;
 }
 
 /**
- * Validate that metrics are not placed in dimension filters and vice versa
+ * Validate that filter fields match their filter group type:
+ * - Dimension filters should only contain dimension fields
+ * - Metric filters should only contain metric fields
+ * - Custom metric filters should only contain custom metric fields
+ * - Table calculation filters should only contain table calculation fields
  * @param explore - The explore containing field definitions
- * @param filters - The filters object containing dimension and metric filter groups
+ * @param filters - The filters object containing dimension, metric, and table calculation filter groups
  * @param customMetrics - Custom metrics that may be used in filters
+ * @param tableCalculations - Table calculations that may be used in filters
  */
 export function validateMetricDimensionFilterPlacement(
     explore: Explore,
+    customMetrics: CustomMetricBase[] | null,
+    tableCalculations: TableCalcsSchema | null,
     filters?: Filters,
-    customMetrics?: CustomMetricBase[] | null,
 ) {
     if (!filters) return;
 
@@ -335,15 +366,25 @@ export function validateMetricDimensionFilterPlacement(
               }),
           )
         : [];
-    const allFields = [...exploreFields, ...customMetricFields];
+    const tableCalcFields = tableCalculations
+        ? convertAiTableCalcsSchemaToTableCalcs(tableCalculations)
+        : [];
+    const allFields = [
+        ...exploreFields,
+        ...customMetricFields,
+        ...tableCalcFields,
+    ];
     const allFieldIds = allFields.map(getItemId);
     const errors: string[] = [];
 
     // Extract filter rules from filter groups
     const dimensionFilterRules = getFilterRulesFromGroup(filters.dimensions);
     const metricFilterRules = getFilterRulesFromGroup(filters.metrics);
+    const tableCalcFilterRules = getFilterRulesFromGroup(
+        filters.tableCalculations,
+    );
 
-    // Check if any dimension filter rules contain metric fields
+    // Check if any dimension filter rules contain metric or table calc fields
     dimensionFilterRules.forEach((rule) => {
         const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
         const field = allFields[fieldIndex];
@@ -367,10 +408,23 @@ Field Details:
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
+        } else if (field && isTableCalculation(field)) {
+            errors.push(
+                `Error: Table calculation field "${rule.target.fieldId}" (${
+                    field.displayName || field.name
+                }) cannot be used in dimension filters. Table calculations should be placed in table calculation filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Display Name: ${field.displayName || field.name}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
         }
     });
 
-    // Check if any metric filter rules contain dimension fields
+    // Check if any metric filter rules contain dimension or table calc fields
     metricFilterRules.forEach((rule) => {
         const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
         const field = allFields[fieldIndex];
@@ -390,6 +444,61 @@ Field Details:
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
+        } else if (field && isTableCalculation(field)) {
+            errors.push(
+                `Error: Table calculation field "${rule.target.fieldId}" (${
+                    field.displayName || field.name
+                }) cannot be used in metric filters. Table calculations should be placed in table calculation filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Display Name: ${field.displayName || field.name}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
+        }
+    });
+
+    // Check if any table calc filter rules contain dimension or metric fields
+    tableCalcFilterRules.forEach((rule) => {
+        const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
+        const field = allFields[fieldIndex];
+
+        if (field && isDimension(field)) {
+            errors.push(
+                `Error: Dimension field "${rule.target.fieldId}" (${
+                    field.label
+                }) cannot be used in table calculation filters. Dimensions should be placed in dimension filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
+        } else if (field && isMetric(field)) {
+            const fieldSource = customMetricFields.includes(field)
+                ? 'custom metric'
+                : 'explore metric';
+            errors.push(
+                `Error: Metric field "${rule.target.fieldId}" (${
+                    field.label
+                }) from ${fieldSource} cannot be used in table calculation filters. Metrics should be placed in metric filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+- Source: ${fieldSource}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
         }
     });
 
@@ -400,7 +509,8 @@ ${errors.join('\n\n')}
 
 Remember:
 - Dimension fields (fieldType: "dimension") should only be used in dimension filters
-- Metric fields (fieldType: "metric", including custom metrics) should only be used in metric filters`;
+- Metric fields (fieldType: "metric", including custom metrics) should only be used in metric filters
+- Table calculation fields should only be used in table calculation filters`;
 
         Logger.error(
             `[AiAgent][Validate Metric/Dimension Filter Placement] ${errorMessage}`,

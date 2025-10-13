@@ -1,22 +1,38 @@
 import { subject } from '@casl/ability';
 import {
     AiOrganizationSettings,
+    CommercialFeatureFlags,
+    ComputedAiOrganizationSettings,
     ForbiddenError,
     UpdateAiOrganizationSettings,
     type SessionUser,
 } from '@lightdash/common';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+    organizationModel: OrganizationModel;
+    commercialFeatureFlagModel: CommercialFeatureFlagModel;
 };
 
 export class AiOrganizationSettingsService {
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
+    private readonly organizationModel: OrganizationModel;
+
+    private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
+
+    // Date when trial feature was enabled for new organizations
+    private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
+
     constructor(dependencies: AiOrganizationSettingsServiceDependencies) {
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
+        this.organizationModel = dependencies.organizationModel;
+        this.commercialFeatureFlagModel =
+            dependencies.commercialFeatureFlagModel;
     }
 
     private static checkManageAiAgentAccess(user: SessionUser): void {
@@ -34,10 +50,61 @@ export class AiOrganizationSettingsService {
         }
     }
 
-    async getSettings(user: SessionUser): Promise<AiOrganizationSettings> {
+    private async getIsCopilotEnabled(
+        organizationUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        const isCopilotEnabled = await this.commercialFeatureFlagModel.get({
+            user: { organizationUuid, userUuid },
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return isCopilotEnabled.enabled;
+    }
+
+    /**
+     * Check if the organization qualifies for AI trial
+     * Organization was created on or after TRIAL_START_DATE
+     */
+    async isEligibleForTrial(
+        isCopilotEnabled: boolean,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        if (isCopilotEnabled) {
+            return false;
+        }
+
+        try {
+            const org = await this.organizationModel.get(organizationUuid);
+            if (!org || !org.createdAt) {
+                return false;
+            }
+            const orgCreatedAt = new Date(org.createdAt);
+
+            return (
+                orgCreatedAt >= AiOrganizationSettingsService.TRIAL_START_DATE
+            );
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async getSettings(
+        user: SessionUser,
+    ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(
+            user.organizationUuid,
+            user.userUuid,
+        );
+
+        // Check if organization qualifies for trial
+        const isTrialEligible = await this.isEligibleForTrial(
+            isCopilotEnabled,
+            user.organizationUuid,
+        );
 
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -48,11 +115,17 @@ export class AiOrganizationSettingsService {
         if (!settings) {
             return {
                 organizationUuid: user.organizationUuid,
+                isCopilotEnabled,
                 aiAgentsVisible: true,
+                isTrial: isTrialEligible,
             };
         }
 
-        return settings;
+        return {
+            ...settings,
+            isTrial: isTrialEligible,
+            isCopilotEnabled,
+        };
     }
 
     async upsertSettings(
@@ -69,19 +142,5 @@ export class AiOrganizationSettingsService {
             user.organizationUuid,
             data,
         );
-    }
-
-    /**
-     * Check if AI agents are visible for an organization
-     * This is used internally by other services to check if AI features should be available
-     */
-    async areAiAgentsVisible(organizationUuid: string): Promise<boolean> {
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
-                organizationUuid,
-            );
-
-        // Default to false if no settings exist (AI agents not visible by default)
-        return settings?.aiAgentsVisible ?? false;
     }
 }

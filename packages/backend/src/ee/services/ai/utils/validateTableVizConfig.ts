@@ -26,11 +26,17 @@ export const validateTableVizConfig = (
         vizTool.customMetrics,
     );
     validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-    validateFilterRules(explore, filterRules, vizTool.customMetrics);
+    validateFilterRules(
+        explore,
+        filterRules,
+        vizTool.customMetrics,
+        vizTool.tableCalculations,
+    );
     validateMetricDimensionFilterPlacement(
         explore,
-        vizTool.filters,
         vizTool.customMetrics,
+        vizTool.tableCalculations,
+        vizTool.filters,
     );
     // validate sort fields exist
     validateSelectedFieldsExistence(

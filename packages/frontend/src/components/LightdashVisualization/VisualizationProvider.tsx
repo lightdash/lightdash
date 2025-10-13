@@ -51,6 +51,7 @@ import { type useVisualizationContext } from './useVisualizationContext';
 
 export type VisualizationProviderProps = {
     minimal?: boolean;
+    isDashboard?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
     unsavedMetricQuery?: MetricQuery;
@@ -83,6 +84,7 @@ const VisualizationProvider: FC<
     React.PropsWithChildren<VisualizationProviderProps>
 > = ({
     minimal = false,
+    isDashboard = false,
     initialPivotDimensions,
     resultsData,
     isLoading,
@@ -301,6 +303,7 @@ const VisualizationProvider: FC<
         'visualizationConfig'
     > = {
         minimal,
+        isDashboard,
         pivotDimensions: validPivotDimensions,
         chartRef,
         resultsData: lastValidResultsData,

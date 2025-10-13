@@ -1049,8 +1049,9 @@ const ExplorerProvider: FC<
                 type: ActionType.UPDATE_METRIC_FORMAT,
                 payload: args,
             });
+            reduxDispatch(explorerActions.updateMetricFormat(args));
         },
-        [],
+        [reduxDispatch],
     );
 
     const replaceFields = useCallback(
