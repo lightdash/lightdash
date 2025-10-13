@@ -141,10 +141,11 @@ export const AiAgentsAdminLayout = () => {
                                 icon={<IconInfoCircle />}
                                 radius="md"
                                 variant="outline"
-                                color="orange"
+                                color="orange.6"
+                                bg="orange.0"
                                 title="AI Features Currently Disabled for All Users"
                             >
-                                <Text c="gray.7" size="sm">
+                                <Text c="gray.7" size="xs">
                                     AI features on the homepage and navbar are
                                     turned off. Users cannot interact with AI
                                     Agents until you re-enable this feature
