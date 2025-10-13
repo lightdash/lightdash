@@ -1,3 +1,10 @@
+## [0.2075.2](https://github.com/lightdash/lightdash/compare/0.2075.1...0.2075.2) (2025-10-13)
+
+
+### Bug Fixes
+
+* prevent blank message flash in AI agent responses ([#17401](https://github.com/lightdash/lightdash/issues/17401)) ([2cdae05](https://github.com/lightdash/lightdash/commit/2cdae0526b18ffe4092f64789bb24eeeda6e33f1))
+
 ## [0.2075.1](https://github.com/lightdash/lightdash/compare/0.2075.0...0.2075.1) (2025-10-13)
 
 
