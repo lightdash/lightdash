@@ -52,6 +52,14 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
 
         const passThrough = new PassThrough();
 
+        const contentDisposition = createContentDispositionHeader(
+            attachmentDownloadName || fileName,
+        );
+
+        Logger.debug(
+            `Creating upload stream for ${this.configuration.bucket}/${fileName} with content disposition: ${contentDisposition} and contentType: ${opts.contentType}`,
+        );
+
         const upload = new Upload({
             client: this.s3,
             params: {
@@ -59,9 +67,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: passThrough,
                 ContentType: opts.contentType,
-                ContentDisposition: createContentDispositionHeader(
-                    attachmentDownloadName || fileName,
-                ),
+                ContentDisposition: contentDisposition,
             },
         });
 
@@ -85,6 +91,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                         this.configuration.bucket
                     }/${fileName}: ${getErrorMessage(error)}`,
                 );
+                Logger.debug(`Full error: ${JSON.stringify(error)}`);
                 throw error;
             }
         };
