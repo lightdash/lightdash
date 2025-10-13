@@ -10,6 +10,7 @@ import {
     selectIsValidQuery,
     selectQueryLimit,
     selectTimezone,
+    selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
@@ -48,9 +49,7 @@ const ExplorerHeader: FC = memo(() => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.unsavedChartVersion,
-    );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const setTimeZone = useExplorerContext(
         (context) => context.actions.setTimeZone,
     );
