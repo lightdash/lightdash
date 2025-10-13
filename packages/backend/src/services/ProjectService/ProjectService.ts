@@ -1121,6 +1121,18 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+
+        // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
+        if (
+            newProjectData.type === ProjectType.PREVIEW &&
+            newProjectData.upstreamProjectUuid
+        ) {
+            const upstreamProject = data.upstreamProjectUuid
+                ? await this.projectModel.get(data.upstreamProjectUuid)
+                : undefined;
+            newProjectData.organizationWarehouseCredentialsUuid =
+                upstreamProject?.organizationWarehouseCredentialsUuid;
+        }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             data.copyWarehouseConnectionFromUpstreamProject &&
@@ -5198,6 +5210,8 @@ export class ProjectService extends BaseService {
                 data.dbtConnectionOverrides ?? {},
             ),
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            organizationWarehouseCredentialsUuid:
+                project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
         };
 
@@ -5206,6 +5220,7 @@ export class ProjectService extends BaseService {
             previewData,
             context,
         );
+
         // Since the project is new, and we have copied some permissions,
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
