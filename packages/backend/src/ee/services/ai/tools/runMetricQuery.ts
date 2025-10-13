@@ -66,8 +66,9 @@ export const getRunMetricQuery = ({
         );
         validateMetricDimensionFilterPlacement(
             explore,
-            vizTool.filters,
             vizTool.customMetrics,
+            vizTool.tableCalculations,
+            vizTool.filters,
         );
         validateSelectedFieldsExistence(
             explore,
