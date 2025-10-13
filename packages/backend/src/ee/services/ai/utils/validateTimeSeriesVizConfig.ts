@@ -25,7 +25,12 @@ export const validateTimeSeriesVizConfig = (
     validateFieldEntityType(explore, selectedDimensions, 'dimension');
     validateFieldEntityType(explore, vizTool.vizConfig.yMetrics, 'metric');
     validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-    validateFilterRules(explore, filterRules, vizTool.customMetrics);
+    validateFilterRules(
+        explore,
+        filterRules,
+        vizTool.customMetrics,
+        vizTool.tableCalculations,
+    );
     validateMetricDimensionFilterPlacement(
         explore,
         vizTool.filters,

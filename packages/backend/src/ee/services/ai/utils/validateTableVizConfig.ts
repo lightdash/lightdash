@@ -21,7 +21,12 @@ export const validateTableVizConfig = (
     validateFieldEntityType(explore, vizTool.vizConfig.dimensions, 'dimension');
     validateFieldEntityType(explore, vizTool.vizConfig.metrics, 'metric');
     validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-    validateFilterRules(explore, filterRules, vizTool.customMetrics);
+    validateFilterRules(
+        explore,
+        filterRules,
+        vizTool.customMetrics,
+        vizTool.tableCalculations,
+    );
     validateMetricDimensionFilterPlacement(
         explore,
         vizTool.filters,
