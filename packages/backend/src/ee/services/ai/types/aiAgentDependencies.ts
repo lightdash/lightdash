@@ -37,12 +37,10 @@ type Pagination = KnexPaginateArgs & {
 
 export type ListExploresFn = () => Promise<Explore[]>;
 
-export type FindExploresFn = (
-    args: {
-        exploreName: string;
-        fieldSearchSize: number;
-    } & KnexPaginateArgs,
-) => Promise<{
+export type FindExploresFn = (args: {
+    exploreName: string;
+    fieldSearchSize: number;
+}) => Promise<{
     explore: Explore;
     catalogFields: {
         dimensions: CatalogField[];

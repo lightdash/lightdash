@@ -1932,6 +1932,7 @@ export class AiAgentService {
                             filter: CatalogFilter.Dimensions,
                         },
                         fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
                     });
 
                 const { data: metrics } =
@@ -1942,6 +1943,7 @@ export class AiAgentService {
                             filter: CatalogFilter.Metrics,
                         },
                         fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
                     });
 
                 return {
@@ -1979,13 +1981,19 @@ export class AiAgentService {
 
             const agentSettings = await this.getAgentSettings(user, prompt);
 
+            const explore = await this.getExplore(
+                user,
+                projectUuid,
+                agentSettings.tags,
+                args.table,
+            );
+
             const { data: catalogItems, pagination } =
                 await this.catalogService.searchCatalog({
                     projectUuid,
                     catalogSearch: {
                         type: CatalogType.Field,
                         searchQuery: args.fieldSearchQuery.label,
-                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {
@@ -1994,6 +2002,7 @@ export class AiAgentService {
                     },
                     userAttributes,
                     fullTextSearchOperator: 'OR',
+                    filteredExplore: explore,
                 });
 
             // TODO: we should not filter here, search should be returning a proper type
@@ -2305,12 +2314,8 @@ export class AiAgentService {
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
 
-            availableExploresPageSize: 100,
-            findExploresPageSize: 15,
             findExploresFieldSearchSize: 200,
-            findExploresFieldOverviewSearchSize: 5,
-            findExploresMaxDescriptionLength: 100,
-            findFieldsPageSize: 10,
+            findFieldsPageSize: 30,
             findDashboardsPageSize: 5,
             findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,

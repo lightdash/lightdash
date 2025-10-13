@@ -264,7 +264,6 @@ export class McpService extends BaseService {
 
                 const findExploresTool = getFindExplores({
                     findExplores,
-                    pageSize: 15,
                     fieldSearchSize: 200,
                 });
                 const result = await findExploresTool.execute!(
@@ -979,14 +978,19 @@ export class McpService extends BaseService {
                         },
                     );
 
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    tagsFromContext,
+                    args.table,
+                );
+
                 const { data: catalogItems, pagination } =
                     await this.catalogService.searchCatalog({
                         projectUuid,
                         catalogSearch: {
                             type: CatalogType.Field,
                             searchQuery: args.fieldSearchQuery.label,
-                            yamlTags: tagsFromContext || undefined,
-                            tables: args.table ? [args.table] : undefined,
                         },
                         context: CatalogSearchContext.MCP,
                         paginateArgs: {
@@ -994,6 +998,7 @@ export class McpService extends BaseService {
                             pageSize: args.pageSize,
                         },
                         userAttributes,
+                        filteredExplore: explore,
                     });
 
                 const catalogFields = catalogItems.filter(

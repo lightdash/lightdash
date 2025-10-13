@@ -147,7 +147,6 @@ const getAgentTools = (
     );
 
     const findExplores = getFindExplores({
-        pageSize: args.findExploresPageSize,
         fieldSearchSize: args.findExploresFieldSearchSize,
         findExplores: dependencies.findExplores,
     });
