@@ -1,4 +1,4 @@
-import { DimensionType } from '../../types/field';
+import { DimensionType, TableCalculationType } from '../../types/field';
 import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
@@ -55,6 +55,18 @@ export function getColumnAxisType(dimensionType: DimensionType): VizIndexType {
         case DimensionType.BOOLEAN:
         case DimensionType.NUMBER:
         case DimensionType.STRING:
+        default:
+            return VizIndexType.CATEGORY;
+    }
+}
+
+export function getTableCalculationAxisType(
+    tableCalculationType: TableCalculationType,
+): VizIndexType {
+    switch (tableCalculationType) {
+        case TableCalculationType.DATE:
+        case TableCalculationType.TIMESTAMP:
+            return VizIndexType.TIME;
         default:
             return VizIndexType.CATEGORY;
     }
