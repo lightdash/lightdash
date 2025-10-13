@@ -84,10 +84,27 @@ export class MyNewService extends BaseService {
 
     async performOperation(user: SessionUser, data: any): Promise<Result> {
         this.logger.info(`User ${user.userUuid} performing operation`);
-        // Implement business logic
-        // Call models to persist data
-        const result = { success: true };
-        return result;
+
+        try {
+            // Implement business logic
+            this.logger.debug('Starting operation with data', { data });
+
+            // Call models to persist data
+            const result = await this.userModel.someOperation(data);
+
+            this.logger.info('Operation completed successfully', {
+                userUuid: user.userUuid,
+                resultId: result.id
+            });
+
+            return { success: true, result };
+        } catch (error) {
+            this.logger.error('Operation failed', {
+                userUuid: user.userUuid,
+                error: getErrorMessage(error)
+            });
+            throw error;
+        }
     }
 }
 ```
@@ -97,7 +114,14 @@ export class MyNewService extends BaseService {
 <importantToKnow>
 - Services are responsible for business logic, while models handle data persistence.
 - Services should validate inputs and enforce access control before performing operations.
-- Use the logger provided by BaseService for consistent logging across services.
+- Use the logger provided by BaseService for consistent logging across services instead of importing Logger from 'logging/logger'. The logger is available as `this.logger` and supports debug, info, warn, and error levels.
+- Logger best practices:
+  - Use `this.logger.debug()` for detailed debugging information
+  - Use `this.logger.info()` for important operational information  
+  - Use `this.logger.warn()` for recoverable issues
+  - Use `this.logger.error()` for errors and exceptions
+  - Always include relevant context (userUuid, organizationUuid, etc.) in log messages
+  - Use structured logging with objects for better searchability
 - Services should throw appropriate errors from @lightdash/common when operations fail.
 - The ServiceRepository manages service instantiation and dependency injection.
 - Services are typically stateless - they don't store state between method calls.
@@ -109,7 +133,8 @@ Common service dependencies:
 -   Config: Application configuration (lightdashConfig)
 -   Analytics: For tracking events (analytics)
 -   Other services: For complex operations that span multiple domains
-    </importantToKnow>
+
+</importantToKnow>
 
 <links>
 - Service architecture overview: @/packages/backend/src/services/ServiceRepository.ts
