@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { getFieldIdSchema } from '../fieldId';
-import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -29,7 +29,7 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema(
             .string()
             .describe('Query string to filter field values')
             .nullable(),
-        filters: filtersSchema
+        filters: filtersSchemaV2
             .nullable()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',

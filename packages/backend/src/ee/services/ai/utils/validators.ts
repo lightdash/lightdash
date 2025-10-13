@@ -4,6 +4,7 @@ import {
     booleanFilterSchema,
     CompiledField,
     convertAdditionalMetric,
+    convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBase,
     dateFilterSchema,
     Explore,
@@ -19,11 +20,12 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
-    Metric,
+    isTableCalculation,
     MetricType,
     numberFilterSchema,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
+    renderTableCalculationFilterRuleSql,
     stringFilterSchema,
     SupportedDbtAdapter,
     TableCalcSchema,
@@ -151,8 +153,12 @@ export function validateCustomMetricsDefinition(
 
 function validateFilterRule(
     filterRule: FilterRule,
-    field: CompiledField | AdditionalMetric,
+    field: CompiledField | AdditionalMetric | TableCalculation,
 ) {
+    if (!field.type) {
+        throw new Error('Field type is required');
+    }
+
     const filterType = getFilterTypeFromItemType(field.type);
 
     switch (filterType) {
@@ -237,6 +243,17 @@ function validateFilterRule(
                 WeekDay.SUNDAY,
                 SupportedDbtAdapter.BIGQUERY,
             );
+        } else if (isTableCalculation(field)) {
+            renderTableCalculationFilterRuleSql(
+                filterRule,
+                field,
+                // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
+                '"',
+                "'",
+                (string: string) => string.replaceAll('\\', '\\\\'),
+                SupportedDbtAdapter.BIGQUERY,
+                WeekDay.SUNDAY,
+            );
         } else {
             renderFilterRuleSqlFromField(
                 filterRule,
@@ -265,13 +282,21 @@ export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
     customMetrics?: CustomMetricBase[] | null,
+    tableCalculations?: TableCalcsSchema | null,
 ) {
     const exploreFields = getFields(explore);
     const customMetricFields = populateCustomMetricsSQL(
         customMetrics || [],
         explore,
     );
-    const allFields = [...exploreFields, ...customMetricFields];
+    const tableCalcFields = tableCalculations
+        ? convertAiTableCalcsSchemaToTableCalcs(tableCalculations)
+        : [];
+    const allFields = [
+        ...exploreFields,
+        ...customMetricFields,
+        ...tableCalcFields,
+    ];
     const allFieldIds = allFields.map(getItemId);
     const filterRuleErrors: string[] = [];
 

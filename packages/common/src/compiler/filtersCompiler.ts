@@ -10,7 +10,7 @@ import {
     isMetric,
     type CompiledCustomSqlDimension,
     type CompiledField,
-    type CompiledTableCalculation,
+    type TableCalculation,
 } from '../types/field';
 import {
     FilterOperator,
@@ -413,7 +413,7 @@ const escapeStringValuesOnFilterRule = (
 
 export const renderTableCalculationFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
-    field: CompiledTableCalculation | undefined,
+    field: TableCalculation | undefined,
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeString: (string: string) => string,
