@@ -567,6 +567,7 @@ test('Should compile WINDOW_FUNCTION template with ROW_NUMBER', () => {
                 template: {
                     type: TableCalculationTemplateType.WINDOW_FUNCTION,
                     windowFunction: WindowFunctionType.ROW_NUMBER,
+                    fieldId: null,
                     orderBy: [
                         {
                             fieldId: 'table1_dim_1',
@@ -646,6 +647,7 @@ test('Should compile WINDOW_FUNCTION template without orderBy or partitionBy', (
                 template: {
                     type: TableCalculationTemplateType.WINDOW_FUNCTION,
                     windowFunction: WindowFunctionType.ROW_NUMBER,
+                    fieldId: null,
                     orderBy: [],
                     partitionBy: [],
                 },

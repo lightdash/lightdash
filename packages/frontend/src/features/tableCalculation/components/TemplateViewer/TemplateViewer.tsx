@@ -37,7 +37,9 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
     };
 
     const fieldLabel =
-        'fieldId' in template ? getLabel(template.fieldId) : undefined;
+        'fieldId' in template && template.fieldId !== null
+            ? getLabel(template.fieldId)
+            : undefined;
 
     const formatWindowFunction = (windowFunction: WindowFunctionType) => {
         switch (windowFunction) {

@@ -447,6 +447,7 @@ describe('ValidationService - Table Calculation Templates', () => {
                 template: {
                     type: TableCalculationTemplateType.WINDOW_FUNCTION,
                     windowFunction: WindowFunctionType.ROW_NUMBER,
+                    fieldId: null,
                     orderBy: [{ fieldId: 'table_date', order: 'asc' }],
                     partitionBy: ['table_country'],
                 },

@@ -316,6 +316,11 @@ export enum TableCalculationType {
 export enum WindowFunctionType {
     ROW_NUMBER = 'row_number',
     PERCENT_RANK = 'percent_rank',
+    SUM = 'sum',
+    AVG = 'avg',
+    COUNT = 'count',
+    MIN = 'min',
+    MAX = 'max',
 }
 
 export enum TableCalculationTemplateType {
@@ -360,6 +365,7 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.WINDOW_FUNCTION;
           windowFunction: WindowFunctionType;
+          fieldId: string | null;
           orderBy: {
               fieldId: string;
               order: 'asc' | 'desc' | null;
