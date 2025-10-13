@@ -136,7 +136,7 @@ const ConditionalFormattingList = ({}) => {
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
-                            key={index}
+                            key={JSON.stringify(conditionalFormatting)}
                             isOpen={openItems.includes(`${index}`)}
                             addNewItem={addNewItem}
                             removeItem={removeItem}
