@@ -145,10 +145,8 @@ const getAgentTools = (
     );
 
     const findExplores = getFindExplores({
-        maxDescriptionLength: args.findExploresMaxDescriptionLength,
         pageSize: args.findExploresPageSize,
         fieldSearchSize: args.findExploresFieldSearchSize,
-        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
     });
 
@@ -174,6 +172,7 @@ const getAgentTools = (
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
+        sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
@@ -231,20 +230,13 @@ const getAgentMessages = async (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const availableExplores = await dependencies.findExplores({
-        page: 1,
-        pageSize: args.availableExploresPageSize,
-        tableName: null,
-        includeFields: false,
-    });
+    const availableExplores = await dependencies.listExplores();
 
     const messages = [
         getSystemPromptV2({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
-            availableExplores: availableExplores.tablesWithFields.map(
-                (table) => table.table.name,
-            ),
+            availableExplores,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
         }),

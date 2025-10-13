@@ -2,8 +2,18 @@ import type { ItemsMap } from '../../../types/field';
 import { friendlyName, isField } from '../../../types/field';
 import type { MetricQuery } from '../../../types/metricQuery';
 import type { ResultRow } from '../../../types/results';
-import type { ChartConfig, PivotReference } from '../../../types/savedCharts';
-import { CartesianSeriesType, ChartType } from '../../../types/savedCharts';
+import type {
+    CartesianChartConfig,
+    ChartConfig,
+    FunnelChartConfig,
+    PieChartConfig,
+    PivotReference,
+} from '../../../types/savedCharts';
+import {
+    CartesianSeriesType,
+    ChartType,
+    FunnelChartDataInput,
+} from '../../../types/savedCharts';
 import { formatItemValue } from '../../../utils/formatting';
 import { getItemLabelWithoutTableName } from '../../../utils/item';
 import { getPivotedData } from '../../../utils/pivotData';
@@ -16,7 +26,14 @@ type Axis = {
     [key: string]: unknown;
 };
 
-export type ChartTypeOption = 'table' | 'bar' | 'line';
+export type ChartTypeOption =
+    | 'table'
+    | 'bar'
+    | 'horizontal'
+    | 'line'
+    | 'scatter'
+    | 'pie'
+    | 'funnel';
 
 /**
  * Determines if a query can be rendered as a specific chart type
@@ -29,8 +46,17 @@ export const canRenderAsChart = (
         case 'table':
             return true; // Table can always render
         case 'bar':
+        case 'horizontal':
         case 'line':
+        case 'scatter':
             // Charts require at least one dimension and one metric
+            return (
+                metricQuery.dimensions.length > 0 &&
+                metricQuery.metrics.length > 0
+            );
+        case 'pie':
+        case 'funnel':
+            // Pie and funnel charts require at least one dimension and one metric
             return (
                 metricQuery.dimensions.length > 0 &&
                 metricQuery.metrics.length > 0
@@ -49,14 +75,16 @@ export const getAvailableChartTypes = (
     const types: ChartTypeOption[] = ['table'];
 
     if (metricQuery.metrics.length > 0 && metricQuery.dimensions.length > 0) {
-        types.push('bar', 'line');
+        types.push('bar', 'horizontal', 'line', 'scatter', 'pie', 'funnel');
     }
 
     return types;
 };
 
-// Helper functions
-const formatFieldLabel = (fieldId: string, fieldsMap: ItemsMap): string => {
+export const formatFieldLabel = (
+    fieldId: string,
+    fieldsMap: ItemsMap,
+): string => {
     const field = fieldsMap[fieldId];
     if (field && isField(field)) {
         return getItemLabelWithoutTableName(field);
@@ -64,7 +92,7 @@ const formatFieldLabel = (fieldId: string, fieldsMap: ItemsMap): string => {
     return friendlyName(fieldId);
 };
 
-const formatPivotValueLabel = (
+export const formatPivotValueLabel = (
     pivotReference: PivotReference,
     fieldsMap: ItemsMap,
 ): string => {
@@ -100,7 +128,7 @@ const getBarChartConfig = ({
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
-}): ChartConfig => {
+}): CartesianChartConfig => {
     const { dimensions } = queryTool.queryConfig;
     const xDimension = dimensions[0];
 
@@ -205,7 +233,7 @@ const getLineChartConfig = ({
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
-}): ChartConfig => {
+}): CartesianChartConfig => {
     const { dimensions } = queryTool.queryConfig;
     const xDimension = dimensions[0];
 
@@ -293,6 +321,269 @@ const getLineChartConfig = ({
 };
 
 /**
+ * Generates horizontal bar chart echarts config
+ */
+const getHorizontalBarChartConfig = ({
+    queryTool,
+    metricQuery,
+    rows,
+    fieldsMap,
+    chartConfig,
+    metadata,
+}: {
+    queryTool: ToolRunQueryArgsTransformed;
+    metricQuery: MetricQuery;
+    rows: Record<string, unknown>[];
+    fieldsMap: ItemsMap;
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
+    metadata: { title: string; description: string };
+}): CartesianChartConfig => {
+    const { dimensions } = queryTool.queryConfig;
+    const xDimension = dimensions[0];
+
+    const { metrics: queryMetrics } = metricQuery;
+    let metrics: (string | PivotReference)[] = queryMetrics;
+
+    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
+    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
+    const breakdownDimension =
+        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+
+    // If we should pivot and have a breakdown dimension, pivot the data
+    if (breakdownDimension) {
+        const pivot = getPivotedData(
+            rows as ResultRow[],
+            [breakdownDimension],
+            metricQuery.metrics,
+            [], // No pivoted dimensions
+        );
+        metrics = Object.values(pivot.rowKeyMap);
+    }
+
+    return {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: xDimension,
+                yField: metricQuery.metrics,
+                flipAxes: true, // This makes it horizontal
+            },
+            eChartsConfig: {
+                ...(metadata.title ? { title: { text: metadata.title } } : {}),
+                legend: {
+                    show: true,
+                    type: 'plain',
+                },
+                grid: { containLabel: true },
+                xAxis: [
+                    {
+                        type: 'value',
+                        ...(chartConfig?.xAxisLabel
+                            ? { name: chartConfig.xAxisLabel }
+                            : {}),
+                    },
+                ] as Axis[],
+                yAxis: [
+                    {
+                        type: chartConfig?.xAxisType ?? 'category',
+                        ...(chartConfig?.yAxisLabel
+                            ? { name: chartConfig.yAxisLabel }
+                            : {}),
+                    },
+                ] as Axis[],
+                series: metrics.map((metric) => {
+                    const defaultProperties = {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                    };
+
+                    if (typeof metric === 'string') {
+                        return {
+                            ...defaultProperties,
+                            name: formatFieldLabel(metric, fieldsMap),
+                            encode: {
+                                xRef: { field: xDimension },
+                                yRef: { field: metric },
+                            },
+                        };
+                    }
+
+                    return {
+                        ...defaultProperties,
+                        name: formatPivotValueLabel(metric, fieldsMap),
+                        encode: {
+                            xRef: { field: xDimension },
+                            yRef: metric,
+                        },
+                        ...(chartConfig?.stackBars && {
+                            stack: metric.field,
+                        }),
+                    };
+                }),
+            },
+        },
+    };
+};
+
+/**
+ * Generates scatter chart echarts config
+ */
+const getScatterChartConfig = ({
+    queryTool,
+    metricQuery,
+    rows,
+    fieldsMap,
+    chartConfig,
+    metadata,
+}: {
+    queryTool: ToolRunQueryArgsTransformed;
+    metricQuery: MetricQuery;
+    rows: Record<string, unknown>[];
+    fieldsMap: ItemsMap;
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
+    metadata: { title: string; description: string };
+}): CartesianChartConfig => {
+    const { dimensions } = queryTool.queryConfig;
+    const xDimension = dimensions[0];
+
+    const { metrics: queryMetrics } = metricQuery;
+    let metrics: (string | PivotReference)[] = queryMetrics;
+
+    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
+    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
+    const breakdownDimension =
+        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+
+    // If we should pivot and have a breakdown dimension, pivot the data
+    if (breakdownDimension) {
+        const pivoted = getPivotedData(
+            rows as ResultRow[],
+            [breakdownDimension],
+            metricQuery.metrics,
+            [], // No pivoted dimensions
+        );
+        metrics = Object.values(pivoted.rowKeyMap);
+    }
+
+    return {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: xDimension,
+                yField: metricQuery.metrics,
+            },
+            eChartsConfig: {
+                ...(metadata.title ? { title: { text: metadata.title } } : {}),
+                legend: {
+                    show: true,
+                    type: 'plain',
+                },
+                grid: { containLabel: true },
+                xAxis: [
+                    {
+                        type: chartConfig?.xAxisType ?? 'category',
+                        ...(chartConfig?.xAxisLabel
+                            ? { name: chartConfig.xAxisLabel }
+                            : {}),
+                    },
+                ] as Axis[],
+                yAxis: [
+                    {
+                        type: 'value',
+                        ...(chartConfig?.yAxisLabel
+                            ? { name: chartConfig.yAxisLabel }
+                            : {}),
+                    },
+                ] as Axis[],
+                series: metrics.map((metric) => {
+                    const defaultProperties = {
+                        type: CartesianSeriesType.SCATTER,
+                        yAxisIndex: 0,
+                        // Scatter charts should show symbols by default
+                        showSymbol: true,
+                    };
+
+                    if (typeof metric === 'string') {
+                        return {
+                            ...defaultProperties,
+                            name: formatFieldLabel(metric, fieldsMap),
+                            encode: {
+                                xRef: { field: xDimension },
+                                yRef: { field: metric },
+                            },
+                        };
+                    }
+
+                    return {
+                        ...defaultProperties,
+                        name: formatPivotValueLabel(metric, fieldsMap),
+                        encode: {
+                            xRef: { field: xDimension },
+                            yRef: metric,
+                        },
+                    };
+                }),
+            },
+        },
+    };
+};
+
+/**
+ * Generates pie chart config
+ */
+const getPieChartConfig = ({
+    queryTool,
+    metricQuery,
+}: {
+    queryTool: ToolRunQueryArgsTransformed;
+    metricQuery: MetricQuery;
+    rows: Record<string, unknown>[];
+    fieldsMap: ItemsMap;
+}): PieChartConfig => {
+    const { dimensions } = queryTool.queryConfig;
+    const { metrics } = metricQuery;
+
+    const config: PieChartConfig['config'] = {
+        groupFieldIds: dimensions,
+        metricId: metrics[0] as string,
+    };
+
+    return {
+        type: ChartType.PIE,
+        config,
+    };
+};
+
+/**
+ * Generates funnel chart config
+ */
+const getFunnelChartConfig = ({
+    queryTool,
+    metricQuery,
+}: {
+    queryTool: ToolRunQueryArgsTransformed;
+    metricQuery: MetricQuery;
+    rows: Record<string, unknown>[];
+    fieldsMap: ItemsMap;
+}): FunnelChartConfig => {
+    const { metrics } = metricQuery;
+    const { chartConfig } = queryTool;
+
+    let dataInput = FunnelChartDataInput.COLUMN;
+    if (chartConfig?.funnelDataInput === 'row') {
+        dataInput = FunnelChartDataInput.ROW;
+    }
+
+    return {
+        type: ChartType.FUNNEL,
+        config: {
+            fieldId: metrics[0] as string,
+            dataInput,
+        },
+    };
+};
+
+/**
  * Converts runQuery tool result to echarts config
  * This is the main function used for chart type switching
  */
@@ -319,8 +610,8 @@ export const getChartConfigFromRunQuery = ({
 
     const { chartConfig } = queryTool;
     const metadata = {
-        title: queryTool.title,
-        description: queryTool.description,
+        title: queryTool.title as string,
+        description: queryTool.description as string,
     };
 
     switch (chartType) {
@@ -337,6 +628,16 @@ export const getChartConfigFromRunQuery = ({
                 metadata,
             });
 
+        case 'horizontal':
+            return getHorizontalBarChartConfig({
+                queryTool,
+                metricQuery,
+                rows,
+                fieldsMap,
+                chartConfig,
+                metadata,
+            });
+
         case 'line':
             return getLineChartConfig({
                 queryTool,
@@ -345,6 +646,32 @@ export const getChartConfigFromRunQuery = ({
                 fieldsMap,
                 chartConfig,
                 metadata,
+            });
+
+        case 'scatter':
+            return getScatterChartConfig({
+                queryTool,
+                metricQuery,
+                rows,
+                fieldsMap,
+                chartConfig,
+                metadata,
+            });
+
+        case 'pie':
+            return getPieChartConfig({
+                queryTool,
+                metricQuery,
+                rows,
+                fieldsMap,
+            });
+
+        case 'funnel':
+            return getFunnelChartConfig({
+                queryTool,
+                metricQuery,
+                rows,
+                fieldsMap,
             });
 
         default:
