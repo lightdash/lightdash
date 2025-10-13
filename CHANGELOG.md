@@ -1,3 +1,11 @@
+## [0.2075.3](https://github.com/lightdash/lightdash/compare/0.2075.2...0.2075.3) (2025-10-13)
+
+
+### Bug Fixes
+
+* allow pat authentication mcp ([#17400](https://github.com/lightdash/lightdash/issues/17400)) ([cc2cd5f](https://github.com/lightdash/lightdash/commit/cc2cd5fd3149f3b9c1e6440a1df6f83a4c74aeec))
+* preview from cli can copy organization warehouse credentials ([#17398](https://github.com/lightdash/lightdash/issues/17398)) ([c9af171](https://github.com/lightdash/lightdash/commit/c9af1717d11716f15c361e0ab1b572b8ed1e21f3))
+
 ## [0.2075.2](https://github.com/lightdash/lightdash/compare/0.2075.1...0.2075.2) (2025-10-13)
 
 
