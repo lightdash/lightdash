@@ -31,6 +31,7 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
+    PivotConfiguration,
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -84,6 +85,7 @@ export type BuildQueryProps = {
     parameters?: ParametersValuesMap;
     parameterDefinitions: ParameterDefinitions;
     intrinsicUserAttributes: IntrinsicUserAttributes;
+    pivotConfiguration?: PivotConfiguration;
     timezone: string;
 };
 
@@ -1520,7 +1522,12 @@ export class MetricQueryBuilder {
         ctes: string[];
         finalCteName: string;
     } {
-        const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseSqlBuilder,
+            pivotConfiguration,
+        } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const { postSqlMetrics, referencedMetrics } =
             this.getMetricIdsByGroup();
@@ -1553,12 +1560,13 @@ export class MetricQueryBuilder {
                 metric,
                 metricCtes,
             );
-            const compiledSql = compilePostSqlMetric(
+            const compiledSql = compilePostSqlMetric({
                 warehouseSqlBuilder,
-                metric.type,
-                processedSql,
-                sqlOrderBy,
-            );
+                type: metric.type,
+                pivotConfiguration,
+                sql: processedSql,
+                orderByClause: sqlOrderBy,
+            });
             return `  ${compiledSql} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
         });
 

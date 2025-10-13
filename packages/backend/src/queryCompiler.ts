@@ -15,6 +15,7 @@ import {
     lightdashVariablePattern,
     MetricQuery,
     MetricType,
+    PivotConfiguration,
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -252,12 +253,19 @@ const compileAdditionalMetric = ({
     };
 };
 
-export function compilePostSqlMetric(
-    warehouseSqlBuilder: WarehouseSqlBuilder,
-    type: MetricType,
-    sql: string,
-    orderByClause: string = `ORDER BY (SELECT NULL)`,
-): string {
+export function compilePostSqlMetric({
+    warehouseSqlBuilder,
+    type,
+    sql,
+    pivotConfiguration,
+    orderByClause,
+}: {
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+    type: MetricType;
+    sql: string;
+    pivotConfiguration?: PivotConfiguration;
+    orderByClause?: string;
+}): string {
     const floatType = warehouseSqlBuilder.getFloatingType();
     if (!isPostSqlMetricType(type)) {
         throw new CompileError(
@@ -265,21 +273,38 @@ export function compilePostSqlMetric(
         );
     }
 
+    const groupByColumns = pivotConfiguration?.groupByColumns ?? [];
+    const q = warehouseSqlBuilder.getFieldQuoteChar();
+    const partitionByClause: string | undefined =
+        groupByColumns.length > 0
+            ? `PARTITION BY ${groupByColumns
+                  .map((col) => `${q}${col.reference}${q}`)
+                  .join(', ')}`
+            : undefined;
+
+    const finalOrderByClause = orderByClause ?? `ORDER BY (SELECT NULL)`;
+
     if (type === MetricType.RUNNING_TOTAL) {
-        return `SUM(${sql}) OVER ( ORDER BY (${sql}) DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+        return `SUM(${sql}) OVER (${
+            partitionByClause ?? ' '
+        }${finalOrderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
     }
 
     if (type === MetricType.PERCENT_OF_PREVIOUS) {
         return (
             `(CAST(${sql} AS ${floatType}) / ` +
-            `CAST(NULLIF(LAG(${sql}) OVER(${orderByClause}), 0) AS ${floatType})) - 1`
+            `CAST(NULLIF(LAG(${sql}) OVER(${
+                partitionByClause ?? ' '
+            }${finalOrderByClause}), 0) AS ${floatType})) - 1`
         );
     }
 
     if (type === MetricType.PERCENT_OF_TOTAL) {
         return (
             `(CAST(${sql} AS ${floatType}) / ` +
-            `CAST(NULLIF(SUM(${sql}) OVER(), 0) AS ${floatType}))`
+            `CAST(NULLIF(SUM(${sql}) OVER(${
+                partitionByClause ?? ''
+            }), 0) AS ${floatType}))`
         );
     }
 

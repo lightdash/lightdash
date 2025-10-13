@@ -1477,12 +1477,14 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder,
         parameters,
         projectUuid,
+        pivotConfiguration,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         'account' | 'metricQuery' | 'dateZoom' | 'parameters' | 'projectUuid'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
+        pivotConfiguration?: PivotConfiguration;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -1505,6 +1507,7 @@ export class AsyncQueryService extends ProjectService {
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
             availableParameterDefinitions,
+            pivotConfiguration,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -1890,6 +1893,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            pivotConfiguration,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2056,6 +2060,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            // todo: pivotConfiguration
         });
 
         const pivotConfiguration = pivotResults
@@ -2313,6 +2318,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            // todo: pivotConfiguration
         });
 
         const pivotConfiguration = pivotResults
