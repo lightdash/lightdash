@@ -1,3 +1,10 @@
+## [0.2075.4](https://github.com/lightdash/lightdash/compare/0.2075.3...0.2075.4) (2025-10-13)
+
+
+### Bug Fixes
+
+* improve tests for explore summaries and remove feature flag ([#17404](https://github.com/lightdash/lightdash/issues/17404)) ([f051474](https://github.com/lightdash/lightdash/commit/f051474b90f35c81f5e32b3ce4b3b318cd444402))
+
 ## [0.2075.3](https://github.com/lightdash/lightdash/compare/0.2075.2...0.2075.3) (2025-10-13)
 
 
