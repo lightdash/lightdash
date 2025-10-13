@@ -120,6 +120,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
                     projectModel: models.getProjectModel(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, context }) =>
@@ -131,6 +133,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
+                    organizationModel: models.getOrganizationModel(),
+                    commercialFeatureFlagModel:
+                        models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

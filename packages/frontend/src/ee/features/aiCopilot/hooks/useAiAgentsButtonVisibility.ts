@@ -1,6 +1,4 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlagEnabled';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentPermission } from './useAiAgentPermission';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
@@ -21,12 +19,14 @@ export const useAiAgentButtonVisibility = () => {
         action: 'manage',
         projectUuid: projectUuid ?? undefined,
     });
-    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
-    const settings = useAiOrganizationSettings();
+    const organizationSettingsQuery = useAiOrganizationSettings();
+
     const agents = useProjectAiAgents({
         projectUuid,
         options: {
-            enabled: settings.isSuccess && settings.data.aiAgentsVisible,
+            enabled:
+                organizationSettingsQuery.isSuccess &&
+                organizationSettingsQuery.data?.aiAgentsVisible,
         },
         redirectOnUnauthorized: false,
     });
@@ -38,21 +38,15 @@ export const useAiAgentButtonVisibility = () => {
             agents.data.length > 0) ||
         canManageAiAgents;
 
-    if (
-        !appQuery.user.isSuccess ||
-        !aiCopilotFlagQuery.isSuccess ||
-        !settings.isSuccess
-    ) {
+    if (!appQuery.user.isSuccess || !organizationSettingsQuery.isSuccess) {
         return false;
     }
 
-    const isAiCopilotEnabled = aiCopilotFlagQuery.data.enabled;
-    const isAiAgentEnabled = settings.data.aiAgentsVisible;
+    const isAiAgentEnabled = organizationSettingsQuery.data?.aiAgentsVisible;
 
     if (
         !canViewButton ||
         !canViewAiAgents ||
-        !isAiCopilotEnabled ||
         !isAiAgentEnabled ||
         !projectUuid
     ) {

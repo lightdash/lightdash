@@ -198,6 +198,7 @@ export class OrganizationModel {
             defaultProjectUuid: data.default_project_uuid
                 ? data.default_project_uuid
                 : undefined,
+            createdAt: data.created_at,
         };
     }
 

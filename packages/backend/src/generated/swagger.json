@@ -9003,6 +9003,42 @@
                 "required": ["aiAgentsVisible", "organizationUuid"],
                 "type": "object"
             },
+            "ComputedAiOrganizationSettings": {
+                "properties": {
+                    "isTrial": {
+                        "type": "boolean"
+                    },
+                    "isCopilotEnabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isTrial", "isCopilotEnabled"],
+                "type": "object"
+            },
+            "ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiOrganizationSettings"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ComputedAiOrganizationSettings"
+                            }
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiOrganizationSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_"
+            },
             "ApiSuccess_AiOrganizationSettings_": {
                 "properties": {
                     "results": {
@@ -9017,13 +9053,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAiOrganizationSettingsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
-            },
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__": {
+            "Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__": {
                 "properties": {
                     "aiAgentsVisible": {
                         "type": "boolean"
@@ -9033,12 +9066,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_AiOrganizationSettings.organizationUuid_": {
-                "$ref": "#/components/schemas/Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid__",
+            "Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_": {
+                "$ref": "#/components/schemas/Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "UpdateAiOrganizationSettings": {
-                "$ref": "#/components/schemas/Omit_AiOrganizationSettings.organizationUuid_"
+                "$ref": "#/components/schemas/Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -20675,7 +20708,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2071.2",
+        "version": "0.2075.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
