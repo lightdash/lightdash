@@ -16,6 +16,7 @@ import { type VisualizationConfig } from './types';
 
 type VisualizationContext = {
     minimal: boolean;
+    isDashboard: boolean;
     chartRef: RefObject<EChartsReact | null>;
     pivotDimensions: string[] | undefined;
     resultsData:

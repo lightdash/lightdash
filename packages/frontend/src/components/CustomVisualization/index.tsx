@@ -18,7 +18,7 @@ type Props = {
 };
 
 const CustomVisualization: FC<Props> = (props) => {
-    const { isLoading, visualizationConfig, resultsData } =
+    const { isLoading, visualizationConfig, resultsData, isDashboard } =
         useVisualizationContext();
 
     const [ref, rect] = useResizeObserver();
@@ -109,6 +109,7 @@ const CustomVisualization: FC<Props> = (props) => {
                     }}
                     data={data}
                     actions={false}
+                    {...(isDashboard && { resize: true })}
                 />
             </Suspense>
         </div>
