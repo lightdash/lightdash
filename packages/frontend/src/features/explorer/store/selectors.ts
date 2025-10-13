@@ -120,6 +120,11 @@ export const selectMetrics = createSelector(
     (metricQuery) => metricQuery.metrics,
 );
 
+export const selectMetricOverrides = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.metricOverrides || {},
+);
+
 // Parameter selectors
 export const selectParameters = createSelector(
     [selectUnsavedChartVersion],
