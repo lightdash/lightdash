@@ -180,6 +180,29 @@ export const exploreWithTags: ExploreError = {
     tags: ['tag_name', 'another_tag'],
 };
 
+export const virtualExplore: Explore = {
+    ...validExplore,
+    name: 'virtual_explore',
+    label: 'Virtual Explore',
+    type: ExploreType.VIRTUAL,
+    tags: [],
+};
+
+export const exploreWithRequiredAttributes: Explore = {
+    ...validExplore,
+    name: 'explore_with_required_attributes',
+    label: 'Explore With Required Attributes',
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            requiredAttributes: {
+                is_admin: 'true',
+            },
+        },
+    },
+};
+
 export const exploreWithMetrics: Explore = {
     ...validExplore,
     tables: {
@@ -523,4 +546,32 @@ export const expectedApiQueryResultsWith501Rows: ApiQueryResults = {
     },
     metricQuery: metricQueryMock,
     rows: Array(501).map(() => expectedFormattedRow),
+};
+
+// Helper function to convert Explore to SummaryExplore with baseTableRequiredAttributes
+export const exploreToSummaryWithAttributes = (
+    explore: Explore | ExploreError,
+): SummaryExplore & {
+    baseTableRequiredAttributes?: Record<string, string | string[]>;
+} => {
+    if ('errors' in explore) {
+        return {
+            name: explore.name,
+            label: explore.label,
+            tags: explore.tags,
+            errors: explore.errors,
+        };
+    }
+
+    const baseTable = explore.tables[explore.baseTable];
+    return {
+        name: explore.name,
+        label: explore.label,
+        tags: explore.tags,
+        databaseName: baseTable.database,
+        schemaName: baseTable.schema,
+        description: baseTable.description,
+        type: explore.type,
+        baseTableRequiredAttributes: baseTable.requiredAttributes,
+    };
 };

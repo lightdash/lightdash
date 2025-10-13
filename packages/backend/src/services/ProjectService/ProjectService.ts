@@ -3982,77 +3982,7 @@ export class ProjectService extends BaseService {
             });
     }
 
-    private async getExploreSummariesLegacy(
-        account: Account,
-        projectUuid: string,
-        includeErrors: boolean = true,
-    ) {
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
-
-        const explores = Object.values(cachedExplores);
-
-        if (!explores) {
-            return [];
-        }
-
-        const { userAttributes } = await this.getUserAttributes({ account });
-        return explores.reduce<SummaryExplore[]>((acc, explore, index) => {
-            if (isExploreError(explore)) {
-                return includeErrors
-                    ? [
-                          ...acc,
-                          {
-                              name: explore.name,
-                              label: explore.label,
-                              tags: explore.tags,
-                              groupLabel: explore.groupLabel,
-                              errors: explore.errors,
-                              databaseName:
-                                  explore.baseTable &&
-                                  explore.tables?.[explore.baseTable]?.database,
-                              schemaName:
-                                  explore.baseTable &&
-                                  explore.tables?.[explore.baseTable]?.schema,
-                              description:
-                                  explore.baseTable &&
-                                  explore.tables?.[explore.baseTable]
-                                      ?.description,
-                              aiHint: explore.aiHint,
-                          },
-                      ]
-                    : acc;
-            }
-            if (
-                doesExploreMatchRequiredAttributes(
-                    explore.tables[explore.baseTable].requiredAttributes,
-                    userAttributes,
-                )
-            ) {
-                return [
-                    ...acc,
-                    {
-                        name: explore.name,
-                        label: explore.label,
-                        tags: explore.tags,
-                        groupLabel: explore.groupLabel,
-                        databaseName:
-                            explore.tables[explore.baseTable].database,
-                        schemaName: explore.tables[explore.baseTable].schema,
-                        description:
-                            explore.tables[explore.baseTable].description,
-                        type: explore.type ?? ExploreType.DEFAULT,
-                        aiHint: explore.aiHint,
-                    },
-                ];
-            }
-            return acc;
-        }, []);
-    }
-
-    private async getExperimentalExploreSummaries(
+    private async getExploreSummaries(
         account: Account,
         projectUuid: string,
         includeErrors: boolean = true,
@@ -4108,18 +4038,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const allExploreSummaries =
-            process.env.EXPERIMENTAL_EXPLORE_SUMMARIES === 'true'
-                ? await this.getExperimentalExploreSummaries(
-                      account,
-                      projectUuid,
-                      includeErrors,
-                  )
-                : await this.getExploreSummariesLegacy(
-                      account,
-                      projectUuid,
-                      includeErrors,
-                  );
+        const allExploreSummaries = await this.getExploreSummaries(
+            account,
+            projectUuid,
+            includeErrors,
+        );
 
         if (filtered) {
             const {
