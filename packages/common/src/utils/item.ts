@@ -39,6 +39,9 @@ export const isNumericType = (
         MetricType.SUM,
         MetricType.MIN,
         MetricType.MAX,
+        MetricType.PERCENT_OF_PREVIOUS,
+        MetricType.PERCENT_OF_TOTAL,
+        MetricType.RUNNING_TOTAL,
     ];
     return numericTypes.includes(type);
 };

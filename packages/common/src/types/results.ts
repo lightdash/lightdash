@@ -40,6 +40,9 @@ export function convertItemTypeToDimensionType(item: Item): DimensionType {
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX:
+        case MetricType.PERCENT_OF_PREVIOUS:
+        case MetricType.PERCENT_OF_TOTAL:
+        case MetricType.RUNNING_TOTAL:
         case TableCalculationType.NUMBER:
             return DimensionType.NUMBER;
         case DimensionType.TIMESTAMP:

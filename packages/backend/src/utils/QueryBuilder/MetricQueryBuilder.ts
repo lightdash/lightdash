@@ -26,6 +26,7 @@ import {
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
+    isPostSqlMetric,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
@@ -43,6 +44,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { compilePostSqlMetric } from '../../queryCompiler';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
@@ -280,6 +282,65 @@ export class MetricQueryBuilder {
         };
     }
 
+    private getMetricIdsByGroup(): {
+        postSqlMetrics: string[];
+        regularMetrics: string[];
+        referencedMetrics: string[];
+    } {
+        const { explore, compiledMetricQuery } = this.args;
+        const { metrics } = compiledMetricQuery;
+
+        const postSqlMetrics: string[] = [];
+        const regularMetrics: string[] = [];
+        const referencedMetrics = new Set<string>();
+
+        metrics.forEach((metricId) => {
+            const metric = getMetricFromId(
+                metricId,
+                explore,
+                compiledMetricQuery,
+            );
+            if (isPostSqlMetric(metric)) {
+                postSqlMetrics.push(metricId);
+                // Extract referenced metrics from PostSQL metric SQL
+                const references = parseAllReferences(metric.sql, metric.table);
+                references.forEach((ref) => {
+                    const referencedMetricId = getItemId({
+                        table: ref.refTable,
+                        name: ref.refName,
+                    });
+                    // Only add numeric metrics as references
+                    try {
+                        const referencedMetric = getMetricFromId(
+                            referencedMetricId,
+                            explore,
+                            compiledMetricQuery,
+                        );
+                        if (isPostSqlMetric(referencedMetric)) {
+                            throw new CompileError(
+                                `PostSQL metric "${metric.label}" cannot reference another PostSQL metric "${referencedMetric.label}". PostSQL metrics can only reference numeric aggregate metrics.`,
+                            );
+                        }
+                        referencedMetrics.add(referencedMetricId);
+                    } catch (e) {
+                        if (e instanceof CompileError) {
+                            throw e;
+                        }
+                        // Referenced metric not found, let it continue and fail later with proper error
+                    }
+                });
+            } else {
+                regularMetrics.push(metricId);
+            }
+        });
+
+        return {
+            postSqlMetrics,
+            regularMetrics,
+            referencedMetrics: Array.from(referencedMetrics),
+        };
+    }
+
     private getMetricsSQL(): {
         tables: string[];
         selects: string[];
@@ -291,7 +352,12 @@ export class MetricQueryBuilder {
             warehouseSqlBuilder,
             userAttributes = {},
         } = this.args;
-        const { metrics, filters, additionalMetrics } = compiledMetricQuery;
+        const { filters, additionalMetrics } = compiledMetricQuery;
+        const { regularMetrics, referencedMetrics } =
+            this.getMetricIdsByGroup();
+
+        // Include both regular metrics and referenced metrics needed by PostSQL metrics
+        const metrics = [...regularMetrics, ...referencedMetrics];
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -345,6 +411,9 @@ export class MetricQueryBuilder {
                 explore,
                 compiledMetricQuery,
             );
+            if (isPostSqlMetric(metric)) {
+                return acc;
+            }
             const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
             return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
         }, []);
@@ -375,8 +444,8 @@ export class MetricQueryBuilder {
         );
 
         return {
-            selects: [...selects, ...selectsFromFilters],
-            tables,
+            selects: [...new Set([...selects, ...selectsFromFilters])],
+            tables: [...new Set(tables)],
             filtersSQL: filtersSQL ? `WHERE ${filtersSQL}` : undefined,
         };
     }
@@ -395,10 +464,12 @@ export class MetricQueryBuilder {
         requiresQueryInCTE: boolean;
         metricsSQL: { filtersSQL?: string };
     }): boolean {
+        const { postSqlMetrics } = this.getMetricIdsByGroup();
         return (
             opts.requiresQueryInCTE ||
             this.hasAnyTableCalcs() ||
-            MetricQueryBuilder.hasMetricFilters(opts.metricsSQL)
+            MetricQueryBuilder.hasMetricFilters(opts.metricsSQL) ||
+            postSqlMetrics.length > 0
         );
     }
 
@@ -600,14 +671,26 @@ export class MetricQueryBuilder {
         return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
     }
 
-    private getSortSQL() {
+    private getSortSQL(excludePostSqlMetrics: boolean = false) {
         const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
-        const { sorts, compiledCustomDimensions } = compiledMetricQuery;
+        const { sorts, metrics, compiledCustomDimensions } =
+            compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const compiledDimensions = getDimensions(explore);
         let requiresQueryInCTE = false;
-        const fieldOrders = sorts.map((sort) => {
+        const fieldOrders = sorts.reduce<string[]>((acc, sort) => {
+            // Default sort
+            let fieldSort: string = `${fieldQuoteChar}${
+                sort.fieldId
+            }${fieldQuoteChar}${
+                sort.descending ? ' DESC' : ''
+            }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
+
+            const sortedDimension = compiledDimensions.find(
+                (d) => getItemId(d) === sort.fieldId,
+            );
+
             if (
                 compiledCustomDimensions &&
                 compiledCustomDimensions.find(
@@ -619,29 +702,23 @@ export class MetricQueryBuilder {
                 // Custom dimensions will have a separate `select` for ordering,
                 // that returns the min value (int) of the bin, rather than a string,
                 // so we can use it for sorting
-                return `${fieldQuoteChar}${
+                fieldSort = `${fieldQuoteChar}${
                     sort.fieldId
                 }_order${fieldQuoteChar}${
                     sort.descending ? ' DESC' : ''
                 }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
-            }
-            const sortedDimension = compiledDimensions.find(
-                (d) => getItemId(d) === sort.fieldId,
-            );
-
-            if (
+            } else if (
                 sortedDimension &&
                 sortedDimension.timeInterval === TimeFrames.MONTH_NAME
             ) {
                 requiresQueryInCTE = true;
 
-                return sortMonthName(
+                fieldSort = sortMonthName(
                     sortedDimension,
                     warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
-            }
-            if (
+            } else if (
                 sortedDimension &&
                 sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
             ) {
@@ -649,17 +726,29 @@ export class MetricQueryBuilder {
                 // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
                 // for consistency, we do it for all warehouses
                 requiresQueryInCTE = true;
-                return sortDayOfWeekName(
+                fieldSort = sortDayOfWeekName(
                     sortedDimension,
                     startOfWeek,
                     warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
+            } else if (
+                excludePostSqlMetrics &&
+                metrics.includes(sort.fieldId)
+            ) {
+                const metric = getMetricFromId(
+                    sort.fieldId,
+                    explore,
+                    compiledMetricQuery,
+                );
+                if (isPostSqlMetric(metric)) {
+                    // Skip sorting by PostSQL metrics
+                    return acc;
+                }
             }
-            return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
-                sort.descending ? ' DESC' : ''
-            }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
-        });
+            acc.push(fieldSort);
+            return acc;
+        }, []);
 
         const sqlOrderBy =
             fieldOrders.length > 0
@@ -1426,6 +1515,64 @@ export class MetricQueryBuilder {
         return { ctes, lastCteName };
     }
 
+    // Create PostSQL metric CTEs
+    private createPostSqlMetricCtes(currentCteName: string): {
+        ctes: string[];
+        finalCteName: string;
+    } {
+        const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const { postSqlMetrics, referencedMetrics } =
+            this.getMetricIdsByGroup();
+        const { sqlOrderBy } = this.getSortSQL(true);
+
+        if (postSqlMetrics.length === 0) {
+            return { ctes: [], finalCteName: currentCteName };
+        }
+
+        const cteName = 'postsql_metrics';
+
+        // Create metric CTE references for the referenced metrics
+        // Referenced metrics should be available in the current CTE
+        const metricCtes = [
+            {
+                name: currentCteName,
+                metrics: referencedMetrics,
+            },
+        ];
+
+        // Create a single CTE with all PostSQL metrics
+        const metricSelects = postSqlMetrics.map((metricId) => {
+            const metric = getMetricFromId(
+                metricId,
+                explore,
+                compiledMetricQuery,
+            );
+            // Use replaceMetricReferencesWithCteReferences to properly resolve metric references
+            const processedSql = this.replaceMetricReferencesWithCteReferences(
+                metric,
+                metricCtes,
+            );
+            const compiledSql = compilePostSqlMetric(
+                warehouseSqlBuilder,
+                metric.type,
+                processedSql,
+                sqlOrderBy,
+            );
+            return `  ${compiledSql} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
+        });
+
+        const parts = [
+            'SELECT',
+            ['  *', ...metricSelects].join(',\n'),
+            `FROM ${currentCteName}`,
+        ];
+
+        const cte = MetricQueryBuilder.wrapAsCte(cteName, parts);
+
+        return { ctes: [cte], finalCteName: cteName };
+    }
+
     // Create table calculation CTEs (excluding metric filters)
     private createTableCalculationCtes(
         currentCteName: string,
@@ -1563,6 +1710,14 @@ export class MetricQueryBuilder {
                 MetricQueryBuilder.wrapAsCte(metricsCteName, finalSelectParts),
             );
             let currentCteName = metricsCteName;
+
+            // Create PostSQL metric CTEs
+            const { ctes: postSqlCtes, finalCteName: postSqlFinalCteName } =
+                this.createPostSqlMetricCtes(currentCteName);
+            if (postSqlCtes.length) {
+                ctesToAdd.push(...postSqlCtes);
+                currentCteName = postSqlFinalCteName;
+            }
 
             // Create metric_filters CTE if needed
             if (needsMetricFiltersCte && metricsSQL.filtersSQL) {

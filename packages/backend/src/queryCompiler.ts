@@ -9,10 +9,12 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
+    isPostSqlMetricType,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     lightdashVariablePattern,
     MetricQuery,
+    MetricType,
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -249,6 +251,40 @@ const compileAdditionalMetric = ({
         tablesReferences: Array.from(compiledMetric.tablesReferences),
     };
 };
+
+export function compilePostSqlMetric(
+    warehouseSqlBuilder: WarehouseSqlBuilder,
+    type: MetricType,
+    sql: string,
+    orderByClause: string = `ORDER BY (SELECT NULL)`,
+): string {
+    const floatType = warehouseSqlBuilder.getFloatingType();
+    if (!isPostSqlMetricType(type)) {
+        throw new CompileError(
+            `Unexpected metric type '${type}' when compiling PostSQL metric`,
+        );
+    }
+
+    if (type === MetricType.RUNNING_TOTAL) {
+        return `SUM(${sql}) OVER ( ORDER BY (${sql}) DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+    }
+
+    if (type === MetricType.PERCENT_OF_PREVIOUS) {
+        return (
+            `(CAST(${sql} AS ${floatType}) / ` +
+            `CAST(NULLIF(LAG(${sql}) OVER(${orderByClause}), 0) AS ${floatType})) - 1`
+        );
+    }
+
+    if (type === MetricType.PERCENT_OF_TOTAL) {
+        return (
+            `(CAST(${sql} AS ${floatType}) / ` +
+            `CAST(NULLIF(SUM(${sql}) OVER(), 0) AS ${floatType}))`
+        );
+    }
+
+    throw new CompileError(`No PostSQL metric implementation for type ${type}`);
+}
 
 type CompileMetricQueryArgs = {
     explore: Pick<Explore, 'targetDatabase' | 'tables' | 'parameters'>;
