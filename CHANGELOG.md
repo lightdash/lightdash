@@ -1,3 +1,10 @@
+## [0.2077.1](https://github.com/lightdash/lightdash/compare/0.2077.0...0.2077.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* more "stable" key for ConditionalFormattingItem ([#17421](https://github.com/lightdash/lightdash/issues/17421)) ([7143d34](https://github.com/lightdash/lightdash/commit/7143d342ffaca3ea63b77c48505975d35d256355))
+
 # [0.2077.0](https://github.com/lightdash/lightdash/compare/0.2076.0...0.2077.0) (2025-10-13)
 
 
