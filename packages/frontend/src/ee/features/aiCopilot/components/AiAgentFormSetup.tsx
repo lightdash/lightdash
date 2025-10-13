@@ -76,6 +76,7 @@ const formSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    version: z.number(),
 });
 
 export const AiAgentFormSetup = ({

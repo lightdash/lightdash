@@ -256,7 +256,14 @@ export const getChartConfigFromAiAgentVizConfig = ({
     rows: Record<string, unknown>[];
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;
-    overrideChartType?: 'table' | 'bar' | 'line';
+    overrideChartType?:
+        | 'table'
+        | 'bar'
+        | 'horizontal'
+        | 'line'
+        | 'scatter'
+        | 'pie'
+        | 'funnel';
 }) => {
     const parsedConfig = parseVizConfig(vizConfig, maxQueryLimit);
     if (!parsedConfig) {

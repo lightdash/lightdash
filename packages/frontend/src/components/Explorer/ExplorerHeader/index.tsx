@@ -75,8 +75,6 @@ const ExplorerHeader: FC = memo(() => {
         }
     }, [unsavedChartVersion, projectUuid]);
 
-    console.log(unsavedChartVersion.chartConfig);
-
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
             if (getHasDashboardChanges()) {

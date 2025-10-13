@@ -4,7 +4,14 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { SegmentedControl } from '@mantine-8/core';
-import { IconChartBar, IconChartLine, IconTable } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconChartLine,
+    IconChartPie,
+    IconChartScatter,
+    IconFilter,
+    IconTable,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 
@@ -17,13 +24,11 @@ type Props = {
 const CHART_TYPE_ICONS: Record<ChartTypeOption, typeof IconTable> = {
     table: IconTable,
     bar: IconChartBar,
+    horizontal: IconChartBar,
     line: IconChartLine,
-};
-
-const CHART_TYPE_LABELS: Record<ChartTypeOption, string> = {
-    table: 'Table',
-    bar: 'Bar',
-    line: 'Line',
+    scatter: IconChartScatter,
+    pie: IconChartPie,
+    funnel: IconFilter,
 };
 
 export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
@@ -45,15 +50,17 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
             data={availableChartTypes.map((chartType) => ({
                 value: chartType,
                 label: (
-                    <>
-                        <MantineIcon
-                            icon={CHART_TYPE_ICONS[chartType]}
-                            size="sm"
-                        />
-                        {CHART_TYPE_LABELS[chartType]}
-                    </>
+                    <MantineIcon
+                        icon={CHART_TYPE_ICONS[chartType]}
+                        size="sm"
+                        style={{
+                            rotate:
+                                chartType === 'horizontal' ? '90deg' : '0deg',
+                        }}
+                    />
                 ),
             }))}
+            color="indigo"
             size="xs"
         />
     );

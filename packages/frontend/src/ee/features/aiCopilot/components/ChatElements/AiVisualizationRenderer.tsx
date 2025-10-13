@@ -116,8 +116,6 @@ export const AiVisualizationRenderer: FC<Props> = ({
         );
     }
 
-    console.log(echartsConfig);
-
     return (
         <MetricQueryDataProvider
             metricQuery={metricQuery}

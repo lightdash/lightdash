@@ -1133,7 +1133,10 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<ReturnType<typeof streamAgentResponseV1>> {
+    ): Promise<
+        | ReturnType<typeof streamAgentResponseV1>
+        | ReturnType<typeof streamAgentResponseV2>
+    > {
         try {
             const {
                 user: validatedUser,

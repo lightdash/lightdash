@@ -1,3 +1,4 @@
+import { Explore } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import fs from 'fs';
 import moment from 'moment';
@@ -24,7 +25,7 @@ const dataAccessDisabledSection = fs.readFileSync(
 );
 
 export const getSystemPromptV2 = (args: {
-    availableExplores: string[];
+    availableExplores: Explore[];
     instructions?: string;
     agentName?: string;
     date?: string;
