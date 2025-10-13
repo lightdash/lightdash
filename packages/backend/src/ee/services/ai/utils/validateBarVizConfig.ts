@@ -38,8 +38,9 @@ export const validateBarVizConfig = (
     );
     validateMetricDimensionFilterPlacement(
         explore,
-        vizTool.filters,
         vizTool.customMetrics,
+        vizTool.tableCalculations,
+        vizTool.filters,
     );
     // validate sort fields exist
     validateSelectedFieldsExistence(
