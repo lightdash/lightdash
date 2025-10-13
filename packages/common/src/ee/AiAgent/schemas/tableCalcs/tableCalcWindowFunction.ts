@@ -22,25 +22,18 @@ export const tableCalcWindowFunctionSchema = baseTableCalcSchema.extend({
     type: z.literal('window_function'),
     windowFunction: windowFunctionTypeSchema.describe(
         [
-            'Type of window function to apply:',
+            'Type of window function to apply.',
             '',
-            'Ranking functions (no fieldId needed):',
-            '- row_number: Numbers each row sequentially (1, 2, 3, ...). Use for ranking or identifying rows.',
-            '- percent_rank: Calculates the relative rank as a percentage (0.0 to 1.0). Use for percentile analysis.',
+            '**Ranking functions** (fieldId optional, ignored if provided):',
+            '- row_number: Sequential numbering (1, 2, 3...)',
+            '- percent_rank: Relative rank as percentage (0.0-1.0)',
             '',
-            'Aggregate functions (require fieldId):',
-            '- sum: Running totals, moving sums',
-            '- avg: Moving averages (e.g., 7-day moving average)',
-            '- count: Running counts',
+            '**Aggregate functions** (fieldId required):',
+            '- sum: Sum values within frame',
+            '- avg: Average values within frame',
+            '- count: Count values within frame',
             '- min: Minimum value within frame',
             '- max: Maximum value within frame',
-            '',
-            'Examples:',
-            '- "Number rows by order date" → ROW_NUMBER with orderBy: order_date',
-            '- "Rank customers by revenue within each country" → ROW_NUMBER with partitionBy: country, orderBy: revenue DESC',
-            '- "Calculate percentile rank of sales" → PERCENT_RANK with orderBy: sales',
-            '- "Running total of revenue" → SUM with fieldId: revenue, orderBy: order_date',
-            '- "7-day moving average of sales" → AVG with fieldId: sales, orderBy: date',
         ].join('\n'),
     ),
     fieldId: getFieldIdSchema({
@@ -55,7 +48,71 @@ export const tableCalcWindowFunctionSchema = baseTableCalcSchema.extend({
         .array(partitionBySchema)
         .nullable()
         .describe(partitionBySchemaDescription),
-    frame: z.null(),
+    frame: z
+        .object({
+            frameType: z
+                .enum(['rows', 'range'])
+                .describe(
+                    [
+                        'Frame type:',
+                        '- rows: Physical row count',
+                        '- range: Logical value-based (includes peer rows with same ORDER BY value)',
+                    ].join('\n'),
+                ),
+            start: z
+                .object({
+                    type: z.enum([
+                        'unbounded_preceding',
+                        'preceding',
+                        'current_row',
+                        'following',
+                        'unbounded_following',
+                    ]),
+                    offset: z
+                        .number()
+                        .int()
+                        .positive()
+                        .nullable()
+                        .describe(
+                            'Number of rows for PRECEDING/FOLLOWING (e.g., 6 for "6 PRECEDING")',
+                        ),
+                })
+                .nullable()
+                .describe('Start boundary. Null for single-boundary syntax.'),
+            end: z
+                .object({
+                    type: z.enum([
+                        'unbounded_preceding',
+                        'preceding',
+                        'current_row',
+                        'following',
+                        'unbounded_following',
+                    ]),
+                    offset: z
+                        .number()
+                        .int()
+                        .positive()
+                        .nullable()
+                        .describe('Number of rows for PRECEDING/FOLLOWING'),
+                })
+                .describe('End boundary (required)'),
+        })
+        .nullable()
+        .describe(
+            [
+                'Defines which rows to include in calculation. Null uses database defaults.',
+                '',
+                '**Common patterns:**',
+                '- Moving average (N periods): {frameType: "rows", start: {type: "preceding", offset: N-1}, end: {type: "current_row"}}',
+                '- Running total: {frameType: "rows", start: {type: "unbounded_preceding"}, end: {type: "current_row"}}',
+                '- Centered window: {frameType: "rows", start: {type: "preceding", offset: 1}, end: {type: "following", offset: 1}}',
+                '',
+                '**Default when null:**',
+                '- Aggregates WITH ORDER BY: RANGE UNBOUNDED PRECEDING AND CURRENT ROW (cumulative)',
+                '- Aggregates WITHOUT ORDER BY: Entire partition (all rows)',
+                '- Ranking functions: Always use entire partition (frame clause has no effect)',
+            ].join('\n'),
+        ),
 });
 
 export type TableCalcWindowFunctionSchema = z.infer<

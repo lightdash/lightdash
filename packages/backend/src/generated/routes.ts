@@ -2420,6 +2420,47 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameType: {
+        dataType: 'refEnum',
+        enums: ['rows', 'range'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameBoundaryType: {
+        dataType: 'refEnum',
+        enums: [
+            'unbounded_preceding',
+            'preceding',
+            'current_row',
+            'following',
+            'unbounded_following',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameBoundary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                offset: { dataType: 'double' },
+                type: { ref: 'FrameBoundaryType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FrameClause: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                end: { ref: 'FrameBoundary', required: true },
+                start: { ref: 'FrameBoundary' },
+                frameType: { ref: 'FrameType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationTemplate: {
         dataType: 'refAlias',
         type: {
@@ -2539,6 +2580,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        frame: { ref: 'FrameClause' },
                         partitionBy: {
                             dataType: 'array',
                             array: { dataType: 'string' },

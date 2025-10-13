@@ -323,6 +323,30 @@ export enum WindowFunctionType {
     MAX = 'max',
 }
 
+export enum FrameType {
+    ROWS = 'rows',
+    RANGE = 'range',
+}
+
+export enum FrameBoundaryType {
+    UNBOUNDED_PRECEDING = 'unbounded_preceding',
+    PRECEDING = 'preceding',
+    CURRENT_ROW = 'current_row',
+    FOLLOWING = 'following',
+    UNBOUNDED_FOLLOWING = 'unbounded_following',
+}
+
+export type FrameBoundary = {
+    type: FrameBoundaryType;
+    offset?: number; // Required for PRECEDING/FOLLOWING with numeric offset
+};
+
+export type FrameClause = {
+    frameType: FrameType;
+    start?: FrameBoundary; // Optional for single boundary syntax
+    end: FrameBoundary;
+};
+
 export enum TableCalculationTemplateType {
     PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
     PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
@@ -371,6 +395,7 @@ export type TableCalculationTemplate =
               order: 'asc' | 'desc' | null;
           }[];
           partitionBy: string[];
+          frame?: FrameClause;
       };
 
 export type TableCalculation = {
