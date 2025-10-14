@@ -350,6 +350,20 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.tableCalculations.push(
                 action.payload,
             );
+
+            // Update columnOrder to include new table calculation
+            const dimensionIds =
+                state.unsavedChartVersion.metricQuery.dimensions;
+            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+            const calcIds =
+                state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                );
+
+            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+                state.unsavedChartVersion.tableConfig.columnOrder,
+                [...dimensionIds, ...metricIds, ...calcIds],
+            );
         },
         updateTableCalculation: (
             state,
@@ -391,6 +405,26 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tc) => tc.name !== nameToRemove,
                 );
+
+            // Remove any sorts referencing this table calculation
+            state.unsavedChartVersion.metricQuery.sorts =
+                state.unsavedChartVersion.metricQuery.sorts.filter(
+                    (sort) => sort.fieldId !== nameToRemove,
+                );
+
+            // Recalculate columnOrder to remove deleted table calculation
+            const dimensionIds =
+                state.unsavedChartVersion.metricQuery.dimensions;
+            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+            const calcIds =
+                state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                );
+
+            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+                state.unsavedChartVersion.tableConfig.columnOrder,
+                [...dimensionIds, ...metricIds, ...calcIds],
+            );
         },
         setTableCalculations: (
             state,
