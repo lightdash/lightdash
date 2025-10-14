@@ -1472,12 +1472,12 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async getMetricQueryFields({
-                                           metricQuery,
-                                           dateZoom,
-                                           explore,
-                                           warehouseSqlBuilder,
-                                           projectUuid,
-                                       }: Pick<
+        metricQuery,
+        dateZoom,
+        explore,
+        warehouseSqlBuilder,
+        projectUuid,
+    }: Pick<
         ExecuteAsyncMetricQueryArgs,
         'metricQuery' | 'dateZoom' | 'projectUuid'
     > & {
@@ -2095,10 +2095,10 @@ export class AsyncQueryService extends ProjectService {
 
         const pivotConfiguration = pivotResults
             ? derivePivotConfigurationFromChart(
-                savedChart,
-                metricQueryWithLimit,
-                fields,
-            )
+                  savedChart,
+                  metricQueryWithLimit,
+                  fields,
+              )
             : undefined;
 
         const {
@@ -2359,10 +2359,10 @@ export class AsyncQueryService extends ProjectService {
 
         const pivotConfiguration = pivotResults
             ? derivePivotConfigurationFromChart(
-                savedChart,
-                metricQueryWithLimit,
-                fields,
-            )
+                  savedChart,
+                  metricQueryWithLimit,
+                  fields,
+              )
             : undefined;
 
         const {
