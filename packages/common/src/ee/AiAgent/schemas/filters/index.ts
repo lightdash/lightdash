@@ -70,10 +70,12 @@ const filtersSchemaAndFilterRulesTransformedV2 =
         tableCalculations: z.array(filterRuleSchemaTransformed).nullable(),
     });
 
-const filtersSchemaAndFilterRulesTransformed = z.union([
-    filtersSchemaAndFilterRulesTransformedV2,
-    filtersSchemaAndFilterRulesTransformedV1,
-]);
+const filtersSchemaAndFilterRulesTransformed = z
+    .union([
+        filtersSchemaAndFilterRulesTransformedV2,
+        filtersSchemaAndFilterRulesTransformedV1,
+    ])
+    .nullable();
 
 export const filtersSchemaTransformed =
     filtersSchemaAndFilterRulesTransformed.transform((data): Filters => {
