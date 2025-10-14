@@ -42,6 +42,9 @@ const explorerSlice = createSlice({
         setIsEditMode: (state, action: PayloadAction<boolean>) => {
             state.isEditMode = action.payload;
         },
+        setIsMinimal: (state, action: PayloadAction<boolean>) => {
+            state.isMinimal = action.payload;
+        },
         setPreviouslyFetchedState: (
             state,
             action: PayloadAction<MetricQuery>,
@@ -681,21 +684,7 @@ const explorerSlice = createSlice({
                 unpivotedQueryArgs: null,
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
-                queryOptions: {
-                    viewModeQueryArgs: undefined,
-                    dateZoomGranularity: undefined,
-                    projectUuid: undefined,
-                    minimal: false,
-                },
             };
-        },
-        setQueryOptions: (
-            state,
-            action: PayloadAction<
-                ExplorerReduceState['queryExecution']['queryOptions']
-            >,
-        ) => {
-            state.queryExecution.queryOptions = action.payload;
         },
     },
 });

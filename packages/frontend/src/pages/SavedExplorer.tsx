@@ -7,11 +7,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
-import {
-    explorerActions,
-    explorerStore,
-    useExplorerDispatch,
-} from '../features/explorer/store';
+import { explorerStore } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -20,25 +16,7 @@ import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 
-const SavedExplorerContent = memo<{
-    viewModeQueryArgs?: { chartUuid: string; context?: string };
-    projectUuid: string | undefined;
-    isEditMode: boolean;
-}>(({ viewModeQueryArgs, isEditMode, projectUuid }) => {
-    const dispatch = useExplorerDispatch();
-
-    // Set query options in Redux
-    useEffect(() => {
-        dispatch(
-            explorerActions.setQueryOptions({
-                viewModeQueryArgs,
-                dateZoomGranularity: undefined,
-                projectUuid,
-                minimal: false,
-            }),
-        );
-    }, [viewModeQueryArgs, dispatch, projectUuid]);
-
+const SavedExplorerContent = memo<{ isEditMode: boolean }>(({ isEditMode }) => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
@@ -59,9 +37,8 @@ const SavedExplorerContent = memo<{
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, mode, projectUuid } = useParams<{
+    const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
         mode?: string;
     }>();
 
@@ -140,15 +117,7 @@ const SavedExplorer = () => {
                 savedChart={data}
                 defaultLimit={health.data?.query.defaultLimit}
             >
-                <SavedExplorerContent
-                    viewModeQueryArgs={
-                        savedQueryUuid
-                            ? { chartUuid: savedQueryUuid }
-                            : undefined
-                    }
-                    isEditMode={isEditMode}
-                    projectUuid={projectUuid}
-                />
+                <SavedExplorerContent isEditMode={isEditMode} />
             </ExplorerProvider>
         </Provider>
     );

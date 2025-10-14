@@ -1,14 +1,15 @@
 import { FeatureFlags, type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
+import { useParams } from 'react-router';
 import {
     explorerActions,
     selectFilters,
     selectIsEditMode,
+    selectIsMinimal,
     selectMetricQuery,
     selectParameterDefinitions,
     selectParameterReferences,
     selectParameters,
-    selectQueryOptions,
     selectQueryUuidHistory,
     selectTableName,
     selectUnpivotedQueryArgs,
@@ -21,6 +22,7 @@ import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
+import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 
 /**
@@ -44,6 +46,7 @@ export const useExplorerQueryManager = () => {
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    const minimal = useExplorerSelector(selectIsMinimal);
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
@@ -57,14 +60,15 @@ export const useExplorerQueryManager = () => {
         selectUnpivotedQueryUuidHistory,
     );
 
-    // Get query options from Redux
-    const queryOptions = useExplorerSelector(selectQueryOptions);
-    const {
-        viewModeQueryArgs,
-        dateZoomGranularity,
-        projectUuid,
-        minimal = false,
-    } = queryOptions;
+    const { savedQueryUuid, projectUuid } = useParams<{
+        savedQueryUuid: string;
+        projectUuid: string;
+    }>();
+    const viewModeQueryArgs = useMemo(() => {
+        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
+    }, [savedQueryUuid]);
+
+    const dateZoomGranularity = useDateZoomGranularitySearch();
 
     // Get merged version with chartConfig and pivotConfig from Context
     // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)

@@ -1,5 +1,4 @@
 import {
-    deepEqual,
     derivePivotConfigurationFromChart,
     FeatureFlags,
     getFieldsFromMetricQuery,
@@ -12,6 +11,7 @@ import {
 } from '../components/RunQuerySettings/defaults';
 import {
     explorerActions,
+    selectFromDashboard,
     selectIsEditMode,
     selectIsResultsExpanded,
     selectMetricQuery,
@@ -26,21 +26,31 @@ import { useFeatureFlag } from './useFeatureFlagEnabled';
  * Effects layer for Explorer query orchestration
  *
  * This hook handles:
- * - Auto-fetch logic when state changes
+ * - Auto-fetch logic:
+ *   1. Initial fetch: Always runs once for saved charts, dashboards, or pivot configs
+ *   2. Reactive fetch: Runs when state changes (dimensions, metrics, filters, params)
+ *      if auto-fetch is enabled
  * - Unpivoted query setup for pivot tables
- * - Parameter change detection
  *
  * Should be called ONCE at the Explorer root component.
  * Child components should use useExplorerQuery() instead.
  */
-export const useExplorerQueryEffects = () => {
+export const useExplorerQueryEffects = ({
+    minimal = false,
+}: { minimal?: boolean } = {}) => {
+    const dispatch = useExplorerDispatch();
+
+    useEffect(() => {
+        dispatch(explorerActions.setIsMinimal(minimal));
+    }, [minimal, dispatch]);
+
     // Get all state and runQuery from manager (single source of truth)
-    const { runQuery, query, validQueryArgs, explore, parameters } =
+    const { runQuery, query, validQueryArgs, explore } =
         useExplorerQueryManager();
 
-    const dispatch = useExplorerDispatch();
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const fromDashboard = useExplorerSelector(selectFromDashboard);
     const metricQuery = useExplorerSelector(selectMetricQuery);
 
     const { data: useSqlPivotResults } = useFeatureFlag(
@@ -57,6 +67,11 @@ export const useExplorerQueryEffects = () => {
         key: AUTO_FETCH_ENABLED_KEY,
         defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
     });
+
+    // Check if this is a saved chart or has pivot config from Context
+    const isSavedChart = useExplorerContext(
+        (context) => !!context.state.savedChart,
+    );
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {
@@ -77,7 +92,28 @@ export const useExplorerQueryEffects = () => {
         mergedUnsavedChartVersion,
     ]);
 
-    // Effect 1: Setup unpivoted query args when needed
+    // Effect 1: Auto-fetch logic
+    // Handles both initial fetch and reactive auto-fetch
+    useEffect(() => {
+        if (
+            autoFetchEnabled ||
+            ((isSavedChart || fromDashboard) &&
+                !isEditMode &&
+                !query.isFetched) ||
+            (isEditMode && !query.isFetched && (isSavedChart || fromDashboard))
+        ) {
+            runQuery();
+        }
+    }, [
+        autoFetchEnabled,
+        isSavedChart,
+        fromDashboard,
+        runQuery,
+        query.isFetched,
+        isEditMode,
+    ]);
+
+    // Effect 2: Setup unpivoted query args when needed
     useEffect(() => {
         if (!validQueryArgs) {
             dispatch(explorerActions.setUnpivotedQueryArgs(null));
@@ -96,42 +132,6 @@ export const useExplorerQueryEffects = () => {
             dispatch(explorerActions.setUnpivotedQueryArgs(null));
         }
     }, [validQueryArgs, needsUnpivotedData, isResultsOpen, dispatch]);
-
-    // Parameter change detection
-    const parametersChanged = useMemo(() => {
-        if (
-            !query.isFetched ||
-            !parameters ||
-            Object.keys(parameters).length === 0
-        ) {
-            return false;
-        }
-
-        const currentParams = validQueryArgs?.parameters ?? {};
-        return !deepEqual(currentParams, parameters);
-    }, [query.isFetched, validQueryArgs?.parameters, parameters]);
-
-    // Effect 2: Auto-fetch logic
-    // Run query automatically when state changes (respects auto-fetch setting in edit mode)
-    useEffect(() => {
-        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
-        // This will stop auto-fetching until the first query is run
-        if (
-            (!autoFetchEnabled || !query.isFetched || !parametersChanged) &&
-            isEditMode
-        )
-            return;
-
-        // Call runQuery - depends on individual state values, not the callback itself
-        // This prevents infinite loops when manual fetches occur
-        runQuery();
-    }, [
-        autoFetchEnabled,
-        isEditMode,
-        parametersChanged,
-        query.isFetched,
-        runQuery,
-    ]);
 
     // No return - this hook just orchestrates effects
 };

@@ -8,12 +8,6 @@ export const defaultQueryExecution: ExplorerReduceState['queryExecution'] = {
     unpivotedQueryArgs: null,
     queryUuidHistory: [],
     unpivotedQueryUuidHistory: [],
-    queryOptions: {
-        viewModeQueryArgs: undefined,
-        dateZoomGranularity: undefined,
-        projectUuid: undefined,
-        minimal: false,
-    },
 };
 
 export const defaultState: ExplorerReduceState = {

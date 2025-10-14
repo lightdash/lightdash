@@ -8,7 +8,6 @@ import {
     type CustomDimension,
     type CustomFormat,
     type CustomVisConfig,
-    type DateGranularity,
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
@@ -202,6 +201,7 @@ export interface ExplorerReduceState {
         tableCalculations?: TableCalculationMetadata[];
     };
     isVisualizationConfigOpen?: boolean;
+    isMinimal?: boolean;
     isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
@@ -248,17 +248,7 @@ export interface ExplorerReduceState {
         unpivotedQueryArgs: QueryResultsProps | null;
         queryUuidHistory: string[];
         unpivotedQueryUuidHistory: string[];
-        // Query options that affect how queries are executed
-        queryOptions: {
-            viewModeQueryArgs?:
-                | { chartUuid: string; context?: string }
-                | { chartUuid: string; chartVersionUuid: string };
-            dateZoomGranularity?: DateGranularity;
-            projectUuid?: string;
-            minimal?: boolean;
-        };
     };
-
     fromDashboard?: string;
 }
 

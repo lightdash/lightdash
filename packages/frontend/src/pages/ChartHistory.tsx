@@ -31,11 +31,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import {
-    explorerActions,
-    explorerStore,
-    useExplorerDispatch,
-} from '../features/explorer/store';
+import { explorerStore } from '../features/explorer/store';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
@@ -49,27 +45,7 @@ import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
-const ChartHistoryExplorer = memo<{
-    viewModeQueryArgs?: {
-        chartUuid: string;
-        chartVersionUuid: string;
-    };
-    projectUuid: string | undefined;
-}>(({ viewModeQueryArgs, projectUuid }) => {
-    const dispatch = useExplorerDispatch();
-
-    // Set query options in Redux
-    useEffect(() => {
-        dispatch(
-            explorerActions.setQueryOptions({
-                viewModeQueryArgs,
-                dateZoomGranularity: undefined,
-                projectUuid,
-                minimal: false,
-            }),
-        );
-    }, [viewModeQueryArgs, dispatch, projectUuid]);
-
+const ChartHistoryExplorer = memo(() => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
@@ -309,17 +285,7 @@ const ChartHistory = () => {
                         }}
                         savedChart={chartVersionQuery.data?.chart}
                     >
-                        <ChartHistoryExplorer
-                            viewModeQueryArgs={
-                                savedQueryUuid && selectedVersionUuid
-                                    ? {
-                                          chartUuid: savedQueryUuid,
-                                          chartVersionUuid: selectedVersionUuid,
-                                      }
-                                    : undefined
-                            }
-                            projectUuid={projectUuid}
-                        />
+                        <ChartHistoryExplorer />
                     </ExplorerProvider>
                 </Provider>
             )}

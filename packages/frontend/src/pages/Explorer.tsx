@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
-import { type DateGranularity } from '@lightdash/common';
-import { memo, useEffect } from 'react';
+import { memo } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 
@@ -10,16 +9,13 @@ import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
-    explorerActions,
     explorerStore,
     selectTableName,
-    useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
-    useDateZoomGranularitySearch,
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
@@ -29,28 +25,11 @@ import { defaultState } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
-const ExplorerWithUrlParams = memo<{
-    dateZoomGranularity?: DateGranularity;
-    projectUuid: string | undefined;
-}>(({ dateZoomGranularity, projectUuid }) => {
-    const dispatch = useExplorerDispatch();
-
-    // Set query options in Redux
-    useEffect(() => {
-        dispatch(
-            explorerActions.setQueryOptions({
-                viewModeQueryArgs: undefined,
-                dateZoomGranularity,
-                projectUuid,
-                minimal: false,
-            }),
-        );
-    }, [dateZoomGranularity, dispatch, projectUuid]);
-
+const ExplorerWithUrlParams = memo(() => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
-
     useExplorerRoute();
+
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
@@ -79,8 +58,6 @@ const ExplorerPage = memo(() => {
 
     const explorerUrlState = useExplorerUrlState();
     const { user, health } = useApp();
-
-    const dateZoomGranularity = useDateZoomGranularitySearch();
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
@@ -112,10 +89,7 @@ const ExplorerPage = memo(() => {
                 }
                 defaultLimit={health.data?.query.defaultLimit}
             >
-                <ExplorerWithUrlParams
-                    dateZoomGranularity={dateZoomGranularity}
-                    projectUuid={projectUuid}
-                />
+                <ExplorerWithUrlParams />
             </ExplorerProvider>
         </Provider>
     );

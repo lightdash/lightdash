@@ -1,10 +1,9 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
-    selectQueryOptions,
+    selectIsMinimal,
     selectUnpivotedQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -28,11 +27,8 @@ import {
  * For effects/orchestration, use useExplorerQueryEffects at the root.
  */
 export const useExplorerQuery = () => {
-    // Get query options from Redux
-    const queryOptions = useExplorerSelector(selectQueryOptions);
-    const { minimal = false } = queryOptions;
-
     // Get all state and runQuery from manager (single source of truth)
+    const minimal = useExplorerSelector(selectIsMinimal);
     const manager = useExplorerQueryManager();
     const { queryResults, runQuery, validQueryArgs, unpivotedQueryResults } =
         manager;
@@ -41,12 +37,7 @@ export const useExplorerQuery = () => {
     const dispatch = useExplorerDispatch();
     const queryClient = useQueryClient();
 
-    // Get additional state needed for actions
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-
-    const projectUuid = queryOptions.projectUuid || projectUuidFromParams;
+    const projectUuid = manager.projectUuid;
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
     const unpivotedEnabled = !!unpivotedQueryArgs;
 
@@ -65,15 +56,9 @@ export const useExplorerQuery = () => {
 
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)
     const fetchResults = useCallback(() => {
-        // Only invalidate cache, don't reset execution state
-        // This prevents triggering the auto-fetch effect in useExplorerQueryEffects
-        queryClient.removeQueries({
-            queryKey: ['create-query'],
-            exact: false,
-        });
-        // Use runQuery from manager (single source of truth)
+        resetQueryResults();
         runQuery();
-    }, [queryClient, runQuery]);
+    }, [resetQueryResults, runQuery]);
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(

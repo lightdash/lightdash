@@ -90,6 +90,11 @@ export const selectIsEditMode = createSelector(
     (explorer) => explorer.isEditMode ?? true, // Default to true for Explorer page
 );
 
+export const selectIsMinimal = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.isMinimal ?? false, // Default to false for Explorer page
+);
+
 // Stable empty arrays to prevent unnecessary re-renders
 const EMPTY_ADDITIONAL_METRICS: AdditionalMetric[] = [];
 const EMPTY_CUSTOM_DIMENSIONS: CustomDimension[] = [];
@@ -193,20 +198,10 @@ export const selectUnpivotedQueryUuidHistory = createSelector(
     (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
 );
 
-export const selectQueryOptions = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.queryOptions,
-);
-
 // Navigation context selectors
 export const selectFromDashboard = createSelector(
     [selectExplorerState],
     (explorer) => explorer.fromDashboard,
-);
-
-export const selectPreviouslyFetchedState = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.previouslyFetchedState,
 );
 
 // Stable empty Set to prevent unnecessary re-renders
