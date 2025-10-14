@@ -1,3 +1,10 @@
+## [0.2080.1](https://github.com/lightdash/lightdash/compare/0.2080.0...0.2080.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* configure ESLint import resolver to handle TypeScript extensions ([#17445](https://github.com/lightdash/lightdash/issues/17445)) ([37b1c7d](https://github.com/lightdash/lightdash/commit/37b1c7df88b6b7525b62f4986b2b7fc16a659b89))
+
 # [0.2080.0](https://github.com/lightdash/lightdash/compare/0.2079.0...0.2080.0) (2025-10-14)
 
 
