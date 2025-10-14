@@ -3,7 +3,7 @@ import {
     sortedItemsForXAxis,
     sortedItemsForYAxis,
 } from '@lightdash/common';
-import { Button, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine-8/core';
 import {
     IconChartBar,
     IconChartBubble,
@@ -14,7 +14,6 @@ import {
     IconWorld,
 } from '@tabler/icons-react';
 import { useCallback } from 'react';
-import { COLLAPSABLE_CARD_POPOVER_PROPS } from '../../../../common/CollapsableCard/constants';
 import MantineIcon from '../../../../common/MantineIcon';
 import { generateVegaTemplate } from '../utils/templates';
 import { TemplateType } from '../utils/vegaTemplates';
@@ -34,18 +33,19 @@ const getTemplateIcon = (template: TemplateType) => {
         case TemplateType.MAP:
             return IconWorld;
     }
-
-    return IconChartBar;
 };
-export const SelectTemplate = ({
+
+export const CustomVisTemplate = ({
     itemsMap,
     isCustomConfig,
     setEditorConfig,
+    isInGroup,
 }: {
     itemsMap: ItemsMap | undefined;
     isCustomConfig: boolean;
     isEditorEmpty: boolean;
     setEditorConfig: (config: string) => void;
+    isInGroup: boolean;
 }) => {
     const loadTemplate = useCallback(
         (template: TemplateType) => {
@@ -66,30 +66,38 @@ export const SelectTemplate = ({
     );
 
     return (
-        <Menu {...COLLAPSABLE_CARD_POPOVER_PROPS} width={183} closeOnItemClick>
+        <Menu closeOnItemClick>
             <Menu.Dropdown>
                 {Object.values(TemplateType).map((template) => (
                     <Menu.Item
                         key={template}
                         onClick={() => loadTemplate(template)}
-                        icon={<MantineIcon icon={getTemplateIcon(template)} />}
+                        leftSection={
+                            <MantineIcon icon={getTemplateIcon(template)} />
+                        }
                     >
                         {template}
                     </Menu.Item>
                 ))}
                 <Menu.Divider />
-                <Menu.Label>
+                <Menu.Label w="150" fz="xs">
                     Selecting a new template will reset the config. Use "ctrl+z"
                     to undo.
                 </Menu.Label>
             </Menu.Dropdown>
             <Menu.Target>
                 <Button
-                    size="sm"
+                    size="compact-sm"
                     variant="default"
-                    compact
                     fz="xs"
-                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    styles={{
+                        root: {
+                            borderTopRightRadius: isInGroup ? 0 : undefined,
+                            borderBottomRightRadius: isInGroup ? 0 : undefined,
+                            borderRightRadius: isInGroup ? 0 : undefined,
+                        },
+                    }}
                 >
                     Insert template
                 </Button>
