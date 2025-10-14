@@ -294,6 +294,22 @@ const explorerSlice = createSlice({
                 ...(action.payload && { ...action.payload }),
             };
         },
+        updateMetricFormat: (
+            state,
+            action: PayloadAction<{
+                metric: Metric;
+                formatOptions: CustomFormat | undefined;
+            }>,
+        ) => {
+            const { metric, formatOptions } = action.payload;
+            const metricId = getItemId(metric);
+            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
+                state.unsavedChartVersion.metricQuery.metricOverrides = {};
+            }
+            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
+                formatOptions,
+            };
+        },
         openItemDetail: (
             state,
             action: PayloadAction<{
@@ -579,23 +595,6 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.tableConfig.columnOrder.filter(
                     (fieldId) => fieldId !== metricIdToRemove,
                 );
-        },
-
-        updateMetricFormat: (
-            state,
-            action: PayloadAction<{
-                metric: Metric;
-                formatOptions: CustomFormat | undefined;
-            }>,
-        ) => {
-            const { metric, formatOptions } = action.payload;
-            const metricId = getItemId(metric);
-            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
-                state.unsavedChartVersion.metricQuery.metricOverrides = {};
-            }
-            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
-                formatOptions,
-            };
         },
 
         setValidQueryArgs: (
