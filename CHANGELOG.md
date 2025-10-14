@@ -1,3 +1,13 @@
+# [0.2078.0](https://github.com/lightdash/lightdash/compare/0.2077.5...0.2078.0) (2025-10-14)
+
+
+### Features
+
+* add aggregate window functions and refactor table calculation template compiler ([#17396](https://github.com/lightdash/lightdash/issues/17396)) ([5983f50](https://github.com/lightdash/lightdash/commit/5983f50e6030a4482ddebfd2dc640a8c74617e35))
+* add generic window function support to table calculations ([#17385](https://github.com/lightdash/lightdash/issues/17385)) ([743f4b1](https://github.com/lightdash/lightdash/commit/743f4b1ea8806eecd66ca55fedd9176915b1d616))
+* add partitionBy support to PERCENT_OF_COLUMN_TOTAL table calculations ([#17384](https://github.com/lightdash/lightdash/issues/17384)) ([d2503ee](https://github.com/lightdash/lightdash/commit/d2503eea578360b94379ccf95ab69ec5327b6b16))
+* add window function frame clause support for table calculations ([#17397](https://github.com/lightdash/lightdash/issues/17397)) ([ace98fc](https://github.com/lightdash/lightdash/commit/ace98fc782d3c53d403fe7d60b3ec421aeec8080))
+
 ## [0.2077.5](https://github.com/lightdash/lightdash/compare/0.2077.4...0.2077.5) (2025-10-14)
 
 

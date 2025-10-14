@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.2077.5",
+    "version": "0.2078.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
