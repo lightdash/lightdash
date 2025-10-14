@@ -5,6 +5,7 @@ import {
     getItemId,
     hasFormatting,
     type CustomFormat,
+    type Metric,
 } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -41,7 +42,7 @@ export const FormatModal = () => {
     }, [dispatch]);
 
     const updateMetricFormat = useCallback(
-        (payload: { metric: any; formatOptions: CustomFormat }) => {
+        (payload: { metric: Metric; formatOptions: CustomFormat }) => {
             dispatch(explorerActions.updateMetricFormat(payload));
         },
         [dispatch],
