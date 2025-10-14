@@ -1,5 +1,6 @@
 import {
     AiResultType,
+    CartesianSeriesType,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     type ApiAiAgentThreadMessageVizQuery,
@@ -10,7 +11,7 @@ import {
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
 } from '@lightdash/common';
-import { Box, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Box, Center, Group, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
@@ -23,6 +24,10 @@ import MetricQueryDataProvider from '../../../../../components/MetricQueryData/M
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 import { type EchartSeriesClickEvent } from '../../../../../components/SimpleChart';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+} from '../../../../../hooks/cartesianChartConfig/utils';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
@@ -81,7 +86,6 @@ export const AiVisualizationRenderer: FC<Props> = ({
         return getChartConfigFromAiAgentVizConfig({
             vizConfig: chartConfig,
             metricQuery,
-            rows: results.rows,
             maxQueryLimit: health?.query.maxLimit,
             fieldsMap: fields,
             overrideChartType: selectedChartType ?? undefined,
@@ -89,19 +93,74 @@ export const AiVisualizationRenderer: FC<Props> = ({
     }, [
         chartConfig,
         metricQuery,
-        results.rows,
         health?.query.maxLimit,
         fields,
         selectedChartType,
     ]);
 
-    if (resultsData?.isFetchingRows) {
-        return (
-            <Center h={300}>
-                <Loader type="dots" color="gray" />
-            </Center>
-        );
-    }
+    const groupByDimensions: string[] | undefined = useMemo(() => {
+        switch (aiResultType) {
+            case AiResultType.QUERY_RESULT:
+                return vizTool.chartConfig?.groupBy ?? undefined;
+            case AiResultType.VERTICAL_BAR_RESULT:
+            case AiResultType.TIME_SERIES_RESULT:
+                return vizTool.vizConfig.breakdownByDimension
+                    ? [vizTool.vizConfig.breakdownByDimension]
+                    : undefined;
+        }
+
+        return undefined;
+    }, [vizTool, aiResultType]);
+
+    const computedSeries = useMemo(() => {
+        if (aiResultType !== AiResultType.QUERY_RESULT) return [];
+        if (echartsConfig.type !== ChartType.CARTESIAN) return [];
+        if (!echartsConfig.config?.eChartsConfig?.series?.length) return [];
+        if (!echartsConfig.config?.layout?.xField) return [];
+        if (!echartsConfig.config?.layout?.yField) return [];
+
+        const firstSerie = echartsConfig.config?.eChartsConfig?.series?.[0];
+
+        const expectedSeriesMap = getExpectedSeriesMap({
+            defaultSmooth: firstSerie?.smooth,
+            defaultShowSymbol: firstSerie?.showSymbol,
+            defaultAreaStyle: firstSerie?.areaStyle,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            availableDimensions: metricQuery.dimensions,
+            isStacked: false,
+            pivotKeys: groupByDimensions,
+            resultsData: resultsData,
+            xField: echartsConfig.config.layout.xField,
+            yFields: echartsConfig.config.layout.yField,
+            defaultLabel: firstSerie?.label,
+            itemsMap: fields,
+        });
+        const newSeries = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries: echartsConfig.config?.eChartsConfig?.series || [],
+        });
+        return newSeries;
+    }, [
+        echartsConfig,
+        metricQuery,
+        fields,
+        groupByDimensions,
+        resultsData,
+        aiResultType,
+    ]);
+
+    const displayMetricsAndDimensions = useMemo(
+        () =>
+            queryExecutionHandle.data &&
+            queryExecutionHandle.data.type !== AiResultType.TABLE_RESULT &&
+            queryExecutionHandle.data.type !== AiResultType.QUERY_RESULT,
+        [queryExecutionHandle.data],
+    );
+
+    const defaultChartType =
+        chartConfig.type === AiResultType.QUERY_RESULT
+            ? chartConfig.chartConfig?.defaultVizType ?? 'table'
+            : 'table';
 
     if (!echartsConfig) {
         return (
@@ -138,18 +197,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 pivotTableMaxColumnLimit={
                     health?.pivotTable.maxColumnLimit ?? 60
                 }
-                initialPivotDimensions={
-                    (aiResultType === AiResultType.VERTICAL_BAR_RESULT ||
-                        aiResultType === AiResultType.TIME_SERIES_RESULT) &&
-                    echartsConfig.type === ChartType.CARTESIAN &&
-                    vizTool.vizConfig.breakdownByDimension
-                        ? [vizTool.vizConfig.breakdownByDimension as string]
-                        : aiResultType === AiResultType.QUERY_RESULT &&
-                          echartsConfig.type === ChartType.CARTESIAN &&
-                          vizTool.chartConfig?.pivot
-                        ? [vizTool.queryConfig.dimensions[1] as string]
-                        : undefined
-                }
+                initialPivotDimensions={groupByDimensions}
                 colorPalette={
                     organization?.chartColors ?? ECHARTS_DEFAULT_COLORS
                 }
@@ -161,6 +209,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     setEchartsClickEvent(e);
                     setEchartSeries(series);
                 }}
+                computedSeries={computedSeries}
             >
                 <Stack gap="md" h="100%">
                     {headerContent && headerContent}
@@ -169,12 +218,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
                             <AgentVisualizationChartTypeSwitcher
                                 metricQuery={metricQuery}
                                 selectedChartType={
-                                    selectedChartType ??
-                                    (chartConfig.type ===
-                                    AiResultType.QUERY_RESULT
-                                        ? chartConfig.chartConfig
-                                              ?.defaultVizType ?? 'table'
-                                        : 'table')
+                                    selectedChartType ?? defaultChartType
+                                }
+                                hasGroupByDimensions={
+                                    (groupByDimensions?.length ?? 0) > 0
                                 }
                                 onChartTypeChange={setSelectedChartType}
                             />
@@ -208,22 +255,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
                     <Stack gap="xs">
                         <ErrorBoundary>
-                            {queryExecutionHandle.data &&
-                                queryExecutionHandle.data.type !==
-                                    AiResultType.TABLE_RESULT &&
-                                queryExecutionHandle.data.type !==
-                                    AiResultType.QUERY_RESULT && (
-                                    <AgentVisualizationMetricsAndDimensions
-                                        metricQuery={
-                                            queryExecutionHandle.data.query
-                                                .metricQuery
-                                        }
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
-                                    />
-                                )}
+                            {displayMetricsAndDimensions && (
+                                <AgentVisualizationMetricsAndDimensions
+                                    metricQuery={
+                                        queryExecutionHandle.data.query
+                                            .metricQuery
+                                    }
+                                    fieldsMap={
+                                        queryExecutionHandle.data.query.fields
+                                    }
+                                />
+                            )}
 
                             {chartConfig.filters ? (
                                 <AgentVisualizationFilters

@@ -59,7 +59,7 @@ export const AgentToolCallArgsSchemaV2 = z.discriminatedUnion('type', [
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
     toolSearchFieldValuesArgsSchema,
-    toolFindExploresArgsSchema,
+    toolFindExploresArgsSchemaV2,
 ]);
 
 // TODO: Remove usage of this schema and use switch case instead where it's used

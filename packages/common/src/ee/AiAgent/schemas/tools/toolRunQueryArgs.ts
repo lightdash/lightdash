@@ -55,11 +55,11 @@ const chartConfigSchema = z
             .describe('The default visualization type to render'),
 
         // Series creation control
-        pivot: z
-            .boolean()
+        groupBy: z
+            .array(getFieldIdSchema({ additionalDescription: null }))
             .nullable()
             .describe(
-                'Controls how multiple dimensions are rendered in charts. Set to true to create one series per value in dimensions[1] (e.g., "show revenue by month, split by region"). Set to false or omit for simple grouping. Only applies when you have 2+ dimensions.',
+                'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
             ),
 
         // Bar and horizontal bar chart specific
@@ -73,7 +73,7 @@ const chartConfigSchema = z
             .boolean()
             .nullable()
             .describe(
-                'If using pivot then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
+                'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
             ),
 
         // Line chart specific
@@ -120,12 +120,11 @@ Chart Type Selection Guide:
 
 Configuration Tips:
 - Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- dimensions[0] is the primary grouping (x-axis for charts)
-- dimensions[1+] create additional grouping levels
+- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
 - At least one metric is required for all chart types except table
-- Set chartConfig.pivot to true to create one series per value in dimensions[1] (only when 2+ dimensions)
+- chartConfig.groupBy: Use to split data into multiple series (e.g., one line per region). Do NOT include the x-axis dimension. Only include dimensions for series breakdown. Leave null for simple single-series charts.
 - For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when pivoted) stacks bars instead of placing them side by side
+- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
 - For line charts: use lineType 'area' to fill the area under the line
 - For scatter charts: each point represents one row of data
 - For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
@@ -133,10 +132,10 @@ Configuration Tips:
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 `;
 
-export const toolRunQueryArgsSchema = createToolSchema(
-    AiResultType.QUERY_RESULT,
-    TOOL_RUN_QUERY_DESCRIPTION,
-)
+export const toolRunQueryArgsSchema = createToolSchema({
+    type: AiResultType.QUERY_RESULT,
+    description: TOOL_RUN_QUERY_DESCRIPTION,
+})
     .extend({
         ...visualizationMetadataSchema.shape,
         queryConfig: queryConfigSchema,

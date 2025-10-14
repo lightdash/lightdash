@@ -53,7 +53,10 @@ export const getSystemPromptV2 = (args: {
                 : dataAccessDisabledSection,
         )
         .replace('{{agent_name}}', agentName)
-        .replace('{{available_explores}}', args.availableExplores.join(', '))
+        .replace(
+            '{{available_explores}}',
+            args.availableExplores.map((explore) => explore.name).join(', '),
+        )
         .replace(
             '{{instructions}}',
             instructions ? `Special instructions: ${instructions}` : '',

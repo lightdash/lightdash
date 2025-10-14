@@ -121,7 +121,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 userAccess: agent.userAccess ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
-                version: 1, // TODO: Update to 2 when v2 is ready or allow version to be passed in
+                version: agent.version ?? 1, // TODO: Update to 2 when v2 is ready or allow version to be passed in
             };
             form.setValues(values);
             form.resetDirty(values);

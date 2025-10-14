@@ -24,10 +24,8 @@ const getBarChartEchartsConfig = (
     let metrics: (string | PivotReference)[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+    // Determine if we should pivot based on chartConfig.groupBy
+    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
 
     // If we should pivot and have a breakdown dimension, pivot the data
     if (breakdownDimension) {
@@ -116,10 +114,8 @@ const getLineChartEchartsConfig = (
     let metrics: (string | PivotReference)[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+    // Determine if we should pivot based on chartConfig.groupBy
+    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
 
     // If we should pivot and have a breakdown dimension, pivot the data
     if (breakdownDimension) {
@@ -209,10 +205,8 @@ const getHorizontalBarChartEchartsConfig = (
     let metrics: (string | PivotReference)[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+    // Determine if we should pivot based on chartConfig.groupBy
+    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
 
     // If we should pivot and have a breakdown dimension, pivot the data
     if (breakdownDimension) {
@@ -301,10 +295,8 @@ const getScatterChartEchartsConfig = (
     let metrics: (string | PivotReference)[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
+    // Determine if we should pivot based on chartConfig.groupBy
+    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
 
     // If we should pivot and have a breakdown dimension, pivot the data
     if (breakdownDimension) {
