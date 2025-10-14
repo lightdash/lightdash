@@ -597,23 +597,6 @@ const explorerSlice = createSlice({
                 );
         },
 
-        updateMetricFormat: (
-            state,
-            action: PayloadAction<{
-                metric: Metric;
-                formatOptions: CustomFormat | undefined;
-            }>,
-        ) => {
-            const { metric, formatOptions } = action.payload;
-            const metricId = getItemId(metric);
-            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
-                state.unsavedChartVersion.metricQuery.metricOverrides = {};
-            }
-            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
-                formatOptions,
-            };
-        },
-
         setValidQueryArgs: (
             state,
             action: PayloadAction<QueryResultsProps | null>,
