@@ -1,63 +1,110 @@
 import {
     AnyType,
     formatFieldLabel,
-    formatPivotValueLabel,
-    getPivotedData,
+    getCartesianAxisFormatterConfig,
+    SortField,
     type ItemsMap,
-    type PivotReference,
-    type ResultRow,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
+import { EChartsOption } from 'echarts';
 import type { ProjectService } from '../../../../services/ProjectService/ProjectService';
+import { getPivotedResults } from './getPivotedResults';
+
+/**
+ * Generates common echarts config for all chart types
+ */
+const getCommonChartConfig = (
+    title: string | undefined,
+    metricsCount: number,
+    chartData: Record<string, unknown>[],
+) => ({
+    ...(title
+        ? {
+              title: {
+                  text: title,
+                  left: 'center',
+                  top: 10,
+                  textStyle: {
+                      fontSize: 16,
+                      fontWeight: 'bold' as const,
+                  },
+              },
+          }
+        : {}),
+    legend: {
+        show: metricsCount > 1,
+        type: 'scroll' as const,
+        orient: 'horizontal' as const,
+        bottom: 10,
+        left: 'center' as const,
+        padding: [5, 10],
+        itemGap: 15,
+        itemWidth: 25,
+        itemHeight: 14,
+        textStyle: {
+            fontSize: 11,
+        },
+        pageIconSize: 12,
+        pageTextStyle: {
+            fontSize: 11,
+        },
+    },
+    grid: {
+        containLabel: true,
+        left: '3%',
+        right: '3%',
+        top: title ? 50 : 20,
+        bottom: metricsCount > 1 ? 70 : 50,
+    },
+    animation: false,
+    backgroundColor: '#fff',
+    dataset: {
+        source: chartData,
+        dimensions: Object.keys(chartData[0] || {}),
+    },
+});
 
 /**
  * Generates bar chart echarts config for server-side rendering
  */
-const getBarChartEchartsConfig = (
+const getBarChartEchartsConfig = async (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
-): AnyType => {
-    const { dimensions, metrics: queryMetrics } = queryTool.queryConfig;
+): Promise<EChartsOption> => {
+    const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
     const xDimension = dimensions[0];
-    let metrics: (string | PivotReference)[] = queryMetrics;
+    let metrics: string[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.groupBy
-    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivot = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
+    if (chartConfig?.groupBy?.length) {
+        const pivoted = await getPivotedResults(
+            rows,
+            fieldsMap,
+            chartConfig.groupBy,
             queryMetrics,
-            [], // No pivoted dimensions
+            sorts as SortField[],
         );
-        chartData = pivot.rows;
-        metrics = Object.values(pivot.rowKeyMap);
+        chartData = pivoted.results;
+        metrics = pivoted.metrics;
     }
 
+    const xAxisField = fieldsMap[xDimension];
+    const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
+
     return {
-        ...(queryTool.title ? { title: { text: queryTool.title } } : {}),
-        legend: {
-            show: true,
-            type: 'plain',
-        },
-        grid: { containLabel: true },
-        animation: false,
-        backgroundColor: '#fff',
-        dataset: {
-            source: chartData,
-            dimensions: Object.keys(chartData[0] || {}),
-        },
+        ...getCommonChartConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
             {
-                type: chartConfig?.xAxisType ?? 'category',
+                type: chartConfig?.xAxisType ?? ('category' as const),
                 ...(chartConfig?.xAxisLabel
                     ? { name: chartConfig.xAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: xAxisField,
+                    show: true,
+                }),
             },
         ],
         yAxis: [
@@ -66,88 +113,68 @@ const getBarChartEchartsConfig = (
                 ...(chartConfig?.yAxisLabel
                     ? { name: chartConfig.yAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: yAxisField,
+                    show: true,
+                }),
             },
         ],
-        series: metrics.map((metric) => {
-            const defaultProperties: AnyType = {
-                type: 'bar',
-                yAxisIndex: 0,
-            };
-
-            if (typeof metric === 'string') {
-                return {
-                    ...defaultProperties,
-                    name: formatFieldLabel(metric, fieldsMap),
-                    encode: {
-                        x: xDimension,
-                        y: metric,
-                    },
-                };
-            }
-
-            return {
-                ...defaultProperties,
-                name: formatPivotValueLabel(metric, fieldsMap),
-                encode: {
-                    x: xDimension,
-                    y: metric,
-                },
-                ...(chartConfig?.stackBars && {
-                    stack: metric.field,
-                }),
-            };
-        }),
+        series: metrics.map((metric) => ({
+            type: 'bar',
+            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
+            name: queryMetrics.includes(metric)
+                ? formatFieldLabel(metric, fieldsMap)
+                : metric,
+            encode: {
+                x: xDimension,
+                y: metric,
+            },
+            ...(chartConfig?.stackBars ? { stack: 'stack' } : {}),
+        })),
     };
 };
 
 /**
  * Generates line chart echarts config for server-side rendering
  */
-const getLineChartEchartsConfig = (
+const getLineChartEchartsConfig = async (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
-): AnyType => {
-    const { dimensions, metrics: queryMetrics } = queryTool.queryConfig;
+): Promise<EChartsOption> => {
+    const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
     const xDimension = dimensions[0];
-    let metrics: (string | PivotReference)[] = queryMetrics;
+    let metrics: string[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.groupBy
-    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivoted = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
+    if (chartConfig?.groupBy?.length) {
+        const pivoted = await getPivotedResults(
+            rows,
+            fieldsMap,
+            chartConfig.groupBy,
             queryMetrics,
-            [], // No pivoted dimensions
+            sorts as SortField[],
         );
-        chartData = pivoted.rows;
-        metrics = Object.values(pivoted.rowKeyMap);
+        chartData = pivoted.results;
+        metrics = pivoted.metrics;
     }
 
+    const xAxisField = fieldsMap[xDimension];
+    const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
+
     return {
-        ...(queryTool.title ? { title: { text: queryTool.title } } : {}),
-        legend: {
-            show: true,
-            type: 'plain',
-        },
-        grid: { containLabel: true },
-        animation: false,
-        backgroundColor: '#fff',
-        dataset: {
-            source: chartData,
-            dimensions: Object.keys(chartData[0] || {}),
-        },
+        ...getCommonChartConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
             {
                 type: chartConfig?.xAxisType ?? 'time',
                 ...(chartConfig?.xAxisLabel
                     ? { name: chartConfig.xAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: xAxisField,
+                    show: true,
+                }),
             },
         ],
         yAxis: [
@@ -156,179 +183,144 @@ const getLineChartEchartsConfig = (
                 ...(chartConfig?.yAxisLabel
                     ? { name: chartConfig.yAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: yAxisField,
+                    show: true,
+                }),
             },
         ],
-        series: metrics.map((metric) => {
-            const defaultProperties: AnyType = {
-                type: 'line',
-                yAxisIndex: 0,
-                ...(chartConfig?.lineType === 'area' && {
-                    areaStyle: {},
-                }),
-                showSymbol: true,
-            };
-
-            if (typeof metric === 'string') {
-                return {
-                    ...defaultProperties,
-                    name: formatFieldLabel(metric, fieldsMap),
-                    encode: {
-                        x: xDimension,
-                        y: metric,
-                    },
-                };
-            }
-
-            return {
-                ...defaultProperties,
-                name: formatPivotValueLabel(metric, fieldsMap),
-                encode: {
-                    x: xDimension,
-                    y: metric,
-                },
-            };
-        }),
+        series: metrics.map((metric) => ({
+            type: 'line',
+            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
+            name: queryMetrics.includes(metric)
+                ? formatFieldLabel(metric, fieldsMap)
+                : metric,
+            encode: {
+                x: xDimension,
+                y: metric,
+            },
+            ...(chartConfig?.lineType === 'area' && {
+                areaStyle: {},
+            }),
+            showSymbol: true,
+        })),
     };
 };
 
 /**
  * Generates horizontal bar chart echarts config for server-side rendering
  */
-const getHorizontalBarChartEchartsConfig = (
+const getHorizontalBarChartEchartsConfig = async (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
-): AnyType => {
-    const { dimensions, metrics: queryMetrics } = queryTool.queryConfig;
+): Promise<EChartsOption> => {
+    const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
     const xDimension = dimensions[0];
-    let metrics: (string | PivotReference)[] = queryMetrics;
+    let metrics: string[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.groupBy
-    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivot = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
+    if (chartConfig?.groupBy?.length) {
+        const pivoted = await getPivotedResults(
+            rows,
+            fieldsMap,
+            chartConfig.groupBy,
             queryMetrics,
-            [], // No pivoted dimensions
+            sorts as SortField[],
         );
-        chartData = pivot.rows;
-        metrics = Object.values(pivot.rowKeyMap);
+        chartData = pivoted.results;
+        metrics = pivoted.metrics;
     }
 
+    // Get axis field items for formatting (note: x/y are flipped for horizontal charts)
+    const yAxisField = fieldsMap[xDimension]; // Category axis
+    const xAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined; // Value axis
+
     return {
-        ...(queryTool.title ? { title: { text: queryTool.title } } : {}),
-        legend: {
-            show: true,
-            type: 'plain',
-        },
-        grid: { containLabel: true },
-        animation: false,
-        backgroundColor: '#fff',
-        dataset: {
-            source: chartData,
-            dimensions: Object.keys(chartData[0] || {}),
-        },
+        ...getCommonChartConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
             {
                 type: 'value',
                 ...(chartConfig?.xAxisLabel
                     ? { name: chartConfig.xAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: xAxisField,
+                    show: true,
+                }),
             },
         ],
         yAxis: [
             {
-                type: chartConfig?.xAxisType ?? 'category',
+                type: chartConfig?.xAxisType ?? ('category' as const),
                 ...(chartConfig?.yAxisLabel
                     ? { name: chartConfig.yAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: yAxisField,
+                    show: true,
+                }),
             },
         ],
-        series: metrics.map((metric) => {
-            const defaultProperties: AnyType = {
-                type: 'bar',
-                yAxisIndex: 0,
-            };
-
-            if (typeof metric === 'string') {
-                return {
-                    ...defaultProperties,
-                    name: formatFieldLabel(metric, fieldsMap),
-                    encode: {
-                        x: metric,
-                        y: xDimension,
-                    },
-                };
-            }
-
-            return {
-                ...defaultProperties,
-                name: formatPivotValueLabel(metric, fieldsMap),
-                encode: {
-                    x: metric,
-                    y: xDimension,
-                },
-                ...(chartConfig?.stackBars && {
-                    stack: metric.field,
-                }),
-            };
-        }),
+        series: metrics.map((metric) => ({
+            type: 'bar',
+            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
+            name: queryMetrics.includes(metric)
+                ? formatFieldLabel(metric, fieldsMap)
+                : metric,
+            encode: {
+                x: metric,
+                y: xDimension,
+            },
+            ...(chartConfig?.stackBars ? { stack: 'stack' } : {}),
+        })),
     };
 };
 
 /**
  * Generates scatter chart echarts config for server-side rendering
  */
-const getScatterChartEchartsConfig = (
+const getScatterChartEchartsConfig = async (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: ItemsMap,
-): AnyType => {
-    const { dimensions, metrics: queryMetrics } = queryTool.queryConfig;
+): Promise<EChartsOption> => {
+    const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
     const xDimension = dimensions[0];
-    let metrics: (string | PivotReference)[] = queryMetrics;
+    let metrics: string[] = queryMetrics;
     let chartData = rows;
 
-    // Determine if we should pivot based on chartConfig.groupBy
-    const breakdownDimension = chartConfig?.groupBy?.[0] ?? null;
-
     // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivoted = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
+    if (chartConfig?.groupBy?.length) {
+        const pivoted = await getPivotedResults(
+            rows,
+            fieldsMap,
+            chartConfig.groupBy,
             queryMetrics,
-            [], // No pivoted dimensions
+            sorts as SortField[],
         );
-        chartData = pivoted.rows;
-        metrics = Object.values(pivoted.rowKeyMap);
+        chartData = pivoted.results;
+        metrics = pivoted.metrics;
     }
 
+    // Get axis field items for formatting
+    const xAxisField = fieldsMap[xDimension];
+    const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
+
     return {
-        ...(queryTool.title ? { title: { text: queryTool.title } } : {}),
-        legend: {
-            show: true,
-            type: 'plain',
-        },
-        grid: { containLabel: true },
-        animation: false,
-        backgroundColor: '#fff',
-        dataset: {
-            source: chartData,
-            dimensions: Object.keys(chartData[0] || {}),
-        },
+        ...getCommonChartConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
             {
-                type: chartConfig?.xAxisType ?? 'category',
+                type: chartConfig?.xAxisType ?? ('category' as const),
                 ...(chartConfig?.xAxisLabel
                     ? { name: chartConfig.xAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: xAxisField,
+                    show: true,
+                }),
             },
         ],
         yAxis: [
@@ -337,35 +329,24 @@ const getScatterChartEchartsConfig = (
                 ...(chartConfig?.yAxisLabel
                     ? { name: chartConfig.yAxisLabel }
                     : {}),
+                ...getCartesianAxisFormatterConfig({
+                    axisItem: yAxisField,
+                    show: true,
+                }),
             },
         ],
-        series: metrics.map((metric) => {
-            const defaultProperties: AnyType = {
-                type: 'scatter',
-                yAxisIndex: 0,
-                showSymbol: true,
-            };
-
-            if (typeof metric === 'string') {
-                return {
-                    ...defaultProperties,
-                    name: formatFieldLabel(metric, fieldsMap),
-                    encode: {
-                        x: xDimension,
-                        y: metric,
-                    },
-                };
-            }
-
-            return {
-                ...defaultProperties,
-                name: formatPivotValueLabel(metric, fieldsMap),
-                encode: {
-                    x: xDimension,
-                    y: metric,
-                },
-            };
-        }),
+        series: metrics.map((metric) => ({
+            type: 'scatter',
+            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
+            name: queryMetrics.includes(metric)
+                ? formatFieldLabel(metric, fieldsMap)
+                : metric,
+            encode: {
+                x: xDimension,
+                y: metric,
+            },
+            showSymbol: true,
+        })),
     };
 };
 
@@ -375,10 +356,8 @@ const getScatterChartEchartsConfig = (
 const getPieChartEchartsConfig = (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
-    fieldsMap: ItemsMap,
 ): AnyType => {
     const { dimensions, metrics } = queryTool.queryConfig;
-    const { chartConfig } = queryTool;
 
     const groupField = dimensions[0];
     const metricField = metrics[0];
@@ -416,10 +395,8 @@ const getPieChartEchartsConfig = (
 const getFunnelChartEchartsConfig = (
     queryTool: ToolRunQueryArgsTransformed,
     rows: Record<string, unknown>[],
-    fieldsMap: ItemsMap,
 ): AnyType => {
     const { dimensions, metrics } = queryTool.queryConfig;
-    const { chartConfig } = queryTool;
 
     const metricField = metrics[0];
 
@@ -456,26 +433,30 @@ const getFunnelChartEchartsConfig = (
 };
 
 /**
- * Main function to generate echarts options for runQuery tool for Slack rendering
+ * Generates echarts options from ToolRunQueryArgs
+ * Helpful for generating charts for AI agents on Slack
+ * @param queryTool - ToolRunQueryArgsTransformed
+ * @param queryResults - QueryResults
+ * @returns EChartsOption | null
  */
-export const generateEchartsOptionsForRunQuery = (
+export const generateEchartsOptionsForRunQuery = async (
     queryTool: ToolRunQueryArgsTransformed,
     queryResults: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >,
-): AnyType | null => {
+): Promise<EChartsOption | null> => {
     const chartType = queryTool.chartConfig?.defaultVizType ?? 'table';
 
     // Don't render table as image
     if (chartType === 'table') {
-        return null;
+        return Promise.resolve(null);
     }
 
     const { rows, fields: fieldsMap } = queryResults;
 
     // Empty data - don't render
     if (rows.length === 0) {
-        return null;
+        return Promise.resolve(null);
     }
 
     switch (chartType) {
@@ -496,12 +477,12 @@ export const generateEchartsOptionsForRunQuery = (
             return getScatterChartEchartsConfig(queryTool, rows, fieldsMap);
 
         case 'pie':
-            return getPieChartEchartsConfig(queryTool, rows, fieldsMap);
+            return getPieChartEchartsConfig(queryTool, rows);
 
         case 'funnel':
-            return getFunnelChartEchartsConfig(queryTool, rows, fieldsMap);
+            return getFunnelChartEchartsConfig(queryTool, rows);
 
         default:
-            return null;
+            return Promise.resolve(null);
     }
 };
