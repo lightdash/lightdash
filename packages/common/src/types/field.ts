@@ -341,6 +341,7 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
           fieldId: string;
+          partitionBy: string[] | null;
       }
     | {
           type: TableCalculationTemplateType.RANK_IN_COLUMN;
