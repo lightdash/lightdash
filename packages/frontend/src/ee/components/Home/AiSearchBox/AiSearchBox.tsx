@@ -18,6 +18,7 @@ import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -33,12 +34,6 @@ type Props = {
     projectUuid: string;
 };
 
-const MOCK_LIGHTDASH_AGENT = {
-    uuid: 'MOCK_LIGHTDASH_AGENT',
-    name: 'Lightdash',
-    imageUrl: '/favicon-32x32.png',
-};
-
 const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
 
@@ -46,6 +41,10 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         redirectOnUnauthorized: false,
     });
+    const organizationSettingsQuery = useAiOrganizationSettings();
+    const isTrial =
+        organizationSettingsQuery.isSuccess &&
+        organizationSettingsQuery.data?.isTrial;
     const {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,
@@ -122,14 +121,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
             <Box p="md">
                 <form onSubmit={handleSubmit}>
                     <Group>
-                        {noAgentsAvailable ? (
-                            <CompactAgentSelector
-                                agents={[MOCK_LIGHTDASH_AGENT]}
-                                selectedAgent={MOCK_LIGHTDASH_AGENT}
-                                onSelect={() => {}}
-                                disabled
-                            />
-                        ) : (
+                        {noAgentsAvailable ? null : (
                             <CompactAgentSelector
                                 agents={agents}
                                 selectedAgent={selectedAgent ?? agents[0]}
@@ -208,32 +200,64 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                 <>
                     <Divider color="gray.2" />
                     <Box bg="gray.0" py="xs" px="md">
-                        <Group>
-                            {noAgentsAvailable && (
-                                <Group gap={4}>
-                                    <MantineIcon
-                                        icon={IconSparkles}
-                                        color="violet.5"
-                                        fill="violet.5"
-                                    />
-                                    <Text size="xs" c="gray.8">
-                                        Set up your first agent
-                                    </Text>
-                                </Group>
-                            )}
-                            <Group flex={1} justify="flex-end">
-                                <Button
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    leftSection={
-                                        <MantineIcon icon={IconSettings} />
-                                    }
-                                    component={Link}
-                                    to="/ai-agents/admin/threads"
-                                >
-                                    Admin Settings
-                                </Button>
+                        <Group
+                            flex={1}
+                            justify={isTrial ? 'space-between' : 'flex-end'}
+                        >
+                            <Group gap={2}>
+                                {noAgentsAvailable ? (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconSparkles}
+                                                color="violet.5"
+                                                fill="violet.5"
+                                            />
+                                        }
+                                        component={Link}
+                                        to="/ai-agents"
+                                    >
+                                        <Group gap={2}>
+                                            {isTrial && (
+                                                <Text size="xs" c="gray.8">
+                                                    You are trialing the AI
+                                                    Agents feature.
+                                                </Text>
+                                            )}{' '}
+                                            <Text size="xs" fw={500}>
+                                                Set up your first agent to get
+                                                started
+                                            </Text>
+                                        </Group>
+                                    </Button>
+                                ) : isTrial ? (
+                                    <Group gap="xs">
+                                        <MantineIcon
+                                            icon={IconSparkles}
+                                            color="violet.5"
+                                            fill="violet.5"
+                                        />
+                                        <Text size="xs" c="gray.8">
+                                            You are trialing the AI Agents
+                                            feature.
+                                        </Text>
+                                    </Group>
+                                ) : null}
                             </Group>
+
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                leftSection={
+                                    <MantineIcon icon={IconSettings} />
+                                }
+                                component={Link}
+                                to="/ai-agents/admin/agents"
+                            >
+                                Admin Settings
+                            </Button>
                         </Group>
                     </Box>
                 </>
