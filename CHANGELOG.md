@@ -1,3 +1,10 @@
+## [0.2077.5](https://github.com/lightdash/lightdash/compare/0.2077.4...0.2077.5) (2025-10-14)
+
+
+### Bug Fixes
+
+* unsaved chart share link not working ([#17423](https://github.com/lightdash/lightdash/issues/17423)) ([be408fd](https://github.com/lightdash/lightdash/commit/be408fd14247667a836286c66bdd76691dfe8f60))
+
 ## [0.2077.4](https://github.com/lightdash/lightdash/compare/0.2077.3...0.2077.4) (2025-10-14)
 
 
