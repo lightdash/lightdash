@@ -60,7 +60,6 @@ import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { getFindCharts } from '../ai/tools/findCharts';
 import { getFindDashboards } from '../ai/tools/findDashboards';
-// eslint-disable-next-line import/extensions
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
