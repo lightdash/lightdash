@@ -28,7 +28,6 @@ import {
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
 import { useFilters } from '../../../hooks/useFilters';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -66,14 +65,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 
     const isItemAdditionalMetric = !!additionalMetric;
-
-    const toggleAdditionalMetricModal = useExplorerContext(
-        (context) => context.actions.toggleAdditionalMetricModal,
-    );
-
-    const toggleCustomDimensionModal = useExplorerContext(
-        (context) => context.actions.toggleCustomDimensionModal,
-    );
 
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
@@ -119,11 +110,13 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     <Menu.Item
                         icon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
-                            toggleAdditionalMetricModal({
-                                item: additionalMetric,
-                                type: additionalMetric.type,
-                                isEditing: true,
-                            });
+                            dispatch(
+                                explorerActions.toggleAdditionalMetricModal({
+                                    item: additionalMetric,
+                                    type: additionalMetric.type,
+                                    isEditing: true,
+                                }),
+                            );
                         }}
                     >
                         Edit custom metric
@@ -180,10 +173,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Item
                     icon={<MantineIcon icon={IconPencil} />}
                     onClick={() => {
-                        toggleCustomDimensionModal({
-                            item,
-                            isEditing: true,
-                        });
+                        dispatch(
+                            explorerActions.toggleCustomDimensionModal({
+                                item,
+                                isEditing: true,
+                            }),
+                        );
                     }}
                 >
                     Edit custom dimension
