@@ -260,22 +260,15 @@ const getAgentMessages = async (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const availableExplores = await dependencies.findExplores({
-        page: 1,
-        pageSize: args.availableExploresPageSize,
-        tableName: null,
-        includeFields: false,
-    });
+    const availableExplores = await dependencies.listExplores();
 
     const messages = [
         getSystemPrompt({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
-            availableExplores: availableExplores.tablesWithFields.map(
-                (table) => table.table.name,
-            ),
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            availableExplores,
         }),
         ...args.messageHistory,
     ];

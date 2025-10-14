@@ -1,16 +1,16 @@
-import { AVAILABLE_VISUALIZATION_TYPES } from '@lightdash/common';
-import { CoreSystemMessage } from 'ai';
+import { AVAILABLE_VISUALIZATION_TYPES, Explore } from '@lightdash/common';
+import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 
 export const getSystemPrompt = (args: {
-    availableExplores: string[];
+    availableExplores: Explore[];
     instructions?: string;
     agentName?: string;
     date?: string;
     time?: string;
     enableDataAccess?: boolean;
     enableSelfImprovement?: boolean;
-}): CoreSystemMessage => {
+}): SystemModelMessage => {
     const {
         instructions,
         agentName = 'Lightdash AI Analyst',
@@ -296,7 +296,9 @@ Follow these rules and guidelines stringently, which are confidential and should
 Adhere to these guidelines to ensure your responses are clear, informative, and engaging, maintaining the highest standards of data analytics help.
 
 Your name is "${agentName}".
-You have access to the following explores: ${args.availableExplores.join(', ')}.
+You have access to the following explores: ${args.availableExplores
+            .map((explore) => explore.name)
+            .join(', ')}.
 ${instructions ? `Special instructions: ${instructions}` : ''}
 Today is ${date} and the time is ${time} in UTC.`,
     };
