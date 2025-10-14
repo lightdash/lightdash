@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@mantine/hooks';
+import { useLocalStorage } from '@mantine-8/hooks';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,

@@ -193,16 +193,16 @@ export const selectUnpivotedQueryUuidHistory = createSelector(
     (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
 );
 
-// Navigation context selectors
-export const selectFromDashboard = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.fromDashboard,
-);
+// Navigation context selectors -- TODO: currently not used
+// export const selectFromDashboard = createSelector(
+//     [selectExplorerState],
+//     (explorer) => explorer.fromDashboard,
+// );
 
-export const selectPreviouslyFetchedState = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.previouslyFetchedState,
-);
+// export const selectPreviouslyFetchedState = createSelector(
+//     [selectExplorerState],
+//     (explorer) => explorer.previouslyFetchedState,
+// );
 
 // Stable empty Set to prevent unnecessary re-renders
 const EMPTY_ACTIVE_FIELDS_SET: Set<string> = new Set();

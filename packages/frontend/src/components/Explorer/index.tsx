@@ -6,7 +6,6 @@ import {
     explorerActions,
     selectColumnOrder,
     selectDimensions,
-    selectFromDashboard,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -24,6 +23,7 @@ import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
+import useSearchParams from '../../hooks/useSearchParams';
 import { Can } from '../../providers/Ability';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -42,12 +42,15 @@ import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
+        // TODO: from dashboard should be in the redux store,
+        // but for now we use the search params
+        const fromDashboard = !!useSearchParams('fromDashboard');
+
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
         const columnOrder = useExplorerSelector(selectColumnOrder);
         const sorts = useExplorerSelector(selectSorts);
-        const fromDashboard = useExplorerSelector(selectFromDashboard);
 
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -69,10 +72,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             enabled: !!tableName,
         });
 
-        const isSavedChart = useExplorerContext(
-            (context) => !!context.state.savedChart,
-        );
-
         // Get boolean for pivot config existence directly from Context
         const hasPivotConfig = useExplorerContext(
             (context) => !!context.state.unsavedChartVersion.pivotConfig,
@@ -91,7 +90,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             query.isFetched,
             fetchResults,
             fromDashboard,
-            isSavedChart,
             hasPivotConfig,
             autoFetchEnabled,
             isEditMode,
