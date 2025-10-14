@@ -44,28 +44,29 @@ describe('AiService', () => {
         ).toBeDefined();
     });
 
-    test('should return undefined when AI tags are configured but empty', async () => {
+    test('should return entire explore when AI tags are configured but empty', async () => {
+        const explore = {
+            baseTable: 'customers',
+            tags: [],
+            tables: {
+                customers: {
+                    dimensions: {
+                        customer_name: {
+                            tags: ['pii'],
+                        },
+                    },
+                    metrics: {
+                        revenue: {},
+                    },
+                },
+            },
+        };
         expect(
             filterExploreByTags({
                 availableTags: [],
-                explore: {
-                    baseTable: 'customers',
-                    tags: [],
-                    tables: {
-                        customers: {
-                            dimensions: {
-                                customer_name: {
-                                    tags: ['pii'],
-                                },
-                            },
-                            metrics: {
-                                revenue: {},
-                            },
-                        },
-                    },
-                },
+                explore,
             }),
-        ).toBeUndefined();
+        ).toStrictEqual(explore);
     });
 
     test('should return undefined when explore and fields have no matching AI tags', async () => {
