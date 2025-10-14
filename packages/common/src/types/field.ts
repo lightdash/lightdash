@@ -668,7 +668,7 @@ const NonAggregateMetricTypes = [
     MetricType.BOOLEAN,
 ];
 
-export const PostSqlMetricTypes = [
+export const PostCalculationMetricTypes = [
     MetricType.PERCENT_OF_PREVIOUS,
     MetricType.PERCENT_OF_TOTAL,
     MetricType.RUNNING_TOTAL,
@@ -684,11 +684,11 @@ export const isMetric = (
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
 
-export const isPostSqlMetricType = (type: MetricType): boolean =>
-    PostSqlMetricTypes.includes(type);
+export const isPostCalculationMetricType = (type: MetricType): boolean =>
+    PostCalculationMetricTypes.includes(type);
 
-export const isPostSqlMetric = (field: Field): boolean =>
-    isMetric(field) && isPostSqlMetricType(field.type);
+export const isPostCalculationMetric = (field: Field): boolean =>
+    isMetric(field) && isPostCalculationMetricType(field.type);
 
 export const isCompiledMetric = (
     field: ItemsMap[string] | AdditionalMetric | undefined,

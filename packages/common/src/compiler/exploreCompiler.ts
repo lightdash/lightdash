@@ -11,7 +11,7 @@ import {
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
-    isPostSqlMetric,
+    isPostCalculationMetric,
     type CompiledCustomDimension,
     type CompiledCustomSqlDimension,
     type CompiledDimension,
@@ -488,8 +488,8 @@ export class ExploreCompiler {
                     );
                 }
 
-                // For PostSQL metrics, validate that references are to numeric metrics only
-                if (isPostSqlMetric(metric)) {
+                // For PostCalculation metrics, validate that references are to numeric metrics only
+                if (isPostCalculationMetric(metric)) {
                     const { refTable, refName } = getParsedReference(
                         p1,
                         metric.table,
@@ -502,14 +502,15 @@ export class ExploreCompiler {
 
                     if (referencedMetric && !isNumericItem(referencedMetric)) {
                         throw new CompileError(
-                            `PostSQL metric "${metric.name}" in table "${metric.table}" can only reference numeric metrics, but "${p1}" is not numeric`,
+                            `PostCalculation metric "${metric.name}" in table "${metric.table}" can only reference numeric metrics, but "${p1}" is not numeric`,
                             {},
                         );
                     }
                 }
 
                 const compiledReference =
-                    isNonAggregateMetric(metric) || isPostSqlMetric(metric)
+                    isNonAggregateMetric(metric) ||
+                    isPostCalculationMetric(metric)
                         ? this.compileMetricReference(
                               p1,
                               tables,
@@ -529,7 +530,10 @@ export class ExploreCompiler {
             },
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
-            if (isNonAggregateMetric(metric) || isPostSqlMetric(metric)) {
+            if (
+                isNonAggregateMetric(metric) ||
+                isPostCalculationMetric(metric)
+            ) {
                 throw new CompileError(
                     `Error: ${metric.name} - metric filters cannot be used with non-aggregate metrics`,
                 );

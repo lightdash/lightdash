@@ -9,7 +9,7 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
-    isPostSqlMetricType,
+    isPostCalculationMetricType,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     lightdashVariablePattern,
@@ -253,7 +253,7 @@ const compileAdditionalMetric = ({
     };
 };
 
-export function compilePostSqlMetric({
+export function compilePostCalculationMetric({
     warehouseSqlBuilder,
     type,
     sql,
@@ -267,9 +267,9 @@ export function compilePostSqlMetric({
     orderByClause?: string;
 }): string {
     const floatType = warehouseSqlBuilder.getFloatingType();
-    if (!isPostSqlMetricType(type)) {
+    if (!isPostCalculationMetricType(type)) {
         throw new CompileError(
-            `Unexpected metric type '${type}' when compiling PostSQL metric`,
+            `Unexpected metric type '${type}' when compiling PostCalculation metric`,
         );
     }
 
@@ -308,7 +308,9 @@ export function compilePostSqlMetric({
         );
     }
 
-    throw new CompileError(`No PostSQL metric implementation for type ${type}`);
+    throw new CompileError(
+        `No PostCalculation metric implementation for type ${type}`,
+    );
 }
 
 type CompileMetricQueryArgs = {

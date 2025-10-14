@@ -26,7 +26,7 @@ import {
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
-    isPostSqlMetric,
+    isPostCalculationMetric,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
@@ -45,7 +45,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { compilePostSqlMetric } from '../../queryCompiler';
+import { compilePostCalculationMetric } from '../../queryCompiler';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
@@ -285,14 +285,14 @@ export class MetricQueryBuilder {
     }
 
     private getMetricIdsByGroup(): {
-        postSqlMetrics: string[];
+        postCalculationMetrics: string[];
         regularMetrics: string[];
         referencedMetrics: string[];
     } {
         const { explore, compiledMetricQuery } = this.args;
         const { metrics } = compiledMetricQuery;
 
-        const postSqlMetrics: string[] = [];
+        const postCalculationMetrics: string[] = [];
         const regularMetrics: string[] = [];
         const referencedMetrics = new Set<string>();
 
@@ -302,9 +302,9 @@ export class MetricQueryBuilder {
                 explore,
                 compiledMetricQuery,
             );
-            if (isPostSqlMetric(metric)) {
-                postSqlMetrics.push(metricId);
-                // Extract referenced metrics from PostSQL metric SQL
+            if (isPostCalculationMetric(metric)) {
+                postCalculationMetrics.push(metricId);
+                // Extract referenced metrics from PostCalculation metric SQL
                 const references = parseAllReferences(metric.sql, metric.table);
                 references.forEach((ref) => {
                     const referencedMetricId = getItemId({
@@ -318,9 +318,9 @@ export class MetricQueryBuilder {
                             explore,
                             compiledMetricQuery,
                         );
-                        if (isPostSqlMetric(referencedMetric)) {
+                        if (isPostCalculationMetric(referencedMetric)) {
                             throw new CompileError(
-                                `PostSQL metric "${metric.label}" cannot reference another PostSQL metric "${referencedMetric.label}". PostSQL metrics can only reference numeric aggregate metrics.`,
+                                `PostCalculation metric "${metric.label}" cannot reference another PostCalculation metric "${referencedMetric.label}". PostCalculation metrics can only reference numeric aggregate metrics.`,
                             );
                         }
                         referencedMetrics.add(referencedMetricId);
@@ -337,7 +337,7 @@ export class MetricQueryBuilder {
         });
 
         return {
-            postSqlMetrics,
+            postCalculationMetrics,
             regularMetrics,
             referencedMetrics: Array.from(referencedMetrics),
         };
@@ -358,7 +358,7 @@ export class MetricQueryBuilder {
         const { regularMetrics, referencedMetrics } =
             this.getMetricIdsByGroup();
 
-        // Include both regular metrics and referenced metrics needed by PostSQL metrics
+        // Include both regular metrics and referenced metrics needed by PostCalculation metrics
         const metrics = [...regularMetrics, ...referencedMetrics];
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
@@ -413,7 +413,7 @@ export class MetricQueryBuilder {
                 explore,
                 compiledMetricQuery,
             );
-            if (isPostSqlMetric(metric)) {
+            if (isPostCalculationMetric(metric)) {
                 return acc;
             }
             const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
@@ -466,12 +466,12 @@ export class MetricQueryBuilder {
         requiresQueryInCTE: boolean;
         metricsSQL: { filtersSQL?: string };
     }): boolean {
-        const { postSqlMetrics } = this.getMetricIdsByGroup();
+        const { postCalculationMetrics } = this.getMetricIdsByGroup();
         return (
             opts.requiresQueryInCTE ||
             this.hasAnyTableCalcs() ||
             MetricQueryBuilder.hasMetricFilters(opts.metricsSQL) ||
-            postSqlMetrics.length > 0
+            postCalculationMetrics.length > 0
         );
     }
 
@@ -673,7 +673,7 @@ export class MetricQueryBuilder {
         return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
     }
 
-    private getSortSQL(excludePostSqlMetrics: boolean = false) {
+    private getSortSQL(excludePostCalculationMetrics: boolean = false) {
         const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, metrics, compiledCustomDimensions } =
             compiledMetricQuery;
@@ -735,7 +735,7 @@ export class MetricQueryBuilder {
                     sort.descending,
                 );
             } else if (
-                excludePostSqlMetrics &&
+                excludePostCalculationMetrics &&
                 metrics.includes(sort.fieldId)
             ) {
                 const metric = getMetricFromId(
@@ -743,8 +743,8 @@ export class MetricQueryBuilder {
                     explore,
                     compiledMetricQuery,
                 );
-                if (isPostSqlMetric(metric)) {
-                    // Skip sorting by PostSQL metrics
+                if (isPostCalculationMetric(metric)) {
+                    // Skip sorting by PostCalculation metrics
                     return acc;
                 }
             }
@@ -1517,8 +1517,8 @@ export class MetricQueryBuilder {
         return { ctes, lastCteName };
     }
 
-    // Create PostSQL metric CTEs
-    private createPostSqlMetricCtes(currentCteName: string): {
+    // Create PostCalculation metric CTEs
+    private createPostCalculationMetricCtes(currentCteName: string): {
         ctes: string[];
         finalCteName: string;
     } {
@@ -1529,15 +1529,15 @@ export class MetricQueryBuilder {
             pivotConfiguration,
         } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-        const { postSqlMetrics, referencedMetrics } =
+        const { postCalculationMetrics, referencedMetrics } =
             this.getMetricIdsByGroup();
         const { sqlOrderBy } = this.getSortSQL(true);
 
-        if (postSqlMetrics.length === 0) {
+        if (postCalculationMetrics.length === 0) {
             return { ctes: [], finalCteName: currentCteName };
         }
 
-        const cteName = 'postsql_metrics';
+        const cteName = 'postcalculation_metrics';
 
         // Create metric CTE references for the referenced metrics
         // Referenced metrics should be available in the current CTE
@@ -1548,8 +1548,8 @@ export class MetricQueryBuilder {
             },
         ];
 
-        // Create a single CTE with all PostSQL metrics
-        const metricSelects = postSqlMetrics.map((metricId) => {
+        // Create a single CTE with all PostCalculation metrics
+        const metricSelects = postCalculationMetrics.map((metricId) => {
             const metric = getMetricFromId(
                 metricId,
                 explore,
@@ -1560,7 +1560,7 @@ export class MetricQueryBuilder {
                 metric,
                 metricCtes,
             );
-            const compiledSql = compilePostSqlMetric({
+            const compiledSql = compilePostCalculationMetric({
                 warehouseSqlBuilder,
                 type: metric.type,
                 pivotConfiguration,
@@ -1719,12 +1719,14 @@ export class MetricQueryBuilder {
             );
             let currentCteName = metricsCteName;
 
-            // Create PostSQL metric CTEs
-            const { ctes: postSqlCtes, finalCteName: postSqlFinalCteName } =
-                this.createPostSqlMetricCtes(currentCteName);
-            if (postSqlCtes.length) {
-                ctesToAdd.push(...postSqlCtes);
-                currentCteName = postSqlFinalCteName;
+            // Create PostCalculation metric CTEs
+            const {
+                ctes: postCalculationCtes,
+                finalCteName: postCalculationFinalCteName,
+            } = this.createPostCalculationMetricCtes(currentCteName);
+            if (postCalculationCtes.length) {
+                ctesToAdd.push(...postCalculationCtes);
+                currentCteName = postCalculationFinalCteName;
             }
 
             // Create metric_filters CTE if needed

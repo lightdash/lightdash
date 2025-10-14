@@ -353,7 +353,7 @@ describe('Compile metrics with filters', () => {
     });
 });
 
-describe('PostSQL metric validation', () => {
+describe('PostCalculation metric validation', () => {
     const sourceMock: Source = {
         path: '',
         content: '',
@@ -363,7 +363,7 @@ describe('PostSQL metric validation', () => {
         },
     };
 
-    const tablesWithPostSqlMetric: Record<string, Table> = {
+    const tablesWithPostCalculationMetric: Record<string, Table> = {
         table1: {
             name: 'table1',
             label: 'Table 1',
@@ -394,21 +394,21 @@ describe('PostSQL metric validation', () => {
                     sql: '${TABLE}.text_value',
                     hidden: false,
                 },
-                postsql_metric: {
+                postcalculation_metric: {
                     fieldType: FieldType.METRIC,
                     type: MetricType.PERCENT_OF_PREVIOUS,
-                    name: 'postsql_metric',
-                    label: 'PostSQL Metric',
+                    name: 'postcalculation_metric',
+                    label: 'PostCalculation Metric',
                     table: 'table1',
                     tableLabel: 'Table 1',
                     sql: '${numeric_metric}',
                     hidden: false,
                 },
-                invalid_postsql_metric: {
+                invalid_postcalculation_metric: {
                     fieldType: FieldType.METRIC,
                     type: MetricType.PERCENT_OF_TOTAL,
-                    name: 'invalid_postsql_metric',
-                    label: 'Invalid PostSQL Metric',
+                    name: 'invalid_postcalculation_metric',
+                    label: 'Invalid PostCalculation Metric',
                     table: 'table1',
                     tableLabel: 'Table 1',
                     sql: '${string_metric}',
@@ -420,26 +420,28 @@ describe('PostSQL metric validation', () => {
         },
     };
 
-    test('should allow PostSQL metric to reference numeric metric', () => {
+    test('should allow PostCalculation metric to reference numeric metric', () => {
         expect(() =>
             compiler.compileMetric(
-                tablesWithPostSqlMetric.table1.metrics.postsql_metric,
-                tablesWithPostSqlMetric,
+                tablesWithPostCalculationMetric.table1.metrics
+                    .postcalculation_metric,
+                tablesWithPostCalculationMetric,
                 [],
             ),
         ).not.toThrowError();
     });
 
-    test('should throw error when PostSQL metric references non-numeric metric', () => {
+    test('should throw error when PostCalculation metric references non-numeric metric', () => {
         expect(() =>
             compiler.compileMetric(
-                tablesWithPostSqlMetric.table1.metrics.invalid_postsql_metric,
-                tablesWithPostSqlMetric,
+                tablesWithPostCalculationMetric.table1.metrics
+                    .invalid_postcalculation_metric,
+                tablesWithPostCalculationMetric,
                 [],
             ),
         ).toThrowError(
             new CompileError(
-                `PostSQL metric "invalid_postsql_metric" in table "table1" can only reference numeric metrics, but "string_metric" is not numeric`,
+                `PostCalculation metric "invalid_postcalculation_metric" in table "table1" can only reference numeric metrics, but "string_metric" is not numeric`,
                 {},
             ),
         );
