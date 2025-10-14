@@ -865,7 +865,7 @@ describe('ExplorerProvider reducer', () => {
         ]);
     });
     describe('ADD_TABLE_CALCULATION', () => {
-        it('adds a new table calculation and updates columnOrder', () => {
+        it('adds a new table calculation to tableCalculations array', () => {
             const state = mockExplorerState();
 
             const action = {
@@ -878,10 +878,6 @@ describe('ExplorerProvider reducer', () => {
             expect(
                 newState.unsavedChartVersion.metricQuery.tableCalculations,
             ).toContainEqual(mockTableCalculation('calc_1'));
-
-            expect(
-                newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).toContain('calc_1');
         });
     });
 

@@ -86,6 +86,17 @@ export const useExplorerQueryManager = (options?: {
         (context) => context.state.mergedUnsavedChartVersion,
     );
 
+    const chartConfigForQuery = useMemo(
+        () => ({
+            chartConfig: mergedUnsavedChartVersion.chartConfig,
+            pivotConfig: mergedUnsavedChartVersion.pivotConfig,
+        }),
+        [
+            mergedUnsavedChartVersion.chartConfig,
+            mergedUnsavedChartVersion.pivotConfig,
+        ],
+    );
+
     // Auto-fetch configuration
     const [autoFetchEnabled] = useLocalStorage({
         key: AUTO_FETCH_ENABLED_KEY,
@@ -205,7 +216,7 @@ export const useExplorerQueryManager = (options?: {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
-            savedChart: mergedUnsavedChartVersion,
+            savedChart: chartConfigForQuery,
         });
 
         if (mainQueryArgs) {
@@ -230,7 +241,7 @@ export const useExplorerQueryManager = (options?: {
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
-        mergedUnsavedChartVersion,
+        chartConfigForQuery,
         dispatch,
     ]);
 
