@@ -535,7 +535,7 @@ export class ExploreCompiler {
                 isPostCalculationMetric(metric)
             ) {
                 throw new CompileError(
-                    `Error: ${metric.name} - metric filters cannot be used with non-aggregate metrics`,
+                    `Error: ${metric.name} - metric filters cannot be used with non-aggregate or post-calculation metrics`,
                 );
             }
 
