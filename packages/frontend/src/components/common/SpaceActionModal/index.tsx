@@ -58,7 +58,7 @@ export interface CreateSpaceModalBody
         SpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
-    privateAccessType: SpacePrivateAccessType;
+    privateAccessType: SpacePrivateAccessType | undefined;
     onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
@@ -92,16 +92,36 @@ const SpaceModal: FC<ActionModalProps> = ({
 }) => {
     const { showToastError } = useToaster();
     const { data: organizationUsers } = useOrganizationUsers();
-    const [privateAccessType, setPrivateAccessType] = useState(
-        SpacePrivateAccessType.PRIVATE,
-    );
+    const [privateAccessType, setPrivateAccessType] = useState<
+        SpacePrivateAccessType | undefined
+    >(undefined);
 
     const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
 
     const form = useForm<Space>({
-        initialValues: actionType === ActionType.CREATE ? undefined : data,
+        initialValues: actionType === ActionType.CREATE 
+            ? { 
+                name: '', 
+                isPrivate: false, 
+                access: [],
+                organizationUuid: '',
+                uuid: '',
+                queries: [],
+                projectUuid: '',
+                dashboards: [],
+                groupsAccess: [],
+                pinnedListUuid: null,
+                pinnedListOrder: null,
+                slug: '',
+                childSpaces: [],
+                parentSpaceUuid: null,
+                path: ''
+              } 
+            : data,
         validate: zodResolver(validate),
     });
+
+    const isFormReady = form.isValid() && privateAccessType !== undefined;
 
     const handleSubmit = (values: Space) => {
         if (
@@ -185,13 +205,11 @@ const SpaceModal: FC<ActionModalProps> = ({
 
                         {actionType === ActionType.CREATE &&
                             modalStep === CreateModalStep.SET_NAME &&
-                            !(
-                                privateAccessType ===
-                                SpacePrivateAccessType.PRIVATE
-                            ) && (
+                            privateAccessType ===
+                                SpacePrivateAccessType.SHARED && (
                                 <Button
                                     type="submit"
-                                    disabled={isDisabled || !form.isValid}
+                                    disabled={isDisabled || !isFormReady}
                                     form="form-space-action-modal"
                                 >
                                     Continue
@@ -201,11 +219,10 @@ const SpaceModal: FC<ActionModalProps> = ({
                         {(actionType !== ActionType.CREATE ||
                             (actionType === ActionType.CREATE &&
                                 modalStep === CreateModalStep.SET_NAME &&
-                                privateAccessType ===
-                                    SpacePrivateAccessType.PRIVATE)) && (
+                                privateAccessType !== SpacePrivateAccessType.SHARED)) && (
                             <Button
                                 type="submit"
-                                disabled={isDisabled || !form.isValid}
+                                disabled={isDisabled || !isFormReady}
                                 color={confirmButtonColor}
                                 loading={isLoading}
                                 form="form-space-action-modal"
