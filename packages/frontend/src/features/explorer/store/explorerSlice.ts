@@ -298,7 +298,7 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<{
                 metric: Metric;
-                formatOptions: CustomFormat;
+                formatOptions: CustomFormat | undefined;
             }>,
         ) => {
             const { metric, formatOptions } = action.payload;
