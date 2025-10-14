@@ -10,7 +10,6 @@ import {
     selectIsValidQuery,
     selectQueryLimit,
     selectTimezone,
-    selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
@@ -49,7 +48,9 @@ const ExplorerHeader: FC = memo(() => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const mergedUnsavedChartVersion = useExplorerContext(
+        (context) => context.state.mergedUnsavedChartVersion,
+    );
     const setTimeZone = useExplorerContext(
         (context) => context.actions.setTimeZone,
     );
@@ -62,10 +63,10 @@ const ExplorerHeader: FC = memo(() => {
     );
 
     const urlToShare = useMemo(() => {
-        if (unsavedChartVersion) {
+        if (mergedUnsavedChartVersion) {
             const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
                 projectUuid,
-                unsavedChartVersion,
+                mergedUnsavedChartVersion,
                 true,
             );
             return {
@@ -73,7 +74,7 @@ const ExplorerHeader: FC = memo(() => {
                 search: `?${urlArgs.search}`,
             };
         }
-    }, [unsavedChartVersion, projectUuid]);
+    }, [mergedUnsavedChartVersion, projectUuid]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {

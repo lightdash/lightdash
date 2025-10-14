@@ -14,11 +14,11 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
-    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
@@ -59,7 +59,6 @@ export const useExplorerQuery = (options?: {
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
     const queryUuidHistory = useExplorerSelector(selectQueryUuidHistory);
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const unpivotedQueryUuidHistory = useExplorerSelector(
         selectUnpivotedQueryUuidHistory,
     );
@@ -67,6 +66,12 @@ export const useExplorerQuery = (options?: {
         selectParameterDefinitions,
     );
     const parameterReferences = useExplorerSelector(selectParameterReferences);
+
+    // Get merged version with chartConfig and pivotConfig from Context
+    // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
+    const mergedUnsavedChartVersion = useExplorerContext(
+        (context) => context.state.mergedUnsavedChartVersion,
+    );
 
     // Compute missing required parameters
     const missingRequiredParameters = useMemo(() => {
@@ -180,14 +185,14 @@ export const useExplorerQuery = (options?: {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
-            savedChart: unsavedChartVersion,
+            savedChart: mergedUnsavedChartVersion,
         });
 
         if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
         }
     }, [
-        unsavedChartVersion,
+        mergedUnsavedChartVersion,
         activeFields,
         tableName,
         projectUuid,

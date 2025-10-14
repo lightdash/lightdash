@@ -22,7 +22,6 @@ import {
     explorerActions,
     selectMetricQuery,
     selectTableName,
-    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -176,7 +175,9 @@ export const useExplorerRoute = () => {
     const clearExplore = useExplorerContext(
         (context) => context.actions.clearExplore,
     );
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const mergedUnsavedChartVersion = useExplorerContext(
+        (context) => context.state.mergedUnsavedChartVersion,
+    );
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
 
@@ -188,7 +189,7 @@ export const useExplorerRoute = () => {
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     {
-                        ...unsavedChartVersion,
+                        ...mergedUnsavedChartVersion,
                         metricQuery,
                     },
                 ),
@@ -200,7 +201,7 @@ export const useExplorerRoute = () => {
         navigate,
         pathParams.projectUuid,
         pathParams.tableId,
-        unsavedChartVersion,
+        mergedUnsavedChartVersion,
         tableName,
     ]);
 
