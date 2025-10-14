@@ -669,3 +669,220 @@ test('Should compile WINDOW_FUNCTION template without orderBy or partitionBy', (
     // Should generate window function with empty OVER clause
     expect(simpleRowNum?.compiledSql).toBe('ROW_NUMBER() OVER ()');
 });
+
+test('Should compile WINDOW_FUNCTION template with frame clause for running total', () => {
+    const metricQueryWithFrame = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'running_total',
+                displayName: 'Running Total',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.SUM,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'table1_dim_1', order: 'asc' }],
+                    partitionBy: [],
+                    frame: {
+                        frameType: 'rows',
+                        start: {
+                            type: 'unbounded_preceding',
+                        },
+                        end: {
+                            type: 'current_row',
+                        },
+                    },
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithFrame,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const runningTotal = result.compiledTableCalculations.find(
+        (c) => c.name === 'running_total',
+    );
+
+    expect(runningTotal?.compiledSql).toBe(
+        'SUM("table_3_metric_1") OVER (ORDER BY "table1_dim_1" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template with frame clause for 7-day moving average', () => {
+    const metricQueryWithMovingAvg = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'moving_avg_7d',
+                displayName: '7-Day Moving Average',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.AVG,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'table1_dim_1', order: 'asc' }],
+                    partitionBy: [],
+                    frame: {
+                        frameType: 'rows',
+                        start: {
+                            type: 'preceding',
+                            offset: 6,
+                        },
+                        end: {
+                            type: 'current_row',
+                        },
+                    },
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithMovingAvg,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const movingAvg = result.compiledTableCalculations.find(
+        (c) => c.name === 'moving_avg_7d',
+    );
+
+    expect(movingAvg?.compiledSql).toBe(
+        'AVG("table_3_metric_1") OVER (ORDER BY "table1_dim_1" ASC ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template with frame clause and partitionBy', () => {
+    const metricQueryWithFrameAndPartition = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: ['table1_dim_1', 'table_2_dim_2'],
+        tableCalculations: [
+            {
+                name: 'partitioned_avg',
+                displayName: 'Partitioned Moving Average',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.AVG,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'table1_dim_1', order: 'asc' }],
+                    partitionBy: ['table_2_dim_2'],
+                    frame: {
+                        frameType: 'rows',
+                        start: {
+                            type: 'preceding',
+                            offset: 2,
+                        },
+                        end: {
+                            type: 'following',
+                            offset: 2,
+                        },
+                    },
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithFrameAndPartition,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const partitionedAvg = result.compiledTableCalculations.find(
+        (c) => c.name === 'partitioned_avg',
+    );
+
+    expect(partitionedAvg?.compiledSql).toBe(
+        'AVG("table_3_metric_1") OVER (PARTITION BY "table_2_dim_2" ORDER BY "table1_dim_1" ASC ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template with single boundary frame syntax', () => {
+    const metricQueryWithSingleBoundary = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'trailing_sum',
+                displayName: 'Trailing Sum',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.SUM,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'table1_dim_1', order: 'asc' }],
+                    partitionBy: [],
+                    frame: {
+                        frameType: 'rows',
+                        end: {
+                            type: 'preceding',
+                            offset: 3,
+                        },
+                    },
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithSingleBoundary,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const trailingSum = result.compiledTableCalculations.find(
+        (c) => c.name === 'trailing_sum',
+    );
+
+    expect(trailingSum?.compiledSql).toBe(
+        'SUM("table_3_metric_1") OVER (ORDER BY "table1_dim_1" ASC ROWS 3 PRECEDING)',
+    );
+});
+
+test('Should compile WINDOW_FUNCTION template with RANGE frame type', () => {
+    const metricQueryWithRange = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        tableCalculations: [
+            {
+                name: 'range_sum',
+                displayName: 'Range Sum',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.SUM,
+                    fieldId: 'table_3_metric_1',
+                    orderBy: [{ fieldId: 'table1_dim_1', order: 'asc' }],
+                    partitionBy: [],
+                    frame: {
+                        frameType: 'range',
+                        start: {
+                            type: 'unbounded_preceding',
+                        },
+                        end: {
+                            type: 'current_row',
+                        },
+                    },
+                },
+            } as TableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithRange,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const rangeSum = result.compiledTableCalculations.find(
+        (c) => c.name === 'range_sum',
+    );
+
+    expect(rangeSum?.compiledSql).toBe(
+        'SUM("table_3_metric_1") OVER (ORDER BY "table1_dim_1" ASC RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+    );
+});

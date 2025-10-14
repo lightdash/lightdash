@@ -2632,6 +2632,48 @@
                 ],
                 "type": "string"
             },
+            "FrameType": {
+                "enum": ["rows", "range"],
+                "type": "string"
+            },
+            "FrameBoundaryType": {
+                "enum": [
+                    "unbounded_preceding",
+                    "preceding",
+                    "current_row",
+                    "following",
+                    "unbounded_following"
+                ],
+                "type": "string"
+            },
+            "FrameBoundary": {
+                "properties": {
+                    "offset": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/FrameBoundaryType"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "FrameClause": {
+                "properties": {
+                    "end": {
+                        "$ref": "#/components/schemas/FrameBoundary"
+                    },
+                    "start": {
+                        "$ref": "#/components/schemas/FrameBoundary"
+                    },
+                    "frameType": {
+                        "$ref": "#/components/schemas/FrameType"
+                    }
+                },
+                "required": ["end", "frameType"],
+                "type": "object"
+            },
             "TableCalculationTemplate": {
                 "anyOf": [
                     {
@@ -2736,6 +2778,9 @@
                     },
                     {
                         "properties": {
+                            "frame": {
+                                "$ref": "#/components/schemas/FrameClause"
+                            },
                             "partitionBy": {
                                 "items": {
                                     "type": "string"

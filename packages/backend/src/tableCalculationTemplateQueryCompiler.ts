@@ -1,8 +1,10 @@
 import {
     assertUnreachable,
+    FrameBoundaryType,
     TableCalculationTemplate,
     TableCalculationTemplateType,
     WindowFunctionType,
+    type FrameBoundary,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 
@@ -86,6 +88,50 @@ const compileWindowFunctionTemplate = (
             })
             .join(', ');
         overParts.push(`ORDER BY ${orderByFields}`);
+    }
+
+    // Add frame clause if specified
+    if (template.frame) {
+        const { frameType, start, end } = template.frame;
+        const frameTypeSql = frameType.toUpperCase();
+
+        const buildBoundary = (boundary: FrameBoundary): string => {
+            switch (boundary.type) {
+                case FrameBoundaryType.UNBOUNDED_PRECEDING:
+                    return 'UNBOUNDED PRECEDING';
+                case FrameBoundaryType.UNBOUNDED_FOLLOWING:
+                    return 'UNBOUNDED FOLLOWING';
+                case FrameBoundaryType.CURRENT_ROW:
+                    return 'CURRENT ROW';
+                case FrameBoundaryType.PRECEDING:
+                    if (boundary.offset === undefined) {
+                        throw new Error('PRECEDING boundary requires offset');
+                    }
+                    return `${boundary.offset} PRECEDING`;
+                case FrameBoundaryType.FOLLOWING:
+                    if (boundary.offset === undefined) {
+                        throw new Error('FOLLOWING boundary requires offset');
+                    }
+                    return `${boundary.offset} FOLLOWING`;
+                default:
+                    return assertUnreachable(
+                        boundary.type,
+                        'Unknown frame boundary type',
+                    );
+            }
+        };
+
+        if (start) {
+            // BETWEEN syntax
+            overParts.push(
+                `${frameTypeSql} BETWEEN ${buildBoundary(
+                    start,
+                )} AND ${buildBoundary(end)}`,
+            );
+        } else {
+            // Single boundary syntax
+            overParts.push(`${frameTypeSql} ${buildBoundary(end)}`);
+        }
     }
 
     const overClause = overParts.join(' ');
