@@ -791,7 +791,7 @@ export class ScimService extends BaseService {
                 });
             }
             this.logger.error(
-                `Failed to retrieve SCIM user: ${getErrorMessage(error)}`,
+                `Failed to retrieve SCIM group: ${getErrorMessage(error)}`,
             );
             const scimError = new ScimError({
                 detail: getErrorMessage(error),

@@ -94,14 +94,14 @@ export class MyNewService extends BaseService {
 
             this.logger.info('Operation completed successfully', {
                 userUuid: user.userUuid,
-                resultId: result.id
+                resultId: result.id,
             });
 
             return { success: true, result };
         } catch (error) {
             this.logger.error('Operation failed', {
                 userUuid: user.userUuid,
-                error: getErrorMessage(error)
+                error: getErrorMessage(error),
             });
             throw error;
         }
