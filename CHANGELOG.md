@@ -1,3 +1,11 @@
+## [0.2078.1](https://github.com/lightdash/lightdash/compare/0.2078.0...0.2078.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* return entire explore when AI tags are empty instead of undefined ([#17435](https://github.com/lightdash/lightdash/issues/17435)) ([fe1a558](https://github.com/lightdash/lightdash/commit/fe1a55845cd26fe3d4985b1afbc3830353fe37d4))
+* yaml tags filtering in catalog search ([#17429](https://github.com/lightdash/lightdash/issues/17429)) ([544ef0e](https://github.com/lightdash/lightdash/commit/544ef0e6d2109883fdaca459c09653d741d3ac4a)), closes [#1234](https://github.com/lightdash/lightdash/issues/1234)
+
 # [0.2078.0](https://github.com/lightdash/lightdash/compare/0.2077.5...0.2078.0) (2025-10-14)
 
 
