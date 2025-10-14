@@ -2,9 +2,11 @@ import {
     AnyType,
     BinType,
     CustomDimensionType,
+    FieldType,
     FilterOperator,
     ForbiddenError,
     JoinRelationship,
+    MetricType,
     TimeFrames,
 } from '@lightdash/common';
 import {
@@ -921,6 +923,75 @@ describe('Query builder', () => {
 
             expect(queryWithCustomDimAndNullsFirst.query).toContain(
                 '"age_range_order" NULLS FIRST',
+            );
+        });
+    });
+
+    describe('PostCalculation Metrics', () => {
+        test('Should build query with percent_of_total postcalculation metric', () => {
+            // Create an explore with a postcalculation metric
+            const exploreWithPostCalcMetric = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        metrics: {
+                            ...EXPLORE.tables.table1.metrics,
+                            percent_of_total_metric: {
+                                type: MetricType.PERCENT_OF_TOTAL,
+                                fieldType: FieldType.METRIC as const,
+                                table: 'table1',
+                                tableLabel: 'table1',
+                                name: 'percent_of_total_metric',
+                                label: 'Percent of Total',
+                                sql: '${table1.metric1}',
+                                compiledSql: '...',
+                                tablesReferences: ['table1'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+            };
+
+            const metricQueryWithPostCalc = {
+                ...METRIC_QUERY,
+                metrics: ['table1_metric1', 'table1_percent_of_total_metric'],
+                tableCalculations: [],
+                compiledTableCalculations: [],
+            };
+
+            const result = buildQuery({
+                explore: exploreWithPostCalcMetric,
+                compiledMetricQuery: metricQueryWithPostCalc,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            const expectedSQL = `WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1
+),
+postcalculation_metrics AS (
+SELECT
+  *,
+  (CAST(metrics."table1_metric1" AS FLOAT) / CAST(NULLIF(SUM(metrics."table1_metric1") OVER(), 0) AS FLOAT)) AS "table1_percent_of_total_metric"
+FROM metrics
+)
+SELECT
+  *
+FROM postcalculation_metrics
+ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+            expect(replaceWhitespace(result.query)).toStrictEqual(
+                replaceWhitespace(expectedSQL),
             );
         });
     });
