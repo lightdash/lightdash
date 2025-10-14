@@ -79,7 +79,7 @@ function hasMatchingTags<
  *
  * | Scenario                                        | Result                                    |
  * |-------------------------------------------------|-------------------------------------------|
- * | No tags configured (availableTags = null)       | Everything is visible                     |
+ * | No tags configured (availableTags = null/[])    | Everything is visible                     |
  * | Explore tagged, no field tags                   | All tables/fields visible (explore-level) |
  * | Explore tagged, some fields tagged              | Per-table: field-level or explore-level   |
  * | No explore tag, base table fields tagged        | Only matching fields visible              |
@@ -93,7 +93,7 @@ export function filterExploreByTags<E extends FilterableExplore>({
     explore: E;
     availableTags: string[] | null;
 }) {
-    if (!availableTags) {
+    if (!availableTags || availableTags.length === 0) {
         return explore;
     }
 
