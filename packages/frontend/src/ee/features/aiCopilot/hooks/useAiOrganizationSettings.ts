@@ -12,6 +12,7 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import useToaster from '../../../../hooks/toaster/useToaster';
 
 const getAiOrganizationSettings = async () => {
     return lightdashApi<ApiAiOrganizationSettingsResponse['results']>({
@@ -53,6 +54,7 @@ export const useUpdateAiOrganizationSettings = (
     >,
 ) => {
     const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<
         ApiUpdateAiOrganizationSettingsResponse['results'],
@@ -61,9 +63,18 @@ export const useUpdateAiOrganizationSettings = (
     >({
         mutationFn: updateAiOrganizationSettings,
         onSuccess: async (data, variables, context) => {
+            showToastSuccess({
+                title: 'Success! AI organization settings updated',
+            });
             queryClient.setQueryData(['ai-organization-settings'], data);
             await queryClient.invalidateQueries(['ai-organization-settings']);
             mutationOptions?.onSuccess?.(data, variables, context);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update AI organization settings',
+                apiError: error,
+            });
         },
         ...mutationOptions,
     });

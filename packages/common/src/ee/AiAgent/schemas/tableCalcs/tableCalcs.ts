@@ -1,9 +1,12 @@
 import { z } from 'zod';
 import {
     CustomFormatType,
+    FrameBoundaryType,
+    FrameType,
     NumberSeparator,
     TableCalculationTemplateType,
     TableCalculationType,
+    WindowFunctionType,
     type TableCalculation,
 } from '../../../../types/field';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -12,6 +15,7 @@ import { tableCalcPercentOfColumnTotalSchema } from './tableCalcPercentOfColumnT
 import { tableCalcPercentOfPreviousValueSchema } from './tableCalcPercentOfPreviousValue';
 import { tableCalcRankInColumnSchema } from './tableCalcRankInColumn';
 import { tableCalcRunningTotalSchema } from './tableCalcRunningTotal';
+import { tableCalcWindowFunctionSchema } from './tableCalcWindowFunction';
 
 const tableCalcSchema = z.discriminatedUnion('type', [
     tableCalcPercentChangeFromPreviousSchema,
@@ -19,42 +23,54 @@ const tableCalcSchema = z.discriminatedUnion('type', [
     tableCalcPercentOfColumnTotalSchema,
     tableCalcRankInColumnSchema,
     tableCalcRunningTotalSchema,
+    tableCalcWindowFunctionSchema,
 ]);
 
 export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
-// TODO improve description
 export const tableCalcsSchema = z.array(tableCalcSchema).nullable().describe(`
-Table calculations are a way to perform calculations across row sets without collapsing rows. You can think of them like SQL Window Functions.
+Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
-Create table calculations when:
+**Available Types:**
+- Simple calculations: percent_change_from_previous, percent_of_previous_value, percent_of_column_total, rank_in_column, running_total
+- Advanced window_function: Supports row_number, percent_rank, sum, avg, count, min, max with optional partitioning, ordering, and frame clauses
 
-- User requests percentage change between columns
-  Examples: "Show revenue growth from last month", "Calculate MoY/Month-over-month, YoY/Year-over-year sales change"
-  Recommended visualization type: Table, bar chart
-
-- User requests percentage of column compared to previous row
-  Examples: "Show revenue as % of previous month", "What percent is each quarter vs the prior quarter"
-  Recommended visualization type: Table, bar chart
-
-- User requests percentage of column total
-  Examples: "Show each product as % of total sales", "What percentage does each region contribute to overall revenue"
-  Recommended visualization type: Table, Bar chart
-
-- User requests rank within a column
-  Examples: "Rank customers by revenue", "Show top performing sales reps by deal count"
-  Recommended visualization type: Table, Bar chart
-
-- User requests running total
-  Examples: "Show cumulative revenue over time", "Running sum of orders by month"
-  Recommended visualization type: Line chart for the table calculation as Y axis and time as X axis
+**Technical Requirements:**
+- Appear as additional columns in query results
+- Can be used in sorts and filters alongside dimensions/metrics
+- Multiple calculations can be combined in a single query
+- All fields referenced must exist in the query (dimensions, metrics, or other table calculations)
 `);
 
 export type TableCalcsSchema = z.infer<typeof tableCalcsSchema>;
 
+function frameBoundaryStringToEnum(
+    boundaryType:
+        | 'unbounded_preceding'
+        | 'preceding'
+        | 'current_row'
+        | 'following'
+        | 'unbounded_following',
+): FrameBoundaryType {
+    switch (boundaryType) {
+        case 'unbounded_preceding':
+            return FrameBoundaryType.UNBOUNDED_PRECEDING;
+        case 'preceding':
+            return FrameBoundaryType.PRECEDING;
+        case 'current_row':
+            return FrameBoundaryType.CURRENT_ROW;
+        case 'following':
+            return FrameBoundaryType.FOLLOWING;
+        case 'unbounded_following':
+            return FrameBoundaryType.UNBOUNDED_FOLLOWING;
+        default:
+            return assertUnreachable(boundaryType, 'Unknown boundary type');
+    }
+}
+
 function convertTableCalcSchemaToTableCalc(
     tableCalc: TableCalcSchema,
 ): TableCalculation {
-    const { type, name, displayName, fieldId } = tableCalc;
+    const { type, name, displayName } = tableCalc;
 
     // Build the template
     const baseCalc: Omit<TableCalculation, 'format'> = {
@@ -69,8 +85,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
-                    fieldId,
-                    orderBy: tableCalc.orderBy,
+                    fieldId: tableCalc.fieldId,
+                    orderBy: tableCalc.orderBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -82,8 +98,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,
-                    fieldId,
-                    orderBy: tableCalc.orderBy,
+                    fieldId: tableCalc.fieldId,
+                    orderBy: tableCalc.orderBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -95,7 +111,8 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
-                    fieldId,
+                    fieldId: tableCalc.fieldId,
+                    partitionBy: tableCalc.partitionBy ?? [],
                 },
                 format: {
                     type: CustomFormatType.PERCENT,
@@ -107,7 +124,7 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.RANK_IN_COLUMN,
-                    fieldId,
+                    fieldId: tableCalc.fieldId,
                 },
                 format: {
                     type: CustomFormatType.NUMBER,
@@ -119,13 +136,83 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.RUNNING_TOTAL,
-                    fieldId,
+                    fieldId: tableCalc.fieldId,
                 },
                 format: {
                     type: CustomFormatType.NUMBER,
                     separator: NumberSeparator.DEFAULT,
                 },
             };
+        case 'window_function': {
+            // Map string window function to enum
+            const windowFunctionMap: Record<
+                | 'row_number'
+                | 'percent_rank'
+                | 'sum'
+                | 'avg'
+                | 'count'
+                | 'min'
+                | 'max',
+                WindowFunctionType
+            > = {
+                row_number: WindowFunctionType.ROW_NUMBER,
+                percent_rank: WindowFunctionType.PERCENT_RANK,
+                sum: WindowFunctionType.SUM,
+                avg: WindowFunctionType.AVG,
+                count: WindowFunctionType.COUNT,
+                min: WindowFunctionType.MIN,
+                max: WindowFunctionType.MAX,
+            };
+
+            const format =
+                tableCalc.windowFunction === 'percent_rank'
+                    ? {
+                          type: CustomFormatType.PERCENT,
+                          separator: NumberSeparator.DEFAULT,
+                      }
+                    : {
+                          type: CustomFormatType.NUMBER,
+                          separator: NumberSeparator.DEFAULT,
+                      };
+
+            // Convert frame clause string literals to enum types
+            const frame = tableCalc.frame
+                ? {
+                      frameType:
+                          tableCalc.frame.frameType === 'rows'
+                              ? FrameType.ROWS
+                              : FrameType.RANGE,
+                      start: tableCalc.frame.start
+                          ? {
+                                type: frameBoundaryStringToEnum(
+                                    tableCalc.frame.start.type,
+                                ),
+                                offset:
+                                    tableCalc.frame.start.offset ?? undefined,
+                            }
+                          : undefined,
+                      end: {
+                          type: frameBoundaryStringToEnum(
+                              tableCalc.frame.end.type,
+                          ),
+                          offset: tableCalc.frame.end.offset ?? undefined,
+                      },
+                  }
+                : undefined;
+
+            return {
+                ...baseCalc,
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: windowFunctionMap[tableCalc.windowFunction],
+                    fieldId: tableCalc.fieldId,
+                    orderBy: tableCalc.orderBy ?? [],
+                    partitionBy: tableCalc.partitionBy ?? [],
+                    frame,
+                },
+                format,
+            };
+        }
         default:
             return assertUnreachable(type, 'Unknown table calc type');
     }

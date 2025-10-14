@@ -70,11 +70,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const [focusedItemIndex, setFocusedItemIndex] =
         useState<FocusedItemIndex>();
 
-    const { data: searchResults, isFetching } = useSearch(
+    const { data: searchResults, isFetching } = useSearch({
         projectUuid,
-        debouncedValue,
-        searchFilters,
-    );
+        query: debouncedValue,
+        filters: searchFilters,
+    });
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
         useDisclosure(false);

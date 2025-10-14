@@ -313,12 +313,47 @@ export enum TableCalculationType {
     BOOLEAN = 'boolean',
 }
 
+export enum WindowFunctionType {
+    ROW_NUMBER = 'row_number',
+    PERCENT_RANK = 'percent_rank',
+    SUM = 'sum',
+    AVG = 'avg',
+    COUNT = 'count',
+    MIN = 'min',
+    MAX = 'max',
+}
+
+export enum FrameType {
+    ROWS = 'rows',
+    RANGE = 'range',
+}
+
+export enum FrameBoundaryType {
+    UNBOUNDED_PRECEDING = 'unbounded_preceding',
+    PRECEDING = 'preceding',
+    CURRENT_ROW = 'current_row',
+    FOLLOWING = 'following',
+    UNBOUNDED_FOLLOWING = 'unbounded_following',
+}
+
+export type FrameBoundary = {
+    type: FrameBoundaryType;
+    offset?: number; // Required for PRECEDING/FOLLOWING with numeric offset
+};
+
+export type FrameClause = {
+    frameType: FrameType;
+    start?: FrameBoundary; // Optional for single boundary syntax
+    end: FrameBoundary;
+};
+
 export enum TableCalculationTemplateType {
     PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
     PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
     PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
     RANK_IN_COLUMN = 'rank_in_column',
     RUNNING_TOTAL = 'running_total',
+    WINDOW_FUNCTION = 'window_function',
 }
 
 export type TableCalculationTemplate =
@@ -341,6 +376,7 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
           fieldId: string;
+          partitionBy: string[];
       }
     | {
           type: TableCalculationTemplateType.RANK_IN_COLUMN;
@@ -349,6 +385,17 @@ export type TableCalculationTemplate =
     | {
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           fieldId: string;
+      }
+    | {
+          type: TableCalculationTemplateType.WINDOW_FUNCTION;
+          windowFunction: WindowFunctionType;
+          fieldId: string | null;
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+          partitionBy: string[];
+          frame?: FrameClause;
       };
 
 export type TableCalculation = {

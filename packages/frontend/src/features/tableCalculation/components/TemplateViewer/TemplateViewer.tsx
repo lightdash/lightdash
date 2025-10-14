@@ -1,6 +1,7 @@
 import {
     friendlyName,
     getFieldLabel,
+    WindowFunctionType,
     type TableCalculationTemplate,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text } from '@mantine/core';
@@ -32,10 +33,24 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
 
         return field && 'label' in field
             ? getFieldLabel(field)
-            : friendlyName(template.fieldId);
+            : friendlyName(fieldId);
     };
 
-    const fieldLabel = getLabel(template.fieldId);
+    const fieldLabel =
+        'fieldId' in template && template.fieldId !== null
+            ? getLabel(template.fieldId)
+            : undefined;
+
+    const formatWindowFunction = (windowFunction: WindowFunctionType) => {
+        switch (windowFunction) {
+            case WindowFunctionType.ROW_NUMBER:
+                return 'ROW_NUMBER()';
+            case WindowFunctionType.PERCENT_RANK:
+                return 'PERCENT_RANK()';
+            default:
+                return windowFunction;
+        }
+    };
 
     return (
         <Stack spacing="md">
@@ -54,12 +69,25 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
                 </Text>
             </Stack>
 
-            <Group>
-                <Text fw={600} size="sm">
-                    Field:
-                </Text>
-                {fieldLabel}
-            </Group>
+            {'windowFunction' in template && (
+                <Group>
+                    <Text fw={600} size="sm">
+                        Window Function:
+                    </Text>
+                    <Text size="sm">
+                        {formatWindowFunction(template.windowFunction)}
+                    </Text>
+                </Group>
+            )}
+
+            {fieldLabel && (
+                <Group>
+                    <Text fw={600} size="sm">
+                        Field:
+                    </Text>
+                    {fieldLabel}
+                </Group>
+            )}
 
             {'orderBy' in template &&
                 template.orderBy &&
@@ -76,6 +104,21 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({ template }) => {
                                             order?.toUpperCase() || 'ASC'
                                         }`,
                                 )
+                                .join(', ')}
+                        </Text>
+                    </Group>
+                )}
+
+            {'partitionBy' in template &&
+                template.partitionBy &&
+                template.partitionBy.length > 0 && (
+                    <Group>
+                        <Text fw={600} size="sm">
+                            Partition By:
+                        </Text>
+                        <Text size="sm">
+                            {template.partitionBy
+                                .map((fieldId) => getLabel(fieldId))
                                 .join(', ')}
                         </Text>
                     </Group>

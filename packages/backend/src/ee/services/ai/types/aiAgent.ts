@@ -11,6 +11,7 @@ import {
     GetExploreCompilerFn,
     GetExploreFn,
     GetPromptFn,
+    ListExploresFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -35,11 +36,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
 
-    availableExploresPageSize: number;
-    findExploresPageSize: number;
-    findExploresFieldOverviewSearchSize: number;
     findExploresFieldSearchSize: number;
-    findExploresMaxDescriptionLength: number;
     findFieldsPageSize: number;
     findDashboardsPageSize: number;
     findChartsPageSize: number;
@@ -54,6 +51,7 @@ export type PerformanceMetrics = {
 };
 
 export type AiAgentDependencies = {
+    listExplores: ListExploresFn;
     findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;

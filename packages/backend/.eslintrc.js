@@ -11,6 +11,13 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
+    settings: {
+        'import/resolver': {
+            node: {
+                extensions: ['.js', '.jsx', '.ts', '.tsx']
+            }
+        }
+    },
     rules: {
         'import/prefer-default-export': 'off',
         '@typescript-eslint/no-unused-vars': 'off',

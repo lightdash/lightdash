@@ -294,6 +294,22 @@ const explorerSlice = createSlice({
                 ...(action.payload && { ...action.payload }),
             };
         },
+        updateMetricFormat: (
+            state,
+            action: PayloadAction<{
+                metric: Metric;
+                formatOptions: CustomFormat | undefined;
+            }>,
+        ) => {
+            const { metric, formatOptions } = action.payload;
+            const metricId = getItemId(metric);
+            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
+                state.unsavedChartVersion.metricQuery.metricOverrides = {};
+            }
+            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
+                formatOptions,
+            };
+        },
         openItemDetail: (
             state,
             action: PayloadAction<{
@@ -334,6 +350,20 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.tableCalculations.push(
                 action.payload,
             );
+
+            // Update columnOrder to include new table calculation
+            const dimensionIds =
+                state.unsavedChartVersion.metricQuery.dimensions;
+            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+            const calcIds =
+                state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                );
+
+            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+                state.unsavedChartVersion.tableConfig.columnOrder,
+                [...dimensionIds, ...metricIds, ...calcIds],
+            );
         },
         updateTableCalculation: (
             state,
@@ -343,6 +373,9 @@ const explorerSlice = createSlice({
             }>,
         ) => {
             const { oldName, tableCalculation } = action.payload;
+            const newName = tableCalculation.name;
+
+            // Update table calculation
             const index =
                 state.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     (tc) => tc.name === oldName,
@@ -351,6 +384,20 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.tableCalculations[index] =
                     tableCalculation;
             }
+
+            // Update sorts to use new name
+            state.unsavedChartVersion.metricQuery.sorts =
+                state.unsavedChartVersion.metricQuery.sorts.map((field) =>
+                    field.fieldId === oldName
+                        ? { ...field, fieldId: newName }
+                        : field,
+                );
+
+            // Update column order to use new name
+            state.unsavedChartVersion.tableConfig.columnOrder =
+                state.unsavedChartVersion.tableConfig.columnOrder.map(
+                    (column) => (column === oldName ? newName : column),
+                );
         },
         deleteTableCalculation: (state, action: PayloadAction<string>) => {
             const nameToRemove = action.payload;
@@ -358,6 +405,26 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tc) => tc.name !== nameToRemove,
                 );
+
+            // Remove any sorts referencing this table calculation
+            state.unsavedChartVersion.metricQuery.sorts =
+                state.unsavedChartVersion.metricQuery.sorts.filter(
+                    (sort) => sort.fieldId !== nameToRemove,
+                );
+
+            // Recalculate columnOrder to remove deleted table calculation
+            const dimensionIds =
+                state.unsavedChartVersion.metricQuery.dimensions;
+            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+            const calcIds =
+                state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                );
+
+            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+                state.unsavedChartVersion.tableConfig.columnOrder,
+                [...dimensionIds, ...metricIds, ...calcIds],
+            );
         },
         setTableCalculations: (
             state,
@@ -579,23 +646,6 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.tableConfig.columnOrder.filter(
                     (fieldId) => fieldId !== metricIdToRemove,
                 );
-        },
-
-        updateMetricFormat: (
-            state,
-            action: PayloadAction<{
-                metric: Metric;
-                formatOptions: CustomFormat | undefined;
-            }>,
-        ) => {
-            const { metric, formatOptions } = action.payload;
-            const metricId = getItemId(metric);
-            if (!state.unsavedChartVersion.metricQuery.metricOverrides) {
-                state.unsavedChartVersion.metricQuery.metricOverrides = {};
-            }
-            state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
-                formatOptions,
-            };
         },
 
         setValidQueryArgs: (

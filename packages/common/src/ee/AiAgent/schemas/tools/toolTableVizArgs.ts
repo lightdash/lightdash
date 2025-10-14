@@ -14,10 +14,10 @@ import { tableVizConfigSchema } from '../visualizations';
 
 export const TOOL_TABLE_VIZ_DESCRIPTION = `Use this tool to query data to display in a table or summarized if limit is set to 1.`;
 
-export const toolTableVizArgsSchema = createToolSchema(
-    AiResultType.TABLE_RESULT,
-    TOOL_TABLE_VIZ_DESCRIPTION,
-)
+export const toolTableVizArgsSchema = createToolSchema({
+    type: AiResultType.TABLE_RESULT,
+    description: TOOL_TABLE_VIZ_DESCRIPTION,
+})
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,

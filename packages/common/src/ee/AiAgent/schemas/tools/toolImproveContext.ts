@@ -22,10 +22,10 @@ Captures learnings from user corrections, clarifications, and guidance to improv
 - Instructions should be specific and context-aware (not overly generic)
 `;
 
-export const toolImproveContextArgsSchema = createToolSchema(
-    AiResultType.IMPROVE_CONTEXT,
-    TOOL_IMPROVE_CONTEXT_DESCRIPTION,
-)
+export const toolImproveContextArgsSchema = createToolSchema({
+    type: AiResultType.IMPROVE_CONTEXT,
+    description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
+})
     .extend({
         originalQuery: z
             .string()

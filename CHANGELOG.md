@@ -1,3 +1,76 @@
+## [0.2080.1](https://github.com/lightdash/lightdash/compare/0.2080.0...0.2080.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* configure ESLint import resolver to handle TypeScript extensions ([#17445](https://github.com/lightdash/lightdash/issues/17445)) ([37b1c7d](https://github.com/lightdash/lightdash/commit/37b1c7df88b6b7525b62f4986b2b7fc16a659b89))
+
+# [0.2080.0](https://github.com/lightdash/lightdash/compare/0.2079.0...0.2080.0) (2025-10-14)
+
+
+### Features
+
+* migrate FormatModal from Context to Redux store ([#17322](https://github.com/lightdash/lightdash/issues/17322)) ([056e748](https://github.com/lightdash/lightdash/commit/056e748a87a1e48aa44ebb180948226ffba95b8d))
+* update table calculation references when name changes ([#17370](https://github.com/lightdash/lightdash/issues/17370)) ([5ecdeba](https://github.com/lightdash/lightdash/commit/5ecdebab16ae9470aeea75e0fa1af4448fcd2bcc))
+
+# [0.2079.0](https://github.com/lightdash/lightdash/compare/0.2078.1...0.2079.0) (2025-10-14)
+
+
+### Bug Fixes
+
+* edit custom metric not working from results view ([#17438](https://github.com/lightdash/lightdash/issues/17438)) ([ca1573f](https://github.com/lightdash/lightdash/commit/ca1573f4cc83f5549ae2c12890055ca4d9ae8407)), closes [#17407](https://github.com/lightdash/lightdash/issues/17407)
+
+
+### Features
+
+* avoid layout jump when loading new results using ai search box ([#17441](https://github.com/lightdash/lightdash/issues/17441)) ([af1169e](https://github.com/lightdash/lightdash/commit/af1169e5cae7459ff49910ffd419c3b59fdadfde))
+
+## [0.2078.1](https://github.com/lightdash/lightdash/compare/0.2078.0...0.2078.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* return entire explore when AI tags are empty instead of undefined ([#17435](https://github.com/lightdash/lightdash/issues/17435)) ([fe1a558](https://github.com/lightdash/lightdash/commit/fe1a55845cd26fe3d4985b1afbc3830353fe37d4))
+* yaml tags filtering in catalog search ([#17429](https://github.com/lightdash/lightdash/issues/17429)) ([544ef0e](https://github.com/lightdash/lightdash/commit/544ef0e6d2109883fdaca459c09653d741d3ac4a)), closes [#1234](https://github.com/lightdash/lightdash/issues/1234)
+
+# [0.2078.0](https://github.com/lightdash/lightdash/compare/0.2077.5...0.2078.0) (2025-10-14)
+
+
+### Features
+
+* add aggregate window functions and refactor table calculation template compiler ([#17396](https://github.com/lightdash/lightdash/issues/17396)) ([5983f50](https://github.com/lightdash/lightdash/commit/5983f50e6030a4482ddebfd2dc640a8c74617e35))
+* add generic window function support to table calculations ([#17385](https://github.com/lightdash/lightdash/issues/17385)) ([743f4b1](https://github.com/lightdash/lightdash/commit/743f4b1ea8806eecd66ca55fedd9176915b1d616))
+* add partitionBy support to PERCENT_OF_COLUMN_TOTAL table calculations ([#17384](https://github.com/lightdash/lightdash/issues/17384)) ([d2503ee](https://github.com/lightdash/lightdash/commit/d2503eea578360b94379ccf95ab69ec5327b6b16))
+* add window function frame clause support for table calculations ([#17397](https://github.com/lightdash/lightdash/issues/17397)) ([ace98fc](https://github.com/lightdash/lightdash/commit/ace98fc782d3c53d403fe7d60b3ec421aeec8080))
+
+## [0.2077.5](https://github.com/lightdash/lightdash/compare/0.2077.4...0.2077.5) (2025-10-14)
+
+
+### Bug Fixes
+
+* unsaved chart share link not working ([#17423](https://github.com/lightdash/lightdash/issues/17423)) ([be408fd](https://github.com/lightdash/lightdash/commit/be408fd14247667a836286c66bdd76691dfe8f60))
+
+## [0.2077.4](https://github.com/lightdash/lightdash/compare/0.2077.3...0.2077.4) (2025-10-14)
+
+
+### Bug Fixes
+
+* table calculations not being taken into account when on x-axis ([#17410](https://github.com/lightdash/lightdash/issues/17410)) ([074cb0d](https://github.com/lightdash/lightdash/commit/074cb0d09fdce5f9a333e0f855775b79a3745956))
+
+## [0.2077.3](https://github.com/lightdash/lightdash/compare/0.2077.2...0.2077.3) (2025-10-14)
+
+
+### Bug Fixes
+
+* make filtersSchemaAndFilterRulesTransformed nullable ([#17431](https://github.com/lightdash/lightdash/issues/17431)) ([ec39102](https://github.com/lightdash/lightdash/commit/ec39102da3ae7e8cca9cb7c4d38a42505daa613c))
+
+## [0.2077.2](https://github.com/lightdash/lightdash/compare/0.2077.1...0.2077.2) (2025-10-14)
+
+
+### Bug Fixes
+
+* **mcp:** retain table calculations in metric query ([#17430](https://github.com/lightdash/lightdash/issues/17430)) ([25eb197](https://github.com/lightdash/lightdash/commit/25eb19776204da4e2c7d360b50874944ee4a4696))
+
 ## [0.2077.1](https://github.com/lightdash/lightdash/compare/0.2077.0...0.2077.1) (2025-10-13)
 
 

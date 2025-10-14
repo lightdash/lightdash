@@ -720,9 +720,12 @@ export function validateTableCalculations(
     const errors: string[] = [];
 
     // Validate orderBy fields exist
-    const orderByFieldIds = tableCalcs
-        .filter((calc) => 'orderBy' in calc)
-        .flatMap((calc) => calc.orderBy.map((order) => order.fieldId));
+    const orderByFieldIds = tableCalcs.flatMap((calc) => {
+        if ('orderBy' in calc && calc.orderBy !== null) {
+            return calc.orderBy.map((order) => order.fieldId);
+        }
+        return [];
+    });
 
     if (orderByFieldIds.length > 0) {
         try {
@@ -744,7 +747,14 @@ export function validateTableCalculations(
         allFields.find((f) => getItemId(f) === fieldId);
 
     tableCalcs.forEach((tableCalc) => {
-        const { fieldId, type, name, displayName } = tableCalc;
+        const { type, name, displayName } = tableCalc;
+
+        // Skip validation for window functions (they don't have a fieldId)
+        if (type === 'window_function') {
+            return;
+        }
+
+        const { fieldId } = tableCalc;
         const isSelectedMetric = selectedMetrics.includes(fieldId);
         const isCustomMetric = customMetricIds.includes(fieldId);
 

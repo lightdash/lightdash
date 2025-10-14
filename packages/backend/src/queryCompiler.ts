@@ -14,83 +14,14 @@ import {
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
-    TableCalculationTemplate,
-    TableCalculationTemplateType,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 
 interface TableCalculationDependency {
     name: string;
     dependencies: string[];
 }
-
-const compileTableCalculationFromTemplate = (
-    template: TableCalculationTemplate,
-    warehouseSqlBuilder: WarehouseSqlBuilder,
-): string => {
-    const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-    const floatType = warehouseSqlBuilder.getFloatingType();
-    const quotedFieldId = `${quoteChar}${template.fieldId}${quoteChar}`;
-
-    // Build ORDER BY clause if needed
-    const buildOrderByClause = (
-        calcTemplate: TableCalculationTemplate,
-    ): string => {
-        if (!('orderBy' in calcTemplate)) return '';
-
-        const { orderBy } = calcTemplate;
-        if (!orderBy || orderBy.length === 0) return '';
-
-        const orderClauses = orderBy
-            .map((ob) =>
-                ob.order
-                    ? `${quoteChar}${
-                          ob.fieldId
-                      }${quoteChar} ${ob.order.toUpperCase()}`
-                    : `${quoteChar}${ob.fieldId}${quoteChar}`,
-            )
-            .join(', ');
-
-        return `ORDER BY ${orderClauses} `;
-    };
-
-    const orderByClause = buildOrderByClause(template);
-    const templateType = template.type;
-    switch (templateType) {
-        case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS: {
-            return (
-                `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${orderByClause}), 0) AS ${floatType})) - 1`
-            );
-        }
-
-        case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE: {
-            return (
-                `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(LAG(${quotedFieldId}) OVER(${orderByClause}), 0) AS ${floatType}))`
-            );
-        }
-
-        case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:
-            return (
-                `(CAST(${quotedFieldId} AS ${floatType}) / ` +
-                `CAST(NULLIF(SUM(${quotedFieldId}) OVER(), 0) AS ${floatType}))`
-            );
-
-        case TableCalculationTemplateType.RANK_IN_COLUMN:
-            return `RANK() OVER (ORDER BY ${quotedFieldId} ASC)`;
-
-        case TableCalculationTemplateType.RUNNING_TOTAL: {
-            return `SUM(${quotedFieldId}) OVER (ORDER BY ${quotedFieldId} DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
-        }
-
-        default:
-            return assertUnreachable(
-                templateType,
-                `Unknown table calculation template type`,
-            );
-    }
-};
 
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
@@ -109,14 +40,26 @@ const buildTableCalculationDependencyGraph = (
         }
 
         if (isTemplateTableCalculation(calc)) {
+            const fieldIdDependency =
+                'fieldId' in calc.template && calc.template.fieldId !== null
+                    ? [calc.template.fieldId]
+                    : [];
+
             const orderByFields =
                 'orderBy' in calc.template
                     ? calc.template.orderBy.map((ob) => ob.fieldId)
                     : [];
 
+            const partitionByFields =
+                'partitionBy' in calc.template ? calc.template.partitionBy : [];
+
             return {
                 name: calc.name,
-                dependencies: [calc.template.fieldId, ...orderByFields],
+                dependencies: [
+                    ...fieldIdDependency,
+                    ...orderByFields,
+                    ...partitionByFields,
+                ],
             };
         }
 

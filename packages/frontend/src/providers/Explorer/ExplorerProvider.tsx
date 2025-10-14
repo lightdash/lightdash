@@ -408,20 +408,7 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.tableCalculations.push(
                     action.payload,
                 );
-
-                const dimensionIds =
-                    draft.unsavedChartVersion.metricQuery.dimensions;
-                const metricIds = draft.unsavedChartVersion.metricQuery.metrics;
-                const calcIds =
-                    draft.unsavedChartVersion.metricQuery.tableCalculations.map(
-                        ({ name }) => name,
-                    );
-
-                draft.unsavedChartVersion.tableConfig.columnOrder =
-                    calcColumnOrder(
-                        draft.unsavedChartVersion.tableConfig.columnOrder,
-                        [...dimensionIds, ...metricIds, ...calcIds],
-                    );
+                // The sync effect will copy it back to Context if needed
             });
         }
         case ActionType.UPDATE_TABLE_CALCULATION: {
@@ -695,15 +682,6 @@ const ExplorerProvider: FC<
         );
     }, [unsavedChartVersion.metricQuery.metrics, reduxDispatch]);
 
-    // Keep Redux columnOrder in sync with Context columnOrder
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setColumnOrder(
-                unsavedChartVersion.tableConfig.columnOrder,
-            ),
-        );
-    }, [unsavedChartVersion.tableConfig.columnOrder, reduxDispatch]);
-
     // Keep Redux query limit in sync with Context limit
     useEffect(() => {
         reduxDispatch(
@@ -737,15 +715,6 @@ const ExplorerProvider: FC<
             ),
         );
     }, [unsavedChartVersion.metricQuery.tableCalculations, reduxDispatch]);
-
-    // Keep Redux sorts in sync with Context sorts
-    useEffect(() => {
-        reduxDispatch(
-            explorerActions.setSortFields(
-                unsavedChartVersion.metricQuery.sorts,
-            ),
-        );
-    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
 
     // END TRANSITIONAL SYNC CODE
 

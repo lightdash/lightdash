@@ -7,7 +7,6 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
-    Tool,
     ToolCallRepairFunction,
     ToolSet,
 } from 'ai';
@@ -15,7 +14,6 @@ import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
 import { getFindCharts } from '../tools/findCharts';
 import { getFindDashboards } from '../tools/findDashboards';
-// eslint-disable-next-line import/extensions
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
@@ -147,10 +145,7 @@ const getAgentTools = (
     );
 
     const findExplores = getFindExplores({
-        maxDescriptionLength: args.findExploresMaxDescriptionLength,
-        pageSize: args.findExploresPageSize,
         fieldSearchSize: args.findExploresFieldSearchSize,
-        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
     });
 
@@ -260,22 +255,15 @@ const getAgentMessages = async (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const availableExplores = await dependencies.findExplores({
-        page: 1,
-        pageSize: args.availableExploresPageSize,
-        tableName: null,
-        includeFields: false,
-    });
+    const availableExplores = await dependencies.listExplores();
 
     const messages = [
         getSystemPrompt({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
-            availableExplores: availableExplores.tablesWithFields.map(
-                (table) => table.table.name,
-            ),
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            availableExplores,
         }),
         ...args.messageHistory,
     ];

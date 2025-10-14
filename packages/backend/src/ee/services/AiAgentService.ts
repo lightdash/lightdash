@@ -27,10 +27,12 @@ import {
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
+    Explore,
     ExploreCompiler,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
+    isExploreError,
     isSlackPrompt,
     KnexPaginateArgs,
     LightdashUser,
@@ -43,6 +45,7 @@ import {
     toolDashboardArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    UserAttributeValueMap,
     type SessionUser,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -94,6 +97,10 @@ import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
+import {
+    doesExploreMatchRequiredAttributes,
+    getFilteredExplore,
+} from '../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
@@ -110,6 +117,7 @@ import {
     FindFieldFn,
     GetExploreFn,
     GetPromptFn,
+    ListExploresFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -339,28 +347,110 @@ export class AiAgentService {
         return false;
     }
 
+    async getAvailableExplores(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+    ) {
+        return wrapSentryTransaction(
+            'AiAgent.getAvailableExplores',
+            {
+                projectUuid,
+                availableTags,
+            },
+            async () => {
+                const { organizationUuid } = user;
+                if (!organizationUuid) {
+                    throw new ForbiddenError('Organization not found');
+                }
+
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        { organizationUuid, userUuid: user.userUuid },
+                    );
+
+                const allExplores = Object.values(
+                    await this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                    ),
+                );
+
+                return allExplores
+                    .filter(
+                        (explore): explore is Explore =>
+                            !isExploreError(explore),
+                    )
+                    .filter((explore) =>
+                        doesExploreMatchRequiredAttributes(
+                            explore.tables[explore.baseTable]
+                                .requiredAttributes,
+                            userAttributes,
+                        ),
+                    )
+                    .map((explore) =>
+                        getFilteredExplore(explore, userAttributes),
+                    )
+                    .filter((explore) =>
+                        filterExploreByTags({ explore, availableTags }),
+                    )
+                    .filter((explore): explore is Explore => !!explore);
+            },
+        );
+    }
+
     private async getExplore(
-        account: Account,
+        user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explore = await this.projectService.getExplore(
-            account,
+        const explores = await this.getAvailableExplores(
+            user,
             projectUuid,
-            exploreName,
+            availableTags,
         );
 
-        const filteredExplore = filterExploreByTags({
-            explore,
-            availableTags,
-        });
+        const explore = explores.find((e) => e.name === exploreName);
 
-        if (!filteredExplore) {
+        if (!explore) {
             throw new NotFoundError('Explore not found');
         }
 
-        return filteredExplore;
+        return explore;
+    }
+
+    public async getAgentExploreAccessSummary(
+        user: SessionUser,
+        projectUuid: string,
+        tags: string[] | null,
+    ) {
+        const { organizationUuid } = user;
+
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            tags,
+        );
+
+        const exploreAccessSummary = availableExplores.map((explore) => ({
+            exploreName: explore.label,
+            joinedTables: explore.joinedTables.map(
+                (table) => explore.tables[table.table].label,
+            ),
+            dimensions: Object.values(
+                explore.tables[explore.baseTable].dimensions,
+            ).map((dimension) => dimension.label),
+            metrics: Object.values(
+                explore.tables[explore.baseTable].metrics,
+            ).map((metric) => metric.label),
+        }));
+
+        return exploreAccessSummary;
     }
 
     private async executeAsyncAiMetricQuery(
@@ -368,9 +458,8 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
-        const account = fromSession(user);
         const explore = await this.getExplore(
-            account,
+            user,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -389,7 +478,7 @@ export class AiAgentService {
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
-                account,
+                account: fromSession(user),
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
@@ -1787,9 +1876,26 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
+        const listExplores: ListExploresFn = async () => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+
+            return this.getAvailableExplores(
+                user,
+                projectUuid,
+                agentSettings.tags,
+            );
+        };
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
+
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    agentSettings.tags,
+                    args.exploreName,
+                );
 
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
@@ -1799,119 +1905,65 @@ export class AiAgentService {
                         },
                     );
 
-                const { data: tables, pagination } =
+                const sharedArgs = {
+                    projectUuid,
+                    catalogSearch: {
+                        type: CatalogType.Field,
+                        yamlTags: agentSettings.tags ?? undefined,
+                        tables: [explore.baseTable],
+                    },
+                    userAttributes,
+                    context: CatalogSearchContext.AI_AGENT,
+                    paginateArgs: {
+                        page: 1,
+                        pageSize: args.fieldSearchSize,
+                    },
+                    sortArgs: {
+                        sort: 'chartUsage',
+                        order: 'desc' as const,
+                    },
+                };
+
+                const { data: dimensions } =
                     await this.catalogService.searchCatalog({
-                        projectUuid,
+                        ...sharedArgs,
                         catalogSearch: {
-                            type: CatalogType.Table,
-                            yamlTags: agentSettings.tags ?? undefined,
-                            tables: args.tableName
-                                ? [args.tableName]
-                                : undefined,
-                        },
-                        userAttributes,
-                        context: CatalogSearchContext.AI_AGENT,
-                        paginateArgs: {
-                            page: args.page,
-                            pageSize: args.pageSize,
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Dimensions,
                         },
                         fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
                     });
 
-                const tablesWithFields = await Promise.all(
-                    tables
-                        .filter((table) => table.type === CatalogType.Table)
-                        .map(async (table) => {
-                            if (!args.includeFields) {
-                                return {
-                                    table,
-                                    dimensions: [],
-                                    metrics: [],
-                                    dimensionsPagination: undefined,
-                                    metricsPagination: undefined,
-                                };
-                            }
-
-                            if (
-                                !args.fieldSearchSize ||
-                                !args.fieldOverviewSearchSize
-                            ) {
-                                throw new Error(
-                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
-                                );
-                            }
-
-                            const sharedArgs = {
-                                projectUuid,
-                                catalogSearch: {
-                                    type: CatalogType.Field,
-                                    yamlTags: agentSettings.tags ?? undefined,
-                                    tables: [table.name],
-                                },
-                                userAttributes,
-                                context: CatalogSearchContext.AI_AGENT,
-                                paginateArgs: {
-                                    page: 1,
-                                    pageSize: args.tableName
-                                        ? args.fieldSearchSize
-                                        : args.fieldOverviewSearchSize,
-                                },
-                                sortArgs: {
-                                    sort: 'chartUsage',
-                                    order: 'desc' as const,
-                                },
-                            };
-
-                            const {
-                                data: dimensions,
-                                pagination: dimensionsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Dimensions,
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-
-                            const {
-                                data: metrics,
-                                pagination: metricsPagination,
-                            } = await this.catalogService.searchCatalog({
-                                ...sharedArgs,
-                                catalogSearch: {
-                                    ...sharedArgs.catalogSearch,
-                                    filter: CatalogFilter.Metrics,
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-
-                            return {
-                                table,
-                                dimensions: dimensions.filter(
-                                    (d) => d.type === CatalogType.Field,
-                                ),
-                                metrics: metrics.filter(
-                                    (m) => m.type === CatalogType.Field,
-                                ),
-                                dimensionsPagination,
-                                metricsPagination,
-                            };
-                        }),
-                );
+                const { data: metrics } =
+                    await this.catalogService.searchCatalog({
+                        ...sharedArgs,
+                        catalogSearch: {
+                            ...sharedArgs.catalogSearch,
+                            filter: CatalogFilter.Metrics,
+                        },
+                        fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
+                    });
 
                 return {
-                    tablesWithFields,
-                    pagination,
+                    explore,
+                    catalogFields: {
+                        dimensions: dimensions.filter(
+                            (d) => d.type === CatalogType.Field,
+                        ),
+                        metrics: metrics.filter(
+                            (m) => m.type === CatalogType.Field,
+                        ),
+                    },
                 };
             });
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const account = fromSession(user);
             const explore = await this.getExplore(
-                account,
+                user,
                 projectUuid,
                 agentSettings.tags,
                 exploreName,
@@ -1929,13 +1981,19 @@ export class AiAgentService {
 
             const agentSettings = await this.getAgentSettings(user, prompt);
 
+            const explore = await this.getExplore(
+                user,
+                projectUuid,
+                agentSettings.tags,
+                args.table,
+            );
+
             const { data: catalogItems, pagination } =
                 await this.catalogService.searchCatalog({
                     projectUuid,
                     catalogSearch: {
                         type: CatalogType.Field,
                         searchQuery: args.fieldSearchQuery.label,
-                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {
@@ -1944,6 +2002,7 @@ export class AiAgentService {
                     },
                     userAttributes,
                     fullTextSearchOperator: 'OR',
+                    filteredExplore: explore,
                 });
 
             // TODO: we should not filter here, search should be returning a proper type
@@ -2141,6 +2200,7 @@ export class AiAgentService {
         };
 
         return {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -2216,6 +2276,7 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -2253,12 +2314,8 @@ export class AiAgentService {
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
 
-            availableExploresPageSize: 100,
-            findExploresPageSize: 15,
             findExploresFieldSearchSize: 200,
-            findExploresFieldOverviewSearchSize: 5,
-            findExploresMaxDescriptionLength: 100,
-            findFieldsPageSize: 10,
+            findFieldsPageSize: 30,
             findDashboardsPageSize: 5,
             findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
@@ -2267,6 +2324,7 @@ export class AiAgentService {
         };
 
         const dependencies: AiAgentDependencies = {
+            listExplores,
             findCharts,
             findDashboards,
             findFields,
@@ -3306,51 +3364,6 @@ export class AiAgentService {
         }
 
         return undefined;
-    }
-
-    public async getAgentExploreAccessSummary(
-        account: Account,
-        projectUuid: string,
-        tags: string[] | null,
-    ) {
-        const exploreSummaries =
-            await this.projectService.getAllExploresSummary(
-                account,
-                projectUuid,
-                true,
-                true,
-            );
-
-        const allExplores = await Promise.all(
-            exploreSummaries.map((explore) =>
-                this.projectService.getExplore(
-                    account,
-                    projectUuid,
-                    explore.name,
-                ),
-            ),
-        );
-
-        const filteredExplores = allExplores
-            .map((explore) =>
-                filterExploreByTags({ availableTags: tags, explore }),
-            )
-            .filter((explore) => explore !== undefined);
-
-        const exploreAccessSummary = filteredExplores.map((explore) => ({
-            exploreName: explore.label,
-            joinedTables: explore.joinedTables.map(
-                (table) => explore.tables[table.table].label,
-            ),
-            dimensions: Object.values(
-                explore.tables[explore.baseTable].dimensions,
-            ).map((dimension) => dimension.label),
-            metrics: Object.values(
-                explore.tables[explore.baseTable].metrics,
-            ).map((metric) => metric.label),
-        }));
-
-        return exploreAccessSummary;
     }
 
     async cloneThread(

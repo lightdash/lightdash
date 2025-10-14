@@ -2,6 +2,7 @@ import {
     TableCalculationTemplateType,
     TableSelectionType,
     ValidationTarget,
+    WindowFunctionType,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -425,6 +426,41 @@ describe('ValidationService - Table Calculation Templates', () => {
         ]);
 
         expect(result).toEqual(['table_metric']);
+    });
+
+    it('Should extract field references from partitionBy in table calculation templates', () => {
+        const result = ValidationService.getTableCalculationFieldIds([
+            {
+                name: 'percent_of_column_total_with_partition',
+                displayName: 'Percent with Partition',
+                sql: '',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                    fieldId: 'table_metric',
+                    partitionBy: ['table_category', 'table_region'],
+                },
+            },
+            {
+                name: 'window_function_with_partition_and_order',
+                displayName: 'Window Function',
+                sql: '',
+                template: {
+                    type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                    windowFunction: WindowFunctionType.ROW_NUMBER,
+                    fieldId: null,
+                    orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+                    partitionBy: ['table_country'],
+                },
+            },
+        ]);
+
+        expect(result).toEqual([
+            'table_metric', // from first calc's fieldId
+            'table_category', // from first calc's partitionBy
+            'table_region', // from first calc's partitionBy
+            'table_date', // from second calc's orderBy
+            'table_country', // from second calc's partitionBy
+        ]);
     });
 
     it('Should handle empty table calculations array', () => {

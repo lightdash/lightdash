@@ -142,7 +142,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     projectUuid: createdAgent.projectUuid!,
                     catalogSearch: {
                         type: CatalogType.Table,
-                        yamlTags: context.testAgent.tags ?? undefined,
                     },
                     userAttributes: {},
                     context: CatalogSearchContext.AI_AGENT,
@@ -529,7 +528,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
             projectUuid: createdAgent.projectUuid!,
             catalogSearch: {
                 type: CatalogType.Table,
-                yamlTags: context.testAgent.tags ?? undefined,
             },
             userAttributes: {},
             context: CatalogSearchContext.AI_AGENT,

@@ -23,6 +23,7 @@ import {
     TableCalculationTemplateType,
     TableChartConfig,
     ThresholdOperator,
+    WindowFunctionType,
 } from '@lightdash/common';
 import { cloneDeep } from 'lodash';
 import {
@@ -632,6 +633,86 @@ describe('renameMetricQuery', () => {
             type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
             fieldId: 'payment_cost',
             orderBy: [{ fieldId: 'payment_cost', order: 'asc' as const }],
+        });
+    });
+
+    test('should rename table calculation templates with partitionBy', () => {
+        const metricQuery = {
+            exploreName: 'payment',
+            dimensions: ['payment_id'],
+            metrics: ['payment_amount'],
+            filters: {},
+            tableCalculations: [
+                {
+                    name: 'percent_of_total_by_category',
+                    sql: '',
+                    displayName: 'Percent of Total by Category',
+                    template: {
+                        type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                        fieldId: 'payment_amount',
+                        partitionBy: ['payment_category', 'payment_region'],
+                    } satisfies TableCalculationTemplate,
+                },
+            ],
+            sorts: [],
+            limit: 100,
+        };
+
+        const result = renameMetricQuery(metricQuery, tableRename);
+
+        expect(
+            isTemplateTableCalculation(result.tableCalculations[0])
+                ? result.tableCalculations[0].template
+                : undefined,
+        ).toEqual({
+            type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+            fieldId: 'invoice_amount',
+            partitionBy: ['invoice_category', 'invoice_region'],
+        });
+    });
+
+    test('should rename table calculation window function templates with partitionBy and orderBy', () => {
+        const metricQuery = {
+            exploreName: 'payment',
+            dimensions: ['payment_id'],
+            metrics: ['payment_amount'],
+            filters: {},
+            tableCalculations: [
+                {
+                    name: 'row_number_by_country',
+                    sql: '',
+                    displayName: 'Row Number by Country',
+                    template: {
+                        type: TableCalculationTemplateType.WINDOW_FUNCTION,
+                        windowFunction: WindowFunctionType.ROW_NUMBER,
+                        fieldId: null,
+                        orderBy: [
+                            { fieldId: 'payment_amount', order: 'desc' },
+                            { fieldId: 'payment_date', order: 'asc' },
+                        ],
+                        partitionBy: ['payment_country', 'payment_status'],
+                    } satisfies TableCalculationTemplate,
+                },
+            ],
+            sorts: [],
+            limit: 100,
+        };
+
+        const result = renameMetricQuery(metricQuery, tableRename);
+
+        expect(
+            isTemplateTableCalculation(result.tableCalculations[0])
+                ? result.tableCalculations[0].template
+                : undefined,
+        ).toEqual({
+            type: TableCalculationTemplateType.WINDOW_FUNCTION,
+            windowFunction: WindowFunctionType.ROW_NUMBER,
+            fieldId: null,
+            orderBy: [
+                { fieldId: 'invoice_amount', order: 'desc' },
+                { fieldId: 'invoice_date', order: 'asc' },
+            ],
+            partitionBy: ['invoice_country', 'invoice_status'],
         });
     });
 

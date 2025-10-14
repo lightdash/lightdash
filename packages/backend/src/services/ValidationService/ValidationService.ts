@@ -110,11 +110,20 @@ export class ValidationService extends BaseService {
             }
 
             if (isTemplateTableCalculation(tc)) {
-                const fieldsInTemplate = [
-                    tc.template.fieldId,
-                    ...('orderBy' in tc.template
+                const fieldIdPart =
+                    'fieldId' in tc.template && tc.template.fieldId !== null
+                        ? [tc.template.fieldId]
+                        : [];
+                const orderByPart =
+                    'orderBy' in tc.template
                         ? tc.template.orderBy.map((o) => o.fieldId)
-                        : []),
+                        : [];
+                const partitionByPart =
+                    'partitionBy' in tc.template ? tc.template.partitionBy : [];
+                const fieldsInTemplate = [
+                    ...fieldIdPart,
+                    ...orderByPart,
+                    ...partitionByPart,
                 ];
                 return [...acc, ...fieldsInTemplate];
             }

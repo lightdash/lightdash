@@ -35,22 +35,17 @@ type Pagination = KnexPaginateArgs & {
     totalResults: number;
 };
 
-export type FindExploresFn = (
-    args: {
-        tableName: string | null;
-        fieldOverviewSearchSize?: number;
-        fieldSearchSize?: number;
-        includeFields: boolean;
-    } & KnexPaginateArgs,
-) => Promise<{
-    tablesWithFields: {
-        table: CatalogTable;
-        dimensions?: CatalogField[];
-        metrics?: CatalogField[];
-        dimensionsPagination?: Pagination;
-        metricsPagination?: Pagination;
-    }[];
-    pagination: Pagination | undefined;
+export type ListExploresFn = () => Promise<Explore[]>;
+
+export type FindExploresFn = (args: {
+    exploreName: string;
+    fieldSearchSize: number;
+}) => Promise<{
+    explore: Explore;
+    catalogFields: {
+        dimensions: CatalogField[];
+        metrics: CatalogField[];
+    };
 }>;
 
 export type FindFieldFn = (

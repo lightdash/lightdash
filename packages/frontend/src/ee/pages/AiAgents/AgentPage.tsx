@@ -1,6 +1,7 @@
 import { type AiAgent, type AiAgentThreadSummary } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Box,
     Button,
     Group,
@@ -19,8 +20,10 @@ import {
     IconChevronDown,
     IconCirclePlus,
     IconDots,
+    IconInfoCircle,
     IconPlus,
     IconSettings,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
@@ -29,6 +32,7 @@ import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThreads,
@@ -82,6 +86,10 @@ const AgentSidebar: FC<{
     threadUuid?: string;
     isAgentSidebarCollapsed: boolean;
 }> = ({ agent, projectUuid, threadUuid, isAgentSidebarCollapsed }) => {
+    const organizationSettingsQuery = useAiOrganizationSettings();
+    const isTrial =
+        organizationSettingsQuery.isSuccess &&
+        organizationSettingsQuery.data?.isTrial;
     const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
@@ -172,6 +180,36 @@ const AgentSidebar: FC<{
                         )}
                     </Box>
                 </Stack>
+            )}
+            {isTrial && (
+                <Alert
+                    icon={<MantineIcon icon={IconSparkles} />}
+                    variant="outline"
+                    color="indigo.6"
+                    bg="indigo.0"
+                    fz="xs"
+                    p="xs"
+                    title={
+                        <Text size="xs" fw={500}>
+                            You're currently using Lightdash AI Agents in free
+                            trial mode
+                        </Text>
+                    }
+                >
+                    <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="indigo"
+                        leftSection={
+                            <MantineIcon icon={IconInfoCircle} size="sm" />
+                        }
+                        component={Link}
+                        to="https://docs.lightdash.com/guides/ai-agents"
+                        target="_blank"
+                    >
+                        Learn more
+                    </Button>
+                </Alert>
             )}
         </Stack>
     );

@@ -47,10 +47,15 @@ export const SearchDropdown: FC<Props> = ({
     });
 
     const [debouncedQuery] = useDebouncedValue(value, 200);
-    const { data: searchResults, isSuccess } = useSearch(
+    const {
+        data: searchResults,
+        isSuccess,
+        isFetching,
+    } = useSearch({
         projectUuid,
-        debouncedQuery,
-    );
+        query: debouncedQuery,
+        keepPreviousData: true,
+    });
 
     const allSearchItemsGrouped = useMemo(
         () =>
@@ -93,6 +98,9 @@ export const SearchDropdown: FC<Props> = ({
                         value={value}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             handleInputChange(e.currentTarget.value)
+                        }
+                        rightSection={
+                            isFetching && <Loader size={12} color="gray" />
                         }
                     />
                 </Combobox.EventsTarget>

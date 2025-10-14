@@ -7,6 +7,8 @@ import {
     DimensionType,
     isCustomDimension,
     isDimension,
+    isTableCalculation,
+    TableCalculationType,
     type ItemsMap,
 } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
@@ -20,6 +22,7 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getColumnAxisType,
+    getTableCalculationAxisType,
     SortByDirection,
     VizAggregationOptions,
 } from '../visualizations/types';
@@ -69,16 +72,28 @@ function getSortByForPivotConfiguration(
 }
 
 const getIndexColumn = (
-    pivotColumns: string[],
+    groupByColumns: PivotConfiguration['groupByColumns'],
+    valuesColumns: PivotConfiguration['valuesColumns'],
     fields: ItemsMap,
     metricQuery: MetricQuery,
 ) => {
-    // Find dimensions that are NOT being pivoted on (these become index columns)
-    const nonPivotDimensions = metricQuery.dimensions.filter(
-        (dim) => !pivotColumns.includes(dim),
+    const groupByColumnsReferences =
+        groupByColumns?.map((c) => c.reference) ?? [];
+    const valuesColumnsReferences =
+        valuesColumns?.map((c) => c.reference) ?? [];
+
+    // Find any columns that are part of values or group by columns (these become index columns)
+    const indexColumnNames = [
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics,
+        ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+    ].filter(
+        (dim) =>
+            !groupByColumnsReferences.includes(dim) &&
+            !valuesColumnsReferences.includes(dim),
     );
 
-    return nonPivotDimensions
+    return indexColumnNames
         .map((dim) => {
             const field = fields[dim];
 
@@ -101,6 +116,16 @@ const getIndexColumn = (
                 return {
                     reference: dim,
                     type: axisType,
+                };
+            }
+
+            // Table calculations can be used in x axis, therefore we need to handle them here as well when they're not a value column
+            if (isTableCalculation(field)) {
+                return {
+                    reference: dim,
+                    type: getTableCalculationAxisType(
+                        field.type ?? TableCalculationType.NUMBER,
+                    ),
                 };
             }
 
@@ -152,8 +177,13 @@ function getTablePivotConfiguration(
         }))
         .filter((col) => metricQuery.dimensions.includes(col.reference));
 
-    // Find dimensions that are NOT being pivoted on (these become index columns)
-    const indexColumn = getIndexColumn(pivotColumns, fields, metricQuery);
+    // Find columns that are not groupBy or value columns (these become index columns)
+    const indexColumn = getIndexColumn(
+        groupByColumns,
+        valuesColumns,
+        fields,
+        metricQuery,
+    );
 
     const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
         indexColumn,
@@ -214,9 +244,10 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
-        // Find dimensions that are NOT being pivoted on (these become index columns)
+        // Find columns that are not groupBy or value columns (these become index columns)
         const indexColumn = getIndexColumn(
-            pivotConfig.columns,
+            groupByColumns,
+            valuesColumns,
             fields,
             metricQuery,
         );

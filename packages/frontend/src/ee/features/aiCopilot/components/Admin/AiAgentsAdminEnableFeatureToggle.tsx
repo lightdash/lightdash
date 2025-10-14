@@ -1,4 +1,6 @@
 import {
+    Badge,
+    Group,
     HoverCard,
     List,
     Paper,
@@ -7,7 +9,12 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { useUpdateAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
+import { IconSparkles } from '@tabler/icons-react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    useAiOrganizationSettings,
+    useUpdateAiOrganizationSettings,
+} from '../../hooks/useAiOrganizationSettings';
 
 type Props = {
     enabled: boolean | undefined;
@@ -17,6 +24,12 @@ export const AiAgentsAdminEnableFeatureToggle = ({ enabled }: Props) => {
     const { mutateAsync: updateAiOrganizationSettings, isLoading } =
         useUpdateAiOrganizationSettings();
 
+    const organizationSettingsQuery = useAiOrganizationSettings();
+
+    const isTrial =
+        organizationSettingsQuery.isSuccess &&
+        organizationSettingsQuery.data?.isTrial;
+
     return (
         <HoverCard>
             <HoverCard.Target>
@@ -25,7 +38,33 @@ export const AiAgentsAdminEnableFeatureToggle = ({ enabled }: Props) => {
                         size="xs"
                         withThumbIndicator={false}
                         labelPosition="left"
-                        label="Enable AI features for users"
+                        label={
+                            isTrial ? (
+                                <Group gap="xs">
+                                    <Badge
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconSparkles}
+                                                size={12}
+                                            />
+                                        }
+                                        radius="sm"
+                                        variant="light"
+                                        color="indigo"
+                                        size="xs"
+                                        tt="none"
+                                        fw={500}
+                                    >
+                                        Free trial
+                                    </Badge>
+                                    <Text fw={500} fz="xs">
+                                        Enable AI features for users
+                                    </Text>
+                                </Group>
+                            ) : (
+                                'Enable AI features for users'
+                            )
+                        }
                         checked={enabled}
                         onChange={(event) =>
                             updateAiOrganizationSettings({
