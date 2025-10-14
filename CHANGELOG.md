@@ -1,3 +1,11 @@
+# [0.2080.0](https://github.com/lightdash/lightdash/compare/0.2079.0...0.2080.0) (2025-10-14)
+
+
+### Features
+
+* migrate FormatModal from Context to Redux store ([#17322](https://github.com/lightdash/lightdash/issues/17322)) ([056e748](https://github.com/lightdash/lightdash/commit/056e748a87a1e48aa44ebb180948226ffba95b8d))
+* update table calculation references when name changes ([#17370](https://github.com/lightdash/lightdash/issues/17370)) ([5ecdeba](https://github.com/lightdash/lightdash/commit/5ecdebab16ae9470aeea75e0fa1af4448fcd2bcc))
+
 # [0.2079.0](https://github.com/lightdash/lightdash/compare/0.2078.1...0.2079.0) (2025-10-14)
 
 
