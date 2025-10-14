@@ -685,6 +685,7 @@ describe('renameMetricQuery', () => {
                     template: {
                         type: TableCalculationTemplateType.WINDOW_FUNCTION,
                         windowFunction: WindowFunctionType.ROW_NUMBER,
+                        fieldId: null,
                         orderBy: [
                             { fieldId: 'payment_amount', order: 'desc' },
                             { fieldId: 'payment_date', order: 'asc' },
@@ -706,6 +707,7 @@ describe('renameMetricQuery', () => {
         ).toEqual({
             type: TableCalculationTemplateType.WINDOW_FUNCTION,
             windowFunction: WindowFunctionType.ROW_NUMBER,
+            fieldId: null,
             orderBy: [
                 { fieldId: 'invoice_amount', order: 'desc' },
                 { fieldId: 'invoice_date', order: 'asc' },

@@ -111,6 +111,7 @@ describe('convertAiTableCalcsSchemaToTableCalcs', () => {
                 name: 'row_num',
                 displayName: 'Row Number',
                 windowFunction: 'row_number',
+                fieldId: null,
                 orderBy: [
                     {
                         fieldId: 'orders_order_date',
@@ -118,6 +119,7 @@ describe('convertAiTableCalcsSchemaToTableCalcs', () => {
                     },
                 ],
                 partitionBy: null,
+                frame: null,
             },
         ];
 
@@ -153,6 +155,7 @@ describe('convertAiTableCalcsSchemaToTableCalcs', () => {
                 name: 'rank_by_country',
                 displayName: 'Rank by Country',
                 windowFunction: 'percent_rank',
+                fieldId: null,
                 orderBy: [
                     {
                         fieldId: 'orders_total_revenue',
@@ -160,6 +163,7 @@ describe('convertAiTableCalcsSchemaToTableCalcs', () => {
                     },
                 ],
                 partitionBy: ['orders_country'],
+                frame: null,
             },
         ];
 

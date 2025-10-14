@@ -111,7 +111,9 @@ export class ValidationService extends BaseService {
 
             if (isTemplateTableCalculation(tc)) {
                 const fieldIdPart =
-                    'fieldId' in tc.template ? [tc.template.fieldId] : [];
+                    'fieldId' in tc.template && tc.template.fieldId !== null
+                        ? [tc.template.fieldId]
+                        : [];
                 const orderByPart =
                     'orderBy' in tc.template
                         ? tc.template.orderBy.map((o) => o.fieldId)
