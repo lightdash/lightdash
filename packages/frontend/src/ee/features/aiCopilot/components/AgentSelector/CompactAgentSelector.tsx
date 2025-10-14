@@ -30,6 +30,7 @@ export const CompactAgentSelector = ({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
     const agentOptions = getAgentOptions(agents);
+    const isSingleAgent = agentOptions.length === 1;
 
     return (
         <Combobox
@@ -48,6 +49,7 @@ export const CompactAgentSelector = ({
                     variant="light"
                     color="gray"
                     p={0}
+                    disabled={isSingleAgent}
                 >
                     <Group gap="xxs">
                         <LightdashUserAvatar
@@ -55,7 +57,10 @@ export const CompactAgentSelector = ({
                             name={selectedAgent.name}
                             src={selectedAgent.imageUrl}
                         />
-                        <MantineIcon icon={IconChevronDown} />
+
+                        {!isSingleAgent && (
+                            <MantineIcon icon={IconChevronDown} />
+                        )}
                     </Group>
                 </UnstyledButton>
             </Combobox.Target>
