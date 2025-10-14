@@ -15,10 +15,10 @@ Usage tips:
 - Returns chart URLs when available
 `;
 
-export const toolFindChartsArgsSchema = createToolSchema(
-    'find_charts',
-    TOOL_FIND_CHARTS_DESCRIPTION,
-)
+export const toolFindChartsArgsSchema = createToolSchema({
+    type: 'find_charts',
+    description: TOOL_FIND_CHARTS_DESCRIPTION,
+})
     .extend({
         chartSearchQueries: z.array(
             z.object({

@@ -12,16 +12,43 @@ Usage Tips:
 - All fields are returned as well as their field ids, descriptions labels and ai hints.
 `;
 
-export const toolFindExploresArgsSchema = createToolSchema(
-    'find_explores',
-    TOOL_FIND_EXPLORES_DESCRIPTION,
-)
+export const toolFindExploresArgsSchemaV1 = createToolSchema({
+    type: 'find_explores',
+    description: TOOL_FIND_EXPLORES_DESCRIPTION,
+})
+    .extend({
+        exploreName: z
+            .string()
+            .nullable()
+            .describe('Name of the explore that you have access to'),
+    })
+    .withPagination()
+    .build();
+
+export type ToolFindExploresArgsV1 = z.infer<
+    typeof toolFindExploresArgsSchemaV1
+>;
+
+export const toolFindExploresArgsSchemaV2 = createToolSchema({
+    type: 'find_explores',
+    description: TOOL_FIND_EXPLORES_DESCRIPTION,
+    version: 2,
+})
     .extend({
         exploreName: z
             .string()
             .describe('Name of the explore that you have access to'),
     })
     .build();
+
+export type ToolFindExploresArgsV2 = z.infer<
+    typeof toolFindExploresArgsSchemaV2
+>;
+
+export const toolFindExploresArgsSchema = z.discriminatedUnion('type', [
+    toolFindExploresArgsSchemaV1,
+    toolFindExploresArgsSchemaV2,
+]);
 
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 

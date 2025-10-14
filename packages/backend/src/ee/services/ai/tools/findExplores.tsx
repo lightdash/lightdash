@@ -4,7 +4,7 @@ import {
     CompiledMetric,
     convertToAiHints,
     getItemId,
-    toolFindExploresArgsSchema,
+    toolFindExploresArgsSchemaV2,
     toolFindExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -176,8 +176,8 @@ export const getFindExplores = ({
     fieldSearchSize,
 }: Dependencies) =>
     tool({
-        description: toolFindExploresArgsSchema.description,
-        inputSchema: toolFindExploresArgsSchema,
+        description: toolFindExploresArgsSchemaV2.description,
+        inputSchema: toolFindExploresArgsSchemaV2,
         outputSchema: toolFindExploresOutputSchema,
         execute: async (args) => {
             try {

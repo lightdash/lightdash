@@ -6,7 +6,8 @@ import {
     type ToolFindChartsOutput,
     toolFindDashboardsArgsSchema,
     type ToolFindDashboardsOutput,
-    toolFindExploresArgsSchema,
+    toolFindExploresArgsSchemaV1,
+    toolFindExploresArgsSchemaV2,
     type ToolFindExploresOutput,
     toolFindFieldsArgsSchema,
     type ToolFindFieldsOutput,
@@ -43,7 +44,8 @@ export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
     toolVerticalBarArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
-    toolFindExploresArgsSchema,
+    toolFindExploresArgsSchemaV1,
+    toolFindExploresArgsSchemaV2,
 ]);
 
 export type AgentToolCallArgs = z.infer<typeof AgentToolCallArgsSchema>;
