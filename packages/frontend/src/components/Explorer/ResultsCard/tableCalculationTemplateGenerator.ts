@@ -1,4 +1,5 @@
 import {
+    NotImplementedError,
     TableCalculationTemplateType,
     assertUnreachable,
     getItemId,
@@ -58,7 +59,7 @@ export function generateTableCalculationTemplate(
             return {
                 type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
                 fieldId,
-                partitionBy: null,
+                partitionBy: [],
             };
 
         case TableCalculationTemplateType.RANK_IN_COLUMN:
@@ -66,6 +67,13 @@ export function generateTableCalculationTemplate(
                 type: TableCalculationTemplateType.RANK_IN_COLUMN,
                 fieldId,
             };
+
+        case TableCalculationTemplateType.WINDOW_FUNCTION:
+            // Window functions are not available in quick calculations
+            // This case should never be reached, but is required for type safety
+            throw new NotImplementedError(
+                'Generic window functions are not available in quick calculations',
+            );
 
         default:
             return assertUnreachable(type, `Unknown template type`);
