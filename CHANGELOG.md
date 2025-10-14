@@ -1,3 +1,10 @@
+## [0.2077.2](https://github.com/lightdash/lightdash/compare/0.2077.1...0.2077.2) (2025-10-14)
+
+
+### Bug Fixes
+
+* **mcp:** retain table calculations in metric query ([#17430](https://github.com/lightdash/lightdash/issues/17430)) ([25eb197](https://github.com/lightdash/lightdash/commit/25eb19776204da4e2c7d360b50874944ee4a4696))
+
 ## [0.2077.1](https://github.com/lightdash/lightdash/compare/0.2077.0...0.2077.1) (2025-10-13)
 
 
