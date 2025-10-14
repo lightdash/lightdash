@@ -7,7 +7,6 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
-    Tool,
     ToolCallRepairFunction,
     ToolSet,
 } from 'ai';
@@ -15,7 +14,6 @@ import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
 import { getFindCharts } from '../tools/findCharts';
 import { getFindDashboards } from '../tools/findDashboards';
-// eslint-disable-next-line import/extensions
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
