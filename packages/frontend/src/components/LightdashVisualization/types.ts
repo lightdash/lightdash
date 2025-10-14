@@ -7,6 +7,7 @@ import {
     type Metric,
     type MetricQuery,
     type ParametersValuesMap,
+    type StackType,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
@@ -71,7 +72,7 @@ export const isCartesianVisualizationConfig = (
 export type VisualizationCartesianConfigProps =
     VisualizationConfigCommon<VisualizationConfigCartesian> & {
         itemsMap: ItemsMap | undefined;
-        stacking: boolean | undefined;
+        stacking: boolean | StackType | undefined;
         cartesianType: CartesianTypeOptions | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
