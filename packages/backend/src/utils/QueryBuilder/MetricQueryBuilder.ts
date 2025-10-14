@@ -284,26 +284,38 @@ export class MetricQueryBuilder {
         };
     }
 
-    private getMetricIdsByGroup(): {
-        postCalculationMetrics: string[];
-        regularMetrics: string[];
-        referencedMetrics: string[];
-    } {
+    /**
+     * Returns the list of PostCalculation metrics.
+     * @private
+     */
+    private getPostCalculationMetrics(): string[] {
         const { explore, compiledMetricQuery } = this.args;
         const { metrics } = compiledMetricQuery;
+        return metrics.filter((metricId) => {
+            const metric = getMetricFromId(
+                metricId,
+                explore,
+                compiledMetricQuery,
+            );
+            return isPostCalculationMetric(metric);
+        });
+    }
 
-        const postCalculationMetrics: string[] = [];
-        const regularMetrics: string[] = [];
-        const referencedMetrics = new Set<string>();
-
-        metrics.forEach((metricId) => {
+    /**
+     * Returns the list of metrics that are referenced in PostCalculation metrics.
+     * @param metricIds
+     * @private
+     */
+    private getPostCalculationMetricReferences(metricIds: string[]): string[] {
+        const { explore, compiledMetricQuery } = this.args;
+        const referencedMetricIds = new Set<string>();
+        metricIds.forEach((metricId) => {
             const metric = getMetricFromId(
                 metricId,
                 explore,
                 compiledMetricQuery,
             );
             if (isPostCalculationMetric(metric)) {
-                postCalculationMetrics.push(metricId);
                 // Extract referenced metrics from PostCalculation metric SQL
                 const references = parseAllReferences(metric.sql, metric.table);
                 references.forEach((ref) => {
@@ -311,36 +323,59 @@ export class MetricQueryBuilder {
                         table: ref.refTable,
                         name: ref.refName,
                     });
-                    // Only add numeric metrics as references
-                    try {
-                        const referencedMetric = getMetricFromId(
-                            referencedMetricId,
-                            explore,
-                            compiledMetricQuery,
+                    const referencedMetric = getMetricFromId(
+                        referencedMetricId,
+                        explore,
+                        compiledMetricQuery,
+                    );
+                    if (isPostCalculationMetric(referencedMetric)) {
+                        throw new CompileError(
+                            `PostCalculation metric "${metric.label}" cannot reference another PostCalculation metric "${referencedMetric.label}". PostCalculation metrics can only reference numeric aggregate metrics.`,
                         );
-                        if (isPostCalculationMetric(referencedMetric)) {
-                            throw new CompileError(
-                                `PostCalculation metric "${metric.label}" cannot reference another PostCalculation metric "${referencedMetric.label}". PostCalculation metrics can only reference numeric aggregate metrics.`,
-                            );
-                        }
-                        referencedMetrics.add(referencedMetricId);
-                    } catch (e) {
-                        if (e instanceof CompileError) {
-                            throw e;
-                        }
-                        // Referenced metric not found, let it continue and fail later with proper error
                     }
+                    referencedMetricIds.add(referencedMetricId);
                 });
             } else {
-                regularMetrics.push(metricId);
+                // skip other metrics
             }
         });
+        return Array.from(referencedMetricIds);
+    }
 
-        return {
-            postCalculationMetrics,
-            regularMetrics,
-            referencedMetrics: Array.from(referencedMetrics),
-        };
+    /**
+     * Returns the list of metrics that are selected and referenced in the metric query.
+     * This includes metrics in the final result, metrics from filters, and metrics referenced in PostCalculation metrics.
+     * This excludes PostCalculation metrics.
+     * @private
+     */
+    private getSelectedAndReferencedMetricIds(): string[] {
+        const { explore, compiledMetricQuery } = this.args;
+        const { metrics, filters } = compiledMetricQuery;
+
+        // Regular metrics
+        const referencedMetricIds = new Set<string>(metrics);
+
+        // Add metrics from filters
+        getFilterRulesFromGroup(filters.metrics).forEach((filter) =>
+            referencedMetricIds.add(filter.target.fieldId),
+        );
+
+        // Add metrics referenced in PostCalculation metrics
+        this.getPostCalculationMetricReferences(
+            Array.from(referencedMetricIds),
+        ).forEach((metricId) => {
+            referencedMetricIds.add(metricId);
+        });
+
+        // Exclude PostCalculation metrics
+        return Array.from(referencedMetricIds).filter((metricId) => {
+            const metric = getMetricFromId(
+                metricId,
+                explore,
+                compiledMetricQuery,
+            );
+            return !isPostCalculationMetric(metric);
+        });
     }
 
     private getMetricsSQL(): {
@@ -355,11 +390,7 @@ export class MetricQueryBuilder {
             userAttributes = {},
         } = this.args;
         const { filters, additionalMetrics } = compiledMetricQuery;
-        const { regularMetrics, referencedMetrics } =
-            this.getMetricIdsByGroup();
-
-        // Include both regular metrics and referenced metrics needed by PostCalculation metrics
-        const metrics = [...regularMetrics, ...referencedMetrics];
+        const metrics = this.getSelectedAndReferencedMetricIds();
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -390,54 +421,20 @@ export class MetricQueryBuilder {
             });
         }
 
-        // Find metrics from metric query
-        const selects = metrics.map((field) => {
+        const selects = new Set<string>();
+        const tables = new Set<string>();
+        metrics.forEach((field) => {
             const alias = field;
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
-            return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+            // Add select
+            selects.add(
+                `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+            );
+            // Add tables
+            (metric.tablesReferences || [metric.table]).forEach((table) =>
+                tables.add(table),
+            );
         });
-
-        // Find metrics in filters
-        const selectsFromFilters = getFilterRulesFromGroup(
-            filters.metrics,
-        ).reduce<string[]>((acc, filter) => {
-            const metricInSelect = metrics.find(
-                (metric) => metric === filter.target.fieldId,
-            );
-            if (metricInSelect !== undefined) {
-                return acc;
-            }
-            const alias = filter.target.fieldId;
-            const metric = getMetricFromId(
-                filter.target.fieldId,
-                explore,
-                compiledMetricQuery,
-            );
-            if (isPostCalculationMetric(metric)) {
-                return acc;
-            }
-            const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-            return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
-        }, []);
-
-        // Tables
-        const tables = metrics.reduce<string[]>((acc, field) => {
-            const metric = getMetricFromId(field, explore, compiledMetricQuery);
-            return [...acc, ...(metric.tablesReferences || [metric.table])];
-        }, []);
-        // Add tables referenced in metrics filters
-        getFilterRulesFromGroup(filters.metrics)
-            .reduce<string[]>((acc, filterRule) => {
-                const metric = getMetricFromId(
-                    filterRule.target.fieldId,
-                    explore,
-                    compiledMetricQuery,
-                );
-                return [...acc, ...(metric.tablesReferences || [metric.table])];
-            }, [])
-            .forEach((table) => {
-                tables.push(table);
-            });
 
         // Filters
         const filtersSQL = this.getNestedFilterSQLFromGroup(
@@ -446,8 +443,8 @@ export class MetricQueryBuilder {
         );
 
         return {
-            selects: [...new Set([...selects, ...selectsFromFilters])],
-            tables: [...new Set(tables)],
+            selects: Array.from(selects),
+            tables: Array.from(tables),
             filtersSQL: filtersSQL ? `WHERE ${filtersSQL}` : undefined,
         };
     }
@@ -466,7 +463,7 @@ export class MetricQueryBuilder {
         requiresQueryInCTE: boolean;
         metricsSQL: { filtersSQL?: string };
     }): boolean {
-        const { postCalculationMetrics } = this.getMetricIdsByGroup();
+        const postCalculationMetrics = this.getPostCalculationMetrics();
         return (
             opts.requiresQueryInCTE ||
             this.hasAnyTableCalcs() ||
@@ -1529,8 +1526,8 @@ export class MetricQueryBuilder {
             pivotConfiguration,
         } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-        const { postCalculationMetrics, referencedMetrics } =
-            this.getMetricIdsByGroup();
+        const postCalculationMetrics = this.getPostCalculationMetrics();
+        const referencedMetricIds = this.getSelectedAndReferencedMetricIds();
         const { sqlOrderBy } = this.getSortSQL(true);
 
         if (postCalculationMetrics.length === 0) {
@@ -1544,7 +1541,7 @@ export class MetricQueryBuilder {
         const metricCtes = [
             {
                 name: currentCteName,
-                metrics: referencedMetrics,
+                metrics: referencedMetricIds,
             },
         ];
 
