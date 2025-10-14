@@ -31,8 +31,12 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import { explorerStore } from '../features/explorer/store';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
+import {
+    explorerActions,
+    explorerStore,
+    useExplorerDispatch,
+} from '../features/explorer/store';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
     useChartVersion,
@@ -50,11 +54,24 @@ const ChartHistoryExplorer = memo<{
         chartUuid: string;
         chartVersionUuid: string;
     };
-}>(({ viewModeQueryArgs }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        viewModeQueryArgs,
-    });
+    projectUuid: string | undefined;
+}>(({ viewModeQueryArgs, projectUuid }) => {
+    const dispatch = useExplorerDispatch();
+
+    // Set query options in Redux
+    useEffect(() => {
+        dispatch(
+            explorerActions.setQueryOptions({
+                viewModeQueryArgs,
+                dateZoomGranularity: undefined,
+                projectUuid,
+                minimal: false,
+            }),
+        );
+    }, [viewModeQueryArgs, dispatch, projectUuid]);
+
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
 
     return <Explorer hideHeader={true} />;
 });
@@ -301,6 +318,7 @@ const ChartHistory = () => {
                                       }
                                     : undefined
                             }
+                            projectUuid={projectUuid}
                         />
                     </ExplorerProvider>
                 </Provider>

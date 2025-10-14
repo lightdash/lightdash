@@ -7,9 +7,13 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
-import { explorerStore } from '../features/explorer/store';
+import {
+    explorerActions,
+    explorerStore,
+    useExplorerDispatch,
+} from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { defaultQueryExecution } from '../providers/Explorer/defaultState';
@@ -18,12 +22,25 @@ import { ExplorerSection } from '../providers/Explorer/types';
 
 const SavedExplorerContent = memo<{
     viewModeQueryArgs?: { chartUuid: string; context?: string };
+    projectUuid: string | undefined;
     isEditMode: boolean;
-}>(({ viewModeQueryArgs, isEditMode }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        viewModeQueryArgs,
-    });
+}>(({ viewModeQueryArgs, isEditMode, projectUuid }) => {
+    const dispatch = useExplorerDispatch();
+
+    // Set query options in Redux
+    useEffect(() => {
+        dispatch(
+            explorerActions.setQueryOptions({
+                viewModeQueryArgs,
+                dateZoomGranularity: undefined,
+                projectUuid,
+                minimal: false,
+            }),
+        );
+    }, [viewModeQueryArgs, dispatch, projectUuid]);
+
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
 
     return (
         <Page
@@ -42,7 +59,7 @@ const SavedExplorerContent = memo<{
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, mode } = useParams<{
+    const { savedQueryUuid, mode, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
         mode?: string;
@@ -130,6 +147,7 @@ const SavedExplorer = () => {
                             : undefined
                     }
                     isEditMode={isEditMode}
+                    projectUuid={projectUuid}
                 />
             </ExplorerProvider>
         </Provider>

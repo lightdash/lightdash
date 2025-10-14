@@ -32,7 +32,7 @@ const explorerSlice = createSlice({
     name: 'explorer',
     initialState,
     reducers: {
-        reset: (state, action: PayloadAction<ExplorerSliceState>) => {
+        reset: (_state, action: PayloadAction<ExplorerSliceState>) => {
             return action.payload;
         },
         setTableName: (state, action: PayloadAction<string>) => {
@@ -681,7 +681,21 @@ const explorerSlice = createSlice({
                 unpivotedQueryArgs: null,
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
+                queryOptions: {
+                    viewModeQueryArgs: undefined,
+                    dateZoomGranularity: undefined,
+                    projectUuid: undefined,
+                    minimal: false,
+                },
             };
+        },
+        setQueryOptions: (
+            state,
+            action: PayloadAction<
+                ExplorerReduceState['queryExecution']['queryOptions']
+            >,
+        ) => {
+            state.queryExecution.queryOptions = action.payload;
         },
     },
 });

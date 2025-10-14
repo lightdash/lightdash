@@ -1,27 +1,15 @@
-import { FeatureFlags, type DateGranularity } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useParams } from 'react-router';
 import {
     explorerActions,
-    selectFilters,
-    selectIsEditMode,
-    selectMetricQuery,
-    selectParameterDefinitions,
-    selectParameterReferences,
-    selectParameters,
-    selectQueryUuidHistory,
-    selectTableName,
+    selectQueryOptions,
     selectUnpivotedQueryArgs,
-    selectUnpivotedQueryUuidHistory,
-    selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
-import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
-import { buildQueryArgs } from './explorer/buildQueryArgs';
-import { useExplore } from './useExplore';
+import { useExplorerQueryManager } from './useExplorerQueryManager';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 import {
     executeQueryAndWaitForResults,
@@ -30,187 +18,46 @@ import {
 } from './useQueryResults';
 
 /**
- * Main hook for Explorer query management
+ * Public API for Explorer query management
  *
- * This hook:
- * - Reads from Redux
- * - Accesses TanStack Query cache (cheap - queries are shared across all instances)
- * - Provides action functions (cheap - just callbacks with dispatch)
+ * This hook provides:
+ * - All query state from useExplorerQueryManager
+ * - Action functions for components (fetchResults, cancelQuery, etc.)
+ *
+ * Use this hook in components that need to interact with queries.
+ * For effects/orchestration, use useExplorerQueryEffects at the root.
  */
-export const useExplorerQuery = (options?: {
-    viewModeQueryArgs?:
-        | { chartUuid: string; context?: string }
-        | { chartUuid: string; chartVersionUuid: string };
-    dateZoomGranularity?: DateGranularity;
-    projectUuid?: string;
-    minimal?: boolean;
-}) => {
-    const viewModeQueryArgs = options?.viewModeQueryArgs;
-    const dateZoomGranularity = options?.dateZoomGranularity;
-    const projectUuidProp = options?.projectUuid;
-    const minimal = options?.minimal ?? false;
+export const useExplorerQuery = () => {
+    // Get query options from Redux
+    const queryOptions = useExplorerSelector(selectQueryOptions);
+    const { minimal = false } = queryOptions;
 
-    // Redux state (cheap - memoized selectors)
+    // Get all state and runQuery from manager (single source of truth)
+    const manager = useExplorerQueryManager();
+    const { queryResults, runQuery, validQueryArgs, unpivotedQueryResults } =
+        manager;
+
+    // Redux dispatch and query client for actions
     const dispatch = useExplorerDispatch();
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const filters = useExplorerSelector(selectFilters);
-    const parameters = useExplorerSelector(selectParameters);
-    const tableName = useExplorerSelector(selectTableName);
-    const isEditMode = useExplorerSelector(selectIsEditMode);
-    const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
-    const queryUuidHistory = useExplorerSelector(selectQueryUuidHistory);
-    const unpivotedQueryUuidHistory = useExplorerSelector(
-        selectUnpivotedQueryUuidHistory,
-    );
-    const parameterDefinitions = useExplorerSelector(
-        selectParameterDefinitions,
-    );
-    const parameterReferences = useExplorerSelector(selectParameterReferences);
+    const queryClient = useQueryClient();
 
-    // Get merged version with chartConfig and pivotConfig from Context
-    // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
-
-    // Compute missing required parameters
-    const missingRequiredParameters = useMemo(() => {
-        if (parameterReferences === null) return null;
-
-        const missing = parameterReferences.filter(
-            (parameter) =>
-                !parameters?.[parameter] &&
-                !parameterDefinitions?.[parameter]?.default,
-        );
-        return missing;
-    }, [parameterReferences, parameters, parameterDefinitions]);
-
-    // Project UUID
+    // Get additional state needed for actions
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
     }>();
-    const projectUuid = projectUuidProp || projectUuidFromParams;
 
-    // Get explore data
-    const { data: explore } = useExplore(tableName);
+    const projectUuid = queryOptions.projectUuid || projectUuidFromParams;
+    const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
+    const unpivotedEnabled = !!unpivotedQueryArgs;
+
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
-    // Access TanStack Query state (cheap - cache is shared across all hook instances)
-    const setQueryUuidHistory = useCallback(
-        (history: string[]) => {
-            dispatch(explorerActions.setQueryUuidHistory(history));
-        },
-        [dispatch],
-    );
-    const setUnpivotedQueryUuidHistory = useCallback(
-        (history: string[]) => {
-            dispatch(explorerActions.setUnpivotedQueryUuidHistory(history));
-        },
-        [dispatch],
-    );
-
-    // Main query state
-    const [mainQueryExecutor] = useQueryExecutor(
-        validQueryArgs,
-        missingRequiredParameters,
-        true,
-        queryUuidHistory,
-        setQueryUuidHistory,
-    );
-    const { query, queryResults } = mainQueryExecutor;
-
-    // Unpivoted query state (only if needed)
-    const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
-    const unpivotedEnabled = !!unpivotedQueryArgs;
-    const [unpivotedQueryExecutor] = useQueryExecutor(
-        unpivotedQueryArgs,
-        missingRequiredParameters,
-        unpivotedEnabled,
-        unpivotedQueryUuidHistory,
-        setUnpivotedQueryUuidHistory,
-    );
-    const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
-        unpivotedQueryExecutor;
-
-    // Computed metric query (including filters)
-    const computedMetricQuery = useMemo(
-        () => ({
-            ...metricQuery,
-            filters,
-        }),
-        [metricQuery, filters],
-    );
-
-    // Compute active fields
-    const activeFields = useMemo(() => {
-        return new Set([
-            ...metricQuery.dimensions,
-            ...metricQuery.metrics,
-            ...metricQuery.tableCalculations.map(({ name }) => name),
-        ]);
-    }, [metricQuery]);
-
-    // Compute loading state
-    const isLoading = useMemo(() => {
-        const isCreatingQuery = query.isFetching;
-        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
-        const isFetchingAllRows = queryResults.isFetchingAllPages;
-        const isQueryError = queryResults.error;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !isQueryError
-        );
-    }, [
-        query.isFetching,
-        queryResults.isFetchingFirstPage,
-        queryResults.isFetchingAllPages,
-        queryResults.error,
-    ]);
-
-    // Query client for actions
-    const queryClient = useQueryClient();
-
-    const runQuery = useCallback(() => {
-        const mainQueryArgs = buildQueryArgs({
-            activeFields,
-            tableName,
-            projectUuid,
-            explore,
-            useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
-            computedMetricQuery,
-            parameters,
-            isEditMode,
-            viewModeQueryArgs,
-            dateZoomGranularity,
-            minimal,
-            savedChart: mergedUnsavedChartVersion,
-        });
-
-        if (mainQueryArgs) {
-            dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
-        }
-    }, [
-        mergedUnsavedChartVersion,
-        activeFields,
-        tableName,
-        projectUuid,
-        explore,
-        useSqlPivotResults,
-        computedMetricQuery,
-        parameters,
-        isEditMode,
-        viewModeQueryArgs,
-        dateZoomGranularity,
-        minimal,
-        dispatch,
-    ]);
-
     // Action: Reset query results
     const resetQueryResults = useCallback(() => {
         dispatch(explorerActions.resetQueryExecution());
-        void queryClient.removeQueries({
+        queryClient.removeQueries({
             queryKey: ['create-query'],
             exact: false,
         });
@@ -218,9 +65,15 @@ export const useExplorerQuery = (options?: {
 
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)
     const fetchResults = useCallback(() => {
-        resetQueryResults();
+        // Only invalidate cache, don't reset execution state
+        // This prevents triggering the auto-fetch effect in useExplorerQueryEffects
+        queryClient.removeQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+        // Use runQuery from manager (single source of truth)
         runQuery();
-    }, [resetQueryResults, runQuery]);
+    }, [queryClient, runQuery]);
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
@@ -281,20 +134,10 @@ export const useExplorerQuery = (options?: {
     }, [queryClient, queryResults.queryUuid, cancelQueryMutation]);
 
     return {
-        // Query state
-        query,
-        queryResults,
-        unpivotedQuery,
-        unpivotedQueryResults,
+        // Spread all state from manager
+        ...manager,
 
-        // Computed state
-        isLoading,
-        activeFields,
-        missingRequiredParameters,
-        validQueryArgs,
-
-        // Actions
-        runQuery,
+        // Add action functions
         fetchResults,
         resetQueryResults,
         getDownloadQueryUuid,

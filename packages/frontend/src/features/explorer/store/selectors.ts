@@ -193,6 +193,11 @@ export const selectUnpivotedQueryUuidHistory = createSelector(
     (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
 );
 
+export const selectQueryOptions = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.queryOptions,
+);
+
 // Navigation context selectors
 export const selectFromDashboard = createSelector(
     [selectExplorerState],

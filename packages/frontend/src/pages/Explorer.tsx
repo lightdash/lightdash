@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { type DateGranularity } from '@lightdash/common';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 
@@ -10,12 +10,14 @@ import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
+    explorerActions,
     explorerStore,
     selectTableName,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useDateZoomGranularitySearch,
     useExplorerRoute,
@@ -29,11 +31,24 @@ import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 const ExplorerWithUrlParams = memo<{
     dateZoomGranularity?: DateGranularity;
-}>(({ dateZoomGranularity }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        dateZoomGranularity,
-    });
+    projectUuid: string | undefined;
+}>(({ dateZoomGranularity, projectUuid }) => {
+    const dispatch = useExplorerDispatch();
+
+    // Set query options in Redux
+    useEffect(() => {
+        dispatch(
+            explorerActions.setQueryOptions({
+                viewModeQueryArgs: undefined,
+                dateZoomGranularity,
+                projectUuid,
+                minimal: false,
+            }),
+        );
+    }, [dateZoomGranularity, dispatch, projectUuid]);
+
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
 
     useExplorerRoute();
     // Get table name from Redux
@@ -99,6 +114,7 @@ const ExplorerPage = memo(() => {
             >
                 <ExplorerWithUrlParams
                     dateZoomGranularity={dateZoomGranularity}
+                    projectUuid={projectUuid}
                 />
             </ExplorerProvider>
         </Provider>
