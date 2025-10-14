@@ -312,7 +312,6 @@ export const getChartConfigFromAiAgentVizConfig = ({
                 echartsConfig: getChartConfigFromRunQuery({
                     queryTool: parsedConfig.vizTool,
                     metricQuery,
-                    rows,
                     fieldsMap,
                     overrideChartType,
                 }),

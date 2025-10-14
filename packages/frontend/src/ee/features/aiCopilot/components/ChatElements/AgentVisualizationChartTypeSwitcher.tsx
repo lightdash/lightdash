@@ -19,6 +19,7 @@ type Props = {
     metricQuery: MetricQuery;
     selectedChartType: ChartTypeOption;
     onChartTypeChange: (chartType: ChartTypeOption) => void;
+    hasGroupByDimensions: boolean;
 };
 
 const CHART_TYPE_ICONS: Record<ChartTypeOption, typeof IconTable> = {
@@ -35,6 +36,7 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
     metricQuery,
     selectedChartType,
     onChartTypeChange,
+    hasGroupByDimensions,
 }) => {
     const availableChartTypes = getAvailableChartTypes(metricQuery);
 
@@ -47,19 +49,32 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
         <SegmentedControl
             value={selectedChartType}
             onChange={(value) => onChartTypeChange(value as ChartTypeOption)}
-            data={availableChartTypes.map((chartType) => ({
-                value: chartType,
-                label: (
-                    <MantineIcon
-                        icon={CHART_TYPE_ICONS[chartType]}
-                        size="sm"
-                        style={{
-                            rotate:
-                                chartType === 'horizontal' ? '90deg' : '0deg',
-                        }}
-                    />
-                ),
-            }))}
+            data={availableChartTypes
+                .filter((chartType) => {
+                    // Pie and funnel charts are not supported with group by dimensions, they're meant to be used with a single dimension
+                    if (
+                        (hasGroupByDimensions && chartType === 'pie') ||
+                        chartType === 'funnel'
+                    ) {
+                        return false;
+                    }
+                    return true;
+                })
+                .map((chartType) => ({
+                    value: chartType,
+                    label: (
+                        <MantineIcon
+                            icon={CHART_TYPE_ICONS[chartType]}
+                            size="sm"
+                            style={{
+                                rotate:
+                                    chartType === 'horizontal'
+                                        ? '90deg'
+                                        : '0deg',
+                            }}
+                        />
+                    ),
+                }))}
             color="indigo"
             size="xs"
         />

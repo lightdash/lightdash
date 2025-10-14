@@ -1,7 +1,6 @@
 import type { ItemsMap } from '../../../types/field';
 import { friendlyName, isField } from '../../../types/field';
 import type { MetricQuery } from '../../../types/metricQuery';
-import type { ResultRow } from '../../../types/results';
 import type {
     CartesianChartConfig,
     ChartConfig,
@@ -16,7 +15,6 @@ import {
 } from '../../../types/savedCharts';
 import { formatItemValue } from '../../../utils/formatting';
 import { getItemLabelWithoutTableName } from '../../../utils/item';
-import { getPivotedData } from '../../../utils/pivotData';
 import type { ToolRunQueryArgsTransformed } from '../schemas/tools/toolRunQueryArgs';
 
 // Axis type from echarts - defined inline since echarts is not a dependency of common
@@ -117,39 +115,18 @@ export const formatPivotValueLabel = (
 const getBarChartConfig = ({
     queryTool,
     metricQuery,
-    rows,
     fieldsMap,
     chartConfig,
     metadata,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
-    const { dimensions } = queryTool.queryConfig;
+    const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = dimensions[0];
-
-    const { metrics: queryMetrics } = metricQuery;
-    let metrics: (string | PivotReference)[] = queryMetrics;
-
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivot = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
-            metricQuery.metrics,
-            [], // No pivoted dimensions
-        );
-        metrics = Object.values(pivot.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -162,7 +139,7 @@ const getBarChartConfig = ({
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -206,9 +183,6 @@ const getBarChartConfig = ({
                             xRef: { field: xDimension },
                             yRef: metric,
                         },
-                        ...(chartConfig?.stackBars && {
-                            stack: metric.field,
-                        }),
                     };
                 }),
             },
@@ -222,39 +196,18 @@ const getBarChartConfig = ({
 const getLineChartConfig = ({
     queryTool,
     metricQuery,
-    rows,
     fieldsMap,
     chartConfig,
     metadata,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
-    const { dimensions } = queryTool.queryConfig;
+    const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = dimensions[0];
-
-    const { metrics: queryMetrics } = metricQuery;
-    let metrics: (string | PivotReference)[] = queryMetrics;
-
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivoted = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
-            metricQuery.metrics,
-            [], // No pivoted dimensions
-        );
-        metrics = Object.values(pivoted.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -267,7 +220,7 @@ const getLineChartConfig = ({
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -326,39 +279,18 @@ const getLineChartConfig = ({
 const getHorizontalBarChartConfig = ({
     queryTool,
     metricQuery,
-    rows,
     fieldsMap,
     chartConfig,
     metadata,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
-    const { dimensions } = queryTool.queryConfig;
+    const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = dimensions[0];
-
-    const { metrics: queryMetrics } = metricQuery;
-    let metrics: (string | PivotReference)[] = queryMetrics;
-
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivot = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
-            metricQuery.metrics,
-            [], // No pivoted dimensions
-        );
-        metrics = Object.values(pivot.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -372,7 +304,7 @@ const getHorizontalBarChartConfig = ({
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -415,9 +347,6 @@ const getHorizontalBarChartConfig = ({
                             xRef: { field: xDimension },
                             yRef: metric,
                         },
-                        ...(chartConfig?.stackBars && {
-                            stack: metric.field,
-                        }),
                     };
                 }),
             },
@@ -431,39 +360,18 @@ const getHorizontalBarChartConfig = ({
 const getScatterChartConfig = ({
     queryTool,
     metricQuery,
-    rows,
     fieldsMap,
     chartConfig,
     metadata,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined;
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
-    const { dimensions } = queryTool.queryConfig;
+    const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = dimensions[0];
-
-    const { metrics: queryMetrics } = metricQuery;
-    let metrics: (string | PivotReference)[] = queryMetrics;
-
-    // Determine if we should pivot based on chartConfig.pivot or auto-detect from dimensions
-    const shouldPivot = chartConfig?.pivot ?? dimensions.length > 1;
-    const breakdownDimension =
-        shouldPivot && dimensions.length > 1 ? dimensions[1] : null;
-
-    // If we should pivot and have a breakdown dimension, pivot the data
-    if (breakdownDimension) {
-        const pivoted = getPivotedData(
-            rows as ResultRow[],
-            [breakdownDimension],
-            metricQuery.metrics,
-            [], // No pivoted dimensions
-        );
-        metrics = Object.values(pivoted.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -476,7 +384,7 @@ const getScatterChartConfig = ({
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -537,8 +445,6 @@ const getPieChartConfig = ({
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
-    fieldsMap: ItemsMap;
 }): PieChartConfig => {
     const { dimensions } = queryTool.queryConfig;
     const { metrics } = metricQuery;
@@ -563,8 +469,6 @@ const getFunnelChartConfig = ({
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
-    fieldsMap: ItemsMap;
 }): FunnelChartConfig => {
     const { metrics } = metricQuery;
     const { chartConfig } = queryTool;
@@ -590,13 +494,11 @@ const getFunnelChartConfig = ({
 export const getChartConfigFromRunQuery = ({
     queryTool,
     metricQuery,
-    rows,
     fieldsMap,
     overrideChartType,
 }: {
     queryTool: ToolRunQueryArgsTransformed;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     overrideChartType?: ChartTypeOption;
 }): ChartConfig => {
@@ -610,8 +512,8 @@ export const getChartConfigFromRunQuery = ({
 
     const { chartConfig } = queryTool;
     const metadata = {
-        title: queryTool.title as string,
-        description: queryTool.description as string,
+        title: queryTool.title,
+        description: queryTool.description,
     };
 
     switch (chartType) {
@@ -622,7 +524,6 @@ export const getChartConfigFromRunQuery = ({
             return getBarChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
                 fieldsMap,
                 chartConfig,
                 metadata,
@@ -632,7 +533,6 @@ export const getChartConfigFromRunQuery = ({
             return getHorizontalBarChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
                 fieldsMap,
                 chartConfig,
                 metadata,
@@ -642,7 +542,6 @@ export const getChartConfigFromRunQuery = ({
             return getLineChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
                 fieldsMap,
                 chartConfig,
                 metadata,
@@ -652,7 +551,6 @@ export const getChartConfigFromRunQuery = ({
             return getScatterChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
                 fieldsMap,
                 chartConfig,
                 metadata,
@@ -662,16 +560,12 @@ export const getChartConfigFromRunQuery = ({
             return getPieChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
-                fieldsMap,
             });
 
         case 'funnel':
             return getFunnelChartConfig({
                 queryTool,
                 metricQuery,
-                rows,
-                fieldsMap,
             });
 
         default:
