@@ -1,3 +1,15 @@
+# [0.2079.0](https://github.com/lightdash/lightdash/compare/0.2078.1...0.2079.0) (2025-10-14)
+
+
+### Bug Fixes
+
+* edit custom metric not working from results view ([#17438](https://github.com/lightdash/lightdash/issues/17438)) ([ca1573f](https://github.com/lightdash/lightdash/commit/ca1573f4cc83f5549ae2c12890055ca4d9ae8407)), closes [#17407](https://github.com/lightdash/lightdash/issues/17407)
+
+
+### Features
+
+* avoid layout jump when loading new results using ai search box ([#17441](https://github.com/lightdash/lightdash/issues/17441)) ([af1169e](https://github.com/lightdash/lightdash/commit/af1169e5cae7459ff49910ffd419c3b59fdadfde))
+
 ## [0.2078.1](https://github.com/lightdash/lightdash/compare/0.2078.0...0.2078.1) (2025-10-14)
 
 
