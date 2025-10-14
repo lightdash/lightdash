@@ -1,3 +1,10 @@
+## [0.2077.3](https://github.com/lightdash/lightdash/compare/0.2077.2...0.2077.3) (2025-10-14)
+
+
+### Bug Fixes
+
+* make filtersSchemaAndFilterRulesTransformed nullable ([#17431](https://github.com/lightdash/lightdash/issues/17431)) ([ec39102](https://github.com/lightdash/lightdash/commit/ec39102da3ae7e8cca9cb7c4d38a42505daa613c))
+
 ## [0.2077.2](https://github.com/lightdash/lightdash/compare/0.2077.1...0.2077.2) (2025-10-14)
 
 
