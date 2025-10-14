@@ -27,7 +27,6 @@ import {
     type DateGranularity,
 } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
-import { isNumericItem } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
@@ -486,26 +485,6 @@ export class ExploreCompiler {
                         `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
                         {},
                     );
-                }
-
-                // For PostCalculation metrics, validate that references are to numeric metrics only
-                if (isPostCalculationMetric(metric)) {
-                    const { refTable, refName } = getParsedReference(
-                        p1,
-                        metric.table,
-                    );
-                    const referencedTable = getReferencedTable(
-                        refTable,
-                        tables,
-                    );
-                    const referencedMetric = referencedTable?.metrics[refName];
-
-                    if (referencedMetric && !isNumericItem(referencedMetric)) {
-                        throw new CompileError(
-                            `PostCalculation metric "${metric.name}" in table "${metric.table}" can only reference numeric metrics, but "${p1}" is not numeric`,
-                            {},
-                        );
-                    }
                 }
 
                 const compiledReference =

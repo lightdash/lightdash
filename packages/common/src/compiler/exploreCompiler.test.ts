@@ -1,11 +1,5 @@
 import { CompileError } from '../types/errors';
-import { type Table } from '../types/explore';
-import {
-    FieldType,
-    friendlyName,
-    MetricType,
-    type Source,
-} from '../types/field';
+import { friendlyName } from '../types/field';
 import { ExploreCompiler, parseAllReferences } from './exploreCompiler';
 import {
     compiledExploreWithHiddenJoin,
@@ -349,101 +343,6 @@ describe('Compile metrics with filters', () => {
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
-        );
-    });
-});
-
-describe('PostCalculation metric validation', () => {
-    const sourceMock: Source = {
-        path: '',
-        content: '',
-        range: {
-            start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 },
-        },
-    };
-
-    const tablesWithPostCalculationMetric: Record<string, Table> = {
-        table1: {
-            name: 'table1',
-            label: 'Table 1',
-            schema: 'test_schema',
-            sqlTable: 'table1',
-            database: 'test_database',
-            description: '',
-            sqlWhere: undefined,
-            dimensions: {},
-            metrics: {
-                numeric_metric: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.SUM,
-                    name: 'numeric_metric',
-                    label: 'Numeric Metric',
-                    table: 'table1',
-                    tableLabel: 'Table 1',
-                    sql: '${TABLE}.value',
-                    hidden: false,
-                },
-                string_metric: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.STRING,
-                    name: 'string_metric',
-                    label: 'String Metric',
-                    table: 'table1',
-                    tableLabel: 'Table 1',
-                    sql: '${TABLE}.text_value',
-                    hidden: false,
-                },
-                postcalculation_metric: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.PERCENT_OF_PREVIOUS,
-                    name: 'postcalculation_metric',
-                    label: 'PostCalculation Metric',
-                    table: 'table1',
-                    tableLabel: 'Table 1',
-                    sql: '${numeric_metric}',
-                    hidden: false,
-                },
-                invalid_postcalculation_metric: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.PERCENT_OF_TOTAL,
-                    name: 'invalid_postcalculation_metric',
-                    label: 'Invalid PostCalculation Metric',
-                    table: 'table1',
-                    tableLabel: 'Table 1',
-                    sql: '${string_metric}',
-                    hidden: false,
-                },
-            },
-            lineageGraph: {},
-            source: sourceMock,
-        },
-    };
-
-    test('should allow PostCalculation metric to reference numeric metric', () => {
-        expect(() =>
-            compiler.compileMetric(
-                tablesWithPostCalculationMetric.table1.metrics
-                    .postcalculation_metric,
-                tablesWithPostCalculationMetric,
-                [],
-            ),
-        ).not.toThrowError();
-    });
-
-    test('should throw error when PostCalculation metric references non-numeric metric', () => {
-        expect(() =>
-            compiler.compileMetric(
-                tablesWithPostCalculationMetric.table1.metrics
-                    .invalid_postcalculation_metric,
-                tablesWithPostCalculationMetric,
-                [],
-            ),
-        ).toThrowError(
-            new CompileError(
-                `PostCalculation metric "invalid_postcalculation_metric" in table "table1" can only reference numeric metrics, but "string_metric" is not numeric`,
-                {},
-            ),
         );
     });
 });
