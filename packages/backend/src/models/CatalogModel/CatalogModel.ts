@@ -592,14 +592,7 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: {
-            catalogTags,
-            filter,
-            searchQuery = '',
-            type,
-            yamlTags,
-            tables,
-        },
+        catalogSearch: { catalogTags, filter, searchQuery = '', type },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -608,6 +601,7 @@ export class CatalogModel {
         context,
         fullTextSearchOperator = 'AND',
         exploreCacheMap,
+        filteredExplore,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -620,6 +614,7 @@ export class CatalogModel {
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
         exploreCacheMap: { [exploreUuid: string]: Explore | ExploreError };
+        filteredExplore?: Explore;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -823,114 +818,38 @@ export class CatalogModel {
             );
         }
 
-        if (yamlTags) {
+        // Filter by fields available in filteredExplore (AI agent explore tag filtering)
+        if (filteredExplore && type === CatalogType.Field) {
             catalogItemsQuery = catalogItemsQuery.andWhere(
-                function yamlTagsFiltering() {
-                    void this
-                        // Condition 1: The item itself has a matching tag.
-                        // This is the highest priority rule. It includes any
-                        // field or table that is explicitly tagged.
-                        .whereRaw(
-                            `${CatalogTableName}.yaml_tags && ?::text[]`,
-                            [yamlTags],
-                        )
+                function filteredExploreFieldsFiltering() {
+                    // Build list of allowed (table_name, field_name) tuples from filtered explore
+                    const allowedFields = Object.entries(
+                        filteredExplore.tables,
+                    ).flatMap(([tableName, table]) => [
+                        ...Object.keys(table.dimensions).map(
+                            (dimName): [string, string] => [tableName, dimName],
+                        ),
+                        ...Object.keys(table.metrics).map(
+                            (metricName): [string, string] => [
+                                tableName,
+                                metricName,
+                            ],
+                        ),
+                    ]);
 
-                        // Condition 2: The item is part of an explore where ONLY the explore's
-                        // base table is tagged, making all items in that explore visible.
-                        // This handles the "show all fields" scenario.
-                        .orWhere(function exploreTaggedButFieldsAreNot() {
-                            void this
-                                // Check that the explore's base table has a matching tag.
-                                .whereExists(function exploreIsTagged() {
-                                    void this.select('name')
-                                        .from(
-                                            `${CatalogTableName} as explore_table`,
-                                        )
-                                        .andWhere(
-                                            'explore_table.project_uuid',
-                                            projectUuid,
-                                        )
-                                        .whereRaw(
-                                            `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                        )
-                                        .andWhere('explore_table.type', 'table')
-                                        .andWhereRaw(
-                                            `explore_table.yaml_tags && ?::text[]`,
-                                            [yamlTags],
-                                        );
-                                })
-                                // AND crucially, check that NO fields within that same explore have any tags.
-                                // This enforces the precedence rule.
-                                .whereNotExists(function anyFieldIsTagged() {
-                                    void this.select('name')
-                                        .from(
-                                            `${CatalogTableName} as any_field_in_explore`,
-                                        )
-                                        .andWhereRaw(
-                                            `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                        )
-                                        .andWhere(
-                                            'any_field_in_explore.project_uuid',
-                                            projectUuid,
-                                        )
-                                        .andWhere(
-                                            'any_field_in_explore.type',
-                                            'field',
-                                        )
-                                        .whereNotNull(
-                                            `any_field_in_explore.yaml_tags`,
-                                        );
-                                });
-                        })
-
-                        // Condition 3: The item is a table, and at least one of its
-                        // child fields has a matching tag. This ensures the parent table is
-                        // always included if any of its fields are visible.
-                        .orWhere(function isTableWithTaggedChildren() {
-                            void this.where(
-                                `${CatalogTableName}.type`,
-                                'table',
-                            ).whereExists(function hasTaggedChild() {
-                                void this.select('name')
-                                    .from(`${CatalogTableName} as child_field`)
-                                    .andWhere(
-                                        'child_field.project_uuid',
-                                        projectUuid,
-                                    )
-                                    .whereRaw(
-                                        `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                    )
-                                    .andWhereNot('child_field.type', 'table')
-                                    .andWhereRaw(
-                                        `child_field.yaml_tags && ?::text[]`,
-                                        [yamlTags],
-                                    );
-                            });
-                        });
-                },
-            );
-        }
-
-        if (tables) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                function joinedTablesFiltering() {
-                    // Condition 1: The item's own table is in the list.
-                    // This includes the table itself, and any fields belonging to it.
-                    void this.whereIn(`${CatalogTableName}.table_name`, tables);
-
-                    // Condition 2: The item belongs to a table whose joined_tables array
-                    // contains any of the specified tables
-                    void this.orWhereExists(function tableJoinsToSelected() {
-                        void this.select('name')
-                            .from(`${CatalogTableName} as parent_table`)
-                            .whereRaw(
-                                `parent_table.table_name = ANY(?::text[])`,
-                                [tables],
-                            )
-                            .andWhereRaw(
-                                `parent_table.joined_tables @> ARRAY[${CatalogTableName}.table_name]::text[]`,
-                            );
-                    });
+                    // Filter catalog to only include these fields using tuple comparison
+                    if (allowedFields.length > 0) {
+                        // Use PostgreSQL's row comparison: (table_name, name) IN (('orders', 'id'), ('users', 'email'), ...)
+                        void this.whereRaw(
+                            `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (VALUES ${allowedFields
+                                .map(() => '(?, ?)')
+                                .join(', ')})`,
+                            allowedFields.flat(),
+                        );
+                    } else {
+                        // No fields allowed, return no results
+                        void this.whereRaw('false');
+                    }
                 },
             );
         }

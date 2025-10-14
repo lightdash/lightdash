@@ -36,11 +36,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
 
-    availableExploresPageSize: number;
-    findExploresPageSize: number;
-    findExploresFieldOverviewSearchSize: number;
     findExploresFieldSearchSize: number;
-    findExploresMaxDescriptionLength: number;
     findFieldsPageSize: number;
     findDashboardsPageSize: number;
     findChartsPageSize: number;

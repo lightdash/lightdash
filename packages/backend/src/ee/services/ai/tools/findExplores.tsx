@@ -14,7 +14,6 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
-    pageSize: number;
     fieldSearchSize: number;
     findExplores: FindExploresFn;
 };
@@ -172,7 +171,6 @@ const generateExploreResponse = ({
 };
 export const getFindExplores = ({
     findExplores,
-    pageSize,
     fieldSearchSize,
 }: Dependencies) =>
     tool({
@@ -183,8 +181,6 @@ export const getFindExplores = ({
             try {
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,
-                    page: 1,
-                    pageSize,
                     fieldSearchSize,
                 });
 
