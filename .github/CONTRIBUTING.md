@@ -246,7 +246,7 @@ pnpm dev # http://localhost:3000
 # Log in dev mode
 # When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
-# Username: demo@lightdash.com
+# Email-Address: demo@lightdash.com
 # Password: demo_password!
 
 # Or run in production mode
@@ -436,7 +436,7 @@ pnpm load:env pnpm dev
 # Log in dev mode
 When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
-Username: demo@lightdash.com
+Email-Address: demo@lightdash.com
 Password: demo_password!
 ```
 
