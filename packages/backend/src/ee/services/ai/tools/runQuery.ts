@@ -1,5 +1,7 @@
 import {
+    AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
+    getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
     isSlackPrompt,
@@ -20,9 +22,9 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { getPivotedResults } from '../utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
-import { generateEchartsOptionsForRunQuery } from '../utils/renderRunQueryChart';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -186,11 +188,14 @@ export const getRunQuery = ({
 
                 // Render chart as image for Slack
                 if (isSlackPrompt(prompt)) {
-                    const echartsOptions =
-                        await generateEchartsOptionsForRunQuery(
-                            queryTool,
-                            queryResults,
-                        );
+                    const echartsOptions = await getSlackAiEchartsConfig({
+                        toolArgs: {
+                            type: AiResultType.QUERY_RESULT,
+                            tool: queryTool,
+                        },
+                        queryResults,
+                        getPivotedResults,
+                    });
 
                     if (echartsOptions) {
                         const chartImage = await renderEcharts(echartsOptions);

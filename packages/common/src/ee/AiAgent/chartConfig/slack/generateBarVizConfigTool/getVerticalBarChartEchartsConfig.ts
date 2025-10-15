@@ -1,18 +1,19 @@
-import {
-    AiMetricQueryWithFilters,
-    AiResultType,
-    MetricQuery,
-    ToolVerticalBarArgsTransformed,
-} from '@lightdash/common';
-import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { getPivotedResults } from '../utils/getPivotedResults';
+import { type EChartsOption } from 'echarts';
+import { type ItemsMap } from '../../../../../types/field';
+import { type MetricQuery } from '../../../../../types/metricQuery';
+import { type ToolVerticalBarArgsTransformed } from '../../../schemas';
+import { type GetPivotedResultsFn } from '../types';
 
-const echartsConfigVerticalBarMetric = async (
+/**
+ * Generates vertical bar chart echarts config for server-side rendering
+ */
+export const getVerticalBarChartEchartsConfig = async (
     vizTool: ToolVerticalBarArgsTransformed,
     rows: Record<string, unknown>[],
-    fieldsMap: Record<string, unknown>,
+    fieldsMap: ItemsMap,
     sorts: MetricQuery['sorts'],
-) => {
+    getPivotedResults: GetPivotedResultsFn,
+): Promise<EChartsOption> => {
     let chartData = rows;
     let metrics = vizTool.vizConfig.yMetrics;
     if (vizTool.vizConfig.breakdownByDimension) {
@@ -72,38 +73,5 @@ const echartsConfigVerticalBarMetric = async (
             },
             ...(vizTool.vizConfig.stackBars ? { stack: 'stack' } : {}),
         })),
-    };
-};
-
-export const renderVerticalBarViz = async ({
-    queryResults,
-    vizTool,
-    metricQuery,
-}: {
-    queryResults: Awaited<
-        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-    >;
-    vizTool: ToolVerticalBarArgsTransformed;
-    metricQuery: AiMetricQueryWithFilters;
-}): Promise<{
-    type: AiResultType.VERTICAL_BAR_RESULT;
-    results: Awaited<
-        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-    >;
-    metricQuery: AiMetricQueryWithFilters;
-    chartOptions: object;
-}> => {
-    const chartOptions = await echartsConfigVerticalBarMetric(
-        vizTool,
-        queryResults.rows,
-        queryResults.fields,
-        metricQuery.sorts,
-    );
-
-    return {
-        type: AiResultType.VERTICAL_BAR_RESULT,
-        metricQuery,
-        results: queryResults,
-        chartOptions,
     };
 };
