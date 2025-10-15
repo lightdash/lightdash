@@ -1,3 +1,10 @@
+# [0.2081.0](https://github.com/lightdash/lightdash/compare/0.2080.2...0.2081.0) (2025-10-15)
+
+
+### Features
+
+* wrap AI agent tools with Sentry transactions for better monitoring ([#17454](https://github.com/lightdash/lightdash/issues/17454)) ([ebfc815](https://github.com/lightdash/lightdash/commit/ebfc815c2a9314af1e4fdeee7f8d0c6a956ec548))
+
 ## [0.2080.2](https://github.com/lightdash/lightdash/compare/0.2080.1...0.2080.2) (2025-10-15)
 
 
