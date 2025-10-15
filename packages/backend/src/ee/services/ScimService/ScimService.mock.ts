@@ -7,6 +7,7 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
@@ -77,4 +78,7 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     groupsModel: {} as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
     commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
+    rolesModel: {
+        removeUserProjectAccess: jest.fn().mockResolvedValue(undefined),
+    } as unknown as RolesModel,
 };
