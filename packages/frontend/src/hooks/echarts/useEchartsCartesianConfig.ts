@@ -2,6 +2,7 @@ import {
     applyCustomFormat,
     assertUnreachable,
     CartesianSeriesType,
+    createStack100TooltipFormatter,
     DimensionType,
     formatItemValue,
     formatValueWithExpression,
@@ -26,9 +27,11 @@ import {
     isTableCalculation,
     isTimeInterval,
     MetricType,
+    StackType,
     TableCalculationType,
     timeFrameConfigs,
     TimeFrames,
+    transformToPercentageStacking,
     XAxisSortType,
     type CartesianChart,
     type CustomDimension,
@@ -40,6 +43,7 @@ import {
     type ResultRow,
     type Series,
     type TableCalculation,
+    type TooltipParam,
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
@@ -1453,17 +1457,31 @@ const getEchartAxes = ({
                   maxValue: undefined,
               };
 
+    // Check if 100% stacking is enabled
+    const stackValue = validCartesianConfig.layout?.stack;
+    const shouldStack100 = stackValue === StackType.PERCENT;
+
     const bottomAxisBounds = getMinAndMaxFromBottomAxisBounds(
         bottomAxisType,
         bottomAxisMinValue,
         bottomAxisMaxValue,
     );
 
+    // For 100% stacking with flipped axes, set X-axis max to 100
+    const maxXAxisValue =
+        bottomAxisType === 'value'
+            ? shouldStack100 && validCartesianConfig.layout.flipAxes
+                ? 100 // For 100% stacking with flipped axes, max is always 100
+                : bottomAxisBounds.max
+            : undefined;
+
     const maxYAxisValue =
         leftAxisType === 'value'
-            ? yAxisConfiguration?.[0]?.max ||
-              referenceLineMaxLeftY ||
-              maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
+            ? shouldStack100 && !validCartesianConfig.layout.flipAxes
+                ? 100 // For 100% stacking without flipped axes, max is always 100
+                : yAxisConfiguration?.[0]?.max ||
+                  referenceLineMaxLeftY ||
+                  maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
             : undefined;
 
     const minYAxisValue =
@@ -1515,9 +1533,18 @@ const getEchartAxes = ({
                         ? showGridY
                         : showGridX,
                 },
+                // Override formatter for 100% stacking with flipped axes
+                ...(shouldStack100 &&
+                    validCartesianConfig.layout.flipAxes &&
+                    showXAxis && {
+                        axisLabel: {
+                            formatter: '{value}%',
+                        },
+                    }),
                 inverse: !!xAxisConfiguration?.[0].inverse,
                 ...bottomAxisExtraConfig,
-                ...bottomAxisBounds,
+                min: bottomAxisBounds.min,
+                max: maxXAxisValue,
             },
             {
                 type: topAxisType,
@@ -1602,6 +1629,14 @@ const getEchartAxes = ({
                     defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
                     show: showYAxis,
                 }),
+                // Override formatter for 100% stacking without flipped axes
+                ...(shouldStack100 &&
+                    !validCartesianConfig.layout.flipAxes &&
+                    showYAxis && {
+                        axisLabel: {
+                            formatter: '{value}%',
+                        },
+                    }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridX
@@ -1951,6 +1986,7 @@ const useEchartsCartesianConfig = (
 
         try {
             if (!itemsMap) return results;
+            // Get the field that represents the X-axis visually
             const xFieldId = validCartesianConfig?.layout.flipAxes
                 ? validCartesianConfig?.layout?.yField?.[0]
                 : validCartesianConfig?.layout?.xField;
@@ -2043,6 +2079,119 @@ const useEchartsCartesianConfig = (
         resultsData?.metricQuery?.sorts,
     ]);
 
+    const sortedResultsByTotals = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
+
+        const axis = validCartesianConfig?.layout.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+
+        if (
+            xFieldId &&
+            axis?.type === 'category' &&
+            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
+        ) {
+            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+                ? 1
+                : 0;
+
+            const stackTotals = getStackTotalRows(
+                rows,
+                stackedSeriesWithColorAssignments,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+            );
+
+            // Using entries since we cannot use a map here (cannot index with unknown)
+            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+            const stackTotalEntries: [unknown, number][] = Object.entries(
+                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
+            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
+                acc.push([
+                    key,
+                    totals.reduce((sum, total) => sum + total[2], 0),
+                ]);
+
+                return acc;
+            }, []);
+
+            return sortedResults.sort((a, b) => {
+                const totalA =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === a[xFieldId],
+                    )?.[1] ?? 0;
+
+                const totalB =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === b[xFieldId],
+                    )?.[1] ?? 0;
+
+                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
+            });
+        }
+
+        return sortedResults;
+    }, [
+        stackedSeriesWithColorAssignments,
+        sortedResults,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        axes.yAxis,
+        axes.xAxis,
+        rows,
+        validCartesianConfigLegend,
+    ]);
+
+    // Apply 100% stacking transformation if needed
+    const { dataToRender, originalValues } = useMemo(() => {
+        const stackValue = validCartesianConfig?.layout?.stack;
+        const shouldStack100 = stackValue === StackType.PERCENT;
+        // For grouping in 100% stacking, always use the dimension field (xField)
+        // regardless of whether axes are flipped
+        const xFieldId = validCartesianConfig?.layout?.xField;
+
+        if (
+            !shouldStack100 ||
+            !xFieldId ||
+            !stackedSeriesWithColorAssignments
+        ) {
+            return {
+                dataToRender: sortedResultsByTotals,
+                originalValues: undefined,
+            };
+        }
+
+        // Collect all y-field hashes from stacked series
+        const yFieldRefs = stackedSeriesWithColorAssignments
+            .filter((serie) => serie.stack && serie.encode)
+            .map((serie) =>
+                validCartesianConfig?.layout.flipAxes
+                    ? serie.encode!.x
+                    : serie.encode!.y,
+            )
+            .filter((hash): hash is string => !!hash);
+
+        // Use shared transformation utility
+        const { transformedResults, originalValues: originalValuesMap } =
+            transformToPercentageStacking(sortedResults, xFieldId, yFieldRefs);
+
+        return {
+            dataToRender: transformedResults,
+            originalValues: originalValuesMap,
+        };
+    }, [
+        sortedResults,
+        validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.layout.flipAxes,
+        stackedSeriesWithColorAssignments,
+        sortedResultsByTotals,
+    ]);
+
     const tooltip = useMemo<TooltipOption>(
         () => ({
             show: true,
@@ -2058,6 +2207,38 @@ const useEchartsCartesianConfig = (
             },
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
+
+                // Check if 100% stacking is enabled and we have original values
+                const stackValue = validCartesianConfig?.layout?.stack;
+                const shouldStack100 = stackValue === StackType.PERCENT;
+                // For grouping in 100% stacking, always use the dimension field (xField)
+                const xFieldId = validCartesianConfig?.layout?.xField;
+
+                // Custom formatter for 100% stacking: show percentage and actual count
+                if (shouldStack100 && xFieldId && originalValues) {
+                    const flipAxes = validCartesianConfig?.layout.flipAxes;
+                    const s = createStack100TooltipFormatter(
+                        originalValues,
+                        (param) => {
+                            const { encode, dimensionNames } = param;
+                            if (!dimensionNames || !encode) return undefined;
+
+                            // Get the dimension name (field hash) from encode indices
+                            if (flipAxes) {
+                                return dimensionNames[1];
+                            } else {
+                                // encode.y can be a string, number, or array
+                                const yIndex = Array.isArray(encode.y)
+                                    ? encode.y[0]
+                                    : encode.y;
+                                return typeof yIndex === 'number'
+                                    ? dimensionNames[yIndex]
+                                    : undefined;
+                            }
+                        },
+                    )(params as TooltipParam[]);
+                    return s;
+                }
 
                 const flipAxes = validCartesianConfig?.layout.flipAxes;
                 const getTooltipHeader = () => {
@@ -2183,77 +2364,13 @@ const useEchartsCartesianConfig = (
         [
             itemsMap,
             validCartesianConfig?.layout.flipAxes,
+            validCartesianConfig?.layout?.stack,
+            validCartesianConfig?.layout?.xField,
             tooltipConfig,
             pivotValuesColumnsMap,
+            originalValues,
         ],
     );
-
-    const sortedResultsByTotals = useMemo(() => {
-        if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
-
-        const axis = validCartesianConfig?.layout.flipAxes
-            ? axes.yAxis[0]
-            : axes.xAxis[0];
-
-        const xFieldId = validCartesianConfig?.layout?.xField;
-        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
-
-        if (
-            xFieldId &&
-            axis?.type === 'category' &&
-            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
-        ) {
-            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
-                ? 1
-                : 0;
-
-            const stackTotals = getStackTotalRows(
-                rows,
-                stackedSeriesWithColorAssignments,
-                validCartesianConfig?.layout.flipAxes,
-                validCartesianConfigLegend,
-            );
-
-            // Using entries since we cannot use a map here (cannot index with unknown)
-            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
-            const stackTotalEntries: [unknown, number][] = Object.entries(
-                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
-            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
-                acc.push([
-                    key,
-                    totals.reduce((sum, total) => sum + total[2], 0),
-                ]);
-
-                return acc;
-            }, []);
-
-            return sortedResults.sort((a, b) => {
-                const totalA =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === a[xFieldId],
-                    )?.[1] ?? 0;
-
-                const totalB =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === b[xFieldId],
-                    )?.[1] ?? 0;
-
-                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
-            });
-        }
-
-        return sortedResults;
-    }, [
-        stackedSeriesWithColorAssignments,
-        sortedResults,
-        validCartesianConfig?.layout.flipAxes,
-        validCartesianConfig?.layout?.xField,
-        validCartesianConfig?.eChartsConfig.xAxis,
-        axes.yAxis,
-        axes.xAxis,
-        rows,
-        validCartesianConfigLegend,
-    ]);
 
     const currentGrid = useMemo(() => {
         const grid = {
@@ -2312,7 +2429,7 @@ const useEchartsCartesianConfig = (
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: sortedResultsByTotals,
+                source: dataToRender,
             },
             tooltip,
             grid: currentGrid,
@@ -2329,7 +2446,7 @@ const useEchartsCartesianConfig = (
             isInDashboard,
             minimal,
             legendConfigWithInstructionsTooltip,
-            sortedResultsByTotals,
+            dataToRender,
             tooltip,
             theme?.other.chartFont,
             currentGrid,

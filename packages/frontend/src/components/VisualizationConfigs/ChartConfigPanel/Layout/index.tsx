@@ -5,6 +5,7 @@ import {
     isDimension,
     isNumericItem,
     replaceStringInArray,
+    StackType,
     type CustomDimension,
     type Field,
     type TableCalculation,
@@ -19,7 +20,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -48,6 +49,29 @@ export const Layout: FC<Props> = ({ items }) => {
         cartesianType !== CartesianSeriesType.LINE &&
         cartesianType !== CartesianSeriesType.SCATTER &&
         cartesianType !== CartesianSeriesType.AREA;
+
+    // Initialize stacking mode from saved configuration
+    const initialStackMode = useMemo(() => {
+        if (!isCartesianChart) return StackType.NONE;
+        const { validConfig } = visualizationConfig.chartConfig;
+        const stackValue = validConfig?.layout?.stack;
+
+        // Convert boolean format to StackType for backward compatibility
+        if (stackValue === true) return StackType.NORMAL;
+        if (stackValue === false) return StackType.NONE;
+
+        // Return StackType format or default to NONE
+        return stackValue || StackType.NONE;
+    }, [isCartesianChart, visualizationConfig.chartConfig]);
+
+    // Track current stacking mode locally
+    const [currentStackMode, setCurrentStackMode] =
+        useState<string>(initialStackMode);
+
+    // Sync local state when configuration changes (e.g., loading different saved chart)
+    useEffect(() => {
+        setCurrentStackMode(initialStackMode);
+    }, [initialStackMode]);
 
     // X axis logic
     const xAxisField = useMemo(() => {
@@ -141,17 +165,21 @@ export const Layout: FC<Props> = ({ items }) => {
     const handleOnChangeOfXAxisField = useCallback(
         (newValue: Field | TableCalculation | CustomDimension | undefined) => {
             if (!isCartesianChart) return;
-            const { setXField, setStacking, isStacked } =
-                visualizationConfig.chartConfig;
+            const { setXField, setStacking } = visualizationConfig.chartConfig;
 
             const fieldId = newValue ? getItemId(newValue) : undefined;
             setXField(fieldId ?? undefined);
 
-            if (newValue && isStacked && isNumericItem(newValue)) {
+            if (
+                newValue &&
+                currentStackMode !== StackType.NONE &&
+                isNumericItem(newValue)
+            ) {
                 setStacking(false);
+                setCurrentStackMode(StackType.NONE);
             }
         },
-        [isCartesianChart, visualizationConfig],
+        [isCartesianChart, visualizationConfig, currentStackMode],
     );
 
     if (!isCartesianChart) return null;
@@ -162,7 +190,6 @@ export const Layout: FC<Props> = ({ items }) => {
         setXField,
         setStacking,
         setFlipAxis,
-        isStacked,
         updateYField,
         removeSingleSeries,
         addSingleSeries,
@@ -394,19 +421,27 @@ export const Layout: FC<Props> = ({ items }) => {
                                 <SegmentedControl
                                     disabled={isXAxisFieldNumeric}
                                     value={
-                                        !isXAxisFieldNumeric && isStacked
-                                            ? 'stack'
-                                            : 'noStacking'
+                                        isXAxisFieldNumeric
+                                            ? StackType.NONE
+                                            : currentStackMode
                                     }
-                                    onChange={(value) =>
-                                        setStacking(value === 'stack')
-                                    }
+                                    onChange={(value) => {
+                                        setCurrentStackMode(value);
+                                        setStacking(value as StackType);
+                                    }}
                                     data={[
                                         {
                                             label: 'None',
-                                            value: 'noStacking',
+                                            value: StackType.NONE,
                                         },
-                                        { label: 'Stack', value: 'stack' },
+                                        {
+                                            label: 'Stack',
+                                            value: StackType.NORMAL,
+                                        },
+                                        {
+                                            label: '100%',
+                                            value: StackType.PERCENT,
+                                        },
                                     ]}
                                 />
                             </Group>

@@ -2,6 +2,7 @@
 // Not needed when viewing a cartesian chart on a dashboard
 import {
     ChartKind,
+    StackType,
     VIZ_DEFAULT_AGGREGATION,
     VizAggregationOptions,
     isFormat,
@@ -287,12 +288,23 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        setStacked: ({ display }, action: PayloadAction<boolean>) => {
-            if (!display) return;
+        setStacked: (state, action: PayloadAction<boolean | StackType>) => {
+            if (!state.fieldConfig) return;
 
-            display = display || {};
+            // Support both old boolean format and new StackType string format
+            const stackValue =
+                typeof action.payload === 'boolean'
+                    ? action.payload
+                        ? StackType.NORMAL
+                        : StackType.NONE
+                    : action.payload;
 
-            display.stack = action.payload;
+            // Set in both fieldConfig and display for consistency
+            state.fieldConfig.stack = stackValue;
+
+            // Also set in display for backward compatibility
+            state.display = state.display || {};
+            state.display.stack = stackValue;
         },
 
         setYAxisFormat: (

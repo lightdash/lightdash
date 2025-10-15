@@ -18,7 +18,12 @@ import {
 import { type SqlRunnerQuery } from '../types/sqlRunner';
 import { applyCustomFormat } from '../utils/formatting';
 import {
+    createStack100TooltipFormatter,
+    transformToPercentageStacking,
+} from './chartTransformations';
+import {
     SortByDirection,
+    StackType,
     VizAggregationOptions,
     VizIndexType,
     type AxisSide,
@@ -50,6 +55,15 @@ type CartesianChartKind = Extract<
     ChartKind,
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
+
+export enum ValueLabelPositionOptions {
+    HIDDEN = 'hidden',
+    TOP = 'top',
+    BOTTOM = 'bottom',
+    LEFT = 'left',
+    RIGHT = 'right',
+    INSIDE = 'inside',
+}
 
 export class CartesianChartDataModel {
     private readonly resultsRunner: IResultsRunner;
@@ -490,6 +504,25 @@ export class CartesianChartDataModel {
         return transformedData.fileUrl;
     }
 
+    // Helper function to convert data to percentages for 100% stacking
+    private static convertToPercentageStacking(
+        transformedData: PivotChartData,
+        xAxisReference: string,
+    ): {
+        transformedResults: RawResultRow[];
+        originalValues: Map<string, Map<string, number>>;
+    } {
+        const yFieldRefs = transformedData.valuesColumns.map(
+            (col) => col.pivotColumnName,
+        );
+
+        return transformToPercentageStacking(
+            transformedData.results,
+            xAxisReference,
+            yFieldRefs,
+        );
+    }
+
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
@@ -508,11 +541,30 @@ export class CartesianChartDataModel {
         const defaultSeriesType =
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
-        const shouldStack = display?.stack === true;
+        // Handle both old boolean format and new StackType string format
+        const stackValue = display?.stack;
+        const shouldStack =
+            stackValue === true ||
+            stackValue === StackType.NORMAL ||
+            stackValue === StackType.PERCENT;
+        const shouldStack100 = stackValue === StackType.PERCENT;
 
         const xAxisReference = getFirstIndexColumns(
             transformedData?.indexColumn,
         )?.reference;
+
+        // Apply 100% stacking transformation if needed
+        let dataToRender = transformedData.results;
+        let originalValues: Map<string, Map<string, number>> | undefined;
+
+        if (shouldStack100 && xAxisReference) {
+            const result = CartesianChartDataModel.convertToPercentageStacking(
+                transformedData,
+                xAxisReference,
+            );
+            dataToRender = result.transformedResults;
+            originalValues = result.originalValues;
+        }
 
         const leftYAxisSeriesReferences: string[] = [];
         const rightYAxisSeriesReferences: string[] = [];
@@ -609,29 +661,54 @@ export class CartesianChartDataModel {
             getFirstIndexColumns(transformedData.indexColumn)?.type ||
             DEFAULT_X_AXIS_TYPE;
 
+        // Determine tooltip configuration
+        let tooltipConfig = {};
+        if (shouldStack100 && xAxisReference && originalValues) {
+            // Custom formatter for 100% stacking: show percentage and actual count
+            tooltipConfig = {
+                formatter: createStack100TooltipFormatter(
+                    originalValues,
+                    (param) => {
+                        const { encode, dimensionNames } = param;
+                        if (!encode || !dimensionNames) return undefined;
+
+                        // encode.y is an array of dimension indices, not field names
+                        // Get the actual field name from dimensionNames using the index
+                        const yFieldIndex = Array.isArray(encode.y)
+                            ? encode.y[0]
+                            : encode.y;
+
+                        if (
+                            yFieldIndex === undefined ||
+                            typeof yFieldIndex !== 'number'
+                        )
+                            return undefined;
+                        return dimensionNames[yFieldIndex];
+                    },
+                ),
+            };
+        } else if (xAxisType === VizIndexType.TIME && xAxisReference) {
+            tooltipConfig = {
+                axisPointer: {
+                    label: {
+                        // ECharts converts timezone values to local time
+                        // so we need to show the original value in the tooltip
+                        // this function is loosely typed because we don't have ECharts types in common
+                        formatter: (params: {
+                            seriesData: {
+                                value: Record<string, unknown>;
+                            }[];
+                        }) => params.seriesData[0]?.value[xAxisReference],
+                    },
+                },
+            };
+        }
+
         const spec = {
             tooltip: {
                 trigger: 'axis',
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
-                ...(xAxisType === VizIndexType.TIME && xAxisReference
-                    ? {
-                          axisPointer: {
-                              label: {
-                                  // ECharts converts timezone values to local time
-                                  // so we need to show the original value in the tooltip
-                                  // this function is loosely typed because we don't have ECharts types in common
-                                  formatter: (params: {
-                                      seriesData: {
-                                          value: Record<string, unknown>;
-                                      }[];
-                                  }) =>
-                                      params.seriesData[0]?.value[
-                                          xAxisReference
-                                      ],
-                              },
-                          },
-                      }
-                    : {}),
+                ...tooltipConfig,
             },
             legend: {
                 show: !!(transformedData.valuesColumns.length > 1),
@@ -663,16 +740,28 @@ export class CartesianChartDataModel {
                     nameTextStyle: {
                         fontWeight: 'bold',
                     },
-                    ...(display?.yAxis?.[0]?.format
-                        ? {
-                              axisLabel: {
-                                  formatter:
-                                      CartesianChartDataModel.getTooltipFormatter(
-                                          display?.yAxis?.[0].format,
-                                      ),
-                              },
-                          }
-                        : {}),
+                    ...(() => {
+                        if (shouldStack100) {
+                            // For 100% stacking, show percentage on y-axis
+                            return {
+                                max: 100,
+                                axisLabel: {
+                                    formatter: '{value}%',
+                                },
+                            };
+                        }
+                        if (display?.yAxis?.[0]?.format) {
+                            return {
+                                axisLabel: {
+                                    formatter:
+                                        CartesianChartDataModel.getTooltipFormatter(
+                                            display.yAxis[0].format,
+                                        ),
+                                },
+                            };
+                        }
+                        return {};
+                    })(),
                 },
                 {
                     type: 'value',
@@ -702,22 +791,13 @@ export class CartesianChartDataModel {
             ],
             dataset: {
                 id: 'dataset',
-                source: transformedData.results,
+                source: dataToRender, // Use transformed data for 100% stacking
             },
             series,
         };
 
         return spec;
     }
-}
-
-export enum ValueLabelPositionOptions {
-    HIDDEN = 'hidden',
-    TOP = 'top',
-    BOTTOM = 'bottom',
-    LEFT = 'left',
-    RIGHT = 'right',
-    INSIDE = 'inside',
 }
 
 export type CartesianChartDisplay = {
@@ -751,5 +831,5 @@ export type CartesianChartDisplay = {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';
     };
-    stack?: boolean;
+    stack?: boolean | StackType; // Support both old boolean and new StackType for backward compatibility
 };

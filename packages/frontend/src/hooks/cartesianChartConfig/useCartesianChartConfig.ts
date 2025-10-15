@@ -6,6 +6,7 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    StackType,
     XAxisSort,
     XAxisSortType,
     type CartesianChart,
@@ -56,7 +57,7 @@ type Args = {
     >;
     columnOrder: string[];
     itemsMap: ItemsMap | undefined;
-    stacking: boolean | undefined;
+    stacking: boolean | StackType | undefined;
     cartesianType: CartesianTypeOptions | undefined;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
@@ -535,10 +536,29 @@ const useCartesianChartConfig = ({
     }, []);
 
     const setStacking = useCallback(
-        (stack: boolean) => {
+        (stack: boolean | StackType) => {
             const yFields = dirtyLayout?.yField || [];
             const isPivoted = pivotKeys && pivotKeys.length > 0;
-            setIsStacked(stack);
+
+            // Convert StackType to boolean for isStacked state
+            const stackBoolean =
+                stack === StackType.NORMAL ||
+                stack === StackType.PERCENT ||
+                stack === true;
+
+            setIsStacked(stackBoolean);
+
+            // Store the stack type in the layout
+            setDirtyLayout((prev) => ({
+                ...prev,
+                stack:
+                    stack === true
+                        ? StackType.NORMAL
+                        : stack === false
+                        ? StackType.NONE
+                        : stack,
+            }));
+
             setDirtyEchartsConfig(
                 produce((draft) => {
                     if (!draft) return;
@@ -547,7 +567,7 @@ const useCartesianChartConfig = ({
                         if (yFields.includes(field)) {
                             return {
                                 ...series,
-                                stack: stack
+                                stack: stackBoolean
                                     ? isPivoted
                                         ? field
                                         : 'stack-all-series'

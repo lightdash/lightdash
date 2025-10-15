@@ -9,6 +9,8 @@ import {
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
+import { selectSorts } from '../../../features/explorer/store';
+import { useExplorerSelector } from '../../../features/explorer/store/hooks';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
 import { TemplateTypeLabels } from '../../../features/tableCalculation/utils/templateFormatting';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -95,9 +97,9 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
             name: EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED,
         });
     };
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
+
+    const sorts = useExplorerSelector(selectSorts);
+
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
