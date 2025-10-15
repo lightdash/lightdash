@@ -10,7 +10,7 @@ import {
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import isEqual from 'lodash/isEqual';
-import { useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
@@ -31,7 +31,7 @@ const DEFAULT_FORMAT: CustomFormat = {
     suffix: undefined,
 };
 
-export const FormatModal = () => {
+export const FormatModal = memo(() => {
     const dispatch = useExplorerDispatch();
     const { isOpen, metric } = useExplorerSelector(selectFormatModal);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -136,4 +136,4 @@ export const FormatModal = () => {
             </form>
         </Modal>
     ) : null;
-};
+});

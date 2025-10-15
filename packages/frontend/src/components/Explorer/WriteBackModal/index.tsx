@@ -18,7 +18,7 @@ import {
 import { Prism } from '@mantine/prism';
 import { IconGitBranch, IconInfoCircle } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
 import {
@@ -495,7 +495,7 @@ const MultipleItemsModalContent = ({
     );
 };
 
-export const WriteBackModal = () => {
+export const WriteBackModal = memo(() => {
     const { isOpen, items } = useExplorerSelector(
         (state) => state.explorer.modals.writeBack,
     );
@@ -533,4 +533,4 @@ export const WriteBackModal = () => {
             items={items}
         />
     );
-};
+});

@@ -26,7 +26,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -48,7 +48,7 @@ import {
     prepareCustomMetricData,
 } from './utils';
 
-export const CustomMetricModal = () => {
+export const CustomMetricModal = memo(() => {
     const {
         isOpen,
         isEditing,
@@ -293,6 +293,10 @@ export const CustomMetricModal = () => {
         value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
+    if (!isOpen) {
+        return null;
+    }
+
     return item ? (
         <Modal
             size="xl"
@@ -394,4 +398,4 @@ export const CustomMetricModal = () => {
             </form>
         </Modal>
     ) : null;
-};
+});

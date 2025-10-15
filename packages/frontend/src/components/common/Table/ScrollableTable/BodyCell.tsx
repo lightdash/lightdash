@@ -60,6 +60,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
     const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
         useDisclosure(false);
+    const [elementBounds, setElementBounds] = useState<DOMRect | null>(null);
 
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
@@ -72,6 +73,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         isTooltipOpen &&
         elementRef.current &&
         !shouldRenderMenu;
+
+    // Calculate bounds when menu/tooltip opens, not during every render
+    useEffect(() => {
+        if ((shouldRenderMenu || shouldRenderTooltip) && elementRef.current) {
+            setElementBounds(elementRef.current.getBoundingClientRect());
+        } else if (!isMenuOpen && !isTooltipOpen) {
+            // Clear bounds when closed to free memory
+            setElementBounds(null);
+        }
+    }, [shouldRenderMenu, shouldRenderTooltip, isMenuOpen, isTooltipOpen]);
 
     const displayValue = useMemo(() => {
         if (!hasData) return null;
@@ -145,9 +156,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 <CellMenu
                     cell={cell as Cell<ResultRow, ResultRow[0]>}
                     menuItems={cellContextMenu}
-                    elementBounds={
-                        elementRef.current?.getBoundingClientRect() ?? null
-                    }
+                    elementBounds={elementBounds}
                     onClose={toggleMenu}
                 />
             ) : null}
@@ -156,9 +165,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 <CellTooltip
                     position="top"
                     label={tooltipContent}
-                    elementBounds={
-                        elementRef.current?.getBoundingClientRect() ?? null
-                    }
+                    elementBounds={elementBounds}
                 />
             ) : null}
         </>
