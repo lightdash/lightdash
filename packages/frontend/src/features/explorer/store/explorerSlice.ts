@@ -32,7 +32,7 @@ const explorerSlice = createSlice({
     name: 'explorer',
     initialState,
     reducers: {
-        reset: (state, action: PayloadAction<ExplorerSliceState>) => {
+        reset: (_state, action: PayloadAction<ExplorerSliceState>) => {
             return action.payload;
         },
         setTableName: (state, action: PayloadAction<string>) => {
@@ -41,6 +41,9 @@ const explorerSlice = createSlice({
         },
         setIsEditMode: (state, action: PayloadAction<boolean>) => {
             state.isEditMode = action.payload;
+        },
+        setIsMinimal: (state, action: PayloadAction<boolean>) => {
+            state.isMinimal = action.payload;
         },
         setPreviouslyFetchedState: (
             state,
