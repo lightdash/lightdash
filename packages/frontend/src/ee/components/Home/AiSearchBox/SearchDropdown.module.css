@@ -1,0 +1,24 @@
+.searchRoot {
+    flex: 1;
+}
+
+.searchInput {
+    flex: 1;
+    background-color: rgba(255, 255, 255, 0.3);
+
+    --input-bd-focus: var(--mantine-color-gray-7);
+    &:focus {
+        outline: 4px solid var(--mantine-color-gray-2);
+    }
+}
+
+.searchDropdownScrollContent > div {
+    max-width: 100%;
+}
+
+.comboboxOption:hover > div,
+.comboboxOption[data-combobox-selected],
+.comboboxOption[data-combobox-selected] > div {
+    background-color: var(--mantine-color-gray-0);
+    color: inherit;
+}
