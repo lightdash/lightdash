@@ -32,6 +32,7 @@ import {
     validateCustomMetricsDefinition,
     validateFieldEntityType,
     validateFilterRules,
+    validateGroupByFields,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
@@ -77,6 +78,13 @@ const validateQueryTool = (
         queryTool.customMetrics,
         queryTool.tableCalculations,
         queryTool.filters,
+    );
+
+    // Validate groupBy fields
+    validateGroupByFields(
+        explore,
+        queryTool.chartConfig?.groupBy,
+        queryTool.queryConfig.dimensions,
     );
 
     // Validate sort fields exist
