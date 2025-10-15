@@ -109,11 +109,9 @@ const chartConfigSchema = z
         // Common display properties
         xAxisLabel: z
             .string()
-            .nullable()
             .describe('A helpful label to explain the x-axis'),
         yAxisLabel: z
             .string()
-            .nullable()
             .describe('A helpful label to explain the y-axis'),
         secondaryYAxisMetric: z
             .string()
