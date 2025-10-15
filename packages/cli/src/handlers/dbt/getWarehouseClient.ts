@@ -11,6 +11,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import crypto from 'crypto';
 import execa from 'execa';
 import path from 'path';
 import { getConfig } from '../../config';
@@ -20,6 +21,32 @@ import {
 } from '../../dbt/profile';
 import GlobalState from '../../globalState';
 import { lightdashApi } from './apiClient';
+
+/**
+ * Cache warehouse clients to avoid repeated authentication prompts
+ * Currently used for:
+ * - Snowflake external browser auth (avoids opening multiple browser tabs)
+ */
+const warehouseClientCache = new Map<
+    string,
+    ReturnType<typeof warehouseClientFromCredentials>
+>();
+
+/**
+ * Generates a unique cache key for warehouse credentials by hashing the credentials
+ */
+function getWarehouseClientCacheKey(
+    credentials: CreateWarehouseCredentials,
+): string {
+    // Create a hash of the stringified credentials
+    // This provides a unique key regardless of warehouse type
+    const credentialsString = JSON.stringify(credentials);
+    const hash = crypto
+        .createHash('sha256')
+        .update(credentialsString)
+        .digest('hex');
+    return hash;
+}
 
 type GetTableCatalogProps = {
     projectUuid: string;
@@ -186,6 +213,7 @@ export default async function getWarehouseClient(
         const dbtAdaptorType = await getDbtCloudConnectionType();
         GlobalState.debug(`> Using ${dbtAdaptorType} client mock`);
         credentials = getMockCredentials(dbtAdaptorType);
+
         warehouseClient = warehouseClientFromCredentials({
             ...credentials,
             startOfWeek: isWeekDay(options.startOfWeek)
@@ -264,12 +292,29 @@ export default async function getWarehouseClient(
         });
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
-        warehouseClient = warehouseClientFromCredentials({
-            ...credentials,
-            startOfWeek: isWeekDay(options.startOfWeek)
-                ? options.startOfWeek
-                : undefined,
-        });
+
+        // Check if we should use cached client (e.g., for auth methods requiring user interaction)
+        const cacheKey = getWarehouseClientCacheKey(credentials);
+
+        if (warehouseClientCache.has(cacheKey)) {
+            GlobalState.debug(
+                `> Reusing cached warehouse client (${credentials.type})`,
+            );
+            warehouseClient = warehouseClientCache.get(cacheKey)!;
+        } else {
+            GlobalState.debug(
+                `> Creating new warehouse client to cache (${credentials.type})`,
+            );
+
+            warehouseClient = warehouseClientFromCredentials({
+                ...credentials,
+                startOfWeek: isWeekDay(options.startOfWeek)
+                    ? options.startOfWeek
+                    : undefined,
+            });
+
+            warehouseClientCache.set(cacheKey, warehouseClient);
+        }
     }
     return {
         warehouseClient,
