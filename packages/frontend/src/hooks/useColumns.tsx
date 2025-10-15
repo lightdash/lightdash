@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     formatItemValue,
     getItemMap,
     isAdditionalMetric,
@@ -227,6 +228,18 @@ export const useColumns = (): TableColumn[] => {
                         if (!cellValue) return '-';
                         // Use item from meta to ensure we get the latest version with overrides
                         const currentItem = info.column.columnDef.meta?.item;
+
+                        // For DATE types, use the pre-formatted value from backend to avoid
+                        // timezone issues when re-parsing UTC date strings on the frontend
+                        if (
+                            isField(currentItem) &&
+                            currentItem.type === DimensionType.DATE
+                        ) {
+                            return cellValue.value.formatted;
+                        }
+
+                        // For everything else (metrics, numbers, etc.), format on frontend
+                        // to support metric overrides and other client-side formatting
                         return formatItemValue(
                             currentItem,
                             cellValue.value.raw,
