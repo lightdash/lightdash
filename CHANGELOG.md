@@ -1,3 +1,10 @@
+# [0.2082.0](https://github.com/lightdash/lightdash/compare/0.2081.0...0.2082.0) (2025-10-15)
+
+
+### Features
+
+* bar viz on table cell ([#17329](https://github.com/lightdash/lightdash/issues/17329)) ([7be9429](https://github.com/lightdash/lightdash/commit/7be94298d497d0c31e3a7a9dc55f04b51428d45d))
+
 # [0.2081.0](https://github.com/lightdash/lightdash/compare/0.2080.2...0.2081.0) (2025-10-15)
 
 

@@ -238,6 +238,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
+                columnProperties={
+                    visualizationConfig.chartConfig.columnProperties
+                }
                 footer={pagination}
                 headerContextMenu={headerContextMenu}
                 cellContextMenu={cellContextMenu}
