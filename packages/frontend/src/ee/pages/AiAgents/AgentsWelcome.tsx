@@ -121,7 +121,7 @@ const AgentsWelcome = () => {
 
     return (
         <AiAgentPageLayout>
-            <Center h="80%">
+            <Center mt="xl">
                 <Stack gap={32}>
                     <Stack align="center" gap="xxs">
                         <Avatar size="lg" color="gray">
