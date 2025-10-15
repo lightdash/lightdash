@@ -186,10 +186,11 @@ export const getRunQuery = ({
 
                 // Render chart as image for Slack
                 if (isSlackPrompt(prompt)) {
-                    const echartsOptions = generateEchartsOptionsForRunQuery(
-                        queryTool,
-                        queryResults,
-                    );
+                    const echartsOptions =
+                        await generateEchartsOptionsForRunQuery(
+                            queryTool,
+                            queryResults,
+                        );
 
                     if (echartsOptions) {
                         const chartImage = await renderEcharts(echartsOptions);
