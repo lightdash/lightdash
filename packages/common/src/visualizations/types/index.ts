@@ -47,6 +47,12 @@ export enum AxisSide {
     RIGHT,
 }
 
+export enum StackType {
+    NONE = 'none',
+    NORMAL = 'stack',
+    PERCENT = 'stack100',
+}
+
 export function getColumnAxisType(dimensionType: DimensionType): VizIndexType {
     switch (dimensionType) {
         case DimensionType.DATE:
@@ -151,6 +157,7 @@ export type PivotChartLayout = {
     }[];
     groupBy: { reference: string }[] | undefined;
     sortBy?: VizSortBy[];
+    stack?: boolean | StackType; // StackType enum or boolean for backward compatibility
 };
 
 export const isPivotChartLayout = (

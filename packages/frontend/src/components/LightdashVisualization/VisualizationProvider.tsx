@@ -11,6 +11,7 @@ import {
     type ParametersValuesMap,
     type PivotValue,
     type Series,
+    type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
@@ -140,7 +141,7 @@ const VisualizationProvider: FC<
         useChartColorConfig({ colorPalette });
 
     // cartesian config related
-    const [stacking, setStacking] = useState<boolean>();
+    const [stacking, setStacking] = useState<boolean | StackType>();
     const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
     // --
 

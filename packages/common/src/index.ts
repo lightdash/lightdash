@@ -344,6 +344,7 @@ export * from './utils/timeFrames';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
+export * from './visualizations/chartTransformations';
 export * from './visualizations/PieChartDataModel';
 export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
