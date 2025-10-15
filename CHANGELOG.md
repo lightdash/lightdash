@@ -1,3 +1,10 @@
+## [0.2086.2](https://github.com/lightdash/lightdash/compare/0.2086.1...0.2086.2) (2025-10-15)
+
+
+### Bug Fixes
+
+* adding stacking options to area chat ([#17459](https://github.com/lightdash/lightdash/issues/17459)) ([eb1331f](https://github.com/lightdash/lightdash/commit/eb1331fe3813f793913e802425a2877ca9fad2ac))
+
 ## [0.2086.1](https://github.com/lightdash/lightdash/compare/0.2086.0...0.2086.1) (2025-10-15)
 
 
