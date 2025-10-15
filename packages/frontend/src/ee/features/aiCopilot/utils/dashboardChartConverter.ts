@@ -23,7 +23,6 @@ function convertAiVisualizationToCreateSavedChartVersion(
     const chartConfig = getChartConfigFromAiAgentVizConfig({
         vizConfig: dashboardVisualization,
         metricQuery,
-        rows: [], // Empty rows array - charts will load data dynamically
         maxQueryLimit: options.maxQueryLimit,
         fieldsMap: aiVizData.query.fields,
     });

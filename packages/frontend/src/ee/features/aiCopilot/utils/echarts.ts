@@ -5,6 +5,7 @@ import {
     ChartType,
     formatItemValue,
     friendlyName,
+    getChartConfigFromRunQuery,
     getItemLabelWithoutTableName,
     isField,
     parseVizConfig,
@@ -13,15 +14,14 @@ import {
     type ItemsMap,
     type MetricQuery,
     type PivotReference,
-    type ResultRow,
     type TimeSeriesMetricVizConfigSchemaType,
+    type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
 import { type Axis } from 'echarts';
-import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
 const formatFieldLabel = (fieldId: string, fieldsMap: ItemsMap): string => {
     const field = fieldsMap[fieldId];
@@ -53,30 +53,10 @@ const formatPivotValueLabel = (
 const getVerticalBarMetricEchartsConfig = (
     config: VerticalBarMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
-    rows: Record<string, unknown>[],
     metadata: AiVizMetadata,
     fieldsMap: ItemsMap,
 ): ChartConfig => {
     let metrics: (string | PivotReference)[] = config.yMetrics;
-    const dimensions = [
-        config.xDimension,
-        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
-    ];
-
-    if (config.breakdownByDimension) {
-        const pivot = getPivotedData(
-            rows as ResultRow[],
-            [config.breakdownByDimension],
-            config.yMetrics.filter(
-                (metric: string) => !dimensions.includes(metric),
-            ),
-            config.yMetrics.filter((metric: string) =>
-                dimensions.includes(metric),
-            ),
-        );
-        rows = pivot.rows;
-        metrics = Object.values(pivot.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -89,7 +69,7 @@ const getVerticalBarMetricEchartsConfig = (
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -145,31 +125,10 @@ const getVerticalBarMetricEchartsConfig = (
 const getTimeSeriesMetricEchartsConfig = (
     config: TimeSeriesMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
-    rows: Record<string, unknown>[],
     metadata: AiVizMetadata,
     fieldsMap: ItemsMap,
 ): ChartConfig => {
     let metrics: (string | PivotReference)[] = config.yMetrics;
-    const dimensions = [
-        config.xDimension,
-        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
-    ];
-
-    if (config.breakdownByDimension) {
-        // Sort the pivoted data
-        const pivoted = getPivotedData(
-            rows as ResultRow[],
-            [config.breakdownByDimension],
-            config.yMetrics.filter(
-                (metric: string) => !dimensions.includes(metric),
-            ),
-            config.yMetrics.filter((metric: string) =>
-                dimensions.includes(metric),
-            ),
-        );
-        rows = pivoted.rows;
-        metrics = Object.values(pivoted.rowKeyMap);
-    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -182,7 +141,7 @@ const getTimeSeriesMetricEchartsConfig = (
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
-                    type: 'plain',
+                    type: 'scroll',
                 },
                 grid: { containLabel: true },
                 xAxis: [
@@ -240,15 +199,26 @@ const getTableMetricEchartsConfig = (): ChartConfig => ({
 export const getChartConfigFromAiAgentVizConfig = ({
     vizConfig,
     metricQuery,
-    rows,
     maxQueryLimit,
     fieldsMap,
+    overrideChartType,
 }: {
-    vizConfig: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
+    vizConfig:
+        | ToolTableVizArgs
+        | ToolTimeSeriesArgs
+        | ToolVerticalBarArgs
+        | ToolRunQueryArgs;
     metricQuery: MetricQuery;
-    rows: Record<string, unknown>[];
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;
+    overrideChartType?:
+        | 'table'
+        | 'bar'
+        | 'horizontal'
+        | 'line'
+        | 'scatter'
+        | 'pie'
+        | 'funnel';
 }) => {
     const parsedConfig = parseVizConfig(vizConfig, maxQueryLimit);
     if (!parsedConfig) {
@@ -262,7 +232,6 @@ export const getChartConfigFromAiAgentVizConfig = ({
                 echartsConfig: getVerticalBarMetricEchartsConfig(
                     parsedConfig.vizTool.vizConfig,
                     metricQuery,
-                    rows,
                     {
                         title: parsedConfig.vizTool.title,
                         description: parsedConfig.vizTool.description,
@@ -276,7 +245,6 @@ export const getChartConfigFromAiAgentVizConfig = ({
                 echartsConfig: getTimeSeriesMetricEchartsConfig(
                     parsedConfig.vizTool.vizConfig,
                     metricQuery,
-                    rows,
                     {
                         title: parsedConfig.vizTool.title,
                         description: parsedConfig.vizTool.description,
@@ -288,6 +256,18 @@ export const getChartConfigFromAiAgentVizConfig = ({
             return {
                 ...parsedConfig,
                 echartsConfig: getTableMetricEchartsConfig(),
+            };
+        case AiResultType.QUERY_RESULT:
+            return {
+                type: parsedConfig.type,
+                vizTool: parsedConfig.vizTool,
+                metricQuery: parsedConfig.metricQuery,
+                echartsConfig: getChartConfigFromRunQuery({
+                    queryTool: parsedConfig.vizTool,
+                    metricQuery,
+                    fieldsMap,
+                    overrideChartType,
+                }),
             };
         default:
             return assertUnreachable(parsedConfig, 'Invalid chart type');

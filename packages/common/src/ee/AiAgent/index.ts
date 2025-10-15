@@ -10,6 +10,7 @@ import type {
     ToolDashboardArgs,
     ToolName,
     ToolProposeChangeOutput,
+    ToolRunQueryArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -25,6 +26,8 @@ export * from './requestTypes';
 export * from './schemas';
 export * from './types';
 export * from './utils';
+export * from './utils/chartConfigUtils';
+export * from './validators';
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -63,6 +66,7 @@ export const baseAgentSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    version: z.number(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -83,6 +87,7 @@ export type AiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'version'
 >;
 
 export type AiAgentSummary = Pick<
@@ -101,6 +106,7 @@ export type AiAgentSummary = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'version'
 >;
 
 export type AiAgentUser = {
@@ -193,6 +199,7 @@ export type ApiCreateAiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'version'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -208,6 +215,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'userAccess'
         | 'enableDataAccess'
         | 'enableSelfImprovement'
+        | 'version'
     >
 > & {
     uuid: string;
@@ -363,6 +371,7 @@ export type AiArtifact = {
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
+        | ToolRunQueryArgs
         | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;

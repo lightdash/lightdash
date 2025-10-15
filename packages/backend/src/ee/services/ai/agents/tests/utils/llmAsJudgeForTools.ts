@@ -20,6 +20,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
+    runQuery: 'query_result',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',

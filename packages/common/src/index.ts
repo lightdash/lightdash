@@ -330,6 +330,7 @@ export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
 export * from './utils/oauth';
 export * from './utils/organization';
+export * from './utils/pivotData';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';

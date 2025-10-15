@@ -2,7 +2,6 @@ import {
     AiMetricQueryWithFilters,
     AiResultType,
     MetricQuery,
-    metricQueryVerticalBarViz,
     ToolVerticalBarArgsTransformed,
 } from '@lightdash/common';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
