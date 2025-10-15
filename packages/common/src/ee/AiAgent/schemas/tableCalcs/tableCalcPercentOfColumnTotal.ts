@@ -10,6 +10,8 @@ export const tableCalcPercentOfColumnTotalSchema = baseTableCalcSchema.extend({
     type: z.literal('percent_of_column_total'),
     fieldId: getFieldIdSchema({
         additionalDescription: 'Field to calculate percentage of column total',
+        includeCustomMetrics: true,
+        includeTableCalculations: true,
     }),
     partitionBy: z
         .array(partitionBySchema)

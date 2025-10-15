@@ -11,6 +11,8 @@ export const tableCalcPercentOfPreviousValueSchema = baseTableCalcSchema.extend(
         type: z.literal('percent_of_previous_value'),
         fieldId: getFieldIdSchema({
             additionalDescription: 'Field whose values you want to compare',
+            includeCustomMetrics: true,
+            includeTableCalculations: true,
         }),
         orderBy: z
             .array(orderBySchema)

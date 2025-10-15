@@ -6,6 +6,8 @@ export const tableCalcRankInColumnSchema = baseTableCalcSchema.extend({
     type: z.literal('rank_in_column'),
     fieldId: getFieldIdSchema({
         additionalDescription: 'Field to rank by',
+        includeCustomMetrics: true,
+        includeTableCalculations: true,
     }),
 });
 

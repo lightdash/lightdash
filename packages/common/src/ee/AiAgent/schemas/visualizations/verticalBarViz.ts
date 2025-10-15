@@ -19,7 +19,12 @@ export const verticalBarMetricVizConfigSchema = z.object({
             'The field id of the dimension to be displayed on the x-axis.',
     }),
     yMetrics: z
-        .array(getFieldIdSchema({ additionalDescription: null }))
+        .array(
+            getFieldIdSchema({
+                additionalDescription: null,
+                includeCustomMetrics: true,
+            }),
+        )
         .min(1)
         .describe(
             'The field ids of the metrics to be displayed on the y-axis. The height of the bars',
