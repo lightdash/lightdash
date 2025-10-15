@@ -1,3 +1,10 @@
+## [0.2086.1](https://github.com/lightdash/lightdash/compare/0.2086.0...0.2086.1) (2025-10-15)
+
+
+### Bug Fixes
+
+* update scim/v2/Schemas and scim/v2/ResourceTypes to return a ListResponse and add scim/v2/Schemas/{schemaId} endpoint ([#17462](https://github.com/lightdash/lightdash/issues/17462)) ([938a757](https://github.com/lightdash/lightdash/commit/938a7571ce25a787ccc3c748aa2acba734fed0bf))
+
 # [0.2086.0](https://github.com/lightdash/lightdash/compare/0.2085.0...0.2086.0) (2025-10-15)
 
 
