@@ -7,7 +7,6 @@ import {
 } from '../../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
-import { formatPivotValueLabel } from '../../shared/formatPivotValueLabel';
 
 export const getBarChartConfig = ({
     queryTool,
@@ -31,6 +30,7 @@ export const getBarChartConfig = ({
             layout: {
                 xField: xDimension,
                 yField: metricQuery.metrics,
+                stack: !!chartConfig?.stackBars,
             },
             eChartsConfig: {
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
@@ -53,33 +53,18 @@ export const getBarChartConfig = ({
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => {
-                    const defaultProperties = {
-                        type: CartesianSeriesType.BAR,
-                        yAxisIndex: 0,
-                        // ...(chartConfig?.stackBars && { stack: 'total' }),
-                    };
-
-                    if (typeof metric === 'string') {
-                        return {
-                            ...defaultProperties,
-                            name: formatFieldLabel(metric, fieldsMap),
-                            encode: {
-                                xRef: { field: xDimension },
-                                yRef: { field: metric },
-                            },
-                        };
-                    }
-
-                    return {
-                        ...defaultProperties,
-                        name: formatPivotValueLabel(metric, fieldsMap),
-                        encode: {
-                            xRef: { field: xDimension },
-                            yRef: metric,
-                        },
-                    };
-                }),
+                series: metrics.map((metric) => ({
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    ...(chartConfig?.stackBars && {
+                        stack: metric,
+                    }),
+                    encode: {
+                        xRef: { field: xDimension },
+                        yRef: { field: metric },
+                    },
+                    name: formatFieldLabel(metric, fieldsMap),
+                })),
             },
         },
     };

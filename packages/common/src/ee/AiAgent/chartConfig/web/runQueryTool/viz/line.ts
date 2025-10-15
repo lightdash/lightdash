@@ -7,7 +7,6 @@ import {
 } from '../../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
 import { formatFieldLabel } from '../../../shared/formatFieldLabel';
-import { formatPivotValueLabel } from '../../shared/formatPivotValueLabel';
 
 export const getLineChartConfig = ({
     queryTool,
@@ -53,35 +52,20 @@ export const getLineChartConfig = ({
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => {
-                    const defaultProperties = {
-                        type: CartesianSeriesType.LINE,
-                        yAxisIndex: 0,
-                        ...(chartConfig?.lineType === 'area' && {
-                            areaStyle: {},
-                        }),
-                    };
-
-                    if (typeof metric === 'string') {
-                        return {
-                            ...defaultProperties,
-                            name: formatFieldLabel(metric, fieldsMap),
-                            encode: {
-                                xRef: { field: xDimension },
-                                yRef: { field: metric },
-                            },
-                        };
-                    }
-
-                    return {
-                        ...defaultProperties,
-                        name: formatPivotValueLabel(metric, fieldsMap),
-                        encode: {
-                            xRef: { field: xDimension },
-                            yRef: metric,
-                        },
-                    };
-                }),
+                series: metrics.map((metric) => ({
+                    type: CartesianSeriesType.LINE,
+                    yAxisIndex: 0,
+                    ...(chartConfig?.lineType === 'area' && {
+                        areaStyle: {},
+                    }),
+                    name: formatFieldLabel(metric, fieldsMap),
+                    encode: {
+                        xRef: { field: xDimension },
+                        yRef: { field: metric },
+                    },
+                    stack:
+                        chartConfig?.lineType === 'area' ? 'total' : undefined,
+                })),
             },
         },
     };
