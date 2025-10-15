@@ -47,8 +47,7 @@ export const Layout: FC<Props> = ({ items }) => {
 
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
-        cartesianType !== CartesianSeriesType.SCATTER &&
-        cartesianType !== CartesianSeriesType.AREA;
+        cartesianType !== CartesianSeriesType.SCATTER;
 
     // Initialize stacking mode from saved configuration
     const initialStackMode = useMemo(() => {
