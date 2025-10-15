@@ -1,3 +1,10 @@
+## [0.2086.3](https://github.com/lightdash/lightdash/compare/0.2086.2...0.2086.3) (2025-10-15)
+
+
+### Bug Fixes
+
+* return formatted date value for columns ([#17469](https://github.com/lightdash/lightdash/issues/17469)) ([07f2e38](https://github.com/lightdash/lightdash/commit/07f2e38a383151a62a110d8264a3c6067cf1884d))
+
 ## [0.2086.2](https://github.com/lightdash/lightdash/compare/0.2086.1...0.2086.2) (2025-10-15)
 
 
