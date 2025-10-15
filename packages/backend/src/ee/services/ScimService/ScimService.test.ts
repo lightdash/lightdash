@@ -480,10 +480,16 @@ describe('ScimService', () => {
 
         describe('getSchemas', () => {
             test('should return correct schemas array', async () => {
-                const schemas = ScimService.getSchemas();
+                const schemasResponse = ScimService.getSchemas();
 
-                expect(schemas).toHaveLength(5);
-                expect(schemas.map((s) => s.id)).toEqual([
+                expect(schemasResponse.schemas).toEqual([
+                    ScimSchemaType.LIST_RESPONSE,
+                ]);
+                expect(schemasResponse.totalResults).toBe(5);
+                expect(schemasResponse.itemsPerPage).toBe(5);
+                expect(schemasResponse.startIndex).toBe(1);
+                expect(schemasResponse.Resources).toHaveLength(5);
+                expect(schemasResponse.Resources.map((s) => s.id)).toEqual([
                     ScimSchemaType.USER,
                     ScimSchemaType.GROUP,
                     ScimSchemaType.LIGHTDASH_USER_EXTENSION,
@@ -492,7 +498,7 @@ describe('ScimService', () => {
                 ]);
 
                 // Test User schema
-                const userSchema = schemas.find(
+                const userSchema = schemasResponse.Resources.find(
                     (s) => s.id === ScimSchemaType.USER,
                 );
                 expect(userSchema).toBeDefined();
@@ -507,7 +513,7 @@ describe('ScimService', () => {
                 );
 
                 // Test Group schema
-                const groupSchema = schemas.find(
+                const groupSchema = schemasResponse.Resources.find(
                     (s) => s.id === ScimSchemaType.GROUP,
                 );
                 expect(groupSchema).toBeDefined();
@@ -521,7 +527,7 @@ describe('ScimService', () => {
                 );
 
                 // Test Lightdash extension schema
-                const extensionSchema = schemas.find(
+                const extensionSchema = schemasResponse.Resources.find(
                     (s) => s.id === ScimSchemaType.LIGHTDASH_USER_EXTENSION,
                 );
                 expect(extensionSchema).toBeDefined();
@@ -540,9 +546,10 @@ describe('ScimService', () => {
                 );
 
                 // Test ServiceProviderConfig schema
-                const serviceProviderConfigSchema = schemas.find(
-                    (s) => s.id === ScimSchemaType.SERVICE_PROVIDER_CONFIG,
-                );
+                const serviceProviderConfigSchema =
+                    schemasResponse.Resources.find(
+                        (s) => s.id === ScimSchemaType.SERVICE_PROVIDER_CONFIG,
+                    );
                 expect(serviceProviderConfigSchema).toBeDefined();
                 expect(serviceProviderConfigSchema!.name).toBe(
                     'Service Provider Configuration',
@@ -556,7 +563,7 @@ describe('ScimService', () => {
                 );
 
                 // Test ResourceType schema
-                const resourceTypeSchema = schemas.find(
+                const resourceTypeSchema = schemasResponse.Resources.find(
                     (s) => s.id === ScimSchemaType.RESOURCE_TYPE,
                 );
                 expect(resourceTypeSchema).toBeDefined();
@@ -573,12 +580,18 @@ describe('ScimService', () => {
 
         describe('getResourceTypes', () => {
             test('should return correct resource types as array', async () => {
-                const resourceTypes = ScimService.getResourceTypes();
+                const resourceTypesResponse = ScimService.getResourceTypes();
 
-                expect(resourceTypes).toHaveLength(2);
+                expect(resourceTypesResponse.schemas).toEqual([
+                    ScimSchemaType.LIST_RESPONSE,
+                ]);
+                expect(resourceTypesResponse.totalResults).toBe(2);
+                expect(resourceTypesResponse.itemsPerPage).toBe(2);
+                expect(resourceTypesResponse.startIndex).toBe(1);
+                expect(resourceTypesResponse.Resources).toHaveLength(2);
 
                 // Test User resource type
-                const userResourceType = resourceTypes.find(
+                const userResourceType = resourceTypesResponse.Resources.find(
                     (rt) => rt.name === 'User',
                 );
                 expect(userResourceType).toEqual({
@@ -603,7 +616,7 @@ describe('ScimService', () => {
                 });
 
                 // Test Group resource type
-                const groupResourceType = resourceTypes.find(
+                const groupResourceType = resourceTypesResponse.Resources.find(
                     (rt) => rt.name === 'Group',
                 );
                 expect(groupResourceType).toEqual({
