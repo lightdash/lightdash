@@ -6,7 +6,7 @@ import {
     OAuthIntrospectResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import express from 'express';
+import express, { type Router } from 'express';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
 import {
@@ -14,7 +14,7 @@ import {
     OAuthService,
 } from '../services/OAuthService/OAuthService';
 
-const oauthRouter = express.Router({ mergeParams: true });
+const oauthRouter: Router = express.Router({ mergeParams: true });
 
 // Get OAuth service from request
 function getOAuthService(req: express.Request): OAuthService {

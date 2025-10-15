@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Router } from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
@@ -21,7 +21,7 @@ import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
 import { userRouter } from './userRouter';
 
-export const apiV1Router = express.Router();
+export const apiV1Router: Router = express.Router();
 
 apiV1Router.get('/livez', async (req, res, next) => {
     res.json({

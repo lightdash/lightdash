@@ -25,11 +25,6 @@ type UserAbilityBuilderArgs = {
     isEnterprise?: boolean;
 };
 
-export * from './buildAccountHelpers';
-export * from './jwtAbility';
-export * from './parseAccount';
-export * from './serviceAccountAbility';
-
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
 
 export const getUserAbilityBuilder = ({

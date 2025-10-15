@@ -16,10 +16,10 @@
         "declarationMap": true, /* Generates a sourcemap for each corresponding '.d.ts' file. */
         "sourceMap": true, /* Generates corresponding '.map' file. */
         // "outFile": "./",                             /* Concatenate and emit output to single file. */
-        "outDir": "dist",
+        "outDir": "dist/types",
         "rootDir": "src",
         "composite": true /* Enable project compilation */,
-        // "tsBuildInfoFile": "./",                     /* Specify file to store incremental compilation information */
+        "tsBuildInfoFile": "dist/types/.tsbuildinfo",
         // "removeComments": true,                      /* Do not emit comments to output. */
         // "noEmit": true,                              /* Do not emit outputs. */
         "importHelpers": true, /* Import emit helpers from 'tslib'. */
