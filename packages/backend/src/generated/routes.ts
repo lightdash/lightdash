@@ -738,6 +738,29 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimListResponse_ScimSchema_: {
+        dataType: 'refObject',
+        properties: {
+            schemas: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refEnum',
+                    ref: 'ScimSchemaType.LIST_RESPONSE',
+                },
+                required: true,
+            },
+            totalResults: { dataType: 'double', required: true },
+            itemsPerPage: { dataType: 'double', required: true },
+            startIndex: { dataType: 'double', required: true },
+            Resources: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'ScimSchema' },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ScimSchemaType.RESOURCE_TYPE': {
         dataType: 'refEnum',
         enums: ['urn:ietf:params:scim:schemas:core:2.0:ResourceType'],
@@ -778,6 +801,29 @@ const models: TsoaRoute.Models = {
                         schema: { dataType: 'string', required: true },
                     },
                 },
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimListResponse_ScimResourceType_: {
+        dataType: 'refObject',
+        properties: {
+            schemas: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refEnum',
+                    ref: 'ScimSchemaType.LIST_RESPONSE',
+                },
+                required: true,
+            },
+            totalResults: { dataType: 'double', required: true },
+            itemsPerPage: { dataType: 'double', required: true },
+            startIndex: { dataType: 'double', required: true },
+            Resources: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'ScimResourceType' },
+                required: true,
             },
         },
         additionalProperties: true,
@@ -3654,6 +3700,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                displayStyle: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['text'] },
+                        { dataType: 'enum', enums: ['bar'] },
+                    ],
+                },
                 frozen: { dataType: 'boolean' },
                 name: { dataType: 'string' },
                 visible: { dataType: 'boolean' },
@@ -5190,7 +5243,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_':
+    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -5262,6 +5315,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'boolean',
                         required: true,
                     },
+                    version: { dataType: 'double', required: true },
                 },
                 validators: {},
             },
@@ -5270,7 +5324,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_',
             validators: {},
         },
     },
@@ -5336,7 +5390,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'AiAgentUserPreferences', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -5408,6 +5462,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'boolean',
                         required: true,
                     },
+                    version: { dataType: 'double', required: true },
                 },
                 validators: {},
             },
@@ -5416,7 +5471,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_',
             validators: {},
         },
     },
@@ -5445,7 +5500,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_':
+    'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -5513,6 +5568,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'boolean',
                         required: true,
                     },
+                    version: { dataType: 'double', required: true },
                 },
                 validators: {},
             },
@@ -5521,12 +5577,12 @@ const models: TsoaRoute.Models = {
     ApiCreateAiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_',
+            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement__':
+    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__':
         {
             dataType: 'refAlias',
             type: {
@@ -5630,6 +5686,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    version: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -5641,7 +5704,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement__',
+                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -5810,6 +5873,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['findDashboards'] },
                 { dataType: 'enum', enums: ['findCharts'] },
                 { dataType: 'enum', enums: ['improveContext'] },
+                { dataType: 'enum', enums: ['runQuery'] },
             ],
             validators: {},
         },
@@ -5933,6 +5997,25 @@ const models: TsoaRoute.Models = {
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['error'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                status: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                        },
+                                                    ],
                                                     required: true,
                                                 },
                                             },
@@ -6585,6 +6668,7 @@ const models: TsoaRoute.Models = {
             'time_series_chart',
             'vertical_bar_chart',
             'table',
+            'query_result',
             'dashboard',
             'improve_context',
             'propose_change',
@@ -10618,6 +10702,11 @@ const models: TsoaRoute.Models = {
         enums: ['line'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    StackType: {
+        dataType: 'refEnum',
+        enums: ['none', 'stack', 'stack100'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PivotChartLayout: {
         dataType: 'refAlias',
         type: {
@@ -10625,10 +10714,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 stack: {
                     dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'boolean' },
-                    ],
+                    subSchemas: [{ dataType: 'boolean' }, { ref: 'StackType' }],
                 },
                 sortBy: {
                     dataType: 'array',
@@ -10707,11 +10793,6 @@ const models: TsoaRoute.Models = {
     AxisSide: {
         dataType: 'refEnum',
         enums: [0, 1],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    StackType: {
-        dataType: 'refEnum',
-        enums: ['none', 'stack', 'stack100'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
@@ -10891,6 +10972,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                barConfig: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        color: { dataType: 'string' },
+                        max: { dataType: 'double' },
+                        min: { dataType: 'double' },
+                    },
+                },
+                displayStyle: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['text'] },
+                        { dataType: 'enum', enums: ['bar'] },
+                    ],
+                },
                 aggregation: { ref: 'VizAggregationOptions' },
                 order: { dataType: 'double' },
                 frozen: { dataType: 'boolean', required: true },
@@ -15260,6 +15356,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    version: { dataType: 'double', required: true },
                     slug: { dataType: 'string', required: true },
                     tableName: { dataType: 'string', required: true },
                     pivotConfig: {
@@ -15297,7 +15394,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    version: { dataType: 'double', required: true },
                     spaceSlug: { dataType: 'string', required: true },
                     downloadedAt: {
                         dataType: 'union',
@@ -15339,13 +15435,13 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    version: { dataType: 'double', required: true },
                     slug: { dataType: 'string', required: true },
                     tabs: {
                         dataType: 'array',
                         array: { dataType: 'refAlias', ref: 'DashboardTab' },
                         required: true,
                     },
-                    version: { dataType: 'double', required: true },
                     spaceSlug: { dataType: 'string', required: true },
                     downloadedAt: {
                         dataType: 'union',
@@ -21024,6 +21120,66 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getSchemas',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsScimRootController_getSchema: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        schemaId: {
+            in: 'path',
+            name: 'schemaId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/scim/v2/Schemas/:schemaId',
+        ...fetchMiddlewares<RequestHandler>(ScimRootController),
+        ...fetchMiddlewares<RequestHandler>(
+            ScimRootController.prototype.getSchema,
+        ),
+
+        async function ScimRootController_getSchema(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsScimRootController_getSchema,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ScimRootController>(
+                    ScimRootController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getSchema',
                     controller,
                     response,
                     next,
