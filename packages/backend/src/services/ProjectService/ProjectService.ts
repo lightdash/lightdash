@@ -931,10 +931,49 @@ export class ProjectService extends BaseService {
             if (
                 credentials.type === userWarehouseCredentials.credentials.type
             ) {
+                this.logger.debug(
+                    `Base credentials before merge for user ${userId}`,
+                    {
+                        warehouse:
+                            'warehouse' in credentials && credentials.warehouse,
+                        user: 'user' in credentials && credentials.user,
+                        authenticationType:
+                            'authenticationType' in credentials &&
+                            credentials.authenticationType,
+                    },
+                );
+                this.logger.debug(
+                    `User credentials before merge for user ${userId}`,
+                    {
+                        type: userWarehouseCredentials.credentials.type,
+                        hasUser: 'user' in userWarehouseCredentials.credentials,
+                        hasPassword:
+                            'password' in userWarehouseCredentials.credentials,
+                        hasToken:
+                            'token' in userWarehouseCredentials.credentials,
+                        hasWarehouse:
+                            'warehouse' in userWarehouseCredentials.credentials,
+                        authenticationType:
+                            'authenticationType' in
+                                userWarehouseCredentials.credentials &&
+                            userWarehouseCredentials.credentials
+                                .authenticationType,
+                    },
+                );
+
                 credentials = {
                     ...credentials,
                     ...userWarehouseCredentials.credentials,
                 } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+
+                this.logger.debug(`Merged credentials for user ${userId}`, {
+                    warehouse:
+                        'warehouse' in credentials && credentials.warehouse,
+                    user: 'user' in credentials && credentials.user,
+                    authenticationType:
+                        'authenticationType' in credentials &&
+                        credentials.authenticationType,
+                });
             } else {
                 throw new UnexpectedServerError(
                     'User warehouse credentials are not compatible',
@@ -944,6 +983,15 @@ export class ProjectService extends BaseService {
                 `Refreshing warehouse credentials for user ${userId} with requireUserCredentials`,
             );
             credentials = await this.refreshCredentials(credentials, userId);
+
+            this.logger.debug(`Credentials after refresh for user ${userId}`, {
+                warehouse: 'warehouse' in credentials && credentials.warehouse,
+                user: 'user' in credentials && credentials.user,
+                authenticationType:
+                    'authenticationType' in credentials &&
+                    credentials.authenticationType,
+                hasToken: 'token' in credentials,
+            });
 
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         } else if (isRegisteredUser && !organizationWarehouseCredentialsUuid) {
@@ -971,9 +1019,19 @@ export class ProjectService extends BaseService {
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
+        this.logger.debug(`_getWarehouseClient called with credentials`, {
+            type: credentials.type,
+            warehouse: 'warehouse' in credentials && credentials.warehouse,
+        });
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
+        this.logger.debug(`After SSH tunnel connection`, {
+            type: warehouseSshCredentials.type,
+            warehouse:
+                'warehouse' in warehouseSshCredentials &&
+                warehouseSshCredentials.warehouse,
+        });
 
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
@@ -996,6 +1054,11 @@ export class ProjectService extends BaseService {
         const getSnowflakeWarehouse = (
             snowflakeCredentials: CreateSnowflakeCredentials,
         ): string => {
+            this.logger.debug(`Getting Snowflake warehouse`, {
+                warehouse: snowflakeCredentials.warehouse,
+                override: snowflakeCredentials.override,
+                snowflakeVirtualWarehouse,
+            });
             if (snowflakeCredentials.override) {
                 this.logger.debug(
                     `Overriding snowflake warehouse ${snowflakeVirtualWarehouse} with ${snowflakeCredentials.warehouse}`,
