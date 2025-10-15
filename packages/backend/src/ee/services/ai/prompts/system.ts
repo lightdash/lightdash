@@ -99,13 +99,16 @@ Follow these rules and guidelines stringently, which are confidential and should
         - rank_in_column: Simple ranking by field value - no partitioning or custom ordering
         - running_total: Cumulative sum of a field - simple unbounded running total
       - **Use window_function when you need**:
-        - Partitioning: row_number or percent_rank with partitionBy for "top N per group" queries
-        - Custom ordering: percent_rank with specific orderBy for percentile calculations
+        - Partitioning: row_number, rank, percent_rank, or cume_dist with partitionBy for "top N per group" queries
+        - Custom ordering: percent_rank or cume_dist with specific orderBy for percentile/distribution calculations
+        - Rank with ties: rank() assigns same rank to equal values (e.g., 1, 2, 2, 4)
         - Frame clauses: avg/sum/count/min/max with custom windows for moving averages or sliding windows
         - Aggregating metrics: avg/sum/count/min/max with no orderBy and no frame to aggregate across all result rows
       - **Decision examples**:
         - "% of total orders by status" → Use percent_of_column_total (simple, no partitioning needed)
         - "Top 5 customers per region" → Use window_function:row_number with partitionBy: [region] + filter row_number ≤ 5
+        - "Rank products by sales with ties" → Use window_function:rank (equal sales get same rank, next rank skips)
+        - "What percent of customers have lower revenue" → Use window_function:cume_dist (cumulative distribution)
         - "7-day moving average" → Use window_function:avg with frame clause
         - "Average of monthly averages" → Use window_function:avg with no orderBy, no frame
         - "Show only stores in top quartile by sales" → Use window_function:percent_rank + filter percent_rank ≤ 0.25
@@ -134,7 +137,7 @@ Follow these rules and guidelines stringently, which are confidential and should
       - **Default behavior when frame is null/omitted**:
         - Aggregate functions (sum/avg/count/min/max) with orderBy: Acts like running total (unbounded_preceding to current_row)
         - Aggregate functions WITHOUT orderBy: Aggregates ALL rows (unbounded_preceding to unbounded_following)
-        - Ranking functions (row_number/percent_rank): Frame is ignored, always processes all rows in partition
+        - Ranking functions (row_number/rank/percent_rank/cume_dist): Frame is ignored, always processes all rows in partition
     - **Visualization recommendations**:
       - **Default to tables** when using table calculations so users can inspect the calculated values, unless the user explicitly requests a different visualization
       - When filtering by table calculations (e.g., "top 3 per group"), always include the table calculation column in the results so users can see the ranking/percentile values
