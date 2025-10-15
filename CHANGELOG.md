@@ -1,3 +1,10 @@
+## [0.2086.4](https://github.com/lightdash/lightdash/compare/0.2086.3...0.2086.4) (2025-10-15)
+
+
+### Bug Fixes
+
+* convert prompt txts to ts files ([#17473](https://github.com/lightdash/lightdash/issues/17473)) ([f650b36](https://github.com/lightdash/lightdash/commit/f650b36574640e3a28651ea83f934eccd2ca2f37))
+
 ## [0.2086.3](https://github.com/lightdash/lightdash/compare/0.2086.2...0.2086.3) (2025-10-15)
 
 
