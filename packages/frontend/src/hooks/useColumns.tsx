@@ -70,8 +70,8 @@ const isBarDisplay = (
         | CellContext<ResultRow, { value: ResultValue }>
         | CellContext<RawResultRow, string>,
 ) => {
-    const minMaxMap = (info.table as any).options.meta?.minMaxMap;
-    const columnProperties = (info.table as any).options.meta?.columnProperties;
+    const minMaxMap = info.table?.options.meta?.minMaxMap;
+    const columnProperties = info.table?.options.meta?.columnProperties;
 
     // For pivot tables, get the base field ID from the item in meta
     // This is needed because pivoted columns have different IDs than the base field
@@ -90,7 +90,7 @@ const formatBarDisplayCell = (
     const cellValue = info.getValue();
     const columnId = info.column.id;
 
-    const minMaxMap = (info.table as any).options.meta?.minMaxMap;
+    const minMaxMap = info.table?.options.meta?.minMaxMap;
 
     // For pivot tables, get the base field ID from the item in meta
     // This is needed because pivoted columns have different IDs than the base field
