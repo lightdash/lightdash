@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     getErrorMessage,
     isSupportedDbtAdapterType,
@@ -20,6 +21,12 @@ import {
 } from '../../dbt/profile';
 import GlobalState from '../../globalState';
 import { lightdashApi } from './apiClient';
+
+// Cache Snowflake client with external browser auth to avoid opening multiple browser tabs
+// Only cache for external browser auth since that's where the authentication prompt occurs
+let cachedSnowflakeClient: ReturnType<
+    typeof warehouseClientFromCredentials
+> | null = null;
 
 type GetTableCatalogProps = {
     projectUuid: string;
@@ -186,6 +193,7 @@ export default async function getWarehouseClient(
         const dbtAdaptorType = await getDbtCloudConnectionType();
         GlobalState.debug(`> Using ${dbtAdaptorType} client mock`);
         credentials = getMockCredentials(dbtAdaptorType);
+
         warehouseClient = warehouseClientFromCredentials({
             ...credentials,
             startOfWeek: isWeekDay(options.startOfWeek)
@@ -264,12 +272,36 @@ export default async function getWarehouseClient(
         });
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
-        warehouseClient = warehouseClientFromCredentials({
-            ...credentials,
-            startOfWeek: isWeekDay(options.startOfWeek)
-                ? options.startOfWeek
-                : undefined,
-        });
+
+        // Check if we can reuse cached Snowflake client with external browser auth
+        const isSnowflakeExternalBrowser =
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            (credentials as CreateSnowflakeCredentials).authenticationType ===
+                'external_browser';
+
+        if (isSnowflakeExternalBrowser && cachedSnowflakeClient) {
+            GlobalState.debug(
+                '> Reusing cached Snowflake client (external browser auth)',
+            );
+            warehouseClient = cachedSnowflakeClient;
+        } else {
+            if (isSnowflakeExternalBrowser) {
+                GlobalState.debug(
+                    '> Creating new Snowflake client (external browser auth)',
+                );
+            }
+            warehouseClient = warehouseClientFromCredentials({
+                ...credentials,
+                startOfWeek: isWeekDay(options.startOfWeek)
+                    ? options.startOfWeek
+                    : undefined,
+            });
+
+            // Cache Snowflake client with external browser auth
+            if (isSnowflakeExternalBrowser) {
+                cachedSnowflakeClient = warehouseClient;
+            }
+        }
     }
     return {
         warehouseClient,

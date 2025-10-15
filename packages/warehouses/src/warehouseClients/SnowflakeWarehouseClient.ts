@@ -187,6 +187,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     quotedIdentifiersIgnoreCase?: boolean;
 
+    // Cache connection for external browser authentication to avoid opening multiple browser tabs
+    private cachedConnection?: Connection;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
 
@@ -208,6 +211,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             authenticationOptions = {
                 token: credentials.token,
                 authenticator: 'OAUTH',
+            };
+        } else if (credentials.authenticationType === 'external_browser') {
+            authenticationOptions = {
+                authenticator: 'EXTERNALBROWSER',
             };
         } else if (
             credentials.privateKey &&
@@ -250,6 +257,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         this.connectionOptions = {
             account: credentials.account,
             // When using SSO, username and role can cause conflict
+            // External browser authentication requires username and role
             ...(credentials.authenticationType !== 'sso'
                 ? {
                       username: credentials.user,
@@ -271,13 +279,36 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
+        // For external browser authentication, reuse cached connection to avoid opening multiple browser tabs
+        // Only cache if no connection options overrides are provided (default connection)
+        if (
+            this.connectionOptions.authenticator === 'EXTERNALBROWSER' &&
+            !connectionOptionsOverrides &&
+            this.cachedConnection
+        ) {
+            return this.cachedConnection;
+        }
+
         let connection: Connection;
         try {
             connection = createConnection({
                 ...this.connectionOptions,
                 ...connectionOptionsOverrides,
             });
-            await Util.promisify(connection.connect.bind(connection))();
+
+            // External browser authentication requires connectAsync()
+            if (this.connectionOptions.authenticator === 'EXTERNALBROWSER') {
+                await Util.promisify(
+                    connection.connectAsync.bind(connection),
+                )();
+
+                // Cache the connection for reuse (only if no overrides)
+                if (!connectionOptionsOverrides) {
+                    this.cachedConnection = connection;
+                }
+            } else {
+                await Util.promisify(connection.connect.bind(connection))();
+            }
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
@@ -419,6 +450,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         const connection = await this.getConnection();
+        const isCachedConnection = connection === this.cachedConnection;
 
         try {
             const start = (page - 1) * pageSize;
@@ -443,14 +475,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const error = e as SnowflakeError;
             throw this.parseError(error, sql);
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
+            // Only destroy connection if it's not cached
+            if (!isCachedConnection) {
+                await new Promise((resolve, reject) => {
+                    connection.destroy((err, conn) => {
+                        if (err) {
+                            reject(new WarehouseConnectionError(err.message));
+                        }
+                        resolve(conn);
+                    });
                 });
-            });
+            }
         }
     }
 
@@ -579,6 +614,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         },
     ): Promise<void> {
         const connection = await this.getConnection();
+        const isCachedConnection = connection === this.cachedConnection;
 
         try {
             await this.prepareWarehouse(connection, options);
@@ -593,14 +629,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const error = e as SnowflakeError;
             throw this.parseError(error, sql);
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
+            // Only destroy connection if it's not cached
+            if (!isCachedConnection) {
+                await new Promise((resolve, reject) => {
+                    connection.destroy((err, conn) => {
+                        if (err) {
+                            reject(new WarehouseConnectionError(err.message));
+                        }
+                        resolve(conn);
+                    });
                 });
-            });
+            }
         }
     }
 
@@ -698,6 +737,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             schema,
             database,
         });
+        const isCachedConnection = connection === this.cachedConnection;
 
         try {
             return await this.executeStatements(connection, sqlText);
@@ -710,14 +750,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // Ignore error and let UI show invalid table
             return undefined;
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
+            // Only destroy connection if it's not cached
+            if (!isCachedConnection) {
+                await new Promise((resolve, reject) => {
+                    connection.destroy((err, conn) => {
+                        if (err) {
+                            reject(new WarehouseConnectionError(err.message));
+                        }
+                        resolve(conn);
+                    });
                 });
-            });
+            }
         }
     }
 
