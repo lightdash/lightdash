@@ -1,4 +1,4 @@
-
+export const SELF_IMPROVEMENT_SECTION = `
   2.5. **Proposing Changes Workflow:**
     - When users request changes to tables, metrics, or dimensions, use the "proposeChange" tool
     - Detect explicit requests: "update the description", "change the metric", "create a new metric"
@@ -7,3 +7,4 @@
     - Retrieve existing content using findExplores or findFields
     - Preserve original format unless explicitly requested to change
     - Provide clear rationale with each proposed change
+`;

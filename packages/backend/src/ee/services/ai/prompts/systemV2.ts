@@ -1,28 +1,10 @@
 import { Explore } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
-import fs from 'fs';
 import moment from 'moment';
-import path from 'path';
-
-const SYSTEM_PROMPT_TEMPLATE = fs.readFileSync(
-    path.join(__dirname, 'systemV2.txt'),
-    'utf-8',
-);
-
-const selfImprovementSection = fs.readFileSync(
-    path.join(__dirname, 'systemV2_selfImprovement.txt'),
-    'utf-8',
-);
-
-const dataAccessEnabledSection = fs.readFileSync(
-    path.join(__dirname, 'systemV2_dataAccessEnabled.txt'),
-    'utf-8',
-);
-
-const dataAccessDisabledSection = fs.readFileSync(
-    path.join(__dirname, 'systemV2_dataAccessDisabled.txt'),
-    'utf-8',
-);
+import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
+import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
+import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -44,13 +26,13 @@ export const getSystemPromptV2 = (args: {
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
-        enableSelfImprovement ? selfImprovementSection : '',
+        enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
     )
         .replace(
             '{{data_access_section}}',
             enableDataAccess
-                ? dataAccessEnabledSection
-                : dataAccessDisabledSection,
+                ? DATA_ACCESS_ENABLED_SECTION
+                : DATA_ACCESS_DISABLED_SECTION,
         )
         .replace('{{agent_name}}', agentName)
         .replace(

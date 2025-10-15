@@ -711,6 +711,43 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ScimListResponse_ScimSchema_": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimSchemaType.LIST_RESPONSE"
+                        },
+                        "type": "array"
+                    },
+                    "totalResults": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "itemsPerPage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Resources": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimSchema"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "schemas",
+                    "totalResults",
+                    "itemsPerPage",
+                    "startIndex",
+                    "Resources"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "ScimSchemaType.RESOURCE_TYPE": {
                 "enum": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
                 "type": "string"
@@ -777,6 +814,43 @@
                     }
                 },
                 "required": ["schemas", "id", "name", "endpoint", "schema"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ScimListResponse_ScimResourceType_": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimSchemaType.LIST_RESPONSE"
+                        },
+                        "type": "array"
+                    },
+                    "totalResults": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "itemsPerPage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Resources": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimResourceType"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "schemas",
+                    "totalResults",
+                    "itemsPerPage",
+                    "startIndex",
+                    "Resources"
+                ],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -3931,6 +4005,10 @@
             },
             "ColumnProperties": {
                 "properties": {
+                    "displayStyle": {
+                        "type": "string",
+                        "enum": ["text", "bar"]
+                    },
                     "frozen": {
                         "type": "boolean"
                     },
@@ -5829,7 +5907,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5900,6 +5978,10 @@
                     },
                     "enableSelfImprovement": {
                         "type": "boolean"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": [
@@ -5916,13 +5998,14 @@
                     "groupAccess",
                     "userAccess",
                     "enableDataAccess",
-                    "enableSelfImprovement"
+                    "enableSelfImprovement",
+                    "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5980,7 +6063,7 @@
             "ApiUpdateUserAgentPreferences": {
                 "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6051,6 +6134,10 @@
                     },
                     "enableSelfImprovement": {
                         "type": "boolean"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": [
@@ -6067,13 +6154,14 @@
                     "groupAccess",
                     "userAccess",
                     "enableDataAccess",
-                    "enableSelfImprovement"
+                    "enableSelfImprovement",
+                    "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -6103,7 +6191,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6160,6 +6248,10 @@
                     },
                     "enableSelfImprovement": {
                         "type": "boolean"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": [
@@ -6172,15 +6264,16 @@
                     "groupAccess",
                     "userAccess",
                     "enableDataAccess",
-                    "enableSelfImprovement"
+                    "enableSelfImprovement",
+                    "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6237,6 +6330,10 @@
                     },
                     "enableSelfImprovement": {
                         "type": "boolean"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "type": "object",
@@ -6245,7 +6342,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__"
                     },
                     {
                         "properties": {
@@ -6465,7 +6562,8 @@
                     "searchFieldValues",
                     "findDashboards",
                     "findCharts",
-                    "improveContext"
+                    "improveContext",
+                    "runQuery"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -7027,6 +7125,7 @@
                     "time_series_chart",
                     "vertical_bar_chart",
                     "table",
+                    "query_result",
                     "dashboard",
                     "improve_context",
                     "propose_change"
@@ -11021,15 +11120,19 @@
                 "enum": ["line"],
                 "type": "string"
             },
+            "StackType": {
+                "enum": ["none", "stack", "stack100"],
+                "type": "string"
+            },
             "PivotChartLayout": {
                 "properties": {
                     "stack": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "boolean"
                             },
                             {
-                                "type": "boolean"
+                                "$ref": "#/components/schemas/StackType"
                             }
                         ]
                     },
@@ -11097,10 +11200,6 @@
             "AxisSide": {
                 "enum": [0, 1],
                 "type": "number"
-            },
-            "StackType": {
-                "enum": ["none", "stack", "stack100"],
-                "type": "string"
             },
             "CartesianChartDisplay": {
                 "properties": {
@@ -11266,6 +11365,26 @@
             },
             "VizColumnConfig": {
                 "properties": {
+                    "barConfig": {
+                        "properties": {
+                            "color": {
+                                "type": "string"
+                            },
+                            "max": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "min": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "displayStyle": {
+                        "type": "string",
+                        "enum": ["text", "bar"]
+                    },
                     "aggregation": {
                         "$ref": "#/components/schemas/VizAggregationOptions"
                     },
@@ -15956,6 +16075,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -15989,10 +16112,6 @@
                     "dashboardSlug": {
                         "type": "string"
                     },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "spaceSlug": {
                         "type": "string"
                     },
@@ -16004,10 +16123,10 @@
                 "required": [
                     "name",
                     "updatedAt",
+                    "version",
                     "slug",
                     "tableName",
                     "tableConfig",
-                    "version",
                     "spaceSlug"
                 ],
                 "type": "object",
@@ -16040,6 +16159,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -16048,10 +16171,6 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -16064,9 +16183,9 @@
                 "required": [
                     "name",
                     "updatedAt",
+                    "version",
                     "slug",
                     "tabs",
-                    "version",
                     "spaceSlug"
                 ],
                 "type": "object",
@@ -20851,7 +20970,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2078.1",
+        "version": "0.2086.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

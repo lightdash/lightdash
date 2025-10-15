@@ -1,3 +1,38 @@
+## [0.2086.4](https://github.com/lightdash/lightdash/compare/0.2086.3...0.2086.4) (2025-10-15)
+
+
+### Bug Fixes
+
+* convert prompt txts to ts files ([#17473](https://github.com/lightdash/lightdash/issues/17473)) ([f650b36](https://github.com/lightdash/lightdash/commit/f650b36574640e3a28651ea83f934eccd2ca2f37))
+
+## [0.2086.3](https://github.com/lightdash/lightdash/compare/0.2086.2...0.2086.3) (2025-10-15)
+
+
+### Bug Fixes
+
+* return formatted date value for columns ([#17469](https://github.com/lightdash/lightdash/issues/17469)) ([07f2e38](https://github.com/lightdash/lightdash/commit/07f2e38a383151a62a110d8264a3c6067cf1884d))
+
+## [0.2086.2](https://github.com/lightdash/lightdash/compare/0.2086.1...0.2086.2) (2025-10-15)
+
+
+### Bug Fixes
+
+* adding stacking options to area chat ([#17459](https://github.com/lightdash/lightdash/issues/17459)) ([eb1331f](https://github.com/lightdash/lightdash/commit/eb1331fe3813f793913e802425a2877ca9fad2ac))
+
+## [0.2086.1](https://github.com/lightdash/lightdash/compare/0.2086.0...0.2086.1) (2025-10-15)
+
+
+### Bug Fixes
+
+* update scim/v2/Schemas and scim/v2/ResourceTypes to return a ListResponse and add scim/v2/Schemas/{schemaId} endpoint ([#17462](https://github.com/lightdash/lightdash/issues/17462)) ([938a757](https://github.com/lightdash/lightdash/commit/938a7571ce25a787ccc3c748aa2acba734fed0bf))
+
+# [0.2086.0](https://github.com/lightdash/lightdash/compare/0.2085.0...0.2086.0) (2025-10-15)
+
+
+### Features
+
+* enable ai pivot on slack & better formatting on ai agent v2 ([#17448](https://github.com/lightdash/lightdash/issues/17448)) ([e142a01](https://github.com/lightdash/lightdash/commit/e142a010f87c1ba03f61b8791fdfdbf8ffb9e8b2))
+
 # [0.2085.0](https://github.com/lightdash/lightdash/compare/0.2084.0...0.2085.0) (2025-10-15)
 
 

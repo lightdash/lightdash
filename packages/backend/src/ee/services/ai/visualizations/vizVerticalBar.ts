@@ -19,7 +19,7 @@ const echartsConfigVerticalBarMetric = async (
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
-            vizTool.vizConfig.breakdownByDimension,
+            [vizTool.vizConfig.breakdownByDimension],
             vizTool.vizConfig.yMetrics,
             sorts,
         );

@@ -1,5 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import {
+    ScimListResponse,
     ScimResourceType,
     ScimSchema,
     ScimServiceProviderConfig,
@@ -56,9 +57,34 @@ export class ScimRootController extends BaseController {
      */
     @Get('/Schemas')
     @OperationId('GetScimSchemas')
-    @Response<ScimSchema[]>('200', 'Success')
-    async getSchemas(@Request() req: express.Request): Promise<ScimSchema[]> {
+    @Response<ScimListResponse<ScimSchema>>('200', 'Success')
+    async getSchemas(
+        @Request() req: express.Request,
+    ): Promise<ScimListResponse<ScimSchema>> {
         return ScimService.getSchemas();
+    }
+
+    /**
+     * Get individual SCIM schema
+     * @param req express request
+     * @param schemaId schema identifier
+     */
+    @Get('/Schemas/{schemaId}')
+    @OperationId('GetScimSchema')
+    @Response<ScimSchema>('200', 'Success')
+    async getSchema(
+        @Request() req: express.Request,
+        @Path() schemaId: string,
+    ): Promise<ScimSchema> {
+        const schemasResponse = ScimService.getSchemas();
+        const schema = schemasResponse.Resources.find((s) => s.id === schemaId);
+
+        if (!schema) {
+            this.setStatus(404);
+            throw new Error(`Schema ${schemaId} not found`);
+        }
+
+        return schema;
     }
 
     /**
@@ -67,10 +93,10 @@ export class ScimRootController extends BaseController {
      */
     @Get('/ResourceTypes')
     @OperationId('GetScimResourceTypes')
-    @Response<ScimResourceType[]>('200', 'Success')
+    @Response<ScimListResponse<ScimResourceType>>('200', 'Success')
     async getResourceTypes(
         @Request() req: express.Request,
-    ): Promise<ScimResourceType[]> {
+    ): Promise<ScimListResponse<ScimResourceType>> {
         return ScimService.getResourceTypes();
     }
 
@@ -86,8 +112,8 @@ export class ScimRootController extends BaseController {
         @Request() req: express.Request,
         @Path() resourceTypeId: string,
     ): Promise<ScimResourceType> {
-        const resourceTypes = ScimService.getResourceTypes();
-        const resourceType = resourceTypes.find(
+        const resourceTypesResponse = ScimService.getResourceTypes();
+        const resourceType = resourceTypesResponse.Resources.find(
             (rt) => rt.id === resourceTypeId,
         );
 

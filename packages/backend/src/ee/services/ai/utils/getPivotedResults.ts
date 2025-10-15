@@ -10,7 +10,7 @@ const getNullsFirstLast = (sort: SortField) => {
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
-    pivotField: string,
+    pivotFields: string[],
     metrics: string[],
     sorts: SortField[],
 ) => {
@@ -32,9 +32,23 @@ export const getPivotedResults = async (
               .join(', ')}`
         : '';
 
-    const query = `PIVOT results_data
-    ON ${pivotField}
+    // For multiple pivot fields, create a composite key
+    let query: string;
+    if (pivotFields.length === 1) {
+        query = `PIVOT results_data
+    ON ${pivotFields[0]}
     USING ${usingFields.join(', ')} ${orderByPart}`;
+    } else {
+        // Create composite key by concatenating pivot fields with ' - ' separator
+        const compositeKey = pivotFields
+            .map((field) => `COALESCE(CAST(${field} AS VARCHAR), 'NULL')`)
+            .join(" || ' - ' || ");
+        query = `PIVOT (
+        SELECT *, ${compositeKey} as __pivot_key__ FROM results_data
+    )
+    ON __pivot_key__
+    USING ${usingFields.join(', ')} ${orderByPart}`;
+    }
 
     const pivoted = await db.all(query);
     const fieldNames = Object.keys(pivoted[0]);

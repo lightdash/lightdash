@@ -1442,7 +1442,7 @@ export class ScimService extends BaseService {
         return Object.values(fieldAttributeMap);
     }
 
-    static getSchemas(): ScimSchema[] {
+    static getSchemas(): ScimListResponse<ScimSchema> {
         const userSchema: ScimSchema = {
             schemas: [ScimSchemaType.SCHEMA],
             id: ScimSchemaType.USER,
@@ -1936,20 +1936,28 @@ export class ScimService extends BaseService {
             ],
         };
 
-        return [
+        const schemas = [
             userSchema,
             groupSchema,
             lightdashUserExtensionSchema,
             serviceProviderConfigSchema,
             resourceTypeSchema,
         ];
+
+        return {
+            schemas: [ScimSchemaType.LIST_RESPONSE],
+            totalResults: schemas.length,
+            itemsPerPage: schemas.length,
+            startIndex: 1,
+            Resources: schemas,
+        };
     }
 
-    static getResourceTypes(): ScimResourceType[] {
+    static getResourceTypes(): ScimListResponse<ScimResourceType> {
         // Get base URL from environment or use default
         const baseUrl = process.env.SITE_URL || 'http://localhost:8080';
 
-        return [
+        const resources: ScimResourceType[] = [
             {
                 schemas: [ScimSchemaType.RESOURCE_TYPE],
                 id: 'User',
@@ -1981,5 +1989,13 @@ export class ScimService extends BaseService {
                 },
             },
         ];
+
+        return {
+            schemas: [ScimSchemaType.LIST_RESPONSE],
+            totalResults: resources.length,
+            itemsPerPage: resources.length,
+            startIndex: 1,
+            Resources: resources,
+        };
     }
 }
