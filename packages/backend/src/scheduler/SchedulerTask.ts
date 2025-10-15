@@ -119,6 +119,7 @@ import {
 } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
+import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
@@ -151,6 +152,7 @@ export type SchedulerTaskArguments = {
     msTeamsClient: MicrosoftTeamsClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
+    featureFlagService: FeatureFlagService;
 };
 
 export default class SchedulerTask {
@@ -192,6 +194,8 @@ export default class SchedulerTask {
 
     protected readonly asyncQueryService: AsyncQueryService;
 
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -212,6 +216,7 @@ export default class SchedulerTask {
         this.msTeamsClient = args.msTeamsClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
+        this.featureFlagService = args.featureFlagService;
     }
 
     private static getCsvOptions(
@@ -419,6 +424,11 @@ export default class SchedulerTask {
                     context,
                 };
 
+                const pivotResultsFlag = await this.featureFlagService.get({
+                    user: account.user,
+                    featureFlagId: FeatureFlags.UseSqlPivotResults,
+                });
+
                 try {
                     if (savedChartUuid) {
                         this.analytics.trackAccount(account, {
@@ -436,6 +446,7 @@ export default class SchedulerTask {
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
+                                    pivotResults: pivotResultsFlag.enabled,
                                 },
                             );
 
@@ -556,6 +567,8 @@ export default class SchedulerTask {
                                                 dashboardSorts: [],
                                                 parameters: finalParameters,
                                                 limit: chartLimit,
+                                                pivotResults:
+                                                    pivotResultsFlag.enabled,
                                             },
                                         );
                                     const chart =
