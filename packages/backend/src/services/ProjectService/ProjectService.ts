@@ -2633,6 +2633,7 @@ export class ProjectService extends BaseService {
         account: Account,
         chartUuid: string,
         context: QueryExecutionContext,
+        dashboardParameters?: ParametersValuesMap,
     ): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -2645,7 +2646,7 @@ export class ProjectService extends BaseService {
             },
             async () => {
                 const chart = await this.savedChartModel.get(chartUuid);
-                const { metricQuery } = chart;
+                const { metricQuery, parameters: savedChartParameters } = chart;
                 const exploreId = chart.tableName;
                 const queryTags: RunQueryTags = {
                     ...this.getUserQueryTags(account),
@@ -2654,6 +2655,20 @@ export class ProjectService extends BaseService {
                     explore_name: exploreId,
                     query_context: context,
                 };
+
+                // Parameter overrides are the dashboard parameters
+                const explore = await this.getExplore(
+                    account,
+                    chart.projectUuid,
+                    exploreId,
+                );
+
+                const parameters = await this.combineParameters(
+                    chart.projectUuid,
+                    explore,
+                    undefined,
+                    dashboardParameters ?? savedChartParameters, // Dashboard parameters go in place of saved chart parameters
+                );
 
                 return this.runMetricQuery({
                     account,
@@ -2664,6 +2679,8 @@ export class ProjectService extends BaseService {
                     context,
                     chartUuid,
                     queryTags,
+                    parameters,
+                    explore, // Passing in explore to avoid fetching it again
                 });
             },
         );
