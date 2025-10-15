@@ -1,3 +1,15 @@
+# [0.2085.0](https://github.com/lightdash/lightdash/compare/0.2084.0...0.2085.0) (2025-10-15)
+
+
+### Bug Fixes
+
+* use selector for sorts in QuickCalculations component ([#17461](https://github.com/lightdash/lightdash/issues/17461)) ([c8ef48e](https://github.com/lightdash/lightdash/commit/c8ef48e670a4ef1e6d898478ff5531266c672616))
+
+
+### Features
+
+* stack 100% bar chart ([#17434](https://github.com/lightdash/lightdash/issues/17434)) ([2e37255](https://github.com/lightdash/lightdash/commit/2e3725554cf1348ec0769633c303b5d7e79910a4))
+
 # [0.2084.0](https://github.com/lightdash/lightdash/compare/0.2083.0...0.2084.0) (2025-10-15)
 
 
