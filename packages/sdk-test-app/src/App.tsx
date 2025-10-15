@@ -2,7 +2,7 @@ import Lightdash from '@lightdash/sdk';
 import '@lightdash/sdk/sdk.css';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SavedChart } from '../../common/src';
+import { FilterOperator, SavedChart } from '../../common/src';
 
 // NOTE: add an embed url here for persistence
 const EMBED_URL = '';
@@ -245,6 +245,13 @@ function App() {
                                         'translation',
                                     )}
                                     onExplore={handleExploreClick}
+                                    // This replaces the embedded dashboard filters
+                                    // filters={[{
+                                    //     model: 'orders',
+                                    //     field: 'is_completed',
+                                    //     operator: FilterOperator.EQUALS,
+                                    //     value: [true],
+                                    // },]}
                                 />
                             )}
                         </div>

@@ -448,6 +448,307 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_AI_HINT_ARRAY);
     });
+
+    describe('with set fields', () => {
+        it('returns table with valid set fields', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                my_set: {
+                                    fields: ['user_id'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
+        it('throws when set name conflicts with dimension name', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                user_id: {
+                                    fields: ['user_id'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set name "user_id" in model "myTable" conflicts with an existing field name. Set names must be unique from dimension and metric names.`,
+            );
+        });
+
+        it('throws when set name conflicts with metric name', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_METRIC,
+                        meta: {
+                            ...MODEL_WITH_METRIC.meta,
+                            sets: {
+                                user_count: {
+                                    fields: ['user_id'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set name "user_count" in model "myTable" conflicts with an existing field name. Set names must be unique from dimension and metric names.`,
+            );
+        });
+
+        it('throws when set definition is missing fields array', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                // @ts-expect-error - intentionally testing invalid type
+                                my_set: {},
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set "my_set" in model "myTable" must have a "fields" array`,
+            );
+        });
+
+        it('throws when set fields array is empty', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                my_set: {
+                                    fields: [],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(`Set "my_set" in model "myTable" cannot be empty`);
+        });
+
+        it('throws when set contains non-string field', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                my_set: {
+                                    // @ts-expect-error - intentionally testing invalid type
+                                    fields: [123],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set "my_set" in model "myTable" contains non-string field: 123`,
+            );
+        });
+
+        it('throws when set has nested set references beyond one level', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                base_set: {
+                                    fields: ['user_id'],
+                                },
+                                middle_set: {
+                                    fields: ['base_set*'],
+                                },
+                                top_set: {
+                                    fields: ['middle_set*'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set "top_set" in model "myTable" references set "middle_set", which itself contains set references. Only one level of set nesting is allowed.`,
+            );
+        });
+
+        it('allows valid set references with wildcard', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                base_set: {
+                                    fields: ['user_id'],
+                                },
+                                extended_set: {
+                                    fields: ['base_set*'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
+        it('allows valid field exclusions with minus prefix', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            joins: [
+                                {
+                                    join: 'a_table',
+                                    sql_on: '${myTable.id} = ${a_table.id}',
+                                },
+                                {
+                                    join: 'a_table',
+                                    alias: 'another_table',
+                                    sql_on: '${myTable.id} = ${another_table.id}',
+                                },
+                            ],
+                            sets: {
+                                my_set: {
+                                    fields: [
+                                        'user_id',
+                                        '-user_id',
+                                        'a_table.user_name',
+                                        'another_table.user_id',
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
+        it('allows valid field names with joins', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            joins: [
+                                {
+                                    join: 'a_table',
+                                    alias: 'user',
+                                    sql_on: '${myTable.id} = ${a_table.id}',
+                                },
+                            ],
+                            sets: {
+                                my_set: {
+                                    fields: ['user.id'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
+        it('throws when set references non-existent field', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_METRIC,
+                        meta: {
+                            joins: [
+                                {
+                                    join: 'a_table',
+                                    sql_on: '${myTable.id} = ${a_table.id}',
+                                },
+                            ],
+                            sets: {
+                                my_bad_set: {
+                                    fields: ['bogus_field'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set "my_bad_set" in model "myTable" references non-existent model field "bogus_field". Fields must correspond to actual dimensions or metrics in the model.`,
+            );
+        });
+
+        it('throws when set references non-existent join model', () => {
+            expect(() =>
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_METRIC,
+                        meta: {
+                            joins: [
+                                {
+                                    join: 'a_table',
+                                    sql_on: '${myTable.id} = ${a_table.id}',
+                                },
+                            ],
+                            sets: {
+                                my_bad_set: {
+                                    fields: ['wat.bogus_field'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toThrowError(
+                `Set "my_bad_set" in model "myTable" references non-existent join model "wat".`,
+            );
+        });
+    });
 });
 
 describe('spotlight config', () => {

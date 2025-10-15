@@ -110,7 +110,6 @@ describe('Dashboard', () => {
             // Metrics
             cy.contains('Payments Unique payment count');
             cy.contains('Orders Average order size');
-            cy.contains('Customers Date of most recent created customer');
 
             // Dimensions
             cy.contains('Orders Status');

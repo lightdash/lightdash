@@ -87,9 +87,14 @@ type SharedDbtModelLightdashConfig = {
     required_filters?: RequiredFilter[]; // Alias for default_filters, for backwards compatibility
 };
 
+export type FieldSetDefinition = {
+    fields: string[];
+};
+
 type DbtModelLightdashConfig = ExploreConfig &
     SharedDbtModelLightdashConfig & {
         metrics?: Record<string, DbtModelLightdashMetric>;
+        sets?: Record<string, FieldSetDefinition>;
         order_fields_by?: OrderFieldsByStrategy;
         group_label?: string;
         sql_filter?: string;

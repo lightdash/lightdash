@@ -1,62 +1,27 @@
-import {
-    FilterInteractivityValues,
-    getFilterInteractivityValue,
-    type Dashboard,
-    type DashboardFilterInteractivityOptions,
-    type DashboardFilters,
-} from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import mapValues from 'lodash/mapValues';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import ActiveFilters from '../../../../../components/DashboardFilter/ActiveFilters';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 
 type Props = {
-    dashboardFilters: DashboardFilters;
     dashboardTiles: Dashboard['tiles'];
-    filterInteractivityOptions: DashboardFilterInteractivityOptions;
 };
 
-const EmbedDashboardFilters: FC<Props> = ({
-    dashboardFilters,
-    dashboardTiles,
-    filterInteractivityOptions,
-}) => {
+const EmbedDashboardFilters: FC<Props> = ({ dashboardTiles }) => {
     const [openPopoverId, setPopoverId] = useState<string>();
 
-    const setDashboardFilters = useDashboardContext(
-        (c) => c.setDashboardFilters,
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
     );
-
-    const allowedFilters = useMemo(() => {
-        const filterInteractivityValue = getFilterInteractivityValue(
-            filterInteractivityOptions.enabled,
-        );
-
-        if (filterInteractivityValue === FilterInteractivityValues.all) {
-            return dashboardFilters;
-        }
-
-        return mapValues(dashboardFilters, (filters) => {
-            return filters.filter((filter) =>
-                filterInteractivityOptions.allowedFilters?.includes(filter.id),
-            );
-        });
-    }, [dashboardFilters, filterInteractivityOptions]);
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
 
     useEffect(() => {
-        setDashboardFilters(allowedFilters);
         setDashboardTiles(dashboardTiles);
-    }, [
-        allowedFilters,
-        setDashboardFilters,
-        setDashboardTiles,
-        dashboardTiles,
-    ]);
+    }, [setDashboardTiles, dashboardTiles]);
 
     const handlePopoverOpen = useCallback((id: string) => {
         setPopoverId(id);
@@ -80,9 +45,7 @@ const EmbedDashboardFilters: FC<Props> = ({
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
                     activeTabUuid={undefined}
-                    onResetDashboardFilters={() => {
-                        setDashboardFilters(allowedFilters);
-                    }}
+                    onResetDashboardFilters={resetDashboardFilters}
                 />
             </Flex>
         </FiltersProvider>
