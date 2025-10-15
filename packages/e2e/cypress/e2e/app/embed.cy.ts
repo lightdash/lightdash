@@ -111,7 +111,7 @@ describe('Embedded dashboard', () => {
                     cy.visit(resp.body.results.url);
 
                     cy.contains('Welcome to Lightdash!');
-                    cy.contains('Total revenue');
+                    cy.contains('bank_transfer');
 
                     // Find a chart tile and click "Explore from here"
                     cy.contains(
@@ -158,6 +158,152 @@ describe('Embedded dashboard', () => {
 
                     // Should be back on the dashboard
                     cy.contains('Welcome to Lightdash!').should('be.visible');
+                });
+            });
+        });
+    });
+
+    it('URL syncs for dashboard filters in direct mode', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        dashboardFiltersInteractivity: {
+                            enabled: FilterInteractivityValues.all,
+                        },
+                    },
+                }).then((resp) => {
+                    cy.logout();
+                    cy.visit(resp.body.results.url);
+
+                    // Wait for dashboard to load
+                    cy.contains('Welcome to Lightdash!');
+
+                    // Verify initial URL has no filter params
+                    cy.url().should('not.include', 'filters=');
+
+                    cy.contains('Is completed is True').click();
+                    cy.contains('Orders Is completed');
+                    cy.get('[role=dialog]').within(() => {
+                        cy.get('input[value="True"]').click();
+                        cy.contains('False').click();
+                        cy.contains('button', 'Apply').click({ force: true });
+                    });
+
+                    // Verify URL contains filters param
+                    cy.url().should('include', '?filters=');
+                    cy.url().should('include', 'false');
+
+                    // Remove the filter
+                    cy.get('[aria-label="Reset all filters"]').click();
+
+                    // Verify URL no longer contains filters param
+                    cy.url().should('not.include', '?filters=');
+                });
+            });
+        });
+    });
+
+    it('URL filter overrides apply for embedded dashboard with all filters allowed', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        dashboardFiltersInteractivity: {
+                            enabled: FilterInteractivityValues.all,
+                        },
+                    },
+                }).then((resp) => {
+                    cy.logout();
+
+                    // Construct filter override to set isComplete to false
+                    const filterOverride = {
+                        dimensions: [
+                            {
+                                id: 'e7df7c5a-1070-439a-8300-125fe5f9b1af',
+                                target: {
+                                    fieldId: 'orders_is_completed',
+                                    tableName: 'orders',
+                                },
+                                values: [false],
+                                operator: 'equals',
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    };
+
+                    const embedUrl = new URL(resp.body.results.url);
+                    embedUrl.searchParams.set(
+                        'filters',
+                        JSON.stringify(filterOverride),
+                    );
+
+                    // Visit embed URL with filter override
+                    cy.visit(embedUrl.toString());
+
+                    // Wait for dashboard to load
+                    cy.contains('Welcome to Lightdash!');
+
+                    // Assert the UI shows False (the override value)
+                    cy.contains('Is completed is False');
+
+                    // Click reset to remove overrides
+                    cy.get('[aria-label="Reset all filters"]').click();
+
+                    // Assert it reverts to True (original dashboard value)
+                    cy.contains('Is completed is True');
+                });
+            });
+        });
+    });
+
+    it('URL syncs for date zoom in direct mode', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        canDateZoom: true,
+                    },
+                }).then((resp) => {
+                    cy.logout();
+                    cy.visit(resp.body.results.url);
+
+                    // Wait for dashboard to load
+                    cy.contains('Welcome to Lightdash!');
+
+                    // Verify initial URL has no dateZoom param
+                    cy.url().should('not.include', 'dateZoom=');
+
+                    // Check that Date Zoom dropdown is visible
+                    cy.contains('Date Zoom').should('be.visible');
+
+                    // Click the Date Zoom dropdown
+                    cy.contains('Date Zoom').click();
+
+                    // Select a granularity (e.g., Month)
+                    cy.contains('Month').click();
+
+                    // Verify URL contains dateZoom param
+                    cy.url().should('include', 'dateZoom=month');
                 });
             });
         });

@@ -492,6 +492,7 @@ const FilterConfiguration: FC<Props> = ({
                             position="left"
                         >
                             <Button
+                                aria-label="Reset filter to original value"
                                 size="xs"
                                 variant="default"
                                 color="gray"
