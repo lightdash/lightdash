@@ -1,3 +1,10 @@
+# [0.2086.0](https://github.com/lightdash/lightdash/compare/0.2085.0...0.2086.0) (2025-10-15)
+
+
+### Features
+
+* enable ai pivot on slack & better formatting on ai agent v2 ([#17448](https://github.com/lightdash/lightdash/issues/17448)) ([e142a01](https://github.com/lightdash/lightdash/commit/e142a010f87c1ba03f61b8791fdfdbf8ffb9e8b2))
+
 # [0.2085.0](https://github.com/lightdash/lightdash/compare/0.2084.0...0.2085.0) (2025-10-15)
 
 
