@@ -1,12 +1,10 @@
 import { type AiAgent, type AiAgentThreadSummary } from '@lightdash/common';
 import {
-    ActionIcon,
     Alert,
     Box,
     Button,
     Group,
     Loader,
-    Menu,
     NavLink,
     Paper,
     rem,
@@ -19,9 +17,7 @@ import {
     IconBrandSlack,
     IconChevronDown,
     IconCirclePlus,
-    IconDots,
     IconInfoCircle,
-    IconPlus,
     IconSettings,
     IconSparkles,
 } from '@tabler/icons-react';
@@ -279,38 +275,24 @@ const AgentPage = () => {
                         )}
                     </Box>
 
-                    <Group gap="sm">
-                        {canManageAgents && (
-                            <Menu>
-                                <Menu.Target>
-                                    <ActionIcon variant="subtle" color="gray">
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconPlus} />
-                                        }
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/ai-agents/new`}
-                                    >
-                                        New agent
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
-                                        leftSection={
-                                            <MantineIcon icon={IconSettings} />
-                                        }
-                                    >
-                                        Settings
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
-                        )}
-                    </Group>
+                    {canManageAgents && (
+                        <Button
+                            component={Link}
+                            variant="default"
+                            to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
+                            leftSection={<MantineIcon icon={IconSettings} />}
+                            styles={(theme) => ({
+                                root: {
+                                    borderColor: theme.colors.gray[2],
+                                    boxShadow: `var(--mantine-shadow-subtle)`,
+                                    color: theme.colors.gray[7],
+                                    fontSize: theme.fontSizes.xs,
+                                },
+                            })}
+                        >
+                            Settings
+                        </Button>
+                    )}
                 </Group>
             }
         >
