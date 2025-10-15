@@ -189,6 +189,12 @@ export type VizColumnConfig = {
     frozen: boolean;
     order?: number;
     aggregation?: VizAggregationOptions;
+    displayStyle?: 'text' | 'bar';
+    barConfig?: {
+        min?: number; // Default: auto-calculate from column
+        max?: number; // Default: auto-calculate from column
+        color?: string; // Default: '#5470c6'
+    };
 };
 
 export type VizColumnsConfig = { [key: string]: VizColumnConfig };

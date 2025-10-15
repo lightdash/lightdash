@@ -154,6 +154,7 @@ export type ColumnProperties = {
     visible?: boolean;
     name?: string;
     frozen?: boolean;
+    displayStyle?: 'text' | 'bar';
 };
 
 export type TableChart = {
