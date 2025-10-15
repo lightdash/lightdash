@@ -1,4 +1,5 @@
 import {
+    Avatar,
     Combobox,
     type ComboboxProps,
     Group,
@@ -8,6 +9,7 @@ import {
 import { IconChevronDown } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import Logo from '../../../../../svgs/logo-icon-round.svg?react';
 import {
     type Agent,
     getAgentOptions,
@@ -30,7 +32,8 @@ export const CompactAgentSelector = ({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
     const agentOptions = getAgentOptions(agents);
-    const isSingleAgent = agentOptions.length === 1;
+    const hasOneAgent = agentOptions.length === 1;
+    const hasAgents = agentOptions.length > 0;
 
     return (
         <Combobox
@@ -49,16 +52,22 @@ export const CompactAgentSelector = ({
                     variant="light"
                     color="gray"
                     p={0}
-                    disabled={isSingleAgent}
+                    disabled={hasOneAgent || !hasAgents}
                 >
                     <Group gap="xxs">
-                        <LightdashUserAvatar
-                            size="md"
-                            name={selectedAgent.name}
-                            src={selectedAgent.imageUrl}
-                        />
+                        {hasAgents ? (
+                            <LightdashUserAvatar
+                                size="md"
+                                name={selectedAgent.name}
+                                src={selectedAgent.imageUrl}
+                            />
+                        ) : (
+                            <Avatar radius="xl" size="md">
+                                <Logo />
+                            </Avatar>
+                        )}
 
-                        {!isSingleAgent && (
+                        {!hasOneAgent && hasAgents && (
                             <MantineIcon icon={IconChevronDown} />
                         )}
                     </Group>
