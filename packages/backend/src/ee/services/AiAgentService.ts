@@ -1876,15 +1876,16 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
-        const listExplores: ListExploresFn = async () => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
+        const listExplores: ListExploresFn = () =>
+            wrapSentryTransaction('AiAgent.listExplores', {}, async () => {
+                const agentSettings = await this.getAgentSettings(user, prompt);
 
-            return this.getAvailableExplores(
-                user,
-                projectUuid,
-                agentSettings.tags,
-            );
-        };
+                return this.getAvailableExplores(
+                    user,
+                    projectUuid,
+                    agentSettings.tags,
+                );
+            });
 
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
@@ -1959,59 +1960,61 @@ export class AiAgentService {
                 };
             });
 
-        const getExplore: GetExploreFn = async ({ exploreName }) => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
+        const getExplore: GetExploreFn = (args) =>
+            wrapSentryTransaction('AiAgent.getExplore', args, async () => {
+                const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const explore = await this.getExplore(
-                user,
-                projectUuid,
-                agentSettings.tags,
-                exploreName,
-            );
-
-            return explore;
-        };
-
-        const findFields: FindFieldFn = async (args) => {
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
-            const agentSettings = await this.getAgentSettings(user, prompt);
-
-            const explore = await this.getExplore(
-                user,
-                projectUuid,
-                agentSettings.tags,
-                args.table,
-            );
-
-            const { data: catalogItems, pagination } =
-                await this.catalogService.searchCatalog({
+                return this.getExplore(
+                    user,
                     projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Field,
-                        searchQuery: args.fieldSearchQuery.label,
-                    },
-                    context: CatalogSearchContext.AI_AGENT,
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                    userAttributes,
-                    fullTextSearchOperator: 'OR',
-                    filteredExplore: explore,
-                });
+                    agentSettings.tags,
+                    args.exploreName,
+                );
+            });
 
-            // TODO: we should not filter here, search should be returning a proper type
-            const catalogFields = catalogItems.filter(
-                (item) => item.type === CatalogType.Field,
-            );
+        const findFields: FindFieldFn = (args) =>
+            wrapSentryTransaction('AiAgent.findFields', args, async () => {
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
 
-            return { fields: catalogFields, pagination };
-        };
+                const agentSettings = await this.getAgentSettings(user, prompt);
+
+                const explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    agentSettings.tags,
+                    args.table,
+                );
+
+                const { data: catalogItems, pagination } =
+                    await this.catalogService.searchCatalog({
+                        projectUuid,
+                        catalogSearch: {
+                            type: CatalogType.Field,
+                            searchQuery: args.fieldSearchQuery.label,
+                        },
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: args.page,
+                            pageSize: args.pageSize,
+                        },
+                        userAttributes,
+                        fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
+                    });
+
+                // TODO: we should not filter here, search should be returning a proper type
+                const catalogFields = catalogItems.filter(
+                    (item) => item.type === CatalogType.Field,
+                );
+
+                return { fields: catalogFields, pagination };
+            });
 
         const updateProgress: UpdateProgressFn = (progress) =>
             isSlackPrompt(prompt)
@@ -2029,147 +2032,176 @@ export class AiAgentService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery: RunMiniMetricQueryFn = async (
-            metricQuery,
-        ) => {
-            const explore = await getExplore({
-                exploreName: metricQuery.exploreName,
-            });
+        const runMiniMetricQuery: RunMiniMetricQueryFn = (metricQuery) =>
+            wrapSentryTransaction(
+                'AiAgent.runMiniMetricQuery',
+                metricQuery,
+                async () => {
+                    const explore = await getExplore({
+                        exploreName: metricQuery.exploreName,
+                    });
 
-            const metricQueryFields = [
-                ...metricQuery.dimensions,
-                ...metricQuery.metrics,
-            ];
+                    const metricQueryFields = [
+                        ...metricQuery.dimensions,
+                        ...metricQuery.metrics,
+                    ];
 
-            validateSelectedFieldsExistence(
-                explore,
-                metricQueryFields,
-                metricQuery.additionalMetrics,
-            );
-
-            const account = fromSession(user);
-            return this.projectService.runMetricQuery({
-                account,
-                projectUuid,
-                metricQuery: {
-                    ...metricQuery,
-                    additionalMetrics: populateCustomMetricsSQL(
-                        metricQuery.additionalMetrics,
+                    validateSelectedFieldsExistence(
                         explore,
-                    ),
+                        metricQueryFields,
+                        metricQuery.additionalMetrics,
+                    );
+
+                    const account = fromSession(user);
+                    return this.projectService.runMetricQuery({
+                        account,
+                        projectUuid,
+                        metricQuery: {
+                            ...metricQuery,
+                            additionalMetrics: populateCustomMetricsSQL(
+                                metricQuery.additionalMetrics,
+                                explore,
+                            ),
+                        },
+                        exploreName: metricQuery.exploreName,
+                        csvLimit: metricQuery.limit,
+                        context: QueryExecutionContext.AI,
+                        chartUuid: undefined,
+                        queryTags: {
+                            project_uuid: projectUuid,
+                            user_uuid: user.userUuid,
+                            organization_uuid: organizationUuid,
+                        },
+                    });
                 },
-                exploreName: metricQuery.exploreName,
-                csvLimit: metricQuery.limit,
-                context: QueryExecutionContext.AI,
-                chartUuid: undefined,
-                queryTags: {
-                    project_uuid: projectUuid,
-                    user_uuid: user.userUuid,
-                    organization_uuid: organizationUuid,
-                },
-            });
-        };
-
-        const sendFile: SendFileFn = async (args) => {
-            //
-            // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
-            // support this in the future
-            //
-            // const agent = agentUuid
-            //     ? await this.aiAgentService.getAgent(user, agentUuid)
-            //     : undefined;
-            // let username: string | undefined;
-            // if (agent) {
-            //     username = agent.name;
-            // }
-            //
-
-            await this.slackClient.postFileToThread(args);
-        };
-
-        const storeToolCall: StoreToolCallFn = async (data) => {
-            await this.aiAgentModel.createToolCall(data);
-        };
-
-        const storeToolResults: StoreToolResultsFn = async (data) => {
-            await this.aiAgentModel.createToolResults(data);
-        };
-
-        const findDashboards: FindDashboardsFn = async (args) => {
-            const searchResults = await this.searchModel.searchDashboards(
-                projectUuid,
-                args.dashboardSearchQuery.label,
-                undefined,
-                'OR',
             );
 
-            const filteredResults = await this.spaceService.filterBySpaceAccess(
-                user,
-                searchResults,
+        const sendFile: SendFileFn = (args) =>
+            wrapSentryTransaction('AiAgent.sendFile', args, () =>
+                //
+                // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
+                // support this in the future
+                //
+                // const agent = agentUuid
+                //     ? await this.aiAgentService.getAgent(user, agentUuid)
+                //     : undefined;
+                // let username: string | undefined;
+                // if (agent) {
+                //     username = agent.name;
+                // }
+                //
+
+                this.slackClient.postFileToThread(args),
             );
 
-            const totalResults = filteredResults.length;
-            const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-            return {
-                dashboards: filteredResults,
-                pagination: {
-                    page: args.page,
-                    pageSize: args.pageSize,
-                    totalPageCount,
-                    totalResults,
+        const storeToolCall: StoreToolCallFn = async (args) => {
+            void wrapSentryTransaction(
+                'AiAgent.storeToolCall',
+                {
+                    promptUuid: args.promptUuid,
+                    toolCallId: args.toolCallId,
+                    toolName: args.toolName,
                 },
-            };
+                () => this.aiAgentModel.createToolCall(args),
+            );
         };
 
-        const findCharts: FindChartsFn = async (args) => {
-            const allCharts = await this.searchModel.searchAllCharts(
-                projectUuid,
-                args.chartSearchQuery.label,
-                'OR',
+        const storeToolResults: StoreToolResultsFn = async (args) => {
+            void wrapSentryTransaction(
+                'AiAgent.storeToolResults',
+                args.map((arg) => ({
+                    promptUuid: arg.promptUuid,
+                    toolCallId: arg.toolCallId,
+                    toolName: arg.toolName,
+                })),
+                () => this.aiAgentModel.createToolResults(args),
             );
-
-            const filteredResults = await this.spaceService.filterBySpaceAccess(
-                user,
-                allCharts,
-            );
-
-            const totalResults = filteredResults.length;
-            const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-            return {
-                charts: filteredResults,
-                pagination: {
-                    page: args.page,
-                    pageSize: args.pageSize,
-                    totalPageCount,
-                    totalResults,
-                },
-            };
         };
 
-        const searchFieldValues: SearchFieldValuesFn = async (args) => {
-            const dimensionFilters = args.filters?.dimensions;
-            const andFilters =
-                dimensionFilters && 'and' in dimensionFilters
-                    ? dimensionFilters
-                    : undefined;
-
-            const { results } =
-                await this.projectService.searchFieldUniqueValues(
-                    user,
+        const findDashboards: FindDashboardsFn = async (args) =>
+            wrapSentryTransaction('AiAgent.findDashboards', args, async () => {
+                const searchResults = await this.searchModel.searchDashboards(
                     projectUuid,
-                    args.table,
-                    args.fieldId,
-                    args.query,
-                    100,
-                    andFilters,
-                    false,
+                    args.dashboardSearchQuery.label,
                     undefined,
+                    'OR',
                 );
 
-            return results;
-        };
+                const filteredResults =
+                    await this.spaceService.filterBySpaceAccess(
+                        user,
+                        searchResults,
+                    );
+
+                const totalResults = filteredResults.length;
+                const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+                return {
+                    dashboards: filteredResults,
+                    pagination: {
+                        page: args.page,
+                        pageSize: args.pageSize,
+                        totalPageCount,
+                        totalResults,
+                    },
+                };
+            });
+
+        const findCharts: FindChartsFn = (args) =>
+            wrapSentryTransaction('AiAgent.findCharts', args, async () => {
+                const allCharts = await this.searchModel.searchAllCharts(
+                    projectUuid,
+                    args.chartSearchQuery.label,
+                    'OR',
+                );
+
+                const filteredResults =
+                    await this.spaceService.filterBySpaceAccess(
+                        user,
+                        allCharts,
+                    );
+
+                const totalResults = filteredResults.length;
+                const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+                return {
+                    charts: filteredResults,
+                    pagination: {
+                        page: args.page,
+                        pageSize: args.pageSize,
+                        totalPageCount,
+                        totalResults,
+                    },
+                };
+            });
+
+        const searchFieldValues: SearchFieldValuesFn = async (args) =>
+            wrapSentryTransaction(
+                'AiAgent.searchFieldValues',
+                args,
+                async () => {
+                    const dimensionFilters = args.filters?.dimensions;
+                    const andFilters =
+                        dimensionFilters && 'and' in dimensionFilters
+                            ? dimensionFilters
+                            : undefined;
+
+                    const { results } =
+                        await this.projectService.searchFieldUniqueValues(
+                            user,
+                            projectUuid,
+                            args.table,
+                            args.fieldId,
+                            args.query,
+                            100,
+                            andFilters,
+                            false,
+                            undefined,
+                        );
+
+                    return results;
+                },
+            );
 
         const getExploreCompiler = async () => {
             const warehouseCredentials =
@@ -2185,19 +2217,32 @@ export class AiAgentService {
             );
         };
 
-        const createChange: CreateChangeFn = async (params) => {
-            const change = await this.changesetModel.createChange(projectUuid, {
-                createdByUserUuid: user.userUuid,
-                sourcePromptUuid: prompt.promptUuid,
-                ...params,
-            });
+        const createChange: CreateChangeFn = (params) =>
+            wrapSentryTransaction(
+                'AiAgent.createChange',
+                {
+                    type: params.type,
+                    entityName: params.entityName,
+                    entityType: params.entityType,
+                    entityTableName: params.entityTableName,
+                },
+                async () => {
+                    const change = await this.changesetModel.createChange(
+                        projectUuid,
+                        {
+                            createdByUserUuid: user.userUuid,
+                            sourcePromptUuid: prompt.promptUuid,
+                            ...params,
+                        },
+                    );
 
-            await this.catalogService.indexCatalogUpdates(projectUuid, [
-                params.entityTableName,
-            ]);
+                    await this.catalogService.indexCatalogUpdates(projectUuid, [
+                        params.entityTableName,
+                    ]);
 
-            return change.changeUuid;
-        };
+                    return change.changeUuid;
+                },
+            );
 
         return {
             listExplores,
