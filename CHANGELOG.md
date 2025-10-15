@@ -1,3 +1,10 @@
+# [0.2084.0](https://github.com/lightdash/lightdash/compare/0.2083.0...0.2084.0) (2025-10-15)
+
+
+### Features
+
+* Consolidate viz tools under one runQuery tool and add client-side viz-type switcher ([#17383](https://github.com/lightdash/lightdash/issues/17383)) ([3073ed3](https://github.com/lightdash/lightdash/commit/3073ed3d9c811d8f3644456a0c9a0fddfe663b1f))
+
 # [0.2083.0](https://github.com/lightdash/lightdash/compare/0.2082.0...0.2083.0) (2025-10-15)
 
 
