@@ -845,6 +845,7 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     analyticsEmbedSecret?: string;
+    experimentalExplorerImprovements: boolean;
 };
 
 export type SlackConfig = {
@@ -1619,5 +1620,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
+        experimentalExplorerImprovements:
+            process.env.EXPERIMENTAL_EXPLORER_IMPROVEMENTS === 'true',
     };
 };

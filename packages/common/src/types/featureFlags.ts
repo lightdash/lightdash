@@ -62,6 +62,11 @@ export enum FeatureFlags {
      * Enable the unused content dashboard showing least viewed charts and dashboards
      */
     UnusedContentDashboard = 'unused-content-dashboard',
+
+    /**
+     * Enable experimental explorer improvements
+     */
+    ExperimentalExplorerImprovements = 'experimental-explorer-improvements',
 }
 
 export type FeatureFlag = {
