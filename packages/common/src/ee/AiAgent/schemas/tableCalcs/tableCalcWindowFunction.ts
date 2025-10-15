@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WindowFunctionType } from '../../../../types/field';
 import { getFieldIdSchema } from '../fieldId';
 import {
     baseTableCalcSchema,
@@ -9,13 +10,13 @@ import {
 } from './tableCalcBaseSchemas';
 
 const windowFunctionTypeSchema = z.enum([
-    'row_number',
-    'percent_rank',
-    'sum',
-    'avg',
-    'count',
-    'min',
-    'max',
+    WindowFunctionType.ROW_NUMBER,
+    WindowFunctionType.PERCENT_RANK,
+    WindowFunctionType.SUM,
+    WindowFunctionType.AVG,
+    WindowFunctionType.COUNT,
+    WindowFunctionType.MIN,
+    WindowFunctionType.MAX,
 ]);
 
 export const tableCalcWindowFunctionSchema = baseTableCalcSchema.extend({

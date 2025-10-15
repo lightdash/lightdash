@@ -323,6 +323,19 @@ export enum WindowFunctionType {
     MAX = 'max',
 }
 
+export const nillaryWindowFunctions: WindowFunctionType[] = [
+    WindowFunctionType.ROW_NUMBER,
+    WindowFunctionType.PERCENT_RANK,
+];
+
+export const unaryWindowFunctions: WindowFunctionType[] = [
+    WindowFunctionType.SUM,
+    WindowFunctionType.AVG,
+    WindowFunctionType.COUNT,
+    WindowFunctionType.MIN,
+    WindowFunctionType.MAX,
+];
+
 export enum FrameType {
     ROWS = 'rows',
     RANGE = 'range',
