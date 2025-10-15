@@ -1,3 +1,10 @@
+# [0.2083.0](https://github.com/lightdash/lightdash/compare/0.2082.0...0.2083.0) (2025-10-15)
+
+
+### Features
+
+* pass columnProperties to PivotTable for bar display styling ([#17366](https://github.com/lightdash/lightdash/issues/17366)) ([a9eee97](https://github.com/lightdash/lightdash/commit/a9eee97f56dee38549406b756bbd3a0acdf135ae))
+
 # [0.2082.0](https://github.com/lightdash/lightdash/compare/0.2081.0...0.2082.0) (2025-10-15)
 
 

@@ -57,6 +57,7 @@ const getToolIcon = (toolName: ToolName) => {
             findCharts: IconChartDots3,
             improveContext: IconSchool,
             proposeChange: IconPencil,
+            runQuery: IconTable,
         };
 
     return iconMap[toolName];
