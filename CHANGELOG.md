@@ -1,3 +1,11 @@
+## [0.2080.2](https://github.com/lightdash/lightdash/compare/0.2080.1...0.2080.2) (2025-10-15)
+
+
+### Bug Fixes
+
+* **agent:** add Top N filtering pattern and examples for table calculations ([#17451](https://github.com/lightdash/lightdash/issues/17451)) ([619e69b](https://github.com/lightdash/lightdash/commit/619e69bd6578665ddbc2df600d6652355c9a9bb6))
+* useExporerQuery not running pivot query when USE_SQL_PIVOT_RESULTS is enabled ([#17436](https://github.com/lightdash/lightdash/issues/17436)) ([f62554f](https://github.com/lightdash/lightdash/commit/f62554f65f020bb26caaf791076b3c48cb2e9771))
+
 ## [0.2080.1](https://github.com/lightdash/lightdash/compare/0.2080.0...0.2080.1) (2025-10-14)
 
 
