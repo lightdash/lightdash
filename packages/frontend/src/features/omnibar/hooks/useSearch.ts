@@ -14,12 +14,20 @@ type Params = UseQueryOptions<SearchResults, ApiError, SearchResultMap> & {
     projectUuid: string;
     query?: string;
     filters?: SearchFilters;
+    source: 'omnibar' | 'ai_search_box';
 };
 
-const useSearch = ({ projectUuid, query = '', filters, ...params }: Params) =>
+const useSearch = ({
+    projectUuid,
+    query = '',
+    filters,
+    source,
+    ...params
+}: Params) =>
     useQuery<SearchResults, ApiError, SearchResultMap>({
         queryKey: [projectUuid, 'search', filters ?? 'all', query],
-        queryFn: () => getSearchResults({ projectUuid, query, filters }),
+        queryFn: () =>
+            getSearchResults({ projectUuid, query, filters, source }),
         retry: false,
         enabled: query.length >= OMNIBAR_MIN_QUERY_LENGTH,
         select: (data) => getSearchItemMap(data, projectUuid),

@@ -7,20 +7,23 @@ export const getSearchResults = async ({
     projectUuid,
     query,
     filters,
+    source,
 }: {
     projectUuid: string;
     query: string;
+    source: 'omnibar' | 'ai_search_box';
     filters?: SearchFilters;
 }) => {
     const sanitisedFilters = omitBy(filters, isNil);
-    const searchParams = sanitisedFilters
-        ? new URLSearchParams(sanitisedFilters).toString()
-        : undefined;
+    const params = new URLSearchParams({
+        ...(sanitisedFilters || {}),
+        source,
+    });
 
     return lightdashApi<SearchResults>({
-        url: `/projects/${projectUuid}/search/${encodeURIComponent(query)}${
-            searchParams ? `?${searchParams}` : ''
-        }`,
+        url: `/projects/${projectUuid}/search/${encodeURIComponent(
+            query,
+        )}?${params.toString()}`,
         method: 'GET',
         body: undefined,
     });

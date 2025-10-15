@@ -56,6 +56,7 @@ projectRouter.get(
                     req.user!,
                     getObjectValue(req.params, 'projectUuid'),
                     getObjectValue(req.params, 'query'),
+                    req.query.source as 'omnibar' | 'ai_search_box' | undefined,
                     {
                         type: type?.toString(),
                         fromDate: fromDate?.toString(),

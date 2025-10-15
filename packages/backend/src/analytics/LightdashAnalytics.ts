@@ -720,6 +720,7 @@ type ProjectSearch = BaseTrack & {
         tablesResultsCount: number;
         fieldsResultsCount: number;
         dashboardTabsResultsCount: number;
+        source: 'omnibar' | 'ai_search_box';
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {
