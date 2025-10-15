@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { type DateGranularity } from '@lightdash/common';
 import { memo } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -15,9 +14,8 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
-    useDateZoomGranularitySearch,
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
@@ -27,15 +25,11 @@ import { defaultState } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
-const ExplorerWithUrlParams = memo<{
-    dateZoomGranularity?: DateGranularity;
-}>(({ dateZoomGranularity }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        dateZoomGranularity,
-    });
-
+const ExplorerWithUrlParams = memo(() => {
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
     useExplorerRoute();
+
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
@@ -64,8 +58,6 @@ const ExplorerPage = memo(() => {
 
     const explorerUrlState = useExplorerUrlState();
     const { user, health } = useApp();
-
-    const dateZoomGranularity = useDateZoomGranularitySearch();
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
@@ -97,9 +89,7 @@ const ExplorerPage = memo(() => {
                 }
                 defaultLimit={health.data?.query.defaultLimit}
             >
-                <ExplorerWithUrlParams
-                    dateZoomGranularity={dateZoomGranularity}
-                />
+                <ExplorerWithUrlParams />
             </ExplorerProvider>
         </Provider>
     );

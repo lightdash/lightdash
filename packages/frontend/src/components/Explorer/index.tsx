@@ -6,12 +6,10 @@ import {
     explorerActions,
     selectColumnOrder,
     selectDimensions,
-    selectFromDashboard,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
     selectParameterReferences,
-    selectPreviouslyFetchedState,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -25,7 +23,6 @@ import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
-import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
@@ -47,10 +44,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const metrics = useExplorerSelector(selectMetrics);
         const columnOrder = useExplorerSelector(selectColumnOrder);
         const sorts = useExplorerSelector(selectSorts);
-        const fromDashboard = useExplorerSelector(selectFromDashboard);
-        const previouslyFetchedState = useExplorerSelector(
-            selectPreviouslyFetchedState,
-        );
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
@@ -60,7 +53,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const projectUuid = useProjectUuid();
 
-        const { query, fetchResults } = useExplorerQuery();
+        const { query } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
 
         const { data: explore } = useExplore(tableName);
@@ -68,31 +61,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!tableName,
         });
-
-        const isSavedChart = useExplorerContext(
-            (context) => !!context.state.savedChart,
-        );
-
-        // Get boolean for pivot config existence directly from Context
-        const hasPivotConfig = useExplorerContext(
-            (context) => !!context.state.unsavedChartVersion.pivotConfig,
-        );
-
-        useEffect(() => {
-            const shouldAutoFetch =
-                !previouslyFetchedState &&
-                (!!fromDashboard || isSavedChart || hasPivotConfig);
-
-            if (shouldAutoFetch) {
-                fetchResults();
-            }
-        }, [
-            previouslyFetchedState,
-            fetchResults,
-            fromDashboard,
-            isSavedChart,
-            hasPivotConfig,
-        ]);
 
         const chartVersionForSort = useMemo(
             () => ({

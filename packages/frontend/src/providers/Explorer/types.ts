@@ -201,6 +201,7 @@ export interface ExplorerReduceState {
         tableCalculations?: TableCalculationMetadata[];
     };
     isVisualizationConfigOpen?: boolean;
+    isMinimal?: boolean;
     isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
@@ -248,7 +249,6 @@ export interface ExplorerReduceState {
         queryUuidHistory: string[];
         unpivotedQueryUuidHistory: string[];
     };
-
     fromDashboard?: string;
 }
 

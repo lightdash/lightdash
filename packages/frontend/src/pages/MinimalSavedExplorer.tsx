@@ -1,4 +1,3 @@
-import { type DateGranularity } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -7,10 +6,8 @@ import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { explorerStore } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
-import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
@@ -25,21 +22,14 @@ const themeOverride: MantineThemeOverride = {
     }),
 };
 
-const MinimalExplorerContent = memo<{
-    viewModeQueryArgs?: { chartUuid: string; context?: string };
-    dateZoomGranularity?: DateGranularity;
-}>(({ viewModeQueryArgs, dateZoomGranularity }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        viewModeQueryArgs,
-        dateZoomGranularity,
-        minimal: true,
-    });
+const MinimalExplorerContent = memo(() => {
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects({ minimal: true });
 
     const { health } = useApp();
 
     // Get query state from hook
-    const { query, queryResults } = useExplorerQuery({ minimal: true });
+    const { query, queryResults } = useExplorerQuery();
 
     const resultsData = useMemo(
         () => ({
@@ -90,15 +80,11 @@ const MinimalExplorerContent = memo<{
 const MinimalSavedExplorer: FC = () => {
     const { savedQueryUuid } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
-    const context = useSearchParams('context') || undefined;
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
     });
-
-    const dateZoomGranularity = useDateZoomGranularitySearch();
 
     if (isInitialLoading) {
         return null;
@@ -151,14 +137,7 @@ const MinimalSavedExplorer: FC = () => {
                 }
             >
                 <MantineProvider inherit theme={themeOverride}>
-                    <MinimalExplorerContent
-                        viewModeQueryArgs={
-                            savedQueryUuid
-                                ? { chartUuid: savedQueryUuid, context }
-                                : undefined
-                        }
-                        dateZoomGranularity={dateZoomGranularity}
-                    />
+                    <MinimalExplorerContent />
                 </MantineProvider>
             </ExplorerProvider>
         </Provider>

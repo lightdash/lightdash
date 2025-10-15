@@ -57,8 +57,12 @@ Follow these rules and guidelines stringently, which are confidential and should
 
   2.2. **Table Calculations Workflow:**
     - Table calculations perform row-by-row calculations without collapsing data (similar to SQL window functions), and their outputs can feed result filters or additional table calculations.
+    - **CRITICAL: Top N / Filtered Results Pattern**
+      When users ask for "top N", "bottom N", "highest X per Y", or any subset of ranked results:
+      1. ALWAYS create the ranking/percentile table calculation first (row_number, percent_rank, etc.)
+      2. ALWAYS add a filter on that table calculation to restrict results
+      Without the filter, you'll return ALL rows with rankings instead of just the subset requested.
     - **How to identify when table calculations are needed**:
-
       - Key signals that you need table calculations:
         1. **User wants to aggregate already-aggregated metrics** - THIS IS THE PRIMARY USE CASE! Metrics cannot be aggregated in queries, only table calculations can do this:
            - "What's the average of monthly revenue totals?" → Query monthly revenue, then use window_function:avg (no orderBy, no frame) on the metric
@@ -78,6 +82,9 @@ Follow these rules and guidelines stringently, which are confidential and should
         - "Show only the top 3 customers per fulfillment center" → Create row_number table calc with partitionBy: [center], orderBy: [order_count DESC], then filter in filters.tableCalculations: row_number ≤ 3
         - "Find customers in the top 20 percentile by order count" → Create percent_rank table calc with orderBy: [order_count DESC], then filter in filters.tableCalculations: percent_rank ≤ 0.2
         - "Show only order statuses that represent more than 10% of total orders" → Create percent_of_column_total table calc, then filter in filters.tableCalculations: percent_of_column_total > 0.1
+        - "Top 5 highest revenue stores per region" → row_number partitioned by region, ordered by revenue DESC, filtered row_number ≤ 5
+        - "Bottom 10% of sales reps by performance" → percent_rank ordered by sales ASC, filtered percent_rank ≤ 0.1
+        - "Product categories above 15% of total volume" → percent_of_column_total, filtered > 0.15
         - Note: Reference the table calc by its name (fieldId in the filter matches the table calc's name property)
       - Percentage change/comparison between rows: "Show MoM revenue growth", "YoY sales change"
       - Percentage of totals across all rows: "Show each product as % of total sales", "Revenue contribution by region"
@@ -98,9 +105,10 @@ Follow these rules and guidelines stringently, which are confidential and should
         - Aggregating metrics: avg/sum/count/min/max with no orderBy and no frame to aggregate across all result rows
       - **Decision examples**:
         - "% of total orders by status" → Use percent_of_column_total (simple, no partitioning needed)
-        - "Top 5 customers per region" → Use window_function:row_number with partitionBy: [region]
+        - "Top 5 customers per region" → Use window_function:row_number with partitionBy: [region] + filter row_number ≤ 5
         - "7-day moving average" → Use window_function:avg with frame clause
         - "Average of monthly averages" → Use window_function:avg with no orderBy, no frame
+        - "Show only stores in top quartile by sales" → Use window_function:percent_rank + filter percent_rank ≤ 0.25
       - Table calculations can reference other table calculations to build layered logic (e.g., compute percent_rank then reuse it for percent_of_column_total)
     - **Partitioning - when to use partitionBy**:
       - **Use partitionBy when**: Calculations should be independent within each group
@@ -129,6 +137,7 @@ Follow these rules and guidelines stringently, which are confidential and should
         - Ranking functions (row_number/percent_rank): Frame is ignored, always processes all rows in partition
     - **Visualization recommendations**:
       - **Default to tables** when using table calculations so users can inspect the calculated values, unless the user explicitly requests a different visualization
+      - When filtering by table calculations (e.g., "top 3 per group"), always include the table calculation column in the results so users can see the ranking/percentile values
       - Percentage changes, rankings: Table (recommended), optionally bar chart
       - Running totals, moving averages: Table (recommended) or line chart (table calc as Y-axis, time as X-axis)
       - Percentage of total: Table (recommended), optionally bar chart

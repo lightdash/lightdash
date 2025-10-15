@@ -32,7 +32,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import { explorerStore } from '../features/explorer/store';
-import { useExplorerQueryManager } from '../hooks/useExplorerQueryManager';
+import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
     useChartVersion,
@@ -45,16 +45,9 @@ import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
-const ChartHistoryExplorer = memo<{
-    viewModeQueryArgs?: {
-        chartUuid: string;
-        chartVersionUuid: string;
-    };
-}>(({ viewModeQueryArgs }) => {
-    // Run the query manager hook - orchestrates all query effects
-    useExplorerQueryManager({
-        viewModeQueryArgs,
-    });
+const ChartHistoryExplorer = memo(() => {
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
 
     return <Explorer hideHeader={true} />;
 });
@@ -292,16 +285,7 @@ const ChartHistory = () => {
                         }}
                         savedChart={chartVersionQuery.data?.chart}
                     >
-                        <ChartHistoryExplorer
-                            viewModeQueryArgs={
-                                savedQueryUuid && selectedVersionUuid
-                                    ? {
-                                          chartUuid: savedQueryUuid,
-                                          chartVersionUuid: selectedVersionUuid,
-                                      }
-                                    : undefined
-                            }
-                        />
+                        <ChartHistoryExplorer />
                     </ExplorerProvider>
                 </Provider>
             )}

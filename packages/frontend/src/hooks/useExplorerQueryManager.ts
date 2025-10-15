@@ -1,23 +1,11 @@
-import {
-    deepEqual,
-    derivePivotConfigurationFromChart,
-    FeatureFlags,
-    getFieldsFromMetricQuery,
-    type DateGranularity,
-    type FieldId,
-} from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useEffect, useMemo } from 'react';
+import { FeatureFlags, type FieldId } from '@lightdash/common';
+import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
-import {
-    AUTO_FETCH_ENABLED_DEFAULT,
-    AUTO_FETCH_ENABLED_KEY,
-} from '../components/RunQuerySettings/defaults';
 import {
     explorerActions,
     selectFilters,
     selectIsEditMode,
-    selectIsResultsExpanded,
+    selectIsMinimal,
     selectMetricQuery,
     selectParameterDefinitions,
     selectParameterReferences,
@@ -34,31 +22,23 @@ import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
+import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 
 /**
- * Manager hook for Explorer query orchestration
+ * Manager hook for Explorer query state
  *
- * This hook contains all the heavy logic:
- * - Effects for auto-fetch, parameter watching, unpivoted query setup
- * - Query manager instantiation
- * - Redux state updates
+ * This hook provides:
+ * - Query state from Redux and TanStack Query
+ * - Computed state (active fields, loading state, etc.)
+ * - Single source of truth for runQuery function
  *
- * Should be called ONCE at the Explorer root component.
- * Child components should use useExplorerQuery() instead.
+ * NOTE: This hook does NOT contain effects. For auto-fetch and other effects,
+ * use useExplorerQueryEffects at the root component.
+ *
+ * Child components should use useExplorerQuery() for the full public API.
  */
-export const useExplorerQueryManager = (options?: {
-    viewModeQueryArgs?:
-        | { chartUuid: string; context?: string }
-        | { chartUuid: string; chartVersionUuid: string };
-    dateZoomGranularity?: DateGranularity;
-    projectUuid?: string;
-    minimal?: boolean;
-}) => {
-    const viewModeQueryArgs = options?.viewModeQueryArgs;
-    const dateZoomGranularity = options?.dateZoomGranularity;
-    const projectUuidProp = options?.projectUuid;
-    const minimal = options?.minimal ?? false;
+export const useExplorerQueryManager = () => {
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -66,7 +46,7 @@ export const useExplorerQueryManager = (options?: {
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
-    const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const minimal = useExplorerSelector(selectIsMinimal);
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
@@ -79,6 +59,16 @@ export const useExplorerQueryManager = (options?: {
     const unpivotedQueryUuidHistory = useExplorerSelector(
         selectUnpivotedQueryUuidHistory,
     );
+
+    const { savedQueryUuid, projectUuid } = useParams<{
+        savedQueryUuid: string;
+        projectUuid: string;
+    }>();
+    const viewModeQueryArgs = useMemo(() => {
+        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
+    }, [savedQueryUuid]);
+
+    const dateZoomGranularity = useDateZoomGranularitySearch();
 
     // Get merged version with chartConfig and pivotConfig from Context
     // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
@@ -96,18 +86,6 @@ export const useExplorerQueryManager = (options?: {
             mergedUnsavedChartVersion.pivotConfig,
         ],
     );
-
-    // Auto-fetch configuration
-    const [autoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
-
-    // Project UUID from props or route params
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = projectUuidProp || projectUuidFromParams;
 
     // Get explore data and pivot configuration
     const { data: explore } = useExplore(tableName);
@@ -146,25 +124,6 @@ export const useExplorerQueryManager = (options?: {
         return missing;
     }, [parameterReferences, parameters, parameterDefinitions]);
 
-    // Check if we need unpivoted data for results table
-    const needsUnpivotedData = useMemo(() => {
-        if (!useSqlPivotResults?.enabled || !explore) return false;
-
-        const items = getFieldsFromMetricQuery(metricQuery, explore);
-        const pivotConfiguration = derivePivotConfigurationFromChart(
-            mergedUnsavedChartVersion,
-            metricQuery,
-            items,
-        );
-
-        return !!pivotConfiguration;
-    }, [
-        useSqlPivotResults?.enabled,
-        explore,
-        metricQuery,
-        mergedUnsavedChartVersion,
-    ]);
-
     // Dispatch functions for query UUID history
     const setQueryUuidHistory = useCallback(
         (history: string[]) => {
@@ -188,21 +147,21 @@ export const useExplorerQueryManager = (options?: {
         queryUuidHistory,
         setQueryUuidHistory,
     );
-    const { query } = mainQueryExecutor;
+    const { query, queryResults } = mainQueryExecutor;
 
     // Unpivoted query executor for results table
-    // Only enable when we actually need unpivoted data AND results are open AND we have valid args
-    const unpivotedEnabled =
-        needsUnpivotedData && isResultsOpen && !!unpivotedQueryArgs;
-    useQueryExecutor(
+    const unpivotedEnabled = !!unpivotedQueryArgs;
+    const [unpivotedQueryExecutor] = useQueryExecutor(
         unpivotedQueryArgs,
         missingRequiredParameters,
         unpivotedEnabled,
         unpivotedQueryUuidHistory,
         setUnpivotedQueryUuidHistory,
     );
+    const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
+        unpivotedQueryExecutor;
 
-    // Function to prepare and set query arguments
+    // Function to prepare and set query arguments (single source of truth)
     const runQuery = useCallback(() => {
         const mainQueryArgs = buildQueryArgs({
             activeFields,
@@ -221,20 +180,13 @@ export const useExplorerQueryManager = (options?: {
 
         if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
-        } else {
-            console.warn(
-                `Can't make SQL request, invalid state`,
-                tableName,
-                activeFields.size,
-                computedMetricQuery,
-            );
         }
     }, [
         activeFields,
         tableName,
         projectUuid,
         explore,
-        useSqlPivotResults,
+        useSqlPivotResults?.enabled,
         computedMetricQuery,
         parameters,
         isEditMode,
@@ -245,55 +197,42 @@ export const useExplorerQueryManager = (options?: {
         dispatch,
     ]);
 
-    // Set up unpivoted query args when needed
-    useEffect(() => {
-        if (!validQueryArgs) {
-            dispatch(explorerActions.setUnpivotedQueryArgs(null));
-            return;
-        }
+    // Compute loading state
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = query.isFetching;
+        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
+        const isFetchingAllRows = queryResults.isFetchingAllPages;
+        const isQueryError = queryResults.error;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !isQueryError
+        );
+    }, [
+        query.isFetching,
+        queryResults.isFetchingFirstPage,
+        queryResults.isFetchingAllPages,
+        queryResults.error,
+    ]);
 
-        if (needsUnpivotedData && isResultsOpen) {
-            dispatch(
-                explorerActions.setUnpivotedQueryArgs({
-                    ...validQueryArgs,
-                    pivotConfiguration: undefined,
-                    pivotResults: false,
-                }),
-            );
-        } else {
-            dispatch(explorerActions.setUnpivotedQueryArgs(null));
-        }
-    }, [validQueryArgs, needsUnpivotedData, isResultsOpen, dispatch]);
+    return {
+        // Query state
+        query,
+        queryResults,
+        unpivotedQuery,
+        unpivotedQueryResults,
 
-    // Auto-fetch logic
-    // Run query automatically when state changes (respects auto-fetch setting in edit mode)
-    useEffect(() => {
-        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
-        // This will stop auto-fetching until the first query is run
-        if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
-        runQuery();
-    }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
+        // Computed state
+        isLoading,
+        activeFields,
+        missingRequiredParameters,
+        validQueryArgs,
+        tableName,
+        projectUuid,
+        explore,
+        computedMetricQuery,
+        parameters,
 
-    // Parameter change detection
-    const parametersChanged = useMemo(() => {
-        if (
-            !query.isFetched ||
-            !parameters ||
-            Object.keys(parameters).length === 0
-        ) {
-            return false;
-        }
-
-        const currentParams = validQueryArgs?.parameters ?? {};
-        return !deepEqual(currentParams, parameters);
-    }, [query.isFetched, validQueryArgs?.parameters, parameters]);
-
-    // Re-run query on parameter changes
-    useEffect(() => {
-        if (parametersChanged && autoFetchEnabled) {
-            runQuery();
-        }
-    }, [parametersChanged, autoFetchEnabled, runQuery]);
-
-    // No return value - this hook just orchestrates
+        // Query execution
+        runQuery,
+    };
 };
