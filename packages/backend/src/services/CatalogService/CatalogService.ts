@@ -270,11 +270,6 @@ export class CatalogService<
                 searchQuery: args.catalogSearch.searchQuery,
             },
             async () => {
-                const exploreCacheMap =
-                    await this.projectModel.findExploresFromCache(
-                        args.projectUuid,
-                        'name',
-                    );
                 const tablesConfiguration =
                     await this.projectModel.getTablesConfiguration(
                         args.projectUuid,
@@ -294,7 +289,6 @@ export class CatalogService<
                             tablesConfiguration,
                             excludeUnmatched: args.excludeUnmatched,
                             fullTextSearchOperator: args.fullTextSearchOperator,
-                            exploreCacheMap,
                             filteredExplore: args.filteredExplore,
                         }),
                 );
@@ -1310,10 +1304,6 @@ export class CatalogService<
         ) {
             throw new ForbiddenError();
         }
-        const exploreCacheMap = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-        );
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -1332,7 +1322,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            exploreCacheMap,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1372,10 +1361,9 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const exploreCacheMap = await this.projectModel.findExploresFromCache(
+        const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
-            'name',
-            [tableName],
+            tableName,
         );
 
         const userAttributes =
@@ -1396,15 +1384,10 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            exploreCacheMap,
         });
 
         const allDimensions = catalogDimensions.data
-            .map(
-                (d) =>
-                    exploreCacheMap[tableName]?.tables?.[tableName]
-                        ?.dimensions?.[d.name],
-            )
+            .map((d) => explore?.tables?.[tableName]?.dimensions?.[d.name])
             .filter((d): d is CompiledDimension => d !== undefined);
 
         return getAvailableSegmentDimensions(allDimensions);
