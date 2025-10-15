@@ -1,3 +1,11 @@
+# [0.2087.0](https://github.com/lightdash/lightdash/compare/0.2086.4...0.2087.0) (2025-10-15)
+
+
+### Features
+
+* add set fields to model schema ([#17386](https://github.com/lightdash/lightdash/issues/17386)) ([ac9bd9a](https://github.com/lightdash/lightdash/commit/ac9bd9a08c1a1d0e8ffbb17aa0ac4c89a2887744))
+* update URL for embed dashboard interactions ([#17387](https://github.com/lightdash/lightdash/issues/17387)) ([56cef14](https://github.com/lightdash/lightdash/commit/56cef14ed25c2167d70cd415673112fde827193c))
+
 ## [0.2086.4](https://github.com/lightdash/lightdash/compare/0.2086.3...0.2086.4) (2025-10-15)
 
 
