@@ -87,7 +87,7 @@ export const parseCatalog = (
         return {
             catalogSearchUuid: dbCatalog.catalog_search_uuid,
             name: dbCatalog.name,
-            label: dbCatalog.explore.label,
+            label: dbCatalog.label ?? dbCatalog.explore.label,
             groupLabel: dbCatalog.explore.groupLabel,
             description: dbCatalog.description || undefined,
             type: CatalogType.Table,

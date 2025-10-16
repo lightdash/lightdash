@@ -7,6 +7,8 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBase,
     dateFilterSchema,
+    DependencyNode,
+    detectCircularDependencies,
     Explore,
     FilterRule,
     Filters,
@@ -22,6 +24,7 @@ import {
     isMetric,
     isTableCalculation,
     MetricType,
+    nillaryWindowFunctions,
     numberFilterSchema,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
@@ -31,8 +34,10 @@ import {
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
+    ToolRunQueryArgsTransformed,
     ToolSortField,
     WeekDay,
+    WindowFunctionType,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -699,6 +704,33 @@ const NUMERIC_CALCULATION_TYPES: TableCalcSchema['type'][] = [
     'running_total',
 ];
 
+function buildTableCalcSchemaDependencyGraph(
+    tableCalcs: TableCalcsSchema,
+): DependencyNode[] {
+    if (!tableCalcs) return [];
+
+    return tableCalcs.map((tc) => {
+        const deps: string[] = [];
+
+        // Add fieldId dependency if it exists
+        if ('fieldId' in tc && tc.fieldId !== null) {
+            deps.push(tc.fieldId);
+        }
+
+        // Add orderBy dependencies
+        if ('orderBy' in tc && tc.orderBy !== null) {
+            deps.push(...tc.orderBy.map((ob) => ob.fieldId));
+        }
+
+        // Add partitionBy dependencies
+        if ('partitionBy' in tc && tc.partitionBy !== null) {
+            deps.push(...tc.partitionBy);
+        }
+
+        return { name: tc.name, dependencies: deps };
+    });
+}
+
 /**
  * Validate table calculations to ensure fieldId and orderBy.fieldId reference valid metrics/custom metrics
  * with compatible types for the calculation being performed
@@ -718,6 +750,18 @@ export function validateTableCalculations(
     const customMetricIds = customMetricFields.map(getItemId);
     const allFields = [...exploreFields, ...customMetricFields];
     const errors: string[] = [];
+    const getTableCalcValidationError = (errs: string | string[]) =>
+        `Invalid table calculation configuration:\n\n${
+            Array.isArray(errs) ? errs.join('\n') : errs
+        }`;
+
+    // Check for circular dependencies
+    const dependencies = buildTableCalcSchemaDependencyGraph(tableCalcs);
+    try {
+        detectCircularDependencies(dependencies, 'table calculations');
+    } catch (e) {
+        throw new Error(getTableCalcValidationError(getErrorMessage(e)));
+    }
 
     // Validate orderBy fields exist
     const orderByFieldIds = tableCalcs.flatMap((calc) => {
@@ -742,15 +786,54 @@ export function validateTableCalculations(
         }
     }
 
-    // Helper to find field by ID
+    const partitionByFieldIds = tableCalcs.flatMap((calc) => {
+        if ('partitionBy' in calc && calc.partitionBy !== null) {
+            return calc.partitionBy;
+        }
+        return [];
+    });
+
+    if (partitionByFieldIds.length > 0) {
+        try {
+            validateSelectedFieldsExistence(
+                explore,
+                partitionByFieldIds,
+                customMetrics,
+                tableCalcs,
+            );
+        } catch (e) {
+            errors.push(getErrorMessage(e));
+        }
+    }
+
     const findField = (fieldId: string) =>
         allFields.find((f) => getItemId(f) === fieldId);
 
     tableCalcs.forEach((tableCalc) => {
-        const { type, name, displayName } = tableCalc;
+        const { type, name } = tableCalc;
 
-        // Skip validation for window functions (they don't have a fieldId)
         if (type === 'window_function') {
+            const needsFieldId = !nillaryWindowFunctions.includes(
+                tableCalc.windowFunction,
+            );
+
+            if (!needsFieldId) {
+                return;
+            }
+
+            if (needsFieldId && tableCalc.fieldId === null) {
+                errors.push(
+                    `Window function "${name}" of type "${tableCalc.windowFunction}" requires a fieldId. ` +
+                        'Aggregate window functions (sum, avg, count, min, max) must specify a field to aggregate.',
+                );
+                return;
+            }
+        }
+
+        if (tableCalc.fieldId === null) {
+            errors.push(
+                `Table calculation "${name}" of type "${type}" requires a fieldId.`,
+            );
             return;
         }
 
@@ -758,8 +841,13 @@ export function validateTableCalculations(
         const isSelectedMetric = selectedMetrics.includes(fieldId);
         const isCustomMetric = customMetricIds.includes(fieldId);
 
+        // Check if fieldId references another table calculation (potential circular dependency)
+        const isReferencingTableCalc = tableCalcs.some(
+            (tc) => tc.name === fieldId,
+        );
+
         // Check field is selected
-        if (!isSelectedMetric && !isCustomMetric) {
+        if (!isSelectedMetric && !isCustomMetric && !isReferencingTableCalc) {
             errors.push(
                 `Table calculation "${name}" references unselected field "${fieldId}". ` +
                     'The field must be included in metrics or custom metrics.',
@@ -767,7 +855,12 @@ export function validateTableCalculations(
             return;
         }
 
-        // Find and validate field
+        if (isReferencingTableCalc) {
+            // We already checked for circular dependencies
+            // We know that the fieldId is a table calculation
+            return;
+        }
+
         const field = findField(fieldId);
         if (!field) {
             errors.push(
@@ -776,7 +869,6 @@ export function validateTableCalculations(
             return;
         }
 
-        // Check field is a metric
         if (!isMetric(field) && !isAdditionalMetric(field)) {
             errors.push(
                 `Table calculation "${name}" references "${fieldId}" which is not a metric. ` +
@@ -785,7 +877,6 @@ export function validateTableCalculations(
             return;
         }
 
-        // Check type compatibility for numeric calculations
         if (
             NUMERIC_CALCULATION_TYPES.includes(type) &&
             !NUMERIC_METRIC_TYPES.includes(field.type)
@@ -798,10 +889,87 @@ export function validateTableCalculations(
     });
 
     if (errors.length > 0) {
-        const errorMessage = `Invalid table calculation configuration:\n\n${errors.join(
-            '\n',
-        )}`;
+        const errorMessage = getTableCalcValidationError(errors);
         Logger.error(`[AiAgent][Validate Table Calculations] ${errorMessage}`);
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that groupBy fields are valid dimensions that exist in the explore and are selected in the query
+ * @param explore - The explore containing field definitions
+ * @param groupByFields - Array of field IDs to use for grouping/series breakdown
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ */
+export function validateGroupByFields(
+    explore: Explore,
+    groupByFields: string[] | null | undefined,
+    selectedDimensions: string[],
+) {
+    if (!groupByFields || groupByFields.length === 0) {
+        return;
+    }
+
+    const exploreFields = getFields(explore);
+    const errors: string[] = [];
+
+    groupByFields.forEach((fieldId) => {
+        const field = exploreFields.find((f) => getItemId(f) === fieldId);
+
+        if (!field) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" does not exist in the explore.`,
+            );
+            return;
+        }
+
+        if (!isDimension(field)) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" (${field.label}) is not a dimension. Only selected dimensions can be used in groupBy for series breakdown.
+
+Field Details:
+- Field ID: ${fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+- Expected Type: dimension`,
+            );
+            return;
+        }
+
+        if (!selectedDimensions.includes(fieldId)) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" (${
+                    field.label
+                }) is not selected in the query dimensions. Fields used in groupBy must be included in the dimensions array.
+
+Field Details:
+- Field ID: ${fieldId}
+- Field Label: ${field.label}
+- Selected Dimensions: ${selectedDimensions.join(', ')}`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid groupBy configuration:
+
+${errors.join('\n\n')}
+
+Remember:
+- groupBy fields must be valid dimensions from the explore
+- groupBy fields must be included in the query's dimensions array
+- groupBy is used to split metrics into separate series (e.g., one line per region)
+- Do NOT include the x-axis dimension in groupBy - only dimensions for series breakdown
+
+Available dimensions:
+${exploreFields
+    .filter(isDimension)
+    .map((f) => `- ${getItemId(f)} (${f.label})`)
+    .join('\n')}`;
+
+        Logger.error(`[AiAgent][Validate GroupBy Fields] ${errorMessage}`);
+
         throw new Error(errorMessage);
     }
 }

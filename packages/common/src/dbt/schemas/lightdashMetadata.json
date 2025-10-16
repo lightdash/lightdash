@@ -224,7 +224,10 @@
                         "number",
                         "string",
                         "date",
-                        "boolean"
+                        "boolean",
+                        "percent_of_previous",
+                        "percent_of_total",
+                        "running_total"
                     ]
                 },
                 "description": {

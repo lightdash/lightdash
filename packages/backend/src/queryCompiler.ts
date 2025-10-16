@@ -7,21 +7,21 @@ import {
     CompileError,
     convertAdditionalMetric,
     convertFieldRefToFieldId,
+    DependencyNode,
+    detectCircularDependencies,
     Explore,
     ExploreCompiler,
+    isPostCalculationMetricType,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     lightdashVariablePattern,
     MetricQuery,
+    MetricType,
+    PivotConfiguration,
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
-
-interface TableCalculationDependency {
-    name: string;
-    dependencies: string[];
-}
 
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
@@ -30,7 +30,7 @@ const getTableCalculationReferences = (sql: string): string[] => {
 
 const buildTableCalculationDependencyGraph = (
     tableCalculations: TableCalculation[],
-): TableCalculationDependency[] =>
+): DependencyNode[] =>
     tableCalculations.map((calc) => {
         if (isSqlTableCalculation(calc)) {
             return {
@@ -66,54 +66,11 @@ const buildTableCalculationDependencyGraph = (
         throw new CompileError(`Table calculation has no SQL or template`, {});
     });
 
-const detectCircularDependencies = (
-    dependencies: TableCalculationDependency[],
-): void => {
-    const visited = new Set<string>();
-    const recursionStack = new Set<string>();
-
-    const dfs = (node: string, path: string[]): void => {
-        if (recursionStack.has(node)) {
-            throw new CompileError(
-                `Circular dependency detected in table calculations: ${[
-                    ...path,
-                    node,
-                ].join(' -> ')}`,
-                {},
-            );
-        }
-
-        if (visited.has(node)) {
-            return;
-        }
-
-        visited.add(node);
-        recursionStack.add(node);
-
-        const deps =
-            dependencies.find((d) => d.name === node)?.dependencies || [];
-        for (const dep of deps) {
-            // Only check dependencies that are table calculations
-            if (dependencies.some((d) => d.name === dep)) {
-                dfs(dep, [...path, node]);
-            }
-        }
-
-        recursionStack.delete(node);
-    };
-
-    for (const dep of dependencies) {
-        if (!visited.has(dep.name)) {
-            dfs(dep.name, []);
-        }
-    }
-};
-
 const compileTableCalculation = (
     tableCalculation: TableCalculation,
     validFieldIds: string[],
     quoteChar: string,
-    dependencyGraph: TableCalculationDependency[],
+    dependencyGraph: DependencyNode[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
@@ -198,7 +155,11 @@ const compileTableCalculations = (
     // Build dependency graph to check for circular dependencies
     const dependencyGraph =
         buildTableCalculationDependencyGraph(tableCalculations);
-    detectCircularDependencies(dependencyGraph);
+    try {
+        detectCircularDependencies(dependencyGraph, 'table calculations');
+    } catch (e) {
+        throw new CompileError(e instanceof Error ? e.message : String(e), {});
+    }
 
     const compiledTableCalculations: CompiledTableCalculation[] = [];
 
@@ -249,6 +210,66 @@ const compileAdditionalMetric = ({
         tablesReferences: Array.from(compiledMetric.tablesReferences),
     };
 };
+
+export function compilePostCalculationMetric({
+    warehouseSqlBuilder,
+    type,
+    sql,
+    pivotConfiguration,
+    orderByClause,
+}: {
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+    type: MetricType;
+    sql: string;
+    pivotConfiguration?: PivotConfiguration;
+    orderByClause?: string;
+}): string {
+    const floatType = warehouseSqlBuilder.getFloatingType();
+    if (!isPostCalculationMetricType(type)) {
+        throw new CompileError(
+            `Unexpected metric type '${type}' when compiling PostCalculation metric`,
+        );
+    }
+
+    const groupByColumns = pivotConfiguration?.groupByColumns ?? [];
+    const q = warehouseSqlBuilder.getFieldQuoteChar();
+    const partitionByClause: string | undefined =
+        groupByColumns.length > 0
+            ? `PARTITION BY ${groupByColumns
+                  .map((col) => `${q}${col.reference}${q}`)
+                  .join(', ')}`
+            : undefined;
+
+    const finalOrderByClause = orderByClause ?? `ORDER BY (SELECT NULL)`;
+
+    if (type === MetricType.RUNNING_TOTAL) {
+        return `SUM(${sql}) OVER (${
+            partitionByClause ?? ' '
+        }${finalOrderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+    }
+
+    if (type === MetricType.PERCENT_OF_PREVIOUS) {
+        return (
+            `(CAST(${sql} AS ${floatType}) / ` +
+            `CAST(NULLIF(LAG(${sql}) OVER(${
+                partitionByClause ?? ' '
+            }${finalOrderByClause}), 0) AS ${floatType})) - 1`
+        );
+    }
+
+    if (type === MetricType.PERCENT_OF_TOTAL) {
+        return (
+            `(CAST(${sql} AS ${floatType}) / ` +
+            `CAST(NULLIF(SUM(${sql}) OVER(${
+                partitionByClause ?? ''
+            }), 0) AS ${floatType}))`
+        );
+    }
+
+    throw new CompileError(
+        `No PostCalculation metric implementation for type ${type}`,
+    );
+}
 
 type CompileMetricQueryArgs = {
     explore: Pick<Explore, 'targetDatabase' | 'tables' | 'parameters'>;

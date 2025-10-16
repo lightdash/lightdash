@@ -361,3 +361,8 @@ export const selectFormatModal = createSelector(
     [selectModals],
     (modals) => modals?.format ?? { isOpen: false },
 );
+
+export const selectAdditionalMetricModal = createSelector(
+    [selectModals],
+    (modals) => modals?.additionalMetric ?? { isOpen: false },
+);

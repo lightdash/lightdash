@@ -508,7 +508,10 @@ export const renderFilterRuleSql = (
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
         case MetricType.MIN:
-        case MetricType.MAX: {
+        case MetricType.MAX:
+        case MetricType.PERCENT_OF_PREVIOUS:
+        case MetricType.PERCENT_OF_TOTAL:
+        case MetricType.RUNNING_TOTAL: {
             return renderNumberFilterSql(fieldSql, escapedFilterRule);
         }
         case DimensionType.DATE:

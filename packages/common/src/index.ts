@@ -319,6 +319,7 @@ export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';
 export * from './utils/dashboard';
 export * from './utils/dbt';
+export * from './utils/dependencyGraph';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';

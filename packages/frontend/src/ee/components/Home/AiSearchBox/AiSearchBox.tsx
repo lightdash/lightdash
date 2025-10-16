@@ -8,7 +8,6 @@ import {
     Paper,
     Skeleton,
     Text,
-    UnstyledButton,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconArrowUp, IconSettings, IconSparkles } from '@tabler/icons-react';
@@ -16,6 +15,7 @@ import { useEffect, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -26,9 +26,8 @@ import {
 import { useGetUserAgentPreferences } from '../../../features/aiCopilot/hooks/useUserAgentPreferences';
 import { store } from '../../../features/aiCopilot/store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
-import { SearchDropdown } from './SearchDropdown';
-// eslint-disable-next-line css-modules/no-unused-class
 import styles from './aiSearchBox.module.css';
+import { SearchDropdown } from './SearchDropdown';
 
 type Props = {
     projectUuid: string;
@@ -117,46 +116,40 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     }
 
     return (
-        <Paper style={{ overflow: 'hidden' }}>
+        <Paper
+            classNames={{
+                root: styles.paperRoot,
+            }}
+        >
             <Box p="md">
                 <form onSubmit={handleSubmit}>
                     <Group>
-                        {noAgentsAvailable ? null : (
-                            <CompactAgentSelector
-                                agents={agents}
-                                selectedAgent={selectedAgent ?? agents[0]}
-                                onSelect={onSelect}
-                            />
-                        )}
-                        <SearchDropdown
-                            projectUuid={projectUuid}
-                            value={form.values.prompt}
-                            onChange={(value) =>
-                                form.setFieldValue('prompt', value)
-                            }
-                            onSearchItemSelect={handleSearchItemSelect}
-                            placeholder={
-                                selectedAgent
-                                    ? `Ask ${selectedAgent.name} or search your data`
-                                    : 'Search your data'
-                            }
-                            inputProps={{
-                                classNames: {
-                                    root: styles.searchDropdownInput,
-                                },
-                            }}
-                            footer={
-                                <UnstyledButton
-                                    p="xs"
-                                    className={styles.askAiFooter}
-                                    onClick={() => {
-                                        void handleSubmit();
-                                    }}
-                                >
-                                    <Group
+                        <CompactAgentSelector
+                            agents={agents}
+                            selectedAgent={selectedAgent ?? agents[0]}
+                            onSelect={onSelect}
+                        />
+                        <Group gap="xs" flex={1}>
+                            <SearchDropdown
+                                projectUuid={projectUuid}
+                                value={form.values.prompt}
+                                onChange={(value) =>
+                                    form.setFieldValue('prompt', value)
+                                }
+                                onSearchItemSelect={handleSearchItemSelect}
+                                placeholder={
+                                    selectedAgent
+                                        ? `Ask ${selectedAgent.name} or search your data`
+                                        : 'Search your data'
+                                }
+                                footer={
+                                    <PolymorphicGroupButton
+                                        p="xs"
+                                        className={styles.askAiFooter}
+                                        onClick={() => {
+                                            void handleSubmit();
+                                        }}
                                         gap="xs"
-                                        align="flex-start"
-                                        wrap="nowrap"
                                     >
                                         <MantineIcon
                                             style={{
@@ -167,7 +160,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             color="violet.4"
                                             size={16}
                                         />
-                                        <Text size="sm" c="violet.4">
+                                        <Text size="sm" c="dark.7">
                                             Ask{' '}
                                             {selectedAgent
                                                 ? selectedAgent.name
@@ -175,34 +168,45 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             :{' '}
                                             <Text
                                                 component="span"
-                                                fw={500}
-                                                c="violet.9"
+                                                fw={600}
+                                                c="dark.7"
                                             >
                                                 "{form.values.prompt.trim()}"
                                             </Text>
                                         </Text>
-                                    </Group>
-                                </UnstyledButton>
-                            }
-                        />
-                        <ActionIcon
-                            color="gray"
-                            radius="lg"
-                            type="submit"
-                            disabled={!form.values.prompt.trim()}
-                        >
-                            <MantineIcon icon={IconArrowUp} />
-                        </ActionIcon>
+                                    </PolymorphicGroupButton>
+                                }
+                            />
+                            <ActionIcon
+                                color={
+                                    !form.values.prompt.trim()
+                                        ? 'gray.7'
+                                        : 'gray.9'
+                                }
+                                type="submit"
+                                disabled={!form.values.prompt.trim()}
+                                classNames={{
+                                    root: styles.actionIcon,
+                                    icon: styles.actionIconIcon,
+                                }}
+                            >
+                                <MantineIcon icon={IconArrowUp} />
+                            </ActionIcon>
+                        </Group>
                     </Group>
                 </form>
             </Box>
             {canManageAgents && (
                 <>
                     <Divider color="gray.2" />
-                    <Box bg="gray.0" py="xs" px="md">
+                    <Box bg="gray.0" px="md" py="5px">
                         <Group
                             flex={1}
-                            justify={isTrial ? 'space-between' : 'flex-end'}
+                            justify={
+                                isTrial || noAgentsAvailable
+                                    ? 'space-between'
+                                    : 'flex-end'
+                            }
                         >
                             <Group gap={2}>
                                 {noAgentsAvailable ? (
@@ -251,10 +255,18 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                 size="compact-xs"
                                 variant="subtle"
                                 leftSection={
-                                    <MantineIcon icon={IconSettings} />
+                                    <MantineIcon
+                                        color="gray.7"
+                                        icon={IconSettings}
+                                        strokeWidth={1.5}
+                                    />
                                 }
                                 component={Link}
                                 to="/ai-agents/admin/agents"
+                                classNames={{
+                                    label: styles.adminSettingsButtonLabel,
+                                    section: styles.adminSettingsButtonSection,
+                                }}
                             >
                                 Admin Settings
                             </Button>

@@ -9,19 +9,36 @@
         var(--mantine-color-indigo-0) 100%
     );
     width: 100%;
+    height: 52px;
+    cursor: pointer;
 }
 
-.searchDropdownInput {
-    flex: 1;
+.actionIcon {
+    background-color: var(--mantine-color-dark-5);
+    box-sizing: content-box;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--mantine-radius-xl);
+    &:where([data-disabled]) {
+        background-color: #9e9e9e;
+    }
 }
 
-.searchDropdownScrollContent > div {
-    max-width: 100%;
+.actionIconIcon {
+    color: white;
 }
 
-.comboboxOption:hover > div,
-.comboboxOption[data-combobox-selected],
-.comboboxOption[data-combobox-selected] > div {
-    background-color: var(--mantine-color-gray-0);
-    color: inherit;
+.paperRoot {
+    overflow: hidden;
+    border-color: var(--mantine-color-gray-3) !important;
+}
+
+.adminSettingsButtonLabel {
+    color: var(--mantine-color-gray-7);
+}
+
+.adminSettingsButtonSection {
+    &:where([data-position='left']) {
+        margin-right: 4px !important;
+    }
 }

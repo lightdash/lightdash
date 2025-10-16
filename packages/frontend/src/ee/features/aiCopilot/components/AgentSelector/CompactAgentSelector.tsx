@@ -1,13 +1,16 @@
 import {
+    Avatar,
     Combobox,
     type ComboboxProps,
     Group,
+    Tooltip,
     UnstyledButton,
     useCombobox,
 } from '@mantine-8/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import Logo from '../../../../../svgs/logo-icon-round.svg?react';
 import {
     type Agent,
     getAgentOptions,
@@ -30,7 +33,8 @@ export const CompactAgentSelector = ({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
     const agentOptions = getAgentOptions(agents);
-    const isSingleAgent = agentOptions.length === 1;
+    const hasOneAgent = agentOptions.length === 1;
+    const hasAgents = agentOptions.length > 0;
 
     return (
         <Combobox
@@ -44,25 +48,44 @@ export const CompactAgentSelector = ({
             }}
         >
             <Combobox.Target>
-                <UnstyledButton
-                    onClick={() => combobox.toggleDropdown()}
-                    variant="light"
-                    color="gray"
-                    p={0}
-                    disabled={isSingleAgent}
+                <Tooltip
+                    label={selectedAgent?.name}
+                    withArrow
+                    withinPortal
+                    fz="xs"
+                    fw={500}
+                    disabled={!hasAgents}
                 >
-                    <Group gap="xxs">
-                        <LightdashUserAvatar
-                            size="md"
-                            name={selectedAgent.name}
-                            src={selectedAgent.imageUrl}
-                        />
+                    <UnstyledButton
+                        onClick={() => combobox.toggleDropdown()}
+                        variant="light"
+                        color="gray"
+                        p={0}
+                        disabled={hasOneAgent || !hasAgents}
+                    >
+                        <Group gap="two">
+                            {hasAgents ? (
+                                <LightdashUserAvatar
+                                    size="md"
+                                    name={selectedAgent.name}
+                                    src={selectedAgent.imageUrl}
+                                />
+                            ) : (
+                                <Avatar radius="xl" size="md">
+                                    <Logo />
+                                </Avatar>
+                            )}
 
-                        {!isSingleAgent && (
-                            <MantineIcon icon={IconChevronDown} />
-                        )}
-                    </Group>
-                </UnstyledButton>
+                            {!hasOneAgent && hasAgents && (
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    color="gray.6"
+                                    strokeWidth={1.5}
+                                />
+                            )}
+                        </Group>
+                    </UnstyledButton>
+                </Tooltip>
             </Combobox.Target>
 
             <Combobox.Dropdown>

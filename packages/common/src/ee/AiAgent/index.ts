@@ -19,6 +19,8 @@ import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
+export * from './chartConfig/slack';
+export * from './chartConfig/web';
 export * from './constants';
 export * from './filterExploreByTags';
 export * from './followUpTools';
@@ -26,7 +28,6 @@ export * from './requestTypes';
 export * from './schemas';
 export * from './types';
 export * from './utils';
-export * from './utils/chartConfigUtils';
 export * from './validators';
 
 export const baseAgentSchema = z.object({

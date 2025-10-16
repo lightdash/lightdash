@@ -323,6 +323,19 @@ export enum WindowFunctionType {
     MAX = 'max',
 }
 
+export const nillaryWindowFunctions: WindowFunctionType[] = [
+    WindowFunctionType.ROW_NUMBER,
+    WindowFunctionType.PERCENT_RANK,
+];
+
+export const unaryWindowFunctions: WindowFunctionType[] = [
+    WindowFunctionType.SUM,
+    WindowFunctionType.AVG,
+    WindowFunctionType.COUNT,
+    WindowFunctionType.MIN,
+    WindowFunctionType.MAX,
+];
+
 export enum FrameType {
     ROWS = 'rows',
     RANGE = 'range',
@@ -593,6 +606,9 @@ export enum MetricType {
     SUM = 'sum',
     MIN = 'min',
     MAX = 'max',
+    PERCENT_OF_PREVIOUS = 'percent_of_previous',
+    PERCENT_OF_TOTAL = 'percent_of_total',
+    RUNNING_TOTAL = 'running_total',
     NUMBER = 'number',
     MEDIAN = 'median',
     STRING = 'string',
@@ -644,6 +660,12 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.TIMESTAMP;
         case 'boolean':
             return MetricType.BOOLEAN;
+        case 'percent_of_previous':
+            return MetricType.PERCENT_OF_PREVIOUS;
+        case 'percent_of_total':
+            return MetricType.PERCENT_OF_TOTAL;
+        case 'running_total':
+            return MetricType.RUNNING_TOTAL;
         default:
             throw new Error(
                 `Cannot parse dbt metric with type '${metricType}'`,
@@ -659,6 +681,12 @@ const NonAggregateMetricTypes = [
     MetricType.BOOLEAN,
 ];
 
+export const PostCalculationMetricTypes = [
+    MetricType.PERCENT_OF_PREVIOUS,
+    MetricType.PERCENT_OF_TOTAL,
+    MetricType.RUNNING_TOTAL,
+];
+
 export const isMetric = (
     field: ItemsMap[string] | AdditionalMetric | undefined,
 ): field is Metric =>
@@ -668,6 +696,12 @@ export const isMetric = (
 
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
+
+export const isPostCalculationMetricType = (type: MetricType): boolean =>
+    PostCalculationMetricTypes.includes(type);
+
+export const isPostCalculationMetric = (field: Field): boolean =>
+    isMetric(field) && isPostCalculationMetricType(field.type);
 
 export const isCompiledMetric = (
     field: ItemsMap[string] | AdditionalMetric | undefined,

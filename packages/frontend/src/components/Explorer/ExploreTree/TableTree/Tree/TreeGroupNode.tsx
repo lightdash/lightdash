@@ -177,7 +177,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                 </Group>
             }
         >
-            {isNavLinkOpen && <TreeNodes nodeMap={node.children} />}
+            {isNavLinkOpen && <TreeNodes nodeMap={node.children} isNested />}
         </NavLink>
     );
 };

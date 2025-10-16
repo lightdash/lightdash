@@ -6,7 +6,6 @@ import {
     NumberSeparator,
     TableCalculationTemplateType,
     TableCalculationType,
-    WindowFunctionType,
     type TableCalculation,
 } from '../../../../types/field';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -144,26 +143,6 @@ function convertTableCalcSchemaToTableCalc(
                 },
             };
         case 'window_function': {
-            // Map string window function to enum
-            const windowFunctionMap: Record<
-                | 'row_number'
-                | 'percent_rank'
-                | 'sum'
-                | 'avg'
-                | 'count'
-                | 'min'
-                | 'max',
-                WindowFunctionType
-            > = {
-                row_number: WindowFunctionType.ROW_NUMBER,
-                percent_rank: WindowFunctionType.PERCENT_RANK,
-                sum: WindowFunctionType.SUM,
-                avg: WindowFunctionType.AVG,
-                count: WindowFunctionType.COUNT,
-                min: WindowFunctionType.MIN,
-                max: WindowFunctionType.MAX,
-            };
-
             const format =
                 tableCalc.windowFunction === 'percent_rank'
                     ? {
@@ -204,7 +183,7 @@ function convertTableCalcSchemaToTableCalc(
                 ...baseCalc,
                 template: {
                     type: TableCalculationTemplateType.WINDOW_FUNCTION,
-                    windowFunction: windowFunctionMap[tableCalc.windowFunction],
+                    windowFunction: tableCalc.windowFunction,
                     fieldId: tableCalc.fieldId,
                     orderBy: tableCalc.orderBy ?? [],
                     partitionBy: tableCalc.partitionBy ?? [],

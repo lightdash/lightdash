@@ -314,11 +314,12 @@ export const useColumns = (): TableColumn[] => {
                         // Use item from meta to ensure we get the latest version with overrides
                         const currentItem = info.column.columnDef.meta?.item;
 
-                        // For DATE types, use the pre-formatted value from backend to avoid
-                        // timezone issues when re-parsing UTC date strings on the frontend
+                        // For DATE and TIMESTAMP types, use the pre-formatted value from backend
+                        // to avoid timezone issues when re-parsing UTC date strings on the frontend
                         if (
                             isField(currentItem) &&
-                            currentItem.type === DimensionType.DATE
+                            (currentItem.type === DimensionType.DATE ||
+                                currentItem.type === DimensionType.TIMESTAMP)
                         ) {
                             return cellValue.value.formatted;
                         }

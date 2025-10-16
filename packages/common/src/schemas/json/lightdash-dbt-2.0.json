@@ -148,7 +148,10 @@
                                                     "min",
                                                     "number",
                                                     "string",
-                                                    "sum"
+                                                    "sum",
+                                                    "percent_of_previous",
+                                                    "percent_of_total",
+                                                    "running_total"
                                                 ]
                                             },
                                             "label": {
@@ -630,7 +633,10 @@
                                                                 "min",
                                                                 "number",
                                                                 "string",
-                                                                "sum"
+                                                                "sum",
+                                                                "percent_of_previous",
+                                                                "percent_of_total",
+                                                                "running_total"
                                                             ]
                                                         },
                                                         "label": {

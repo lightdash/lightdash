@@ -1,7 +1,7 @@
 function buildXml(
     tag: string,
-    props: Record<string, string | number | boolean> | null,
-    children: (string | null | undefined | boolean)[],
+    props: Record<string, string | number | boolean | null | undefined> | null,
+    children: (string | number | boolean | null | undefined)[],
     level: number,
 ): string {
     const indent = '  '.repeat(level);
@@ -17,10 +17,9 @@ function buildXml(
 
     const filteredChildren = children
         .flat()
-        .filter(
-            (child): child is string =>
-                typeof child === 'string' && child.trim().length > 0,
-        );
+        .filter((c) => c !== null && c !== undefined && c !== false)
+        .map((c) => String(c))
+        .filter((c) => c.trim().length > 0);
 
     if (filteredChildren.length === 0) {
         return `${indent}<${tag}${attributeString}/>`;
@@ -51,8 +50,8 @@ function buildXml(
 
 export function xmlBuilder(
     tag: string,
-    props: Record<string, string | number | boolean> | null,
-    ...children: (string | null | undefined | boolean)[]
+    props: Record<string, string | number | boolean | null | undefined> | null,
+    ...children: (string | number | boolean | null | undefined)[]
 ): string {
     return buildXml(tag, props, children, 0);
 }
@@ -63,7 +62,7 @@ declare global {
         interface IntrinsicElements {
             [elemName: string]: Record<
                 string,
-                string | number | boolean
+                string | number | boolean | null | undefined
             > | null;
         }
     }
