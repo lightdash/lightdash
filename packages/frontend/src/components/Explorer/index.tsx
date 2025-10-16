@@ -4,8 +4,10 @@ import { Stack } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     explorerActions,
+    selectAdditionalMetricModal,
     selectColumnOrder,
     selectDimensions,
+    selectFormatModal,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -49,6 +51,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
+
+        const { isOpen: isAdditionalMetricModalOpen } = useExplorerSelector(
+            selectAdditionalMetricModal,
+        );
+        const { isOpen: isFormatModalOpen } =
+            useExplorerSelector(selectFormatModal);
+
         const dispatch = useExplorerDispatch();
 
         const projectUuid = useProjectUuid();
@@ -166,12 +175,16 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     </Can>
                 </Stack>
 
+                {/* These use the metricQueryDataProvider context */}
                 <UnderlyingDataModal />
                 <DrillDownModal />
-                <CustomMetricModal />
+
+                {/* These return safely when unopened */}
                 <CustomDimensionModal />
-                <FormatModal />
                 <WriteBackModal />
+
+                {isAdditionalMetricModalOpen && <CustomMetricModal />}
+                {isFormatModalOpen && <FormatModal />}
             </MetricQueryDataProvider>
         );
     },
