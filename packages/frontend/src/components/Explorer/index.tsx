@@ -32,6 +32,7 @@ import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
+import { ProcessedFiltersProvider } from './FiltersCard/ProcessedFiltersContext';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -145,46 +146,48 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 metricQuery={metricQuery}
                 queryUuid={queryUuid}
             >
-                <Stack sx={{ flexGrow: 1 }}>
-                    {!hideHeader && isEditMode && <ExplorerHeader />}
+                <ProcessedFiltersProvider>
+                    <Stack sx={{ flexGrow: 1 }}>
+                        {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    {!!tableName &&
-                        parameterReferencesFromRedux &&
-                        parameterReferencesFromRedux?.length > 0 && (
-                            <ParametersCard
-                                parameterReferences={
-                                    parameterReferencesFromRedux
-                                }
-                            />
-                        )}
+                        {!!tableName &&
+                            parameterReferencesFromRedux &&
+                            parameterReferencesFromRedux?.length > 0 && (
+                                <ParametersCard
+                                    parameterReferences={
+                                        parameterReferencesFromRedux
+                                    }
+                                />
+                            )}
 
-                    <FiltersCard />
+                        <FiltersCard />
 
                     <VisualizationCard projectUuid={projectUuid} />
 
                     <ResultsCard />
 
-                    <Can
-                        I="manage"
-                        this={subject('Explore', {
-                            organizationUuid: org?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
-                    </Can>
-                </Stack>
+                        <Can
+                            I="manage"
+                            this={subject('Explore', {
+                                organizationUuid: org?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
+                        </Can>
+                    </Stack>
 
-                {/* These use the metricQueryDataProvider context */}
-                <UnderlyingDataModal />
-                <DrillDownModal />
+                    {/* These use the metricQueryDataProvider context */}
+                    <UnderlyingDataModal />
+                    <DrillDownModal />
 
-                {/* These return safely when unopened */}
-                <CustomDimensionModal />
-                <WriteBackModal />
+                    {/* These return safely when unopened */}
+                    <CustomDimensionModal />
+                    <WriteBackModal />
 
-                {isAdditionalMetricModalOpen && <CustomMetricModal />}
-                {isFormatModalOpen && <FormatModal />}
+                    {isAdditionalMetricModalOpen && <CustomMetricModal />}
+                    {isFormatModalOpen && <FormatModal />}
+                </ProcessedFiltersProvider>
             </MetricQueryDataProvider>
         );
     },

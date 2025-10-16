@@ -7,7 +7,6 @@ import {
     isFilterableField,
     overrideFilterGroupWithFilterRules,
     reduceRequiredDimensionFiltersToFilterRules,
-    resetRequiredFilterRules,
     type Field,
     type FilterRule,
     type Filters,
@@ -44,70 +43,8 @@ import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
+import { useProcessedFilters } from './useProcessedFilters';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
-
-// ---- Helper: heavy pipeline kept pure (no hooks) ----
-function buildProcessedFilters(
-    filters: Filters,
-    data: any, // type your Explore if available
-    tableName: string,
-    hasDefaultFiltersApplied: boolean,
-    setHasDefaultFiltersApplied: (v: boolean) => void,
-): Filters {
-    let unsavedQueryFilters = filters;
-
-    // Step 1: refresh required flags of existing rules
-    if (unsavedQueryFilters.dimensions && data?.tables?.[data.baseTable]) {
-        const requiredFilters =
-            data.tables[data.baseTable].requiredFilters || [];
-        const allRequiredFilters: FilterRule[] =
-            reduceRequiredDimensionFiltersToFilterRules(
-                requiredFilters,
-                undefined,
-                data,
-            );
-        const allFilterRefs = allRequiredFilters.map((f) => f.target.fieldId);
-        const updatedDimensionFilters = resetRequiredFilterRules(
-            unsavedQueryFilters.dimensions,
-            allFilterRefs,
-        );
-        unsavedQueryFilters = {
-            ...unsavedQueryFilters,
-            dimensions: updatedDimensionFilters,
-        };
-    }
-
-    // Step 2: add missing required rules (except required:false)
-    if (data?.tables?.[data.baseTable]) {
-        const requiredFilters = data.tables[
-            data.baseTable
-        ].requiredFilters?.filter((f: any) => f.required !== false);
-        if (requiredFilters?.length) {
-            const reducedRules: FilterRule[] =
-                reduceRequiredDimensionFiltersToFilterRules(
-                    requiredFilters,
-                    unsavedQueryFilters.dimensions,
-                    data,
-                );
-            unsavedQueryFilters = {
-                ...unsavedQueryFilters,
-                dimensions: overrideFilterGroupWithFilterRules(
-                    unsavedQueryFilters.dimensions,
-                    reducedRules,
-                    undefined,
-                ),
-            };
-        }
-    }
-
-    // Step 3: if no model, clear dimension filters
-    if (tableName.length === 0) {
-        if (hasDefaultFiltersApplied) setHasDefaultFiltersApplied(false);
-        unsavedQueryFilters = { ...unsavedQueryFilters, dimensions: undefined };
-    }
-
-    return unsavedQueryFilters;
-}
 
 const FiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
@@ -131,18 +68,12 @@ const FiltersCard: FC = memo(() => {
     const [hasDefaultFiltersApplied, setHasDefaultFiltersApplied] =
         useState(false);
 
-    // IMPORTANT: Only do the heavy processing when the panel is OPEN.
-    // When closed, we just pass through `filters` to avoid doing work on mount.
-    const processedFilters = useMemo(() => {
-        if (!filterIsOpen) return filters;
-        return buildProcessedFilters(
-            filters,
-            data,
-            tableName,
-            hasDefaultFiltersApplied,
-            setHasDefaultFiltersApplied,
-        );
-    }, [filterIsOpen, filters, data, tableName, hasDefaultFiltersApplied]);
+    // Get processed filters from context (already being computed in background)
+    const { processedFilters: workerProcessedFilters, isProcessing } =
+        useProcessedFilters();
+
+    // Fallback to raw filters until worker responds
+    const processedFilters = workerProcessedFilters ?? filters;
 
     // Query rows
     const { queryResults } = useExplorerQuery();
@@ -170,9 +101,9 @@ const FiltersCard: FC = memo(() => {
         [filterIsOpen, processedFilters, filters],
     );
 
-    // Apply default filters (only when panel is open to avoid work on mount)
+    // Apply default filters (only when panel is open)
     useEffect(() => {
-        if (!filterIsOpen) return; // skip while hidden
+        if (!filterIsOpen) return; // Skip while hidden
         if (hasDefaultFiltersApplied) return;
 
         const defaultFilters = data?.tables[
@@ -214,7 +145,7 @@ const FiltersCard: FC = memo(() => {
             });
         }
     }, [
-        filterIsOpen, // gate by open
+        filterIsOpen,
         hasDefaultFiltersApplied,
         data,
         tableName,
@@ -276,6 +207,11 @@ const FiltersCard: FC = memo(() => {
             onToggle={onToggle}
             headerElement={
                 <>
+                    {isProcessing && filterIsOpen ? (
+                        <Text color="gray" size="xs">
+                            processing...
+                        </Text>
+                    ) : null}
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip
                             variant="xs"
