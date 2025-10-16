@@ -1,3 +1,10 @@
+# [0.2091.0](https://github.com/lightdash/lightdash/compare/0.2090.0...0.2091.0) (2025-10-16)
+
+
+### Features
+
+* add CUME_DIST and RANK window functions ([#17479](https://github.com/lightdash/lightdash/issues/17479)) ([a3fa259](https://github.com/lightdash/lightdash/commit/a3fa259f11287c45f03b579ab4a0fab03d421cff))
+
 # [0.2090.0](https://github.com/lightdash/lightdash/compare/0.2089.7...0.2090.0) (2025-10-16)
 
 
