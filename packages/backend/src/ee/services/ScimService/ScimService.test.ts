@@ -272,6 +272,63 @@ describe('ScimService', () => {
     });
 
     describe('updateUser', () => {
+        test('should downgrade role to MEMBER and remove project and group memberships when deactivating user', async () => {
+            const { organizationMemberProfileModel, rolesModel, groupsModel } =
+                ScimServiceArgumentsMock;
+
+            // Force current org role to ADMIN so downgrade path is executed
+            jest.spyOn(
+                organizationMemberProfileModel,
+                'getOrganizationMemberByUuid',
+            ).mockResolvedValueOnce({
+                ...mockUser,
+                role: OrganizationMemberRole.ADMIN,
+            });
+
+            // Deactivation payload
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: mockUser.email,
+                name: {
+                    givenName: mockUser.firstName,
+                    familyName: mockUser.lastName,
+                },
+                active: false,
+                emails: [
+                    {
+                        value: mockUser.email,
+                        primary: true,
+                    },
+                ],
+            };
+
+            await service.updateUser({
+                user: scimUser,
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            // Org role downgraded to MEMBER
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                { role: OrganizationMemberRole.MEMBER },
+            );
+
+            // Removed from all projects
+            expect(
+                rolesModel.removeUserAccessFromAllProjects,
+            ).toHaveBeenCalledWith(mockUser.userUuid);
+
+            // Removed from all groups in org
+            expect(groupsModel.removeUserFromAllGroups).toHaveBeenCalledWith({
+                organizationUuid: mockUser.organizationUuid,
+                userUuid: mockUser.userUuid,
+            });
+        });
+
         test('should throw error when an invalid role is provided', async () => {
             // Create a SCIM user with an invalid role in the extension schema
             const scimUser = {
