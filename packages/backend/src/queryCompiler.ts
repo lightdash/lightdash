@@ -72,6 +72,7 @@ const compileTableCalculation = (
     quoteChar: string,
     dependencyGraph: DependencyNode[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
+    sortFields: MetricQuery['sorts'],
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
         throw new CompileError(
@@ -130,6 +131,7 @@ const compileTableCalculation = (
         const compiledSql = compileTableCalculationFromTemplate(
             tableCalculation.template,
             warehouseSqlBuilder,
+            sortFields,
         );
 
         return {
@@ -147,6 +149,7 @@ const compileTableCalculations = (
     validFieldIds: string[],
     quoteChar: string,
     warehouseSqlBuilder: WarehouseSqlBuilder,
+    sortFields: MetricQuery['sorts'],
 ): CompiledTableCalculation[] => {
     if (tableCalculations.length === 0) {
         return [];
@@ -170,6 +173,7 @@ const compileTableCalculations = (
             quoteChar,
             dependencyGraph,
             warehouseSqlBuilder,
+            sortFields,
         );
         compiledTableCalculations.push(compiled);
     }
@@ -311,6 +315,7 @@ export const compileMetricQuery = ({
         validFieldIds,
         fieldQuoteChar,
         warehouseSqlBuilder,
+        metricQuery.sorts,
     );
 
     return {
