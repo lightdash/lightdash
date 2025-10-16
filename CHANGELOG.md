@@ -1,3 +1,10 @@
+## [0.2089.7](https://github.com/lightdash/lightdash/compare/0.2089.6...0.2089.7) (2025-10-16)
+
+
+### Bug Fixes
+
+* allow dimensions with timeInterval to be available ([#17489](https://github.com/lightdash/lightdash/issues/17489)) ([4a29b06](https://github.com/lightdash/lightdash/commit/4a29b0627350b5c5cb2b33113f7ebc3159f214d3))
+
 ## [0.2089.6](https://github.com/lightdash/lightdash/compare/0.2089.5...0.2089.6) (2025-10-16)
 
 
