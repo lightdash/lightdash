@@ -542,6 +542,14 @@ export class ScimService extends BaseService {
                                 role: OrganizationMemberRole.MEMBER,
                             },
                         );
+                        this.logger.debug(
+                            'SCIM: Updated user organisation role to MEMBER',
+                            {
+                                userUuid,
+                                organizationUuid,
+                                role: OrganizationMemberRole.MEMBER,
+                            },
+                        );
                     }
                 } catch (e) {
                     this.logger.error(
@@ -551,18 +559,44 @@ export class ScimService extends BaseService {
                     );
                 }
                 try {
-                    await this.rolesModel.removeUserProjectAccess(
-                        dbUser.userUuid,
+                    const projectsCount =
+                        await this.rolesModel.removeUserAccessFromAllProjects(
+                            dbUser.userUuid,
+                        );
+                    this.logger.debug(
+                        'SCIM: Removed user roles from all projects',
+                        {
+                            userUuid,
+                            organizationUuid,
+                            projectsCount,
+                        },
                     );
                 } catch (e) {
-                    // Ignore NotFoundError when user has no project roles to remove
-                    if (!(e instanceof NotFoundError)) {
-                        this.logger.error(
-                            `Failed to remove project roles for inactive user ${userUuid}: ${getErrorMessage(
-                                e,
-                            )}`,
-                        );
-                    }
+                    this.logger.error(
+                        `Failed to remove project roles for inactive user ${userUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+
+                // Remove user from all groups in the organization when deactivated
+                try {
+                    const groupsCount =
+                        await this.groupsModel.removeUserFromAllGroups({
+                            organizationUuid,
+                            userUuid,
+                        });
+                    this.logger.debug('SCIM: Removed user from all groups', {
+                        userUuid,
+                        organizationUuid,
+                        groupsCount,
+                    });
+                } catch (e) {
+                    this.logger.error(
+                        `Failed to remove group memberships for inactive user ${userUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
                 }
             }
 
