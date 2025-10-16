@@ -57,6 +57,7 @@ export const AiProposeChangeToolCall = ({
     const isSuccessResult = metadata?.status === 'success';
     const changeUuid = isSuccessResult ? metadata.changeUuid : undefined;
 
+    // Fetch the full compiled change data from backend (source of truth)
     const {
         isLoading: isLoadingChange,
         error: changeError,
@@ -126,9 +127,13 @@ export const AiProposeChangeToolCall = ({
             }
         >
             <Stack gap="xs" mt="xs">
+                {/*
+                    ChangeRenderer uses changeData as primary source when available,
+                    and falls back to proposedChange (AI proposal) for loading/error states
+                */}
                 <ChangeRenderer
-                    change={change}
-                    changePayload={changeData?.payload}
+                    changeData={changeData}
+                    proposedChange={change}
                     entityTableName={entityTableName}
                 />
 
