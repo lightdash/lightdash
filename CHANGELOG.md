@@ -1,3 +1,10 @@
+## [0.2091.1](https://github.com/lightdash/lightdash/compare/0.2091.0...0.2091.1) (2025-10-16)
+
+
+### Bug Fixes
+
+* keep scroll position after field select ([#17483](https://github.com/lightdash/lightdash/issues/17483)) ([7a9ad45](https://github.com/lightdash/lightdash/commit/7a9ad4572fbecd7e7989079d1f8d6cfaa68161e0))
+
 # [0.2091.0](https://github.com/lightdash/lightdash/compare/0.2090.0...0.2091.0) (2025-10-16)
 
 
