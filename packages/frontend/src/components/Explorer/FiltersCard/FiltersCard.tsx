@@ -13,12 +13,13 @@ import {
     type Filters,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
-import {
+import React, {
     memo,
     useCallback,
     useEffect,
     useMemo,
     useState,
+    useTransition,
     type FC,
 } from 'react';
 import {
@@ -45,6 +46,69 @@ import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInpu
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
+// ---- Helper: heavy pipeline kept pure (no hooks) ----
+function buildProcessedFilters(
+    filters: Filters,
+    data: any, // type your Explore if available
+    tableName: string,
+    hasDefaultFiltersApplied: boolean,
+    setHasDefaultFiltersApplied: (v: boolean) => void,
+): Filters {
+    let unsavedQueryFilters = filters;
+
+    // Step 1: refresh required flags of existing rules
+    if (unsavedQueryFilters.dimensions && data?.tables?.[data.baseTable]) {
+        const requiredFilters =
+            data.tables[data.baseTable].requiredFilters || [];
+        const allRequiredFilters: FilterRule[] =
+            reduceRequiredDimensionFiltersToFilterRules(
+                requiredFilters,
+                undefined,
+                data,
+            );
+        const allFilterRefs = allRequiredFilters.map((f) => f.target.fieldId);
+        const updatedDimensionFilters = resetRequiredFilterRules(
+            unsavedQueryFilters.dimensions,
+            allFilterRefs,
+        );
+        unsavedQueryFilters = {
+            ...unsavedQueryFilters,
+            dimensions: updatedDimensionFilters,
+        };
+    }
+
+    // Step 2: add missing required rules (except required:false)
+    if (data?.tables?.[data.baseTable]) {
+        const requiredFilters = data.tables[
+            data.baseTable
+        ].requiredFilters?.filter((f: any) => f.required !== false);
+        if (requiredFilters?.length) {
+            const reducedRules: FilterRule[] =
+                reduceRequiredDimensionFiltersToFilterRules(
+                    requiredFilters,
+                    unsavedQueryFilters.dimensions,
+                    data,
+                );
+            unsavedQueryFilters = {
+                ...unsavedQueryFilters,
+                dimensions: overrideFilterGroupWithFilterRules(
+                    unsavedQueryFilters.dimensions,
+                    reducedRules,
+                    undefined,
+                ),
+            };
+        }
+    }
+
+    // Step 3: if no model, clear dimension filters
+    if (tableName.length === 0) {
+        if (hasDefaultFiltersApplied) setHasDefaultFiltersApplied(false);
+        unsavedQueryFilters = { ...unsavedQueryFilters, dimensions: undefined };
+    }
+
+    return unsavedQueryFilters;
+}
+
 const FiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
@@ -61,122 +125,26 @@ const FiltersCard: FC = memo(() => {
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data } = useExplore(tableName);
 
-    const refreshRequiredFiltersProperty = useCallback(
-        (inputFilters: Filters): Filters => {
-            if (!inputFilters.dimensions) return inputFilters;
-            // The table metadata model required filters may have been updated.
-            // We need to refresh the required filters property in the filter group to reflect any changes on the metadata model.
-            if (!data || !data.tables[data.baseTable]) return inputFilters;
+    // Helps smooth rendering
+    const [, startTransition] = useTransition();
 
-            const requiredFilters =
-                data.tables[data.baseTable].requiredFilters || [];
-            // We transform the required filters to filter rules
-            // filters is pass as undefined to guarantee all required filters are transform even if they already exist in the filter group
-            const allRequiredFilters: FilterRule[] =
-                reduceRequiredDimensionFiltersToFilterRules(
-                    requiredFilters,
-                    undefined,
-                    data,
-                );
-            const allFilterRefs = allRequiredFilters.map(
-                (filter) => filter.target.fieldId,
-            );
-            // We update the existing filter group with the required filters
-            // If the required filter has been removed from the metadata model we remove the required flag from the filter
-            const updatedDimensionFilters = resetRequiredFilterRules(
-                inputFilters.dimensions,
-                allFilterRefs,
-            );
-
-            return {
-                ...inputFilters,
-                dimensions: updatedDimensionFilters,
-            };
-        },
-        [data],
-    );
     const [hasDefaultFiltersApplied, setHasDefaultFiltersApplied] =
         useState(false);
 
-    const updateDimensionFiltersWithRequiredFilters = useCallback(
-        (unsavedQueryFilters: Filters) => {
-            // Check if the table has required filters
-            if (data && data.tables[data.baseTable]) {
-                // We only force required filters that are not explicitly set to false
-                // requiredFilters with required:false will be added on the UI, but not enforced on the backend
-                const requiredFilters = data.tables[
-                    data.baseTable
-                ].requiredFilters?.filter(
-                    (filter) => filter.required !== false,
-                );
-                if (requiredFilters && requiredFilters.length > 0) {
-                    // Only requiredFilters that refer to existing table dimensions are added to the unsavedQueryFilters
-                    // Transform requiredFilters to filterRules if the required filters are not already in the unsavedQueryFilters.
-                    const reducedRules: FilterRule[] =
-                        reduceRequiredDimensionFiltersToFilterRules(
-                            requiredFilters,
-                            unsavedQueryFilters.dimensions,
-                            data,
-                        );
-                    // Add to the existing filter rules with the missing required filter rules
-
-                    return {
-                        ...unsavedQueryFilters,
-                        dimensions: overrideFilterGroupWithFilterRules(
-                            unsavedQueryFilters.dimensions,
-                            reducedRules,
-                            undefined,
-                        ),
-                    };
-                }
-            }
-            return unsavedQueryFilters;
-        },
-        [data],
-    );
-
-    const resetDimensionFiltersIfNoModelSelected = useCallback(
-        (unsavedQueryFilters: Filters) => {
-            // If no model is selected, reset the dimension filters
-            // This is to prevent the user from selecting a model, then deselecting it, and still having the required filters applied
-            if (tableName.length === 0) {
-                // Also reset default filters applied
-                if (hasDefaultFiltersApplied)
-                    setHasDefaultFiltersApplied(false);
-
-                return {
-                    ...unsavedQueryFilters,
-                    dimensions: undefined,
-                };
-            }
-            return unsavedQueryFilters;
-        },
-        [tableName, hasDefaultFiltersApplied, setHasDefaultFiltersApplied],
-    );
-
+    // IMPORTANT: Only do the heavy processing when the panel is OPEN.
+    // When closed, we just pass through `filters` to avoid doing work on mount.
     const processedFilters = useMemo(() => {
-        let unsavedQueryFilters = filters;
+        if (!filterIsOpen) return filters;
+        return buildProcessedFilters(
+            filters,
+            data,
+            tableName,
+            hasDefaultFiltersApplied,
+            setHasDefaultFiltersApplied,
+        );
+    }, [filterIsOpen, filters, data, tableName, hasDefaultFiltersApplied]);
 
-        // Refresh the required filters property as the required filters can change when the table dbt metadata changes
-        unsavedQueryFilters =
-            refreshRequiredFiltersProperty(unsavedQueryFilters);
-        // Update the dimension filters with the required filters
-        // (we add the required filters to the unsavedQueryFilters if they are not already there)
-        unsavedQueryFilters =
-            updateDimensionFiltersWithRequiredFilters(unsavedQueryFilters);
-        // If no model is selected, or user has deselected the model with required filters, reset the dimension filters
-        unsavedQueryFilters =
-            resetDimensionFiltersIfNoModelSelected(unsavedQueryFilters);
-
-        return unsavedQueryFilters;
-    }, [
-        filters,
-        refreshRequiredFiltersProperty,
-        updateDimensionFiltersWithRequiredFilters,
-        resetDimensionFiltersIfNoModelSelected,
-    ]);
-
-    // Get query rows from new hook
+    // Query rows
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
 
@@ -186,33 +154,36 @@ const FiltersCard: FC = memo(() => {
         },
         [dispatch],
     );
-    const toggleExpandedSection = useCallback(
-        (section: ExplorerSection) => {
-            dispatch(explorerActions.toggleExpandedSection(section));
-        },
-        [dispatch],
-    );
+
+    const onToggle = useCallback(() => {
+        // Lower priority so paint stays responsive even if open triggers work
+        startTransition(() => {
+            dispatch(
+                explorerActions.toggleExpandedSection(ExplorerSection.FILTERS),
+            );
+        });
+    }, [dispatch, startTransition]);
 
     const totalActiveFilters: number = useMemo(
-        () => countTotalFilterRules(processedFilters),
-        [processedFilters],
+        // When closed, this counts the raw `filters` (cheap); when open, counts processed.
+        () => countTotalFilterRules(filterIsOpen ? processedFilters : filters),
+        [filterIsOpen, processedFilters, filters],
     );
 
+    // Apply default filters (only when panel is open to avoid work on mount)
     useEffect(() => {
+        if (!filterIsOpen) return; // skip while hidden
         if (hasDefaultFiltersApplied) return;
-        const defaultFilters = data?.tables[
-            data.baseTable
-        ]?.requiredFilters?.filter((filter) => filter.required === false);
 
-        if (
-            data &&
-            defaultFilters !== undefined &&
-            defaultFilters.length === 0
-        ) {
-            // No default filters
+        const defaultFilters = data?.tables[
+            data?.baseTable as string
+        ]?.requiredFilters?.filter((f: any) => f.required === false);
+
+        if (data && defaultFilters && defaultFilters.length === 0) {
             setHasDefaultFiltersApplied(true);
             return;
         }
+
         const isEmptyMetricQuery =
             metricQuery.metrics.length === 0 &&
             metricQuery.tableCalculations.length === 0 &&
@@ -243,6 +214,7 @@ const FiltersCard: FC = memo(() => {
             });
         }
     }, [
+        filterIsOpen, // gate by open
         hasDefaultFiltersApplied,
         data,
         tableName,
@@ -259,29 +231,27 @@ const FiltersCard: FC = memo(() => {
         additionalMetrics,
         tableCalculations,
     });
-    const allFilterRules = useMemo(
-        () => getTotalFilterRules(processedFilters),
-        [processedFilters],
-    );
 
-    const renderFilterRule = useCallback(
-        (filterRule: FilterRule) => {
-            const fields: Field[] = data ? getVisibleFields(data) : [];
+    const filterRuleLabels = useMemo(() => {
+        const allFilterRules = getTotalFilterRules(
+            filterIsOpen ? processedFilters : filters,
+        );
+        const fields: Field[] = data ? getVisibleFields(data) : [];
+        if (!allFilterRules.length || !fields.length) return [];
+
+        return allFilterRules.map((filterRule) => {
             const field = fields.find(
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const filterRuleLabels = getConditionalRuleLabelFromItem(
-                    filterRule,
-                    field,
-                );
+                const lbl = getConditionalRuleLabelFromItem(filterRule, field);
                 return (
                     <div key={field.name}>
-                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
+                        {lbl.field}: {lbl.operator}{' '}
                         {filterRule.operator !== FilterOperator.NULL &&
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <Text span fw={700}>
-                                {filterRuleLabels.value}
+                                {lbl.value}
                             </Text>
                         ) : (
                             ''
@@ -290,9 +260,8 @@ const FiltersCard: FC = memo(() => {
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-        },
-        [data],
-    );
+        });
+    }, [filterIsOpen, processedFilters, filters, data]);
 
     return (
         <CollapsableCard
@@ -304,7 +273,7 @@ const FiltersCard: FC = memo(() => {
                     ? 'This chart has no filters'
                     : ''
             }
-            onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
+            onToggle={onToggle}
             headerElement={
                 <>
                     {totalActiveFilters > 0 && !filterIsOpen ? (
@@ -319,17 +288,12 @@ const FiltersCard: FC = memo(() => {
                                         gap: '4px',
                                     }}
                                 >
-                                    {allFilterRules.map(renderFilterRule)}
+                                    {filterRuleLabels}
                                 </div>
                             }
                             position="bottom-start"
                         >
-                            <Badge
-                                color="gray"
-                                sx={{
-                                    textTransform: 'unset',
-                                }}
-                            >
+                            <Badge color="gray" sx={{ textTransform: 'unset' }}>
                                 {totalActiveFilters}{' '}
                                 <Text span fw={500}>
                                     active filter
@@ -353,9 +317,7 @@ const FiltersCard: FC = memo(() => {
                 startOfWeek={
                     project.data?.warehouseConnection?.startOfWeek ?? undefined
                 }
-                popoverProps={{
-                    withinPortal: true,
-                }}
+                popoverProps={{ withinPortal: true }}
                 baseTable={data?.baseTable}
             >
                 <FiltersForm
