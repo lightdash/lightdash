@@ -1,8 +1,9 @@
 import {
     assertUnreachable,
-    type Change,
     friendlyName,
     getItemColor,
+    type Change,
+    type CompiledMetric,
 } from '@lightdash/common';
 import {
     Badge,
@@ -20,11 +21,9 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { toPairs } from 'lodash';
 import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { mergeCreateMetricData } from './changeDataMerger';
 import { OperationRenderer } from './OperationRenderer';
 import { FieldBreadcrumb, TableBreadcrumb } from './SupportElements';
 import type {
-    CreateMetric as CreateMetricPayload,
     DimensionChange,
     EntityChange,
     MetricChange,
@@ -36,7 +35,6 @@ import type {
 
 // ============================================================================
 // Unified Update Change Component
-// [ separate into entity-specific components if needed in the future ]
 // ============================================================================
 
 type UpdateChangeProps = {
@@ -62,23 +60,27 @@ const UpdateChange = ({ patch }: UpdateChangeProps) => {
 };
 
 // ============================================================================
-// Metric Creation Component
+// Metric Creation Component (from compiled changeData)
 // ============================================================================
 
-type CreateMetricProps = {
-    change: CreateMetricPayload;
-    changePayload: Change['payload'] | undefined;
+type CreateMetricFromChangeDataProps = {
+    changeData: Extract<Change, { type: 'create' }>;
 };
 
-const CreateMetric = ({ change, changePayload }: CreateMetricProps) => {
+const CreateMetricFromChangeData = ({
+    changeData,
+}: CreateMetricFromChangeDataProps) => {
     const [opened, { toggle }] = useDisclosure(false);
 
-    const metric = mergeCreateMetricData(change, changePayload);
-
-    if (!metric) {
+    // Extract metric from the backend's compiled change data
+    if (changeData.payload.type !== 'metric') {
         return null;
     }
 
+    const metric: CompiledMetric = {
+        ...changeData.payload.value,
+        tablesReferences: [],
+    };
     const color = getItemColor(metric);
 
     return (
@@ -114,13 +116,6 @@ const CreateMetric = ({ change, changePayload }: CreateMetricProps) => {
                             </Badge>
                         </Text>
 
-                        <Text size="xs" fw={400} c="dimmed">
-                            Base dimension:{' '}
-                            <Text fw={500} span c="gray.8">
-                                {metric.baseDimensionName}
-                            </Text>
-                        </Text>
-
                         {metric.description && (
                             <Text size="xs" fw={400} c="dimmed">
                                 Description:{' '}
@@ -141,26 +136,75 @@ const CreateMetric = ({ change, changePayload }: CreateMetricProps) => {
 };
 
 // ============================================================================
+// Fallback: Metric Creation from AI Proposal (loading/error states)
+// ============================================================================
+
+type CreateMetricFallbackProps = {
+    proposedChange: MetricChange;
+};
+
+const CreateMetricFallback = ({
+    proposedChange,
+}: CreateMetricFallbackProps) => {
+    if (proposedChange.value.type !== 'create') {
+        return null;
+    }
+
+    const { metric } = proposedChange.value.value;
+
+    return (
+        <Box mx="xs">
+            <Paper bg="gray.0" p="xs">
+                <Stack gap="xs">
+                    <Group gap="xs">
+                        <Badge size="sm" color="blue" variant="dot">
+                            Creating
+                        </Badge>
+                        <Text size="xs" fw={500}>
+                            {metric.label}
+                        </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                        Type: {friendlyName(metric.type)}
+                    </Text>
+                    {metric.description && (
+                        <Text size="xs" c="dimmed">
+                            {metric.description}
+                        </Text>
+                    )}
+                </Stack>
+            </Paper>
+        </Box>
+    );
+};
+
+// ============================================================================
 // Table Changes
 // ============================================================================
 
 type TableChangeProps = {
-    change: TableChange;
+    changeData: Change | undefined;
+    proposedChange: TableChange;
     entityTableName: string;
 };
 
-const TableChangeRender = ({ change, entityTableName }: TableChangeProps) => {
-    switch (change.value.type) {
+const TableChangeRender = ({
+    proposedChange,
+    entityTableName,
+}: TableChangeProps) => {
+    // For updates, we use the proposed patches directly
+    // (changeData doesn't add value for updates since patches are in the proposal)
+    switch (proposedChange.value.type) {
         case 'update':
             return (
                 <Stack gap="xs">
                     <TableBreadcrumb entityTableName={entityTableName} />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange patch={proposedChange.value.patch} />
                 </Stack>
             );
         default:
             return assertUnreachable(
-                change.value.type,
+                proposedChange.value.type,
                 'Unknown table change type',
             );
     }
@@ -171,29 +215,30 @@ const TableChangeRender = ({ change, entityTableName }: TableChangeProps) => {
 // ============================================================================
 
 type DimensionChangeProps = {
-    change: DimensionChange;
+    changeData: Change | undefined;
+    proposedChange: DimensionChange;
     entityTableName: string;
 };
 
 const DimensionChangeRender = ({
-    change,
+    proposedChange,
     entityTableName,
 }: DimensionChangeProps) => {
-    switch (change.value.type) {
+    switch (proposedChange.value.type) {
         case 'update':
             return (
                 <Stack gap="xs">
                     <FieldBreadcrumb
                         entityTableName={entityTableName}
                         fieldType="dimension"
-                        fieldId={change.fieldId}
+                        fieldId={proposedChange.fieldId}
                     />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange patch={proposedChange.value.patch} />
                 </Stack>
             );
         default:
             return assertUnreachable(
-                change.value.type,
+                proposedChange.value.type,
                 'Unknown dimension change type',
             );
     }
@@ -204,26 +249,26 @@ const DimensionChangeRender = ({
 // ============================================================================
 
 type MetricChangeProps = {
-    change: MetricChange;
+    changeData: Change | undefined;
+    proposedChange: MetricChange;
     entityTableName: string;
-    changePayload: Change['payload'] | undefined;
 };
 
 const MetricChangeRender = ({
-    change,
+    changeData,
+    proposedChange,
     entityTableName,
-    changePayload,
 }: MetricChangeProps) => {
-    switch (change.value.type) {
+    switch (proposedChange.value.type) {
         case 'update':
             return (
                 <Stack gap="xs">
                     <FieldBreadcrumb
                         entityTableName={entityTableName}
                         fieldType="metric"
-                        fieldId={change.fieldId}
+                        fieldId={proposedChange.fieldId}
                     />
-                    <UpdateChange patch={change.value.patch} />
+                    <UpdateChange patch={proposedChange.value.patch} />
                 </Stack>
             );
         case 'create':
@@ -232,17 +277,19 @@ const MetricChangeRender = ({
                     <FieldBreadcrumb
                         entityTableName={entityTableName}
                         fieldType="metric"
-                        fieldId={change.fieldId}
+                        fieldId={proposedChange.fieldId}
                     />
-                    <CreateMetric
-                        change={change.value}
-                        changePayload={changePayload}
-                    />
+                    {/* Prioritize compiled changeData when available */}
+                    {changeData && changeData.type === 'create' ? (
+                        <CreateMetricFromChangeData changeData={changeData} />
+                    ) : (
+                        <CreateMetricFallback proposedChange={proposedChange} />
+                    )}
                 </Stack>
             );
         default:
             return assertUnreachable(
-                change.value,
+                proposedChange.value,
                 'Unknown metric change type',
             );
     }
@@ -253,40 +300,50 @@ const MetricChangeRender = ({
 // ============================================================================
 
 type ChangeRendererProps = {
-    change: EntityChange;
-    changePayload: Change['payload'] | undefined;
+    /**
+     * The backend's persisted change data (source of truth when available).
+     * This contains compiled SQL, full metadata, and all computed fields.
+     */
+    changeData: Change | undefined;
+    /**
+     * The AI's proposed change (used as fallback during loading/error states).
+     * Contains the lightweight proposal before backend processing.
+     */
+    proposedChange: EntityChange;
     entityTableName: string;
 };
 
 export const ChangeRenderer = ({
-    change,
-    changePayload,
+    changeData,
+    proposedChange,
     entityTableName,
 }: ChangeRendererProps) => {
-    switch (change.entityType) {
+    switch (proposedChange.entityType) {
         case 'table':
             return (
                 <TableChangeRender
-                    change={change}
+                    changeData={changeData}
+                    proposedChange={proposedChange}
                     entityTableName={entityTableName}
                 />
             );
         case 'dimension':
             return (
                 <DimensionChangeRender
-                    change={change}
+                    changeData={changeData}
+                    proposedChange={proposedChange}
                     entityTableName={entityTableName}
                 />
             );
         case 'metric':
             return (
                 <MetricChangeRender
-                    change={change}
-                    changePayload={changePayload}
+                    changeData={changeData}
+                    proposedChange={proposedChange}
                     entityTableName={entityTableName}
                 />
             );
         default:
-            return assertUnreachable(change, 'Unknown entity type');
+            return assertUnreachable(proposedChange, 'Unknown entity type');
     }
 };
