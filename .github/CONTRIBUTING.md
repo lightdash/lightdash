@@ -68,17 +68,16 @@ Before contributing to Lightdash you must complete the following steps:
 
 1. **Join our Slack community** Head over to our [Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel.
 2. **Pick an issue** Browse through the existing [issues](https://github.com/lightdash/lightdash/issues?q=state%3Aopen%20label%3A%22%F0%9F%91%8B%20open-contribution%22) and choose one that's labeled `open-contribution`.
-3. **Claim your issue** Post in the `#community-contributors` Slack channel using this template: 
+3. **Claim your issue** Post in the `#community-contributors` Slack channel using this template:
 
-    ``` Hi Lightdash team, I'd like to work on this open-contribution issue: [paste your issue link here]```
+    ` Hi Lightdash team, I'd like to work on this open-contribution issue: [paste your issue link here]`
 
-4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure you go through our CLAUDE.md files to get a sense of our ways of coding while working on your changes.  
+4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure you go through our CLAUDE.md files to get a sense of our ways of coding while working on your changes.
 5. **Submit a PR** When ready, create a pull request with your changes. This will trigger GitHub Actions to validate the changes you made. Please wait for this to complete in full and ensure that you fix any issues highlighted by GitHub Actions.
 
-> Important Note: Pull requests will not be reviewed unless these steps are followed. 
+> Important Note: Pull requests will not be reviewed unless these steps are followed.
 
 > Please bear with us: We're a small team doing our best to review contributions quickly, but it might take us a while to get to your PR - especially if the changes are large or if they don't align with our current development cycle. We appreciate your patience!
-
 
 New to open source? Check out this free series: [How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
 
@@ -376,8 +375,8 @@ brew install nvm
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
-nvm install v20.8.0
-nvm alias default v20.8.0
+nvm install v20.19.0
+nvm alias default v20.19.0
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
 brew install postgresql@14
