@@ -144,7 +144,8 @@ function convertTableCalcSchemaToTableCalc(
             };
         case 'window_function': {
             const format =
-                tableCalc.windowFunction === 'percent_rank'
+                tableCalc.windowFunction === 'percent_rank' ||
+                tableCalc.windowFunction === 'cume_dist'
                     ? {
                           type: CustomFormatType.PERCENT,
                           separator: NumberSeparator.DEFAULT,

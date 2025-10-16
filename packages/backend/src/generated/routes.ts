@@ -2458,6 +2458,8 @@ const models: TsoaRoute.Models = {
         enums: [
             'row_number',
             'percent_rank',
+            'cume_dist',
+            'rank',
             'sum',
             'avg',
             'count',

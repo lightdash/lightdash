@@ -1,3 +1,24 @@
+## [0.2091.1](https://github.com/lightdash/lightdash/compare/0.2091.0...0.2091.1) (2025-10-16)
+
+
+### Bug Fixes
+
+* keep scroll position after field select ([#17483](https://github.com/lightdash/lightdash/issues/17483)) ([7a9ad45](https://github.com/lightdash/lightdash/commit/7a9ad4572fbecd7e7989079d1f8d6cfaa68161e0))
+
+# [0.2091.0](https://github.com/lightdash/lightdash/compare/0.2090.0...0.2091.0) (2025-10-16)
+
+
+### Features
+
+* add CUME_DIST and RANK window functions ([#17479](https://github.com/lightdash/lightdash/issues/17479)) ([a3fa259](https://github.com/lightdash/lightdash/commit/a3fa259f11287c45f03b579ab4a0fab03d421cff))
+
+# [0.2090.0](https://github.com/lightdash/lightdash/compare/0.2089.7...0.2090.0) (2025-10-16)
+
+
+### Features
+
+* improve error ui when fetching branches in preview project creation ([#17500](https://github.com/lightdash/lightdash/issues/17500)) ([fda9993](https://github.com/lightdash/lightdash/commit/fda9993f7bcbd40d2411e9aefec67dbf3bf5eaa9))
+
 ## [0.2089.7](https://github.com/lightdash/lightdash/compare/0.2089.6...0.2089.7) (2025-10-16)
 
 

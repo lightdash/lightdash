@@ -387,6 +387,42 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         );
     });
 
+    it('Should compile CUME_DIST window function', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.WINDOW_FUNCTION,
+            windowFunction: WindowFunctionType.CUME_DIST,
+            fieldId: null,
+            orderBy: [{ fieldId: 'table_score', order: 'desc' }],
+            partitionBy: ['table_category'],
+        };
+
+        const result = compileTableCalculationFromTemplate(
+            template,
+            warehouseClientMock,
+        );
+
+        expect(result).toBe(
+            'CUME_DIST() OVER (PARTITION BY "table_category" ORDER BY "table_score" DESC)',
+        );
+    });
+
+    it('Should compile RANK window function', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.WINDOW_FUNCTION,
+            windowFunction: WindowFunctionType.RANK,
+            fieldId: null,
+            orderBy: [{ fieldId: 'table_revenue', order: 'desc' }],
+            partitionBy: [],
+        };
+
+        const result = compileTableCalculationFromTemplate(
+            template,
+            warehouseClientMock,
+        );
+
+        expect(result).toBe('RANK() OVER (ORDER BY "table_revenue" DESC)');
+    });
+
     it('Should compile window function with multiple orderBy fields and frame', () => {
         const template: TableCalculationTemplate = {
             type: TableCalculationTemplateType.WINDOW_FUNCTION,

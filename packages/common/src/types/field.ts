@@ -316,6 +316,8 @@ export enum TableCalculationType {
 export enum WindowFunctionType {
     ROW_NUMBER = 'row_number',
     PERCENT_RANK = 'percent_rank',
+    CUME_DIST = 'cume_dist',
+    RANK = 'rank',
     SUM = 'sum',
     AVG = 'avg',
     COUNT = 'count',
@@ -326,6 +328,8 @@ export enum WindowFunctionType {
 export const nillaryWindowFunctions: WindowFunctionType[] = [
     WindowFunctionType.ROW_NUMBER,
     WindowFunctionType.PERCENT_RANK,
+    WindowFunctionType.CUME_DIST,
+    WindowFunctionType.RANK,
 ];
 
 export const unaryWindowFunctions: WindowFunctionType[] = [

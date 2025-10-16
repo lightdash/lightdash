@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -21,11 +22,13 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     useTransition,
     type FC,
 } from 'react';
 import {
+    selectActiveFields,
     selectAdditionalMetrics,
     selectCustomDimensions,
     selectMissingCustomDimensions,
@@ -33,6 +36,7 @@ import {
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
@@ -60,6 +64,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const missingFieldIds = useExplorerSelector((state) =>
         selectMissingFieldIds(state, explore),
     );
+    const activeFields = useExplorerSelector(selectActiveFields);
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
@@ -71,6 +76,13 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         const trimmedSearch = search.trim();
         return !!trimmedSearch && trimmedSearch !== '';
     }, [search]);
+    const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
+    const savedScrollTopRef = useRef<number>(0);
+    const previousActiveFieldsRef = useRef(activeFields);
+
+    const { data: experimentalExplorerImprovements } = useFeatureFlag(
+        FeatureFlags.ExperimentalExplorerImprovements,
+    );
 
     const handleSearchChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,6 +143,35 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             );
     }, [explore, isSearching, searchResultsMap]);
 
+    /**
+     * Preserve scroll position when fields are selected/deselected
+     *
+     * When a field is selected, it gets pinned to the top of the sidebar list.
+     * Without preservation, this DOM reordering causes the scroll to jump back to the top.
+     */
+
+    // Capture scroll position before activeFields changes
+    if (
+        experimentalExplorerImprovements?.enabled &&
+        previousActiveFieldsRef.current !== activeFields &&
+        scrollAreaViewportRef.current
+    ) {
+        savedScrollTopRef.current = scrollAreaViewportRef.current.scrollTop;
+        previousActiveFieldsRef.current = activeFields;
+    }
+
+    // Restore scroll position after DOM updates
+    useEffect(() => {
+        if (!experimentalExplorerImprovements?.enabled) {
+            return;
+        }
+
+        const viewport = scrollAreaViewportRef.current;
+        if (viewport) {
+            viewport.scrollTop = savedScrollTopRef.current;
+        }
+    }, [activeFields, experimentalExplorerImprovements]);
+
     return (
         <>
             <TextInput
@@ -158,6 +199,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 className="only-vertical"
                 offsetScrollbars
                 scrollbarSize={8}
+                viewportRef={scrollAreaViewportRef}
             >
                 {tableTrees.length > 0 ? (
                     tableTrees.map((table, index) => (
