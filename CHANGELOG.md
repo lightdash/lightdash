@@ -1,3 +1,10 @@
+## [0.2089.2](https://github.com/lightdash/lightdash/compare/0.2089.1...0.2089.2) (2025-10-16)
+
+
+### Bug Fixes
+
+* allow stacking on run query tool ([#17464](https://github.com/lightdash/lightdash/issues/17464)) ([73493ae](https://github.com/lightdash/lightdash/commit/73493aefc0b8c695b2eff7d6598e2a1f89e4fbb0))
+
 ## [0.2089.1](https://github.com/lightdash/lightdash/compare/0.2089.0...0.2089.1) (2025-10-16)
 
 
