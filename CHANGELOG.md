@@ -1,3 +1,10 @@
+## [0.2089.4](https://github.com/lightdash/lightdash/compare/0.2089.3...0.2089.4) (2025-10-16)
+
+
+### Bug Fixes
+
+* render less items in the side bar, allow for better performance ([#17475](https://github.com/lightdash/lightdash/issues/17475)) ([dfd1708](https://github.com/lightdash/lightdash/commit/dfd1708e2ae1f26ba990d8d8920733e7742caf0e))
+
 ## [0.2089.3](https://github.com/lightdash/lightdash/compare/0.2089.2...0.2089.3) (2025-10-16)
 
 
