@@ -1,3 +1,10 @@
+## [0.2089.1](https://github.com/lightdash/lightdash/compare/0.2089.0...0.2089.1) (2025-10-16)
+
+
+### Bug Fixes
+
+* validation of sets for one-level nesting ([#17490](https://github.com/lightdash/lightdash/issues/17490)) ([f17750d](https://github.com/lightdash/lightdash/commit/f17750d4ae30727c0a51ed54882c8a230fd1dac4))
+
 # [0.2089.0](https://github.com/lightdash/lightdash/compare/0.2088.0...0.2089.0) (2025-10-16)
 
 
