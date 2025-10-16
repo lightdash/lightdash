@@ -34,6 +34,7 @@ import {
     TableCalcSchema,
     TableCalcsSchema,
     TableCalculation,
+    ToolRunQueryArgsTransformed,
     ToolSortField,
     WeekDay,
     WindowFunctionType,
@@ -890,6 +891,85 @@ export function validateTableCalculations(
     if (errors.length > 0) {
         const errorMessage = getTableCalcValidationError(errors);
         Logger.error(`[AiAgent][Validate Table Calculations] ${errorMessage}`);
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that groupBy fields are valid dimensions that exist in the explore and are selected in the query
+ * @param explore - The explore containing field definitions
+ * @param groupByFields - Array of field IDs to use for grouping/series breakdown
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ */
+export function validateGroupByFields(
+    explore: Explore,
+    groupByFields: string[] | null | undefined,
+    selectedDimensions: string[],
+) {
+    if (!groupByFields || groupByFields.length === 0) {
+        return;
+    }
+
+    const exploreFields = getFields(explore);
+    const errors: string[] = [];
+
+    groupByFields.forEach((fieldId) => {
+        const field = exploreFields.find((f) => getItemId(f) === fieldId);
+
+        if (!field) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" does not exist in the explore.`,
+            );
+            return;
+        }
+
+        if (!isDimension(field)) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" (${field.label}) is not a dimension. Only selected dimensions can be used in groupBy for series breakdown.
+
+Field Details:
+- Field ID: ${fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+- Expected Type: dimension`,
+            );
+            return;
+        }
+
+        if (!selectedDimensions.includes(fieldId)) {
+            errors.push(
+                `Error: groupBy field "${fieldId}" (${
+                    field.label
+                }) is not selected in the query dimensions. Fields used in groupBy must be included in the dimensions array.
+
+Field Details:
+- Field ID: ${fieldId}
+- Field Label: ${field.label}
+- Selected Dimensions: ${selectedDimensions.join(', ')}`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid groupBy configuration:
+
+${errors.join('\n\n')}
+
+Remember:
+- groupBy fields must be valid dimensions from the explore
+- groupBy fields must be included in the query's dimensions array
+- groupBy is used to split metrics into separate series (e.g., one line per region)
+- Do NOT include the x-axis dimension in groupBy - only dimensions for series breakdown
+
+Available dimensions:
+${exploreFields
+    .filter(isDimension)
+    .map((f) => `- ${getItemId(f)} (${f.label})`)
+    .join('\n')}`;
+
+        Logger.error(`[AiAgent][Validate GroupBy Fields] ${errorMessage}`);
+
         throw new Error(errorMessage);
     }
 }
