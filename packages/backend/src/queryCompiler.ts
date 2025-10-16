@@ -7,6 +7,8 @@ import {
     CompileError,
     convertAdditionalMetric,
     convertFieldRefToFieldId,
+    DependencyNode,
+    detectCircularDependencies,
     Explore,
     ExploreCompiler,
     isPostCalculationMetricType,
@@ -21,11 +23,6 @@ import {
 } from '@lightdash/common';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 
-interface TableCalculationDependency {
-    name: string;
-    dependencies: string[];
-}
-
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
     return matches.map((match) => match.slice(2, -1)); // Remove ${ and }
@@ -33,7 +30,7 @@ const getTableCalculationReferences = (sql: string): string[] => {
 
 const buildTableCalculationDependencyGraph = (
     tableCalculations: TableCalculation[],
-): TableCalculationDependency[] =>
+): DependencyNode[] =>
     tableCalculations.map((calc) => {
         if (isSqlTableCalculation(calc)) {
             return {
@@ -69,54 +66,11 @@ const buildTableCalculationDependencyGraph = (
         throw new CompileError(`Table calculation has no SQL or template`, {});
     });
 
-const detectCircularDependencies = (
-    dependencies: TableCalculationDependency[],
-): void => {
-    const visited = new Set<string>();
-    const recursionStack = new Set<string>();
-
-    const dfs = (node: string, path: string[]): void => {
-        if (recursionStack.has(node)) {
-            throw new CompileError(
-                `Circular dependency detected in table calculations: ${[
-                    ...path,
-                    node,
-                ].join(' -> ')}`,
-                {},
-            );
-        }
-
-        if (visited.has(node)) {
-            return;
-        }
-
-        visited.add(node);
-        recursionStack.add(node);
-
-        const deps =
-            dependencies.find((d) => d.name === node)?.dependencies || [];
-        for (const dep of deps) {
-            // Only check dependencies that are table calculations
-            if (dependencies.some((d) => d.name === dep)) {
-                dfs(dep, [...path, node]);
-            }
-        }
-
-        recursionStack.delete(node);
-    };
-
-    for (const dep of dependencies) {
-        if (!visited.has(dep.name)) {
-            dfs(dep.name, []);
-        }
-    }
-};
-
 const compileTableCalculation = (
     tableCalculation: TableCalculation,
     validFieldIds: string[],
     quoteChar: string,
-    dependencyGraph: TableCalculationDependency[],
+    dependencyGraph: DependencyNode[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
@@ -201,7 +155,11 @@ const compileTableCalculations = (
     // Build dependency graph to check for circular dependencies
     const dependencyGraph =
         buildTableCalculationDependencyGraph(tableCalculations);
-    detectCircularDependencies(dependencyGraph);
+    try {
+        detectCircularDependencies(dependencyGraph, 'table calculations');
+    } catch (e) {
+        throw new CompileError(e instanceof Error ? e.message : String(e), {});
+    }
 
     const compiledTableCalculations: CompiledTableCalculation[] = [];
 
