@@ -1,8 +1,6 @@
 import {
-    assertUnreachable,
     CatalogField,
     convertToAiHints,
-    FieldType,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
@@ -10,89 +8,71 @@ import {
     toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { FindFieldFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     findFields: FindFieldFn;
     pageSize: number;
 };
 
-const fieldKindLabel = (fieldType: FieldType) => {
-    switch (fieldType) {
-        case FieldType.DIMENSION:
-            return 'Dimension';
-        case FieldType.METRIC:
-            return 'Metric';
-        default:
-            return assertUnreachable(fieldType, 'Invalid field type');
-    }
-};
-
-const getFieldText = (catalogField: CatalogField) => {
+const renderField = (catalogField: CatalogField) => {
     const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
-    const fieldTypeLabel = fieldKindLabel(catalogField.fieldType);
-
-    if (!catalogField.basicType) {
-        throw new Error('Field basic type is required');
-    }
-
-    return `
-    <${fieldTypeLabel} fieldId="${getItemId({
-        name: catalogField.name,
-        table: catalogField.tableName,
-    })}" fieldType="${
-        catalogField.fieldValueType
-    }" fieldFilterType="${getFilterTypeFromItemType(
-        catalogField.fieldValueType,
-    )}">
-        <Name>${catalogField.name}</Name>
-        <Label>${catalogField.label}</Label>
-        <SearchRank>${catalogField.searchRank}</SearchRank>
-        ${
-            aiHints && aiHints.length > 0
-                ? `
-        <AI Hints>
-            ${aiHints.map((hint) => `<Hint>${hint}</Hint>`).join('\n')}
-        </AI Hints>`.trim()
-                : ''
-        }
-        ${
-            catalogField.categories && catalogField.categories.length > 0
-                ? `<Categories>${catalogField.categories
-                      .map((c) => c.name)
-                      .join(', ')}</Categories>`
-                : ''
-        }
-        <Table name="${catalogField.tableName}">${
-        catalogField.tableLabel
-    }</Table>
-        <UsageInCharts>${catalogField.chartUsage}</UsageInCharts>
-        ${
-            isEmojiIcon(catalogField.icon)
-                ? `<Emoji>${catalogField.icon.unicode}</Emoji>`
-                : ''
-        }
-        <description>${catalogField.description}</description>
-    </${fieldTypeLabel}>
-    `.trim();
+    return (
+        <field
+            type={catalogField.fieldType}
+            baseTable={catalogField.tableName}
+            name={catalogField.name}
+            fieldId={getItemId({
+                name: catalogField.name,
+                table: catalogField.tableName,
+            })}
+            fieldType={catalogField.fieldValueType}
+            fieldFilterType={getFilterTypeFromItemType(
+                catalogField.fieldValueType,
+            )}
+            searchRank={catalogField.searchRank}
+            chartUsage={catalogField.chartUsage}
+        >
+            <label>{catalogField.label}</label>
+            {aiHints && aiHints.length > 0 ? (
+                <aihints>
+                    {aiHints.map((hint) => (
+                        <hint>{hint}</hint>
+                    ))}
+                </aihints>
+            ) : null}
+            <description>{catalogField.description}</description>
+            {catalogField.categories && catalogField.categories.length > 0 ? (
+                <categories>
+                    {catalogField.categories.map((c) => (
+                        <category>{c.name}</category>
+                    ))}
+                </categories>
+            ) : null}
+            {isEmojiIcon(catalogField.icon) ? (
+                <emoji>{catalogField.icon.unicode}</emoji>
+            ) : null}
+        </field>
+    );
 };
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
-) =>
-    `
-<SearchResult searchQuery="${args.searchQuery}" page="${
-        args.pagination?.page
-    }" pageSize="${args.pagination?.pageSize}" totalPageCount="${
-        args.pagination?.totalPageCount
-    }" totalResults="${args.pagination?.totalResults}">
-    ${args.fields.map((field) => getFieldText(field)).join('\n\n')}
-</SearchResult>
-`.trim();
+) => (
+    <searchresult
+        searchQuery={args.searchQuery}
+        page={args.pagination?.page}
+        pageSize={args.pagination?.pageSize}
+        totalPageCount={args.pagination?.totalPageCount}
+        totalResults={args.pagination?.totalResults}
+    >
+        {args.fields.map((field) => renderField(field))}
+    </searchresult>
+);
 
 export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
     tool({
@@ -120,7 +100,9 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
                     .join('\n\n');
 
                 return {
-                    result: `<SearchResults>${fieldsText}</SearchResults>`,
+                    result: (
+                        <searchresults>{fieldsText}</searchresults>
+                    ) as string,
                     metadata: {
                         status: 'success',
                     },
