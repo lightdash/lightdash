@@ -128,6 +128,7 @@ const EmbedDashboard: FC<{
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
     const { embedToken, mode } = useEmbed();
     const navigate = useNavigate();
@@ -139,6 +140,12 @@ const EmbedDashboard: FC<{
 
     const { data: dashboard, error: dashboardError } =
         useEmbedDashboard(projectUuid);
+
+    useEffect(() => {
+        if (dashboard) {
+            setDashboardTiles(dashboard.tiles);
+        }
+    }, [dashboard, setDashboardTiles]);
 
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {

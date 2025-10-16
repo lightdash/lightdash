@@ -1,27 +1,17 @@
-import { type Dashboard } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import ActiveFilters from '../../../../../components/DashboardFilter/ActiveFilters';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 
-type Props = {
-    dashboardTiles: Dashboard['tiles'];
-};
-
-const EmbedDashboardFilters: FC<Props> = ({ dashboardTiles }) => {
+const EmbedDashboardFilters: FC = () => {
     const [openPopoverId, setPopoverId] = useState<string>();
 
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
 
-    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-
-    useEffect(() => {
-        setDashboardTiles(dashboardTiles);
-    }, [setDashboardTiles, dashboardTiles]);
 
     const handlePopoverOpen = useCallback((id: string) => {
         setPopoverId(id);
