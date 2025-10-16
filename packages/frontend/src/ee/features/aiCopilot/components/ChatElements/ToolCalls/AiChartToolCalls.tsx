@@ -1,8 +1,7 @@
 import {
-    AgentToolCallArgsSchema,
-    type AiAgentToolCall,
     AiResultType,
     assertUnreachable,
+    parseToolArgs,
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type ToolName,
@@ -64,10 +63,11 @@ const getToolIcon = (toolName: ToolName) => {
 };
 
 type ToolCallDisplayType = 'streaming' | 'finished-streaming' | 'persisted';
-type ToolCallSummary = Omit<
-    AiAgentToolCall,
-    'createdAt' | 'uuid' | 'promptUuid'
->;
+type ToolCallSummary = {
+    toolCallId: string;
+    toolName: string;
+    toolArgs: unknown;
+};
 
 const ToolCallContainer = ({
     children,
@@ -92,17 +92,26 @@ const ToolCallDescription: FC<{
     toolCall: ToolCallSummary;
 }> = ({ toolCall }) => {
     const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
-    const toolArgsParsed = AgentToolCallArgsSchema.safeParse(toolCall.toolArgs);
 
-    if (!toolNameParsed.success || !toolArgsParsed.success) {
+    if (!toolNameParsed.success) {
         console.error(
-            `Failed to parse tool call ${toolCall.toolName} ${toolCall.toolCallId}`,
-            toolNameParsed.error ?? toolArgsParsed.error,
+            `Failed to parse tool name ${toolCall.toolName} ${toolCall.toolCallId}`,
+            toolNameParsed.error,
         );
         return null;
     }
 
     const toolName = toolNameParsed.data;
+    const toolArgsParsed = parseToolArgs(toolName, toolCall.toolArgs);
+
+    if (!toolArgsParsed.success) {
+        console.error(
+            `Failed to parse tool args for ${toolName} ${toolCall.toolCallId}`,
+            toolArgsParsed.error,
+        );
+        return null;
+    }
+
     const toolArgs = toolArgsParsed.data;
 
     switch (toolArgs.type) {
@@ -283,6 +292,7 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case AiResultType.IMPROVE_CONTEXT:
+        case AiResultType.QUERY_RESULT:
         case AiResultType.PROPOSE_CHANGE:
             return <> </>;
         default:

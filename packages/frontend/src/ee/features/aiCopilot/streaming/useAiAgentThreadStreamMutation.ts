@@ -1,6 +1,6 @@
 import {
-    AgentToolCallArgsSchema,
     AiResultType,
+    toolImproveContextArgsSchema,
     ToolNameSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
@@ -132,33 +132,43 @@ export function useAiAgentThreadStreamMutation() {
                                             ToolNameSchema.parse(
                                                 toolNameUnsafe,
                                             );
-                                        const toolArgs =
-                                            AgentToolCallArgsSchema.parse(
-                                                part.input,
-                                            );
 
+                                        // Store raw tool args (will be validated in rendering components)
                                         dispatch(
                                             addToolCall({
                                                 threadUuid,
                                                 toolCallId: part.toolCallId,
                                                 toolName,
-                                                toolArgs,
+                                                toolArgs: part.input,
                                             }),
                                         );
 
-                                        if (
-                                            toolName === 'improveContext' &&
-                                            toolArgs.type ===
-                                                AiResultType.IMPROVE_CONTEXT
-                                        ) {
-                                            dispatch(
-                                                setImproveContextNotification({
-                                                    threadUuid,
-                                                    toolCallId: part.toolCallId,
-                                                    suggestedInstruction:
-                                                        toolArgs.suggestedInstruction,
-                                                }),
-                                            );
+                                        // Special handling for improveContext - validate to access suggestedInstruction
+                                        if (toolName === 'improveContext') {
+                                            const improveContextArgs =
+                                                toolImproveContextArgsSchema.safeParse(
+                                                    part.input,
+                                                );
+
+                                            if (
+                                                improveContextArgs.success &&
+                                                improveContextArgs.data.type ===
+                                                    AiResultType.IMPROVE_CONTEXT
+                                            ) {
+                                                dispatch(
+                                                    setImproveContextNotification(
+                                                        {
+                                                            threadUuid,
+                                                            toolCallId:
+                                                                part.toolCallId,
+                                                            suggestedInstruction:
+                                                                improveContextArgs
+                                                                    .data
+                                                                    .suggestedInstruction,
+                                                        },
+                                                    ),
+                                                );
+                                            }
                                         }
                                     } catch (error) {
                                         console.error(
