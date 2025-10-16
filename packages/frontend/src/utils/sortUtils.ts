@@ -92,6 +92,9 @@ export const getSortLabel = (
         case MetricType.MIN:
         case MetricType.MAX:
         case MetricType.NUMBER:
+        case MetricType.PERCENT_OF_PREVIOUS:
+        case MetricType.PERCENT_OF_TOTAL:
+        case MetricType.RUNNING_TOTAL:
         case TableCalculationType.NUMBER:
             return direction === SortDirection.ASC
                 ? NumericSortLabels.ASC

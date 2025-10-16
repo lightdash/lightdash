@@ -146,6 +146,19 @@ models:
                 default_time_dimension:
                   field: order_date
                   interval: DAY
+              amount_percent_of_previous:
+                type: percent_of_previous
+                sql: ${total_order_amount}
+                format: "#,##0.00%"
+              amount_percent_of_total:
+                type: percent_of_total
+                sql: ${total_order_amount}
+                format: "#,##0.00%"
+              amount_running_total:
+                type: running_total
+                sql: ${total_order_amount}
+                format: usd
+                round: 2
               total_completed_order_amount:
                 type: sum
                 format: usd

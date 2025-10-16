@@ -11,6 +11,7 @@ import {
     friendlyName,
     isCustomBinDimension,
     isNonAggregateMetric,
+    isPostCalculationMetric,
     type CompiledCustomDimension,
     type CompiledCustomSqlDimension,
     type CompiledDimension,
@@ -525,14 +526,20 @@ export class ExploreCompiler {
                     );
                 }
 
-                const compiledReference = isNonAggregateMetric(metric)
-                    ? this.compileMetricReference(
-                          p1,
-                          tables,
-                          metric.table,
-                          availableParameters,
-                      )
-                    : this.compileDimensionReference(p1, tables, metric.table);
+                const compiledReference =
+                    isNonAggregateMetric(metric) ||
+                    isPostCalculationMetric(metric)
+                        ? this.compileMetricReference(
+                              p1,
+                              tables,
+                              metric.table,
+                              availableParameters,
+                          )
+                        : this.compileDimensionReference(
+                              p1,
+                              tables,
+                              metric.table,
+                          );
                 tablesReferences = new Set([
                     ...tablesReferences,
                     ...compiledReference.tablesReferences,
@@ -541,9 +548,12 @@ export class ExploreCompiler {
             },
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
-            if (isNonAggregateMetric(metric)) {
+            if (
+                isNonAggregateMetric(metric) ||
+                isPostCalculationMetric(metric)
+            ) {
                 throw new CompileError(
-                    `Error: ${metric.name} - metric filters cannot be used with non-aggregate metrics`,
+                    `Error: ${metric.name} - metric filters cannot be used with non-aggregate or post-calculation metrics`,
                 );
             }
 

@@ -116,7 +116,7 @@ import {
     ParameterError,
     type ParametersValuesMap,
     PivotChartData,
-    PivotChartLayout,
+    PivotConfiguration,
     PivotValuesColumn,
     Project,
     ProjectCatalog,
@@ -1937,6 +1937,7 @@ export class ProjectService extends BaseService {
         dateZoom,
         parameters,
         availableParameterDefinitions,
+        pivotConfiguration,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -1947,6 +1948,7 @@ export class ProjectService extends BaseService {
         dateZoom?: DateZoom;
         parameters?: ParametersValuesMap;
         availableParameterDefinitions: ParameterDefinitions;
+        pivotConfiguration?: PivotConfiguration;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -1974,6 +1976,7 @@ export class ProjectService extends BaseService {
             timezone,
             parameters,
             parameterDefinitions: availableParameterDefinitions,
+            pivotConfiguration,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>

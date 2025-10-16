@@ -22,6 +22,11 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
         case MetricType.PERCENTILE:
         case MetricType.MEDIAN:
             break;
+        case MetricType.PERCENT_OF_PREVIOUS:
+        case MetricType.PERCENT_OF_TOTAL:
+        case MetricType.RUNNING_TOTAL:
+            // PostCalculation metrics are compiled at run time
+            break;
         default:
             return assertUnreachable(
                 type,
