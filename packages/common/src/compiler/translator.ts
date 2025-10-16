@@ -420,7 +420,7 @@ function validateSets(
 
             // Validate one-level nesting: if this set references another set,
             // the referenced set cannot itself contain set references
-            if (isModelFieldName) {
+            if (!isModelFieldName && field.endsWith('*')) {
                 const referencedSetName = field.substring(0, field.length - 1);
                 const referencedSet = meta.sets?.[referencedSetName];
 
