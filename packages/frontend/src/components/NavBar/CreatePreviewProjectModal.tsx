@@ -490,15 +490,18 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                     placeholder={
                                         branches.isLoading
                                             ? 'Loading branches...'
+                                            : branches.isError
+                                            ? 'Failed to load branches'
                                             : 'Select branch'
                                     }
                                     searchable
                                     value={selectedBranch}
                                     readOnly={isPreviewCreating}
                                     disabled={
-                                        branches.isSuccess &&
-                                        (!branches.data ||
-                                            branches.data.length <= 0)
+                                        branches.isError ||
+                                        (branches.isSuccess &&
+                                            (!branches.data ||
+                                                branches.data.length <= 0))
                                     }
                                     data={branches.data ?? []}
                                     onChange={(value) => {
@@ -508,6 +511,38 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                         branches.isFetching && (
                                             <Loader size="xs" color="gray" />
                                         )
+                                    }
+                                    error={
+                                        branches.isError ? (
+                                            <Group spacing="xs" align="center">
+                                                <Text size="xs">
+                                                    The project will use the
+                                                    default branch.
+                                                </Text>
+                                                <Tooltip
+                                                    withinPortal
+                                                    label={
+                                                        branches.error?.error
+                                                            ?.message ||
+                                                        'Failed to fetch branches'
+                                                    }
+                                                    multiline
+                                                    w={250}
+                                                >
+                                                    <ActionIcon
+                                                        size="xs"
+                                                        color="red"
+                                                        variant="transparent"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconHelpCircle
+                                                            }
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            </Group>
+                                        ) : undefined
                                     }
                                 />{' '}
                                 {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
