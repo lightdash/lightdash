@@ -260,4 +260,5 @@ export const lightdashConfigMock: LightdashConfig = {
     customRoles: {
         enabled: false,
     },
+    experimentalExplorerImprovements: false,
 };
