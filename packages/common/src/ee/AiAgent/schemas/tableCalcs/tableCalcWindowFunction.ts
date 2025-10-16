@@ -12,6 +12,8 @@ import {
 const windowFunctionTypeSchema = z.enum([
     WindowFunctionType.ROW_NUMBER,
     WindowFunctionType.PERCENT_RANK,
+    WindowFunctionType.CUME_DIST,
+    WindowFunctionType.RANK,
     WindowFunctionType.SUM,
     WindowFunctionType.AVG,
     WindowFunctionType.COUNT,
@@ -28,6 +30,8 @@ export const tableCalcWindowFunctionSchema = baseTableCalcSchema.extend({
             '**Ranking functions** (fieldId optional, ignored if provided):',
             '- row_number: Sequential numbering (1, 2, 3...)',
             '- percent_rank: Relative rank as percentage (0.0-1.0)',
+            '- cume_dist: Cumulative distribution as percentage (0.0-1.0)',
+            '- rank: Positional rank (1, 2, 3...) with ties',
             '',
             '**Aggregate functions** (fieldId required):',
             '- sum: Sum values within frame',
@@ -39,7 +43,7 @@ export const tableCalcWindowFunctionSchema = baseTableCalcSchema.extend({
     ),
     fieldId: getFieldIdSchema({
         additionalDescription:
-            'Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank)',
+            'Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank)',
     }).nullable(),
     orderBy: z
         .array(orderBySchema)

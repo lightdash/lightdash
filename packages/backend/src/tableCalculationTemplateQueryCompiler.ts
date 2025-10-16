@@ -26,6 +26,12 @@ const compileWindowFunctionTemplate = (
         case WindowFunctionType.PERCENT_RANK:
             functionName = 'PERCENT_RANK';
             break;
+        case WindowFunctionType.CUME_DIST:
+            functionName = 'CUME_DIST';
+            break;
+        case WindowFunctionType.RANK:
+            functionName = 'RANK';
+            break;
         case WindowFunctionType.SUM:
             functionName = 'SUM';
             needsFieldId = true;
