@@ -21,11 +21,9 @@ models:
               type: count_distinct
               label: "✅ FANOUT SAFE Unique Event Count"
               description: "✅ CORRECT: Uses count_distinct so won't inflate"
-            inflated_event_count:
+            event_count:
               type: count
-              label: "🚨 INFLATED Event Count"
-              description: "❌ WRONG: If grain of data is not at event/track level then this
-                will be inflated"
+              description: ""
       - name: event_name
         description: ""
         meta:
