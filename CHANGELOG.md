@@ -1,3 +1,10 @@
+## [0.2089.6](https://github.com/lightdash/lightdash/compare/0.2089.5...0.2089.6) (2025-10-16)
+
+
+### Bug Fixes
+
+* return server formatted value for timestamps ([#17498](https://github.com/lightdash/lightdash/issues/17498)) ([99b320c](https://github.com/lightdash/lightdash/commit/99b320c7bdccb6d39b11988c7eea057ae428fef7))
+
 ## [0.2089.5](https://github.com/lightdash/lightdash/compare/0.2089.4...0.2089.5) (2025-10-16)
 
 
