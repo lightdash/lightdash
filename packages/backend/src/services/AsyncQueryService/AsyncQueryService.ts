@@ -2487,10 +2487,7 @@ export class AsyncQueryService extends ProjectService {
 
         const isValidNonCustomDimension = (
             dimension: CustomDimension | CompiledDimension,
-        ) =>
-            !isCustomDimension(dimension) &&
-            !dimension.timeInterval &&
-            !dimension.hidden;
+        ) => !isCustomDimension(dimension) && !dimension.hidden;
 
         const availableDimensions = allDimensions.filter(
             (dimension) =>
