@@ -1398,6 +1398,313 @@ LIMIT 10`;
                 ),
             ).toBe(1);
         });
+
+        test('Should include filter-only metric in fanout CTE but exclude from final SELECT', () => {
+            // Query with dimension + metric1 selected, but filter on metric3 (from joined table with fanout)
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1'], // Only select table1_metric1
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table2_metric3', // Filter on table2_metric3 but don't select it
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [100],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                    limit: 10,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should create fanout CTEs for table2
+            expect(result.query).toContain('cte_keys_table2');
+            expect(result.query).toContain('cte_metrics_table2');
+
+            // Should calculate table2_metric3 in the CTE
+            expect(result.query).toContain(
+                'SUM("table2".number_column) AS "table2_metric3"',
+            );
+
+            // Should have metric filter applied
+            expect(result.query).toContain('("table2_metric3") > (100)');
+
+            // Should NOT include table2_metric3 in the final column list
+            // The final SELECT should explicitly list columns, not use *
+            expect(result.query).toContain('"table1_dim1"');
+            expect(result.query).toContain('"table1_metric1"');
+
+            // Verify the final SELECT doesn't use SELECT * when filter-only metrics exist
+            const finalSelectMatch = result.query.match(
+                /SELECT\s+(.*?)\s+FROM\s+metrics\s+(?:WHERE|ORDER|LIMIT)/s,
+            );
+            if (finalSelectMatch) {
+                const selectClause = finalSelectMatch[1].trim();
+                // Should not be just "*"
+                expect(selectClause).not.toBe('*');
+            }
+        });
+
+        test('Should handle filter-only metric from same table (no fanout needed)', () => {
+            // Query with filter on a metric from the same table as the selected metric
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1'], // Selected metric
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table1_metric1', // Filter on same metric (not filter-only)
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [50],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                    limit: 10,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should NOT create fanout CTEs (same table, no fanout risk)
+            expect(result.query).not.toContain('cte_keys_');
+            expect(result.query).not.toContain('cte_metrics_');
+
+            // Should have metric filter applied
+            expect(result.query).toContain('("table1_metric1") > (50)');
+        });
+
+        test('Should handle multiple filter-only metrics with fanout protection', () => {
+            // Query filtering on both table2_metric2 and table2_metric3 but only selecting table1_metric1
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1'], // Only select from table1
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table2_metric2', // Filter on metric2
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [50],
+                                },
+                                {
+                                    id: '2',
+                                    target: {
+                                        fieldId: 'table2_metric3', // Filter on metric3
+                                    },
+                                    operator: FilterOperator.LESS_THAN,
+                                    values: [200],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                    limit: 10,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should create fanout CTEs for table2
+            expect(result.query).toContain('cte_keys_table2');
+            expect(result.query).toContain('cte_metrics_table2');
+
+            // Should calculate both filter-only metrics in the CTE
+            expect(result.query).toContain(
+                'MAX("table2".number_column) AS "table2_metric2"',
+            );
+            expect(result.query).toContain(
+                'SUM("table2".number_column) AS "table2_metric3"',
+            );
+
+            // Should have both metric filters applied
+            expect(result.query).toContain('("table2_metric2") > (50)');
+            expect(result.query).toContain('("table2_metric3") < (200)');
+
+            // Final SELECT should only include table1 fields
+            const finalSelectMatch = result.query.match(
+                /SELECT\s+(.*?)\s+FROM\s+metrics\s+(?:WHERE|ORDER|LIMIT)/s,
+            );
+            if (finalSelectMatch) {
+                const selectClause = finalSelectMatch[1].trim();
+                expect(selectClause).toContain('"table1_dim1"');
+                expect(selectClause).toContain('"table1_metric1"');
+            }
+        });
+
+        test('Should handle mix of selected and filter-only metrics from joined table', () => {
+            // Query selecting table2_metric2 and filtering on table2_metric3
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1', 'table2_metric2'], // Select metric2
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table2_metric3', // Filter on metric3 (filter-only)
+                                    },
+                                    operator: FilterOperator.NOT_NULL,
+                                    values: [],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table2_metric2', descending: true }],
+                    limit: 10,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should create fanout CTEs for table2
+            expect(result.query).toContain('cte_keys_table2');
+            expect(result.query).toContain('cte_metrics_table2');
+
+            // Should calculate both metric2 (selected) and metric3 (filter-only) in the CTE
+            expect(result.query).toContain(
+                'MAX("table2".number_column) AS "table2_metric2"',
+            );
+            expect(result.query).toContain(
+                'SUM("table2".number_column) AS "table2_metric3"',
+            );
+
+            // Should have metric filter applied
+            expect(result.query).toContain('("table2_metric3") IS NOT NULL');
+
+            // Final SELECT should include table1_dim1, table1_metric1, and table2_metric2 but NOT table2_metric3
+            const finalSelectMatch = result.query.match(
+                /SELECT\s+(.*?)\s+FROM\s+metrics\s+(?:WHERE|ORDER|LIMIT)/s,
+            );
+            if (finalSelectMatch) {
+                const selectClause = finalSelectMatch[1].trim();
+                expect(selectClause).toContain('"table1_dim1"');
+                expect(selectClause).toContain('"table1_metric1"');
+                expect(selectClause).toContain('"table2_metric2"');
+                // Should not select table2_metric3 even though it's calculated in the CTE
+            }
+        });
+
+        test('Should handle filter-only metric with table calculations', () => {
+            // Query with filter-only metric and table calculations
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1'], // Only select table1_metric1
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table2_metric3', // Filter on table2_metric3
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [100],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                    limit: 10,
+                    tableCalculations: [
+                        {
+                            name: 'calc1',
+                            displayName: 'Calc 1',
+                            sql: '${table1.metric1} * 2',
+                        },
+                    ],
+                    compiledTableCalculations: [
+                        {
+                            name: 'calc1',
+                            displayName: 'Calc 1',
+                            sql: '${table1.metric1} * 2',
+                            compiledSql: '"table1_metric1" * 2',
+                            dependsOn: [],
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should create fanout CTEs for table2
+            expect(result.query).toContain('cte_keys_table2');
+            expect(result.query).toContain('cte_metrics_table2');
+
+            // Should calculate filter-only metric in the CTE
+            expect(result.query).toContain(
+                'SUM("table2".number_column) AS "table2_metric3"',
+            );
+
+            // Should have metric filter applied in WHERE clause
+            expect(result.query).toContain('("table2_metric3") IN (100)');
+
+            // Final SELECT should explicitly list only the selected columns (not SELECT *)
+            const finalSelectMatch = result.query.match(
+                /SELECT\s+(.*?)\s+FROM\s+metrics\s+WHERE/s,
+            );
+            expect(finalSelectMatch).toBeTruthy();
+            if (finalSelectMatch) {
+                const selectClause = finalSelectMatch[1].trim();
+                // Should include the selected dimension and metric
+                expect(selectClause).toContain('"table1_dim1"');
+                expect(selectClause).toContain('"table1_metric1"');
+                // Should include the table calculation
+                expect(selectClause).toContain('"calc1"');
+                // Should NOT be SELECT * (since we have filter-only metrics)
+                expect(selectClause).not.toBe('*');
+            }
+        });
     });
 
     describe('Table Calculations', () => {

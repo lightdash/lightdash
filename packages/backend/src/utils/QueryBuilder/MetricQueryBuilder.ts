@@ -1769,11 +1769,12 @@ export class MetricQueryBuilder {
 
             // Get filter-only metrics to exclude from final SELECT
             const { metrics, filters } = compiledMetricQuery;
-            const fieldQuoteChar =
-                this.args.warehouseSqlBuilder.getFieldQuoteChar();
             const filterOnlyMetricIds = getFilterRulesFromGroup(filters.metrics)
                 .map((filter) => filter.target.fieldId)
                 .filter((metricId) => !metrics.includes(metricId));
+
+            const fieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
 
             // Build explicit column list excluding filter-only metrics
             const finalSelectColumns =
@@ -1789,10 +1790,14 @@ export class MetricQueryBuilder {
                               (metricId) =>
                                   `  ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                           ),
-                          // Include table calcs if inlined
-                          ...(shouldInlineSimpleCalcs
-                              ? simpleTableCalculationSelects
-                              : []),
+                          ...interdependentTableCalcs.map(
+                              (tableCalc) =>
+                                  `  ${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                          ),
+                          ...simpleTableCalcs.map(
+                              (tableCalc) =>
+                                  `${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                          ),
                       ]
                     : [
                           '  *',
