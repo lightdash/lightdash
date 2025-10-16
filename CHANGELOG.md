@@ -1,3 +1,10 @@
+## [0.2089.3](https://github.com/lightdash/lightdash/compare/0.2089.2...0.2089.3) (2025-10-16)
+
+
+### Bug Fixes
+
+* dont render heavy modals on explorer load ([#17484](https://github.com/lightdash/lightdash/issues/17484)) ([e622708](https://github.com/lightdash/lightdash/commit/e62270897533a284c7541ff4209db35e2dfb41f1))
+
 ## [0.2089.2](https://github.com/lightdash/lightdash/compare/0.2089.1...0.2089.2) (2025-10-16)
 
 
