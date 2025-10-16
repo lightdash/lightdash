@@ -53,6 +53,13 @@ Sentry.init({
     ],
     ignoreErrors: IGNORE_ERRORS,
     tracesSampler: (context) => {
+        if (
+            process.env.NODE_ENV === 'development' &&
+            process.env.SENTRY_SPOTLIGHT
+        ) {
+            return 1.0;
+        }
+
         const request = context.normalizedRequest;
         if (
             request?.url?.endsWith('/status') ||

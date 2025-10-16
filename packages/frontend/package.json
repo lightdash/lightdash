@@ -129,8 +129,6 @@
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
         "@mantine/styles": "6.0.21",
-        "@spotlightjs/sidecar": "^1.11.4",
-        "@spotlightjs/spotlight": "^3.0.1",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",
         "@storybook/addon-onboarding": "^8.6.6",
