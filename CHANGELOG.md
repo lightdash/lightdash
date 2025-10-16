@@ -1,3 +1,10 @@
+# [0.2088.0](https://github.com/lightdash/lightdash/compare/0.2087.0...0.2088.0) (2025-10-16)
+
+
+### Features
+
+* add post-calculation metrics for running totals and percentages ([#17437](https://github.com/lightdash/lightdash/issues/17437)) ([9602532](https://github.com/lightdash/lightdash/commit/960253281e98f63aa87894854a231998b3279078))
+
 # [0.2087.0](https://github.com/lightdash/lightdash/compare/0.2086.4...0.2087.0) (2025-10-15)
 
 
