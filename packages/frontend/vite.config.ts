@@ -1,5 +1,6 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
+import path from 'path';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
@@ -46,6 +47,21 @@ export default defineConfig({
     },
     optimizeDeps: {
         exclude: ['@lightdash/common'],
+    },
+    resolve: {
+        alias:
+            process.env.NODE_ENV === 'development'
+                ? {
+                      '@lightdash/common/src': path.resolve(
+                          __dirname,
+                          '../common/src',
+                      ),
+                      '@lightdash/common': path.resolve(
+                          __dirname,
+                          '../common/src/index.ts',
+                      ),
+                  }
+                : undefined,
     },
     build: {
         outDir: 'build',
