@@ -23,14 +23,14 @@ export interface LightdashScimExtension {
 export interface ScimUser extends ScimResource {
     schemas: string[];
     userName: string;
-    name: {
-        givenName: string;
-        familyName: string;
+    name?: {
+        givenName?: string;
+        familyName?: string;
     };
-    active: boolean;
+    active?: boolean;
     emails?: {
         value: string;
-        primary: boolean;
+        primary?: boolean;
     }[];
     [ScimSchemaType.LIGHTDASH_USER_EXTENSION]?: LightdashScimExtension;
 }
@@ -39,7 +39,7 @@ export interface ScimGroup extends ScimResource {
     schemas: string[];
     id: string;
     displayName: string;
-    members: ScimGroupMember[];
+    members?: ScimGroupMember[];
     meta: ScimResource['meta'] & {
         resourceType: 'Group';
         created: Date;
@@ -50,7 +50,7 @@ export interface ScimGroup extends ScimResource {
 
 export interface ScimGroupMember {
     value: string;
-    display: string;
+    display?: string;
 }
 
 export type ScimErrorPayload = {
@@ -119,7 +119,7 @@ export interface ScimListResponse<T extends ScimResource> {
 export interface ScimUpsertGroup {
     schemas: ScimSchemaType.GROUP[];
     displayName: string;
-    members: ScimGroupMember[];
+    members?: ScimGroupMember[];
 }
 
 export type ScimUpsertUser = Omit<ScimUser, 'id'> & {

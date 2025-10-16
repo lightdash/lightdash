@@ -495,8 +495,8 @@ export class ScimService extends BaseService {
                 dbUser.email,
                 {
                     // conditionally update fields
-                    firstName: user.name.givenName || dbUser.firstName,
-                    lastName: user.name.familyName || dbUser.lastName,
+                    firstName: user.name?.givenName || dbUser.firstName,
+                    lastName: user.name?.familyName || dbUser.lastName,
                     email: emailToUpdate,
                     isActive: user.active ?? dbUser.isActive,
                 },
@@ -934,9 +934,13 @@ export class ScimService extends BaseService {
                 createGroup: {
                     organizationUuid,
                     name: groupToCreate.displayName,
-                    members: groupToCreate.members.map((member) => ({
-                        userUuid: member.value,
-                    })),
+                    ...(groupToCreate.members !== undefined
+                        ? {
+                              members: groupToCreate.members.map((member) => ({
+                                  userUuid: member.value,
+                              })),
+                          }
+                        : {}),
                 },
             });
 
@@ -1045,9 +1049,13 @@ export class ScimService extends BaseService {
                 groupUuid,
                 update: {
                     name: groupToUpdate.displayName,
-                    members: groupToUpdate.members.map((member) => ({
-                        userUuid: member.value,
-                    })),
+                    ...(groupToUpdate.members !== undefined
+                        ? {
+                              members: groupToUpdate.members.map((member) => ({
+                                  userUuid: member.value,
+                              })),
+                          }
+                        : {}),
                 },
             });
 
@@ -1157,9 +1165,15 @@ export class ScimService extends BaseService {
                 groupUuid,
                 update: {
                     name: patchedScimGroup.displayName,
-                    members: patchedScimGroup.members.map((member) => ({
-                        userUuid: member.value,
-                    })),
+                    ...(patchedScimGroup.members !== undefined
+                        ? {
+                              members: patchedScimGroup.members.map(
+                                  (member) => ({
+                                      userUuid: member.value,
+                                  }),
+                              ),
+                          }
+                        : {}),
                 },
             });
 
@@ -1338,6 +1352,7 @@ export class ScimService extends BaseService {
             >]: ScimSchemaAttribute;
         };
 
+        // These attributes should match the ScimUser interface
         const fieldAttributeMap: ScimUserFieldMap = {
             userName: {
                 name: 'userName',
@@ -1416,7 +1431,7 @@ export class ScimService extends BaseService {
                         type: 'string',
                         multiValued: false,
                         description: 'Email address for the User',
-                        required: false,
+                        required: true,
                         caseExact: false,
                         mutability: 'readWrite',
                         returned: 'default',
@@ -1451,6 +1466,7 @@ export class ScimService extends BaseService {
             attributes: this.buildUserSchemaAttributes(),
         };
 
+        // These attributes should match the ScimGroup interface
         const groupSchema: ScimSchema = {
             schemas: [ScimSchemaType.SCHEMA],
             id: ScimSchemaType.GROUP,
@@ -1485,7 +1501,7 @@ export class ScimService extends BaseService {
                             multiValued: false,
                             description:
                                 'Identifier of the member of this Group',
-                            required: false,
+                            required: true,
                             caseExact: false,
                             mutability: 'readWrite',
                             returned: 'default',
