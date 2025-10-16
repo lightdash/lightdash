@@ -1,19 +1,19 @@
-import {
-    AiMetricQueryWithFilters,
-    AiResultType,
-    MetricQuery,
-    metricQueryTimeSeriesViz,
-    ToolTimeSeriesArgsTransformed,
-} from '@lightdash/common';
-import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { getPivotedResults } from '../utils/getPivotedResults';
+import { type EChartsOption } from 'echarts';
+import { type ItemsMap } from '../../../../../types/field';
+import { type MetricQuery } from '../../../../../types/metricQuery';
+import { type ToolTimeSeriesArgsTransformed } from '../../../schemas';
+import { type GetPivotedResultsFn } from '../types';
 
-export const echartsConfigTimeSeriesMetric = async (
+/**
+ * Generates time series chart echarts config for server-side rendering
+ */
+export const getTimeSeriesChartEchartsConfig = async (
     vizTool: ToolTimeSeriesArgsTransformed,
     rows: Record<string, unknown>[],
-    fieldsMap: Record<string, unknown>,
+    fieldsMap: ItemsMap,
     sorts: MetricQuery['sorts'],
-) => {
+    getPivotedResults: GetPivotedResultsFn,
+): Promise<EChartsOption> => {
     let chartData = rows;
     let metrics = vizTool.vizConfig.yMetrics;
     if (vizTool.vizConfig.breakdownByDimension) {
@@ -74,38 +74,5 @@ export const echartsConfigTimeSeriesMetric = async (
             },
             ...(vizTool.vizConfig.lineType === 'area' && { areaStyle: {} }),
         })),
-    };
-};
-
-export const renderTimeSeriesViz = async ({
-    queryResults,
-    vizTool,
-    metricQuery,
-}: {
-    queryResults: Awaited<
-        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-    >;
-    vizTool: ToolTimeSeriesArgsTransformed;
-    metricQuery: AiMetricQueryWithFilters;
-}): Promise<{
-    type: AiResultType.TIME_SERIES_RESULT;
-    results: Awaited<
-        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-    >;
-    metricQuery: AiMetricQueryWithFilters;
-    chartOptions: object;
-}> => {
-    const chartOptions = await echartsConfigTimeSeriesMetric(
-        vizTool,
-        queryResults.rows,
-        queryResults.fields,
-        metricQuery.sorts,
-    );
-
-    return {
-        type: AiResultType.TIME_SERIES_RESULT,
-        metricQuery,
-        results: queryResults,
-        chartOptions,
     };
 };

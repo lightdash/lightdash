@@ -1,5 +1,7 @@
 import {
+    AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
+    getSlackAiEchartsConfig,
     isSlackPrompt,
     metricQueryTimeSeriesViz,
     toolTimeSeriesArgsSchema,
@@ -17,13 +19,13 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { getPivotedResults } from '../utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTimeSeriesVizConfig } from '../utils/validateTimeSeriesVizConfig';
-import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -123,10 +125,13 @@ export const getGenerateTimeSeriesVizConfig = ({
                 await createOrUpdateArtifactHook();
 
                 if (isSlackPrompt(prompt)) {
-                    const { chartOptions } = await renderTimeSeriesViz({
+                    const chartOptions = await getSlackAiEchartsConfig({
+                        toolArgs: {
+                            type: AiResultType.TIME_SERIES_RESULT,
+                            tool: vizTool,
+                        },
                         queryResults,
-                        vizTool,
-                        metricQuery,
+                        getPivotedResults,
                     });
 
                     const file = await renderEcharts(chartOptions);

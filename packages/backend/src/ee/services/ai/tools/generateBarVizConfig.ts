@@ -1,5 +1,7 @@
 import {
+    AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
+    getSlackAiEchartsConfig,
     isSlackPrompt,
     metricQueryVerticalBarViz,
     toolVerticalBarArgsSchema,
@@ -17,13 +19,13 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { getPivotedResults } from '../utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateBarVizConfig } from '../utils/validateBarVizConfig';
-import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -123,10 +125,13 @@ export const getGenerateBarVizConfig = ({
                 await createOrUpdateArtifactHook();
 
                 if (isSlackPrompt(prompt)) {
-                    const { chartOptions } = await renderVerticalBarViz({
+                    const chartOptions = await getSlackAiEchartsConfig({
+                        toolArgs: {
+                            type: AiResultType.VERTICAL_BAR_RESULT,
+                            tool: vizTool,
+                        },
                         queryResults,
-                        vizTool,
-                        metricQuery,
+                        getPivotedResults,
                     });
 
                     const file = await renderEcharts(chartOptions);
