@@ -1,3 +1,10 @@
+## [0.2089.5](https://github.com/lightdash/lightdash/compare/0.2089.4...0.2089.5) (2025-10-16)
+
+
+### Bug Fixes
+
+* imporve explore table and modal render perf ([#17477](https://github.com/lightdash/lightdash/issues/17477)) ([bf176d7](https://github.com/lightdash/lightdash/commit/bf176d712a8a760c2e88b78eb553b318c6a4c6ec))
+
 ## [0.2089.4](https://github.com/lightdash/lightdash/compare/0.2089.3...0.2089.4) (2025-10-16)
 
 
