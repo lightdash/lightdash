@@ -54,6 +54,7 @@ export class SearchService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         query: string,
+        source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
     ): Promise<SearchResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -240,6 +241,7 @@ export class SearchService extends BaseService {
                 tablesResultsCount: filteredResults.tables.length,
                 fieldsResultsCount: filteredResults.fields.length,
                 dashboardTabsResultsCount: filteredResults.dashboardTabs.length,
+                source,
             },
         });
 

@@ -74,6 +74,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         query: debouncedValue,
         filters: searchFilters,
+        source: 'omnibar',
     });
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =

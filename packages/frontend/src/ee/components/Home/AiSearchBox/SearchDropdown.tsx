@@ -55,6 +55,7 @@ export const SearchDropdown: FC<Props> = ({
         projectUuid,
         query: debouncedQuery,
         keepPreviousData: true,
+        source: 'ai_search_box',
     });
 
     const allSearchItemsGrouped = useMemo(
