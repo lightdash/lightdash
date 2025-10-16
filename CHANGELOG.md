@@ -1,3 +1,10 @@
+# [0.2090.0](https://github.com/lightdash/lightdash/compare/0.2089.7...0.2090.0) (2025-10-16)
+
+
+### Features
+
+* improve error ui when fetching branches in preview project creation ([#17500](https://github.com/lightdash/lightdash/issues/17500)) ([fda9993](https://github.com/lightdash/lightdash/commit/fda9993f7bcbd40d2411e9aefec67dbf3bf5eaa9))
+
 ## [0.2089.7](https://github.com/lightdash/lightdash/compare/0.2089.6...0.2089.7) (2025-10-16)
 
 
