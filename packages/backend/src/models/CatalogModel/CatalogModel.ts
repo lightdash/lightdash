@@ -600,7 +600,6 @@ export class CatalogModel {
         sortArgs,
         context,
         fullTextSearchOperator = 'AND',
-        exploreCacheMap,
         filteredExplore,
     }: {
         projectUuid: string;
@@ -613,7 +612,6 @@ export class CatalogModel {
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
-        exploreCacheMap: { [exploreUuid: string]: Explore | ExploreError };
         filteredExplore?: Explore;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         let catalogItemsQuery = this.database(CatalogTableName)
@@ -896,7 +894,6 @@ export class CatalogModel {
                 paginatedCatalogItems.data.map((item) =>
                     parseCatalog({
                         ...item,
-                        explore: exploreCacheMap[item.explore.name] as Explore,
                         catalog_tags:
                             tagsPerItem[item.catalog_search_uuid] ?? [],
                     }),
