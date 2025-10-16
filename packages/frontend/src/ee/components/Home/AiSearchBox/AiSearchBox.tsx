@@ -121,13 +121,12 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
             <Box p="md">
                 <form onSubmit={handleSubmit}>
                     <Group>
-                        {noAgentsAvailable ? null : (
-                            <CompactAgentSelector
-                                agents={agents}
-                                selectedAgent={selectedAgent ?? agents[0]}
-                                onSelect={onSelect}
-                            />
-                        )}
+                        <CompactAgentSelector
+                            agents={agents}
+                            selectedAgent={selectedAgent ?? agents[0]}
+                            onSelect={onSelect}
+                        />
+
                         <SearchDropdown
                             projectUuid={projectUuid}
                             value={form.values.prompt}
@@ -202,7 +201,11 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                     <Box bg="gray.0" py="xs" px="md">
                         <Group
                             flex={1}
-                            justify={isTrial ? 'space-between' : 'flex-end'}
+                            justify={
+                                isTrial || noAgentsAvailable
+                                    ? 'space-between'
+                                    : 'flex-end'
+                            }
                         >
                             <Group gap={2}>
                                 {noAgentsAvailable ? (
