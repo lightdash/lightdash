@@ -1,6 +1,6 @@
 import { type AiAgent } from '@lightdash/common';
 import { type ComboboxItem, Group, Text } from '@mantine-8/core';
-import { IconPointFilled } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 
@@ -19,7 +19,7 @@ export const renderSelectOption = ({
 }) => (
     <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
         <LightdashUserAvatar
-            size={20}
+            size={22}
             name={option.label}
             src={option.imageUrl}
         />
@@ -27,7 +27,7 @@ export const renderSelectOption = ({
             {option.label}
         </Text>
 
-        {checked && <MantineIcon icon={IconPointFilled} size={12} />}
+        {checked && <MantineIcon icon={IconCheck} size="sm" color="violet" />}
     </Group>
 );
 
