@@ -1,15 +1,17 @@
 import {
+    ActionIcon,
     Combobox,
     Group,
     Loader,
     ScrollArea,
     TextInput,
     useCombobox,
-    type TextInputProps,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
+import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import OmnibarItem from '../../../../features/omnibar/components/OmnibarItem';
 import { getSearchResultsGroupsSorted } from '../../../../features/omnibar/components/utils';
 import useSearch, {
@@ -18,8 +20,7 @@ import useSearch, {
 import { type SearchItem } from '../../../../features/omnibar/types/searchItem';
 import { getSearchItemLabel } from '../../../../features/omnibar/utils/getSearchItemLabel';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
-// eslint-disable-next-line css-modules/no-unused-class
-import styles from './aiSearchBox.module.css';
+import styles from './SearchDropdown.module.css';
 
 type Props = {
     projectUuid: string;
@@ -28,7 +29,6 @@ type Props = {
     onSearchItemSelect?: (item: SearchItem) => void;
     placeholder?: string;
     footer?: React.ReactNode;
-    inputProps?: TextInputProps;
 };
 
 export const SearchDropdown: FC<Props> = ({
@@ -37,7 +37,6 @@ export const SearchDropdown: FC<Props> = ({
     onChange,
     onSearchItemSelect,
     placeholder,
-    inputProps,
     footer,
 }) => {
     const navigate = useNavigate();
@@ -47,11 +46,7 @@ export const SearchDropdown: FC<Props> = ({
     });
 
     const [debouncedQuery] = useDebouncedValue(value, 200);
-    const {
-        data: searchResults,
-        isSuccess,
-        isFetching,
-    } = useSearch({
+    const { data: searchResults, isFetching } = useSearch({
         projectUuid,
         query: debouncedQuery,
         keepPreviousData: true,
@@ -94,15 +89,30 @@ export const SearchDropdown: FC<Props> = ({
             <Combobox.Target>
                 <Combobox.EventsTarget>
                     <TextInput
-                        {...inputProps}
                         placeholder={placeholder}
                         value={value}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             handleInputChange(e.currentTarget.value)
                         }
                         rightSection={
-                            isFetching && <Loader size={12} color="gray" />
+                            isFetching ? (
+                                <Loader size={12} color="gray" />
+                            ) : value.trim().length > 0 ? (
+                                <ActionIcon
+                                    onClick={() => onChange('')}
+                                    variant="transparent"
+                                    size="xs"
+                                    color="gray.5"
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
                         }
+                        autoFocus
+                        classNames={{
+                            root: styles.searchRoot,
+                            input: styles.searchInput,
+                        }}
                     />
                 </Combobox.EventsTarget>
             </Combobox.Target>
@@ -116,16 +126,22 @@ export const SearchDropdown: FC<Props> = ({
                         scrollbars="y"
                         className={styles.searchDropdownScrollContent}
                     >
-                        {!isSuccess ? (
+                        {isFetching ? (
                             <Combobox.Empty>
-                                <Group align="center" justify="center" gap="xs">
-                                    <Loader size={12} color="gray" />
-                                    Loading results
+                                <Group
+                                    align="center"
+                                    justify="flex-start"
+                                    gap="xs"
+                                >
+                                    <Loader size={12} />
+                                    Loading search results
                                 </Group>
                             </Combobox.Empty>
                         ) : (
                             allSearchItems.length === 0 && (
-                                <Combobox.Empty>Nothing found</Combobox.Empty>
+                                <Combobox.Empty>
+                                    No matching search results
+                                </Combobox.Empty>
                             )
                         )}
 

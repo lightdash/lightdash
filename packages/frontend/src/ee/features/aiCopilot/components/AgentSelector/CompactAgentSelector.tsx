@@ -3,6 +3,7 @@ import {
     Combobox,
     type ComboboxProps,
     Group,
+    Tooltip,
     UnstyledButton,
     useCombobox,
 } from '@mantine-8/core';
@@ -47,31 +48,44 @@ export const CompactAgentSelector = ({
             }}
         >
             <Combobox.Target>
-                <UnstyledButton
-                    onClick={() => combobox.toggleDropdown()}
-                    variant="light"
-                    color="gray"
-                    p={0}
-                    disabled={hasOneAgent || !hasAgents}
+                <Tooltip
+                    label={selectedAgent?.name}
+                    withArrow
+                    withinPortal
+                    fz="xs"
+                    fw={500}
+                    disabled={!hasAgents}
                 >
-                    <Group gap="xxs">
-                        {hasAgents ? (
-                            <LightdashUserAvatar
-                                size="md"
-                                name={selectedAgent.name}
-                                src={selectedAgent.imageUrl}
-                            />
-                        ) : (
-                            <Avatar radius="xl" size="md">
-                                <Logo />
-                            </Avatar>
-                        )}
+                    <UnstyledButton
+                        onClick={() => combobox.toggleDropdown()}
+                        variant="light"
+                        color="gray"
+                        p={0}
+                        disabled={hasOneAgent || !hasAgents}
+                    >
+                        <Group gap="two">
+                            {hasAgents ? (
+                                <LightdashUserAvatar
+                                    size="md"
+                                    name={selectedAgent.name}
+                                    src={selectedAgent.imageUrl}
+                                />
+                            ) : (
+                                <Avatar radius="xl" size="md">
+                                    <Logo />
+                                </Avatar>
+                            )}
 
-                        {!hasOneAgent && hasAgents && (
-                            <MantineIcon icon={IconChevronDown} />
-                        )}
-                    </Group>
-                </UnstyledButton>
+                            {!hasOneAgent && hasAgents && (
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    color="gray.6"
+                                    strokeWidth={1.5}
+                                />
+                            )}
+                        </Group>
+                    </UnstyledButton>
+                </Tooltip>
             </Combobox.Target>
 
             <Combobox.Dropdown>
