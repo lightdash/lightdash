@@ -1,3 +1,10 @@
+## [0.2092.1](https://github.com/lightdash/lightdash/compare/0.2092.0...0.2092.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* improve labels,legend,title position on slack ai charts ([#17506](https://github.com/lightdash/lightdash/issues/17506)) ([4a038de](https://github.com/lightdash/lightdash/commit/4a038deaee6a207343f44c8e8c3cb5d3b94c81b1))
+
 # [0.2092.0](https://github.com/lightdash/lightdash/compare/0.2091.2...0.2092.0) (2025-10-17)
 
 
