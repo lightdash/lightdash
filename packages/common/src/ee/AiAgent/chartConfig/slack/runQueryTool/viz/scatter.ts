@@ -18,8 +18,9 @@ export const getScatterChartEchartsConfig = async (
 ): Promise<EChartsOption> => {
     const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
-    const xDimension = dimensions[0];
-    let metrics: string[] = queryMetrics;
+    const xDimension = chartConfig?.xAxisDimension || dimensions[0];
+    const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
+    let metrics: string[] = yMetrics;
     let chartData = rows;
 
     // If we should pivot and have a breakdown dimension, pivot the data
@@ -28,7 +29,7 @@ export const getScatterChartEchartsConfig = async (
             rows,
             fieldsMap,
             chartConfig.groupBy,
-            queryMetrics,
+            yMetrics,
             sorts as SortField[],
         );
         chartData = pivoted.results;
@@ -37,7 +38,7 @@ export const getScatterChartEchartsConfig = async (
 
     // Get axis field items for formatting
     const xAxisField = fieldsMap[xDimension];
-    const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
+    const yAxisField = yMetrics[0] ? fieldsMap[yMetrics[0]] : undefined;
 
     const primarySort = sorts?.[0];
     const shouldInverseXAxis =
@@ -73,7 +74,7 @@ export const getScatterChartEchartsConfig = async (
         series: metrics.map((metric) => ({
             type: 'scatter',
             // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-            name: queryMetrics.includes(metric)
+            name: yMetrics.includes(metric)
                 ? formatFieldLabel(metric, fieldsMap)
                 : metric,
             encode: {

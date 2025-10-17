@@ -9,9 +9,10 @@ export const getPieChartEchartsConfig = (
     rows: Record<string, unknown>[],
 ): EChartsOption => {
     const { dimensions, metrics } = queryTool.queryConfig;
+    const { chartConfig } = queryTool;
 
     const groupField = dimensions[0];
-    const metricField = metrics[0];
+    const metricField = chartConfig?.yAxisMetrics?.[0] || metrics[0];
 
     // Transform data for pie chart
     const data = rows.map((row) => ({

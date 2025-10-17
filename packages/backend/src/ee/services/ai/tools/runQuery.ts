@@ -29,6 +29,7 @@ import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
+    validateAxisFields,
     validateCustomMetricsDefinition,
     validateFieldEntityType,
     validateFilterRules,
@@ -85,6 +86,16 @@ const validateQueryTool = (
         explore,
         queryTool.chartConfig?.groupBy,
         queryTool.queryConfig.dimensions,
+    );
+
+    // Validate axis fields
+    validateAxisFields(
+        explore,
+        queryTool.chartConfig,
+        queryTool.queryConfig.dimensions,
+        queryTool.queryConfig.metrics,
+        queryTool.customMetrics,
+        queryTool.tableCalculations,
     );
 
     // Validate sort fields exist

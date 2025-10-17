@@ -23,14 +23,15 @@ export const getScatterChartConfig = ({
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
     const { dimensions, metrics } = queryTool.queryConfig;
-    const xDimension = dimensions[0];
+    const xDimension = chartConfig?.xAxisDimension || dimensions[0];
+    const yMetrics = chartConfig?.yAxisMetrics || metrics;
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: xDimension,
-                yField: metricQuery.metrics,
+                yField: chartConfig?.yAxisMetrics || metricQuery.metrics,
             },
             eChartsConfig: {
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
@@ -53,7 +54,7 @@ export const getScatterChartConfig = ({
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => {
+                series: yMetrics.map((metric) => {
                     const defaultProperties = {
                         type: CartesianSeriesType.SCATTER,
                         yAxisIndex: 0,
