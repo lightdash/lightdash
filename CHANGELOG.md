@@ -1,3 +1,10 @@
+## [0.2094.1](https://github.com/lightdash/lightdash/compare/0.2094.0...0.2094.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* properly track charts with date zoom in useEffect hook ([#17523](https://github.com/lightdash/lightdash/issues/17523)) ([9d3a42b](https://github.com/lightdash/lightdash/commit/9d3a42bd8d52650e63f98fe53f5309ae58af5d30))
+
 # [0.2094.0](https://github.com/lightdash/lightdash/compare/0.2093.1...0.2094.0) (2025-10-17)
 
 
