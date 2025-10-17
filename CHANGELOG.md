@@ -1,3 +1,10 @@
+# [0.2093.0](https://github.com/lightdash/lightdash/compare/0.2092.3...0.2093.0) (2025-10-17)
+
+
+### Features
+
+* publish events for embed when location changes ([#17516](https://github.com/lightdash/lightdash/issues/17516)) ([df32752](https://github.com/lightdash/lightdash/commit/df327529c26df83fbc79c1b19ab5807537e71b25))
+
 ## [0.2092.3](https://github.com/lightdash/lightdash/compare/0.2092.2...0.2092.3) (2025-10-17)
 
 
