@@ -1,3 +1,10 @@
+# [0.2094.0](https://github.com/lightdash/lightdash/compare/0.2093.1...0.2094.0) (2025-10-17)
+
+
+### Features
+
+* add dashboard comments feature flag and configuration ([#17512](https://github.com/lightdash/lightdash/issues/17512)) ([67a8460](https://github.com/lightdash/lightdash/commit/67a8460b89c3c4012170298b464b1eadc1a73fd2))
+
 ## [0.2093.1](https://github.com/lightdash/lightdash/compare/0.2093.0...0.2093.1) (2025-10-17)
 
 
