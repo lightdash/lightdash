@@ -130,7 +130,7 @@ export const createRenameFactory = ({
 };
 
 /*
-We are renaming fields in the object 
+We are renaming fields in the object
 This is only for validating that the we are replacing all the fields needed
 */
 export const validateRename = (
@@ -420,12 +420,11 @@ export const renameChartConfigType = (
             };
 
         default:
-            assertUnreachable(
+            return assertUnreachable(
                 chartType,
                 `Unsupported chart type: ${chartType}`,
             );
     }
-    return chartConfig;
 };
 
 export const renameFilterGroups = (
@@ -598,7 +597,11 @@ export const renameMetricQuery = (
                       table: replaceFull(cd.table),
                       dimensionId: replaceId(cd.dimensionId),
                   }
-                : { ...cd, sql: replaceReference(cd.sql) },
+                : {
+                      ...cd,
+                      table: replaceFull(cd.table),
+                      sql: replaceReference(cd.sql),
+                  },
         ),
         sorts: metricQuery.sorts?.map((s) => ({
             ...s,
@@ -855,7 +858,7 @@ export const renameDashboardScheduler = (
         hasChanges = true;
 
         const updateTarget = (target: DashboardFieldTarget) => {
-            /* sample target filter:    
+            /* sample target filter:
                 "target": {
                     "fieldId": "purchases_payment_method",
                     "fieldName": "payment_method",
