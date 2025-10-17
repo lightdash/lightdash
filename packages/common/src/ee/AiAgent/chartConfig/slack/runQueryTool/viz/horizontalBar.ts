@@ -38,6 +38,10 @@ export const getHorizontalBarChartEchartsConfig = async (
     const yAxisField = fieldsMap[xDimension]; // Category axis
     const xAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined; // Value axis
 
+    const primarySort = sorts?.[0];
+    const shouldInverseYAxis =
+        primarySort?.fieldId === xDimension && primarySort?.descending === true;
+
     return {
         ...getCommonEChartsConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
@@ -62,6 +66,7 @@ export const getHorizontalBarChartEchartsConfig = async (
                     axisItem: yAxisField,
                     show: true,
                 }),
+                ...(shouldInverseYAxis ? { inverse: true } : {}),
             },
         ],
         series: metrics.map((metric) => ({

@@ -37,6 +37,10 @@ export const getLineChartEchartsConfig = async (
     const xAxisField = fieldsMap[xDimension];
     const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
 
+    const primarySort = sorts?.[0];
+    const shouldInverseXAxis =
+        primarySort?.fieldId === xDimension && primarySort?.descending === true;
+
     return {
         ...getCommonEChartsConfig(queryTool.title, metrics.length, chartData),
         xAxis: [
@@ -49,6 +53,7 @@ export const getLineChartEchartsConfig = async (
                     axisItem: xAxisField,
                     show: true,
                 }),
+                ...(shouldInverseXAxis ? { inverse: true } : {}),
             },
         ],
         yAxis: [
