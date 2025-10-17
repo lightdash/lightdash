@@ -1037,7 +1037,8 @@ export function validateYAxisMetrics(
 }
 
 /**
- * Validates that xAxisDimension and yAxisMetrics are in selected fields
+ * Validates that xAxisDimension and yAxisMetrics are properly specified
+ * @param explore - The explore containing field definitions
  * @param chartConfig - Chart configuration with axis field definitions
  * @param selectedDimensions - Array of selected dimension field IDs in the query
  * @param selectedMetrics - Array of selected metric field IDs in the query
@@ -1063,6 +1064,15 @@ export function validateAxisFields(
         selectedMetrics,
         tableCalculations,
     );
+    if (chartConfig.secondaryYAxisMetric) {
+        yAxisErrors.push(
+            ...validateYAxisMetrics(
+                [chartConfig.secondaryYAxisMetric],
+                selectedMetrics,
+                tableCalculations,
+            ),
+        );
+    }
 
     const errors = [...xAxisErrors, ...yAxisErrors];
 
