@@ -973,3 +973,110 @@ ${exploreFields
         throw new Error(errorMessage);
     }
 }
+
+/**
+ * Validates that xAxisDimension is in the selected dimensions
+ * @param xAxisDimension - The dimension to validate
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateXAxisField(
+    xAxisDimension: string | null | undefined,
+    selectedDimensions: string[],
+): string[] {
+    if (!xAxisDimension) {
+        return [];
+    }
+
+    const errors: string[] = [];
+
+    if (!selectedDimensions.includes(xAxisDimension)) {
+        errors.push(
+            `Error: xAxisDimension "${xAxisDimension}" is not included in queryConfig.dimensions. Selected dimensions: ${selectedDimensions.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return errors;
+}
+
+/**
+ * Validates that yAxisMetrics are in selected metrics or table calculations
+ * @param yAxisMetrics - The metrics to validate
+ * @param selectedMetrics - Array of selected metric field IDs in the query
+ * @param tableCalculations - Table calculations that can be used as metrics
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateYAxisMetrics(
+    yAxisMetrics: string[] | null | undefined,
+    selectedMetrics: string[],
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
+): string[] {
+    if (!yAxisMetrics || yAxisMetrics.length === 0) {
+        return [];
+    }
+
+    const errors: string[] = [];
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name) || [];
+
+    yAxisMetrics.forEach((metricId) => {
+        const isTableCalc = tableCalculationNames.includes(metricId);
+        const isSelectedMetric = selectedMetrics.includes(metricId);
+
+        if (!isTableCalc && !isSelectedMetric) {
+            errors.push(
+                `Error: yAxisMetric "${metricId}" is not included in queryConfig.metrics or tableCalculations. Selected metrics: ${selectedMetrics.join(
+                    ', ',
+                )}`,
+            );
+        }
+    });
+
+    return errors;
+}
+
+/**
+ * Validates that xAxisDimension and yAxisMetrics are in selected fields
+ * @param chartConfig - Chart configuration with axis field definitions
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ * @param selectedMetrics - Array of selected metric field IDs in the query
+ * @param tableCalculations - Table calculations that can be used as metrics
+ */
+export function validateAxisFields(
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined,
+    selectedDimensions: string[],
+    selectedMetrics: string[],
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
+) {
+    if (!chartConfig) {
+        return;
+    }
+
+    // Validate both axis fields
+    const xAxisErrors = validateXAxisField(
+        chartConfig.xAxisDimension,
+        selectedDimensions,
+    );
+    const yAxisErrors = validateYAxisMetrics(
+        chartConfig.yAxisMetrics,
+        selectedMetrics,
+        tableCalculations,
+    );
+
+    const errors = [...xAxisErrors, ...yAxisErrors];
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid axis field configuration:
+
+${errors.join('\n\n')}
+
+Remember:
+- xAxisDimension must be included in queryConfig.dimensions
+- yAxisMetrics must be included in queryConfig.metrics or tableCalculations`;
+
+        Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
+
+        throw new Error(errorMessage);
+    }
+}
