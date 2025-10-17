@@ -38,6 +38,8 @@ export class FeatureFlagModel {
                 this.getUseSqlPivotResults.bind(this),
             [FeatureFlags.ExperimentalExplorerImprovements]:
                 this.getExperimentalExplorerImprovements.bind(this),
+            [FeatureFlags.DashboardComments]:
+                this.getDashboardComments.bind(this),
         };
     }
 
@@ -141,6 +143,38 @@ export class FeatureFlagModel {
                       },
                   )
                 : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getDashboardComments({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        if (!this.lightdashConfig.dashboardComments.enabled) {
+            return {
+                id: featureFlagId,
+                enabled: false,
+            };
+        }
+
+        const enabled = user
+            ? await isFeatureFlagEnabled(
+                  FeatureFlags.DashboardComments,
+                  {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  },
+                  {
+                      throwOnTimeout: false,
+                      timeoutMilliseconds: 500,
+                  },
+                  true,
+              )
+            : true;
 
         return {
             id: featureFlagId,
