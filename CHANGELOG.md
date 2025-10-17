@@ -1,3 +1,17 @@
+## [0.2093.1](https://github.com/lightdash/lightdash/compare/0.2093.0...0.2093.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* revert role on snowflake sso authentication ([#17531](https://github.com/lightdash/lightdash/issues/17531)) ([aa85fb1](https://github.com/lightdash/lightdash/commit/aa85fb19dd23e15e12b637c9b09725fb22f6c427))
+
+# [0.2093.0](https://github.com/lightdash/lightdash/compare/0.2092.3...0.2093.0) (2025-10-17)
+
+
+### Features
+
+* publish events for embed when location changes ([#17516](https://github.com/lightdash/lightdash/issues/17516)) ([df32752](https://github.com/lightdash/lightdash/commit/df327529c26df83fbc79c1b19ab5807537e71b25))
+
 ## [0.2092.3](https://github.com/lightdash/lightdash/compare/0.2092.2...0.2092.3) (2025-10-17)
 
 

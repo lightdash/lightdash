@@ -206,7 +206,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 );
             }
             authenticationOptions = {
-                // Do not include username when doing SSO authentication
+                // Do not include username or role when doing SSO authentication
                 token: credentials.token,
                 authenticator: 'OAUTH',
             };
@@ -218,6 +218,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
                     username: credentials.user,
+                    role: credentials.role,
                     privateKey: credentials.privateKey,
                     authenticator: 'SNOWFLAKE_JWT',
                 };
@@ -239,6 +240,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                 authenticationOptions = {
                     username: credentials.user,
+                    role: credentials.role,
                     privateKey: privateKey.toString(),
                     authenticator: 'SNOWFLAKE_JWT',
                 };
@@ -246,6 +248,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } else if (credentials.password) {
             authenticationOptions = {
                 username: credentials.user,
+                role: credentials.role,
                 password: credentials.password,
                 authenticator: 'SNOWFLAKE',
             };
@@ -253,7 +256,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         this.connectionOptions = {
             account: credentials.account,
-            role: credentials.role,
             ...authenticationOptions,
             database: credentials.database,
             schema: credentials.schema,
