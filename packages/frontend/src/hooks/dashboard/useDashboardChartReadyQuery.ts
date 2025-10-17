@@ -144,13 +144,15 @@ export const useDashboardChartReadyQuery = (
     }, [parameterValues, tileParameterReferences, tileUuid]);
 
     useEffect(() => {
+        if (!chartUuid) return;
+
         setChartsWithDateZoomApplied((prev) => {
             if (hasADateDimension) {
                 const nextSet = new Set(prev ?? []);
                 if (granularity) {
-                    nextSet.add(chartUuid!);
+                    nextSet.add(chartUuid);
                 } else {
-                    nextSet.delete(chartUuid!);
+                    nextSet.delete(chartUuid);
                 }
                 return nextSet;
             }
