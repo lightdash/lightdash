@@ -17,16 +17,27 @@ describe('Space', () => {
 
         // Create private space
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+
+        // Close omnibar if it's open
+        cy.get('body').then(($body) => {
+            if ($body.text().includes('Search Jaffle shop')) {
+                cy.get('body').type('{esc}');
+            }
+        });
+
         cy.contains('New').click();
         cy.contains('Organize your saved charts and dashboards.').click();
-        cy.findByPlaceholderText('eg. KPIs').type(`Private space ${timestamp}`);
+        cy.findByPlaceholderText('eg. KPIs')
+            .click()
+            .clear()
+            .type(`Private space ${timestamp}`, { delay: 50 });
         cy.get('button').contains('Create').click();
 
         // Wait for space page to load
-        cy.wait(1500);
+        cy.contains(`Private space ${timestamp}`).should('be.visible');
 
         // Create new chart
-        cy.get('.tabler-icon-plus').click();
+        cy.get('[data-testid="Space/AddButton"]').click();
         cy.contains('Create new chart').click();
         cy.contains(/^Orders$/).click();
         cy.contains('Total order amount').click();
@@ -55,7 +66,6 @@ describe('Space', () => {
 
         // Go back to space using breadcrumbs
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
-        cy.wait(1000); // Wait for spaces to load
         cy.contains(`Private space ${timestamp}`).click();
 
         // Create new dashboard
@@ -71,7 +81,6 @@ describe('Space', () => {
 
         // Go back to space using url
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`); // I think we need to refresh the page for the items to appear
-        cy.wait(1000); // Wait for spaces to load
         cy.contains(`Private space ${timestamp}`).click();
 
         // Check all items exist in private space
