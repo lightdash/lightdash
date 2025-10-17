@@ -39,6 +39,7 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
 import {
@@ -57,6 +58,7 @@ type ScimServiceArguments = {
     groupsModel: GroupsModel;
     serviceAccountModel: ServiceAccountModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    rolesModel: RolesModel;
 };
 
 export class ScimService extends BaseService {
@@ -76,6 +78,8 @@ export class ScimService extends BaseService {
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
+    private readonly rolesModel: RolesModel;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -85,6 +89,7 @@ export class ScimService extends BaseService {
         groupsModel,
         serviceAccountModel,
         commercialFeatureFlagModel,
+        rolesModel,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -95,6 +100,7 @@ export class ScimService extends BaseService {
         this.groupsModel = groupsModel;
         this.serviceAccountModel = serviceAccountModel;
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
+        this.rolesModel = rolesModel;
     }
 
     private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -523,6 +529,75 @@ export class ScimService extends BaseService {
                         role: extensionData.role,
                     },
                 );
+            }
+
+            // If setting user to inactive, drop org role to MEMBER and remove project roles
+            if (user.active === false) {
+                try {
+                    if (dbUser.role !== OrganizationMemberRole.MEMBER) {
+                        await this.organizationMemberProfileModel.updateOrganizationMember(
+                            organizationUuid,
+                            userUuid,
+                            {
+                                role: OrganizationMemberRole.MEMBER,
+                            },
+                        );
+                        this.logger.debug(
+                            'SCIM: Updated user organisation role to MEMBER',
+                            {
+                                userUuid,
+                                organizationUuid,
+                                role: OrganizationMemberRole.MEMBER,
+                            },
+                        );
+                    }
+                } catch (e) {
+                    this.logger.error(
+                        `Failed to drop organization role for inactive user ${userUuid} to MEMBER: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+                try {
+                    const projectsCount =
+                        await this.rolesModel.removeUserAccessFromAllProjects(
+                            dbUser.userUuid,
+                        );
+                    this.logger.debug(
+                        'SCIM: Removed user roles from all projects',
+                        {
+                            userUuid,
+                            organizationUuid,
+                            projectsCount,
+                        },
+                    );
+                } catch (e) {
+                    this.logger.error(
+                        `Failed to remove project roles for inactive user ${userUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+
+                // Remove user from all groups in the organization when deactivated
+                try {
+                    const groupsCount =
+                        await this.groupsModel.removeUserFromAllGroups({
+                            organizationUuid,
+                            userUuid,
+                        });
+                    this.logger.debug('SCIM: Removed user from all groups', {
+                        userUuid,
+                        organizationUuid,
+                        groupsCount,
+                    });
+                } catch (e) {
+                    this.logger.error(
+                        `Failed to remove group memberships for inactive user ${userUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
             }
 
             // Get the updated user with potentially new role

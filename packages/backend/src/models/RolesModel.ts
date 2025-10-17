@@ -13,7 +13,6 @@ import {
 import { Knex } from 'knex';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { DBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -497,12 +496,24 @@ export class RolesModel {
             .merge(['role_uuid', 'role']);
     }
 
-    async removeUserProjectAccess(userUuid: string): Promise<void> {
+    async removeUserAccessFromAllProjects(userUuid: string): Promise<number> {
         // Convert userUuid to user_id since the table uses user_id not user_uuid
         const userId = await this.getUserId(userUuid);
+        return this.database(ProjectMembershipsTableName)
+            .where('user_id', userId)
+            .delete();
+    }
 
+    async removeUserProjectAccess(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        // Convert userUuid to user_id since the table uses user_id not user_uuid
+        const userId = await this.getUserId(userUuid);
+        const projectId = await this.getProjectId(projectUuid);
         const deletedCount = await this.database(ProjectMembershipsTableName)
             .where('user_id', userId)
+            .andWhere('project_id', projectId)
             .delete();
 
         if (deletedCount === 0) {

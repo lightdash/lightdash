@@ -428,13 +428,44 @@ export class GroupsModel {
     }
 
     async removeGroupMember(member: GroupMembership): Promise<boolean> {
-        const deletedRows = await this.database('group_memberships')
-            .innerJoin('users', 'group_memberships.user_id', 'users.user_id')
+        const deletedRows = await this.database(GroupMembershipTableName)
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
             .where('group_uuid', member.groupUuid)
-            .andWhere('users.user_uuid', member.userUuid)
+            .andWhere(`${UserTableName}.user_uuid`, member.userUuid)
             .del()
             .returning('*');
         return deletedRows.length > 0;
+    }
+
+    async removeUserFromAllGroups({
+        userUuid,
+        organizationUuid,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<number> {
+        // Delete all group memberships for a given user under a specific organization
+        return this.database(GroupMembershipTableName)
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${GroupMembershipTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .del();
     }
 
     async updateGroup({
