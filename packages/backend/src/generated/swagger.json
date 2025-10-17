@@ -143,6 +143,26 @@
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
             },
+            "ScimRole": {
+                "properties": {
+                    "primary": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["organization"],
+                        "nullable": false
+                    },
+                    "display": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value"],
+                "type": "object"
+            },
             "LightdashScimExtension": {
                 "properties": {
                     "role": {
@@ -214,6 +234,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRole"
                         },
                         "type": "array"
                     },
@@ -343,6 +369,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRole"
                         },
                         "type": "array"
                     },

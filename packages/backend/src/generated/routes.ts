@@ -246,6 +246,20 @@ const models: TsoaRoute.Models = {
         enums: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimRole: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                primary: { dataType: 'boolean' },
+                type: { dataType: 'enum', enums: ['organization'] },
+                display: { dataType: 'string' },
+                value: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LightdashScimExtension: {
         dataType: 'refObject',
         properties: {
@@ -291,6 +305,10 @@ const models: TsoaRoute.Models = {
                         value: { dataType: 'string', required: true },
                     },
                 },
+            },
+            roles: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'ScimRole' },
             },
             'urn:lightdash:params:scim:schemas:extension:2.0:User': {
                 ref: 'LightdashScimExtension',
@@ -430,6 +448,16 @@ const models: TsoaRoute.Models = {
                                     },
                                 },
                             },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                roles: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'ScimRole' },
                         },
                         { dataType: 'undefined' },
                     ],

@@ -16,6 +16,13 @@ export interface ScimResource {
     };
 }
 
+export type ScimRole = {
+    value: string;
+    display?: string;
+    type?: 'organization'; // todo: soon 'project' will be added
+    primary?: boolean; // true is an alias for 'org' type
+};
+
 export interface LightdashScimExtension {
     role?: string;
 }
@@ -32,6 +39,7 @@ export interface ScimUser extends ScimResource {
         value: string;
         primary?: boolean;
     }[];
+    roles?: ScimRole[];
     [ScimSchemaType.LIGHTDASH_USER_EXTENSION]?: LightdashScimExtension;
 }
 

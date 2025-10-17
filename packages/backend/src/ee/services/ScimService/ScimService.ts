@@ -11,6 +11,7 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationMemberRoleLabels,
     ParameterError,
     ScimError,
     ScimGroup,
@@ -168,8 +169,17 @@ export class ScimService extends BaseService {
             },
         };
 
-        // Add the Lightdash extension schema if the user has a role
+        // Roles
         if (user.role) {
+            scimUser.roles = [
+                {
+                    value: user.role,
+                    display: OrganizationMemberRoleLabels[user.role],
+                    type: 'organization',
+                    primary: true,
+                },
+            ];
+            // Add the Lightdash extension schema if the user has a role
             scimUser.schemas.push(ScimSchemaType.LIGHTDASH_USER_EXTENSION);
             scimUser[ScimSchemaType.LIGHTDASH_USER_EXTENSION] = {
                 role: user.role,
@@ -177,6 +187,38 @@ export class ScimService extends BaseService {
         }
 
         return scimUser;
+    }
+
+    static findScimUserOrgRole(
+        scimUser: Pick<
+            ScimUser,
+            'roles' | ScimSchemaType.LIGHTDASH_USER_EXTENSION
+        >,
+    ): OrganizationMemberRole | undefined {
+        const extensionData = scimUser[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
+        let proposedOrgRole: string | undefined;
+        // `roles` takes precedence over `role` from extension schema
+        if (scimUser.roles) {
+            proposedOrgRole =
+                scimUser.roles.find((r) => r.type === 'organization')?.value ||
+                scimUser.roles.find((r) => r.primary)?.value ||
+                scimUser.roles[0]?.value;
+        } else if (extensionData?.role) {
+            proposedOrgRole = extensionData.role;
+        }
+
+        if (proposedOrgRole) {
+            if (!isOrganizationMemberRole(proposedOrgRole)) {
+                throw new ParameterError(
+                    `Invalid role: ${proposedOrgRole}. Role must be one of: ${Object.values(
+                        OrganizationMemberRole,
+                    ).join(', ')}`,
+                );
+            }
+
+            return proposedOrgRole;
+        }
+        return undefined;
     }
 
     static getScimUserEmail(user: Pick<ScimUser, 'userName'>): string {
@@ -369,6 +411,7 @@ export class ScimService extends BaseService {
             firstName: user.name?.givenName,
             lastName: user.name?.familyName,
             active: user.active,
+            roles: user.roles,
             hasExtensionData: !!user[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
@@ -384,23 +427,9 @@ export class ScimService extends BaseService {
                 user.active,
             );
             // Extract role from extension schema if available
-            const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
-            let role = OrganizationMemberRole.MEMBER; // Default role
-
-            // If a role is provided in the extension schema, validate and use it
-            if (extensionData?.role) {
-                // Validate that the role is a valid OrganizationMemberRole
-                if (!isOrganizationMemberRole(extensionData.role)) {
-                    throw new ParameterError(
-                        `Invalid role: ${
-                            extensionData.role
-                        }. Role must be one of: ${Object.values(
-                            OrganizationMemberRole,
-                        ).join(', ')}`,
-                    );
-                }
-                role = extensionData.role;
-            }
+            const role =
+                ScimService.findScimUserOrgRole(user) ||
+                OrganizationMemberRole.MEMBER;
 
             // Add user to organization
             await this.organizationMemberProfileModel.createOrganizationMembershipByUuid(
@@ -478,6 +507,7 @@ export class ScimService extends BaseService {
             firstName: user.name?.givenName,
             lastName: user.name?.familyName,
             active: user.active,
+            roles: user.roles,
             hasExtensionData: !!user[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
@@ -502,25 +532,14 @@ export class ScimService extends BaseService {
                 },
             );
 
-            // Update user's organization role if provided in the extension schema
-            const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
-            if (extensionData?.role && extensionData.role !== dbUser.role) {
-                // Validate that the role is a valid OrganizationMemberRole
-                if (!isOrganizationMemberRole(extensionData.role)) {
-                    throw new ParameterError(
-                        `Invalid role: ${
-                            extensionData.role
-                        }. Role must be one of: ${Object.values(
-                            OrganizationMemberRole,
-                        ).join(', ')}`,
-                    );
-                }
+            const newOrgRole = ScimService.findScimUserOrgRole(user);
 
+            if (newOrgRole && newOrgRole !== dbUser.role) {
                 await this.organizationMemberProfileModel.updateOrganizationMember(
                     organizationUuid,
                     userUuid,
                     {
-                        role: extensionData.role,
+                        role: newOrgRole,
                     },
                 );
             }
@@ -534,8 +553,7 @@ export class ScimService extends BaseService {
                 userUuid,
                 organizationUuid,
                 emailToUpdate,
-                roleChanged: extensionData?.role !== dbUser.role,
-                newRole: extensionData?.role,
+                newRole: newOrgRole ?? dbUser.role,
                 previousRole: dbUser.role,
                 isActive: finalUser.isActive,
             });
@@ -1448,6 +1466,60 @@ export class ScimService extends BaseService {
                         mutability: 'readWrite',
                         returned: 'default',
                         uniqueness: 'none',
+                    },
+                ],
+            },
+            roles: {
+                name: 'roles',
+                type: 'complex',
+                multiValued: true,
+                description: 'Roles assigned to the user in the organization',
+                required: false,
+                caseExact: false,
+                mutability: 'readWrite',
+                returned: 'default',
+                uniqueness: 'server',
+                subAttributes: [
+                    {
+                        name: 'value',
+                        type: 'string',
+                        multiValued: false,
+                        required: true,
+                        canonicalValues: Object.values(OrganizationMemberRole),
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'server',
+                    },
+                    {
+                        name: 'display',
+                        type: 'string',
+                        multiValued: false,
+                        required: false,
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'server',
+                    },
+                    {
+                        name: 'type',
+                        type: 'string',
+                        multiValued: false,
+                        required: false,
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'server',
+                    },
+                    {
+                        name: 'primary',
+                        type: 'boolean',
+                        multiValued: false,
+                        required: false,
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'server',
                     },
                 ],
             },
