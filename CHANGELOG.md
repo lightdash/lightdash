@@ -1,3 +1,10 @@
+## [0.2092.3](https://github.com/lightdash/lightdash/compare/0.2092.2...0.2092.3) (2025-10-17)
+
+
+### Bug Fixes
+
+* apply changeset when retrieving catalog search item ([#17526](https://github.com/lightdash/lightdash/issues/17526)) ([e257ebf](https://github.com/lightdash/lightdash/commit/e257ebf8a7e572a2f21edbc4ed197850ad9a7a7e))
+
 ## [0.2092.2](https://github.com/lightdash/lightdash/compare/0.2092.1...0.2092.2) (2025-10-17)
 
 
