@@ -57,10 +57,11 @@ export const AiProposeChangeToolCall = ({
     const isSuccessResult = metadata?.status === 'success';
     const changeUuid = isSuccessResult ? metadata.changeUuid : undefined;
 
-    const { isLoading: isLoadingChange, error: changeError } = useChange(
-        projectUuid,
-        changeUuid,
-    );
+    const {
+        isLoading: isLoadingChange,
+        error: changeError,
+        data: changeData,
+    } = useChange(projectUuid, changeUuid);
 
     const isChangeDeleted = changeError?.error?.statusCode === 404;
     const isRejectedByMetadata =
@@ -127,6 +128,7 @@ export const AiProposeChangeToolCall = ({
             <Stack gap="xs" mt="xs">
                 <ChangeRenderer
                     change={change}
+                    changePayload={changeData?.payload}
                     entityTableName={entityTableName}
                 />
 
