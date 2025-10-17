@@ -7,6 +7,7 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
@@ -74,7 +75,13 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     userModel: userModelMock,
     emailModel: emailModelMock,
     analytics: analyticsMock,
-    groupsModel: {} as GroupsModel,
+    groupsModel: {
+        removeUserFromAllGroups: jest.fn().mockResolvedValue(2),
+    } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
     commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
+    rolesModel: {
+        removeUserProjectAccess: jest.fn().mockResolvedValue(undefined),
+        removeUserAccessFromAllProjects: jest.fn().mockResolvedValue(3),
+    } as unknown as RolesModel,
 };

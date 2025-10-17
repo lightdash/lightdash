@@ -103,7 +103,7 @@ import {
     type DbAiAgent,
 } from '../../ee/database/entities/aiAgent';
 import Logger from '../../logging/logger';
-import { wrapSentryTransaction } from '../../utils';
+import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
 import { ChangesetModel } from '../ChangesetModel';
@@ -969,32 +969,37 @@ export class ProjectModel {
 
     static convertMetricFiltersFieldIdsToFieldRef = (
         explore: Explore | ExploreError,
-    ) => {
-        if (isExploreError(explore)) return explore;
-        const convertedExplore = { ...explore };
-        if (convertedExplore.tables) {
-            Object.values(convertedExplore.tables).forEach((table) => {
-                if (table.metrics) {
-                    Object.values(table.metrics).forEach((metric) => {
-                        if (metric.filters) {
-                            metric.filters.forEach((filter) => {
-                                // @ts-expect-error cached explore types might not be up to date
-                                const { fieldId, fieldRef, ...rest } =
-                                    filter.target;
-                                // eslint-disable-next-line no-param-reassign
-                                filter.target = {
-                                    ...rest,
-                                    fieldRef: fieldRef ?? fieldId,
-                                };
+    ) =>
+        wrapSentryTransactionSync(
+            'ProjectModel.convertMetricFiltersFieldIdsToFieldRef',
+            { exploreName: explore.name },
+            () => {
+                if (isExploreError(explore)) return explore;
+                const convertedExplore = { ...explore };
+                if (convertedExplore.tables) {
+                    Object.values(convertedExplore.tables).forEach((table) => {
+                        if (table.metrics) {
+                            Object.values(table.metrics).forEach((metric) => {
+                                if (metric.filters) {
+                                    metric.filters.forEach((filter) => {
+                                        // @ts-expect-error cached explore types might not be up to date
+                                        const { fieldId, fieldRef, ...rest } =
+                                            filter.target;
+                                        // eslint-disable-next-line no-param-reassign
+                                        filter.target = {
+                                            ...rest,
+                                            fieldRef: fieldRef ?? fieldId,
+                                        };
+                                    });
+                                }
                             });
                         }
                     });
                 }
-            });
-        }
 
-        return convertedExplore;
-    };
+                return convertedExplore;
+            },
+        );
 
     /**
      * Find explores from cache (cached_explore) from a project.
@@ -1047,20 +1052,28 @@ export class ProjectModel {
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
 
-                let finalExplores = explores.reduce<
-                    Record<string, Explore | ExploreError>
-                >((acc, { explore, cached_explore_uuid }) => {
-                    const exploreKey =
-                        key === 'name' ? explore.name : cached_explore_uuid;
-                    acc[exploreKey] =
-                        ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                            explore,
-                        );
-                    return acc;
-                }, {});
+                let finalExplores = wrapSentryTransactionSync(
+                    'ProjectModel.findExploresFromCache.convertExplores',
+                    { exploresCount: explores.length },
+                    () =>
+                        explores.reduce<Record<string, Explore | ExploreError>>(
+                            (acc, { explore, cached_explore_uuid }) => {
+                                const exploreKey =
+                                    key === 'name'
+                                        ? explore.name
+                                        : cached_explore_uuid;
+                                acc[exploreKey] =
+                                    ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                                        explore,
+                                    );
+                                return acc;
+                            },
+                            {},
+                        ),
+                );
 
                 if (changeset && applyChangeset) {
-                    finalExplores = await ChangesetUtils.applyChangeset(
+                    finalExplores = ChangesetUtils.applyChangeset(
                         changeset,
                         finalExplores,
                     );

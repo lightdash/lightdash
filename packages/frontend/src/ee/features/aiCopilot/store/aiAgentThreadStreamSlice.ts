@@ -1,10 +1,10 @@
-import { type AgentToolCallArgs, type ToolName } from '@lightdash/common';
+import { type ToolName } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type ToolCall = {
     toolCallId: string;
     toolName: ToolName;
-    toolArgs: AgentToolCallArgs;
+    toolArgs: unknown;
 };
 
 export interface AiAgentThreadStreamingState {

@@ -1506,7 +1506,10 @@ export class AsyncQueryService extends ProjectService {
             availableParameters,
         });
 
-        return getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        return getFieldsFromMetricQuery(
+            compiledMetricQuery,
+            exploreWithOverride,
+        );
     }
 
     private async prepareMetricQueryAsyncQueryArgs({
@@ -2355,6 +2358,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             warehouseSqlBuilder,
             projectUuid,
+            dateZoom,
         });
 
         const pivotConfiguration = pivotResults

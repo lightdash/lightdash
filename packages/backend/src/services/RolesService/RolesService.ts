@@ -806,7 +806,7 @@ export class RolesService extends BaseService {
         );
         await this.validateProjectAccess(account, projectUuid);
 
-        await this.rolesModel.removeUserProjectAccess(userUuid);
+        await this.rolesModel.removeUserProjectAccess(userUuid, projectUuid);
 
         this.analytics.track({
             event: 'project_access.removed',

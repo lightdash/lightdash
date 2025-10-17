@@ -435,6 +435,7 @@ const DashboardProvider: React.FC<
             return;
         }
 
+        const currentParams = new URLSearchParams(search);
         const newParams = new URLSearchParams(search);
         if (dateZoomGranularity === undefined) {
             newParams.delete('dateZoom');
@@ -442,13 +443,18 @@ const DashboardProvider: React.FC<
             newParams.set('dateZoom', dateZoomGranularity.toLowerCase());
         }
 
-        void navigate(
-            {
-                pathname,
-                search: newParams.toString(),
-            },
-            { replace: true },
-        );
+        const currentSearch = currentParams.toString();
+        const newSearch = newParams.toString();
+
+        if (currentSearch !== newSearch) {
+            void navigate(
+                {
+                    pathname,
+                    search: newParams.toString(),
+                },
+                { replace: true },
+            );
+        }
     }, [dateZoomGranularity, search, navigate, pathname, embed.mode]);
 
     const {

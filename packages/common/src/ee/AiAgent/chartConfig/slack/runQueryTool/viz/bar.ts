@@ -37,26 +37,31 @@ export const getBarChartEchartsConfig = async (
     const xAxisField = fieldsMap[xDimension];
     const yAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined;
 
+    const primarySort = sorts?.[0];
+    const shouldInverseXAxis =
+        primarySort?.fieldId === xDimension && primarySort?.descending === true;
+
     return {
-        ...getCommonEChartsConfig(queryTool.title, metrics.length, chartData),
+        ...getCommonEChartsConfig(
+            queryTool.title,
+            metrics.length,
+            chartData,
+            chartConfig?.xAxisLabel,
+            chartConfig?.yAxisLabel,
+        ),
         xAxis: [
             {
                 type: chartConfig?.xAxisType ?? ('category' as const),
-                ...(chartConfig?.xAxisLabel
-                    ? { name: chartConfig.xAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: xAxisField,
                     show: true,
                 }),
+                ...(shouldInverseXAxis ? { inverse: true } : {}),
             },
         ],
         yAxis: [
             {
                 type: 'value',
-                ...(chartConfig?.yAxisLabel
-                    ? { name: chartConfig.yAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: yAxisField,
                     show: true,

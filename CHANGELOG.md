@@ -1,3 +1,44 @@
+## [0.2092.3](https://github.com/lightdash/lightdash/compare/0.2092.2...0.2092.3) (2025-10-17)
+
+
+### Bug Fixes
+
+* apply changeset when retrieving catalog search item ([#17526](https://github.com/lightdash/lightdash/issues/17526)) ([e257ebf](https://github.com/lightdash/lightdash/commit/e257ebf8a7e572a2f21edbc4ed197850ad9a7a7e))
+
+## [0.2092.2](https://github.com/lightdash/lightdash/compare/0.2092.1...0.2092.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* add dateZoom to getMetricQueryFields and executeAsyncDashboardChartQuery ([#17522](https://github.com/lightdash/lightdash/issues/17522)) ([fd0ad69](https://github.com/lightdash/lightdash/commit/fd0ad69f707b12e598d9eae6aa428ffc92a67e2e))
+* add role to sso authentication ([#17524](https://github.com/lightdash/lightdash/issues/17524)) ([259a3fc](https://github.com/lightdash/lightdash/commit/259a3fc9439402358d242cedff8831589754a634))
+
+## [0.2092.1](https://github.com/lightdash/lightdash/compare/0.2092.0...0.2092.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* improve labels,legend,title position on slack ai charts ([#17506](https://github.com/lightdash/lightdash/issues/17506)) ([4a038de](https://github.com/lightdash/lightdash/commit/4a038deaee6a207343f44c8e8c3cb5d3b94c81b1))
+
+# [0.2092.0](https://github.com/lightdash/lightdash/compare/0.2091.2...0.2092.0) (2025-10-17)
+
+
+### Bug Fixes
+
+* order axes correctly based on pivoting ([#17505](https://github.com/lightdash/lightdash/issues/17505)) ([1a8d560](https://github.com/lightdash/lightdash/commit/1a8d56053c15b9902d147191e62d3b79f430e2e3))
+
+
+### Features
+
+* remove project access and group memberships when deactivating SCIM users ([#17494](https://github.com/lightdash/lightdash/issues/17494)) ([17c6bcb](https://github.com/lightdash/lightdash/commit/17c6bcb22c88a38175e8d038ecf3b0dcb586e92d))
+
+## [0.2091.2](https://github.com/lightdash/lightdash/compare/0.2091.1...0.2091.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* only navigate when search params changed ([#17509](https://github.com/lightdash/lightdash/issues/17509)) ([fb98e9f](https://github.com/lightdash/lightdash/commit/fb98e9f77c6c11397a541dcde6890461fa4a46fd))
+
 ## [0.2091.1](https://github.com/lightdash/lightdash/compare/0.2091.0...0.2091.1) (2025-10-16)
 
 
