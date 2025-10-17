@@ -1,3 +1,10 @@
+## [0.2091.2](https://github.com/lightdash/lightdash/compare/0.2091.1...0.2091.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* only navigate when search params changed ([#17509](https://github.com/lightdash/lightdash/issues/17509)) ([fb98e9f](https://github.com/lightdash/lightdash/commit/fb98e9f77c6c11397a541dcde6890461fa4a46fd))
+
 ## [0.2091.1](https://github.com/lightdash/lightdash/compare/0.2091.0...0.2091.1) (2025-10-16)
 
 
