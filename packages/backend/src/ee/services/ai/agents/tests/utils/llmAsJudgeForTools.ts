@@ -1,7 +1,18 @@
 import {
-    AgentToolCallArgsSchema,
     isToolName,
-    ToolName,
+    toolDashboardArgsSchema,
+    toolFindChartsArgsSchema,
+    toolFindDashboardsArgsSchema,
+    toolFindExploresArgsSchemaV2,
+    toolFindFieldsArgsSchema,
+    toolImproveContextArgsSchema,
+    type ToolName,
+    toolProposeChangeArgsSchema,
+    toolRunQueryArgsSchema,
+    toolSearchFieldValuesArgsSchema,
+    toolTableVizArgsSchema,
+    toolTimeSeriesArgsSchema,
+    toolVerticalBarArgsSchema,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
@@ -26,22 +37,31 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     proposeChange: 'propose_change',
 } satisfies Record<ToolName, string>;
 
+// Explicit mapping of tool names to their schemas
+const TOOL_SCHEMAS = {
+    findExplores: toolFindExploresArgsSchemaV2,
+    findFields: toolFindFieldsArgsSchema,
+    searchFieldValues: toolSearchFieldValuesArgsSchema,
+    generateBarVizConfig: toolVerticalBarArgsSchema,
+    generateTableVizConfig: toolTableVizArgsSchema,
+    generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
+    generateDashboard: toolDashboardArgsSchema,
+    findDashboards: toolFindDashboardsArgsSchema,
+    findCharts: toolFindChartsArgsSchema,
+    improveContext: toolImproveContextArgsSchema,
+    proposeChange: toolProposeChangeArgsSchema,
+    runQuery: toolRunQueryArgsSchema,
+} satisfies Record<ToolName, z.ZodSchema>;
+
 const getToolInfo = (toolName: string) => {
     if (!isToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
-    const tool = AgentToolCallArgsSchema.options.find(
-        (schema) =>
-            schema.shape.type.value === TOOL_NAME_TO_DB_TOOL_NAME[toolName],
-    );
-    if (!tool) {
-        throw new Error(`Tool info not found for tool: ${toolName}`);
-    }
-    return tool;
+    return TOOL_SCHEMAS[toolName];
 };
 
-const availableTools = AgentToolCallArgsSchema.options.map((schema) => ({
-    name: schema.shape.type.value,
+const availableTools = Object.entries(TOOL_SCHEMAS).map(([name, schema]) => ({
+    name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
     description: schema.description,
 }));
 
