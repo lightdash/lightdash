@@ -1,3 +1,15 @@
+# [0.2092.0](https://github.com/lightdash/lightdash/compare/0.2091.2...0.2092.0) (2025-10-17)
+
+
+### Bug Fixes
+
+* order axes correctly based on pivoting ([#17505](https://github.com/lightdash/lightdash/issues/17505)) ([1a8d560](https://github.com/lightdash/lightdash/commit/1a8d56053c15b9902d147191e62d3b79f430e2e3))
+
+
+### Features
+
+* remove project access and group memberships when deactivating SCIM users ([#17494](https://github.com/lightdash/lightdash/issues/17494)) ([17c6bcb](https://github.com/lightdash/lightdash/commit/17c6bcb22c88a38175e8d038ecf3b0dcb586e92d))
+
 ## [0.2091.2](https://github.com/lightdash/lightdash/compare/0.2091.1...0.2091.2) (2025-10-17)
 
 
