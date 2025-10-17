@@ -187,6 +187,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     quotedIdentifiersIgnoreCase?: boolean;
 
+    // Store role separately for use in prepareWarehouse, especially when using SSO
+    private readonly sessionRole?: string;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
 
@@ -247,9 +250,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             };
         }
 
+        // Store role for use in prepareWarehouse via USE ROLE command
+        this.sessionRole = credentials.role;
+
         this.connectionOptions = {
             account: credentials.account,
             // When using SSO, username and role can cause conflict
+            // We will set the role via USE ROLE command in prepareWarehouse instead
             ...(credentials.authenticationType !== 'sso'
                 ? {
                       username: credentials.user,
@@ -294,6 +301,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         },
     ) {
         const sqlStatements: string[] = [];
+
+        // Always set the role first, especially important for SSO where role is not in connection options
+        if (this.sessionRole) {
+            // eslint-disable-next-line no-console
+            console.debug(
+                `Setting Snowflake session role to ${this.sessionRole}`,
+            );
+            sqlStatements.push(`USE ROLE ${this.sessionRole};`);
+        }
 
         if (this.connectionOptions.warehouse) {
             // eslint-disable-next-line no-console
