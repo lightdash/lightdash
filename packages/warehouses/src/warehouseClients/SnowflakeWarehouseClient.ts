@@ -206,7 +206,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 );
             }
             authenticationOptions = {
-                // Do not include username when doing SSO authentication
                 token: credentials.token,
                 authenticator: 'OAUTH',
             };
@@ -217,7 +216,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         ) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
-                    username: credentials.user,
                     privateKey: credentials.privateKey,
                     authenticator: 'SNOWFLAKE_JWT',
                 };
@@ -238,14 +236,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 });
 
                 authenticationOptions = {
-                    username: credentials.user,
                     privateKey: privateKey.toString(),
                     authenticator: 'SNOWFLAKE_JWT',
                 };
             }
         } else if (credentials.password) {
             authenticationOptions = {
-                username: credentials.user,
                 password: credentials.password,
                 authenticator: 'SNOWFLAKE',
             };
@@ -253,7 +249,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         this.connectionOptions = {
             account: credentials.account,
-            role: credentials.role,
+            // When using SSO, username and role can cause conflict
+            ...(credentials.authenticationType !== 'sso'
+                ? {
+                      username: credentials.user,
+                      role: credentials.role,
+                  }
+                : {}),
             ...authenticationOptions,
             database: credentials.database,
             schema: credentials.schema,
@@ -264,23 +266,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             sfRetryMaxLoginRetries: 3, // Number of retries for the login request.
             retryTimeout: 15000, // according to docs: The max login timeout value. This value is either 0 or over 300.
         };
-
-        // Manually specify the connection options to log, to avoid logging sensitive information
-        const logConnectionOptions = {
-            account: this.connectionOptions.account,
-            authenticator: authenticationOptions.authenticator,
-            username: this.connectionOptions.username,
-            role: this.connectionOptions.role,
-            database: this.connectionOptions.database,
-            schema: this.connectionOptions.schema,
-            warehouse: this.connectionOptions.warehouse,
-            accessUrl: this.connectionOptions.accessUrl,
-        };
-        console.info(
-            `Initialized snowflake warehouse client with authentication type "${
-                credentials.authenticationType
-            }" and connection options: ${JSON.stringify(logConnectionOptions)}`,
-        );
     }
 
     private async getConnection(
