@@ -201,6 +201,11 @@ export const isSqlChartSearchResult = (
 ): value is SqlChartSearchResult =>
     'chartSource' in value && value.chartSource === 'sql';
 
+export const isDashboardSearchResult = (
+    value: SearchResult,
+): value is DashboardSearchResult =>
+    'charts' in value && value.charts.length > 0;
+
 export type SearchResults = {
     spaces: SpaceSearchResult[];
     dashboards: DashboardSearchResult[];
