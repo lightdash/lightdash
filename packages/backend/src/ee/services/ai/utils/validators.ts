@@ -973,3 +973,218 @@ ${exploreFields
         throw new Error(errorMessage);
     }
 }
+
+/**
+ * Validates that xAxisDimension is properly specified
+ * @param explore - The explore containing field definitions
+ * @param xAxisDimension - The dimension to validate
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateXAxisField(
+    explore: Explore,
+    xAxisDimension: string | null | undefined,
+    selectedDimensions: string[],
+): string[] {
+    if (!xAxisDimension) {
+        return [];
+    }
+
+    const errors: string[] = [];
+    const exploreFields = getFields(explore);
+
+    const field = exploreFields.find((f) => getItemId(f) === xAxisDimension);
+
+    if (!field) {
+        errors.push(
+            `Error: xAxisDimension "${xAxisDimension}" does not exist in the explore.`,
+        );
+    } else if (!isDimension(field)) {
+        errors.push(
+            `Error: xAxisDimension "${xAxisDimension}" (${field.label}) is not a dimension.
+
+Field Details:
+- Field ID: ${xAxisDimension}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Expected Type: dimension`,
+        );
+    } else if (!selectedDimensions.includes(xAxisDimension)) {
+        errors.push(
+            `Error: xAxisDimension "${xAxisDimension}" (${
+                field.label
+            }) is not included in queryConfig.dimensions.
+
+Field Details:
+- Field ID: ${xAxisDimension}
+- Field Label: ${field.label}
+- Selected Dimensions: ${selectedDimensions.join(', ')}`,
+        );
+    }
+
+    return errors;
+}
+
+/**
+ * Validates that yAxisMetrics are properly specified
+ * @param explore - The explore containing field definitions
+ * @param yAxisMetrics - The metrics to validate
+ * @param selectedMetrics - Array of selected metric field IDs in the query
+ * @param customMetrics - Custom metrics that can be used as yAxisMetrics
+ * @param tableCalculations - Table calculations that can be used as metrics
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateYAxisMetrics(
+    explore: Explore,
+    yAxisMetrics: string[] | null | undefined,
+    selectedMetrics: string[],
+    customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
+): string[] {
+    if (!yAxisMetrics || yAxisMetrics.length === 0) {
+        return [];
+    }
+
+    const errors: string[] = [];
+    const exploreFields = getFields(explore);
+    const tableCalculationNames = tableCalculations?.map((tc) => tc.name);
+    const customMetricIds = customMetrics?.map(getItemId);
+
+    yAxisMetrics.forEach((metricId) => {
+        // Check if it's a table calculation
+        const isTableCalc = tableCalculationNames?.includes(metricId);
+
+        if (isTableCalc) {
+            return; // Valid table calculation
+        }
+
+        // Check if it's a custom metric
+        const isCustomMetric = customMetricIds?.includes(metricId);
+
+        if (isCustomMetric) {
+            // Custom metrics are already validated elsewhere, just check if selected
+            if (!selectedMetrics.includes(metricId)) {
+                const customMetric = customMetrics?.find(
+                    (cm) => getItemId(cm) === metricId,
+                );
+                errors.push(
+                    `Error: yAxisMetric "${metricId}" (${
+                        customMetric?.label || metricId
+                    }) is not included in queryConfig.metrics.
+
+Field Details:
+- Field ID: ${metricId}
+- Field Label: ${customMetric?.label || metricId}
+- Selected Metrics: ${selectedMetrics.join(', ')}`,
+                );
+            }
+            return;
+        }
+
+        // Check if it's a field in the explore
+        const field = exploreFields.find((f) => getItemId(f) === metricId);
+
+        if (!field) {
+            errors.push(
+                `Error: yAxisMetric "${metricId}" does not exist in the explore or table calculations.`,
+            );
+            return;
+        }
+
+        if (!isMetric(field) && !isAdditionalMetric(field)) {
+            errors.push(
+                `Error: yAxisMetric "${metricId}" (${field.label}) is not a metric.
+
+Field Details:
+- Field ID: ${metricId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Expected Type: metric`,
+            );
+            return;
+        }
+
+        if (!selectedMetrics.includes(metricId)) {
+            errors.push(
+                `Error: yAxisMetric "${metricId}" (${
+                    field.label
+                }) is not included in queryConfig.metrics.
+
+Field Details:
+- Field ID: ${metricId}
+- Field Label: ${field.label}
+- Selected Metrics: ${selectedMetrics.join(', ')}`,
+            );
+        }
+    });
+
+    return errors;
+}
+
+/**
+ * Validates that xAxisDimension and yAxisMetrics are properly specified
+ * @param explore - The explore containing field definitions
+ * @param chartConfig - Chart configuration with axis field definitions
+ * @param selectedDimensions - Array of selected dimension field IDs in the query
+ * @param selectedMetrics - Array of selected metric field IDs in the query
+ * @param customMetrics - Custom metrics that can be used as yAxisMetrics
+ * @param tableCalculations - Table calculations that can be used as metrics
+ */
+export function validateAxisFields(
+    explore: Explore,
+    chartConfig: ToolRunQueryArgsTransformed['chartConfig'] | null | undefined,
+    selectedDimensions: string[],
+    selectedMetrics: string[],
+    customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
+) {
+    if (!chartConfig) {
+        return;
+    }
+
+    const exploreFields = getFields(explore);
+
+    // Validate both axis fields
+    const xAxisErrors = validateXAxisField(
+        explore,
+        chartConfig.xAxisDimension,
+        selectedDimensions,
+    );
+    const yAxisErrors = validateYAxisMetrics(
+        explore,
+        chartConfig.yAxisMetrics,
+        selectedMetrics,
+        customMetrics,
+        tableCalculations,
+    );
+
+    const errors = [...xAxisErrors, ...yAxisErrors];
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid axis field configuration:
+
+${errors.join('\n\n')}
+
+Remember:
+- xAxisDimension must be a valid dimension from the explore
+- xAxisDimension must be included in queryConfig.dimensions
+- yAxisMetrics must be valid metrics from the explore or table calculations
+- yAxisMetrics must be included in queryConfig.metrics or tableCalculations
+
+Available dimensions:
+${exploreFields
+    .filter(isDimension)
+    .map((f) => `- ${getItemId(f)} (${f.label})`)
+    .join('\n')}
+
+Available metrics:
+${exploreFields
+    .filter(isMetric)
+    .map((f) => `- ${getItemId(f)} (${f.label})`)
+    .join('\n')}`;
+
+        Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
+
+        throw new Error(errorMessage);
+    }
+}

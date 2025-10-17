@@ -24,7 +24,7 @@ export const getFunnelChartConfig = ({
     return {
         type: ChartType.FUNNEL,
         config: {
-            fieldId: metrics[0] as string,
+            fieldId: (chartConfig?.yAxisMetrics?.[0] || metrics[0]) as string,
             dataInput,
         },
     };
