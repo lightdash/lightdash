@@ -1,3 +1,10 @@
+## [0.2093.1](https://github.com/lightdash/lightdash/compare/0.2093.0...0.2093.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* revert role on snowflake sso authentication ([#17531](https://github.com/lightdash/lightdash/issues/17531)) ([aa85fb1](https://github.com/lightdash/lightdash/commit/aa85fb19dd23e15e12b637c9b09725fb22f6c427))
+
 # [0.2093.0](https://github.com/lightdash/lightdash/compare/0.2092.3...0.2093.0) (2025-10-17)
 
 
