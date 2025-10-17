@@ -12,12 +12,12 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 type Dependencies = {
     findDashboards: FindDashboardsFn;
     pageSize: number;
-    siteUrl?: string;
+    siteUrl: string;
 };
 
 const getDashboardText = (
     dashboard: DashboardSearchResult,
-    siteUrl?: string,
+    siteUrl: string,
 ) => {
     const dashboardUrl = siteUrl
         ? `${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view#dashboard-link`
@@ -91,7 +91,7 @@ const getDashboardText = (
 
 const getDashboardsText = (
     args: Awaited<ReturnType<FindDashboardsFn>> & { searchQuery: string },
-    siteUrl?: string,
+    siteUrl: string,
 ) =>
     `
 <SearchResult searchQuery="${args.searchQuery}" page="${
