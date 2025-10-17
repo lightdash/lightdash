@@ -42,13 +42,16 @@ export const getLineChartEchartsConfig = async (
         primarySort?.fieldId === xDimension && primarySort?.descending === true;
 
     return {
-        ...getCommonEChartsConfig(queryTool.title, metrics.length, chartData),
+        ...getCommonEChartsConfig(
+            queryTool.title,
+            metrics.length,
+            chartData,
+            chartConfig?.xAxisLabel,
+            chartConfig?.yAxisLabel,
+        ),
         xAxis: [
             {
                 type: chartConfig?.xAxisType ?? 'time',
-                ...(chartConfig?.xAxisLabel
-                    ? { name: chartConfig.xAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: xAxisField,
                     show: true,
@@ -59,9 +62,6 @@ export const getLineChartEchartsConfig = async (
         yAxis: [
             {
                 type: 'value',
-                ...(chartConfig?.yAxisLabel
-                    ? { name: chartConfig.yAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: yAxisField,
                     show: true,

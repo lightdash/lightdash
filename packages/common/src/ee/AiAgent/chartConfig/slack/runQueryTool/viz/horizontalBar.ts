@@ -43,13 +43,16 @@ export const getHorizontalBarChartEchartsConfig = async (
         primarySort?.fieldId === xDimension && primarySort?.descending === true;
 
     return {
-        ...getCommonEChartsConfig(queryTool.title, metrics.length, chartData),
+        ...getCommonEChartsConfig(
+            queryTool.title,
+            metrics.length,
+            chartData,
+            chartConfig?.xAxisLabel,
+            chartConfig?.yAxisLabel,
+        ),
         xAxis: [
             {
                 type: 'value',
-                ...(chartConfig?.xAxisLabel
-                    ? { name: chartConfig.xAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: xAxisField,
                     show: true,
@@ -59,9 +62,6 @@ export const getHorizontalBarChartEchartsConfig = async (
         yAxis: [
             {
                 type: chartConfig?.xAxisType ?? ('category' as const),
-                ...(chartConfig?.yAxisLabel
-                    ? { name: chartConfig.yAxisLabel }
-                    : {}),
                 ...getCartesianAxisFormatterConfig({
                     axisItem: yAxisField,
                     show: true,
