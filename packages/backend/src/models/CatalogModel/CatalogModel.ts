@@ -601,6 +601,7 @@ export class CatalogModel {
         context,
         fullTextSearchOperator = 'AND',
         filteredExplore,
+        changeset,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -613,6 +614,7 @@ export class CatalogModel {
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplore?: Explore;
+        changeset?: ChangesetWithChanges;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -891,13 +893,22 @@ export class CatalogModel {
                 catalogSize: paginatedCatalogItems.data.length,
             },
             async () =>
-                paginatedCatalogItems.data.map((item) =>
-                    parseCatalog({
+                paginatedCatalogItems.data.map((item) => {
+                    let { explore } = item;
+                    if (changeset) {
+                        const exploreWithChanges =
+                            ChangesetUtils.applyChangeset(changeset, {
+                                [item.explore.name]: item.explore,
+                            })[item.explore.name] as Explore; // at this point we know the explore is valid
+                        explore = exploreWithChanges;
+                    }
+                    return parseCatalog({
                         ...item,
+                        explore,
                         catalog_tags:
                             tagsPerItem[item.catalog_search_uuid] ?? [],
-                    }),
-                ),
+                    });
+                }),
         );
 
         return {
