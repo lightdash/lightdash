@@ -119,6 +119,7 @@ import {
 } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
+import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
@@ -2575,6 +2576,11 @@ export default class SchedulerTask {
                 Logger.debug(
                     `Uploading dashboard with ${chartUuids.length} charts to Google Sheets`,
                 );
+
+                // Get the dashboard parameters to override the saved chart parameters
+                const dashboardParameters =
+                    getDashboardParametersValuesMap(dashboard);
+
                 // We want to process all charts in sequence, so we don't load all chart results in memory
                 chartUuids
                     .reduce(async (promise, chartUuid) => {
@@ -2588,6 +2594,7 @@ export default class SchedulerTask {
                                 account!,
                                 chartUuid,
                                 QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                                dashboardParameters,
                             );
                         const explore = await this.projectService.getExplore(
                             account!,
