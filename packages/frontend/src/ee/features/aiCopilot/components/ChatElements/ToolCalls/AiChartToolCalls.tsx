@@ -52,6 +52,7 @@ const getToolIcon = (toolName: ToolName) => {
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             generateDashboard: IconDashboard,
+            generateDashboardV2: IconDashboard,
             findDashboards: IconDashboard,
             findCharts: IconChartDots3,
             improveContext: IconSchool,
@@ -283,6 +284,7 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case AiResultType.DASHBOARD_RESULT:
+        case AiResultType.DASHBOARD_V2_RESULT:
             const dashboardToolArgs = toolArgs;
             return (
                 <Text c="dimmed" size="xs">

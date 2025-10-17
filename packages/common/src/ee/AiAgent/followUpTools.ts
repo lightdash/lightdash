@@ -11,6 +11,7 @@ export const followUpToolsText: FollowUpToolsText = {
     [AiResultType.TIME_SERIES_RESULT]: 'Generate a Time Series Chart',
     [AiResultType.QUERY_RESULT]: 'Run Query',
     [AiResultType.DASHBOARD_RESULT]: 'Generate a Dashboard',
+    [AiResultType.DASHBOARD_V2_RESULT]: 'Generate a Dashboard (v2)',
     [AiResultType.IMPROVE_CONTEXT]: 'Improve Context',
     [AiResultType.PROPOSE_CHANGE]: 'Propose a Change',
 };
