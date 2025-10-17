@@ -1,3 +1,11 @@
+## [0.2092.2](https://github.com/lightdash/lightdash/compare/0.2092.1...0.2092.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* add dateZoom to getMetricQueryFields and executeAsyncDashboardChartQuery ([#17522](https://github.com/lightdash/lightdash/issues/17522)) ([fd0ad69](https://github.com/lightdash/lightdash/commit/fd0ad69f707b12e598d9eae6aa428ffc92a67e2e))
+* add role to sso authentication ([#17524](https://github.com/lightdash/lightdash/issues/17524)) ([259a3fc](https://github.com/lightdash/lightdash/commit/259a3fc9439402358d242cedff8831589754a634))
+
 ## [0.2092.1](https://github.com/lightdash/lightdash/compare/0.2092.0...0.2092.1) (2025-10-17)
 
 
