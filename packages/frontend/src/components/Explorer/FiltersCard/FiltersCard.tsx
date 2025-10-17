@@ -69,6 +69,14 @@ const FiltersCard: FC = memo(() => {
     const [hasDefaultFiltersApplied, setHasDefaultFiltersApplied] =
         useState(false);
 
+    // Lazy mount: Only mount FiltersForm after first open to avoid expensive initial render
+    const [hasEverOpened, setHasEverOpened] = useState(false);
+    useEffect(() => {
+        if (filterIsOpen && !hasEverOpened) {
+            setHasEverOpened(true);
+        }
+    }, [filterIsOpen, hasEverOpened]);
+
     const processedFilters = useMemo(() => {
         let unsavedQueryFilters = filters;
 
@@ -217,23 +225,24 @@ const FiltersCard: FC = memo(() => {
         tableCalculations,
     });
 
-    const renderFilterRule = useCallback(
-        (filterRule: FilterRule) => {
+    // Pre-compute filter rule labels for tooltip
+    const filterRuleLabels = useMemo(() => {
+        return getTotalFilterRules(processedFilters).map((filterRule) => {
             const field = visibleFields.find(
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const filterRuleLabels = getConditionalRuleLabelFromItem(
+                const labels = getConditionalRuleLabelFromItem(
                     filterRule,
                     field,
                 );
                 return (
                     <div key={field.name}>
-                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
+                        {labels.field}: {labels.operator}{' '}
                         {filterRule.operator !== FilterOperator.NULL &&
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <Text span fw={700}>
-                                {filterRuleLabels.value}
+                                {labels.value}
                             </Text>
                         ) : (
                             ''
@@ -242,9 +251,8 @@ const FiltersCard: FC = memo(() => {
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-        },
-        [visibleFields],
-    );
+        });
+    }, [processedFilters, visibleFields]);
 
     return (
         <CollapsableCard
@@ -271,9 +279,7 @@ const FiltersCard: FC = memo(() => {
                                         gap: '4px',
                                     }}
                                 >
-                                    {getTotalFilterRules(processedFilters).map(
-                                        renderFilterRule,
-                                    )}
+                                    {filterRuleLabels}
                                 </div>
                             }
                             position="bottom-start"
@@ -301,23 +307,26 @@ const FiltersCard: FC = memo(() => {
                 </>
             }
         >
-            <FiltersProvider
-                projectUuid={projectUuid}
-                itemsMap={fieldsWithSuggestions}
-                startOfWeek={
-                    project.data?.warehouseConnection?.startOfWeek ?? undefined
-                }
-                popoverProps={{
-                    withinPortal: true,
-                }}
-                baseTable={data?.baseTable}
-            >
-                <FiltersForm
-                    isEditMode={isEditMode}
-                    filters={processedFilters}
-                    setFilters={setFilters}
-                />
-            </FiltersProvider>
+            {hasEverOpened && (
+                <FiltersProvider
+                    projectUuid={projectUuid}
+                    itemsMap={fieldsWithSuggestions}
+                    startOfWeek={
+                        project.data?.warehouseConnection?.startOfWeek ??
+                        undefined
+                    }
+                    popoverProps={{
+                        withinPortal: true,
+                    }}
+                    baseTable={data?.baseTable}
+                >
+                    <FiltersForm
+                        isEditMode={isEditMode}
+                        filters={processedFilters}
+                        setFilters={setFilters}
+                    />
+                </FiltersProvider>
+            )}
         </CollapsableCard>
     );
 });
