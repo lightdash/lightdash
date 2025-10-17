@@ -261,4 +261,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     experimentalExplorerImprovements: false,
+    dashboardComments: {
+        enabled: true,
+    },
 };

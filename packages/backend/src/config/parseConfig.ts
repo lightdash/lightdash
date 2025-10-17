@@ -846,6 +846,9 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
     experimentalExplorerImprovements: boolean;
+    dashboardComments: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1622,5 +1625,8 @@ export const parseConfig = (): LightdashConfig => {
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         experimentalExplorerImprovements:
             process.env.EXPERIMENTAL_EXPLORER_IMPROVEMENTS === 'true',
+        dashboardComments: {
+            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
+        },
     };
 };
