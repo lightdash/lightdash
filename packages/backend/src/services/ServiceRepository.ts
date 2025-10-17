@@ -281,6 +281,7 @@ export class ServiceRepository
                     commentModel: this.models.getCommentModel(),
                     notificationsModel: this.models.getNotificationsModel(),
                     userModel: this.models.getUserModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

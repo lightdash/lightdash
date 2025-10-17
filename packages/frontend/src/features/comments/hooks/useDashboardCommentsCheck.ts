@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useFeatureFlagEnabled as useFeatureFlagEnabledPosthog } from 'posthog-js/react';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { type UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
@@ -15,9 +15,13 @@ export const useDashboardCommentsCheck = (
         'DashboardComments',
     );
 
+    const { data: dashboardCommentsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.DashboardComments,
+    );
+
     // We want to keep this flag enabled by default, so users on self-hosting can use this feature
     const isDashboardCommentsEnabled =
-        useFeatureFlagEnabledPosthog(FeatureFlags.DashboardComments) !== false;
+        dashboardCommentsFeatureFlag?.enabled ?? true;
 
     return {
         canViewDashboardComments:
