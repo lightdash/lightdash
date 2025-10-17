@@ -14,22 +14,18 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 type Dependencies = {
     findCharts: FindChartsFn;
     pageSize: number;
-    siteUrl?: string;
+    siteUrl: string;
 };
 
-const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
+const getChartText = (chart: AllChartsSearchResult, siteUrl: string) => {
     const isSavedChart = isSavedChartSearchResult(chart);
     const isSqlChart = isSqlChartSearchResult(chart);
 
     let chartUrl: string | undefined;
     if (isSavedChart) {
-        chartUrl = siteUrl
-            ? `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`
-            : undefined;
+        chartUrl = `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`;
     } else if (isSqlChart) {
-        chartUrl = siteUrl
-            ? `${siteUrl}/projects/${chart.projectUuid}/sql-runner/${chart.slug}#chart-link#chart-type-${chart.chartType}`
-            : undefined;
+        chartUrl = `${siteUrl}/projects/${chart.projectUuid}/sql-runner/${chart.slug}#chart-link#chart-type-${chart.chartType}`;
     }
 
     return `
@@ -76,7 +72,7 @@ const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
 
 const getChartsText = (
     args: Awaited<ReturnType<FindChartsFn>> & { searchQuery: string },
-    siteUrl?: string,
+    siteUrl: string,
 ) =>
     `
 <SearchResult searchQuery="${args.searchQuery}" page="${

@@ -1,6 +1,7 @@
 import {
     type ToolDashboardOutput,
     type ToolFindChartsOutput,
+    type ToolFindContentOutput,
     type ToolFindDashboardsOutput,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
@@ -24,6 +25,7 @@ export * from './visualizations';
 
 export type AgentToolOutput =
     | ToolDashboardOutput
+    | ToolFindContentOutput
     | ToolFindChartsOutput
     | ToolFindDashboardsOutput
     | ToolFindExploresOutput

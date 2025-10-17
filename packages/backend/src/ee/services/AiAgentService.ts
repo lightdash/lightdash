@@ -119,6 +119,7 @@ import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     CreateChangeFn,
     FindChartsFn,
+    FindContentFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
@@ -2187,6 +2188,39 @@ export class AiAgentService {
                 };
             });
 
+        const findContent: FindContentFn = async (args) =>
+            wrapSentryTransaction('AiAgent.findContent', args, async () => {
+                const dashboardSearchResults =
+                    await this.searchModel.searchDashboards(
+                        projectUuid,
+                        args.searchQuery.label,
+                        undefined,
+                        'OR',
+                    );
+
+                const chartSearchResults =
+                    await this.searchModel.searchAllCharts(
+                        projectUuid,
+                        args.searchQuery.label,
+                        'OR',
+                    );
+
+                const allContent = [
+                    ...dashboardSearchResults,
+                    ...chartSearchResults,
+                ];
+
+                const filteredResults =
+                    await this.spaceService.filterBySpaceAccess(
+                        user,
+                        allContent,
+                    );
+
+                return {
+                    content: filteredResults,
+                };
+            });
+
         const searchFieldValues: SearchFieldValuesFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.searchFieldValues',
@@ -2258,6 +2292,7 @@ export class AiAgentService {
 
         return {
             listExplores,
+            findContent,
             findCharts,
             findDashboards,
             findFields,
@@ -2341,6 +2376,7 @@ export class AiAgentService {
 
         const {
             listExplores,
+            findContent,
             findCharts,
             findDashboards,
             findFields,
@@ -2389,6 +2425,7 @@ export class AiAgentService {
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            findContent,
             findCharts,
             findDashboards,
             findFields,

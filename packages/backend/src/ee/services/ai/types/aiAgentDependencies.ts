@@ -17,8 +17,10 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    SearchResult,
     SlackPrompt,
     ToolFindChartsArgs,
+    ToolFindContentArgs,
     ToolFindDashboardsArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
@@ -74,6 +76,12 @@ export type FindChartsFn = (
 ) => Promise<{
     charts: AllChartsSearchResult[];
     pagination: Pagination | undefined;
+}>;
+
+export type FindContentFn = (args: {
+    searchQuery: ToolFindContentArgs['searchQueries'][number];
+}) => Promise<{
+    content: (AllChartsSearchResult | DashboardSearchResult)[];
 }>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
