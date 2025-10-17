@@ -262,6 +262,10 @@ export class CatalogService<
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplore?: Explore;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
+        const changeset =
+            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                args.projectUuid,
+            );
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
             {
@@ -281,6 +285,7 @@ export class CatalogService<
                     () =>
                         this.catalogModel.search({
                             projectUuid: args.projectUuid,
+                            changeset,
                             catalogSearch: args.catalogSearch,
                             paginateArgs: args.paginateArgs,
                             userAttributes: args.userAttributes,
