@@ -1151,7 +1151,7 @@ export class ScimService extends BaseService {
                 oldName: existingGroup.name,
                 newName: patchedScimGroup.displayName,
                 oldMemberCount: existingGroup.members.length,
-                newMemberCount: patchedScimGroup.members.length,
+                newMemberCount: (patchedScimGroup.members ?? []).length,
             });
             if (!patchedScimGroup.displayName) {
                 throw new ScimError({
