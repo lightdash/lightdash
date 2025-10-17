@@ -159,6 +159,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             expect(() =>
@@ -183,6 +185,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             expect(() =>
@@ -209,6 +213,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -236,6 +242,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = [
@@ -269,6 +277,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -300,6 +310,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -331,6 +343,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const tableCalculations: TableCalcsSchema = [
@@ -369,6 +383,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const tableCalculations: TableCalcsSchema = [
@@ -416,6 +432,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: 'Date',
                 yAxisLabel: 'Revenue & Count',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -448,6 +466,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -475,6 +495,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -522,6 +544,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -562,6 +586,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -591,6 +617,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -636,6 +664,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -677,6 +707,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -708,6 +740,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -759,6 +793,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const customMetrics: CustomMetricBase[] = [
@@ -803,6 +839,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];
@@ -839,6 +877,8 @@ describe('validateAxisFields', () => {
                 funnelDataInput: null,
                 xAxisLabel: null,
                 yAxisLabel: null,
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
             };
 
             const selectedDimensions = ['orders_order_date'];

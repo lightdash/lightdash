@@ -124,6 +124,12 @@ export const AiVisualizationRenderer: FC<Props> = ({
         );
     }
 
+    console.log(
+        'chartConfigFromAiAgentVizConfig',
+        chartConfigFromAiAgentVizConfig.echartsConfig,
+        groupByDimensions,
+    );
+
     return (
         <MetricQueryDataProvider
             metricQuery={metricQuery}
