@@ -52,6 +52,7 @@ describe('Space', () => {
 
         // Go back to space using breadcrumbs
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        cy.wait(1000); // Wait for spaces to load
         cy.contains(`Private space ${timestamp}`).click();
 
         // Create new dashboard
@@ -67,6 +68,7 @@ describe('Space', () => {
 
         // Go back to space using url
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`); // I think we need to refresh the page for the items to appear
+        cy.wait(1000); // Wait for spaces to load
         cy.contains(`Private space ${timestamp}`).click();
 
         // Check all items exist in private space
