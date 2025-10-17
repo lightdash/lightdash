@@ -2,6 +2,7 @@
  * Enum of all supported Lightdash embed event types
  */
 export enum LightdashEventType {
+    LocationChanged = 'locationChanged',
     FilterChanged = 'filterChanged',
     TabChanged = 'tabChanged',
     Error = 'error',
@@ -48,11 +49,18 @@ export type AllTilesLoadedPayload = {
     loadTimeMs: number;
 };
 
+export type LocationChangedPayload = {
+    pathname: string;
+    search: string;
+    href: string;
+};
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | TabChangedPayload
     | ErrorPayload
-    | AllTilesLoadedPayload;
+    | AllTilesLoadedPayload
+    | LocationChangedPayload;
 
 /**
  * Generic event structure for all Lightdash events
