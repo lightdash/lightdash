@@ -41,17 +41,16 @@ models:
           dimension:
             type: number
           metrics:
-            inflated_total_deal_value:
-              label: "🚨 INFLATED Total Deal Value"
-              description: "❌ WRONG: Deal amounts get multiplied by (users × events). A $1000
-                deal becomes $1000 × users × events!"
+            total_deal_value:
+              label: "Total Deal Value"
+              description: ""
               format: 'usd'
               type: sum
 
-            inflated_average_deal_value:
+            average_deal_value:
               type: average
-              label: "🚨 INFLATED Average Deal Value"
-              description: "❌ WRONG: Average is calculated on inflated rows, not actual deals"
+              label: ""
+              description: ""
               format: 'usd'
 
             max_deal_value:
