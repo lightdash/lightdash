@@ -1,7 +1,7 @@
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import {
@@ -9,6 +9,8 @@ import {
     setToInMemoryStorage,
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import { LightdashEventType } from '../../features/embed/events/types';
+import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
@@ -40,6 +42,21 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const ability = useAbilityContext();
     const params = useParams();
     const projectUuid = projectUuidFromProps || params.projectUuid;
+    const location = useLocation();
+    const { dispatchEmbedEvent } = useEmbedEventEmitter();
+    const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+
+    // We sync embed UI changes with the URL just as with the main app.
+    // For iframe embeds only, we emit messages to the parent window.
+    useEffect(() => {
+        if (mode === 'sdk') return;
+
+        dispatchEmbedEvent(LightdashEventType.LocationChanged, {
+            pathname: location.pathname,
+            search: location.search,
+            href: window.location.href,
+        });
+    }, [location, dispatchEmbedEvent, mode]);
 
     // Set ability rules for the embedded user. We should only get abilities from abilityContext
     // rather than directly on the user or account.
@@ -72,7 +89,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             onExplore,
             savedChart,
             onBackToDashboard,
-            mode: (encodedToken ? 'sdk' : 'direct') as EmbedMode,
+            mode,
         };
     }, [
         embed?.projectUuid,
@@ -84,7 +101,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         onExplore,
         savedChart,
         onBackToDashboard,
-        encodedToken,
+        mode,
     ]);
 
     return (
