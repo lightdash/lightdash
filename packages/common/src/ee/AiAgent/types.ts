@@ -13,6 +13,7 @@ export enum AiResultType {
     TABLE_RESULT = 'table',
     QUERY_RESULT = 'query_result',
     DASHBOARD_RESULT = 'dashboard',
+    DASHBOARD_V2_RESULT = 'dashboard_v2',
     IMPROVE_CONTEXT = 'improve_context',
     PROPOSE_CHANGE = 'propose_change',
 }

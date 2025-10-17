@@ -51,7 +51,7 @@ type Dependencies = {
     enableSelfImprovement: boolean;
 };
 
-const validateQueryTool = (
+export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
     explore: Explore,
 ) => {
@@ -138,7 +138,7 @@ export const getRunQuery = ({
                     exploreName: queryTool.queryConfig.exploreName,
                 });
 
-                validateQueryTool(queryTool, explore);
+                validateRunQueryTool(queryTool, explore);
 
                 const prompt = await getPrompt();
 

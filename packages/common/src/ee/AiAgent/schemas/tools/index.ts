@@ -1,4 +1,5 @@
 export * from './toolDashboardArgs';
+export * from './toolDashboardV2Args';
 export * from './toolFindChartsArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';
