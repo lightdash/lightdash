@@ -22,6 +22,9 @@ describe('Space', () => {
         cy.findByPlaceholderText('eg. KPIs').type(`Private space ${timestamp}`);
         cy.get('button').contains('Create').click();
 
+        // Wait for space page to load
+        cy.wait(1500);
+
         // Create new chart
         cy.get('.tabler-icon-plus').click();
         cy.contains('Create new chart').click();
