@@ -143,16 +143,25 @@ export const useDashboardChartReadyQuery = (
         );
     }, [parameterValues, tileParameterReferences, tileUuid]);
 
-    setChartsWithDateZoomApplied((prev) => {
-        if (hasADateDimension) {
-            if (granularity) {
-                return (prev ?? new Set()).add(chartUuid!);
+    useEffect(() => {
+        setChartsWithDateZoomApplied((prev) => {
+            if (hasADateDimension) {
+                const nextSet = new Set(prev ?? []);
+                if (granularity) {
+                    nextSet.add(chartUuid!);
+                } else {
+                    nextSet.delete(chartUuid!);
+                }
+                return nextSet;
             }
-            prev?.clear();
             return prev;
-        }
-        return prev;
-    });
+        });
+    }, [
+        hasADateDimension,
+        granularity,
+        chartUuid,
+        setChartsWithDateZoomApplied,
+    ]);
 
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
