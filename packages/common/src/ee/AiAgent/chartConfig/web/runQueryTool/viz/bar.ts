@@ -24,13 +24,41 @@ export const getBarChartConfig = ({
     const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || metrics;
+    const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
+
+    // Build yAxis array based on whether secondary axis is specified
+    const yAxisConfig = secondaryYAxisMetric
+        ? [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+              {
+                  ...(chartConfig?.secondaryYAxisLabel
+                      ? { name: chartConfig.secondaryYAxisLabel }
+                      : {}),
+              },
+          ]
+        : [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+          ];
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: xDimension,
-                yField: chartConfig?.yAxisMetrics || metricQuery.metrics,
+                yField: secondaryYAxisMetric
+                    ? [
+                          ...(chartConfig?.yAxisMetrics || metricQuery.metrics),
+                          secondaryYAxisMetric,
+                      ]
+                    : chartConfig?.yAxisMetrics || metricQuery.metrics,
                 stack: !!chartConfig?.stackBars,
             },
             eChartsConfig: {
@@ -47,25 +75,40 @@ export const getBarChartConfig = ({
                             : {}),
                     },
                 ],
-                yAxis: [
-                    {
-                        ...(chartConfig?.yAxisLabel
-                            ? { name: chartConfig.yAxisLabel }
-                            : {}),
-                    },
+                yAxis: yAxisConfig,
+                series: [
+                    ...yMetrics.map((metric) => ({
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        ...(chartConfig?.stackBars && {
+                            stack: metric,
+                        }),
+                        encode: {
+                            xRef: { field: xDimension },
+                            yRef: { field: metric },
+                        },
+                        name: formatFieldLabel(metric, fieldsMap),
+                    })),
+                    ...(secondaryYAxisMetric
+                        ? [
+                              {
+                                  type: CartesianSeriesType.BAR,
+                                  yAxisIndex: 1,
+                                  ...(chartConfig?.stackBars && {
+                                      stack: secondaryYAxisMetric,
+                                  }),
+                                  encode: {
+                                      xRef: { field: xDimension },
+                                      yRef: { field: secondaryYAxisMetric },
+                                  },
+                                  name: formatFieldLabel(
+                                      secondaryYAxisMetric,
+                                      fieldsMap,
+                                  ),
+                              },
+                          ]
+                        : []),
                 ],
-                series: yMetrics.map((metric) => ({
-                    type: CartesianSeriesType.BAR,
-                    yAxisIndex: 0,
-                    ...(chartConfig?.stackBars && {
-                        stack: metric,
-                    }),
-                    encode: {
-                        xRef: { field: xDimension },
-                        yRef: { field: metric },
-                    },
-                    name: formatFieldLabel(metric, fieldsMap),
-                })),
             },
         },
     };

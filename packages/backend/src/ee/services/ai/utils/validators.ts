@@ -1122,6 +1122,50 @@ Field Details:
 }
 
 /**
+ * Validates that secondaryYAxisMetric is properly specified
+ * @param explore - The explore containing field definitions
+ * @param secondaryYAxisMetric - The secondary axis metric to validate
+ * @param yAxisMetrics - Primary y-axis metrics (secondaryYAxisMetric must NOT be in this array)
+ * @param selectedMetrics - Array of selected metric field IDs in the query
+ * @param customMetrics - Custom metrics that can be used as secondaryYAxisMetric
+ * @param tableCalculations - Table calculations that can be used as metrics
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateSecondaryYAxisMetric(
+    explore: Explore,
+    secondaryYAxisMetric: string | null | undefined,
+    yAxisMetrics: string[] | null | undefined,
+    selectedMetrics: string[],
+    customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
+): string[] {
+    if (!secondaryYAxisMetric) {
+        return [];
+    }
+
+    const errors: string[] = [];
+
+    // Verify it's NOT in yAxisMetrics
+    if (yAxisMetrics?.includes(secondaryYAxisMetric)) {
+        errors.push(
+            `Error: secondaryYAxisMetric "${secondaryYAxisMetric}" must NOT be included in yAxisMetrics. The secondary axis metric should be separate from primary y-axis metrics.`,
+        );
+        return errors;
+    }
+
+    // Reuse validateYAxisMetrics logic for single metric
+    const validationErrors = validateYAxisMetrics(
+        explore,
+        [secondaryYAxisMetric],
+        selectedMetrics,
+        customMetrics,
+        tableCalculations,
+    );
+
+    return validationErrors;
+}
+
+/**
  * Validates that xAxisDimension and yAxisMetrics are properly specified
  * @param explore - The explore containing field definitions
  * @param chartConfig - Chart configuration with axis field definitions
@@ -1157,8 +1201,16 @@ export function validateAxisFields(
         customMetrics,
         tableCalculations,
     );
+    const secondaryYAxisErrors = validateSecondaryYAxisMetric(
+        explore,
+        chartConfig.secondaryYAxisMetric,
+        chartConfig.yAxisMetrics,
+        selectedMetrics,
+        customMetrics,
+        tableCalculations,
+    );
 
-    const errors = [...xAxisErrors, ...yAxisErrors];
+    const errors = [...xAxisErrors, ...yAxisErrors, ...secondaryYAxisErrors];
 
     if (errors.length > 0) {
         const errorMessage = `Invalid axis field configuration:

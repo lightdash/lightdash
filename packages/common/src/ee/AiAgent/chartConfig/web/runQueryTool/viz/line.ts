@@ -24,13 +24,42 @@ export const getLineChartConfig = ({
     const { dimensions, metrics } = queryTool.queryConfig;
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || metrics;
+    const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
+    console.log('chartConfig', chartConfig);
+
+    // Build yAxis array based on whether secondary axis is specified
+    const yAxisConfig = secondaryYAxisMetric
+        ? [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+              {
+                  ...(chartConfig?.secondaryYAxisLabel
+                      ? { name: chartConfig.secondaryYAxisLabel }
+                      : {}),
+              },
+          ]
+        : [
+              {
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+          ];
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: xDimension,
-                yField: chartConfig?.yAxisMetrics || metricQuery.metrics,
+                yField: secondaryYAxisMetric
+                    ? [
+                          ...(chartConfig?.yAxisMetrics || metricQuery.metrics),
+                          secondaryYAxisMetric,
+                      ]
+                    : chartConfig?.yAxisMetrics || metricQuery.metrics,
             },
             eChartsConfig: {
                 ...(metadata.title ? { title: { text: metadata.title } } : {}),
@@ -46,27 +75,48 @@ export const getLineChartConfig = ({
                             : {}),
                     },
                 ],
-                yAxis: [
-                    {
-                        ...(chartConfig?.yAxisLabel
-                            ? { name: chartConfig.yAxisLabel }
-                            : {}),
-                    },
+                yAxis: yAxisConfig,
+                series: [
+                    ...yMetrics.map((metric) => ({
+                        type: CartesianSeriesType.LINE,
+                        yAxisIndex: 0,
+                        ...(chartConfig?.lineType === 'area' && {
+                            areaStyle: {},
+                        }),
+                        name: formatFieldLabel(metric, fieldsMap),
+                        encode: {
+                            xRef: { field: xDimension },
+                            yRef: { field: metric },
+                        },
+                        stack:
+                            chartConfig?.lineType === 'area'
+                                ? 'total'
+                                : undefined,
+                    })),
+                    ...(secondaryYAxisMetric
+                        ? [
+                              {
+                                  type: CartesianSeriesType.LINE,
+                                  yAxisIndex: 1,
+                                  ...(chartConfig?.lineType === 'area' && {
+                                      areaStyle: {},
+                                  }),
+                                  name: formatFieldLabel(
+                                      secondaryYAxisMetric,
+                                      fieldsMap,
+                                  ),
+                                  encode: {
+                                      xRef: { field: xDimension },
+                                      yRef: { field: secondaryYAxisMetric },
+                                  },
+                                  stack:
+                                      chartConfig?.lineType === 'area'
+                                          ? 'total'
+                                          : undefined,
+                              },
+                          ]
+                        : []),
                 ],
-                series: yMetrics.map((metric) => ({
-                    type: CartesianSeriesType.LINE,
-                    yAxisIndex: 0,
-                    ...(chartConfig?.lineType === 'area' && {
-                        areaStyle: {},
-                    }),
-                    name: formatFieldLabel(metric, fieldsMap),
-                    encode: {
-                        xRef: { field: xDimension },
-                        yRef: { field: metric },
-                    },
-                    stack:
-                        chartConfig?.lineType === 'area' ? 'total' : undefined,
-                })),
             },
         },
     };
