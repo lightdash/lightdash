@@ -18,7 +18,7 @@ import { getFindDashboards } from '../tools/findDashboards';
 // eslint-disable-next-line import/extensions
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
-import { getGenerateDashboard } from '../tools/generateDashboard';
+import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getImproveContext } from '../tools/improveContext';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
@@ -178,15 +178,10 @@ const getAgentTools = (
         enableSelfImprovement: args.enableSelfImprovement,
     });
 
-    const generateDashboard = getGenerateDashboard({
+    const generateDashboard = getGenerateDashboardV2({
         getExplore: dependencies.getExplore,
-        updateProgress: dependencies.updateProgress,
-        runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
-        updatePrompt: dependencies.updatePrompt,
-        sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-        maxLimit: args.maxQueryLimit,
     });
 
     const improveContext = getImproveContext();

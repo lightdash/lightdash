@@ -2,12 +2,13 @@ import {
     getWebAiChartConfig,
     type ApiAiAgentThreadMessageVizQuery,
     type CreateSavedChartVersion,
+    type DashboardV2Visualization,
     type DashboardVisualization,
 } from '@lightdash/common';
 
 function convertAiVisualizationToCreateSavedChartVersion(
     aiVizData: ApiAiAgentThreadMessageVizQuery,
-    dashboardVisualization: DashboardVisualization,
+    dashboardVisualization: DashboardVisualization | DashboardV2Visualization,
     options: {
         name: string;
         description?: string;
@@ -53,7 +54,7 @@ export function convertDashboardVisualizationsToChartData(
     dashboardConfig: {
         title: string;
         description: string;
-        visualizations: DashboardVisualization[];
+        visualizations: (DashboardVisualization | DashboardV2Visualization)[];
     },
     vizQueryResults: ApiAiAgentThreadMessageVizQuery[],
     options: {
