@@ -18,7 +18,14 @@ import {
     Tooltip,
     type SelectProps,
 } from '@mantine/core';
-import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+    forwardRef,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+} from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 
@@ -87,7 +94,7 @@ const getLabel = (item: Item, hasGrouping: boolean) => {
         : getItemLabel(item);
 };
 
-const FieldSelect = <T extends Item = Item>({
+const FieldSelectComponent = <T extends Item = Item>({
     item,
     items,
     onChange,
@@ -260,5 +267,8 @@ const FieldSelect = <T extends Item = Item>({
         />
     );
 };
+
+// Memoize with generic type support
+const FieldSelect = memo(FieldSelectComponent) as typeof FieldSelectComponent;
 
 export default FieldSelect;

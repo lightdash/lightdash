@@ -24,7 +24,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -60,7 +60,7 @@ const getInvalidFilterRules = (
         return accumulator;
     }, []);
 
-const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
+const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -302,6 +302,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             )}
         </Stack>
     );
-};
+});
+
+FiltersForm.displayName = 'FiltersForm';
 
 export default FiltersForm;
