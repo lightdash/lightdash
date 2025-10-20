@@ -128,6 +128,9 @@ export const getAxisTypeFromField = (
             case MetricType.SUM:
             case MetricType.MIN:
             case MetricType.MAX:
+            case MetricType.PERCENT_OF_PREVIOUS:
+            case MetricType.PERCENT_OF_TOTAL:
+            case MetricType.RUNNING_TOTAL:
                 return 'value';
             case DimensionType.TIMESTAMP:
             case MetricType.TIMESTAMP:
