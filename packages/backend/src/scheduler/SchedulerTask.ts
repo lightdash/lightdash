@@ -1536,6 +1536,8 @@ export default class SchedulerTask {
                 jobId,
                 scheduledTime,
             };
+        const startTime = Date.now();
+
         try {
             const user = await this.userService.getSessionByUserUuid(
                 payload.createdByUserUuid,
@@ -1557,12 +1559,31 @@ export default class SchedulerTask {
                 getRequestMethod(payload.requestMethod),
                 payload.jobUuid,
             );
+
+            const job = await this.projectService.jobModel.get(payload.jobUuid);
+            const durationMs = Date.now() - startTime;
+
+            const compilationStats =
+                job.jobType === 'COMPILE_PROJECT'
+                    ? job.jobResults?.compilationStats
+                    : undefined;
+            const indexCatalogJobUuid =
+                job.jobType === 'COMPILE_PROJECT'
+                    ? job.jobResults?.indexCatalogJobUuid
+                    : undefined;
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
                     projectUuid: payload.projectUuid,
                     organizationUuid: payload.organizationUuid,
                     createdByUserUuid: payload.createdByUserUuid,
+                    jobUuid: payload.jobUuid,
+                    requestMethod: payload.requestMethod,
+                    isPreview: payload.isPreview,
+                    indexCatalogJobUuid,
+                    durationMs,
+                    ...(compilationStats || {}),
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });

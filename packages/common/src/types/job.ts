@@ -1,3 +1,5 @@
+import { type WarehouseTypes } from './projects';
+
 export enum JobType {
     COMPILE_PROJECT = 'COMPILE_PROJECT',
     CREATE_PROJECT = 'CREATE_PROJECT',
@@ -55,6 +57,23 @@ type CompileJob = BaseJob & {
     jobType: JobType.COMPILE_PROJECT;
     jobResults?: {
         indexCatalogJobUuid: string;
+        compilationStats?: {
+            requestMethod: string;
+            projectName: string;
+            projectType: string;
+            warehouseType: WarehouseTypes | undefined;
+            modelsCount: number;
+            modelsWithErrorsCount: number;
+            modelsWithGroupLabelCount: number;
+            metricsCount: number;
+            packagesCount: number | undefined;
+            roundCount: number;
+            urlsCount: number;
+            formattedFieldsCount: number;
+            modelsWithSqlFiltersCount: number;
+            columnAccessFiltersCount: number;
+            additionalDimensionsCount: number;
+        };
     };
 };
 

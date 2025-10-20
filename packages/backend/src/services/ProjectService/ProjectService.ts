@@ -241,7 +241,32 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
+import { calculateCompilationStats } from './compilationStats';
 import { getAvailableParameterDefinitions } from './parameters';
+
+/**
+ * Compilation statistics including both metadata and calculated values
+ */
+type CompilationStats = {
+    projectUuid: string;
+    requestMethod: RequestMethod;
+    projectName: string;
+    projectType: DbtProjectType;
+    userUuid: string;
+    warehouseType: WarehouseTypes | undefined;
+    modelsCount: number;
+    modelsWithErrorsCount: number;
+    modelsWithErrors: ExploreError[];
+    modelsWithGroupLabelCount: number;
+    metricsCount: number;
+    packagesCount: number | undefined;
+    roundCount: number;
+    urlsCount: number;
+    formattedFieldsCount: number;
+    modelsWithSqlFiltersCount: number;
+    columnAccessFiltersCount: number;
+    additionalDimensionsCount: number;
+};
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -3619,6 +3644,7 @@ export class ProjectService extends BaseService {
     ): Promise<{
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
+        compilationStats: CompilationStats;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -3636,139 +3662,44 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
             };
+
             const explores = await adapter.compileAllExplores(trackingParams);
+            const report = calculateCompilationStats({ explores });
+            const compilationStats: CompilationStats = {
+                requestMethod,
+                projectUuid,
+                userUuid: user.userUuid,
+                projectName: project.name,
+                projectType: project.dbtConnection.type,
+                warehouseType: project.warehouseConnection?.type,
+                packagesCount: packages?.packages.length,
+                modelsCount: report.totalModelCount,
+                modelsWithErrorsCount: report.modelsWithErrorsCount,
+                modelsWithErrors: report.modelsWithErrors,
+                modelsWithGroupLabelCount: report.modelsWithGroupLabelCount,
+                metricsCount: report.metricsCount,
+                roundCount: report.fieldsWithRoundCount,
+                urlsCount: report.fieldsUrlCount,
+                formattedFieldsCount: report.formattedFieldsCount,
+                modelsWithSqlFiltersCount: report.modelsWithSqlFiltersCount,
+                columnAccessFiltersCount:
+                    report.dimensionsWithColumnAccessFiltersCount,
+                additionalDimensionsCount: report.additionalDimensionsCount,
+            };
+
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
                 properties: {
-                    requestMethod,
+                    ...compilationStats,
                     projectId: projectUuid,
-                    projectName: project.name,
-                    projectType: project.dbtConnection.type,
-                    warehouseType: project.warehouseConnection?.type,
-                    modelsCount: explores.length,
-                    modelsWithErrorsCount:
-                        explores.filter(isExploreError).length,
-                    modelsWithGroupLabelCount: explores.filter(
-                        ({ groupLabel }) => !!groupLabel,
-                    ).length,
-                    metricsCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return acc + getMetrics(explore).length;
-                        }
-                        return acc;
-                    }, 0),
-                    packagesCount: packages
-                        ? Object.keys(packages).length
-                        : undefined,
-                    roundCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return (
-                                acc +
-                                getMetrics(explore).filter(
-                                    ({ round }) => round !== undefined,
-                                ).length +
-                                getDimensions(explore).filter(
-                                    ({ round }) => round !== undefined,
-                                ).length
-                            );
-                        }
-                        return acc;
-                    }, 0),
-                    urlsCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return (
-                                acc +
-                                getFields(explore)
-                                    .map((field) => (field.urls || []).length)
-                                    .reduce((a, b) => a + b, 0)
-                            );
-                        }
-                        return acc;
-                    }, 0),
-                    formattedFieldsCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            try {
-                                if (!isExploreError(explore)) {
-                                    const filteredExplore = {
-                                        ...explore,
-                                        tables: {
-                                            [explore.baseTable]:
-                                                explore.tables[
-                                                    explore.baseTable
-                                                ],
-                                        },
-                                    };
-
-                                    return (
-                                        acc +
-                                        getFields(filteredExplore).filter(
-                                            ({ format }) =>
-                                                format !== undefined,
-                                        ).length
-                                    );
-                                }
-                            } catch (e) {
-                                this.logger.error(
-                                    `Unable to reduce formattedFieldsCount. ${e}`,
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
-                    modelsWithSqlFiltersCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (
-                                explore.tables &&
-                                explore.baseTable &&
-                                explore.tables[explore.baseTable].sqlWhere !==
-                                    undefined
-                            )
-                                return acc + 1;
-                            return acc;
-                        },
-                        0,
-                    ),
-                    columnAccessFiltersCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (!isExploreError(explore)) {
-                                return (
-                                    acc +
-                                    getDimensions(explore).filter(
-                                        ({ requiredAttributes }) =>
-                                            requiredAttributes !== undefined,
-                                    ).length
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
-                    additionalDimensionsCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (!isExploreError(explore)) {
-                                return (
-                                    acc +
-                                    Object.values(
-                                        explore.tables[explore.baseTable]
-                                            .dimensions,
-                                    ).filter(
-                                        (field) => field.isAdditionalDimension,
-                                    ).length
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
                 },
             });
 
             const lightdashProjectConfig =
                 await adapter.getLightdashProjectConfig(trackingParams);
 
-            return { explores, lightdashProjectConfig };
+            return { explores, lightdashProjectConfig, compilationStats };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -3924,24 +3855,27 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
+
+                let compilationStats;
                 const indexCatalogJobUuid = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const { explores, lightdashProjectConfig } =
-                            await this.refreshTablesAndProjectConfig(
-                                user,
-                                projectUuid,
-                                requestMethod,
-                            );
+                        const result = await this.refreshTablesAndProjectConfig(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
+
+                        compilationStats = result.compilationStats;
 
                         await this.replaceYamlTags(
                             user,
                             projectUuid,
                             // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
                             Object.entries(
-                                lightdashProjectConfig.spotlight?.categories ||
-                                    {},
+                                result.lightdashProjectConfig.spotlight
+                                    ?.categories || {},
                             ).map(([key, category]) => ({
                                 yamlReference: key,
                                 name: category.label,
@@ -3951,12 +3885,13 @@ export class ProjectService extends BaseService {
                         await this.replaceProjectParameters({
                             user,
                             projectUuid,
-                            parameters: lightdashProjectConfig.parameters,
+                            parameters:
+                                result.lightdashProjectConfig.parameters,
                         });
                         return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
-                            explores,
+                            result.explores,
                         );
                     },
                 );
@@ -3965,6 +3900,7 @@ export class ProjectService extends BaseService {
                     jobStatus: JobStatusType.DONE,
                     jobResults: {
                         indexCatalogJobUuid,
+                        compilationStats,
                     },
                 });
             } catch (e) {
