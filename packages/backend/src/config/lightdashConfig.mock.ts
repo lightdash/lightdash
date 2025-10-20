@@ -251,6 +251,9 @@ export const lightdashConfigMock: LightdashConfig = {
     serviceAccount: {
         enabled: false,
     },
+    organizationWarehouseCredentials: {
+        enabled: false,
+    },
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },

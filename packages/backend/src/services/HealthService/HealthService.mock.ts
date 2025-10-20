@@ -92,6 +92,7 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     isServiceAccountEnabled: false,
+    isOrganizationWarehouseCredentialsEnabled: false,
     isCustomRolesEnabled: false,
     embedding: { enabled: false, events: undefined },
     ai: {
