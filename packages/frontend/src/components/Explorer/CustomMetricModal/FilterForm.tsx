@@ -14,7 +14,10 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import {
+    selectIsEditMode,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import useFiltersContext from '../../common/Filters/useFiltersContext';
 import { addFieldRefToFilterRule } from './utils';
@@ -33,9 +36,7 @@ export const FilterForm: FC<{
     customMetricFiltersWithIds,
     setCustomMetricFiltersWithIds,
 }) => {
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
+    const isEditMode = useExplorerSelector(selectIsEditMode);
     const { itemsMap: dimensionsMap } =
         useFiltersContext<Record<string, FilterableDimension>>();
 

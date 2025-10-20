@@ -14,11 +14,11 @@ import {
     selectFromDashboard,
     selectIsEditMode,
     selectIsResultsExpanded,
-    selectMetricQueryForApi,
+    selectSavedChart,
+    selectUnsavedChartVersionForApi,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import { useFeatureFlag } from './useFeatureFlagEnabled';
 
@@ -51,15 +51,14 @@ export const useExplorerQueryEffects = ({
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const fromDashboard = useExplorerSelector(selectFromDashboard);
-    const metricQuery = useExplorerSelector(selectMetricQueryForApi);
 
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
-    // Get merged version with chartConfig and pivotConfig from Context
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
+    // NOTE: mergedUnsavedChartVersion is now same as unsavedChartVersion since chartConfig/pivotConfig are in Redux
+    const unsavedChartVersion = useExplorerSelector(
+        selectUnsavedChartVersionForApi,
     );
 
     // Auto-fetch configuration
@@ -68,29 +67,26 @@ export const useExplorerQueryEffects = ({
         defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
     });
 
-    // Check if this is a saved chart or has pivot config from Context
-    const isSavedChart = useExplorerContext(
-        (context) => !!context.state.savedChart,
-    );
+    // Get savedChart from Redux
+    const savedChart = useExplorerSelector(selectSavedChart);
+    const isSavedChart = !!savedChart;
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {
         if (!useSqlPivotResults?.enabled || !explore) return false;
 
-        const items = getFieldsFromMetricQuery(metricQuery, explore);
+        const items = getFieldsFromMetricQuery(
+            unsavedChartVersion.metricQuery,
+            explore,
+        );
         const pivotConfiguration = derivePivotConfigurationFromChart(
-            mergedUnsavedChartVersion,
-            metricQuery,
+            unsavedChartVersion,
+            unsavedChartVersion.metricQuery,
             items,
         );
 
         return !!pivotConfiguration;
-    }, [
-        useSqlPivotResults?.enabled,
-        explore,
-        metricQuery,
-        mergedUnsavedChartVersion,
-    ]);
+    }, [useSqlPivotResults?.enabled, explore, unsavedChartVersion]);
 
     // Effect 1: Auto-fetch logic
     // Handles both initial fetch and reactive auto-fetch

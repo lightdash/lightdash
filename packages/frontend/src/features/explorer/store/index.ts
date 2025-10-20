@@ -16,4 +16,3 @@ export type { FilterTreeNode, FilterTreeState } from './filterTree';
 export * from './hooks';
 export * from './selectors';
 export { useExplorerInitialization } from './useExplorerInitialization';
-export * from './utils';
