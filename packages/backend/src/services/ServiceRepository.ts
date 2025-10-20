@@ -554,6 +554,8 @@ export class ServiceRepository
                         this.models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         this.models.getOrganizationWarehouseCredentialsModel(),
+                    projectCompileLogModel:
+                        this.models.getProjectCompileLogModel(),
                 }),
         );
     }
@@ -599,6 +601,8 @@ export class ServiceRepository
                         this.models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         this.models.getOrganizationWarehouseCredentialsModel(),
+                    projectCompileLogModel:
+                        this.models.getProjectCompileLogModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                     permissionsService: this.getPermissionsService(),
