@@ -1,3 +1,16 @@
+# [0.2095.0](https://github.com/lightdash/lightdash/compare/0.2094.3...0.2095.0) (2025-10-20)
+
+
+### Bug Fixes
+
+* **agentV2:** update prompt  ([#17534](https://github.com/lightdash/lightdash/issues/17534)) ([bb8970f](https://github.com/lightdash/lightdash/commit/bb8970ff9049452b4d94aa79a0e2cb0914f892ea))
+* do not override requireUserCredentials on different snowflake warehouse ([#17532](https://github.com/lightdash/lightdash/issues/17532)) ([efc6aff](https://github.com/lightdash/lightdash/commit/efc6aff7bf7bf306988e0a4895b7538ce1d0038f))
+
+
+### Features
+
+* **agentV2:** add xDimension and yMetrics properties to chartConfig ([#17533](https://github.com/lightdash/lightdash/issues/17533)) ([c048d45](https://github.com/lightdash/lightdash/commit/c048d45b267d5de013a051f7fba2ce169889f601))
+
 ## [0.2094.3](https://github.com/lightdash/lightdash/compare/0.2094.2...0.2094.3) (2025-10-20)
 
 
