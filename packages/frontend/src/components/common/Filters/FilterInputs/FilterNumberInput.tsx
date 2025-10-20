@@ -1,5 +1,6 @@
 import { TextInput, type TextInputProps } from '@mantine/core';
-import { useEffect, useState, type ChangeEvent, type FC } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useEffect, useRef, useState, type ChangeEvent, type FC } from 'react';
 
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;
@@ -15,6 +16,13 @@ const FilterNumberInput: FC<Props> = ({
     ...rest
 }) => {
     const [internalValue, setInternalValue] = useState('');
+    const [debouncedValue] = useDebouncedValue(internalValue, 300);
+    const onChangeRef = useRef(onChange);
+
+    // Keep the ref updated with the latest onChange callback
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
     useEffect(() => {
         if (typeof value === 'string') {
@@ -32,17 +40,18 @@ const FilterNumberInput: FC<Props> = ({
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
-
         setInternalValue(newValue);
-
-        if (newValue === '') {
-            onChange(null);
-        } else if (/^-?\d+$/.test(newValue)) {
-            onChange(parseInt(newValue, 10));
-        } else if (/^-?\d+\.\d+$/.test(newValue)) {
-            onChange(parseFloat(newValue));
-        }
     };
+
+    useEffect(() => {
+        if (debouncedValue === '') {
+            onChangeRef.current(null);
+        } else if (/^-?\d+$/.test(debouncedValue)) {
+            onChangeRef.current(parseInt(debouncedValue, 10));
+        } else if (/^-?\d+\.\d+$/.test(debouncedValue)) {
+            onChangeRef.current(parseFloat(debouncedValue));
+        }
+    }, [debouncedValue]);
 
     return (
         <TextInput
