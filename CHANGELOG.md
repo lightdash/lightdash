@@ -1,3 +1,51 @@
+# [0.2097.0](https://github.com/lightdash/lightdash/compare/0.2096.1...0.2097.0) (2025-10-20)
+
+
+### Features
+
+* upgrade to react 19.2.0 ([#17540](https://github.com/lightdash/lightdash/issues/17540)) ([81f540b](https://github.com/lightdash/lightdash/commit/81f540b7a239a08c93ae142ce2431e33bec970cf))
+
+## [0.2096.1](https://github.com/lightdash/lightdash/compare/0.2096.0...0.2096.1) (2025-10-20)
+
+
+### Bug Fixes
+
+* new post-calculation metric types were incorrectly plotted as category ([#17545](https://github.com/lightdash/lightdash/issues/17545)) ([30a6d1a](https://github.com/lightdash/lightdash/commit/30a6d1ab4772797a4b6c253f3dca1f33c2cc6575))
+
+# [0.2096.0](https://github.com/lightdash/lightdash/compare/0.2095.0...0.2096.0) (2025-10-20)
+
+
+### Features
+
+* add findContent tool to replace separate chart and dashboard search tools ([#17528](https://github.com/lightdash/lightdash/issues/17528)) ([180efcb](https://github.com/lightdash/lightdash/commit/180efcb4e2608ee4733fe2b407d6584857176673))
+
+# [0.2095.0](https://github.com/lightdash/lightdash/compare/0.2094.3...0.2095.0) (2025-10-20)
+
+
+### Bug Fixes
+
+* **agentV2:** update prompt  ([#17534](https://github.com/lightdash/lightdash/issues/17534)) ([bb8970f](https://github.com/lightdash/lightdash/commit/bb8970ff9049452b4d94aa79a0e2cb0914f892ea))
+* do not override requireUserCredentials on different snowflake warehouse ([#17532](https://github.com/lightdash/lightdash/issues/17532)) ([efc6aff](https://github.com/lightdash/lightdash/commit/efc6aff7bf7bf306988e0a4895b7538ce1d0038f))
+
+
+### Features
+
+* **agentV2:** add xDimension and yMetrics properties to chartConfig ([#17533](https://github.com/lightdash/lightdash/issues/17533)) ([c048d45](https://github.com/lightdash/lightdash/commit/c048d45b267d5de013a051f7fba2ce169889f601))
+
+## [0.2094.3](https://github.com/lightdash/lightdash/compare/0.2094.2...0.2094.3) (2025-10-20)
+
+
+### Bug Fixes
+
+* use fieldsWithOverrides for executeAsyncDashboardChartQuery ([#17539](https://github.com/lightdash/lightdash/issues/17539)) ([5462013](https://github.com/lightdash/lightdash/commit/546201302ded5e74e8674c7d70fb0a13b2d24bb7))
+
+## [0.2094.2](https://github.com/lightdash/lightdash/compare/0.2094.1...0.2094.2) (2025-10-20)
+
+
+### Bug Fixes
+
+* take parameters into account for google sheet sync ([#17457](https://github.com/lightdash/lightdash/issues/17457)) ([a08ef31](https://github.com/lightdash/lightdash/commit/a08ef31149e49c5b32b6ee4b8d875de9495f3616))
+
 ## [0.2094.1](https://github.com/lightdash/lightdash/compare/0.2094.0...0.2094.1) (2025-10-17)
 
 

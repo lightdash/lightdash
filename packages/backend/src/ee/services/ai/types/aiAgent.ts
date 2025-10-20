@@ -5,6 +5,7 @@ import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
     FindChartsFn,
+    FindContentFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
@@ -41,7 +42,7 @@ export type AiAgentArgs = AnyAiModel & {
     findDashboardsPageSize: number;
     findChartsPageSize: number;
     maxQueryLimit: number;
-    siteUrl?: string;
+    siteUrl: string;
     canManageAgent: boolean;
 };
 
@@ -52,6 +53,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    findContent: FindContentFn;
     findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;

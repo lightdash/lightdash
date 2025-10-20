@@ -7,15 +7,12 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
-    Tool,
     ToolCallRepairFunction,
     ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
-import { getFindCharts } from '../tools/findCharts';
-import { getFindDashboards } from '../tools/findDashboards';
-// eslint-disable-next-line import/extensions
+import { getFindContent } from '../tools/findContent';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboard } from '../tools/generateDashboard';
@@ -154,15 +151,8 @@ const getAgentTools = (
         pageSize: args.findFieldsPageSize,
     });
 
-    const findDashboards = getFindDashboards({
-        findDashboards: dependencies.findDashboards,
-        pageSize: args.findDashboardsPageSize,
-        siteUrl: args.siteUrl,
-    });
-
-    const findCharts = getFindCharts({
-        findCharts: dependencies.findCharts,
-        pageSize: args.findChartsPageSize,
+    const findContent = getFindContent({
+        findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
     });
 
@@ -202,8 +192,7 @@ const getAgentTools = (
     });
 
     const tools = {
-        findCharts,
-        findDashboards,
+        findContent,
         findExplores,
         findFields,
         runQuery,

@@ -9,8 +9,9 @@ export const getFunnelChartEchartsConfig = (
     rows: Record<string, unknown>[],
 ): EChartsOption => {
     const { dimensions, metrics } = queryTool.queryConfig;
+    const { chartConfig } = queryTool;
 
-    const metricField = metrics[0];
+    const metricField = chartConfig?.yAxisMetrics?.[0] || metrics[0];
 
     // Transform data for funnel chart
     const data = rows.map((row) => {

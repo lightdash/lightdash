@@ -14,10 +14,11 @@ export const getPieChartConfig = ({
 }): PieChartConfig => {
     const { dimensions } = queryTool.queryConfig;
     const { metrics } = metricQuery;
+    const { chartConfig } = queryTool;
 
     const config: PieChartConfig['config'] = {
         groupFieldIds: dimensions,
-        metricId: metrics[0] as string,
+        metricId: (chartConfig?.yAxisMetrics?.[0] || metrics[0]) as string,
     };
 
     return {

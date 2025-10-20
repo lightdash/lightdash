@@ -22,14 +22,15 @@ export const getHorizontalBarChartConfig = ({
     metadata: { title: string; description: string };
 }): CartesianChartConfig => {
     const { dimensions, metrics } = queryTool.queryConfig;
-    const xDimension = dimensions[0];
+    const xDimension = chartConfig?.xAxisDimension || dimensions[0];
+    const yMetrics = chartConfig?.yAxisMetrics || metrics;
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: xDimension,
-                yField: metricQuery.metrics,
+                yField: chartConfig?.yAxisMetrics || metricQuery.metrics,
                 flipAxes: true, // This makes it horizontal
             },
             eChartsConfig: {
@@ -53,7 +54,7 @@ export const getHorizontalBarChartConfig = ({
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => ({
+                series: yMetrics.map((metric) => ({
                     type: CartesianSeriesType.BAR,
                     yAxisIndex: 0,
                     ...(chartConfig?.stackBars && {

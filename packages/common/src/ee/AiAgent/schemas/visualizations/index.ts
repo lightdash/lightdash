@@ -14,6 +14,7 @@ const VisualizationTools = [
 export const ToolNameSchema = z.enum([
     ...VisualizationTools,
     'generateDashboard',
+    'findContent',
     'findExplores',
     'findFields',
     'searchFieldValues',
