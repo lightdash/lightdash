@@ -390,7 +390,6 @@ const VisualizationCardOptions: FC = memo(() => {
                     }
                     icon={<MantineIcon icon={IconTable} />}
                     onClick={() => {
-                        setPivotDimensions(undefined);
                         setStacking(undefined);
                         setCartesianType(undefined);
                         setChartType(ChartType.TABLE);
