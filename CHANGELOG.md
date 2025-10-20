@@ -1,3 +1,10 @@
+## [0.2096.1](https://github.com/lightdash/lightdash/compare/0.2096.0...0.2096.1) (2025-10-20)
+
+
+### Bug Fixes
+
+* new post-calculation metric types were incorrectly plotted as category ([#17545](https://github.com/lightdash/lightdash/issues/17545)) ([30a6d1a](https://github.com/lightdash/lightdash/commit/30a6d1ab4772797a4b6c253f3dca1f33c2cc6575))
+
 # [0.2096.0](https://github.com/lightdash/lightdash/compare/0.2095.0...0.2096.0) (2025-10-20)
 
 
