@@ -25,7 +25,6 @@ export const getLineChartConfig = ({
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || metrics;
     const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
-    console.log('chartConfig', chartConfig);
 
     // Build yAxis array based on whether secondary axis is specified
     const yAxisConfig = secondaryYAxisMetric
