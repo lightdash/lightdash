@@ -2371,6 +2371,7 @@ export class AsyncQueryService extends ProjectService {
 
         const {
             sql,
+            fields: fieldsWithOverrides,
             parameterReferences,
             missingParameterReferences,
             usedParameters,
@@ -2395,7 +2396,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 invalidateCache,
                 dateZoom,
-                fields,
+                fields: fieldsWithOverrides,
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
@@ -2409,7 +2410,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             appliedDashboardFilters,
             metricQuery: metricQueryWithLimit,
-            fields,
+            fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
         };
