@@ -18,8 +18,9 @@ export const getHorizontalBarChartEchartsConfig = async (
 ): Promise<EChartsOption> => {
     const { dimensions, metrics: queryMetrics, sorts } = queryTool.queryConfig;
     const { chartConfig } = queryTool;
-    const xDimension = dimensions[0];
-    let metrics: string[] = queryMetrics;
+    const xDimension = chartConfig?.xAxisDimension || dimensions[0];
+    const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
+    let metrics: string[] = yMetrics;
     let chartData = rows;
 
     if (chartConfig?.groupBy?.length) {
@@ -27,7 +28,7 @@ export const getHorizontalBarChartEchartsConfig = async (
             rows,
             fieldsMap,
             chartConfig.groupBy,
-            queryMetrics,
+            yMetrics,
             sorts as SortField[],
         );
         chartData = pivoted.results;
@@ -36,7 +37,7 @@ export const getHorizontalBarChartEchartsConfig = async (
 
     // Get axis field items for formatting (note: x/y are flipped for horizontal charts)
     const yAxisField = fieldsMap[xDimension]; // Category axis
-    const xAxisField = queryMetrics[0] ? fieldsMap[queryMetrics[0]] : undefined; // Value axis
+    const xAxisField = yMetrics[0] ? fieldsMap[yMetrics[0]] : undefined; // Value axis
 
     const primarySort = sorts?.[0];
     const shouldInverseYAxis =
@@ -72,7 +73,7 @@ export const getHorizontalBarChartEchartsConfig = async (
         series: metrics.map((metric) => ({
             type: 'bar',
             // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-            name: queryMetrics.includes(metric)
+            name: yMetrics.includes(metric)
                 ? formatFieldLabel(metric, fieldsMap)
                 : metric,
             encode: {
