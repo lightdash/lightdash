@@ -269,6 +269,16 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         return newCredentials;
     }
 
+    // Edge case: if the warehouse is snowflake but with a different warehouse, return newCredentials as-is
+    // This is to avoid enforcing requireUserCredentials on a different snowflake warehouse that might not have SSO enabled or different roles
+    if (
+        baseCredentials.type === WarehouseTypes.SNOWFLAKE &&
+        newCredentials.type === WarehouseTypes.SNOWFLAKE &&
+        baseCredentials.warehouse !== newCredentials.warehouse
+    ) {
+        return newCredentials;
+    }
+
     // We will use new credentials for connection, this might contain new authentication method
     // do not include all baseCredentials here, to avoid conflicts on authentication (that will cause a mix of serviceaccounts/sso/passwords)
     const merged = {
