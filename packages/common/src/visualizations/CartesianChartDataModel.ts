@@ -685,6 +685,7 @@ export class CartesianChartDataModel {
                             return undefined;
                         return dimensionNames[yFieldIndex];
                     },
+                    xAxisReference,
                 ),
             };
         } else if (xAxisType === VizIndexType.TIME && xAxisReference) {
