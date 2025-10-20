@@ -8,6 +8,7 @@ import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DownloadAuditModel } from './DownloadAuditModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
@@ -59,6 +60,7 @@ export type ModelManifest = {
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
     downloadFileModel: DownloadFileModel;
+    downloadAuditModel: DownloadAuditModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
@@ -230,6 +232,13 @@ export class ModelRepository
         return this.getModel(
             'downloadFileModel',
             () => new DownloadFileModel({ database: this.database }),
+        );
+    }
+
+    public getDownloadAuditModel(): DownloadAuditModel {
+        return this.getModel(
+            'downloadAuditModel',
+            () => new DownloadAuditModel({ database: this.database }),
         );
     }
 

@@ -141,6 +141,10 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    DownloadAuditTable,
+    DownloadAuditTableName,
+} from '../database/entities/downloadAudit';
+import {
     DownloadFileTable,
     DownloadFileTableName,
 } from '../database/entities/downloadFile';
@@ -374,6 +378,7 @@ declare module 'knex/types/tables' {
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
+        [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
