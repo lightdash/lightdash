@@ -483,7 +483,7 @@ const MetricsVisualization: FC<Props> = ({
     ]);
 
     const splitSegments = useMemo(() => {
-        return segmentedData.map((segment) => {
+        return [...segmentedData].map((segment) => {
             const { data: segmentData, ...rest } = segment;
             const completedPeriodData: MetricExploreDataPointWithDateValue[] =
                 [];

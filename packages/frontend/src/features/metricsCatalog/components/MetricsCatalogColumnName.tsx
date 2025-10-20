@@ -123,6 +123,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             function lockScroll() {
                 const tableContainer = table.refs.tableContainerRef.current;
                 if (tableContainer && isPickerOpen) {
+                    // eslint-disable-next-line react-hooks/immutability
                     tableContainer.style.overflow = 'hidden';
                 }
                 return () => {

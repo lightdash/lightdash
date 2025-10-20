@@ -216,17 +216,18 @@ export const SqlEditor: FC<{
         // do nothing if no highlightText is provided
         if (!highlightText) return;
         // if no end, highlight only the start + 1 character
-        if (!highlightText.end) {
-            highlightText.end = {
+        const highlight = {
+            start: highlightText.start,
+            end: highlightText.end ?? {
                 line: highlightText.start.line,
                 char: highlightText.start.char + 1,
-            };
-        }
+            },
+        };
         const range = new monaco.Range(
-            highlightText.start.line,
-            highlightText.start.char,
-            highlightText.end.line,
-            highlightText.end.char,
+            highlight.start.line,
+            highlight.start.char,
+            highlight.end.line,
+            highlight.end.char,
         );
         const newDecorations = [
             {

@@ -110,5 +110,22 @@ module.exports = {
             },
         ],
         'react-refresh/only-export-components': 'error',
+
+        // React Compiler rules
+        'react-hooks/config': 'error',
+        'react-hooks/error-boundaries': 'error',
+        'react-hooks/component-hook-factories': 'error',
+        'react-hooks/gating': 'error',
+        'react-hooks/globals': 'error',
+        'react-hooks/immutability': 'error',
+        'react-hooks/preserve-manual-memoization': 'warn',
+        'react-hooks/purity': 'error',
+        'react-hooks/refs': 'warn',
+        'react-hooks/set-state-in-effect': 'warn',
+        'react-hooks/set-state-in-render': 'warn',
+        'react-hooks/static-components': 'warn',
+        'react-hooks/unsupported-syntax': 'warn',
+        'react-hooks/use-memo': 'error',
+        'react-hooks/incompatible-library': 'warn',
     },
 };

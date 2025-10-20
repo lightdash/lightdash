@@ -19,7 +19,29 @@ export default defineConfig({
     },
     plugins: [
         svgrPlugin(),
-        reactPlugin(),
+        reactPlugin({
+            babel: {
+                plugins: [],
+                overrides: [
+                    {
+                        /**
+                         * Enable React Compiler only for the EE directory only
+                         * Reason:
+                         * some packages aren't optimisable by the React compiler yet, e.g. @tanstack/react-table and mantine-react-table
+                         */
+                        test: /\/src\/ee\/.*\.tsx?$/,
+                        plugins: [
+                            [
+                                'babel-plugin-react-compiler',
+                                {
+                                    panicThreshold: 'none',
+                                },
+                            ],
+                        ],
+                    },
+                ],
+            },
+        }),
         compression({
             include: [/\.(js)$/, /\.(css)$/],
             filename: '[path][base].gzip',
