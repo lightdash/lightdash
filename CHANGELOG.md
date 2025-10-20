@@ -1,3 +1,10 @@
+# [0.2096.0](https://github.com/lightdash/lightdash/compare/0.2095.0...0.2096.0) (2025-10-20)
+
+
+### Features
+
+* add findContent tool to replace separate chart and dashboard search tools ([#17528](https://github.com/lightdash/lightdash/issues/17528)) ([180efcb](https://github.com/lightdash/lightdash/commit/180efcb4e2608ee4733fe2b407d6584857176673))
+
 # [0.2095.0](https://github.com/lightdash/lightdash/compare/0.2094.3...0.2095.0) (2025-10-20)
 
 
