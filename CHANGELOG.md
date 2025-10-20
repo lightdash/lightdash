@@ -1,3 +1,10 @@
+# [0.2097.0](https://github.com/lightdash/lightdash/compare/0.2096.1...0.2097.0) (2025-10-20)
+
+
+### Features
+
+* upgrade to react 19.2.0 ([#17540](https://github.com/lightdash/lightdash/issues/17540)) ([81f540b](https://github.com/lightdash/lightdash/commit/81f540b7a239a08c93ae142ce2431e33bec970cf))
+
 ## [0.2096.1](https://github.com/lightdash/lightdash/compare/0.2096.0...0.2096.1) (2025-10-20)
 
 
