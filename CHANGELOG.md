@@ -1,3 +1,10 @@
+## [0.2094.3](https://github.com/lightdash/lightdash/compare/0.2094.2...0.2094.3) (2025-10-20)
+
+
+### Bug Fixes
+
+* use fieldsWithOverrides for executeAsyncDashboardChartQuery ([#17539](https://github.com/lightdash/lightdash/issues/17539)) ([5462013](https://github.com/lightdash/lightdash/commit/546201302ded5e74e8674c7d70fb0a13b2d24bb7))
+
 ## [0.2094.2](https://github.com/lightdash/lightdash/compare/0.2094.1...0.2094.2) (2025-10-20)
 
 
