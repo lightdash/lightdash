@@ -188,7 +188,7 @@ export const getFindExplores = ({
                     result: generateExploreResponse({
                         explore,
                         catalogFields,
-                    }) as string,
+                    }).toString(),
                     metadata: {
                         status: 'success',
                     },

@@ -102,7 +102,7 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
                 return {
                     result: (
                         <searchresults>{fieldsText}</searchresults>
-                    ) as string,
+                    ).toString(),
                     metadata: {
                         status: 'success',
                     },
