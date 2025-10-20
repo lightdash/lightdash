@@ -52,6 +52,7 @@ const getToolIcon = (toolName: ToolName) => {
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             generateDashboard: IconDashboard,
+            findContent: IconSearch,
             findDashboards: IconDashboard,
             findCharts: IconChartDots3,
             improveContext: IconSchool,
@@ -233,6 +234,26 @@ const ToolCallDescription: FC<{
                         timeSeriesToolCallArgs.vizConfig.breakdownByDimension
                     }
                 />
+            );
+        case 'find_content':
+            const findContentToolArgs = toolArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for content{' '}
+                    {findContentToolArgs.searchQueries.map((query) => (
+                        <Badge
+                            key={query.label}
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            mx={rem(2)}
+                            radius="sm"
+                            style={{ textTransform: 'none', fontWeight: 400 }}
+                        >
+                            {query.label}
+                        </Badge>
+                    ))}
+                </Text>
             );
         case 'find_dashboards':
             const findDashboardsToolArgs = toolArgs;
