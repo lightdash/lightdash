@@ -122,7 +122,7 @@ export const TOOL_RUN_QUERY_DESCRIPTION = `Tool: runQuery
 
 Purpose:
 Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types in the UI after creation.
+You define the default visualization type to render but users can switch between visualization types after creation.
 
 Chart Type Selection Guide:
 - 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
@@ -137,8 +137,8 @@ Configuration Tips:
 - Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
 - First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
 - At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0]) useful for visualizing the data
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations useful for visualizing the data
+- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
+- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
 - chartConfig.groupBy: Use to split data into multiple series (e.g., one line per region). Do NOT include the x-axis dimension. Only include dimensions for series breakdown. Leave null for simple single-series charts.
 - For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
 - For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
