@@ -14,11 +14,11 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
+    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
@@ -70,21 +70,15 @@ export const useExplorerQueryManager = () => {
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
-    // Get merged version with chartConfig and pivotConfig from Context
-    // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
+    // NOTE: mergedUnsavedChartVersion is now same as unsavedChartVersion since chartConfig/pivotConfig are in Redux
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const chartConfigForQuery = useMemo(
         () => ({
-            chartConfig: mergedUnsavedChartVersion.chartConfig,
-            pivotConfig: mergedUnsavedChartVersion.pivotConfig,
+            chartConfig: unsavedChartVersion.chartConfig,
+            pivotConfig: unsavedChartVersion.pivotConfig,
         }),
-        [
-            mergedUnsavedChartVersion.chartConfig,
-            mergedUnsavedChartVersion.pivotConfig,
-        ],
+        [unsavedChartVersion.chartConfig, unsavedChartVersion.pivotConfig],
     );
 
     // Get explore data and pivot configuration

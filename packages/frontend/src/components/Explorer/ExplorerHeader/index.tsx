@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, isTimeZone } from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
@@ -7,9 +7,13 @@ import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
+    explorerActions,
     selectIsValidQuery,
     selectQueryLimit,
+    selectSavedChart,
     selectTimezone,
+    selectUnsavedChartVersion,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
@@ -18,7 +22,6 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExp
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import MantineIcon from '../../common/MantineIcon';
@@ -45,15 +48,19 @@ const ExplorerHeader: FC = memo(() => {
     );
     const queryWarnings = query.data?.warnings;
 
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
+    const dispatch = useExplorerDispatch();
+
+    const savedChart = useExplorerSelector(selectSavedChart);
+
+    const unsavedChartVersion = useExplorerSelector(
+        selectUnsavedChartVersion,
     );
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
-    const setTimeZone = useExplorerContext(
-        (context) => context.actions.setTimeZone,
-    );
+
+    const handleSetTimeZone = (timezone: string | null) => {
+        if (timezone && isTimeZone(timezone)) {
+            dispatch(explorerActions.setTimeZone(timezone));
+        }
+    };
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
@@ -63,10 +70,10 @@ const ExplorerHeader: FC = memo(() => {
     );
 
     const urlToShare = useMemo(() => {
-        if (mergedUnsavedChartVersion) {
+        if (unsavedChartVersion) {
             const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
                 projectUuid,
-                mergedUnsavedChartVersion,
+                unsavedChartVersion,
                 true,
             );
             return {
@@ -74,7 +81,7 @@ const ExplorerHeader: FC = memo(() => {
                 search: `?${urlArgs.search}`,
             };
         }
-    }, [mergedUnsavedChartVersion, projectUuid]);
+    }, [unsavedChartVersion, projectUuid]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -150,7 +157,7 @@ const ExplorerHeader: FC = memo(() => {
 
                 {userTimeZonesEnabled && (
                     <TimeZonePicker
-                        onChange={setTimeZone}
+                        onChange={handleSetTimeZone}
                         value={selectedTimezone as string}
                     />
                 )}

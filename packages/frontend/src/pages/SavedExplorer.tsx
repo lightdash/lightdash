@@ -8,21 +8,36 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
-import { explorerStore } from '../features/explorer/store';
+import {
+    explorerStore,
+    useExplorerInitialization,
+} from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
-import { defaultQueryExecution } from '../providers/Explorer/defaultState';
-import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
 );
 
-const SavedExplorerContent = memo<{ isEditMode: boolean }>(({ isEditMode }) => {
+const SavedExplorerContent = memo<{
+    isEditMode: boolean;
+    defaultLimit?: number;
+}>(({ isEditMode, defaultLimit }) => {
+    const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
+    const { data } = useSavedQuery({ id: savedQueryUuid });
+
+    // Initialize Redux store
+    useExplorerInitialization({
+        savedChart: data,
+        isEditMode,
+        expandedSections: [ExplorerSection.VISUALIZATION],
+        defaultLimit,
+    });
+
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
 
@@ -86,52 +101,11 @@ const SavedExplorer = () => {
     }
 
     return (
-        <Provider store={explorerStore}>
-            <ExplorerProvider
+        <Provider store={explorerStore} key={`saved-${savedQueryUuid}-${mode}`}>
+            <SavedExplorerContent
                 isEditMode={isEditMode}
-                initialState={
-                    data
-                        ? {
-                              isEditMode,
-                              parameterReferences: Object.keys(
-                                  data.parameters ?? {},
-                              ),
-                              parameterDefinitions: {},
-                              expandedSections: [ExplorerSection.VISUALIZATION],
-                              unsavedChartVersion: {
-                                  tableName: data.tableName,
-                                  chartConfig: data.chartConfig,
-                                  metricQuery: data.metricQuery,
-                                  tableConfig: data.tableConfig,
-                                  pivotConfig: data.pivotConfig,
-                                  parameters: data.parameters,
-                              },
-                              modals: {
-                                  format: {
-                                      isOpen: false,
-                                  },
-                                  additionalMetric: {
-                                      isOpen: false,
-                                  },
-                                  customDimension: {
-                                      isOpen: false,
-                                  },
-                                  writeBack: {
-                                      isOpen: false,
-                                  },
-                                  itemDetail: {
-                                      isOpen: false,
-                                  },
-                              },
-                              queryExecution: defaultQueryExecution,
-                          }
-                        : undefined
-                }
-                savedChart={data}
                 defaultLimit={health.data?.query.defaultLimit}
-            >
-                <SavedExplorerContent isEditMode={isEditMode} />
-            </ExplorerProvider>
+            />
         </Provider>
     );
 };

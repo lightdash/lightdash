@@ -31,7 +31,10 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import { explorerStore } from '../features/explorer/store';
+import {
+    explorerStore,
+    useExplorerInitialization,
+} from '../features/explorer/store';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
     useChartHistory,
@@ -40,17 +43,43 @@ import {
     useSavedQuery,
 } from '../hooks/useSavedQuery';
 import { Can } from '../providers/Ability';
-import { defaultQueryExecution } from '../providers/Explorer/defaultState';
-import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
-const ChartHistoryExplorer = memo(() => {
-    // Run the query effects hook - orchestrates all query effects
-    useExplorerQueryEffects();
+const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
+    ({ selectedVersionUuid }) => {
+        const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
+        const chartVersionQuery = useChartVersion(
+            savedQueryUuid,
+            selectedVersionUuid,
+        );
 
-    return <Explorer hideHeader={true} />;
-});
+        // Initialize Redux with the chart version data
+        useExplorerInitialization({
+            initialState: chartVersionQuery.data
+                ? {
+                      parameterReferences: [],
+                      parameterDefinitions: {},
+                      expandedSections: [ExplorerSection.VISUALIZATION],
+                      unsavedChartVersion: chartVersionQuery.data.chart,
+                      modals: {
+                          format: { isOpen: false },
+                          additionalMetric: { isOpen: false },
+                          customDimension: { isOpen: false },
+                          writeBack: { isOpen: false },
+                          itemDetail: { isOpen: false },
+                      },
+                  }
+                : undefined,
+            savedChart: chartVersionQuery.data?.chart,
+        });
+
+        // Run the query effects hook - orchestrates all query effects
+        useExplorerQueryEffects();
+
+        return <Explorer hideHeader={true} />;
+    },
+);
 
 const ChartHistory = () => {
     const navigate = useNavigate();
@@ -71,11 +100,6 @@ const ChartHistory = () => {
             selectVersionUuid(currentVersion.versionUuid);
         }
     }, [selectedVersionUuid, historyQuery.data]);
-
-    const chartVersionQuery = useChartVersion(
-        savedQueryUuid,
-        selectedVersionUuid,
-    );
 
     const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
         onSuccess: () => {
@@ -254,39 +278,11 @@ const ChartHistory = () => {
                     title="Select a version"
                 />
             )}
-            {chartVersionQuery.data && (
-                <Provider store={explorerStore}>
-                    <ExplorerProvider
-                        key={selectedVersionUuid}
-                        initialState={{
-                            parameterReferences: [],
-                            parameterDefinitions: {},
-                            previouslyFetchedState: undefined,
-                            expandedSections: [ExplorerSection.VISUALIZATION],
-                            unsavedChartVersion: chartVersionQuery.data.chart,
-                            modals: {
-                                format: {
-                                    isOpen: false,
-                                },
-                                additionalMetric: {
-                                    isOpen: false,
-                                },
-                                customDimension: {
-                                    isOpen: false,
-                                },
-                                writeBack: {
-                                    isOpen: false,
-                                },
-                                itemDetail: {
-                                    isOpen: false,
-                                },
-                            },
-                            queryExecution: defaultQueryExecution,
-                        }}
-                        savedChart={chartVersionQuery.data?.chart}
-                    >
-                        <ChartHistoryExplorer />
-                    </ExplorerProvider>
+            {selectedVersionUuid && (
+                <Provider store={explorerStore} key={selectedVersionUuid}>
+                    <ChartHistoryExplorer
+                        selectedVersionUuid={selectedVersionUuid}
+                    />
                 </Provider>
             )}
 

@@ -12,6 +12,8 @@ export const defaultQueryExecution: ExplorerReduceState['queryExecution'] = {
 
 export const defaultState: ExplorerReduceState = {
     isVisualizationConfigOpen: false,
+    isEditMode: false,
+    isMinimal: false,
     parameterReferences: [],
     parameterDefinitions: {},
     previouslyFetchedState: undefined,

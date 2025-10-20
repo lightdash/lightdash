@@ -8,12 +8,16 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
-import { type FC } from 'react';
-import { selectSorts } from '../../../features/explorer/store';
-import { useExplorerSelector } from '../../../features/explorer/store/hooks';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    selectSorts,
+    selectTableCalculations,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
 import { TemplateTypeLabels } from '../../../features/tableCalculation/utils/templateFormatting';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { generateTableCalculationTemplate } from './tableCalculationTemplateGenerator';
@@ -87,23 +91,21 @@ const isCalculationAvailable = (
 };
 
 const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
-    const addTableCalculation = useExplorerContext(
-        (context) => context.actions.addTableCalculation,
-    );
+    const dispatch = useExplorerDispatch();
     const { track } = useTracking();
-    const onCreate = (value: TableCalculation) => {
-        addTableCalculation(value);
-        track({
-            name: EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-    };
+
+    const handleAddTableCalculation = useCallback(
+        (value: TableCalculation) => {
+            dispatch(explorerActions.addTableCalculation(value));
+            track({
+                name: EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+        },
+        [dispatch, track],
+    );
 
     const sorts = useExplorerSelector(selectSorts);
-
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
     const orderWithoutTableCalculations = sorts.filter(
         (sort) => !tableCalculations.some((tc) => tc.name === sort.fieldId),
     );
@@ -128,7 +130,7 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
             orderWithoutTableCalculations,
         );
 
-        onCreate({
+        handleAddTableCalculation({
             name: uniqueName,
             displayName: name,
             template,
