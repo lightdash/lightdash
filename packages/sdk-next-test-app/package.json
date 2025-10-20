@@ -11,13 +11,13 @@
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
         "next": "15.3.0",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0"
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0"
     },
     "devDependencies": {
         "@types/node": "^20",
-        "@types/react": "^19",
-        "@types/react-dom": "^19",
+        "@types/react": "^19.2.2",
+        "@types/react-dom": "^19.2.2",
         "postcss": "^8.4.49",
         "typescript": "^5"
     }
