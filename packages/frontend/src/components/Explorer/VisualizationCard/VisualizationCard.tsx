@@ -5,6 +5,9 @@ import {
     getPivotConfig,
     NotFoundError,
     type ApiErrorDetail,
+    type ChartConfig,
+    type ChartType,
+    type FieldId,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import {
@@ -23,11 +26,15 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectChartConfig,
     selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
     selectMetricQuery,
+    selectPivotConfig,
+    selectSavedChart,
+    selectTableCalculationsMetadata,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -40,7 +47,6 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
@@ -66,10 +72,10 @@ type Props = {
 const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
+    const dispatch = useExplorerDispatch();
 
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
-    );
+    // Get savedChart from Redux
+    const savedChart = useExplorerSelector(selectSavedChart);
 
     const { query, queryResults, isLoading, getDownloadQueryUuid } =
         useExplorerQuery();
@@ -84,14 +90,33 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [query.data, queryResults],
     );
 
-    const setPivotFields = useExplorerContext(
-        (context) => context.actions.setPivotFields,
+    const handleSetPivotFields = useCallback(
+        (fields: FieldId[] = []) => {
+            dispatch(explorerActions.setPivotConfig({ columns: fields }));
+        },
+        [dispatch],
     );
-    const setChartType = useExplorerContext(
-        (context) => context.actions.setChartType,
+
+    const handleSetChartType = useCallback(
+        (chartType: ChartType) => {
+            // Note: cachedConfigs will need to be managed elsewhere (e.g., component state)
+            dispatch(
+                explorerActions.setChartType({ chartType, cachedConfigs: {} }),
+            );
+        },
+        [dispatch],
     );
-    const setChartConfig = useExplorerContext(
-        (context) => context.actions.setChartConfig,
+
+    const handleSetChartConfig = useCallback(
+        (chartConfig: ChartConfig) => {
+            dispatch(
+                explorerActions.setChartConfig({
+                    chartConfig,
+                    cachedConfigs: {},
+                }),
+            );
+        },
+        [dispatch],
     );
 
     const isOpen = useExplorerSelector(selectIsVisualizationExpanded);
@@ -99,8 +124,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
     );
-    const dispatch = useExplorerDispatch();
-
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
@@ -112,13 +135,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
-    // Read chartConfig and pivotConfig from Context (not synced to Redux)
-    const chartConfig = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.chartConfig,
-    );
-    const pivotConfig = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.pivotConfig,
-    );
+    // Now read from Redux
+    const chartConfig = useExplorerSelector(selectChartConfig);
+    const pivotConfig = useExplorerSelector(selectPivotConfig);
 
     const unsavedChartVersion = useMemo(
         () => ({
@@ -131,17 +150,16 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [tableName, metricQuery, columnOrder, chartConfig, pivotConfig],
     );
 
-    const tableCalculationsMetadata = useExplorerContext(
-        (context) => context.state.metadata?.tableCalculations,
+    const tableCalculationsMetadata = useExplorerSelector(
+        selectTableCalculationsMetadata,
     );
 
     const toggleSection = useCallback(
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
     );
-    const projectUuid = useExplorerContext(
-        (context) => context.state.savedChart?.projectUuid || fallBackUUid,
-    );
+
+    const projectUuid = savedChart?.projectUuid || fallBackUUid;
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
@@ -257,9 +275,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
-                onChartConfigChange={setChartConfig}
-                onChartTypeChange={setChartType}
-                onPivotDimensionsChange={setPivotFields}
+                onChartConfigChange={handleSetChartConfig}
+                onChartTypeChange={handleSetChartType}
+                onPivotDimensionsChange={handleSetPivotFields}
                 colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 tableCalculationsMetadata={tableCalculationsMetadata}
                 parameters={query.data?.usedParametersValues}

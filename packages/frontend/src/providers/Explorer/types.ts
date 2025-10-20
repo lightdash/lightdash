@@ -250,6 +250,7 @@ export interface ExplorerReduceState {
         unpivotedQueryUuidHistory: string[];
     };
     fromDashboard?: string;
+    savedChart?: SavedChart;
 }
 
 export interface ExplorerState extends ExplorerReduceState {

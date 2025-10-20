@@ -4,7 +4,6 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { explorerStore } from '../features/explorer/store';
-import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { useExplorerQuery } from './useExplorerQuery';
 
 // Mock the hooks that depend on external APIs
@@ -47,9 +46,7 @@ const createWrapper = () => {
     return ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>
             <Provider store={explorerStore}>
-                <MemoryRouter>
-                    <ExplorerProvider>{children}</ExplorerProvider>
-                </MemoryRouter>
+                <MemoryRouter>{children}</MemoryRouter>
             </Provider>
         </QueryClientProvider>
     );

@@ -1,7 +1,10 @@
 import { type TableCalculation } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
-import { type FC } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import TableCalculationModal from './TableCalculationModal';
@@ -15,17 +18,24 @@ export const UpdateTableCalculationModal: FC<Props> = ({
     tableCalculation,
     onClose,
 }) => {
-    const updateTableCalculation = useExplorerContext(
-        (context) => context.actions.updateTableCalculation,
-    );
+    const dispatch = useExplorerDispatch();
     const { track } = useTracking();
-    const onUpdate = (value: TableCalculation) => {
-        updateTableCalculation(tableCalculation.name, value);
-        track({
-            name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
+
+    const onUpdate = useCallback(
+        (value: TableCalculation) => {
+            dispatch(
+                explorerActions.updateTableCalculation({
+                    oldName: tableCalculation.name,
+                    tableCalculation: value,
+                }),
+            );
+            track({
+                name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+            onClose();
+        },
+        [dispatch, tableCalculation.name, track, onClose],
+    );
 
     return (
         <TableCalculationModal

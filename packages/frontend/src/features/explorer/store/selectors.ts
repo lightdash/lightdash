@@ -1,11 +1,13 @@
 import {
     convertFieldRefToFieldId,
+    deepEqual,
     getAllReferences,
     getItemId,
     getTotalFilterRules,
     getVisibleFields,
     isCustomBinDimension,
     isCustomSqlDimension,
+    removeEmptyProperties,
     type AdditionalMetric,
     type CustomDimension,
     type Explore,
@@ -15,6 +17,7 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { cleanConfig } from '../../../providers/Explorer/utils';
 
 const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
 const EMPTY_PARAMETERS: ParametersValuesMap = {};
@@ -177,6 +180,18 @@ export const selectTimezone = createSelector(
     (metricQuery) => metricQuery.timezone,
 );
 
+// Chart config selector
+export const selectChartConfig = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.chartConfig,
+);
+
+// Pivot config selector
+export const selectPivotConfig = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
+);
+
 // Query execution selectors
 const selectQueryExecution = createSelector(
     [selectExplorerState],
@@ -207,6 +222,18 @@ export const selectUnpivotedQueryUuidHistory = createSelector(
 export const selectFromDashboard = createSelector(
     [selectExplorerState],
     (explorer) => explorer.fromDashboard,
+);
+
+// Saved chart selector
+export const selectSavedChart = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.savedChart,
+);
+
+// Metadata selectors
+export const selectTableCalculationsMetadata = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.metadata?.tableCalculations,
 );
 
 // Stable empty Set to prevent unnecessary re-renders
@@ -370,4 +397,36 @@ export const selectFormatModal = createSelector(
 export const selectAdditionalMetricModal = createSelector(
     [selectModals],
     (modals) => modals?.additionalMetric ?? { isOpen: false },
+);
+
+// Selector to check if unsaved chart has changes compared to saved chart
+// Returns true if there are unsaved changes, false otherwise
+export const selectHasUnsavedChanges = createSelector(
+    [selectUnsavedChartVersion, selectSavedChart],
+    (unsavedChartVersion, savedChart) => {
+        if (!savedChart) {
+            // No saved chart means this is a new chart - no "unsaved changes"
+            return false;
+        }
+
+        // Compare normalized versions of saved and unsaved
+        return !deepEqual(
+            removeEmptyProperties({
+                tableName: savedChart.tableName,
+                chartConfig: cleanConfig(savedChart.chartConfig),
+                metricQuery: savedChart.metricQuery,
+                tableConfig: savedChart.tableConfig,
+                pivotConfig: savedChart.pivotConfig,
+                parameters: savedChart.parameters,
+            }),
+            removeEmptyProperties({
+                tableName: unsavedChartVersion.tableName,
+                chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
+                metricQuery: unsavedChartVersion.metricQuery,
+                tableConfig: unsavedChartVersion.tableConfig,
+                pivotConfig: unsavedChartVersion.pivotConfig,
+                parameters: unsavedChartVersion.parameters,
+            }),
+        );
+    },
 );
