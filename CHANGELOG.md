@@ -1,3 +1,10 @@
+## [0.2094.2](https://github.com/lightdash/lightdash/compare/0.2094.1...0.2094.2) (2025-10-20)
+
+
+### Bug Fixes
+
+* take parameters into account for google sheet sync ([#17457](https://github.com/lightdash/lightdash/issues/17457)) ([a08ef31](https://github.com/lightdash/lightdash/commit/a08ef31149e49c5b32b6ee4b8d875de9495f3616))
+
 ## [0.2094.1](https://github.com/lightdash/lightdash/compare/0.2094.0...0.2094.1) (2025-10-17)
 
 
