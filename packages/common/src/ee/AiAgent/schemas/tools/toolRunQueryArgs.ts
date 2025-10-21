@@ -115,6 +115,16 @@ const chartConfigSchema = z
             .string()
             .nullable()
             .describe('A helpful label to explain the y-axis'),
+        secondaryYAxisMetric: z
+            .string()
+            .nullable()
+            .describe(
+                '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
+            ),
+        secondaryYAxisLabel: z
+            .string()
+            .nullable()
+            .describe('A helpful label for the secondary y-axis'),
     })
     .nullable();
 

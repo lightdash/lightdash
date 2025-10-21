@@ -20,6 +20,7 @@ export const getLineChartEchartsConfig = async (
     const { chartConfig } = queryTool;
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
+    const secondaryYAxisMetric = chartConfig?.secondaryYAxisMetric;
     let metrics: string[] = yMetrics;
     let chartData = rows;
 
@@ -37,10 +38,50 @@ export const getLineChartEchartsConfig = async (
 
     const xAxisField = fieldsMap[xDimension];
     const yAxisField = yMetrics[0] ? fieldsMap[yMetrics[0]] : undefined;
+    const secondaryYAxisField = secondaryYAxisMetric
+        ? fieldsMap[secondaryYAxisMetric]
+        : undefined;
 
     const primarySort = sorts?.[0];
     const shouldInverseXAxis =
         primarySort?.fieldId === xDimension && primarySort?.descending === true;
+
+    // Build yAxis array based on whether secondary axis is specified
+    const yAxisConfig = secondaryYAxisMetric
+        ? [
+              {
+                  type: 'value' as const,
+                  ...getCartesianAxisFormatterConfig({
+                      axisItem: yAxisField,
+                      show: true,
+                  }),
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+              {
+                  type: 'value' as const,
+                  ...getCartesianAxisFormatterConfig({
+                      axisItem: secondaryYAxisField,
+                      show: true,
+                  }),
+                  ...(chartConfig?.secondaryYAxisLabel
+                      ? { name: chartConfig.secondaryYAxisLabel }
+                      : {}),
+              },
+          ]
+        : [
+              {
+                  type: 'value' as const,
+                  ...getCartesianAxisFormatterConfig({
+                      axisItem: yAxisField,
+                      show: true,
+                  }),
+                  ...(chartConfig?.yAxisLabel
+                      ? { name: chartConfig.yAxisLabel }
+                      : {}),
+              },
+          ];
 
     return {
         ...getCommonEChartsConfig(
@@ -60,29 +101,44 @@ export const getLineChartEchartsConfig = async (
                 ...(shouldInverseXAxis ? { inverse: true } : {}),
             },
         ],
-        yAxis: [
-            {
-                type: 'value',
-                ...getCartesianAxisFormatterConfig({
-                    axisItem: yAxisField,
-                    show: true,
+        yAxis: yAxisConfig,
+        series: [
+            ...metrics.map((metric) => ({
+                type: 'line' as const,
+                yAxisIndex: 0,
+                // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
+                name: yMetrics.includes(metric)
+                    ? formatFieldLabel(metric, fieldsMap)
+                    : metric,
+                encode: {
+                    x: xDimension,
+                    y: metric,
+                },
+                ...(chartConfig?.lineType === 'area' && {
+                    areaStyle: {},
                 }),
-            },
+                showSymbol: true,
+            })),
+            ...(secondaryYAxisMetric
+                ? [
+                      {
+                          type: 'line' as const,
+                          yAxisIndex: 1,
+                          name: formatFieldLabel(
+                              secondaryYAxisMetric,
+                              fieldsMap,
+                          ),
+                          encode: {
+                              x: xDimension,
+                              y: secondaryYAxisMetric,
+                          },
+                          ...(chartConfig?.lineType === 'area' && {
+                              areaStyle: {},
+                          }),
+                          showSymbol: true,
+                      },
+                  ]
+                : []),
         ],
-        series: metrics.map((metric) => ({
-            type: 'line',
-            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-            name: yMetrics.includes(metric)
-                ? formatFieldLabel(metric, fieldsMap)
-                : metric,
-            encode: {
-                x: xDimension,
-                y: metric,
-            },
-            ...(chartConfig?.lineType === 'area' && {
-                areaStyle: {},
-            }),
-            showSymbol: true,
-        })),
     };
 };
