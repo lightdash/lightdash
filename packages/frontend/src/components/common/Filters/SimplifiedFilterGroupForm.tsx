@@ -1,36 +1,65 @@
-import { type FilterableField, type FilterRule } from '@lightdash/common';
+import {
+    getGroupKey,
+    type FilterableField,
+    type FilterRule,
+} from '@lightdash/common';
 import { Stack, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
+import type { FieldsWithSuggestions } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FilterRuleForm from './FilterRuleForm';
+
+/**
+ * SimplifiedFilterGroupForm - Simple flat list of filter rules (< 2 rules, no nesting)
+ *
+ * Uses atomic filter tree actions for O(1) updates:
+ * - Delete: removeFilterRuleFromTree({ ruleId })
+ * - Update: updateFilterRuleInTree({ ruleId, updates })
+ *
+ * With single tree architecture, groupKey is stored in nodes - no need to pass it!
+ */
 
 type Props = {
     fields: FilterableField[];
+    itemsMap: FieldsWithSuggestions;
     filterRules: FilterRule[];
     isEditMode: boolean;
-    onChange: (value: FilterRule[]) => void;
 };
 
 const SimplifiedFilterGroupForm: FC<Props> = memo(
-    ({ isEditMode, fields, filterRules, onChange }) => {
+    ({ isEditMode, fields, filterRules, itemsMap }) => {
+        const dispatch = useExplorerDispatch();
+
+        // Atomic O(1) deletion using filter tree
         const onDeleteItem = useCallback(
-            (index: number) => {
-                onChange([
-                    ...filterRules.slice(0, index),
-                    ...filterRules.slice(index + 1),
-                ]);
+            (ruleId: string) => {
+                dispatch(
+                    explorerActions.removeFilterRuleFromTree({
+                        ruleId,
+                    }),
+                );
             },
-            [filterRules, onChange],
+            [dispatch],
         );
 
+        // Atomic O(1) update using filter tree
         const onChangeItem = useCallback(
-            (index: number, item: FilterRule) => {
-                onChange([
-                    ...filterRules.slice(0, index),
-                    item,
-                    ...filterRules.slice(index + 1),
-                ]);
+            (ruleId: string, updates: FilterRule) => {
+                const targetItem = itemsMap[updates.target.fieldId];
+                if (targetItem) {
+                    dispatch(
+                        explorerActions.updateFilterRuleInTree({
+                            ruleId,
+                            updates,
+                            groupKey: getGroupKey(targetItem),
+                        }),
+                    );
+                }
             },
-            [filterRules, onChange],
+            [dispatch, itemsMap],
         );
 
         return (
@@ -46,14 +75,14 @@ const SimplifiedFilterGroupForm: FC<Props> = memo(
                 </Tooltip>
 
                 <Stack spacing="sm">
-                    {filterRules.map((item, index) => (
+                    {filterRules.map((item) => (
                         <FilterRuleForm
                             isEditMode={isEditMode}
                             key={item.id}
                             filterRule={item}
                             fields={fields}
-                            onChange={(value) => onChangeItem(index, value)}
-                            onDelete={() => onDeleteItem(index)}
+                            onChange={(value) => onChangeItem(item.id, value)}
+                            onDelete={() => onDeleteItem(item.id)}
                         />
                     ))}
                 </Stack>

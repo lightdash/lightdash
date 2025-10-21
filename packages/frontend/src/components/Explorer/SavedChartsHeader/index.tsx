@@ -115,6 +115,7 @@ const SavedChartsHeader: FC = () => {
         (context) => context.state.isEditMode,
     );
 
+    // Use version WITH filters for comparison with saved chart
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.mergedUnsavedChartVersion,
     );
