@@ -1,3 +1,10 @@
+## [0.2097.2](https://github.com/lightdash/lightdash/compare/0.2097.1...0.2097.2) (2025-10-21)
+
+
+### Bug Fixes
+
+* apply format in useColumns for view mode ([#17555](https://github.com/lightdash/lightdash/issues/17555)) ([b684b09](https://github.com/lightdash/lightdash/commit/b684b095359629386bd89b6ebdfbe826e4edd761))
+
 ## [0.2097.1](https://github.com/lightdash/lightdash/compare/0.2097.0...0.2097.1) (2025-10-21)
 
 

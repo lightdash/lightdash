@@ -196,10 +196,13 @@ export const useColumns = (): TableColumn[] => {
             ...(resultsFields || {}),
         };
 
-        // Apply metric overrides and remove legacy format properties
-        // to ensure formatItemValue uses new formatOptions instead of old format expressions
         return Object.fromEntries(
             Object.entries(mergedMap).map(([key, value]) => {
+                const isFromResults = resultsFields && key in resultsFields;
+                if (isFromResults) {
+                    return [key, value];
+                }
+
                 if (!metricOverrides?.[key]) return [key, value];
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
