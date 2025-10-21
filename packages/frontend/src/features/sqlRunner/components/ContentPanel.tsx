@@ -160,6 +160,10 @@ export const ContentPanel: FC = () => {
 
     const queryResults = useAppSelector(selectSqlQueryResults);
 
+    const defaultQueryLimit = useMemo(() => {
+        return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
+    }, [health]);
+
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
@@ -167,13 +171,23 @@ export const ContentPanel: FC = () => {
             await dispatch(
                 runSqlQuery({
                     sql: sqlToUse,
-                    limit,
+                    limit:
+                        activeEditorTab === EditorTabs.SQL
+                            ? defaultQueryLimit
+                            : limit,
                     projectUuid,
                     parameterValues,
                 }),
             );
         },
-        [dispatch, projectUuid, limit, parameterValues],
+        [
+            dispatch,
+            projectUuid,
+            limit,
+            parameterValues,
+            activeEditorTab,
+            defaultQueryLimit,
+        ],
     );
 
     useEffect(() => {
@@ -286,10 +300,6 @@ export const ContentPanel: FC = () => {
             setPanelSizes([50, 50]);
         }
     }, [queryResults, panelSizes]);
-
-    const defaultQueryLimit = useMemo(() => {
-        return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
-    }, [health]);
 
     useEffect(() => {
         if (!limit) {
