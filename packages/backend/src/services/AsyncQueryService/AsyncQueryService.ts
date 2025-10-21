@@ -862,14 +862,22 @@ export class AsyncQueryService extends ProjectService {
             throw new UnexpectedServerError('No columns found for query');
         }
 
-        await this.downloadAuditModel.logDownload({
-            queryUuid,
-            userUuid: isJwtUser(account) ? null : account.user.userUuid,
-            organizationUuid,
-            projectUuid: projectUuid || null,
-            fileType: type || DownloadFileType.JSONL,
-            originalQueryContext: queryHistory.context || null,
-        });
+        try {
+            await this.downloadAuditModel.logDownload({
+                queryUuid,
+                userUuid: isJwtUser(account) ? null : account.user.userUuid,
+                organizationUuid,
+                projectUuid: projectUuid || null,
+                fileType: type || DownloadFileType.JSONL,
+                originalQueryContext: queryHistory.context || null,
+            });
+        } catch (error) {
+            this.logger.error('Failed to log download audit', {
+                queryUuid,
+                organizationUuid,
+                error: getErrorMessage(error),
+            });
+        }
 
         // TODO: We should use the columns data instead of fields. We need to: add format expression to columns type and refactor csv service, etc to use columns instead of fields
         // Note: Generate fields for SQL queries. As a workaround, we check the explore name to identify SQL queries and generate fields from columns.

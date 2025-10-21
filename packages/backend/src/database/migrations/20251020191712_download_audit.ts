@@ -12,7 +12,7 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.raw('uuid_generate_v4()'))
                 .unique();
             table.uuid('query_uuid').notNullable();
-            table.text('user_uuid');
+            table.uuid('user_uuid').nullable();
             table.uuid('organization_uuid').notNullable();
             table.uuid('project_uuid');
             table.text('file_type').notNullable();
@@ -30,13 +30,6 @@ export async function up(knex: Knex): Promise<void> {
             );
             table.index('downloaded_at', 'download_audit_downloaded_at_idx');
             table.index('query_uuid', 'download_audit_query_uuid_idx');
-
-            // Foreign key to query_history
-            table
-                .foreign('query_uuid')
-                .references('query_uuid')
-                .inTable('query_history')
-                .onDelete('CASCADE');
         });
     }
 }
