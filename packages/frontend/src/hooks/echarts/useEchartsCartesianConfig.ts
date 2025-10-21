@@ -2092,6 +2092,7 @@ const useEchartsCartesianConfig = (
                                     : undefined;
                             }
                         },
+                        xFieldId,
                     )(params as TooltipParam[]);
                     return s;
                 }
