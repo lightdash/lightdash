@@ -1,3 +1,10 @@
+## [0.2101.1](https://github.com/lightdash/lightdash/compare/0.2101.0...0.2101.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* display multiple yaxes labels on slack ai chart ([#17572](https://github.com/lightdash/lightdash/issues/17572)) ([005f0fd](https://github.com/lightdash/lightdash/commit/005f0fda4030f1a99f291eeb727823bc1155cfb1))
+
 # [0.2101.0](https://github.com/lightdash/lightdash/compare/0.2100.0...0.2101.0) (2025-10-21)
 
 
