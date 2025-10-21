@@ -56,6 +56,12 @@ type Props = {
     onDelete?: () => void; // Optional: for synthetic root groups that need special handling
 };
 
+type FieldsForGroup = {
+    dimensions: Array<FilterableDimension | CustomSqlDimension>;
+    metrics: Metric[];
+    tableCalculations: TableCalculation[];
+};
+
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
 
 const FilterGroupForm: FC<Props> = memo(
@@ -81,22 +87,43 @@ const FilterGroupForm: FC<Props> = memo(
             { type: 'group' }
         > | null;
 
-        const [dimensions, metrics, tableCalculations] = useMemo<
-            [
-                Array<FilterableDimension | CustomSqlDimension>,
-                Metric[],
-                TableCalculation[],
-            ]
-        >(() => {
-            return [
-                [
-                    ...fields.filter(isDimension),
-                    ...fields.filter(isCustomSqlDimension),
-                ],
-                fields.filter(isMetric),
-                fields.filter(isTableCalculation),
-            ];
-        }, [fields]);
+        const { dimensions, metrics, tableCalculations } =
+            useMemo<FieldsForGroup>(() => {
+                return fields.reduce<FieldsForGroup>(
+                    (acc, field) => {
+                        if (isDimension(field) || isCustomSqlDimension(field)) {
+                            return {
+                                ...acc,
+                                dimensions: [...acc.dimensions, field],
+                            };
+                        }
+
+                        if (isMetric(field)) {
+                            return {
+                                ...acc,
+                                metrics: [...acc.metrics, field],
+                            };
+                        }
+
+                        if (isTableCalculation(field)) {
+                            return {
+                                ...acc,
+                                tableCalculations: [
+                                    ...acc.tableCalculations,
+                                    field,
+                                ],
+                            };
+                        }
+
+                        return acc;
+                    },
+                    {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                );
+            }, [fields]);
 
         const availableFieldsForGroupRules = useMemo<FilterableField[]>(() => {
             if (!groupNode) return [];
@@ -106,7 +133,7 @@ const FilterGroupForm: FC<Props> = memo(
                 groupNode.operator === FilterGroupOperator.and &&
                 groupNode.id === filterTree.rootId
             ) {
-                return [...dimensions, ...metrics, ...tableCalculations];
+                return fields;
             }
 
             // In every other case we can only use fields of the same type
@@ -120,7 +147,7 @@ const FilterGroupForm: FC<Props> = memo(
                             childNode?.type === 'rule',
                     );
 
-                if (firstRuleChild && firstRuleChild.type === 'rule') {
+                if (firstRuleChild) {
                     // Read groupKey directly from rule node (no field lookup needed!)
                     const groupType = firstRuleChild.groupKey;
                     if (groupType === 'dimensions') {
@@ -139,8 +166,15 @@ const FilterGroupForm: FC<Props> = memo(
             }
 
             // No children yet, allow all fields
-            return [...dimensions, ...metrics, ...tableCalculations];
-        }, [dimensions, groupNode, filterTree, metrics, tableCalculations]);
+            return fields;
+        }, [
+            groupNode,
+            fields,
+            dimensions,
+            metrics,
+            tableCalculations,
+            filterTree,
+        ]);
 
         // Atomic O(1) deletion using filter tree
         const onDeleteItem = useCallback(
