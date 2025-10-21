@@ -1,3 +1,5 @@
+import { AnyType } from '@lightdash/common';
+
 function buildXml(
     tag: string,
     props: Record<string, string | number | boolean | null | undefined> | null,
@@ -64,6 +66,10 @@ declare global {
                 string,
                 string | number | boolean | null | undefined
             > | null;
+        }
+        interface Element extends String {}
+        interface ElementClass {
+            render: AnyType;
         }
     }
 }
