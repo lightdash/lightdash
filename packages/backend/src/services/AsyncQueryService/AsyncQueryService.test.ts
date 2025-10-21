@@ -25,6 +25,7 @@ import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import type { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import type { DownloadFileModel } from '../../models/DownloadFileModel';
 import type { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -160,6 +161,9 @@ const getMockedAsyncQueryService = (
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
+        downloadAuditModel: {
+            logDownload: jest.fn(),
+        } as unknown as DownloadAuditModel,
         queryHistoryModel: {
             create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: jest.fn(async () => undefined),

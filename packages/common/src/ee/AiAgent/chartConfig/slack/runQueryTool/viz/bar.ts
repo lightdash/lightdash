@@ -46,51 +46,36 @@ export const getBarChartEchartsConfig = async (
     const shouldInverseXAxis =
         primarySort?.fieldId === xDimension && primarySort?.descending === true;
 
-    // Build yAxis array based on whether secondary axis is specified
-    const yAxisConfig = secondaryYAxisMetric
-        ? [
-              {
-                  type: 'value' as const,
-                  ...getCartesianAxisFormatterConfig({
-                      axisItem: yAxisField,
-                      show: true,
-                  }),
-                  ...(chartConfig?.yAxisLabel
-                      ? { name: chartConfig.yAxisLabel }
-                      : {}),
-              },
-              {
-                  type: 'value' as const,
-                  ...getCartesianAxisFormatterConfig({
-                      axisItem: secondaryYAxisField,
-                      show: true,
-                  }),
-                  ...(chartConfig?.secondaryYAxisLabel
-                      ? { name: chartConfig.secondaryYAxisLabel }
-                      : {}),
-              },
-          ]
-        : [
-              {
-                  type: 'value' as const,
-                  ...getCartesianAxisFormatterConfig({
-                      axisItem: yAxisField,
-                      show: true,
-                  }),
-                  ...(chartConfig?.yAxisLabel
-                      ? { name: chartConfig.yAxisLabel }
-                      : {}),
-              },
-          ];
+    const yAxisConfig = [
+        {
+            type: 'value' as const,
+            ...getCartesianAxisFormatterConfig({
+                axisItem: yAxisField,
+                show: true,
+            }),
+        },
+        ...(secondaryYAxisField
+            ? [
+                  {
+                      type: 'value' as const,
+                      ...getCartesianAxisFormatterConfig({
+                          axisItem: secondaryYAxisField,
+                          show: true,
+                      }),
+                  },
+              ]
+            : []),
+    ];
 
     return {
-        ...getCommonEChartsConfig(
-            queryTool.title,
-            metrics.length,
+        ...getCommonEChartsConfig({
+            title: queryTool.title,
+            metricsCount: metrics.length,
             chartData,
-            chartConfig?.xAxisLabel,
-            chartConfig?.yAxisLabel,
-        ),
+            xAxisLabel: chartConfig?.xAxisLabel,
+            yAxisLabel: chartConfig?.yAxisLabel,
+            secondaryYAxisLabel: chartConfig?.secondaryYAxisLabel,
+        }),
         xAxis: [
             {
                 type: chartConfig?.xAxisType ?? ('category' as const),

@@ -21,8 +21,8 @@ import {
     IconChartDots3,
     IconChartHistogram,
     IconChartLine,
-    IconDashboard,
     IconDatabase,
+    IconLayoutDashboard,
     IconPencil,
     IconSchool,
     IconSearch,
@@ -51,9 +51,10 @@ const getToolIcon = (toolName: ToolName) => {
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
-            generateDashboard: IconDashboard,
+            generateDashboard: IconLayoutDashboard,
+            generateDashboardV2: IconLayoutDashboard,
             findContent: IconSearch,
-            findDashboards: IconDashboard,
+            findDashboards: IconLayoutDashboard,
             findCharts: IconChartDots3,
             improveContext: IconSchool,
             proposeChange: IconPencil,
@@ -304,6 +305,7 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case AiResultType.DASHBOARD_RESULT:
+        case AiResultType.DASHBOARD_V2_RESULT:
             const dashboardToolArgs = toolArgs;
             return (
                 <Text c="dimmed" size="xs">

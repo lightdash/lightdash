@@ -91,6 +91,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
+import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -147,6 +148,7 @@ const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
+    downloadAuditModel: DownloadAuditModel;
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     featureFlagModel: FeatureFlagModel;
@@ -159,6 +161,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 
 export class AsyncQueryService extends ProjectService {
     queryHistoryModel: QueryHistoryModel;
+
+    downloadAuditModel: DownloadAuditModel;
 
     cacheService?: ICacheService;
 
@@ -179,6 +183,7 @@ export class AsyncQueryService extends ProjectService {
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
+        this.downloadAuditModel = args.downloadAuditModel;
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
         this.featureFlagModel = args.featureFlagModel;
@@ -855,6 +860,23 @@ export class AsyncQueryService extends ProjectService {
 
         if (!columns) {
             throw new UnexpectedServerError('No columns found for query');
+        }
+
+        try {
+            await this.downloadAuditModel.logDownload({
+                queryUuid,
+                userUuid: isJwtUser(account) ? null : account.user.userUuid,
+                organizationUuid,
+                projectUuid: projectUuid || null,
+                fileType: type || DownloadFileType.JSONL,
+                originalQueryContext: queryHistory.context || null,
+            });
+        } catch (error) {
+            this.logger.error('Failed to log download audit', {
+                queryUuid,
+                organizationUuid,
+                error: getErrorMessage(error),
+            });
         }
 
         // TODO: We should use the columns data instead of fields. We need to: add format expression to columns type and refactor csv service, etc to use columns instead of fields

@@ -1,3 +1,38 @@
+# [0.2103.0](https://github.com/lightdash/lightdash/compare/0.2102.0...0.2103.0) (2025-10-21)
+
+
+### Features
+
+* add generateDashboardV2 tool ([#17530](https://github.com/lightdash/lightdash/issues/17530)) ([559e873](https://github.com/lightdash/lightdash/commit/559e873061c7f2cdcb96126bd9808386116d0a03))
+
+# [0.2102.0](https://github.com/lightdash/lightdash/compare/0.2101.1...0.2102.0) (2025-10-21)
+
+
+### Features
+
+* include parameters in the underlying data query ([#17576](https://github.com/lightdash/lightdash/issues/17576)) ([c09a819](https://github.com/lightdash/lightdash/commit/c09a819788b7091ff011042a483a9884a0ff9ddf))
+
+## [0.2101.1](https://github.com/lightdash/lightdash/compare/0.2101.0...0.2101.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* display multiple yaxes labels on slack ai chart ([#17572](https://github.com/lightdash/lightdash/issues/17572)) ([005f0fd](https://github.com/lightdash/lightdash/commit/005f0fda4030f1a99f291eeb727823bc1155cfb1))
+
+# [0.2101.0](https://github.com/lightdash/lightdash/compare/0.2100.0...0.2101.0) (2025-10-21)
+
+
+### Features
+
+* support externalbrowser auth in cli ([#17455](https://github.com/lightdash/lightdash/issues/17455)) ([185c1d7](https://github.com/lightdash/lightdash/commit/185c1d7b18751396e68af5b6576e57ac0bde3df3))
+
+# [0.2100.0](https://github.com/lightdash/lightdash/compare/0.2099.1...0.2100.0) (2025-10-21)
+
+
+### Features
+
+* add download audit tracking for file exports ([#17553](https://github.com/lightdash/lightdash/issues/17553)) ([8486171](https://github.com/lightdash/lightdash/commit/84861714fe3b4fb64111fb15e6cc1970c322b686))
+
 ## [0.2099.1](https://github.com/lightdash/lightdash/compare/0.2099.0...0.2099.1) (2025-10-21)
 
 

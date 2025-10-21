@@ -591,6 +591,7 @@ export class ServiceRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
+                    downloadAuditModel: this.models.getDownloadAuditModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
                     featureFlagModel: this.models.getFeatureFlagModel(),

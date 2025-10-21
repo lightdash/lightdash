@@ -16,6 +16,7 @@ type SnowflakeTarget = {
     account: string;
     user: string;
     password?: string;
+    authenticator?: string;
     private_key_path?: string;
     private_key?: string;
     private_key_passphrase?: string;
@@ -46,6 +47,10 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
             type: 'string',
         },
         password: {
+            type: 'string',
+            nullable: true,
+        },
+        authenticator: {
             type: 'string',
             nullable: true,
         },
@@ -127,6 +132,19 @@ export const convertSnowflakeSchema = async (
             privateKey = target.private_key;
         }
 
+        // Determine authentication type based on authenticator field or credentials present
+        let authenticationType: SnowflakeAuthenticationType;
+        if (
+            target.authenticator &&
+            target.authenticator.toLowerCase() === 'externalbrowser'
+        ) {
+            authenticationType = SnowflakeAuthenticationType.EXTERNAL_BROWSER;
+        } else if (privateKey) {
+            authenticationType = SnowflakeAuthenticationType.PRIVATE_KEY;
+        } else {
+            authenticationType = SnowflakeAuthenticationType.PASSWORD;
+        }
+
         return {
             type: WarehouseTypes.SNOWFLAKE,
             account: target.account,
@@ -134,9 +152,7 @@ export const convertSnowflakeSchema = async (
             password: target.password,
             privateKey,
             privateKeyPass: target.private_key_passphrase,
-            authenticationType: privateKey
-                ? SnowflakeAuthenticationType.PRIVATE_KEY
-                : SnowflakeAuthenticationType.PASSWORD,
+            authenticationType,
             role: target.role,
             warehouse: target.warehouse,
             database: target.database,

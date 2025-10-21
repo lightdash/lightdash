@@ -1,4 +1,8 @@
-import { type Explore, type MetricQuery } from '@lightdash/common';
+import {
+    type Explore,
+    type MetricQuery,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { useCallback, useState, type FC } from 'react';
 import { Context } from './context';
 import { type DrillDownConfig, type UnderlyingDataConfig } from './types';
@@ -8,6 +12,7 @@ type Props = {
     explore: Explore | undefined;
     metricQuery: MetricQuery | undefined;
     queryUuid?: string;
+    parameters?: ParametersValuesMap;
 };
 
 const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -15,6 +20,7 @@ const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
     explore,
     metricQuery,
     queryUuid,
+    parameters,
     children,
 }) => {
     const [underlyingDataConfig, setUnderlyingDataConfig] =
@@ -52,6 +58,7 @@ const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
             value={{
                 tableName,
                 metricQuery,
+                parameters,
                 underlyingDataConfig,
                 openUnderlyingDataModal,
                 isUnderlyingDataModalOpen,

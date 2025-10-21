@@ -7,6 +7,7 @@ import {
     type DateZoom,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
+    type ParametersValuesMap,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ResultRow,
@@ -30,6 +31,7 @@ export const getUnderlyingDataResults = async (
     projectUuid: string,
     data: ExecuteAsyncUnderlyingDataRequestParams,
     pageSize?: number, // pageSize is used when getting the results but not when creating the query
+    parameters?: ParametersValuesMap,
 ): Promise<UnderlyingDataResults> => {
     const startTime = new Date();
 
@@ -38,7 +40,7 @@ export const getUnderlyingDataResults = async (
             url: `/projects/${projectUuid}/query/underlying-data`,
             version: 'v2',
             method: 'POST',
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, parameters }),
         });
 
     // Get all page rows in sequence
@@ -135,6 +137,7 @@ export const useUnderlyingDataResults = (
     underlyingDataSourceQueryUuid?: string,
     underlyingDataItemId?: string,
     dateZoom?: DateZoom,
+    parameters?: ParametersValuesMap,
 ) => {
     const projectUuid = useProjectUuid();
 
@@ -146,16 +149,23 @@ export const useUnderlyingDataResults = (
             underlyingDataItemId,
             filters,
             dateZoom,
+            parameters,
         ],
         enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
         queryFn: () => {
-            return getUnderlyingDataResults(projectUuid!, {
-                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
-                underlyingDataItemId,
-                filters: convertDateFilters(filters),
-                dateZoom,
-            });
+            return getUnderlyingDataResults(
+                projectUuid!,
+                {
+                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                    underlyingDataSourceQueryUuid:
+                        underlyingDataSourceQueryUuid!,
+                    underlyingDataItemId,
+                    filters: convertDateFilters(filters),
+                    dateZoom,
+                },
+                undefined,
+                parameters,
+            );
         },
         retry: false,
     });
