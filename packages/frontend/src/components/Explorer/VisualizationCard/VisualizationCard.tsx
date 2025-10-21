@@ -242,8 +242,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         return null;
     }
 
-    console.log(unsavedChartVersion.chartConfig);
-
     return (
         <ErrorBoundary>
             <VisualizationProvider

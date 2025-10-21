@@ -1,3 +1,10 @@
+## [0.2099.1](https://github.com/lightdash/lightdash/compare/0.2099.0...0.2099.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* rely on visualization provider for y axis & series ([#17548](https://github.com/lightdash/lightdash/issues/17548)) ([38d1ced](https://github.com/lightdash/lightdash/commit/38d1ced2071c4698cfbc0c9d4f9cba19d4dcc816))
+
 # [0.2099.0](https://github.com/lightdash/lightdash/compare/0.2098.0...0.2099.0) (2025-10-21)
 
 
