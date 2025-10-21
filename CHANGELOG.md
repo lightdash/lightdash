@@ -1,3 +1,10 @@
+# [0.2102.0](https://github.com/lightdash/lightdash/compare/0.2101.1...0.2102.0) (2025-10-21)
+
+
+### Features
+
+* include parameters in the underlying data query ([#17576](https://github.com/lightdash/lightdash/issues/17576)) ([c09a819](https://github.com/lightdash/lightdash/commit/c09a819788b7091ff011042a483a9884a0ff9ddf))
+
 ## [0.2101.1](https://github.com/lightdash/lightdash/compare/0.2101.0...0.2101.1) (2025-10-21)
 
 
