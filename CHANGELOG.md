@@ -1,3 +1,10 @@
+# [0.2103.0](https://github.com/lightdash/lightdash/compare/0.2102.0...0.2103.0) (2025-10-21)
+
+
+### Features
+
+* add generateDashboardV2 tool ([#17530](https://github.com/lightdash/lightdash/issues/17530)) ([559e873](https://github.com/lightdash/lightdash/commit/559e873061c7f2cdcb96126bd9808386116d0a03))
+
 # [0.2102.0](https://github.com/lightdash/lightdash/compare/0.2101.1...0.2102.0) (2025-10-21)
 
 
