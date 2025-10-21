@@ -148,9 +148,14 @@ const Settings: FC = () => {
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const isWarehouseCredentialsEnabled = useFeatureFlagEnabled(
+    const isWarehouseCredentialsFeatureFlagEnabled = useFeatureFlagEnabled(
         CommercialFeatureFlags.OrganizationWarehouseCredentials,
     );
+
+    // This allows us to enable organization warehouse credentials in the UI for on-premise installations
+    const isWarehouseCredentialsEnabled =
+        (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
+        isWarehouseCredentialsFeatureFlagEnabled;
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [

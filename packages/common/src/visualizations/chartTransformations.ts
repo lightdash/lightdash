@@ -28,6 +28,7 @@ type GetDimensionNameFn = (param: TooltipParam) => string | undefined;
  *
  * @param originalValues - Map of x-axis values to their original y-values
  * @param getDimensionName - Function to extract the dimension name from a param
+ * @param xAxisField - The x-axis field name to extract the raw x value from param data
  * @returns A formatter function compatible with ECharts tooltip
  *
  * @example
@@ -38,7 +39,8 @@ type GetDimensionNameFn = (param: TooltipParam) => string | undefined;
  *         const { encode, dimensionNames } = param;
  *         const yFieldIndex = Array.isArray(encode.y) ? encode.y[0] : encode.y;
  *         return dimensionNames?.[yFieldIndex];
- *     }
+ *     },
+ *     xFieldId
  * );
  *
  * @example
@@ -49,20 +51,23 @@ type GetDimensionNameFn = (param: TooltipParam) => string | undefined;
  *         const { encode, dimensionNames } = param;
  *         if (!dimensionNames || !encode) return undefined;
  *         return flipAxes ? dimensionNames[1] : dimensionNames[encode.y?.[0]];
- *     }
+ *     },
+ *     xFieldId
  * );
  */
 export function createStack100TooltipFormatter(
     originalValues: Map<string, Map<string, number>>,
     getDimensionName: GetDimensionNameFn,
+    xAxisField: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
-        const xValue = String(
+        // Use axisValueLabel for display (formatted value)
+        const displayXValue = String(
             params[0]?.axisValueLabel || params[0]?.axisValue || '',
         );
-        let result = `<strong>${xValue}</strong><br/>`;
+        let result = `<strong>${displayXValue}</strong><br/>`;
 
         params.forEach((param) => {
             const { seriesName = '', marker = '' } = param;
@@ -80,12 +85,17 @@ export function createStack100TooltipFormatter(
 
                 if (valueObject && typeof valueObject === 'object') {
                     const percentage = valueObject[dimensionName];
+
+                    // Get the raw x-axis value from the data for originalValues lookup
+                    const rawXValue = String(valueObject[xAxisField] ?? '');
                     const originalValue =
-                        originalValues?.get(xValue)?.get(dimensionName) || 0;
+                        originalValues?.get(rawXValue)?.get(dimensionName) || 0;
 
                     result += `${marker} ${seriesName}: ${Number(
                         percentage,
-                    ).toFixed(1)}%, count: ${originalValue}<br/>`;
+                    ).toFixed(2)}%, count: ${Number(originalValue).toFixed(
+                        2,
+                    )}<br/>`;
                 }
             }
         });
