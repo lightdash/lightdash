@@ -1,3 +1,10 @@
+# [0.2098.0](https://github.com/lightdash/lightdash/compare/0.2097.3...0.2098.0) (2025-10-21)
+
+
+### Features
+
+* add renderAvailableExplores function for XML generation with AI hints ([#17552](https://github.com/lightdash/lightdash/issues/17552)) ([27500ae](https://github.com/lightdash/lightdash/commit/27500ae477b8a98291299137f0b1cf46ec878f7b))
+
 ## [0.2097.3](https://github.com/lightdash/lightdash/compare/0.2097.2...0.2097.3) (2025-10-21)
 
 

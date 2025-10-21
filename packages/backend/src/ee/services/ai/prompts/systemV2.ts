@@ -1,6 +1,7 @@
 import { Explore } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
+import { renderAvailableExplores } from './availableExplores';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
@@ -36,15 +37,15 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{agent_name}}', agentName)
         .replace(
-            '{{available_explores}}',
-            args.availableExplores.map((explore) => explore.name).join(', '),
-        )
-        .replace(
             '{{instructions}}',
             instructions ? `Special instructions: ${instructions}` : '',
         )
         .replace('{{date}}', date)
-        .replace('{{time}}', time);
+        .replace('{{time}}', time)
+        .replace(
+            '{{available_explores}}',
+            renderAvailableExplores(args.availableExplores).toString(),
+        );
 
     return {
         role: 'system',

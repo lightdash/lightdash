@@ -160,7 +160,7 @@ export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
                                 renderContent(searchQueryResult, siteUrl),
                             )}
                         </searchresults>
-                    ) as string,
+                    ).toString(),
                     metadata: {
                         status: 'success',
                     },
