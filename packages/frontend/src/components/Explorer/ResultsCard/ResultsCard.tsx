@@ -42,11 +42,9 @@ const ResultsCard: FC = memo(() => {
     const metricQuery = useExplorerSelector(selectMetricQueryForApi);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
-    // Get query state from new hook
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
     const totalResults = queryResults.totalResults;
 
-    // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
     const toggleExpandedSection = useCallback(

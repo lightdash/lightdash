@@ -3,7 +3,6 @@ import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import {
     explorerActions,
-    selectDenormalizedFiltersForApi,
     selectIsEditMode,
     selectIsMinimal,
     selectMetricQueryForApi,
@@ -14,7 +13,7 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
-    selectUnsavedChartVersion,
+    selectUnsavedChartVersionForApi,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -42,7 +41,6 @@ export const useExplorerQueryManager = () => {
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQueryForApi);
-    const filters = useExplorerSelector(selectDenormalizedFiltersForApi);
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -71,7 +69,9 @@ export const useExplorerQueryManager = () => {
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
     // NOTE: mergedUnsavedChartVersion is now same as unsavedChartVersion since chartConfig/pivotConfig are in Redux
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const unsavedChartVersion = useExplorerSelector(
+        selectUnsavedChartVersionForApi,
+    );
 
     const chartConfigForQuery = useMemo(
         () => ({
@@ -85,15 +85,6 @@ export const useExplorerQueryManager = () => {
     const { data: explore } = useExplore(tableName);
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
-    );
-
-    // Compute the complete metric query (including Redux filters)
-    const computedMetricQuery = useMemo(
-        () => ({
-            ...metricQuery,
-            filters,
-        }),
-        [metricQuery, filters],
     );
 
     // Compute active fields and query validity
@@ -163,7 +154,7 @@ export const useExplorerQueryManager = () => {
             projectUuid,
             explore,
             useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
-            computedMetricQuery,
+            computedMetricQuery: metricQuery,
             parameters,
             isEditMode,
             viewModeQueryArgs,
@@ -181,7 +172,7 @@ export const useExplorerQueryManager = () => {
         projectUuid,
         explore,
         useSqlPivotResults?.enabled,
-        computedMetricQuery,
+        metricQuery,
         parameters,
         isEditMode,
         viewModeQueryArgs,
@@ -223,7 +214,7 @@ export const useExplorerQueryManager = () => {
         tableName,
         projectUuid,
         explore,
-        computedMetricQuery,
+        computedMetricQuery: metricQuery,
         parameters,
 
         // Query execution

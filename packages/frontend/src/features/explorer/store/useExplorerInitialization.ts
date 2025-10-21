@@ -55,6 +55,7 @@ export const useExplorerInitialization = ({
                 const baseState = {
                     ...defaultState,
                     ...customInitialState,
+                    isEditMode,
                 };
 
                 // Apply defaultLimit to metricQuery if provided and not already set

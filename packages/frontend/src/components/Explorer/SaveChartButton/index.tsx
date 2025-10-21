@@ -6,7 +6,7 @@ import {
     selectHasUnsavedChanges,
     selectIsValidQuery,
     selectSavedChart,
-    selectUnsavedChartVersionWithFilters,
+    selectUnsavedChartVersionForApi,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
@@ -18,7 +18,7 @@ import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const unsavedChartVersion = useExplorerSelector(
-        selectUnsavedChartVersionWithFilters,
+        selectUnsavedChartVersionForApi,
     );
 
     // Get savedChart from Redux

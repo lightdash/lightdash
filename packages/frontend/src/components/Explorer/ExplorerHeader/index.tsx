@@ -12,7 +12,7 @@ import {
     selectQueryLimit,
     selectSavedChart,
     selectTimezone,
-    selectUnsavedChartVersionWithFilters,
+    selectUnsavedChartVersionForApi,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -52,10 +52,8 @@ const ExplorerHeader: FC = memo(() => {
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
-
-    // Now mergedUnsavedChartVersion is same as unsavedChartVersion since chartConfig/pivotConfig are in Redux
     const unsavedChartVersion = useExplorerSelector(
-        selectUnsavedChartVersionWithFilters,
+        selectUnsavedChartVersionForApi,
     );
 
     const handleSetTimeZone = (timezone: string | null) => {

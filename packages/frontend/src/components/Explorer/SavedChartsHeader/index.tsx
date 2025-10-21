@@ -47,7 +47,7 @@ import {
     selectIsEditMode,
     selectIsValidQuery,
     selectSavedChart,
-    selectUnsavedChartVersionWithFilters,
+    selectUnsavedChartVersionForApi,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -125,13 +125,11 @@ const SavedChartsHeader: FC = () => {
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const unsavedChartVersion = useExplorerSelector(
-        selectUnsavedChartVersionWithFilters,
+        selectUnsavedChartVersionForApi,
     );
 
-    // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    // Check if there are unsaved changes (from Redux selector)
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
 
     const { query } = useExplorerQuery();
