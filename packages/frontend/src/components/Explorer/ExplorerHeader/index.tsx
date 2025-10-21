@@ -52,9 +52,7 @@ const ExplorerHeader: FC = memo(() => {
 
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    const unsavedChartVersion = useExplorerSelector(
-        selectUnsavedChartVersion,
-    );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const handleSetTimeZone = (timezone: string | null) => {
         if (timezone && isTimeZone(timezone)) {
