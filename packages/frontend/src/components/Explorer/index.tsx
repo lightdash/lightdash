@@ -12,6 +12,7 @@ import {
     selectMetricQuery,
     selectMetrics,
     selectParameterReferences,
+    selectParameters,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -51,6 +52,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
+        const parameters = useExplorerSelector(selectParameters);
 
         const { isOpen: isAdditionalMetricModalOpen } = useExplorerSelector(
             selectAdditionalMetricModal,
@@ -144,6 +146,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 explore={explore}
                 metricQuery={metricQuery}
                 queryUuid={queryUuid}
+                parameters={parameters}
             >
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}

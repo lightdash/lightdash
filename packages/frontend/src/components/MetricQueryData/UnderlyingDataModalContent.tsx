@@ -48,8 +48,13 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const modalHeaderElementSize = useElementSize();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tableName, metricQuery, underlyingDataConfig, queryUuid } =
-        useMetricQueryDataContext();
+    const {
+        tableName,
+        metricQuery,
+        underlyingDataConfig,
+        queryUuid,
+        parameters,
+    } = useMetricQueryDataContext();
 
     const { user } = useApp();
 
@@ -233,6 +238,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         queryUuid,
         underlyingDataItemId,
         underlyingDataConfig?.dateZoom,
+        parameters,
     );
 
     const exploreFromHereUrl = useMemo(() => {
@@ -262,14 +268,19 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         async (limit: number | null) => {
             if (limit === null || limit !== resultsData?.rows.length) {
                 // Get new query uuid with new limit
-                const newQuery = await getUnderlyingDataResults(projectUuid!, {
-                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                    underlyingDataSourceQueryUuid: queryUuid!,
-                    underlyingDataItemId,
-                    filters: convertDateFilters(filters),
-                    dateZoom: underlyingDataConfig?.dateZoom,
-                    limit: limit ?? MAX_SAFE_INTEGER,
-                });
+                const newQuery = await getUnderlyingDataResults(
+                    projectUuid!,
+                    {
+                        context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        underlyingDataSourceQueryUuid: queryUuid!,
+                        underlyingDataItemId,
+                        filters: convertDateFilters(filters),
+                        dateZoom: underlyingDataConfig?.dateZoom,
+                        limit: limit ?? MAX_SAFE_INTEGER,
+                    },
+                    undefined,
+                    parameters,
+                );
                 return newQuery.queryUuid;
             }
             if (!resultsData) {
@@ -285,6 +296,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             resultsData,
             underlyingDataConfig?.dateZoom,
             underlyingDataItemId,
+            parameters,
         ],
     );
 
