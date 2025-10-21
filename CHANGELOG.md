@@ -1,3 +1,10 @@
+# [0.2101.0](https://github.com/lightdash/lightdash/compare/0.2100.0...0.2101.0) (2025-10-21)
+
+
+### Features
+
+* support externalbrowser auth in cli ([#17455](https://github.com/lightdash/lightdash/issues/17455)) ([185c1d7](https://github.com/lightdash/lightdash/commit/185c1d7b18751396e68af5b6576e57ac0bde3df3))
+
 # [0.2100.0](https://github.com/lightdash/lightdash/compare/0.2099.1...0.2100.0) (2025-10-21)
 
 
