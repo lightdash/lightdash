@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
             table.uuid('query_uuid').notNullable();
             table.uuid('user_uuid').nullable();
             table.uuid('organization_uuid').notNullable();
-            table.uuid('project_uuid');
+            table.uuid('project_uuid').nullable();
             table.text('file_type').notNullable();
             table
                 .timestamp('downloaded_at', { useTz: false })
