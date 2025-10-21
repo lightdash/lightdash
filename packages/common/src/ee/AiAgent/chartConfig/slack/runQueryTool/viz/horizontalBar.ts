@@ -44,13 +44,13 @@ export const getHorizontalBarChartEchartsConfig = async (
         primarySort?.fieldId === xDimension && primarySort?.descending === true;
 
     return {
-        ...getCommonEChartsConfig(
-            queryTool.title,
-            metrics.length,
+        ...getCommonEChartsConfig({
+            title: queryTool.title,
+            metricsCount: metrics.length,
             chartData,
-            chartConfig?.xAxisLabel,
-            chartConfig?.yAxisLabel,
-        ),
+            xAxisLabel: chartConfig?.xAxisLabel,
+            yAxisLabel: chartConfig?.yAxisLabel,
+        }),
         xAxis: [
             {
                 type: 'value',

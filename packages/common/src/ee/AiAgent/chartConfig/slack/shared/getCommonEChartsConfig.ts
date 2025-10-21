@@ -1,15 +1,25 @@
 import { type EChartsOption } from 'echarts';
 
+type GetCommonEChartsConfigParams = {
+    title?: string;
+    metricsCount: number;
+    chartData: Record<string, unknown>[];
+    xAxisLabel?: string | null;
+    yAxisLabel?: string | null;
+    secondaryYAxisLabel?: string | null;
+};
+
 /**
  * Generates common echarts config for all chart types
  */
-export const getCommonEChartsConfig = (
-    title: string | undefined,
-    metricsCount: number,
-    chartData: Record<string, unknown>[],
-    xAxisLabel?: string | null,
-    yAxisLabel?: string | null,
-): Pick<
+export const getCommonEChartsConfig = ({
+    title,
+    metricsCount,
+    chartData,
+    xAxisLabel,
+    yAxisLabel,
+    secondaryYAxisLabel,
+}: GetCommonEChartsConfigParams): Pick<
     EChartsOption,
     | 'title'
     | 'legend'
@@ -44,6 +54,21 @@ export const getCommonEChartsConfig = (
             rotation: Math.PI / 2,
             style: {
                 text: yAxisLabel,
+                fontSize: 12,
+                fontWeight: 500,
+            },
+        });
+    }
+
+    // Add secondary Y-axis label on right side, vertically centered and rotated
+    if (secondaryYAxisLabel) {
+        graphicElements.push({
+            type: 'text',
+            right: 10,
+            top: 'center',
+            rotation: Math.PI / 2,
+            style: {
+                text: secondaryYAxisLabel,
                 fontSize: 12,
                 fontWeight: 500,
             },
