@@ -1,3 +1,10 @@
+# [0.2099.0](https://github.com/lightdash/lightdash/compare/0.2098.0...0.2099.0) (2025-10-21)
+
+
+### Features
+
+* add secondary y-axis support for charts ([#17535](https://github.com/lightdash/lightdash/issues/17535)) ([98a4fe7](https://github.com/lightdash/lightdash/commit/98a4fe7e2b8707c34ec320c6bebddcf4b22af298))
+
 # [0.2098.0](https://github.com/lightdash/lightdash/compare/0.2097.3...0.2098.0) (2025-10-21)
 
 
