@@ -7,6 +7,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     UnexpectedServerError,
     WarehouseConnectionError,
@@ -94,6 +95,8 @@ const normaliseSnowflakeType = (type: string): string => {
     }
     return match[0];
 };
+
+const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
 
 export const mapFieldType = (type: string): DimensionType => {
     switch (normaliseSnowflakeType(type)) {
@@ -187,6 +190,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     quotedIdentifiersIgnoreCase?: boolean;
 
+    // Cache connection promise for external browser authentication to avoid opening multiple browser tabs
+    // We cache the promise itself (not the resolved connection) to prevent race conditions
+    private externalBrowserConnectionPromise?: Promise<Connection>;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
 
@@ -198,7 +205,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let authenticationOptions: Partial<ConnectionOptions> = {};
 
         // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
-        if (credentials.authenticationType === 'sso') {
+        if (
+            credentials.authenticationType === SnowflakeAuthenticationType.SSO
+        ) {
             if (!credentials.token) {
                 // Perhaps we forgot to refresh the token before building the client, check buildAdapter for more details
                 throw new UnexpectedServerError(
@@ -211,9 +220,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'OAUTH',
             };
         } else if (
+            credentials.authenticationType ===
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            authenticationOptions = {
+                authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
+            };
+        } else if (
             credentials.privateKey &&
             (!credentials.password ||
-                credentials.authenticationType === 'private_key')
+                credentials.authenticationType ===
+                    SnowflakeAuthenticationType.PRIVATE_KEY)
         ) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
@@ -278,22 +295,88 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             warehouse: this.connectionOptions.warehouse,
             accessUrl: this.connectionOptions.accessUrl,
         };
-        console.info(
-            `Initialized snowflake warehouse client with authentication type "${
-                credentials.authenticationType
-            }" and connection options: ${JSON.stringify(logConnectionOptions)}`,
-        );
+
+        if (credentials.requireUserCredentials)
+            console.info(
+                `Initialized snowflake warehouse client with "requireUserCredentials" authentication type "${
+                    credentials.authenticationType
+                }" and connection options: ${JSON.stringify(
+                    logConnectionOptions,
+                )}`,
+            );
     }
 
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
+        // External browser authentication uses a cached connection to avoid opening multiple browser tabs
+        if (
+            this.connectionOptions.authenticator ===
+            EXTERNAL_BROWSER_AUTHENTICATOR
+        ) {
+            return this.createExternalBrowserConnection(
+                connectionOptionsOverrides,
+            );
+        }
+
+        // For other authentication types, create a new connection with optional overrides
+        return this.createConnection(connectionOptionsOverrides);
+    }
+
+    /**
+     * Creates and caches a connection for external browser authentication.
+     * This prevents opening multiple browser tabs when parallel queries are executed.
+     */
+    private async createExternalBrowserConnection(
+        connectionOptionsOverrides?: Partial<ConnectionOptions>,
+    ): Promise<Connection> {
+        // Return cached promise if one exists (handles both in-flight and completed connections)
+        if (this.externalBrowserConnectionPromise) {
+            return this.externalBrowserConnectionPromise;
+        }
+
+        // Create and cache the connection promise
+        this.externalBrowserConnectionPromise = (async () => {
+            let connection: Connection;
+            try {
+                connection = createConnection({
+                    ...this.connectionOptions,
+                    ...connectionOptionsOverrides,
+                });
+
+                console.info(
+                    `Connecting to snowflake warehouse with "external_browser" authentication type`,
+                );
+                await Util.promisify(
+                    connection.connectAsync.bind(connection),
+                )();
+            } catch (e: unknown) {
+                throw new WarehouseConnectionError(
+                    `Snowflake error: ${getErrorMessage(e)}`,
+                );
+            }
+            return connection;
+        })();
+
+        try {
+            return await this.externalBrowserConnectionPromise;
+        } catch (e) {
+            // Clear cache on error to allow retry
+            this.externalBrowserConnectionPromise = undefined;
+            throw e;
+        }
+    }
+
+    private async createConnection(
+        connectionOptionsOverrides?: Partial<ConnectionOptions>,
+    ): Promise<Connection> {
         let connection: Connection;
         try {
             connection = createConnection({
                 ...this.connectionOptions,
                 ...connectionOptionsOverrides,
             });
+
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
@@ -427,6 +510,28 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         };
     }
 
+    private async destroyConnection(
+        connection: Connection,
+        authenticator: string | undefined,
+    ) {
+        if (authenticator === EXTERNAL_BROWSER_AUTHENTICATOR) {
+            // EXTERNALBROWSER connections are never destroyed - they live for the lifetime of the client✅
+            // Other auth types (password, SSO, private key) still destroy connections after use
+            return;
+        }
+        console.info(
+            `Destroying snowflake connection for authenticator ${authenticator}`,
+        );
+        await new Promise((resolve, reject) => {
+            connection.destroy((err, conn) => {
+                if (err) {
+                    reject(new WarehouseConnectionError(err.message));
+                }
+                resolve(conn);
+            });
+        });
+    }
+
     async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
         { sql, page, pageSize, queryId }: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
@@ -460,14 +565,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const error = e as SnowflakeError;
             throw this.parseError(error, sql);
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
-                });
-            });
+            await this.destroyConnection(
+                connection,
+                this.connectionOptions.authenticator,
+            );
         }
     }
 
@@ -610,14 +711,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const error = e as SnowflakeError;
             throw this.parseError(error, sql);
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
-                });
-            });
+            await this.destroyConnection(
+                connection,
+                this.connectionOptions.authenticator,
+            );
         }
     }
 
@@ -711,10 +808,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         table: string,
     ) {
         const sqlText = `SHOW COLUMNS IN TABLE ${table}`;
-        const connection = await this.getConnection({
-            schema,
-            database,
-        });
+        const connection = await this.getConnection({ schema, database });
 
         try {
             return await this.executeStatements(connection, sqlText);
@@ -727,14 +821,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // Ignore error and let UI show invalid table
             return undefined;
         } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
-                });
-            });
+            await this.destroyConnection(
+                connection,
+                this.connectionOptions.authenticator,
+            );
         }
     }
 
