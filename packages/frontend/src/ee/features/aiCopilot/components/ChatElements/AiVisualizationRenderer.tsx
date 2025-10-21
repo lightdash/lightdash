@@ -7,6 +7,7 @@ import {
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
+    type ChartConfig,
     type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
@@ -15,7 +16,7 @@ import {
 import { Box, Center, Group, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -30,7 +31,6 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { getComputedSeries } from '../../utils/aiVisualizationRenderer/getComputedSeries';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
@@ -65,6 +65,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
+
+    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
+    const [expandedChartConfig, setExpandedChartConfig] =
+        useState<ChartConfig>();
 
     const resultsData = useMemo(
         () => ({
@@ -111,6 +115,20 @@ export const AiVisualizationRenderer: FC<Props> = ({
             ? chartConfig.chartConfig?.defaultVizType ?? 'table'
             : 'table';
 
+    const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
+        setExpandedChartConfig(newConfig);
+    }, []);
+
+    const handleChartTypeChange = useCallback(
+        (type: AiAgentChartTypeOption) => {
+            setSelectedChartType(type);
+
+            // Reset expanded chart config to allow re-expansion
+            setExpandedChartConfig(undefined);
+        },
+        [],
+    );
+
     if (!chartConfigFromAiAgentVizConfig.echartsConfig) {
         return (
             <Center h={300}>
@@ -124,12 +142,6 @@ export const AiVisualizationRenderer: FC<Props> = ({
         );
     }
 
-    console.log(
-        'chartConfigFromAiAgentVizConfig',
-        chartConfigFromAiAgentVizConfig.echartsConfig,
-        groupByDimensions,
-    );
-
     return (
         <MetricQueryDataProvider
             metricQuery={metricQuery}
@@ -140,7 +152,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
             <VisualizationProvider
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
-                chartConfig={chartConfigFromAiAgentVizConfig.echartsConfig}
+                chartConfig={
+                    expandedChartConfig ??
+                    chartConfigFromAiAgentVizConfig.echartsConfig
+                }
                 parameters={
                     queryExecutionHandle.data.query.usedParametersValues
                 }
@@ -164,15 +179,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     setEchartsClickEvent(e);
                     setEchartSeries(series);
                 }}
-                computedSeries={getComputedSeries({
-                    aiResultType: chartConfigFromAiAgentVizConfig.type,
-                    echartsConfig:
-                        chartConfigFromAiAgentVizConfig.echartsConfig,
-                    metricQuery,
-                    groupByDimensions,
-                    resultsData,
-                    fields,
-                })}
+                onChartConfigChange={handleChartConfigChange}
+                unsavedMetricQuery={metricQuery}
             >
                 <Stack gap="md" h="100%">
                     {headerContent && headerContent}
@@ -187,7 +195,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                 hasGroupByDimensions={
                                     (groupByDimensions?.length ?? 0) > 0
                                 }
-                                onChartTypeChange={setSelectedChartType}
+                                onChartTypeChange={handleChartTypeChange}
                             />
                         </Group>
                     )}

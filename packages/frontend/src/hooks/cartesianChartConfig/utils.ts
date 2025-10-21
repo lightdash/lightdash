@@ -186,6 +186,21 @@ export const mergeExistingAndExpectedSeries = ({
                 expectedSeries.encode.yRef.pivotValues &&
                 expectedSeries.encode.yRef.pivotValues.length > 0
             ) {
+                // Find a series with the same field to inherit properties like yAxisIndex
+                const seriesInSameGroup = acc.find(
+                    (series) =>
+                        expectedSeries.encode.yRef.field ===
+                        series.encode.yRef.field,
+                );
+
+                // Inherit yAxisIndex from existing series with same field
+                const seriesWithInheritedProps = seriesInSameGroup
+                    ? {
+                          ...expectedSeries,
+                          yAxisIndex: seriesInSameGroup.yAxisIndex,
+                      }
+                    : expectedSeries;
+
                 const lastSeriesInGroupIndex = acc
                     .reverse()
                     .findIndex(
@@ -198,12 +213,12 @@ export const mergeExistingAndExpectedSeries = ({
                         // part of the array before the specified index
                         ...acc.slice(0, lastSeriesInGroupIndex),
                         // inserted item
-                        expectedSeries,
+                        seriesWithInheritedProps,
                         // part of the array after the specified index
                         ...acc.slice(lastSeriesInGroupIndex),
                     ].reverse();
                 }
-                return [...acc.reverse(), expectedSeries];
+                return [...acc.reverse(), seriesWithInheritedProps];
             }
             // Add series to the end
             return [...acc, expectedSeries];

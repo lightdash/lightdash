@@ -14,18 +14,23 @@ export const getOpenInExploreUrl = ({
     pivotColumns?: string[];
     chartConfig: ChartConfig;
 }) => {
-    return getExplorerUrlFromCreateSavedChartVersion(projectUuid, {
-        tableName: metricQuery.exploreName,
-        metricQuery,
-        chartConfig,
-        tableConfig: {
-            columnOrder,
+    return getExplorerUrlFromCreateSavedChartVersion(
+        projectUuid,
+        {
+            tableName: metricQuery.exploreName,
+            metricQuery,
+            chartConfig,
+            tableConfig: {
+                columnOrder,
+            },
+            pivotConfig: pivotColumns
+                ? {
+                      columns: pivotColumns,
+                  }
+                : undefined,
+            updatedByUser: undefined,
         },
-        pivotConfig: pivotColumns
-            ? {
-                  columns: pivotColumns,
-              }
-            : undefined,
-        updatedByUser: undefined,
-    });
+        // preserves series config in the url, e.g. y axis index, color, etc.
+        true,
+    );
 };
