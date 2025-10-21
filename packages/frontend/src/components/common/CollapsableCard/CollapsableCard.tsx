@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, type FC, type Ref } from 'react';
+import { Activity, useCallback, type FC, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
 import { COLLAPSIBLE_CARD_GAP_SIZE } from './constants';
 
@@ -152,7 +152,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 )}
             </Flex>
 
-            {isOpen && (
+            <Activity mode={isOpen ? 'visible' : 'hidden'}>
                 <Flex
                     direction="column"
                     style={shouldExpand ? { minHeight, flex: 1 } : undefined}
@@ -190,7 +190,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         children
                     )}
                 </Flex>
-            )}
+            </Activity>
         </Card>
     );
 };
