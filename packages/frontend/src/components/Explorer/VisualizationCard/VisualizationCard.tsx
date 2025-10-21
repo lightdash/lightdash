@@ -26,16 +26,12 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
-    selectChartConfig,
-    selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
-    selectMetricQuery,
-    selectPivotConfig,
     selectSavedChart,
     selectTableCalculationsMetadata,
-    selectTableName,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -131,24 +127,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [dispatch],
     );
 
-    const tableName = useExplorerSelector(selectTableName);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const columnOrder = useExplorerSelector(selectColumnOrder);
-
-    // Now read from Redux
-    const chartConfig = useExplorerSelector(selectChartConfig);
-    const pivotConfig = useExplorerSelector(selectPivotConfig);
-
-    const unsavedChartVersion = useMemo(
-        () => ({
-            tableName,
-            metricQuery,
-            tableConfig: { columnOrder },
-            chartConfig,
-            pivotConfig,
-        }),
-        [tableName, metricQuery, columnOrder, chartConfig, pivotConfig],
-    );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const tableCalculationsMetadata = useExplorerSelector(
         selectTableCalculationsMetadata,
