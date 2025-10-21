@@ -7,7 +7,7 @@ import {
     selectColumnOrder,
     selectIsEditMode,
     selectIsResultsExpanded,
-    selectMetricQuery,
+    selectMetricQueryForApi,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -39,7 +39,7 @@ const ResultsCard: FC = memo(() => {
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const sorts = useExplorerSelector(selectSorts);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const metricQuery = useExplorerSelector(selectMetricQueryForApi);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Get query state from new hook

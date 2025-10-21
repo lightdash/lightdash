@@ -3,10 +3,10 @@ import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import {
     explorerActions,
-    selectFilters,
+    selectDenormalizedFiltersForApi,
     selectIsEditMode,
     selectIsMinimal,
-    selectMetricQuery,
+    selectMetricQueryForApi,
     selectParameterDefinitions,
     selectParameterReferences,
     selectParameters,
@@ -41,8 +41,8 @@ import { useFeatureFlag } from './useFeatureFlagEnabled';
 export const useExplorerQueryManager = () => {
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const filters = useExplorerSelector(selectFilters);
+    const metricQuery = useExplorerSelector(selectMetricQueryForApi);
+    const filters = useExplorerSelector(selectDenormalizedFiltersForApi);
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);

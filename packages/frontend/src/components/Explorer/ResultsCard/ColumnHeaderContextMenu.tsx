@@ -27,7 +27,6 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
-import { useFilters } from '../../../hooks/useFilters';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -46,7 +45,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
 }) => {
-    const { addFilter } = useFilters();
     const { track } = useTracking();
 
     const meta = header.column.columnDef.meta;
@@ -76,7 +74,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             icon={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined);
+                                dispatch(
+                                    explorerActions.addFilterRuleFromField({
+                                        field: item,
+                                        value: undefined,
+                                    }),
+                                );
                             }}
                         >
                             Filter by{' '}
@@ -157,7 +160,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             icon={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined);
+                                dispatch(
+                                    explorerActions.addFilterRuleFromField({
+                                        field: item,
+                                        value: undefined,
+                                    }),
+                                );
                             }}
                         >
                             Filter by{' '}
@@ -207,7 +215,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconFilter} />}
                     onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
-                        addFilter(item, undefined);
+                        dispatch(
+                            explorerActions.addFilterRuleFromField({
+                                field: item,
+                                value: undefined,
+                            }),
+                        );
                     }}
                 >
                     Filter by{' '}

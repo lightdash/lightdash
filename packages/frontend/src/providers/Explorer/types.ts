@@ -257,8 +257,7 @@ export interface ExplorerState extends ExplorerReduceState {
     // isValidQuery removed - use selectIsValidQuery Redux selector instead
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
-    // Merged version combining Context fields (chartConfig, pivotConfig) with Redux fields
-    // This is the complete version that should be used when saving charts
+    // Merged version WITHOUT filters - use for most reads (stable when filters change)
     mergedUnsavedChartVersion: CreateSavedChartVersion;
 }
 
@@ -271,7 +270,6 @@ export interface ExplorerContextType {
         setTableName: (tableName: string) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
-        setFilters: (filters: MetricQuery['filters']) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,
@@ -320,7 +318,6 @@ export interface ExplorerContextType {
         replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
-        setParameterReferences: (parameterReferences: string[] | null) => void;
         isUnsavedChartChanged: (
             chartVersion: CreateSavedChartVersion,
         ) => boolean;

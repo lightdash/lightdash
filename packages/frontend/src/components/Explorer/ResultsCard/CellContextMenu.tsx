@@ -16,8 +16,11 @@ import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useFilters } from '../../../hooks/useFilters';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -34,9 +37,9 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onExpand }) => {
-    const { addFilter } = useFilters();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
+    const dispatch = useExplorerDispatch();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 2000 });
@@ -98,8 +101,13 @@ const CellContextMenu: FC<
                 ? null // Set as null if value is invalid date or undefined
                 : value.raw;
 
-        addFilter(item, filterValue);
-    }, [track, addFilter, item, value]);
+        dispatch(
+            explorerActions.addFilterRuleFromField({
+                field: item,
+                value: filterValue,
+            }),
+        );
+    }, [track, item, value, dispatch]);
 
     let parseResult: null | object = null;
     if (

@@ -20,7 +20,6 @@ import {
 } from 'react-router';
 import {
     explorerActions,
-    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -178,26 +177,25 @@ export const useExplorerRoute = () => {
     const mergedUnsavedChartVersion = useExplorerContext(
         (context) => context.state.mergedUnsavedChartVersion,
     );
-    const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
 
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
-        if (pathParams.tableId && metricQuery && tableName) {
+        if (
+            pathParams.tableId &&
+            mergedUnsavedChartVersion.metricQuery &&
+            tableName
+        ) {
             void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
-                    {
-                        ...mergedUnsavedChartVersion,
-                        metricQuery,
-                    },
+                    mergedUnsavedChartVersion,
                 ),
                 { replace: true },
             );
         }
     }, [
-        metricQuery,
         navigate,
         pathParams.projectUuid,
         pathParams.tableId,

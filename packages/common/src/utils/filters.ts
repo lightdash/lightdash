@@ -491,10 +491,20 @@ export const createDashboardFilterRuleFromSqlColumn = ({
         !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
     );
 
-type AddFilterRuleArgs = {
+export type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
     value?: AnyType;
+};
+
+export const getGroupKey = (field: FilterableField) => {
+    if (isDimension(field) || isCustomSqlDimension(field)) {
+        return 'dimensions';
+    }
+    if (isTableCalculation(field)) {
+        return 'tableCalculations';
+    }
+    return 'metrics';
 };
 
 export const addFilterRule = ({
@@ -502,15 +512,7 @@ export const addFilterRule = ({
     field,
     value,
 }: AddFilterRuleArgs): Filters => {
-    const groupKey = ((f: AnyType) => {
-        if (isDimension(f) || isCustomSqlDimension(f)) {
-            return 'dimensions';
-        }
-        if (isTableCalculation(f)) {
-            return 'tableCalculations';
-        }
-        return 'metrics';
-    })(field);
+    const groupKey = getGroupKey(field);
     const group = filters[groupKey];
     return {
         ...filters,
@@ -675,16 +677,16 @@ export const getFiltersFromGroup = (
 
 export const deleteFilterRuleFromGroup = (
     filterGroup: FilterGroup,
-    id: string,
+    ruleId: string,
 ) => {
     const items = getItemsFromFilterGroup(filterGroup);
 
     // If the filter group contains the rule we want to delete, we remove it
-    if (items.some((rule) => rule.id === id)) {
+    if (items.some((rule) => rule.id === ruleId)) {
         return {
             id: filterGroup.id,
             [getFilterGroupItemsPropertyName(filterGroup)]: items.filter(
-                (rule) => rule.id !== id,
+                (rule) => rule.id !== ruleId,
             ),
         } as FilterGroup;
     }
@@ -694,7 +696,7 @@ export const deleteFilterRuleFromGroup = (
 
     // If the filter group contains nested groups, we recursively call this function on each nested group
     const newGroups: FilterGroup[] = groupGroups.map((group) =>
-        deleteFilterRuleFromGroup(group, id),
+        deleteFilterRuleFromGroup(group, ruleId),
     );
 
     return {

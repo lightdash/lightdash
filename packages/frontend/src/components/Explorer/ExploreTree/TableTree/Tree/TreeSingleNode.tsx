@@ -38,7 +38,6 @@ import {
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
-import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
@@ -87,8 +86,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const isVirtualized = useTableTree((context) => context.isVirtualized);
     const depth = useTableTree((context) => context.depth);
     const { track } = useTracking();
-
-    const addFilter = useAddFilter();
 
     const dispatch = useExplorerDispatch();
 
@@ -176,10 +173,16 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const handleFilterClick = useCallback(
         (e: React.MouseEvent<HTMLButtonElement>) => {
             track({ name: EventName.ADD_FILTER_CLICKED });
-            if (!isFiltered) addFilter(item as FilterableField, undefined);
+            if (!isFiltered)
+                dispatch(
+                    explorerActions.addFilterRuleFromField({
+                        field: item as FilterableField,
+                        value: undefined,
+                    }),
+                );
             e.stopPropagation();
         },
-        [isFiltered, addFilter, item, track],
+        [isFiltered, item, track, dispatch],
     );
     const handleClick = useCallback(() => {
         onItemClick(node.key, item);

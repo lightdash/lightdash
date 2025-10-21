@@ -48,6 +48,7 @@ const ExplorerHeader: FC = memo(() => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    // Use version WITH filters for shareable URLs
     const mergedUnsavedChartVersion = useExplorerContext(
         (context) => context.state.mergedUnsavedChartVersion,
     );

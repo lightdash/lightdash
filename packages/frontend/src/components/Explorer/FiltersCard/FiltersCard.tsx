@@ -1,15 +1,12 @@
 import {
     FilterOperator,
-    countTotalFilterRules,
     getItemId,
-    getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
     overrideFilterGroupWithFilterRules,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
     type FilterRule,
-    type Filters,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import {
@@ -24,7 +21,8 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectFilters,
+    selectDenormalizedFiltersForApi,
+    selectFilterTree,
     selectIsEditMode,
     selectIsFiltersExpanded,
     selectMetricQuery,
@@ -33,6 +31,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import type { FilterTreeState } from '../../../features/explorer/store/filterTree';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
@@ -44,6 +43,14 @@ import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInpu
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
+/**
+ * Count total filter rules in tree (O(n) scan of rule nodes)
+ */
+const countFilterRulesInTree = (filterTree: FilterTreeState): number => {
+    return Object.values(filterTree.byId).filter((node) => node.type === 'rule')
+        .length;
+};
+
 const FiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
@@ -52,7 +59,13 @@ const FiltersCard: FC = memo(() => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
-    const filters = useExplorerSelector(selectFilters);
+    const filterTree = useExplorerSelector(selectFilterTree);
+
+    // Need this for processedFilters (default / required)
+    const denormalizedFilters = useExplorerSelector(
+        selectDenormalizedFiltersForApi,
+    );
+
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const dispatch = useExplorerDispatch();
 
@@ -77,8 +90,11 @@ const FiltersCard: FC = memo(() => {
         }
     }, [filterIsOpen, hasEverOpened]);
 
+    // Denormalize filterTree ONLY for required filters processing (dbt metadata feature)
+    // TODO: Move required filters logic into Redux to avoid denormalization
+    // NOTE: Badge and tooltip use tree directly - processedFilters is ONLY for required filters
     const processedFilters = useMemo(() => {
-        let unsavedQueryFilters = filters;
+        let unsavedQueryFilters = denormalizedFilters;
 
         // Step 1: Refresh the required filters property
         // (required filters can change when the table dbt metadata changes)
@@ -138,18 +154,12 @@ const FiltersCard: FC = memo(() => {
         }
 
         return unsavedQueryFilters;
-    }, [filters, data, tableName, hasDefaultFiltersApplied]);
+    }, [denormalizedFilters, data, tableName.length, hasDefaultFiltersApplied]);
 
     // Get query rows from new hook
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
 
-    const setFilters = useCallback(
-        (newFilters: Filters) => {
-            dispatch(explorerActions.setFilters(newFilters));
-        },
-        [dispatch],
-    );
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
@@ -157,9 +167,10 @@ const FiltersCard: FC = memo(() => {
         [dispatch],
     );
 
+    // Count total active filters from tree (not processedFilters which includes required filters)
     const totalActiveFilters: number = useMemo(
-        () => countTotalFilterRules(processedFilters),
-        [processedFilters],
+        () => countFilterRulesInTree(filterTree),
+        [filterTree],
     );
 
     useEffect(() => {
@@ -196,15 +207,17 @@ const FiltersCard: FC = memo(() => {
                     data,
                 );
             setHasDefaultFiltersApplied(true);
-            setFilters({
-                metrics: undefined,
-                tableCalculations: undefined,
-                dimensions: overrideFilterGroupWithFilterRules(
-                    processedFilters.dimensions,
-                    reducedRules,
-                    undefined,
-                ),
-            });
+            dispatch(
+                explorerActions.overrideDefaultFilters({
+                    metrics: undefined,
+                    tableCalculations: undefined,
+                    dimensions: overrideFilterGroupWithFilterRules(
+                        processedFilters.dimensions,
+                        reducedRules,
+                        undefined,
+                    ),
+                }),
+            );
         }
     }, [
         hasDefaultFiltersApplied,
@@ -213,7 +226,7 @@ const FiltersCard: FC = memo(() => {
         metricQuery,
         isEditMode,
         processedFilters.dimensions,
-        setFilters,
+        dispatch,
     ]);
 
     // Only compute expensive field suggestions when panel is open
@@ -225,9 +238,16 @@ const FiltersCard: FC = memo(() => {
         tableCalculations,
     });
 
-    // Pre-compute filter rule labels for tooltip
+    // Pre-compute filter rule labels for tooltip (extract directly from tree)
     const filterRuleLabels = useMemo(() => {
-        return getTotalFilterRules(processedFilters).map((filterRule) => {
+        const filterRules = Object.values(filterTree.byId)
+            .filter(
+                (node): node is Extract<typeof node, { type: 'rule' }> =>
+                    node.type === 'rule',
+            )
+            .map((node) => node.rule);
+
+        return filterRules.map((filterRule) => {
             const field = visibleFields.find(
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
@@ -252,7 +272,7 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         });
-    }, [processedFilters, visibleFields]);
+    }, [filterTree, visibleFields]);
 
     return (
         <CollapsableCard
@@ -322,8 +342,7 @@ const FiltersCard: FC = memo(() => {
                 >
                     <FiltersForm
                         isEditMode={isEditMode}
-                        filters={processedFilters}
-                        setFilters={setFilters}
+                        filterTree={filterTree}
                     />
                 </FiltersProvider>
             )}

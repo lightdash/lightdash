@@ -1,17 +1,7 @@
 import {
-    addFilterRule,
-    deleteFilterRuleFromGroup,
-    getFiltersFromGroup,
     getItemId,
-    getTotalFilterRules,
-    hasNestedGroups,
-    isAndFilterGroup,
     isFilterableField,
-    isOrFilterGroup,
-    type FilterGroup,
     type FilterRule,
-    type Filters,
-    type OrFilterGroup,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -26,7 +16,9 @@ import {
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { v4 as uuidv4 } from 'uuid';
+import { explorerActions } from '../../../features/explorer/store/explorerSlice';
+import type { FilterTreeState } from '../../../features/explorer/store/filterTree';
+import { useExplorerDispatch } from '../../../features/explorer/store/hooks';
 import {
     type FieldWithSuggestions,
     type FieldsWithSuggestions,
@@ -39,8 +31,7 @@ import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 import useFiltersContext from './useFiltersContext';
 
 type Props = {
-    filters: Filters;
-    setFilters: (value: Filters) => void;
+    filterTree: FilterTreeState;
     isEditMode: boolean;
 };
 
@@ -60,125 +51,61 @@ const getInvalidFilterRules = (
         return accumulator;
     }, []);
 
-const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
+const FiltersForm: FC<Props> = memo(({ filterTree, isEditMode }) => {
+    const dispatch = useExplorerDispatch();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
     }, [itemsMap]);
 
-    const totalFilterRules = getTotalFilterRules(filters);
-    const clearAllFilters = useCallback(() => {
-        setFilters({});
-    }, [setFilters]);
-    const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
+    // Get all filter rules from tree (O(n) scan but only rule nodes)
+    const allFilterRules = useMemo(() => {
+        return Object.values(filterTree.byId)
+            .filter(
+                (node): node is Extract<typeof node, { type: 'rule' }> =>
+                    node.type === 'rule',
+            )
+            .map((node) => node.rule);
+    }, [filterTree]);
+
+    const invalidFilterRules = getInvalidFilterRules(fields, allFilterRules);
     const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
-    const showSimplifiedForm: boolean =
-        totalFilterRules.length < 2 && !hasNestedGroups(filters);
+    // Check if we should show simplified form (< 2 rules and no nested groups)
+    const showSimplifiedForm: boolean = useMemo(() => {
+        if (allFilterRules.length >= 2) return false;
 
-    const addFieldRule = useCallback(
-        (field: FieldWithSuggestions) => {
-            if (isFilterableField(field)) {
-                setFilters(addFilterRule({ filters, field }));
+        // Check for nested groups (any group node that's not the root)
+        const hasNested = Object.values(filterTree.byId).some(
+            (node) => node.type === 'group' && node.id !== filterTree.rootId,
+        );
+        return !hasNested;
+    }, [allFilterRules.length, filterTree]);
+
+    const handleaddFilterRuleFromFieldSelect = useCallback(
+        (field: FieldWithSuggestions | undefined) => {
+            if (field && isFilterableField(field)) {
+                dispatch(explorerActions.addFilterRuleFromField({ field }));
                 toggleFieldInput(false);
             }
         },
-        [filters, setFilters, toggleFieldInput],
+        [dispatch, toggleFieldInput],
     );
 
-    const updateFiltersFromGroup = useCallback(
-        (filterGroup: FilterGroup) => {
-            setFilters(getFiltersFromGroup(filterGroup, fields));
-        },
-        [fields, setFilters],
-    );
-
-    const andRootFilterGroupItems = useMemo(() => {
-        const dimensionAndGroupItems =
-            filters.dimensions && isAndFilterGroup(filters.dimensions)
-                ? filters.dimensions.and
-                : [];
-        const metricAndGroupItems =
-            filters.metrics && isAndFilterGroup(filters.metrics)
-                ? filters.metrics.and
-                : [];
-        const tableCalculationAndGroupItems =
-            filters.tableCalculations &&
-            isAndFilterGroup(filters.tableCalculations)
-                ? filters.tableCalculations.and
-                : [];
-
-        return [
-            ...dimensionAndGroupItems,
-            ...metricAndGroupItems,
-            ...tableCalculationAndGroupItems,
-        ];
-    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
-
-    const orRootFilterGroups = useMemo(() => {
-        const groups: OrFilterGroup[] = [];
-
-        if (filters.dimensions && isOrFilterGroup(filters.dimensions)) {
-            groups.push(filters.dimensions);
-        }
-
-        if (filters.metrics && isOrFilterGroup(filters.metrics)) {
-            groups.push(filters.metrics);
-        }
-
-        if (
-            filters.tableCalculations &&
-            isOrFilterGroup(filters.tableCalculations)
-        ) {
-            groups.push(filters.tableCalculations);
-        }
-
-        return groups;
-    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
-
-    const rootFilterGroup: FilterGroup = useMemo(() => {
-        // If there are no ORs, we can just return the AND group items as a new root group
-        if (orRootFilterGroups.length === 0) {
-            return {
-                id: uuidv4(),
-                and: andRootFilterGroupItems,
-            };
-        }
-
-        // If there are no ANDs, we can just return the OR groups as a new root group
-        if (andRootFilterGroupItems.length === 0) {
-            // If there's only one OR group, we can just return it as the root group
-            return orRootFilterGroups.length === 1
-                ? orRootFilterGroups[0]
-                : {
-                      id: uuidv4(),
-                      and: orRootFilterGroups,
-                  };
-        }
-
-        // If there are both ANDs and ORs, we need to create a new root group that contains both
-        return {
-            id: uuidv4(),
-            and: [...andRootFilterGroupItems, ...orRootFilterGroups],
-        };
-    }, [andRootFilterGroupItems, orRootFilterGroups]);
+    const clearAllFilters = useCallback(() => {
+        dispatch(explorerActions.resetFilterTree());
+    }, [dispatch]);
 
     return (
         <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
-            {totalFilterRules.length >= 1 &&
+            {allFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm
                         fields={fields}
+                        itemsMap={itemsMap}
                         isEditMode={isEditMode}
-                        filterRules={getTotalFilterRules(filters)}
-                        onChange={(filterRules) => {
-                            // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
-                            updateFiltersFromGroup({
-                                id: uuidv4(),
-                                and: filterRules,
-                            });
-                        }}
+                        filterRules={allFilterRules}
                     />
                 ) : (
                     <>
@@ -191,17 +118,16 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             style={{ zIndex: 1 }}
                         />
 
-                        {rootFilterGroup && (
-                            <FilterGroupForm
-                                hideLine
-                                hideButtons
-                                filterGroup={rootFilterGroup}
-                                fields={fields}
-                                isEditMode={isEditMode}
-                                onChange={updateFiltersFromGroup}
-                                onDelete={() => setFilters({})}
-                            />
-                        )}
+                        <FilterGroupForm
+                            groupId={filterTree.rootId}
+                            hideLine
+                            hideButtons
+                            filterTree={filterTree}
+                            fields={fields}
+                            itemsMap={itemsMap}
+                            isEditMode={isEditMode}
+                            onDelete={clearAllFilters}
+                        />
                     </>
                 ))}
 
@@ -231,10 +157,11 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             </Text>
                             <ActionIcon
                                 onClick={() =>
-                                    updateFiltersFromGroup(
-                                        deleteFilterRuleFromGroup(
-                                            rootFilterGroup,
-                                            rule.id,
+                                    dispatch(
+                                        explorerActions.removeFilterRuleFromTree(
+                                            {
+                                                ruleId: rule.id,
+                                            },
                                         ),
                                     )
                                 }
@@ -259,7 +186,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             >
                                 Add filter
                             </Button>
-                            {totalFilterRules.length > 0 && (
+                            {allFilterRules.length > 0 && (
                                 <Tooltip
                                     label="Clear all filters"
                                     position="bottom"
@@ -269,7 +196,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                         size="xs"
                                         color="gray"
                                         onClick={clearAllFilters}
-                                        disabled={totalFilterRules.length === 0}
+                                        disabled={allFilterRules.length === 0}
                                     >
                                         Clear all
                                     </Button>
@@ -286,10 +213,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             hasGrouping
                             baseTable={baseTable}
                             items={fields}
-                            onChange={(field) => {
-                                if (!field) return;
-                                addFieldRule(field);
-                            }}
+                            onChange={handleaddFilterRuleFromFieldSelect}
                             onClosed={toggleFieldInput}
                             rightSection={
                                 <ActionIcon onClick={toggleFieldInput}>

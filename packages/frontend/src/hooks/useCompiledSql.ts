@@ -10,8 +10,8 @@ import { lightdashApi } from '../api';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectDenormalizedFiltersForApi,
     selectDimensions,
-    selectFilters,
     selectMetrics,
     selectParameters,
     selectQueryLimit,
@@ -51,7 +51,7 @@ export const useCompiledSql = (
     const tableId = useExplorerSelector(selectTableName);
     const dimensions = useExplorerSelector(selectDimensions);
     const metrics = useExplorerSelector(selectMetrics);
-    const filters = useExplorerSelector(selectFilters);
+    const filters = useExplorerSelector(selectDenormalizedFiltersForApi);
     const sorts = useExplorerSelector(selectSorts);
     const limit = useExplorerSelector(selectQueryLimit);
     const tableCalculations = useExplorerSelector(selectTableCalculations);

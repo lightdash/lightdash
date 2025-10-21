@@ -2,22 +2,61 @@ import {
     convertFieldRefToFieldId,
     getAllReferences,
     getItemId,
-    getTotalFilterRules,
     getVisibleFields,
     isCustomBinDimension,
     isCustomSqlDimension,
     type AdditionalMetric,
     type CustomDimension,
     type Explore,
+    type Filters,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { denormalizeFilters } from './filterTree';
 
 // Base selectors
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
-export const selectUnsavedChartVersion = createSelector(
+/**
+ * Select filter tree - source of truth for filter state
+ *
+ * ✅ USE FOR: UI rendering (FiltersCard, FilterGroupForm), filter checks
+ * ⚠️ DON'T USE FOR: API calls (use selectDenormalizedFiltersForApi instead)
+ *
+ * Returns normalized tree with O(1) access and stable object references.
+ */
+export const selectFilterTree = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.filterTree,
+);
+
+/**
+ * Denormalize filter tree to API format
+ *
+ * Converts single tree with synthetic root → separated by type (dimensions/metrics/tableCalculations)
+ * This is the format expected by the API and used throughout the codebase.
+ *
+ * ✅ USE FOR: API operations (running queries, compiling SQL, saving charts)
+ * ⚠️ DON'T USE FOR: UI rendering (creates new objects on every change, use selectFilterTree instead)
+ *
+ * ARCHITECTURE:
+ * - Input: Single tree with synthetic root, groupKey in nodes
+ * - Output: { dimensions: FilterGroup, metrics: FilterGroup, tableCalculations: FilterGroup }
+ * - Auto-synced: Updates whenever filterTree changes
+ */
+export const selectDenormalizedFiltersForApi = createSelector(
+    [selectFilterTree],
+    (filterTree): Filters => denormalizeFilters(filterTree),
+);
+
+/**
+ * Select unsavedChartVersion without filters
+ *
+ * Filters are managed separately in filterTree. This returns stable references when only filters change.
+ * For filters: use selectFilterTree (UI) or selectDenormalizedFiltersForApi (API).
+ */
+const selectUnsavedChartVersion = createSelector(
     [selectExplorerState],
     (explorer) => explorer.unsavedChartVersion,
 );
@@ -25,6 +64,37 @@ export const selectUnsavedChartVersion = createSelector(
 export const selectMetricQuery = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.metricQuery,
+);
+
+/**
+ * Select metricQuery with denormalized filters included
+ *
+ * Use ONLY for API calls that need the complete query.
+ * For UI: use selectMetricQuery + selectFilterTree separately to avoid re-renders.
+ */
+export const selectMetricQueryForApi = createSelector(
+    [selectMetricQuery, selectDenormalizedFiltersForApi],
+    (metricQuery, filters) => ({
+        ...metricQuery,
+        filters,
+    }),
+);
+
+/**
+ * Select unsavedChartVersion with filters included
+ *
+ * Complete chart version for saving to API (e.g., SaveChartButton).
+ * Creates new references when filters change - use selectUnsavedChartVersion for most components.
+ */
+export const selectUnsavedChartVersionForApi = createSelector(
+    [selectUnsavedChartVersion, selectDenormalizedFiltersForApi],
+    (unsavedChartVersion, filters) => ({
+        ...unsavedChartVersion,
+        metricQuery: {
+            ...unsavedChartVersion.metricQuery,
+            filters,
+        },
+    }),
 );
 
 const selectExpandedSections = createSelector(
@@ -64,19 +134,17 @@ export const selectIsVisualizationConfigOpen = createSelector(
     (explorer) => explorer.isVisualizationConfigOpen,
 );
 
-// FiltersCard specific selectors
-export const selectFilters = createSelector(
-    [selectMetricQuery],
-    (metricQuery) => metricQuery.filters,
-);
-
 export const selectIsFieldFiltered = createSelector(
-    [selectFilters, (_state: ExplorerStoreState, fieldId: string) => fieldId],
-    (filters, fieldId) => {
-        if (!filters) return false;
-
-        const allFilterRules = getTotalFilterRules(filters);
-        return allFilterRules.some((rule) => rule.target.fieldId === fieldId);
+    [
+        selectFilterTree,
+        (_state: ExplorerStoreState, fieldId: string) => fieldId,
+    ],
+    (filterTree, fieldId) => {
+        // O(n) scan of tree nodes, but only rule nodes (no denormalization!)
+        return Object.values(filterTree.byId).some(
+            (node) =>
+                node.type === 'rule' && node.rule.target.fieldId === fieldId,
+        );
     },
 );
 

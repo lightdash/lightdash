@@ -14,7 +14,7 @@ import {
     selectFromDashboard,
     selectIsEditMode,
     selectIsResultsExpanded,
-    selectMetricQuery,
+    selectMetricQueryForApi,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -51,7 +51,7 @@ export const useExplorerQueryEffects = ({
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const fromDashboard = useExplorerSelector(selectFromDashboard);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const metricQuery = useExplorerSelector(selectMetricQueryForApi);
 
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,

@@ -20,7 +20,6 @@ import {
     type CustomFormat,
     type FieldId,
     type Metric,
-    type MetricQuery,
     type ReplaceCustomFields,
     type SavedChart,
     type TableCalculation,
@@ -42,7 +41,7 @@ import {
     explorerActions,
     selectIsValidQuery,
     selectTableName,
-    selectUnsavedChartVersion,
+    selectUnsavedChartVersionForApi,
     useExplorerDispatch,
     useExplorerInitialization,
     useExplorerSelector,
@@ -580,7 +579,7 @@ const ExplorerProvider: FC<
     const { unsavedChartVersion } = reducerState;
 
     const unsavedChartVersionFromRedux = useExplorerSelector(
-        selectUnsavedChartVersion,
+        selectUnsavedChartVersionForApi,
     );
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
 
@@ -588,6 +587,7 @@ const ExplorerProvider: FC<
     const prevChartConfigRef = useRef(unsavedChartVersion.chartConfig);
     const prevPivotConfigRef = useRef(unsavedChartVersion.pivotConfig);
 
+    // Merged version WITHOUT filters - stable when only filters change
     const mergedUnsavedChartVersion = useMemo(() => {
         // Check if chartConfig or pivotConfig actually changed (deep equality)
         const chartConfigChanged = !deepEqual(
@@ -764,18 +764,6 @@ const ExplorerProvider: FC<
             });
         }
     }, []);
-
-    const setFilters = useCallback(
-        (filters: MetricQuery['filters']) => {
-            dispatch({
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-            });
-            // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
-            reduxDispatch(explorerActions.setFilters(filters));
-        },
-        [reduxDispatch],
-    );
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1099,20 +1087,6 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.closeVisualizationConfig());
     }, [reduxDispatch]);
 
-    const setParameterReferences = useCallback(
-        (parameterReferences: string[] | null) => {
-            dispatch({
-                type: ActionType.SET_PARAMETER_REFERENCES,
-                payload: parameterReferences,
-            });
-            // Sync to Redux for components that have been migrated
-            reduxDispatch(
-                explorerActions.setParameterReferences(parameterReferences),
-            );
-        },
-        [reduxDispatch],
-    );
-
     const isUnsavedChartChanged = useCallback(
         (chartVersion: CreateSavedChartVersion) => {
             if (savedChart) {
@@ -1147,7 +1121,6 @@ const ExplorerProvider: FC<
             clearQuery,
             reset,
             setTableName,
-            setFilters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1171,7 +1144,6 @@ const ExplorerProvider: FC<
             replaceFields,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setParameterReferences,
             isUnsavedChartChanged,
         }),
         [
@@ -1181,7 +1153,6 @@ const ExplorerProvider: FC<
             setTableName,
             setRowLimit,
             setTimeZone,
-            setFilters,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,
@@ -1203,7 +1174,6 @@ const ExplorerProvider: FC<
             replaceFields,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setParameterReferences,
             isUnsavedChartChanged,
         ],
     );

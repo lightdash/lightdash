@@ -9,7 +9,7 @@ import {
     selectDimensions,
     selectFormatModal,
     selectIsEditMode,
-    selectMetricQuery,
+    selectMetricQueryForApi,
     selectMetrics,
     selectParameterReferences,
     selectParameters,
@@ -47,7 +47,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const metrics = useExplorerSelector(selectMetrics);
         const columnOrder = useExplorerSelector(selectColumnOrder);
         const sorts = useExplorerSelector(selectSorts);
-        const metricQuery = useExplorerSelector(selectMetricQuery);
+        const metricQuery = useExplorerSelector(selectMetricQueryForApi);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
