@@ -14,6 +14,7 @@ const VisualizationTools = [
 export const ToolNameSchema = z.enum([
     ...VisualizationTools,
     'generateDashboard',
+    'generateDashboardV2',
     'findContent',
     'findExplores',
     'findFields',
@@ -42,6 +43,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     generateTableVizConfig: 'Generating a table',
     generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
+    generateDashboardV2: 'Generating a dashboard',
     findCharts: 'Finding relevant charts',
     improveContext: 'Improving context',
     runQuery: 'Running query',
@@ -58,6 +60,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         generateTableVizConfig: 'Generated a table',
         generateTimeSeriesVizConfig: 'Generated a line chart',
         generateDashboard: 'Generated a dashboard',
+        generateDashboardV2: 'Generated a dashboard',
         findCharts: 'Found relevant charts',
         improveContext: 'Improved context',
         runQuery: 'Ran query',

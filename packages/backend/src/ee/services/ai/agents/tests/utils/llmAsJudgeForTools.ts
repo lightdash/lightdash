@@ -1,6 +1,7 @@
 import {
     isToolName,
     toolDashboardArgsSchema,
+    toolDashboardV2ArgsSchema,
     toolFindChartsArgsSchema,
     toolFindContentArgsSchema,
     toolFindDashboardsArgsSchema,
@@ -35,6 +36,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateBarVizConfig: 'vertical_bar_chart',
     runQuery: 'query_result',
     generateDashboard: 'generate_dashboard',
+    generateDashboardV2: 'generate_dashboard_v2',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
 } satisfies Record<ToolName, string>;
@@ -48,6 +50,7 @@ const TOOL_SCHEMAS = {
     generateTableVizConfig: toolTableVizArgsSchema,
     generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
     generateDashboard: toolDashboardArgsSchema,
+    generateDashboardV2: toolDashboardV2ArgsSchema,
     findContent: toolFindContentArgsSchema,
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,

@@ -42,10 +42,12 @@ import {
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
+    ToolDashboardArgs,
     toolDashboardArgsSchema,
+    ToolDashboardV2Args,
+    toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
-    UserAttributeValueMap,
     type SessionUser,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -1411,13 +1413,22 @@ export class AiAgentService {
         }
 
         // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
-        const dashboardConfigParsed = toolDashboardArgsSchema.safeParse(
+        // Try to parse with v2 schema first, then fall back to v1
+        const dashboardConfigV2Parsed = toolDashboardV2ArgsSchema.safeParse(
             artifact.dashboardConfig,
         );
-        if (!dashboardConfigParsed.success) {
-            throw new ParameterError('Invalid dashboard config');
+        let dashboardConfig: ToolDashboardArgs | ToolDashboardV2Args;
+        if (dashboardConfigV2Parsed.success) {
+            dashboardConfig = dashboardConfigV2Parsed.data;
+        } else {
+            const dashboardConfigV1Parsed = toolDashboardArgsSchema.safeParse(
+                artifact.dashboardConfig,
+            );
+            if (!dashboardConfigV1Parsed.success) {
+                throw new ParameterError('Invalid dashboard config');
+            }
+            dashboardConfig = dashboardConfigV1Parsed.data;
         }
-        const dashboardConfig = dashboardConfigParsed.data;
         const { visualizations } = dashboardConfig;
 
         if (

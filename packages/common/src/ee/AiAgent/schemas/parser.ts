@@ -1,6 +1,7 @@
 import assertUnreachable from '../../../utils/assertUnreachable';
 import {
     toolDashboardArgsSchemaTransformed,
+    toolDashboardV2ArgsSchemaTransformed,
     toolFindChartsArgsSchemaTransformed,
     toolFindContentArgsSchema,
     toolFindDashboardsArgsSchemaTransformed,
@@ -42,6 +43,8 @@ export const parseToolArgs = (toolName: ToolName, toolArgs: unknown) => {
             return toolTimeSeriesArgsSchemaTransformed.safeParse(toolArgs);
         case 'generateDashboard':
             return toolDashboardArgsSchemaTransformed.safeParse(toolArgs);
+        case 'generateDashboardV2':
+            return toolDashboardV2ArgsSchemaTransformed.safeParse(toolArgs);
         case 'findDashboards':
             return toolFindDashboardsArgsSchemaTransformed.safeParse(toolArgs);
         case 'findCharts':
