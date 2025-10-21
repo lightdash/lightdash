@@ -1,3 +1,10 @@
+# [0.2100.0](https://github.com/lightdash/lightdash/compare/0.2099.1...0.2100.0) (2025-10-21)
+
+
+### Features
+
+* add download audit tracking for file exports ([#17553](https://github.com/lightdash/lightdash/issues/17553)) ([8486171](https://github.com/lightdash/lightdash/commit/84861714fe3b4fb64111fb15e6cc1970c322b686))
+
 ## [0.2099.1](https://github.com/lightdash/lightdash/compare/0.2099.0...0.2099.1) (2025-10-21)
 
 
