@@ -1,3 +1,11 @@
+## [0.2097.1](https://github.com/lightdash/lightdash/compare/0.2097.0...0.2097.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* 100% stackbarchart fix tooltip values ([#17544](https://github.com/lightdash/lightdash/issues/17544)) ([6b40ac0](https://github.com/lightdash/lightdash/commit/6b40ac0971bf4e911641dd4957b4012218465335))
+* add env variable for organization credentials ([#17543](https://github.com/lightdash/lightdash/issues/17543)) ([6e4ef54](https://github.com/lightdash/lightdash/commit/6e4ef5406af7cf60b53f626072bb84e57d7ef139))
+
 # [0.2097.0](https://github.com/lightdash/lightdash/compare/0.2096.1...0.2097.0) (2025-10-20)
 
 
