@@ -57,5 +57,6 @@ export const getComputedSeries = ({
         expectedSeriesMap,
         existingSeries: echartsConfig.config?.eChartsConfig?.series || [],
     });
+    console.log('newSeries', newSeries);
     return newSeries;
 };
