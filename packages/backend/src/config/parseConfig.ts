@@ -766,6 +766,9 @@ export type LightdashConfig = {
     serviceAccount: {
         enabled: boolean;
     };
+    organizationWarehouseCredentials: {
+        enabled: boolean;
+    };
     github: {
         appName: string;
         redirectDomain: string;
@@ -1582,6 +1585,11 @@ export const parseConfig = (): LightdashConfig => {
         },
         serviceAccount: {
             enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
+        },
+        organizationWarehouseCredentials: {
+            enabled:
+                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
+                'true',
         },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',

@@ -90,6 +90,7 @@ export default function mockHealthResponse(
             overrideColorPaletteName: undefined,
         },
         isServiceAccountEnabled: false,
+        isOrganizationWarehouseCredentialsEnabled: false,
         isCustomRolesEnabled: false,
         embedding: {
             enabled: false,
