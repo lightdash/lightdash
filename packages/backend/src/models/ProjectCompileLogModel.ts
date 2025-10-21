@@ -1,13 +1,22 @@
-import { type CompilationHistoryReport } from '@lightdash/common';
+import {
+    CompilationSource,
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    ProjectCompileLog,
+    ProjectCompileLogInsert,
+    type CompilationHistoryReport,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
     DbProjectCompileLog,
-    ProjectCompileLogInsert,
     ProjectCompileLogTableName,
-    type ProjectCompileLog,
 } from '../database/entities/projectCompileLog';
+import KnexPaginate from '../database/pagination';
 
-export type { ProjectCompileLog };
+export type DbProjectCompileLogSortColumns = Extract<
+    keyof DbProjectCompileLog,
+    'created_at' | 'compilation_source'
+>;
 
 export class ProjectCompileLogModel {
     private database: Knex;
@@ -34,21 +43,92 @@ export class ProjectCompileLogModel {
         return row.project_compile_log_id;
     }
 
-    async getByProject(
-        projectUuid: string,
-        limit: number = 50,
-    ): Promise<ProjectCompileLog[]> {
-        const rows = await this.database(ProjectCompileLogTableName)
-            .where('project_uuid', projectUuid)
-            .orderBy('created_at', 'desc')
-            .limit(limit);
+    async getLogs({
+        organizationUuid,
+        projectUuid,
+        paginateArgs,
+        sort,
+        filters,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        sort?: {
+            column: DbProjectCompileLogSortColumns;
+            direction: 'asc' | 'desc';
+        };
+        filters?: {
+            triggeredByUserUuids?: string[];
+            source?: CompilationSource;
+        };
+    }): Promise<KnexPaginatedData<ProjectCompileLog[]>> {
+        let baseQuery = this.database(ProjectCompileLogTableName)
+            .leftJoin(
+                'users',
+                'project_compile_log.user_uuid',
+                'users.user_uuid',
+            )
+            .where('project_compile_log.organization_uuid', organizationUuid)
+            .where('project_compile_log.project_uuid', projectUuid)
+            .select(
+                'project_compile_log.*',
+                this.database.raw(
+                    "CONCAT(users.first_name, ' ', users.last_name) as user_name",
+                ),
+            );
 
-        return rows.map(this.mapRow);
+        if (filters) {
+            if (
+                filters.triggeredByUserUuids &&
+                filters.triggeredByUserUuids.length > 0
+            ) {
+                baseQuery = baseQuery.whereIn(
+                    'project_compile_log.user_uuid',
+                    filters.triggeredByUserUuids,
+                );
+            }
+            if (filters.source) {
+                baseQuery = baseQuery.where(
+                    'project_compile_log.compilation_source',
+                    filters.source,
+                );
+            }
+        }
+
+        baseQuery = baseQuery.orderBy(
+            `project_compile_log.${sort?.column ?? 'created_at'}`,
+            sort?.direction ?? 'desc',
+        );
+
+        const { pagination, data } = await KnexPaginate.paginate<
+            {},
+            DbProjectCompileLog[]
+        >(baseQuery, paginateArgs);
+
+        return {
+            pagination,
+            data: data.map(this.mapRow),
+        };
     }
 
-    async getByJob(jobUuid: string): Promise<ProjectCompileLog | undefined> {
+    async getByJob(
+        projectUuid: string,
+        jobUuid: string,
+    ): Promise<ProjectCompileLog | undefined> {
         const row = await this.database(ProjectCompileLogTableName)
-            .where('job_uuid', jobUuid)
+            .leftJoin(
+                'users',
+                'project_compile_log.user_uuid',
+                'users.user_uuid',
+            )
+            .where('project_compile_log.project_uuid', projectUuid)
+            .where('project_compile_log.job_uuid', jobUuid)
+            .select(
+                'project_compile_log.*',
+                this.database.raw(
+                    "CONCAT(users.first_name, ' ', users.last_name) as user_name",
+                ),
+            )
             .first();
 
         return row ? this.mapRow(row) : undefined;
@@ -61,6 +141,7 @@ export class ProjectCompileLogModel {
             projectUuid: row.project_uuid,
             jobUuid: row.job_uuid,
             userUuid: row.user_uuid,
+            userName: row.user_name,
             organizationUuid: row.organization_uuid,
             createdAt: row.created_at,
             compilationSource: row.compilation_source,
