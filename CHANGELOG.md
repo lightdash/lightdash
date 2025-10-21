@@ -1,3 +1,10 @@
+## [0.2097.3](https://github.com/lightdash/lightdash/compare/0.2097.2...0.2097.3) (2025-10-21)
+
+
+### Bug Fixes
+
+* keep pivot dimensions when changing to table viz ([#17547](https://github.com/lightdash/lightdash/issues/17547)) ([a7ea8b8](https://github.com/lightdash/lightdash/commit/a7ea8b81fd41244c802921e61a5536410e16acc5))
+
 ## [0.2097.2](https://github.com/lightdash/lightdash/compare/0.2097.1...0.2097.2) (2025-10-21)
 
 
