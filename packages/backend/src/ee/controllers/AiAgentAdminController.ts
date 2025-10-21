@@ -33,7 +33,6 @@ import { type AiAgentAdminService } from '../services/AiAgentAdminService';
 import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
 
 @Route('/api/v1/aiAgents/admin')
-@Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentAdminController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -118,6 +117,7 @@ export class AiAgentAdminController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/embed-token')
+    @Hidden()
     @OperationId('getEmbedToken')
     async getEmbedToken(
         @Request() req: express.Request,
