@@ -22,6 +22,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             [CommercialFeatureFlags.Scim]: this.getScimFlag.bind(this),
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
+            [CommercialFeatureFlags.AgentV2]:
+                CommercialFeatureFlagModel.getAgentV2Flag.bind(this),
         };
     }
 
@@ -99,6 +101,29 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             enabled = this.lightdashConfig.ai.copilot.enabled;
         }
 
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private static async getAgentV2Flag({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled = user
+            ? await isFeatureFlagEnabled(
+                  CommercialFeatureFlags.AgentV2 as AnyType as FeatureFlags,
+                  {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                      organizationName: user.organizationName,
+                  },
+                  {
+                      throwOnTimeout: false,
+                  },
+              )
+            : false;
         return {
             id: featureFlagId,
             enabled,
