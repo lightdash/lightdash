@@ -1,6 +1,6 @@
 import {
-    getItemId,
     isFilterableField,
+    type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -20,8 +20,8 @@ import { explorerActions } from '../../../features/explorer/store/explorerSlice'
 import type { FilterTreeState } from '../../../features/explorer/store/filterTree';
 import { useExplorerDispatch } from '../../../features/explorer/store/hooks';
 import {
-    type FieldWithSuggestions,
     type FieldsWithSuggestions,
+    type FieldWithSuggestions,
 } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
@@ -36,15 +36,13 @@ type Props = {
 };
 
 const getInvalidFilterRules = (
-    fields: FieldWithSuggestions[],
+    fieldsMap: FieldsWithSuggestions,
     filterRules: FilterRule[],
 ) =>
     filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
-        const fieldInRule = fields.find(
-            (field) => getItemId(field) === filterRule.target.fieldId,
-        );
+        const field = fieldsMap[filterRule.target.fieldId];
 
-        if (!fieldInRule) {
+        if (!field) {
             return [...accumulator, filterRule];
         }
 
@@ -53,11 +51,8 @@ const getInvalidFilterRules = (
 
 const FiltersForm: FC<Props> = memo(({ filterTree, isEditMode }) => {
     const dispatch = useExplorerDispatch();
-    const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
+    const { baseTable, itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const fields = useMemo<FieldWithSuggestions[]>(() => {
-        return Object.values(itemsMap);
-    }, [itemsMap]);
 
     // Get all filter rules from tree (O(n) scan but only rule nodes)
     const allFilterRules = useMemo(() => {
@@ -69,7 +64,11 @@ const FiltersForm: FC<Props> = memo(({ filterTree, isEditMode }) => {
             .map((node) => node.rule);
     }, [filterTree]);
 
-    const invalidFilterRules = getInvalidFilterRules(fields, allFilterRules);
+    const invalidFilterRules = useMemo(
+        () => getInvalidFilterRules(itemsMap, allFilterRules),
+        [itemsMap, allFilterRules],
+    );
+
     const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
     // Check if we should show simplified form (< 2 rules and no nested groups)
@@ -96,6 +95,11 @@ const FiltersForm: FC<Props> = memo(({ filterTree, isEditMode }) => {
     const clearAllFilters = useCallback(() => {
         dispatch(explorerActions.resetFilterTree());
     }, [dispatch]);
+
+    const fields = useMemo<FilterableField[]>(
+        () => Object.values(itemsMap),
+        [itemsMap],
+    );
 
     return (
         <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
