@@ -25,16 +25,22 @@ import {
     toolFindFieldsArgsSchema,
     ToolRunMetricQueryArgs,
     toolRunMetricQueryArgsSchema,
+    ToolRunQueryArgs,
+    toolRunQueryArgsSchema,
     ToolSearchFieldValuesArgs,
     toolSearchFieldValuesArgsSchema,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { v4 as uuidv4 } from 'uuid';
 // eslint-disable-next-line import/extensions
 import { subject } from '@casl/ability';
 // eslint-disable-next-line import/extensions
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
 // eslint-disable-next-line import/extensions
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+    McpServer,
+    ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp';
 import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
@@ -63,6 +69,7 @@ import { getFindDashboards } from '../ai/tools/findDashboards';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import { getRunQuery } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
     FindChartsFn,
@@ -85,6 +92,7 @@ export enum McpToolName {
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
     RUN_METRIC_QUERY = 'run_metric_query',
+    RUN_QUERY = 'run_query',
     SEARCH_FIELD_VALUES = 'search_field_values',
 }
 
@@ -139,6 +147,19 @@ export class McpService extends BaseService {
 
     private mcpCompatLayer: McpSchemaCompatLayer;
 
+    // Cache for MCP chart resources
+    private chartCache: Map<
+        string,
+        {
+            uuid: string;
+            title: string;
+            description: string;
+            image: Buffer;
+            createdAt: Date;
+            projectUuid: string;
+        }
+    >;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -165,6 +186,7 @@ export class McpService extends BaseService {
         this.mcpContextModel = mcpContextModel;
         this.featureFlagService = featureFlagService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
+        this.chartCache = new Map();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
                 new McpServer({
@@ -663,6 +685,93 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
+            McpToolName.RUN_QUERY,
+            {
+                description: toolRunQueryArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolRunQueryArgsSchema,
+                ) as AnyType,
+            },
+            async (_args, context) => {
+                const args = _args as ToolRunQueryArgs;
+
+                const projectUuid = await this.resolveProjectUuid(
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(
+                    context as McpProtocolContext,
+                    McpToolName.RUN_QUERY,
+                    projectUuid,
+                );
+
+                const dependencies = await this.getRunQueryDependencies(
+                    argsWithProject,
+                    context as McpProtocolContext,
+                );
+
+                const runQueryTool = getRunQuery(dependencies);
+
+                const result = await runQueryTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                const resultText = await McpService.streamToolResult(result);
+
+                // Parse out base64 image if present (MCP chart rendering)
+                const imageMarker =
+                    'Chart visualization (base64 PNG):\ndata:image/png;base64,';
+                const imageIndex = resultText.indexOf(imageMarker);
+
+                if (imageIndex !== -1) {
+                    const beforeImage = resultText.substring(0, imageIndex);
+                    const afterMarker = resultText.substring(
+                        imageIndex + imageMarker.length,
+                    );
+                    const imageEndIndex = afterMarker.indexOf('\n\n');
+                    const base64Image = afterMarker.substring(0, imageEndIndex);
+                    const afterImage = afterMarker.substring(imageEndIndex);
+
+                    // Generate UUID and cache the chart
+                    const chartUuid = uuidv4();
+                    const imageBuffer = Buffer.from(base64Image, 'base64');
+
+                    this.chartCache.set(chartUuid, {
+                        uuid: chartUuid,
+                        title: args.title || 'Untitled Chart',
+                        description: args.description || '',
+                        image: imageBuffer,
+                        createdAt: new Date(),
+                        projectUuid,
+                    });
+
+                    // Return resource URI instead of inline image
+                    const resourceUri = `lightdash://chart/${chartUuid}`;
+
+                    return {
+                        content: [
+                            {
+                                type: 'text',
+                                text: `${beforeImage.trim()}${afterImage.trim()}\n\nChart visualization available at: ${resourceUri}\nUse resources/read to retrieve the chart image.`,
+                            },
+                        ],
+                    };
+                }
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: resultText,
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
             McpToolName.SEARCH_FIELD_VALUES,
             {
                 description: toolSearchFieldValuesArgsSchema.description,
@@ -706,6 +815,54 @@ export class McpService extends BaseService {
                         {
                             type: 'text',
                             text: await McpService.streamToolResult(result),
+                        },
+                    ],
+                };
+            },
+        );
+
+        // Register chart resources with template pattern
+        const chartTemplate = new ResourceTemplate('lightdash://chart/{uuid}', {
+            // List all cached charts
+            list: async () => {
+                const charts = Array.from(this.chartCache.values());
+                return {
+                    resources: charts.map((chart) => ({
+                        uri: `lightdash://chart/${chart.uuid}`,
+                        name: chart.title || 'Untitled Chart',
+                        description: chart.description || undefined,
+                        mimeType: 'image/png',
+                    })),
+                };
+            },
+        });
+
+        this.mcpServer.resource(
+            'Lightdash Charts',
+            chartTemplate,
+            {
+                description:
+                    'Cached chart visualizations generated by Lightdash queries',
+                mimeType: 'image/png',
+            },
+            async (uri, variables) => {
+                const chartUuid = Array.isArray(variables.uuid)
+                    ? variables.uuid[0]
+                    : variables.uuid;
+
+                const chart = this.chartCache.get(chartUuid);
+                if (!chart) {
+                    throw new NotFoundError(
+                        `Chart ${chartUuid} not found in cache`,
+                    );
+                }
+
+                return {
+                    contents: [
+                        {
+                            uri: uri.toString(),
+                            mimeType: 'image/png',
+                            blob: chart.image.toString('base64'),
                         },
                     ],
                 };
@@ -1202,6 +1359,127 @@ export class McpService extends BaseService {
             });
 
         return { getExplore, runMiniMetricQuery };
+    }
+
+    async getRunQueryDependencies(
+        toolArgs: ToolRunQueryArgs & {
+            projectUuid: string;
+        },
+        context: McpProtocolContext,
+    ) {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get tags from context for filtering
+        const tagsFromContext = await this.getTagsFromContext(context);
+
+        const getExplore = async ({ exploreName }: { exploreName: string }) => {
+            const explore = await this.getExplore(
+                user,
+                projectUuid,
+                tagsFromContext,
+                exploreName,
+            );
+            return explore;
+        };
+
+        const runMiniMetricQuery = async (
+            metricQuery: Parameters<RunMiniMetricQueryFn>[0],
+            maxLimit: number,
+            additionalMetrics?: Parameters<RunMiniMetricQueryFn>[2],
+        ) =>
+            this.projectService.runMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: {
+                    ...metricQuery,
+                    additionalMetrics: additionalMetrics ?? [],
+                },
+                exploreName: metricQuery.exploreName,
+                csvLimit: maxLimit,
+                context: QueryExecutionContext.MCP,
+                chartUuid: undefined,
+                queryTags: {
+                    project_uuid: projectUuid,
+                    user_uuid: user.userUuid,
+                    organization_uuid: organizationUuid,
+                },
+            });
+
+        // MCP-specific stubs for AI agent features
+        const updateProgress = async () => {
+            // No-op for MCP
+        };
+
+        const getPrompt = async () => ({
+            // MCP doesn't have thread context, return minimal AiWebAppPrompt structure
+            organizationUuid,
+            projectUuid,
+            agentUuid: null,
+            promptUuid: '',
+            threadUuid: '',
+            createdByUserUuid: user.userUuid,
+            prompt: '',
+            createdAt: new Date(),
+            response: null,
+            humanScore: null,
+            userUuid: user.userUuid,
+        });
+        const sendFile = async () => {
+            // No-op for MCP
+        };
+
+        const createOrUpdateArtifact = async () => ({
+            // No-op for MCP - return minimal AiArtifact structure
+            artifactUuid: '',
+            threadUuid: '',
+            promptUuid: null,
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 1,
+            versionUuid: '',
+            title: null,
+            description: null,
+            chartConfig: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+        });
+
+        return {
+            getExplore,
+            updateProgress,
+            runMiniMetricQuery,
+            getPrompt,
+            sendFile,
+            createOrUpdateArtifact,
+            maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            enableDataAccess: true,
+            enableSelfImprovement: false,
+        };
     }
 
     async getSearchFieldValuesFunction(

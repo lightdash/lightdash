@@ -4,6 +4,7 @@ import {
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    isMcpPrompt,
     isSlackPrompt,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
@@ -227,6 +228,34 @@ export const getRunQuery = ({
                             filename: 'lightdash-chart.png',
                             file: chartImage,
                         });
+                    }
+                }
+
+                // Render chart as base64 image for MCP
+                if (isMcpPrompt(prompt) && enableDataAccess) {
+                    const echartsOptions = await getSlackAiEchartsConfig({
+                        toolArgs: {
+                            type: AiResultType.QUERY_RESULT,
+                            tool: queryTool,
+                        },
+                        queryResults,
+                        getPivotedResults,
+                    });
+
+                    if (echartsOptions) {
+                        const chartImage = await renderEcharts(echartsOptions);
+                        const base64Image = chartImage.toString('base64');
+                        const csv = convertQueryResultsToCsv(queryResults);
+
+                        return {
+                            result: `${serializeData(csv, 'csv')}
+
+Chart visualization (base64 PNG):
+data:image/png;base64,${base64Image}
+
+${selfImprovementResultFollowUp}`,
+                            metadata: { status: 'success' },
+                        };
                     }
                 }
 
