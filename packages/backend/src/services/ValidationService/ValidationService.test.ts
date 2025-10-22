@@ -13,7 +13,9 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
+    additionalExplore,
     chartForValidation,
+    chartForValidationWithAdditionalExplore,
     chartForValidationWithCustomMetricFilters,
     chartForValidationWithJoinedField,
     config,
@@ -347,6 +349,28 @@ describe('validation', () => {
             new Set([ValidationTarget.CHARTS]),
         );
 
+        expect(errors.length).toEqual(0);
+    });
+
+    it('Should validate charts using additional explores', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore, additionalExplore]);
+
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            chartForValidationWithAdditionalExplore,
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        // Chart uses "additional_explore" as tableName but has same fields as base "table"
+        // Should validate without errors because fields are indexed by both baseTable and explore name
         expect(errors.length).toEqual(0);
     });
 });
