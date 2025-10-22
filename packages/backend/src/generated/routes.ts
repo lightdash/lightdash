@@ -1052,6 +1052,12 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 allowAllDashboards: { dataType: 'boolean', required: true },
+                chartUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                allowAllCharts: { dataType: 'boolean', required: true },
                 createdAt: { dataType: 'string', required: true },
                 user: {
                     ref: 'Pick_LightdashUser.userUuid-or-firstName-or-lastName_',
@@ -1108,10 +1114,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 dashboardUuids: {
                     dataType: 'array',
                     array: { dataType: 'string' },
-                    required: true,
                 },
             },
             validators: {},
@@ -1123,6 +1132,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                allowAllCharts: { dataType: 'boolean' },
+                chartUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 allowAllDashboards: { dataType: 'boolean', required: true },
                 dashboardUuids: {
                     dataType: 'array',
@@ -22687,6 +22701,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateEmbeddedDashboards',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_updateEmbedConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: { in: 'body', name: 'body', required: true, ref: 'UpdateEmbed' },
+    };
+    app.patch(
+        '/api/v1/embed/:projectUuid/config',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.updateEmbedConfig,
+        ),
+
+        async function EmbedController_updateEmbedConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_updateEmbedConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<EmbedController>(
+                    EmbedController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateEmbedConfig',
                     controller,
                     response,
                     next,

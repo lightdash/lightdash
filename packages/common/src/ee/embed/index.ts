@@ -10,14 +10,19 @@ export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
     secret: string;
 };
 
-// tsoa can't differentiate betwen CreateEmbed and CreatedEmbedJwt so we opt for a more unique name
+// tsoa can't differentiate between CreateEmbed and CreatedEmbedJwt so we opt for a more unique name
+// At least one of dashboardUuids or chartUuids must be provided
 export type CreateEmbedRequestBody = {
-    dashboardUuids: string[];
+    dashboardUuids?: string[];
+    chartUuids?: string[];
 };
 
 export type UpdateEmbed = {
     dashboardUuids: string[];
     allowAllDashboards: boolean;
+    // TODO: Make these required in Settings UI PR
+    chartUuids?: string[];
+    allowAllCharts?: boolean;
 };
 
 export enum FilterInteractivityValues {
