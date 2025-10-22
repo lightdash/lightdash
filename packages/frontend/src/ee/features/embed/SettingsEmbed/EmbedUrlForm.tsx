@@ -206,7 +206,14 @@ const EmbedUrlForm: FC<{
                 <Select
                     required
                     label={'Expires in'}
-                    data={['1 hour', '1 day', '1 week', '30 days', '1 year']}
+                    data={[
+                        { value: '1 hour', label: '1 hour' },
+                        { value: '1 day', label: '1 day' },
+                        { value: '1 week', label: '1 week' },
+                        { value: '30 days', label: '30 days' },
+                        { value: '1 year', label: '1 year' },
+                        { value: '100y', label: 'Never' },
+                    ]}
                     withinPortal
                     {...form.getInputProps('expiresIn')}
                 />
