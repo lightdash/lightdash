@@ -942,7 +942,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const { metrics } = compiledMetricQuery;
+        const { metrics, filters } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Find tables that potentially have metric inflation and tables without relationship value
@@ -954,7 +954,14 @@ export class MetricQueryBuilder {
                 joinedTables,
             });
 
-        const metricsObjects = metrics.map((field) =>
+        // Get filter-only metrics (metrics used in filters but not selected for display)
+        const filterOnlyMetricIds = getFilterRulesFromGroup(filters.metrics)
+            .map((filter) => filter.target.fieldId)
+            .filter((metricId) => !metrics.includes(metricId));
+
+        // Include both selected metrics AND filter-only metrics for fanout protection
+        const allMetricsToProcess = [...metrics, ...filterOnlyMetricIds];
+        const metricsObjects = allMetricsToProcess.map((field) =>
             getMetricFromId(field, explore, compiledMetricQuery),
         );
         const metricsWithCteReferences: Array<CompiledMetric> = [];
@@ -1760,12 +1767,44 @@ export class MetricQueryBuilder {
                 !createdSimpleTableCalcsCte &&
                 simpleTableCalculationSelects.length > 0;
 
-            const finalSelectColumns = [
-                '  *',
-                ...(shouldInlineSimpleCalcs
-                    ? simpleTableCalculationSelects
-                    : []),
-            ];
+            // Get filter-only metrics to exclude from final SELECT
+            const { metrics, filters } = compiledMetricQuery;
+            const filterOnlyMetricIds = getFilterRulesFromGroup(filters.metrics)
+                .map((filter) => filter.target.fieldId)
+                .filter((metricId) => !metrics.includes(metricId));
+
+            const fieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+
+            // Build explicit column list excluding filter-only metrics
+            const finalSelectColumns =
+                filterOnlyMetricIds.length > 0
+                    ? [
+                          // Select dimensions
+                          ...Object.keys(dimensionsSQL.selects).map(
+                              (dimId) =>
+                                  `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                          ),
+                          // Select only originally selected metrics (not filter-only)
+                          ...metrics.map(
+                              (metricId) =>
+                                  `  ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+                          ),
+                          ...interdependentTableCalcs.map(
+                              (tableCalc) =>
+                                  `  ${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                          ),
+                          ...simpleTableCalcs.map(
+                              (tableCalc) =>
+                                  `${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                          ),
+                      ]
+                    : [
+                          '  *',
+                          ...(shouldInlineSimpleCalcs
+                              ? simpleTableCalculationSelects
+                              : []),
+                      ];
 
             const whereClause =
                 createdSimpleTableCalcsCte ||
