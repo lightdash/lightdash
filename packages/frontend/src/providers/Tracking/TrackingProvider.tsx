@@ -178,12 +178,21 @@ export const TrackPage: FC<React.PropsWithChildren<PageData>> = ({
 }) => {
     const { page } = useTracking();
 
+    const pageData = useMemo(
+        () => ({
+            name: rest.name,
+            category: rest.category,
+            type: rest.type,
+        }),
+        [rest.name, rest.category, rest.type],
+    );
+
     useEffect(() => {
-        page(rest);
-    }, [page, rest]);
+        page(pageData);
+    }, [page, pageData]);
 
     return (
-        <NestedTrackingProvider page={rest}>
+        <NestedTrackingProvider page={pageData}>
             {children || null}
         </NestedTrackingProvider>
     );
