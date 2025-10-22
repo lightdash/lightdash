@@ -1,3 +1,11 @@
+## [0.2104.1](https://github.com/lightdash/lightdash/compare/0.2104.0...0.2104.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* [LD-14576] - Prevent infinite re-render loop in <TrackPage> component ([#17582](https://github.com/lightdash/lightdash/issues/17582)) ([76f29f1](https://github.com/lightdash/lightdash/commit/76f29f1b537ac0e1304ec9d7a45edfafac83af16))
+* handle optional SCIM user and group properties ([#17514](https://github.com/lightdash/lightdash/issues/17514)) ([53a6352](https://github.com/lightdash/lightdash/commit/53a63526ccc6b2d00c9d3000bd30108ae0e58e51))
+
 # [0.2104.0](https://github.com/lightdash/lightdash/compare/0.2103.2...0.2104.0) (2025-10-22)
 
 
