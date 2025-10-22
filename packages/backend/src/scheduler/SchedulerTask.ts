@@ -119,6 +119,7 @@ import {
 } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
+import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
@@ -152,6 +153,7 @@ export type SchedulerTaskArguments = {
     msTeamsClient: MicrosoftTeamsClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
+    featureFlagService: FeatureFlagService;
 };
 
 export default class SchedulerTask {
@@ -193,6 +195,8 @@ export default class SchedulerTask {
 
     protected readonly asyncQueryService: AsyncQueryService;
 
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -213,6 +217,7 @@ export default class SchedulerTask {
         this.msTeamsClient = args.msTeamsClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
+        this.featureFlagService = args.featureFlagService;
     }
 
     private static getCsvOptions(
@@ -400,7 +405,8 @@ export default class SchedulerTask {
                 // We don't generate CSV files for Google sheets on handleNotification task,
                 // instead we directly upload the data from the row results in the uploadGsheets task
                 throw new Error("Don't fetch csv for gsheets");
-            case SchedulerFormat.XLSX: {
+            case SchedulerFormat.CSV:
+            case SchedulerFormat.XLSX:
                 const sessionUser = await this.userService.getSessionByUserUuid(
                     userUuid,
                 );
@@ -408,17 +414,28 @@ export default class SchedulerTask {
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
+
+                const downloadFileType: DownloadFileType =
+                    format === SchedulerFormat.XLSX
+                        ? DownloadFileType.XLSX
+                        : DownloadFileType.CSV;
+
                 const baseAnalyticsProperties: DownloadCsv['properties'] = {
                     jobId,
                     userId: userUuid,
                     organizationId: account.organization.organizationUuid,
                     projectId: projectUuid,
-                    fileType: SchedulerFormat.XLSX,
+                    fileType: format,
                     values: csvOptions?.formatted ? 'formatted' : 'raw',
                     limit: parseAnalyticsLimit(csvOptions?.limit),
                     storage: this.s3Client.isEnabled() ? 's3' : 'local',
                     context,
                 };
+
+                const pivotResultsFlag = await this.featureFlagService.get({
+                    user: account.user,
+                    featureFlagId: FeatureFlags.UseSqlPivotResults,
+                });
 
                 try {
                     if (savedChartUuid) {
@@ -437,6 +454,7 @@ export default class SchedulerTask {
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
+                                    pivotResults: pivotResultsFlag.enabled,
                                 },
                             );
 
@@ -450,7 +468,7 @@ export default class SchedulerTask {
                                     account,
                                     projectUuid,
                                     queryUuid: query.queryUuid,
-                                    type: DownloadFileType.XLSX,
+                                    type: downloadFileType,
                                     onlyRaw: csvOptions?.formatted === false,
                                     customLabels:
                                         getCustomLabelsFromTableConfig(
@@ -557,6 +575,8 @@ export default class SchedulerTask {
                                                 dashboardSorts: [],
                                                 parameters: finalParameters,
                                                 limit: chartLimit,
+                                                pivotResults:
+                                                    pivotResultsFlag.enabled,
                                             },
                                         );
                                     const chart =
@@ -569,7 +589,7 @@ export default class SchedulerTask {
                                                 account,
                                                 projectUuid,
                                                 queryUuid: query.queryUuid,
-                                                type: DownloadFileType.XLSX,
+                                                type: downloadFileType,
                                                 onlyRaw:
                                                     csvOptions?.formatted ===
                                                     false,
@@ -634,7 +654,7 @@ export default class SchedulerTask {
                                             account,
                                             projectUuid,
                                             queryUuid: query.queryUuid,
-                                            type: DownloadFileType.XLSX,
+                                            type: downloadFileType,
                                             onlyRaw:
                                                 csvOptions?.formatted === false,
                                             customLabels:
@@ -710,130 +730,6 @@ export default class SchedulerTask {
                     this.analytics.trackAccount(account, {
                         event: 'download_results.error',
                         userId: account.user.id,
-                        properties: {
-                            ...baseAnalyticsProperties,
-                            error: `${e}`,
-                        },
-                    });
-                    throw e; // cascade error
-                }
-                break;
-            }
-            case SchedulerFormat.CSV:
-                const user = await this.userService.getSessionByUserUuid(
-                    userUuid,
-                );
-                const csvOptions = isSchedulerCsvOptions(options)
-                    ? options
-                    : undefined;
-
-                // Extract parameters for CSV format same as XLSX
-                let csvSchedulerParameters: ParametersValuesMap | undefined;
-                if (dashboardUuid) {
-                    const dashboard =
-                        await this.schedulerService.dashboardModel.getByIdOrSlug(
-                            dashboardUuid,
-                        );
-                    const dashboardParameters = dashboard.parameters || {};
-                    const schedulerParameters = isDashboardScheduler(scheduler)
-                        ? scheduler.parameters
-                        : undefined;
-
-                    // Convert dashboard parameters to ParametersValuesMap format
-                    const convertedDashboardParameters: ParametersValuesMap =
-                        Object.fromEntries(
-                            Object.entries(dashboardParameters).map(
-                                ([key, param]) => [
-                                    key,
-                                    (param as DashboardParameterValue).value,
-                                ],
-                            ),
-                        );
-
-                    // Merge scheduler parameters with dashboard parameters (scheduler parameters override)
-                    csvSchedulerParameters = {
-                        ...convertedDashboardParameters,
-                        ...schedulerParameters,
-                    };
-                }
-
-                const baseAnalyticsProperties: DownloadCsv['properties'] = {
-                    jobId,
-                    userId: userUuid,
-                    organizationId: user.organizationUuid,
-                    projectId: projectUuid,
-                    fileType: SchedulerFormat.CSV,
-                    values: csvOptions?.formatted ? 'formatted' : 'raw',
-                    limit: parseAnalyticsLimit(csvOptions?.limit),
-                    storage: this.s3Client.isEnabled() ? 's3' : 'local',
-                };
-
-                try {
-                    if (savedChartUuid) {
-                        csvUrl = await this.csvService.getCsvForChart({
-                            user,
-                            chartUuid: savedChartUuid,
-                            options: csvOptions,
-                            jobId,
-                            invalidateCache: true,
-                        });
-                    } else if (dashboardUuid) {
-                        this.analytics.track({
-                            event: 'download_results.started',
-                            userId: userUuid,
-                            properties: {
-                                ...baseAnalyticsProperties,
-                                context,
-                            },
-                        });
-
-                        csvUrls = await this.csvService.getCsvsForDashboard({
-                            jobId,
-                            user,
-                            dashboardUuid,
-                            options: csvOptions,
-                            schedulerFilters: isDashboardScheduler(scheduler)
-                                ? scheduler.filters
-                                : undefined,
-                            selectedTabs,
-                            invalidateCache: true,
-                            schedulerParameters: csvSchedulerParameters,
-                        });
-
-                        this.analytics.track({
-                            event: 'download_results.completed',
-                            userId: userUuid,
-                            properties: {
-                                ...baseAnalyticsProperties,
-                                context,
-                                numCharts: csvUrls.length,
-                            },
-                        });
-                    } else {
-                        throw new Error('Not implemented');
-                    }
-                } catch (e) {
-                    Logger.error(
-                        `Unable to download CSV on scheduled task: ${e}`,
-                    );
-
-                    if (this.slackClient.isEnabled) {
-                        await this.slackClient.postMessageToNotificationChannel(
-                            {
-                                organizationUuid,
-                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
-                                blocks: getNotificationChannelErrorBlocks(
-                                    scheduler.name,
-                                    e,
-                                    deliveryUrl,
-                                ),
-                            },
-                        );
-                    }
-
-                    this.analytics.track({
-                        event: 'download_results.error',
-                        userId: userUuid,
                         properties: {
                             ...baseAnalyticsProperties,
                             error: `${e}`,

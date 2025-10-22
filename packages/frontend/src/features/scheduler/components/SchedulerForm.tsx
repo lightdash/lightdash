@@ -22,6 +22,8 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
+    type SchedulerCsvOptions,
+    type SchedulerImageOptions,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -424,7 +426,7 @@ const SchedulerForm: FC<Props> = ({
                 )
             ) {
                 options = {
-                    formatted: values.options.formatted,
+                    formatted: values.options.formatted === Values.FORMATTED,
                     limit:
                         values.options.limit === Limit.CUSTOM
                             ? values.options.customLimit
@@ -435,11 +437,11 @@ const SchedulerForm: FC<Props> = ({
                         values.emailTargets.length > 0
                             ? values.options.asAttachment
                             : false,
-                };
+                } satisfies SchedulerCsvOptions;
             } else if (values.format === SchedulerFormat.IMAGE) {
                 options = {
                     withPdf: values.options.withPdf,
-                };
+                } satisfies SchedulerImageOptions;
             }
 
             const emailTargets = values.emailTargets.map((email: string) => ({
