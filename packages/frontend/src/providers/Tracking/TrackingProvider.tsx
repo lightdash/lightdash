@@ -178,11 +178,14 @@ export const TrackPage: FC<React.PropsWithChildren<PageData>> = ({
 }) => {
     const { page } = useTracking();
 
-    const pageData = useMemo(() => rest, [
-        rest.name,
-        rest.category,
-        rest.type,
-    ]);
+    const pageData = useMemo(
+        () => ({
+            name: rest.name,
+            category: rest.category,
+            type: rest.type,
+        }),
+        [rest.name, rest.category, rest.type],
+    );
 
     useEffect(() => {
         page(pageData);
