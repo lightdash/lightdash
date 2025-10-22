@@ -1,3 +1,15 @@
+# [0.2104.0](https://github.com/lightdash/lightdash/compare/0.2103.2...0.2104.0) (2025-10-22)
+
+
+### Bug Fixes
+
+* running total sort order ([#17564](https://github.com/lightdash/lightdash/issues/17564)) ([d77d98a](https://github.com/lightdash/lightdash/commit/d77d98abaf9304f727d5d2386c40f207e9568f2e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add sort fields support to RUNNING_TOTAL table calculations ([#17569](https://github.com/lightdash/lightdash/issues/17569)) ([543321d](https://github.com/lightdash/lightdash/commit/543321d5e2877de8c05f296f432188b32f231f82))
+
 ## [0.2103.2](https://github.com/lightdash/lightdash/compare/0.2103.1...0.2103.2) (2025-10-22)
 
 
