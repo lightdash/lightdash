@@ -84,13 +84,13 @@ const getDataAndColumns = ({
     totals,
     groupedSubtotals,
 }: Args): Array<TableHeader | TableColumn> => {
-    return selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
+    return columnOrder.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as
                 | typeof itemsMap[number]
                 | undefined;
 
-            if (!columnOrder.includes(itemId)) {
+            if (!selectedItemIds.includes(itemId)) {
                 return acc;
             }
             const headerOverride = getFieldLabelOverride(itemId);
