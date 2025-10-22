@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     FrameBoundaryType,
+    MetricQuery,
     TableCalculationTemplate,
     TableCalculationTemplateType,
     WindowFunctionType,
@@ -147,6 +148,7 @@ const compileWindowFunctionTemplate = (
 export const compileTableCalculationFromTemplate = (
     template: TableCalculationTemplate,
     warehouseSqlBuilder: WarehouseSqlBuilder,
+    sortFields: MetricQuery['sorts'],
 ): string => {
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const floatType = warehouseSqlBuilder.getFloatingType();
@@ -212,7 +214,17 @@ export const compileTableCalculationFromTemplate = (
             return `RANK() OVER (ORDER BY ${quotedFieldId} ASC)`;
 
         case TableCalculationTemplateType.RUNNING_TOTAL: {
-            return `SUM(${quotedFieldId}) OVER (ORDER BY ${quotedFieldId} DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+            const orderByArgumentsSql = (sortFields || [])
+                .map(
+                    (sort) =>
+                        `${quoteChar}${sort.fieldId}${quoteChar} ${
+                            sort.descending ? 'DESC' : 'ASC'
+                        }`,
+                )
+                .join(', ');
+            const orderByClauseSql =
+                orderByArgumentsSql && `ORDER BY ${orderByArgumentsSql} `; // trailing space intentional
+            return `SUM(${quotedFieldId}) OVER (${orderByClauseSql}ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
         }
 
         case TableCalculationTemplateType.WINDOW_FUNCTION:

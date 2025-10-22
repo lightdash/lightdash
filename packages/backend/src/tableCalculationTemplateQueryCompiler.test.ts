@@ -30,6 +30,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -59,6 +60,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -89,6 +91,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -115,6 +118,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -143,6 +147,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -172,6 +177,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -200,6 +206,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -219,6 +226,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe('ROW_NUMBER() OVER (ORDER BY "table_date" ASC)');
@@ -245,6 +253,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -275,6 +284,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -304,6 +314,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -331,7 +342,11 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         };
 
         expect(() =>
-            compileTableCalculationFromTemplate(template, warehouseClientMock),
+            compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            ),
         ).toThrow('PRECEDING boundary requires offset');
     });
 
@@ -355,7 +370,11 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         };
 
         expect(() =>
-            compileTableCalculationFromTemplate(template, warehouseClientMock),
+            compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            ),
         ).toThrow('FOLLOWING boundary requires offset');
     });
 
@@ -380,6 +399,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -399,6 +419,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
@@ -418,6 +439,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe('RANK() OVER (ORDER BY "table_revenue" DESC)');
@@ -449,10 +471,105 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         const result = compileTableCalculationFromTemplate(
             template,
             warehouseClientMock,
+            [],
         );
 
         expect(result).toBe(
             'SUM("table_amount") OVER (ORDER BY "table_year" ASC, "table_month" ASC, "table_day" ASC ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)',
         );
+    });
+
+    describe('RUNNING_TOTAL sort fields', () => {
+        it('Should compile RUNNING_TOTAL with single ascending sort field', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_revenue',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [{ fieldId: 'table_date', descending: false }],
+            );
+
+            expect(result).toBe(
+                'SUM("table_revenue") OVER (ORDER BY "table_date" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('Should compile RUNNING_TOTAL with single descending sort field', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_revenue',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [{ fieldId: 'table_date', descending: true }],
+            );
+
+            expect(result).toBe(
+                'SUM("table_revenue") OVER (ORDER BY "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('Should compile RUNNING_TOTAL with multiple sort fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_revenue',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [
+                    { fieldId: 'table_year', descending: false },
+                    { fieldId: 'table_month', descending: false },
+                    { fieldId: 'table_day', descending: true },
+                ],
+            );
+
+            expect(result).toBe(
+                'SUM("table_revenue") OVER (ORDER BY "table_year" ASC, "table_month" ASC, "table_day" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('Should compile RUNNING_TOTAL without sort fields (empty array)', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_revenue',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                'SUM("table_revenue") OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('Should compile RUNNING_TOTAL with mixed ascending and descending sort fields', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                fieldId: 'table_sales',
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [
+                    { fieldId: 'table_region', descending: false },
+                    { fieldId: 'table_date', descending: true },
+                ],
+            );
+
+            expect(result).toBe(
+                'SUM("table_sales") OVER (ORDER BY "table_region" ASC, "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+            );
+        });
     });
 });

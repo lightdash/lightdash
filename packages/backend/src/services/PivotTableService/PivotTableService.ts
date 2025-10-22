@@ -5,17 +5,14 @@ import {
     getErrorMessage,
     ItemsMap,
     MetricQuery,
-    MissingConfigError,
     PivotConfig,
     pivotResultsAsCsv,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
-import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
-import { Readable } from 'stream';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -200,10 +197,18 @@ export class PivotTableService extends BaseService {
         customLabels: Record<string, string> | undefined;
         metricsAsRows?: boolean;
     }): Promise<AttachmentUrl> {
+        // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
+        // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
+        const pivotValuesColumnsMap = Object.fromEntries(
+            pivotDetails?.valuesColumns?.map((column) => [
+                column.pivotColumnName,
+                column,
+            ]) ?? [],
+        );
+
         // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
         // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-        const formattedRows = formatRows(rows, itemMap);
-
+        const formattedRows = formatRows(rows, itemMap, pivotValuesColumnsMap);
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,

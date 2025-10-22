@@ -1,3 +1,65 @@
+## [0.2104.5](https://github.com/lightdash/lightdash/compare/0.2104.4...0.2104.5) (2025-10-22)
+
+
+### Bug Fixes
+
+* pivot results on scheduled deliveries ([#17425](https://github.com/lightdash/lightdash/issues/17425)) ([7f9b795](https://github.com/lightdash/lightdash/commit/7f9b795e1dfc8c5f8a4e45f08b30459f5e00795d))
+
+## [0.2104.4](https://github.com/lightdash/lightdash/compare/0.2104.3...0.2104.4) (2025-10-22)
+
+
+### Bug Fixes
+
+* frozen columns order ([#17593](https://github.com/lightdash/lightdash/issues/17593)) ([eab3685](https://github.com/lightdash/lightdash/commit/eab3685e25e5b63e902f46b2d12eef28fdbad804))
+
+## [0.2104.3](https://github.com/lightdash/lightdash/compare/0.2104.2...0.2104.3) (2025-10-22)
+
+
+### Bug Fixes
+
+* support validation for additional explores ([#17592](https://github.com/lightdash/lightdash/issues/17592)) ([8fe55cb](https://github.com/lightdash/lightdash/commit/8fe55cbd6dcee34bd64e4fb4f471ce4d4f8bcffd)), closes [#17585](https://github.com/lightdash/lightdash/issues/17585)
+
+## [0.2104.2](https://github.com/lightdash/lightdash/compare/0.2104.1...0.2104.2) (2025-10-22)
+
+
+### Bug Fixes
+
+* error when filtering by metric with fanout ([#17427](https://github.com/lightdash/lightdash/issues/17427)) ([ed81812](https://github.com/lightdash/lightdash/commit/ed8181223062ec98fba6ba9d1b36057d5ff0229d))
+
+## [0.2104.1](https://github.com/lightdash/lightdash/compare/0.2104.0...0.2104.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* [LD-14576] - Prevent infinite re-render loop in <TrackPage> component ([#17582](https://github.com/lightdash/lightdash/issues/17582)) ([76f29f1](https://github.com/lightdash/lightdash/commit/76f29f1b537ac0e1304ec9d7a45edfafac83af16))
+* handle optional SCIM user and group properties ([#17514](https://github.com/lightdash/lightdash/issues/17514)) ([53a6352](https://github.com/lightdash/lightdash/commit/53a63526ccc6b2d00c9d3000bd30108ae0e58e51))
+
+# [0.2104.0](https://github.com/lightdash/lightdash/compare/0.2103.2...0.2104.0) (2025-10-22)
+
+
+### Bug Fixes
+
+* running total sort order ([#17564](https://github.com/lightdash/lightdash/issues/17564)) ([d77d98a](https://github.com/lightdash/lightdash/commit/d77d98abaf9304f727d5d2386c40f207e9568f2e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add sort fields support to RUNNING_TOTAL table calculations ([#17569](https://github.com/lightdash/lightdash/issues/17569)) ([543321d](https://github.com/lightdash/lightdash/commit/543321d5e2877de8c05f296f432188b32f231f82))
+
+## [0.2103.2](https://github.com/lightdash/lightdash/compare/0.2103.1...0.2103.2) (2025-10-22)
+
+
+### Bug Fixes
+
+* add progress updates to findExplores and findFields tools ([#17575](https://github.com/lightdash/lightdash/issues/17575)) ([5da1974](https://github.com/lightdash/lightdash/commit/5da19741684d05fe04bd84512c3d6bd30c015d10))
+
+## [0.2103.1](https://github.com/lightdash/lightdash/compare/0.2103.0...0.2103.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* update react query cache on ai chart change ([#17579](https://github.com/lightdash/lightdash/issues/17579)) ([021bce7](https://github.com/lightdash/lightdash/commit/021bce773544ab547b061ca5a43804bc583f031b))
+
 # [0.2103.0](https://github.com/lightdash/lightdash/compare/0.2102.0...0.2103.0) (2025-10-21)
 
 

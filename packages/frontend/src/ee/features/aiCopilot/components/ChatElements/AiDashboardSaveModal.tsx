@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     type AiArtifact,
-    type ApiAiAgentThreadMessageVizQuery,
     type Dashboard,
     type ToolDashboardArgs,
 } from '@lightdash/common';
@@ -32,7 +31,10 @@ import {
     getAiAgentDashboardChartVizQueryKey,
     useUpdateArtifactVersion,
 } from '../../hooks/useProjectAiAgents';
-import { convertDashboardVisualizationsToChartData } from '../../utils/dashboardChartConverter';
+import {
+    convertDashboardVisualizationsToChartData,
+    type VizQueryWithOverrides,
+} from '../../utils/dashboardChartConverter';
 
 enum ModalStep {
     InitialInfo = 'initialInfo',
@@ -124,7 +126,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
 
     // Read cached viz-query results from react-query client using exported key
     const getCachedVizQueries = useCallback(() => {
-        const results: (ApiAiAgentThreadMessageVizQuery | undefined)[] = [];
+        const results: (VizQueryWithOverrides | undefined)[] = [];
         for (let i = 0; i < dashboardConfig.visualizations.length; i++) {
             const key = getAiAgentDashboardChartVizQueryKey({
                 projectUuid,
@@ -133,8 +135,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 versionUuid: artifactData.versionUuid,
                 chartIndex: i,
             });
-            const data =
-                queryClient.getQueryData<ApiAiAgentThreadMessageVizQuery>(key);
+            const data = queryClient.getQueryData<VizQueryWithOverrides>(key);
             results.push(data);
         }
         return results;

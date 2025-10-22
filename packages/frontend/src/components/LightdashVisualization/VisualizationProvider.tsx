@@ -310,7 +310,7 @@ const VisualizationProvider: FC<
         resultsData: lastValidResultsData,
         isLoading,
         apiErrorDetail,
-        columnOrder,
+        columnOrder: defaultColumnOrder,
         itemsMap,
         setStacking,
         setCartesianType,

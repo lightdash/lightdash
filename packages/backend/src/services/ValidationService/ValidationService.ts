@@ -248,7 +248,11 @@ export class ValidationService extends BaseService {
                 if (selectedExplores === undefined) return true;
                 return selectedExplores.some((explore) => {
                     if (isExploreError(explore)) return false;
-                    return explore.baseTable === c.tableName;
+                    // Match by baseTable or explore name (for additional explores)
+                    return (
+                        explore.baseTable === c.tableName ||
+                        explore.name === c.tableName
+                    );
                 });
             })
             .flatMap(
@@ -659,12 +663,19 @@ export class ValidationService extends BaseService {
                 const metrics = Object.values(explore.tables).flatMap((table) =>
                     Object.values(table.metrics),
                 );
+                const fieldData = {
+                    dimensionIds: dimensions.map(getItemId),
+                    metricIds: metrics.map(getItemId),
+                };
                 return {
                     ...acc,
-                    [explore.baseTable]: {
-                        dimensionIds: dimensions.map(getItemId),
-                        metricIds: metrics.map(getItemId),
-                    },
+                    // Index by baseTable for base explores and charts using baseTable
+                    [explore.baseTable]: fieldData,
+                    // Also index by explore name for additional explores
+                    // https://docs.lightdash.com/guides/explores
+                    ...(explore.name !== explore.baseTable
+                        ? { [explore.name]: fieldData }
+                        : {}),
                 };
             }, {}) || {};
 

@@ -277,18 +277,17 @@ const models: TsoaRoute.Models = {
             name: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
-                    familyName: { dataType: 'string', required: true },
-                    givenName: { dataType: 'string', required: true },
+                    familyName: { dataType: 'string' },
+                    givenName: { dataType: 'string' },
                 },
-                required: true,
             },
-            active: { dataType: 'boolean', required: true },
+            active: { dataType: 'boolean' },
             emails: {
                 dataType: 'array',
                 array: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        primary: { dataType: 'boolean', required: true },
+                        primary: { dataType: 'boolean' },
                         value: { dataType: 'string', required: true },
                     },
                 },
@@ -379,14 +378,37 @@ const models: TsoaRoute.Models = {
                 },
                 userName: { dataType: 'string', required: true },
                 name: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        familyName: { dataType: 'string', required: true },
-                        givenName: { dataType: 'string', required: true },
-                    },
-                    required: true,
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                familyName: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
+                                givenName: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                 },
-                active: { dataType: 'boolean', required: true },
+                active: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 emails: {
                     dataType: 'union',
                     subSchemas: [
@@ -396,8 +418,11 @@ const models: TsoaRoute.Models = {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
                                     primary: {
-                                        dataType: 'boolean',
-                                        required: true,
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            { dataType: 'boolean' },
+                                            { dataType: 'undefined' },
+                                        ],
                                     },
                                     value: {
                                         dataType: 'string',
@@ -877,7 +902,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             value: { dataType: 'string', required: true },
-            display: { dataType: 'string', required: true },
+            display: { dataType: 'string' },
         },
         additionalProperties: true,
     },
@@ -927,7 +952,6 @@ const models: TsoaRoute.Models = {
             members: {
                 dataType: 'array',
                 array: { dataType: 'refObject', ref: 'ScimGroupMember' },
-                required: true,
             },
         },
         additionalProperties: true,
@@ -973,7 +997,6 @@ const models: TsoaRoute.Models = {
             members: {
                 dataType: 'array',
                 array: { dataType: 'refObject', ref: 'ScimGroupMember' },
-                required: true,
             },
         },
         additionalProperties: true,
@@ -5898,6 +5921,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateTableVizConfig'] },
                 { dataType: 'enum', enums: ['generateTimeSeriesVizConfig'] },
                 { dataType: 'enum', enums: ['generateDashboard'] },
+                { dataType: 'enum', enums: ['generateDashboardV2'] },
                 { dataType: 'enum', enums: ['findContent'] },
                 { dataType: 'enum', enums: ['findExplores'] },
                 { dataType: 'enum', enums: ['findFields'] },
@@ -6721,6 +6745,7 @@ const models: TsoaRoute.Models = {
             'table',
             'query_result',
             'dashboard',
+            'dashboard_v2',
             'improve_context',
             'propose_change',
         ],
@@ -15298,7 +15323,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -15308,7 +15333,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -15318,7 +15343,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -15331,7 +15356,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
