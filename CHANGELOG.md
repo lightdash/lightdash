@@ -1,3 +1,10 @@
+## [0.2104.4](https://github.com/lightdash/lightdash/compare/0.2104.3...0.2104.4) (2025-10-22)
+
+
+### Bug Fixes
+
+* frozen columns order ([#17593](https://github.com/lightdash/lightdash/issues/17593)) ([eab3685](https://github.com/lightdash/lightdash/commit/eab3685e25e5b63e902f46b2d12eef28fdbad804))
+
 ## [0.2104.3](https://github.com/lightdash/lightdash/compare/0.2104.2...0.2104.3) (2025-10-22)
 
 
