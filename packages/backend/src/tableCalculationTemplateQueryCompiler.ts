@@ -148,7 +148,7 @@ const compileWindowFunctionTemplate = (
 export const compileTableCalculationFromTemplate = (
     template: TableCalculationTemplate,
     warehouseSqlBuilder: WarehouseSqlBuilder,
-    sortFields?: MetricQuery['sorts'],
+    sortFields: MetricQuery['sorts'],
 ): string => {
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const floatType = warehouseSqlBuilder.getFloatingType();
