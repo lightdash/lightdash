@@ -1,3 +1,10 @@
+## [0.2104.3](https://github.com/lightdash/lightdash/compare/0.2104.2...0.2104.3) (2025-10-22)
+
+
+### Bug Fixes
+
+* support validation for additional explores ([#17592](https://github.com/lightdash/lightdash/issues/17592)) ([8fe55cb](https://github.com/lightdash/lightdash/commit/8fe55cbd6dcee34bd64e4fb4f471ce4d4f8bcffd)), closes [#17585](https://github.com/lightdash/lightdash/issues/17585)
+
 ## [0.2104.2](https://github.com/lightdash/lightdash/compare/0.2104.1...0.2104.2) (2025-10-22)
 
 
