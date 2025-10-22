@@ -1698,6 +1698,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "afranzi",
+      "name": "AFranzi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3647015?v=4",
+      "profile": "https://medium.com/albert-franzi",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
