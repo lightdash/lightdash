@@ -8,13 +8,17 @@ import {
     toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import type { FindFieldFn } from '../types/aiAgentDependencies';
+import type {
+    FindFieldFn,
+    UpdateProgressFn,
+} from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     findFields: FindFieldFn;
+    updateProgress: UpdateProgressFn;
     pageSize: number;
 };
 
@@ -74,13 +78,26 @@ const getFieldsText = (
     </searchresult>
 );
 
-export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
+export const getFindFields = ({
+    findFields,
+    updateProgress,
+    pageSize,
+}: Dependencies) =>
     tool({
         description: toolFindFieldsArgsSchema.description,
         inputSchema: toolFindFieldsArgsSchema,
         outputSchema: toolFindFieldsOutputSchema,
         execute: async (args) => {
             try {
+                const searchLabels = args.fieldSearchQueries
+                    .map((q) => `\`${q.label}\``)
+                    .join(', ');
+                await updateProgress(
+                    `🔍 Searching for fields: ${searchLabels}${
+                        args.table ? ` in \`${args.table}\`` : ''
+                    }...`,
+                );
+
                 const fieldSearchQueryResults = await Promise.all(
                     args.fieldSearchQueries.map(async (fieldSearchQuery) => ({
                         searchQuery: fieldSearchQuery.label,

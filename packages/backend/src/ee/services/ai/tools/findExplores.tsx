@@ -8,7 +8,10 @@ import {
     toolFindExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import type { FindExploresFn } from '../types/aiAgentDependencies';
+import type {
+    FindExploresFn,
+    UpdateProgressFn,
+} from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
@@ -16,6 +19,7 @@ import { xmlBuilder } from '../xmlBuilder';
 type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
+    updateProgress: UpdateProgressFn;
 };
 
 function getCatalogChartUsage(
@@ -171,6 +175,7 @@ const generateExploreResponse = ({
 };
 export const getFindExplores = ({
     findExplores,
+    updateProgress,
     fieldSearchSize,
 }: Dependencies) =>
     tool({
@@ -179,6 +184,10 @@ export const getFindExplores = ({
         outputSchema: toolFindExploresOutputSchema,
         execute: async (args) => {
             try {
+                await updateProgress(
+                    `🔍 Searching explore: \`${args.exploreName}\`...`,
+                );
+
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,
                     fieldSearchSize,
