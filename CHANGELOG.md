@@ -1,3 +1,10 @@
+## [0.2104.5](https://github.com/lightdash/lightdash/compare/0.2104.4...0.2104.5) (2025-10-22)
+
+
+### Bug Fixes
+
+* pivot results on scheduled deliveries ([#17425](https://github.com/lightdash/lightdash/issues/17425)) ([7f9b795](https://github.com/lightdash/lightdash/commit/7f9b795e1dfc8c5f8a4e45f08b30459f5e00795d))
+
 ## [0.2104.4](https://github.com/lightdash/lightdash/compare/0.2104.3...0.2104.4) (2025-10-22)
 
 
