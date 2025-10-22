@@ -413,6 +413,7 @@ export class EmbedService extends BaseService {
             isPrivate: false,
             access: [],
             dashboardFiltersInteractivity: account.access.filtering,
+            canChangeParameters: account.access.canChangeParameters,
             canExportCsv,
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
@@ -791,6 +792,7 @@ export class EmbedService extends BaseService {
         dateZoom,
         invalidateCache,
         dashboardSorts,
+        parameters,
         pivotResults,
     }: {
         account: AnonymousAccount;
@@ -803,6 +805,7 @@ export class EmbedService extends BaseService {
         | 'pivotResults'
         | 'invalidateCache'
         | 'dateZoom'
+        | 'parameters'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
@@ -858,6 +861,16 @@ export class EmbedService extends BaseService {
             },
         });
 
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        const acceptedUserParameters =
+            account.access.canChangeParameters && parameters ? parameters : {};
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            explore,
+            acceptedUserParameters,
+            dashboardParameters,
+        );
+
         // Execute using AsyncQueryService method with embed context
         return this.asyncQueryService.executeAsyncDashboardChartQuery({
             account,
@@ -870,7 +883,7 @@ export class EmbedService extends BaseService {
             invalidateCache,
             limit: undefined,
             context: QueryExecutionContext.EMBED,
-            parameters: undefined,
+            parameters: combinedParameters,
             pivotResults,
         });
     }
