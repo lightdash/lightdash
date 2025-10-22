@@ -1,4 +1,7 @@
 import {
+    type AiAgentChartTypeOption,
+    type ApiAiAgentThreadMessageVizQuery,
+    type ChartConfig,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
@@ -16,10 +19,14 @@ import {
 } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useAiAgentDashboardChartVizQuery } from '../../hooks/useProjectAiAgents';
+import {
+    getAiAgentDashboardChartVizQueryKey,
+    useAiAgentDashboardChartVizQuery,
+} from '../../hooks/useProjectAiAgents';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
 type Props = {
@@ -42,6 +49,8 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         versionUuid,
         index,
     }) => {
+        const queryClient = useQueryClient();
+
         // Fetch the chart query data
         const queryExecutionHandle = useAiAgentDashboardChartVizQuery({
             projectUuid,
@@ -59,6 +68,70 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         const isQueryLoading =
             queryExecutionHandle.isLoading || queryResults.isFetchingRows;
         const queryError = queryExecutionHandle.error || queryResults.error;
+
+        const handleDashboardChartTypeChange = useCallback(
+            (type: AiAgentChartTypeOption) => {
+                const queryKey = getAiAgentDashboardChartVizQueryKey({
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    chartIndex: index,
+                });
+
+                queryClient.setQueryData(
+                    queryKey,
+                    (oldData: ApiAiAgentThreadMessageVizQuery | undefined) => {
+                        if (!oldData) return oldData;
+                        return {
+                            ...oldData,
+                            selectedChartType: type,
+                            // Clear expanded config when type changes
+                            expandedChartConfig: undefined,
+                        };
+                    },
+                );
+            },
+            [
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                index,
+                queryClient,
+            ],
+        );
+
+        const handleDashboardChartConfigChange = useCallback(
+            (config: ChartConfig) => {
+                const queryKey = getAiAgentDashboardChartVizQueryKey({
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    chartIndex: index,
+                });
+
+                queryClient.setQueryData(
+                    queryKey,
+                    (oldData: ApiAiAgentThreadMessageVizQuery | undefined) => {
+                        if (!oldData) return oldData;
+                        return {
+                            ...oldData,
+                            expandedChartConfig: config,
+                        };
+                    },
+                );
+            },
+            [
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                index,
+                queryClient,
+            ],
+        );
 
         const VisualizationHeader = () => (
             <Stack gap="two" flex={1}>
@@ -156,6 +229,12 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                         results={queryResults}
                         queryExecutionHandle={queryExecutionHandle}
                         chartConfig={visualization}
+                        onDashboardChartTypeChange={
+                            handleDashboardChartTypeChange
+                        }
+                        onDashboardChartConfigChange={
+                            handleDashboardChartConfigChange
+                        }
                     />
                 </Box>
             </Stack>

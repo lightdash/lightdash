@@ -47,6 +47,9 @@ type Props = {
         | ToolVerticalBarArgs
         | ToolRunQueryArgs;
     headerContent?: ReactNode;
+
+    onDashboardChartTypeChange?: (type: AiAgentChartTypeOption) => void;
+    onDashboardChartConfigChange?: (config: ChartConfig) => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -54,6 +57,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
     queryExecutionHandle,
     chartConfig,
     headerContent,
+    onDashboardChartTypeChange: onDashboardChartTypeChangeProp,
+    onDashboardChartConfigChange: onDashboardChartConfigChangeProp,
 }) => {
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
@@ -63,12 +68,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
+
+    // Initialize from cached data if available
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
 
     // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
-    const [expandedChartConfig, setExpandedChartConfig] =
-        useState<ChartConfig>();
+    const [expandedChartConfig, setExpandedChartConfig] = useState<
+        ChartConfig | undefined
+    >(undefined);
 
     const resultsData = useMemo(
         () => ({
@@ -115,9 +123,13 @@ export const AiVisualizationRenderer: FC<Props> = ({
             ? chartConfig.chartConfig?.defaultVizType ?? 'table'
             : 'table';
 
-    const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
-        setExpandedChartConfig(newConfig);
-    }, []);
+    const handleChartConfigChange = useCallback(
+        (newConfig: ChartConfig) => {
+            setExpandedChartConfig(newConfig);
+            onDashboardChartConfigChangeProp?.(newConfig);
+        },
+        [onDashboardChartConfigChangeProp],
+    );
 
     const handleChartTypeChange = useCallback(
         (type: AiAgentChartTypeOption) => {
@@ -125,8 +137,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
             // Reset expanded chart config to allow re-expansion
             setExpandedChartConfig(undefined);
+
+            onDashboardChartTypeChangeProp?.(type);
         },
-        [],
+        [onDashboardChartTypeChangeProp],
     );
 
     if (!chartConfigFromAiAgentVizConfig.echartsConfig) {
