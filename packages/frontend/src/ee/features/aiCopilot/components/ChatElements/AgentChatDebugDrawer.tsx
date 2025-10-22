@@ -2,11 +2,26 @@ import {
     type AiAgentMessageAssistantArtifact,
     type AiAgentToolCall,
 } from '@lightdash/common';
-import { Accordion, Drawer, Text } from '@mantine-8/core';
+import {
+    Box,
+    Collapse,
+    Drawer,
+    Group,
+    Paper,
+    ScrollArea,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
-import { IconChartBar, IconTools } from '@tabler/icons-react';
+import {
+    IconBug,
+    IconChevronDown,
+    IconChevronRight,
+} from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import classes from './AgentChatDebugDrawer.module.css';
 
 type Props = {
     isVisualizationAvailable: boolean;
@@ -16,6 +31,19 @@ type Props = {
     toolCalls: AiAgentToolCall[] | null;
     agentUuid: string;
     projectUuid: string;
+};
+
+/**
+ * Safely stringify an object to JSON
+ * @returns JSON string or null if serialization fails
+ */
+const safeStringify = (obj: unknown, space?: number): string | null => {
+    try {
+        return JSON.stringify(obj, null, space);
+    } catch (error) {
+        console.error('Failed to stringify object:', error);
+        return null;
+    }
 };
 
 const AgentChatDebugDrawer: React.FC<Props> = ({
@@ -28,6 +56,9 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
     projectUuid,
 }) => {
     const artifact = artifacts?.[artifacts.length - 1];
+    const [expandedToolCalls, setExpandedToolCalls] = useState<
+        Record<string, boolean>
+    >({});
 
     const { data: artifactData } = useAiAgentArtifact({
         projectUuid: projectUuid,
@@ -36,47 +67,197 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
         versionUuid: artifact?.versionUuid,
     });
 
+    const configJson = useMemo(() => {
+        if (!artifactData) return null;
+        const config = artifactData.chartConfig ?? artifactData.dashboardConfig;
+        return safeStringify(config, 2);
+    }, [artifactData]);
+
+    const toggleToolCall = (id: string) => {
+        setExpandedToolCalls((prev) => ({
+            ...prev,
+            [id]: !prev[id],
+        }));
+    };
+
     return (
         <Drawer
-            title="Debug information"
+            title={
+                <Group gap={6}>
+                    <Paper p="xxs" withBorder radius="sm">
+                        <MantineIcon icon={IconBug} size="sm" />
+                    </Paper>
+                    <Text fw={500} size="md">
+                        Debug
+                    </Text>
+                </Group>
+            }
             opened={isVisualizationAvailable && isDrawerOpen}
             onClose={onClose}
-            size="xl"
+            size="md"
+            position="right"
+            styles={{
+                header: {
+                    padding: '12px 16px',
+                    minHeight: 'auto',
+                },
+                body: {
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: 16,
+                    paddingTop: 0,
+                },
+            }}
         >
-            <Accordion variant="contained" chevronPosition="right">
-                <Accordion.Item value="visualization">
-                    <Accordion.Control
-                        icon={<MantineIcon icon={IconChartBar} color="gray" />}
-                    >
-                        <Text fw={500}>
-                            Configuration for {artifactData?.artifactType}
-                        </Text>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                        <Prism language="json" withLineNumbers>
-                            {JSON.stringify(
-                                artifactData?.chartConfig ??
-                                    artifactData?.dashboardConfig,
-                                null,
-                                2,
+            <Stack gap="md" h="100%">
+                {/* Visualization Configuration */}
+                {artifactData && (
+                    <Box>
+                        <Group
+                            justify="space-between"
+                            className={classes.sectionHeader}
+                        >
+                            <Text fw={500} size="sm" c="dark">
+                                Configuration
+                            </Text>
+                        </Group>
+                        <ScrollArea.Autosize
+                            mah={500}
+                            className={classes.codeBlock}
+                        >
+                            {configJson ? (
+                                <Prism
+                                    language="json"
+                                    withLineNumbers
+                                    styles={{
+                                        code: {
+                                            fontSize: '12px',
+                                        },
+                                    }}
+                                >
+                                    {configJson}
+                                </Prism>
+                            ) : (
+                                <Box p="md" className={classes.centerText}>
+                                    <Text size="sm" c="dimmed" fs="italic">
+                                        Cannot display configuration
+                                    </Text>
+                                </Box>
                             )}
-                        </Prism>
-                    </Accordion.Panel>
-                </Accordion.Item>
+                        </ScrollArea.Autosize>
+                    </Box>
+                )}
 
-                <Accordion.Item value="tool-calls">
-                    <Accordion.Control
-                        icon={<MantineIcon icon={IconTools} color="gray" />}
-                    >
-                        <Text fw={500}>Tool calls</Text>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                        <Prism language="json" withLineNumbers>
-                            {JSON.stringify(toolCalls, null, 2)}
-                        </Prism>
-                    </Accordion.Panel>
-                </Accordion.Item>
-            </Accordion>
+                {/* Tool Calls */}
+                {toolCalls && toolCalls.length > 0 && (
+                    <Box>
+                        <Group
+                            justify="space-between"
+                            className={classes.sectionHeader}
+                        >
+                            <Text fw={500} size="sm" c="dark">
+                                Tool Calls ({toolCalls.length})
+                            </Text>
+                        </Group>
+                        <Stack gap="sm" mb="xl">
+                            {toolCalls.map((toolCall, index) => {
+                                const callId =
+                                    toolCall.toolCallId || String(index);
+                                const isExpanded = expandedToolCalls[callId];
+                                const argsJson = safeStringify(
+                                    toolCall.toolArgs,
+                                    2,
+                                );
+                                return (
+                                    <Box
+                                        key={callId}
+                                        className={classes.toolCallItem}
+                                    >
+                                        <Box
+                                            className={classes.toolCallHeader}
+                                            onClick={() =>
+                                                toggleToolCall(callId)
+                                            }
+                                        >
+                                            <Group
+                                                justify="space-between"
+                                                wrap="nowrap"
+                                            >
+                                                <Group gap="xs">
+                                                    <MantineIcon
+                                                        icon={
+                                                            isExpanded
+                                                                ? IconChevronDown
+                                                                : IconChevronRight
+                                                        }
+                                                        size="xs"
+                                                    />
+                                                    <Text
+                                                        fw={500}
+                                                        size="xs"
+                                                        c="dark"
+                                                        className={
+                                                            classes.toolCallName
+                                                        }
+                                                    >
+                                                        {toolCall.toolName ||
+                                                            'Unknown'}
+                                                    </Text>
+                                                </Group>
+                                            </Group>
+                                        </Box>
+                                        <Collapse in={isExpanded}>
+                                            {argsJson ? (
+                                                <Prism
+                                                    language="json"
+                                                    styles={{
+                                                        code: {
+                                                            fontSize: '11px',
+                                                        },
+                                                    }}
+                                                >
+                                                    {argsJson}
+                                                </Prism>
+                                            ) : (
+                                                <Box
+                                                    p="sm"
+                                                    className={
+                                                        classes.centerText
+                                                    }
+                                                >
+                                                    <Text
+                                                        size="xs"
+                                                        c="dimmed"
+                                                        fs="italic"
+                                                    >
+                                                        Cannot display arguments
+                                                    </Text>
+                                                </Box>
+                                            )}
+                                        </Collapse>
+                                    </Box>
+                                );
+                            })}
+                        </Stack>
+                    </Box>
+                )}
+
+                {/* Empty state */}
+                {!artifactData && (!toolCalls || toolCalls.length === 0) && (
+                    <Box p="xl" className={classes.emptyState}>
+                        <MantineIcon
+                            icon={IconBug}
+                            size={40}
+                            color="gray"
+                            className={classes.emptyStateIcon}
+                        />
+                        <Text c="dimmed" size="sm">
+                            No debug information available
+                        </Text>
+                    </Box>
+                )}
+            </Stack>
         </Drawer>
     );
 };
