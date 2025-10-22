@@ -8,6 +8,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
+    assertSessionAuth,
     CacheMetadata,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
@@ -101,10 +102,11 @@ export class EmbedController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiEmbedConfigResponse> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
             results: await this.getEmbedService().getConfig(
-                req.user!,
+                req.account.user,
                 projectUuid,
             ),
         };
@@ -120,10 +122,11 @@ export class EmbedController extends BaseController {
         @Body() body: CreateEmbedRequestBody,
     ): Promise<ApiEmbedConfigResponse> {
         this.setStatus(201);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
-            results: await this.getEmbedService().saveConfig(
-                req.user!,
+            results: await this.getEmbedService().createConfig(
+                req.account.user,
                 projectUuid,
                 body,
             ),
@@ -134,14 +137,38 @@ export class EmbedController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Patch('/config/dashboards')
     @OperationId('updateEmbeddedDashboards')
+    @Deprecated()
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Body() body: UpdateEmbed,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         await this.getEmbedService().updateDashboards(
-            req.user!,
+            req.account,
+            projectUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/config')
+    @OperationId('updateEmbedConfig')
+    async updateEmbedConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: UpdateEmbed,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        assertSessionAuth(req.account);
+        await this.getEmbedService().updateConfig(
+            req.account,
             projectUuid,
             body,
         );
@@ -161,10 +188,11 @@ export class EmbedController extends BaseController {
         @Body() body: CreateEmbedJwt,
     ): Promise<ApiEmbedUrlResponse> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
             results: await this.getEmbedService().getEmbedUrl(
-                req.user!,
+                req.account,
                 projectUuid,
                 body,
             ),

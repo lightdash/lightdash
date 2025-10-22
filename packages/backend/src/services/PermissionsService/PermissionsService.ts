@@ -1,4 +1,4 @@
-import { AnonymousAccount, ForbiddenError } from '@lightdash/common';
+import { AnonymousAccount, ForbiddenError, OssEmbed } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { BaseService } from '../BaseService';
 
@@ -14,21 +14,15 @@ export class PermissionsService extends BaseService {
         this.dashboardModel = args.dashboardModel;
     }
 
-    async checkEmbedPermissions(
-        account: AnonymousAccount,
+    private async checkEmbeddedDashboardPermission(
+        dashboardUuid: string,
         savedChartUuid: string,
+        embed: OssEmbed,
     ) {
-        const { projectUuid, dashboardUuids, allowAllDashboards } =
-            account.embed;
-        const dashboardUuid = account.access.dashboardId;
-
-        if (!projectUuid) {
-            throw new ForbiddenError(
-                'Project UUID is required to check embed permissions',
-            );
-        }
-
-        if (!allowAllDashboards && !dashboardUuids.includes(dashboardUuid)) {
+        if (
+            !embed.allowAllDashboards &&
+            !embed.dashboardUuids.includes(dashboardUuid)
+        ) {
             throw new ForbiddenError(
                 `Dashboard ${dashboardUuid} is not embedded`,
             );
@@ -36,14 +30,57 @@ export class PermissionsService extends BaseService {
 
         const chartExists =
             await this.dashboardModel.savedChartExistsInDashboard(
-                projectUuid,
+                embed.projectUuid,
                 dashboardUuid,
                 savedChartUuid,
             );
+
         if (!chartExists) {
             throw new ForbiddenError(
                 `This chart does not belong to dashboard ${dashboardUuid}`,
             );
         }
+    }
+
+    private static checkEmbeddedChartPermissions(
+        savedChartUuid: string,
+        embed: OssEmbed,
+    ) {
+        if (
+            !embed.allowAllCharts &&
+            !embed.chartUuids.includes(savedChartUuid)
+        ) {
+            throw new ForbiddenError(`Chart ${savedChartUuid} is not embedded`);
+        }
+    }
+
+    /**
+     * Determines if the given account has permission to access the provided chart.
+     */
+    async checkEmbedPermissions(
+        account: AnonymousAccount,
+        savedChartUuid: string,
+    ) {
+        const { embed } = account;
+        const dashboardUuid = account.access.dashboardId;
+
+        if (!embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project UUID is required to check embed permissions',
+            );
+        }
+
+        if (dashboardUuid) {
+            return this.checkEmbeddedDashboardPermission(
+                dashboardUuid,
+                savedChartUuid,
+                embed,
+            );
+        }
+
+        return PermissionsService.checkEmbeddedChartPermissions(
+            savedChartUuid,
+            embed,
+        );
     }
 }

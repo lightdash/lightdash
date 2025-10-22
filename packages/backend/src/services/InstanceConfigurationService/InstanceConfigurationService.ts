@@ -555,8 +555,8 @@ export class InstanceConfigurationService extends BaseService {
                 await this.embedModel.save(
                     projectUuid,
                     encodedSecret,
-                    [],
                     userUuid,
+                    [],
                     allowAllDashboards ?? false,
                 );
                 this.logger.info(
