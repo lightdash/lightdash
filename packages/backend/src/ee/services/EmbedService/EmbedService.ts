@@ -882,6 +882,7 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
         dashboardSorts?: SortField[],
+        userParameters?: ParametersValuesMap,
         checkPermissions: boolean = true,
     ) {
         const { dashboardUuids, allowAllDashboards, user } =
@@ -959,11 +960,14 @@ export class EmbedService extends BaseService {
 
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
-        // No parameters are passed in embed requests, just combine the saved parameters
+        const acceptedUserParameters =
+            account.access.canChangeParameters && userParameters
+                ? userParameters
+                : {};
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             explore,
-            {},
+            acceptedUserParameters,
             dashboardParameters,
         );
 
@@ -1077,6 +1081,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
+        userParameters?: ParametersValuesMap,
         invalidateCache?: boolean,
     ) {
         const { dashboardUuid, chart, explore, metricQuery } =
@@ -1100,11 +1105,14 @@ export class EmbedService extends BaseService {
         );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
-        // No parameters are passed in embed requests, just combine the saved parameters
+        const acceptedUserParameters =
+            account.access.canChangeParameters && userParameters
+                ? userParameters
+                : {};
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             explore,
-            {},
+            acceptedUserParameters,
             dashboardParameters,
         );
 
@@ -1164,6 +1172,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
+        userParameters?: ParametersValuesMap,
         columnOrder?: string[],
         pivotDimensions?: string[],
         invalidateCache?: boolean,
@@ -1188,11 +1197,14 @@ export class EmbedService extends BaseService {
         );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
-        // No parameters are passed in embed requests, just combine the saved parameters
+        const acceptedUserParameters =
+            account.access.canChangeParameters && userParameters
+                ? userParameters
+                : {};
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             explore,
-            {},
+            acceptedUserParameters,
             dashboardParameters,
         );
 
