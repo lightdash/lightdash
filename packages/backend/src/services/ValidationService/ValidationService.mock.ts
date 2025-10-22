@@ -274,6 +274,25 @@ export const exploreWithJoin: Explore = {
     },
 };
 
+// Additional explore with different name but same baseTable and fields as base explore
+export const additionalExplore: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'additional_explore',
+    label: 'Additional Explore',
+    tags: [],
+    baseTable: 'table', // Same baseTable as explore
+    joinedTables: [],
+    tables: explore.tables, // Same fields as base explore
+};
+
+export const chartForValidationWithAdditionalExplore: Awaited<
+    ReturnType<SavedChartModel['findChartsForValidation']>
+>[number] = {
+    ...chartForValidation,
+    name: 'Chart using additional explore',
+    tableName: 'additional_explore', // References the additional explore by name
+};
+
 export const exploreError: ExploreError = {
     name: 'valid_explore',
     label: 'valid_explore',
