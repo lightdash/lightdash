@@ -21,6 +21,7 @@ type ToolCallPaperProps = {
     variant?: 'default' | 'dashed';
     hasError?: boolean;
     rightAction?: ReactNode;
+    iconClassName?: string;
 };
 
 export const ToolCallPaper = ({
@@ -31,6 +32,7 @@ export const ToolCallPaper = ({
     variant = 'default',
     hasError,
     rightAction,
+    iconClassName,
 }: ToolCallPaperProps) => {
     const [opened, { toggle }] = useDisclosure(defaultOpened);
 
@@ -56,6 +58,7 @@ export const ToolCallPaper = ({
                             size="sm"
                             strokeWidth={1.2}
                             color={contentColor}
+                            className={iconClassName}
                         />
                         <Title order={6} c={contentColor} size="xs">
                             {title}
