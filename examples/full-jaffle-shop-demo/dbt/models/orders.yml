@@ -17,6 +17,8 @@ models:
           - join: customers
             sql_on: ${customers.customer_id} = ${orders.customer_id}
             relationship: many-to-one
+            label: Order Customer
+            description: The customer who placed this order (many orders can belong to one customer)
         metrics:
           completion_percentage:
             type: number
