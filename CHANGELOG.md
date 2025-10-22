@@ -1,3 +1,10 @@
+## [0.2103.1](https://github.com/lightdash/lightdash/compare/0.2103.0...0.2103.1) (2025-10-22)
+
+
+### Bug Fixes
+
+* update react query cache on ai chart change ([#17579](https://github.com/lightdash/lightdash/issues/17579)) ([021bce7](https://github.com/lightdash/lightdash/commit/021bce773544ab547b061ca5a43804bc583f031b))
+
 # [0.2103.0](https://github.com/lightdash/lightdash/compare/0.2102.0...0.2103.0) (2025-10-21)
 
 
