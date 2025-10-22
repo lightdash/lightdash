@@ -1,3 +1,10 @@
+## [0.2103.2](https://github.com/lightdash/lightdash/compare/0.2103.1...0.2103.2) (2025-10-22)
+
+
+### Bug Fixes
+
+* add progress updates to findExplores and findFields tools ([#17575](https://github.com/lightdash/lightdash/issues/17575)) ([5da1974](https://github.com/lightdash/lightdash/commit/5da19741684d05fe04bd84512c3d6bd30c015d10))
+
 ## [0.2103.1](https://github.com/lightdash/lightdash/compare/0.2103.0...0.2103.1) (2025-10-22)
 
 
