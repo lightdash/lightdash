@@ -45,6 +45,7 @@ const postEmbedDashboardTileQuery = async (
         | 'pivotResults'
         | 'invalidateCache'
         | 'dateZoom'
+        | 'parameters'
     >,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
     lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
@@ -230,6 +231,7 @@ export const useDashboardChartReadyQuery = (
                               granularity,
                           },
                           invalidateCache,
+                          parameters: parameterValues,
                           pivotResults: useSqlPivotResults?.enabled,
                       },
                   )
