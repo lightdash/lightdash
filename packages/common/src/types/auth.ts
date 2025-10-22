@@ -86,6 +86,8 @@ export type DashboardAccess = {
     filtering?: DashboardFilterInteractivityOptions;
     /** User-specific access controls */
     controls?: UserAccessControls;
+    /** Whether users can change dashboard parameters in embedded dashboards */
+    canChangeParameters?: boolean;
 };
 
 export type AccountHelpers = {

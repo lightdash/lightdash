@@ -22,6 +22,7 @@ import {
     FieldValueSearchResult,
     Item,
     MetricQueryResponse,
+    ParametersValuesMap,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
     SortField,
@@ -227,6 +228,7 @@ export class EmbedController extends BaseController {
             dashboardFilters?: DashboardFilters;
             dateZoomGranularity?: DateGranularity;
             dashboardSorts?: SortField[];
+            parameters?: ParametersValuesMap;
         },
     ): Promise<ApiEmbedChartAndResultsResponse> {
         this.setStatus(200);
@@ -242,6 +244,7 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.dateZoomGranularity,
                 body.dashboardSorts,
+                body.parameters,
             ),
         };
     }
@@ -299,6 +302,7 @@ export class EmbedController extends BaseController {
         @Body()
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
+            parameters?: ParametersValuesMap;
             invalidateCache?: boolean;
         },
     ): Promise<ApiCalculateTotalResponse> {
@@ -313,6 +317,7 @@ export class EmbedController extends BaseController {
                 projectUuid,
                 savedChartUuid,
                 body.dashboardFilters,
+                body.parameters,
                 body.invalidateCache,
             ),
         };
@@ -328,6 +333,7 @@ export class EmbedController extends BaseController {
         @Body()
         body: {
             dashboardFilters?: DashboardFilters;
+            parameters?: ParametersValuesMap;
             columnOrder: string[];
             pivotDimensions?: string[];
             invalidateCache?: boolean;
@@ -345,6 +351,7 @@ export class EmbedController extends BaseController {
                     projectUuid,
                     savedChartUuid,
                     body.dashboardFilters,
+                    body.parameters,
                     body.columnOrder,
                     body.pivotDimensions,
                     body.invalidateCache,
