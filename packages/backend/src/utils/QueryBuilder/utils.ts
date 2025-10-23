@@ -484,16 +484,12 @@ export const removeCommentsAndOuterLimitOffset = (sql: string): string => {
         .replace(limitOffsetRegex, '');
     // remove semicolon from the end of the query
     sqlWithoutLimit = sqlWithoutLimit.trim().replace(/;+$/g, '');
-    // restore strings
-    let sqlRestored = restoreStringsFromPlaceholders(
-        sqlWithoutLimit,
-        placeholders,
-    );
     // normalize multiple spaces to a single space
-    sqlRestored = sqlRestored.replace(/\s+/g, ' ');
+    sqlWithoutLimit = sqlWithoutLimit.replace(/\s+/g, ' ');
     // remove any trailing semicolons, including those preceded by whitespace
-    sqlRestored = sqlRestored.replace(/\s*;+\s*$/g, '').trim();
-    return sqlRestored;
+    sqlWithoutLimit = sqlWithoutLimit.replace(/\s*;+\s*$/g, '').trim();
+    // restore strings
+    return restoreStringsFromPlaceholders(sqlWithoutLimit, placeholders);
 };
 
 // Apply a limit (and optional offset) to a SQL query
