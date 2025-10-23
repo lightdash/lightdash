@@ -3,7 +3,7 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
+import { Box, Flex } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { Parameters } from '../../../../../features/parameters';
@@ -70,15 +70,17 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
         >
             {isFilteringEnabled && <EmbedDashboardFilters />}
             {dashboard.canChangeParameters && (
-                <Parameters
-                    isEditMode={false}
-                    parameterValues={parameterValues}
-                    onParameterChange={handleParameterChange}
-                    onClearAll={clearAllParameters}
-                    parameters={referencedParameters}
-                    isLoading={!areAllChartsLoaded}
-                    missingRequiredParameters={missingRequiredParameters}
-                />
+                <Box style={{ flexShrink: 0 }}>
+                    <Parameters
+                        isEditMode={false}
+                        parameterValues={parameterValues}
+                        onParameterChange={handleParameterChange}
+                        onClearAll={clearAllParameters}
+                        parameters={referencedParameters}
+                        isLoading={!areAllChartsLoaded}
+                        missingRequiredParameters={missingRequiredParameters}
+                    />
+                </Box>
             )}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
