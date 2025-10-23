@@ -1,3 +1,11 @@
+## [0.2104.7](https://github.com/lightdash/lightdash/compare/0.2104.6...0.2104.7) (2025-10-23)
+
+
+### Bug Fixes
+
+* extract first and last name from OIDC profile JSON ([#17597](https://github.com/lightdash/lightdash/issues/17597)) ([12d787a](https://github.com/lightdash/lightdash/commit/12d787aae6e23b03c0afd5bbef4b3298cc574e17)), closes [#17601](https://github.com/lightdash/lightdash/issues/17601)
+* table calculation e2e test ([#17602](https://github.com/lightdash/lightdash/issues/17602)) ([3fcf098](https://github.com/lightdash/lightdash/commit/3fcf098898d188bfc77cb6ad2d324d7f3e77483f))
+
 ## [0.2104.6](https://github.com/lightdash/lightdash/compare/0.2104.5...0.2104.6) (2025-10-23)
 
 
