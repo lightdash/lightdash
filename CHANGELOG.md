@@ -1,3 +1,10 @@
+## [0.2104.6](https://github.com/lightdash/lightdash/compare/0.2104.5...0.2104.6) (2025-10-23)
+
+
+### Bug Fixes
+
+* add config for generate-exposures on dbt 1.10 ([#17584](https://github.com/lightdash/lightdash/issues/17584)) ([c6cb4c2](https://github.com/lightdash/lightdash/commit/c6cb4c20c9a13d727a54bff74b5420e43336a8eb))
+
 ## [0.2104.5](https://github.com/lightdash/lightdash/compare/0.2104.4...0.2104.5) (2025-10-22)
 
 
