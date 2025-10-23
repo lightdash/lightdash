@@ -58,6 +58,7 @@ import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
+import { AiReasoning } from './ToolCalls/AiReasoning';
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -161,6 +162,9 @@ const AssistantBubbleContent: FC<{
                 </Paper>
             )}
 
+            {!isStreaming && message.reasoning.length > 0 && (
+                <AiReasoning reasoning={message.reasoning} />
+            )}
             {isStreaming && (
                 <AiChartToolCalls
                     toolCalls={streamingState?.toolCalls}
