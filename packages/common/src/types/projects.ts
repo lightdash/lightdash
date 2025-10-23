@@ -315,6 +315,21 @@ export enum DbtVersionOptionLatest {
     LATEST = 'latest',
 }
 
+export function isDbtVersion110OrHigher(
+    version: SupportedDbtVersions | undefined,
+): boolean {
+    if (!version) {
+        return false;
+    }
+    // Get all enum values as an array in order
+    const versions = Object.values(SupportedDbtVersions);
+    const v110Index = versions.indexOf(SupportedDbtVersions.V1_10);
+    const currentIndex = versions.indexOf(version);
+
+    // If the current version is at or after v1.10 in the enum order
+    return currentIndex >= v110Index;
+}
+
 export type DbtVersionOption = SupportedDbtVersions | DbtVersionOptionLatest;
 
 export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {

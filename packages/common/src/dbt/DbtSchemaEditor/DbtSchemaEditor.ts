@@ -20,7 +20,10 @@ import {
     type CustomSqlDimension,
 } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
-import { SupportedDbtVersions } from '../../types/projects';
+import {
+    isDbtVersion110OrHigher,
+    type SupportedDbtVersions,
+} from '../../types/projects';
 import {
     type WarehouseClient,
     type WarehouseSqlBuilder,
@@ -75,16 +78,7 @@ export default class DbtSchemaEditor {
     }
 
     isDbtVersion110OrHigher(): boolean {
-        if (!this.dbtVersion) {
-            return false;
-        }
-        // Get all enum values as an array in order
-        const versions = Object.values(SupportedDbtVersions);
-        const v110Index = versions.indexOf(SupportedDbtVersions.V1_10);
-        const currentIndex = versions.indexOf(this.dbtVersion);
-
-        // If the current version is at or after v1.10 in the enum order
-        return currentIndex >= v110Index;
+        return isDbtVersion110OrHigher(this.dbtVersion);
     }
 
     findModelByName(name: string) {
@@ -236,7 +230,7 @@ export default class DbtSchemaEditor {
             }
 
             // For dbt >= 1.10, meta should be inside config
-            if (this.isDbtVersion110OrHigher()) {
+            if (isDbtVersion110OrHigher(this.dbtVersion)) {
                 column.setIn(
                     ['config', 'meta', 'metrics', metric.name],
                     convertCustomMetricToDbt(metric),
@@ -301,7 +295,7 @@ export default class DbtSchemaEditor {
         }
 
         // For dbt >= 1.10, meta should be inside config
-        if (this.isDbtVersion110OrHigher()) {
+        if (isDbtVersion110OrHigher(this.dbtVersion)) {
             column.setIn(
                 ['config', 'meta', 'additional_dimensions', customDimension.id],
                 convertCustomBinDimensionToDbt({
@@ -364,7 +358,7 @@ export default class DbtSchemaEditor {
             );
         }
         // For dbt >= 1.10, meta should be inside config
-        if (this.isDbtVersion110OrHigher()) {
+        if (isDbtVersion110OrHigher(this.dbtVersion)) {
             column.setIn(
                 ['config', 'meta', 'additional_dimensions', customDimension.id],
                 additionalDimension,

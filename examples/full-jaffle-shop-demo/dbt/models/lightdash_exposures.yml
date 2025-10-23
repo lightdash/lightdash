@@ -8,79 +8,17 @@ exposures:
     label: Lightdash - Jaffle shop
     description: Lightdash project
     url: http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/home
-    tags:
-      - lightdash
-      - project
     depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
       - ref('plan')
-      - ref('customers')
       - ref('membership')
-      - ref('orders')
-      - ref('payments')
-  - name: ld_chart_01962af0_d72a_4428_913b_2673298d752d
-    type: analysis
-    owner:
-      name: David Attenborough
-      email: ""
-    label: How many users were created each month ?
-    description: A pivot table sample
-    url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/01962af0-d72a-4428-913b-2673298d752d/view
-    tags:
-      - lightdash
-      - chart
-    depends_on:
-      - ref('plan')
-      - ref('customers')
-      - ref('membership')
-  - name: ld_chart_c53c4c5b_10d3_4b79_a616_0f7797c8fc21
-    type: analysis
-    owner:
-      name: David Attenborough
-      email: ""
-    label: What's our total revenue to date?
-    description: A single number showing the sum of all historical revenue
-    url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/c53c4c5b-10d3-4b79-a616-0f7797c8fc21/view
-    tags:
-      - lightdash
-      - chart
-    depends_on:
-      - ref('orders')
-      - ref('payments')
-      - ref('customers')
-  - name: ld_chart_be15e7e2_2ad4_49c7_b1fe_40d334e17373
-    type: analysis
-    owner:
-      name: David Attenborough
-      email: ""
-    label: How many orders did we get in June?
-    description: A single value of the total number of orders received in June
-    url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/be15e7e2-2ad4-49c7-b1fe-40d334e17373/view
-    tags:
-      - lightdash
-      - chart
-    depends_on:
-      - ref('orders')
-      - ref('customers')
-  - name: ld_chart_d801d67d_2852_4a94_a6cc_ac32e5a089bf
-    type: analysis
-    owner:
-      name: David Attenborough
-      email: ""
-    label: How much revenue do we have per payment method each month?
-    description: A pivot table sample
-    url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/d801d67d-2852-4a94-a6cc-ac32e5a089bf/view
-    tags:
-      - lightdash
-      - chart
-    depends_on:
-      - ref('orders')
-      - ref('payments')
-      - ref('customers')
-  - name: ld_chart_3dc53928_60a1_450f_a351_9f443b87d988
+    config:
+      tags:
+        - lightdash
+        - project
+  - name: ld_chart_74d9861b_acc1_4cdb_99e0_017f5cf2485d
     type: analysis
     owner:
       name: David Attenborough
@@ -90,15 +28,33 @@ exposures:
       Total revenue received via coupons, gift cards, bank transfers, and credit
       cards
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/3dc53928-60a1-450f-a351-9f443b87d988/view
-    tags:
-      - lightdash
-      - chart
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/74d9861b-acc1-4cdb-99e0-017f5cf2485d/view
     depends_on:
       - ref('orders')
       - ref('payments')
       - ref('customers')
-  - name: ld_chart_66d48c9a_4b09_45b2_a38b_09750abc569b
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_82c9bdd3_4544_4bc4_87ad_319f84e04c68
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: What's our total revenue to date?
+    description: A single number showing the sum of all historical revenue
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/82c9bdd3-4544-4bc4-87ad-319f84e04c68/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_e4288438_1e2e_48a5_834e_03417a55baed
     type: analysis
     owner:
       name: David Attenborough
@@ -106,14 +62,15 @@ exposures:
     label: How many orders we have over time ?
     description: Time series of orders received per day and total orders over time
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/66d48c9a-4b09-45b2-a38b-09750abc569b/view
-    tags:
-      - lightdash
-      - chart
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/e4288438-1e2e-48a5-834e-03417a55baed/view
     depends_on:
       - ref('orders')
       - ref('customers')
-  - name: ld_chart_28287c81_c608_42c3_9fa5_af4dec1e574b
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_e8cdbf84_cbd1_49d9_adcf_b67fd2116430
     type: analysis
     owner:
       name: David Attenborough
@@ -121,30 +78,151 @@ exposures:
     label: What's the average spend per customer?
     description: Average order size for each customer id
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/28287c81-c608-42c3-9fa5-af4dec1e574b/view
-    tags:
-      - lightdash
-      - chart
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/e8cdbf84-cbd1-49d9-adcf-b67fd2116430/view
     depends_on:
       - ref('orders')
       - ref('customers')
-  - name: ld_chart_2eac20e1_e391_46a9_901e_73ee5e453e78
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_aa3115d1_441d_4e3f_825a_f88baf02e35e
     type: analysis
     owner:
       name: David Attenborough
       email: ""
-    label: How do payment methods vary across different amount ranges?"
-    description: Payment range by amount
+    label: How much revenue do we have per payment method each month?
+    description: A pivot table sample
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/2eac20e1-e391-46a9-901e-73ee5e453e78/view
-    tags:
-      - lightdash
-      - chart
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/aa3115d1-441d-4e3f-825a-f88baf02e35e/view
     depends_on:
       - ref('orders')
       - ref('payments')
       - ref('customers')
-  - name: ld_chart_3cc86d58_4031_4587_bfdd_bc59a11c24b5
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_d40c4181_5c74_4428_acb7_eeaa73bb45d9
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: How many users were created each month ?
+    description: A pivot table sample
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/d40c4181-5c74-4428-acb7-eeaa73bb45d9/view
+    depends_on:
+      - ref('plan')
+      - ref('customers')
+      - ref('membership')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_fc0b6ccf_19be_499b_b867_b71410e67b91
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: How do payment methods vary across different amount ranges?
+    description: Payment range by amount
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/fc0b6ccf-19be-499b-b867-b71410e67b91/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_8947a6cc_af7d_4a9a_84dc_74c3a3f3e6ec
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: "[Saved in dashboard] How much revenue do we have per payment method?"
+    description: >-
+      Total revenue received via coupons, gift cards, bank transfers, and credit
+      cards
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/8947a6cc-af7d-4a9a-84dc-74c3a3f3e6ec/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_1faf9eda_ed5b_4702_8cc9_3b29a3147cc3
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: To delete
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/1faf9eda-ed5b-4702-8cc9-3b29a3147cc3/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_6533a372_79c9_462f_afe0_40185e6647ae
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: 100% bar chart
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/6533a372-79c9-462f-afe0-40185e6647ae/view
+    depends_on:
+      - ref('orders')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_ace77bfd_4f41_4018_8222_392819eeaaa3
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: How many orders did we get in June?
+    description: A single value of the total number of orders received in June
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/ace77bfd-4f41-4018-8222-392819eeaaa3/view
+    depends_on:
+      - ref('orders')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_6b0afe44_7adc_4dee_9593_233e6291bbd3
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: New table chart with bars using content as code
+    description: A table of the 20 customers that least recently placed an order with us
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/6b0afe44-7adc-4dee-9593-233e6291bbd3/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_868d7c41_2184_4d1d_b5f8_33e00ae1ae96
     type: analysis
     owner:
       name: David Attenborough
@@ -152,27 +230,159 @@ exposures:
     label: Which customers have not recently ordered an item?
     description: A table of the 20 customers that least recently placed an order with us
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/3cc86d58-4031-4587-bfdd-bc59a11c24b5/view
-    tags:
-      - lightdash
-      - chart
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/868d7c41-2184-4d1d-b5f8-33e00ae1ae96/view
     depends_on:
       - ref('orders')
       - ref('payments')
       - ref('customers')
-  - name: ld_dashboard_a2a53dfe_2743_4bb6_b636_2b94a470a3da
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_0854611a_9842_4937_9cab_37fb3557e852
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: chart with tinybars
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/0854611a-9842-4937-9cab-37fb3557e852/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_2bc0cf3d_1767_4242_bb09_c2fdfc248987
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: bar chart
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/2bc0cf3d-1767-4242-bb09-c2fdfc248987/view
+    depends_on:
+      - ref('orders')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_12728978_4c91_443c_b535_25bc5db91191
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: pivot tiny bars
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/12728978-4c91-443c-b535-25bc5db91191/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_chart_61e0f772_8533_4dd6_ae86_3ad4eeae86e9
+    type: analysis
+    owner:
+      name: David Attenborough
+      email: ""
+    label: tinybars demo
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/61e0f772-8533-4dd6-ae86-3ad4eeae86e9/view
+    depends_on:
+      - ref('orders')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - chart
+  - name: ld_dashboard_27933fde_2765_46ea_9388_dee22ff19808
     type: dashboard
     owner:
       name: David Attenborough
       email: ""
     label: Jaffle dashboard
-    description: n/a
+    description: ""
     url: >-
-      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/a2a53dfe-2743-4bb6-b636-2b94a470a3da/view
-    tags:
-      - lightdash
-      - dashboard
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/27933fde-2765-46ea-9388-dee22ff19808/view
     depends_on:
       - ref('orders')
       - ref('payments')
       - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - dashboard
+  - name: ld_dashboard_58e3dcc9_b1cb_4f4e_a383_c6b42042f4a2
+    type: dashboard
+    owner:
+      name: David Attenborough
+      email: ""
+    label: Dashboard with dashboard charts
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/58e3dcc9-b1cb-4f4e-a383-c6b42042f4a2/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - dashboard
+  - name: ld_dashboard_9898379a_2008_430d_9452_95b4b2deb42d
+    type: dashboard
+    owner:
+      name: David Attenborough
+      email: ""
+    label: chart with bar display
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/9898379a-2008-430d-9452-95b4b2deb42d/view
+    depends_on: []
+    config:
+      tags:
+        - lightdash
+        - dashboard
+  - name: ld_dashboard_3b872ee5_e645_4f7b_9a82_ef87a9dfc19b
+    type: dashboard
+    owner:
+      name: David Attenborough
+      email: ""
+    label: 100% dashboard
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/3b872ee5-e645-4f7b-9a82-ef87a9dfc19b/view
+    depends_on:
+      - ref('orders')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - dashboard
+  - name: ld_dashboard_f6a700e4_a8ef_43d5_96e8_e8f69501c745
+    type: dashboard
+    owner:
+      name: David Attenborough
+      email: ""
+    label: tiny bar dashboard
+    description: ""
+    url: >-
+      http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/f6a700e4-a8ef-43d5-96e8-e8f69501c745/view
+    depends_on:
+      - ref('orders')
+      - ref('payments')
+      - ref('customers')
+    config:
+      tags:
+        - lightdash
+        - dashboard
