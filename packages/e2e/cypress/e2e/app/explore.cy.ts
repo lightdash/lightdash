@@ -11,7 +11,7 @@ describe('Explore', () => {
 
         cy.findByText('Orders').click();
         cy.findByText('Dimensions').should('exist');
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
 
         // ! Tests run with auto-fetch enabled, so a query runs after each change in the explorer (e.g. clicking a field)
         // ! This means that right after clicking a field the default sort is applied
@@ -21,12 +21,12 @@ describe('Explore', () => {
 
         // open column menu
         cy.get('th')
-            .contains('Customers First name')
+            .contains('Order Customer First name')
             .closest('th')
             .find('button')
             .click();
 
-        // sort `Customers First-Name` by ascending
+        // sort `Order Customer First-Name` by ascending
         cy.findByRole('menuitem', { name: 'Sort A-Z' }).click();
 
         // run query
@@ -48,7 +48,7 @@ describe('Explore', () => {
 
         cy.findByText('Orders').click();
         cy.findByText('Dimensions');
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
@@ -84,12 +84,12 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
         // check that selected fields are in the table headers
-        cy.get('th').contains('Customers First name').should('exist');
+        cy.get('th').contains('Order Customer First name').should('exist');
         cy.get('th').contains('Orders Unique order count').should('exist');
 
         // run query
@@ -143,7 +143,7 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
@@ -206,7 +206,7 @@ describe('Explore', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         cy.findByTestId('page-spinner').should('not.exist');
 
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
@@ -232,7 +232,7 @@ describe('Explore', () => {
 
             cy.findByText('Orders').click();
             cy.findByText('Dimensions');
-            cy.findByText('Customers').click();
+            cy.findByText('Order Customer').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
 
@@ -258,11 +258,11 @@ describe('Explore', () => {
                 .should('exist');
 
             cy.get('th')
-                .contains('Customers First name')
+                .contains('Order Customer First name')
                 .closest('th')
                 .find('button')
                 .click();
-            // sort `Customers First name` by ascending
+            // sort `Order Customer First name` by ascending
             cy.findByRole('menuitem', { name: 'Sort Z-A' }).click();
 
             cy.get('.mantine-Badge-inner')
@@ -308,7 +308,7 @@ describe('Explore', () => {
                     );
 
                     // choose table and select fields
-                    cy.findByText('Customers').click();
+                    cy.findByText('Order Customer').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
 
@@ -326,7 +326,7 @@ describe('Explore', () => {
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
                         .find('th')
-                        .contains('Customers First name')
+                        .contains('Order Customer First name')
                         .should('exist');
 
                     cy.findByLabelText('Show table names').click({
@@ -336,7 +336,7 @@ describe('Explore', () => {
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
                         .find('th')
-                        .contains('Customers First name')
+                        .contains('Order Customer First name')
                         .should('not.exist');
                     cy.findByTestId('visualization')
                         .find('th')
@@ -350,7 +350,7 @@ describe('Explore', () => {
                     );
 
                     // choose table and select fields
-                    cy.findByText('Customers').click();
+                    cy.findByText('Order Customer').click();
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
 
@@ -369,11 +369,11 @@ describe('Explore', () => {
                     cy.findByTestId('visualization')
                         .find('th')
                         .eq(1)
-                        .contains('Customers First name')
+                        .contains('Order Customer First name')
                         .should('exist');
 
                     // open configuration and flip Show table names in the config
-                    cy.findByPlaceholderText('Customers First name')
+                    cy.findByPlaceholderText('Order Customer First name')
                         .focus()
                         .type('Overridden header')
                         .blur();
@@ -462,7 +462,7 @@ describe('Explore', () => {
 
         // Check that the results table exists and has the expected columns
         cy.get('table').should('exist');
-        cy.get('th').contains('Customers First name').should('exist');
+        cy.get('th').contains('Order Customer First name').should('exist');
 
         // Verify that we have actual data in the table
         cy.get('tbody tr').should('have.length.greaterThan', 0);

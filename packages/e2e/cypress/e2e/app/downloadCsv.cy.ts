@@ -164,7 +164,7 @@ describe('Download CSV on Explore', () => {
         // choose table and select fields
         cy.findByText('Orders').click();
         cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
-        cy.findByText('Customers').click();
+        cy.findByText('Order Customer').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
@@ -199,7 +199,7 @@ describe('Download CSV on Explore', () => {
         });
         cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
         cy.get('[data-testid="common-sidebar"]').within(() => {
-            cy.findByText('Customers').click();
+            cy.findByText('Order Customer').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
         });
