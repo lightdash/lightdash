@@ -1,4 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI, OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { AiModel } from './types';
 
@@ -31,8 +31,10 @@ export const getOpenaiGptmodel = (
             [PROVIDER]: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,
-                reasoningEffort: 'high',
-                textVerbosity: 'medium',
+                ...(config.reasoning.enabled && {
+                    reasoningSummary: config.reasoning.reasoningSummary,
+                    reasoningEffort: config.reasoning.reasoningEffort,
+                }),
             },
         },
     };

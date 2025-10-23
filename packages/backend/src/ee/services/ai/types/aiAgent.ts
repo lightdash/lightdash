@@ -16,6 +16,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
+    StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     TrackEventFn,
@@ -73,6 +74,7 @@ export type AiAgentDependencies = {
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
+    storeReasoning: StoreReasoningFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
