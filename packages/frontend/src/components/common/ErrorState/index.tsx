@@ -11,6 +11,26 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
     description: 'Please contact support',
 };
 
+const getErrorDescription = (error: ApiErrorDetail) => {
+    return (
+        <>
+            <Text maw={400}>{error.message}</Text>
+            {(error.sentryEventId || error.sentryTraceId) && (
+                <>
+                    <Text maw={400} weight="bold">
+                        Contact support with the following information:
+                    </Text>
+                    <Prism ta="left" language="yaml" pr="lg">
+                        {`\nError ID: ${
+                            error.sentryEventId || 'n/a'
+                        }\nTrace ID: ${error.sentryTraceId || 'n/a'}`}
+                    </Prism>
+                </>
+            )}
+        </>
+    );
+};
+
 const ErrorState: FC<{
     error?: ApiErrorDetail | null;
     hasMarginTop?: boolean;
@@ -20,23 +40,7 @@ const ErrorState: FC<{
             return DEFAULT_ERROR_PROPS;
         }
         try {
-            const description = (
-                <>
-                    <Text maw={400}>{error.message}</Text>
-                    {(error.sentryEventId || error.sentryTraceId) && (
-                        <>
-                            <Text maw={400} weight="bold">
-                                Contact support with the following information:
-                            </Text>
-                            <Prism ta="left" language="yaml" pr="lg">
-                                {`\nError ID: ${
-                                    error.sentryEventId || 'n/a'
-                                }\nTrace ID: ${error.sentryTraceId || 'n/a'}`}
-                            </Prism>
-                        </>
-                    )}
-                </>
-            );
+            const description = getErrorDescription(error);
             switch (error.name) {
                 case 'ForbiddenError':
                     return {

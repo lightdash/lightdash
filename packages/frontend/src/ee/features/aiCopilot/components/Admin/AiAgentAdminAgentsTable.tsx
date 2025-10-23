@@ -46,6 +46,7 @@ import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
 const AiAgentAdminAgentsTable = () => {
+    'use no memo';
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { data: agents, isLoading } = useAiAgentAdminAgents();

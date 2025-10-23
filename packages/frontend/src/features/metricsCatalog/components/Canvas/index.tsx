@@ -360,6 +360,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
             if (renderTwice) {
                 setTimeout(() => {
+                    // eslint-disable-next-line react-hooks/immutability
                     applyLayout({ renderTwice: false });
                 }, 10);
 

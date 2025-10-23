@@ -67,6 +67,7 @@ const AiAgentAdminThreadsTable = ({
     setSelectedThread,
     selectedThread,
 }: AiAgentAdminThreadsTableProps) => {
+    'use no memo';
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const slack = useGetSlack();

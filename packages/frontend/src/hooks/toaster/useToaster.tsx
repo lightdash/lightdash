@@ -306,6 +306,7 @@ const useToaster = () => {
                         notifications.hide(key);
                     }
                 },
+                // eslint-disable-next-line react-hooks/immutability
                 onCloseError: removeToastError,
             });
         },
