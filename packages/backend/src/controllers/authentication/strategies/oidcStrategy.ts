@@ -23,7 +23,13 @@ export const isGenericOidcPassportStrategyAvailableToUse =
     lightdashConfig.auth.oidc.metadataDocumentEndpoint;
 
 const createOpenIdUserFromProfile = (
-    profile: PassportProfile,
+    profile: PassportProfile & {
+        _json?: {
+            given_name?: string;
+            family_name?: string;
+            [key: string]: unknown;
+        };
+    },
     issuer: string,
     issuerType: OpenIdIdentityIssuerType,
     done: ArgumentsOf<VerifyFunctionWithRequest>['3'],
@@ -57,9 +63,15 @@ const createOpenIdUserFromProfile = (
     const displayName = profile.displayName || '';
     const [fallbackFirstName, fallbackLastName] = displayName.split(' ');
     const firstName =
-        profile.name?.givenName || profile.given_name || fallbackFirstName;
+        profile.name?.givenName ||
+        profile._json?.given_name ||
+        profile.given_name ||
+        fallbackFirstName;
     const lastName =
-        profile.name?.familyName || profile.family_name || fallbackLastName;
+        profile.name?.familyName ||
+        profile._json?.family_name ||
+        profile.family_name ||
+        fallbackLastName;
 
     const openIdUser: OpenIdUser = {
         openId: {
