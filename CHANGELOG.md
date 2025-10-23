@@ -1,3 +1,10 @@
+# [0.2105.0](https://github.com/lightdash/lightdash/compare/0.2104.9...0.2105.0) (2025-10-23)
+
+
+### Features
+
+* quoted: true for pivoted results (consistent with non-pivoted ones) ([#17613](https://github.com/lightdash/lightdash/issues/17613)) ([28b4f16](https://github.com/lightdash/lightdash/commit/28b4f16a4f1c453b0081f9627e6f8936604f0004))
+
 ## [0.2104.9](https://github.com/lightdash/lightdash/compare/0.2104.8...0.2104.9) (2025-10-23)
 
 
