@@ -19,6 +19,7 @@ import {
 } from '../../../../../features/explorer/store';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailPreview } from '../ItemDetailPreview';
+import { buildGroupKey } from '../Virtualization/types';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
 import useTableTree from './useTableTree';
@@ -40,8 +41,15 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     const isSearching = useTableTree((ctx) => ctx.isSearching);
     const searchQuery = useTableTree((ctx) => ctx.searchQuery);
     const searchResults = useTableTree((ctx) => ctx.searchResults);
-    const [isOpen, toggleOpen] = useToggle(false);
+    const tableName = useTableTree((ctx) => ctx.tableName);
+    const treeSectionType = useTableTree((ctx) => ctx.treeSectionType);
+    const expandedGroups = useTableTree((ctx) => ctx.expandedGroups);
+    const onToggleGroup = useTableTree((ctx) => ctx.onToggleGroup);
     const [isHover, toggleHover] = useToggle(false);
+
+    // Build unique group key
+    const groupKey = buildGroupKey(tableName, treeSectionType, node.key);
+    const isOpen = expandedGroups.has(groupKey);
 
     const allChildrenKeys = useMemo(() => getAllChildrenKeys([node]), [node]);
 
@@ -83,7 +91,10 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
         );
     }, [toggleHover, dispatch, label, description]);
 
-    const handleToggleOpen = useCallback(() => toggleOpen(), [toggleOpen]);
+    const handleToggleOpen = useCallback(
+        () => onToggleGroup(groupKey),
+        [onToggleGroup, groupKey],
+    );
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
         [toggleHover],
