@@ -63,6 +63,7 @@ type FormValues = {
         value: string;
     }>;
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
+    canChangeParameters?: boolean;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     externalId?: string;
@@ -94,6 +95,7 @@ const EmbedUrlForm: FC<{
             dashboardFiltersInteractivity: {
                 enabled: FilterInteractivityValues.none,
             },
+            canChangeParameters: false,
             canExportCsv: false,
             canExportImages: false,
             canDateZoom: false,
@@ -130,6 +132,7 @@ const EmbedUrlForm: FC<{
                               }
                             : {}),
                     },
+                    canChangeParameters: values.canChangeParameters,
                     canExportCsv: values.canExportCsv,
                     canExportImages: values.canExportImages,
                     isPreview,
@@ -290,6 +293,11 @@ const EmbedUrlForm: FC<{
                     />
                 </Input.Wrapper>
 
+                <Switch
+                    {...form.getInputProps(`canChangeParameters`)}
+                    labelPosition="left"
+                    label={`Allow users to change parameters`}
+                />
                 <Switch
                     {...form.getInputProps(`canExportCsv`)}
                     labelPosition="left"
