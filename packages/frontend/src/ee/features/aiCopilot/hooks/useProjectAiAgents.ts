@@ -396,6 +396,7 @@ const createOptimisticMessages = (
             humanScore: null,
             toolCalls: [],
             toolResults: [],
+            reasoning: [],
             savedQueryUuid: null,
             artifacts: null,
         },
