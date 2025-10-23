@@ -172,6 +172,45 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         }
     }, [activeFields, experimentalExplorerImprovements]);
 
+    const tableTreeComponents = useMemo(
+        () =>
+            tableTrees.length > 0 ? (
+                tableTrees.map((table, index) => (
+                    <TableTree
+                        key={table.name}
+                        isOpenByDefault={index === 0}
+                        searchQuery={debouncedSearch}
+                        showTableLabel={tableTrees.length > 1}
+                        table={table}
+                        additionalMetrics={additionalMetrics}
+                        onSelectedNodeChange={onSelectedFieldChange}
+                        customDimensions={customDimensions}
+                        missingCustomMetrics={missingCustomMetrics}
+                        missingCustomDimensions={missingCustomDimensions}
+                        missingFieldIds={missingFieldIds}
+                        searchResults={searchResultsMap[table.name]}
+                        isSearching={isSearching}
+                    />
+                ))
+            ) : (
+                <Center display={isSearching ? 'none' : 'flex'}>
+                    <Text color="dimmed">No fields found...</Text>
+                </Center>
+            ),
+        [
+            additionalMetrics,
+            customDimensions,
+            debouncedSearch,
+            isSearching,
+            missingCustomDimensions,
+            missingCustomMetrics,
+            missingFieldIds,
+            onSelectedFieldChange,
+            searchResultsMap,
+            tableTrees,
+        ],
+    );
+
     return (
         <>
             <TextInput
@@ -201,31 +240,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 scrollbarSize={8}
                 viewportRef={scrollAreaViewportRef}
             >
-                {tableTrees.length > 0 ? (
-                    tableTrees.map((table, index) => (
-                        <TableTree
-                            key={table.name}
-                            isOpenByDefault={index === 0}
-                            searchQuery={debouncedSearch}
-                            showTableLabel={
-                                Object.keys(explore.tables).length > 1
-                            }
-                            table={table}
-                            additionalMetrics={additionalMetrics}
-                            onSelectedNodeChange={onSelectedFieldChange}
-                            customDimensions={customDimensions}
-                            missingCustomMetrics={missingCustomMetrics}
-                            missingCustomDimensions={missingCustomDimensions}
-                            missingFieldIds={missingFieldIds}
-                            searchResults={searchResultsMap[table.name]}
-                            isSearching={isSearching}
-                        />
-                    ))
-                ) : (
-                    <Center display={isSearching ? 'none' : 'flex'}>
-                        <Text color="dimmed">No fields found...</Text>
-                    </Center>
-                )}
+                {tableTreeComponents}
             </ScrollArea>
         </>
     );

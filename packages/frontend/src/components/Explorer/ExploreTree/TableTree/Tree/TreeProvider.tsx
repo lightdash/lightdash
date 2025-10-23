@@ -21,7 +21,9 @@ const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
         () => getNodeMapFromItemsMap(itemsMap, groupDetails),
         [itemsMap, groupDetails],
     );
-    const isSearching = !!searchQuery && searchQuery !== '';
+    const isSearching = useMemo(() => {
+        return !!searchQuery && searchQuery !== '';
+    }, [searchQuery]);
 
     const contextValue = useMemo(
         () => ({
