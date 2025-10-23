@@ -1,3 +1,10 @@
+## [0.2104.8](https://github.com/lightdash/lightdash/compare/0.2104.7...0.2104.8) (2025-10-23)
+
+
+### Bug Fixes
+
+* add tableCalculations to validateFilterRules parameters ([#17605](https://github.com/lightdash/lightdash/issues/17605)) ([b40c5b8](https://github.com/lightdash/lightdash/commit/b40c5b801c2cbc47c8cbfbd6ff110abe9298b266))
+
 ## [0.2104.7](https://github.com/lightdash/lightdash/compare/0.2104.6...0.2104.7) (2025-10-23)
 
 
