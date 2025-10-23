@@ -84,6 +84,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (context) => context.missingCustomDimensions,
     );
     const onItemClick = useTableTree((context) => context.onItemClick);
+    const isVirtualized = useTableTree((context) => context.isVirtualized);
+    const depth = useTableTree((context) => context.depth);
     const { track } = useTracking();
 
     const addFilter = useAddFilter();
@@ -265,6 +267,15 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         });
     }, [alerts]);
 
+    // Apply indentation for virtualized mode only
+    // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
+    const pl = useMemo(() => {
+        if (isVirtualized) {
+            return depth ? `${(depth + 1) * 24}px` : '24px';
+        }
+        return undefined;
+    }, [depth, isVirtualized]);
+
     if (!item || !isVisible) return null;
 
     return (
@@ -276,6 +287,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             onClick={handleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            pl={pl}
             label={
                 <Group noWrap spacing="xs">
                     <HoverCard

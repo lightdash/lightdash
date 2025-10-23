@@ -849,6 +849,7 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
     experimentalExplorerImprovements: boolean;
+    experimentalVirtualizedSideBar: boolean;
     dashboardComments: {
         enabled: boolean;
     };
@@ -1633,6 +1634,8 @@ export const parseConfig = (): LightdashConfig => {
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         experimentalExplorerImprovements:
             process.env.EXPERIMENTAL_EXPLORER_IMPROVEMENTS === 'true',
+        experimentalVirtualizedSideBar:
+            process.env.EXPERIMENTAL_VIRTUALIZED_SIDE_BAR === 'true',
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
         },
