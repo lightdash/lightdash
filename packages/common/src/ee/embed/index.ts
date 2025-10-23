@@ -55,6 +55,17 @@ export const InteractivityOptionsSchema = z.object({
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
 
+export const ChartInteractivityOptionsSchema = z.object({
+    scopes: z.array(z.string()).optional(),
+    canExportCsv: z.boolean().optional(),
+    canExportImages: z.boolean().optional(),
+    canViewUnderlyingData: z.boolean().optional(),
+});
+
+export type ChartInteractivityOptions = z.infer<
+    typeof ChartInteractivityOptionsSchema
+>;
+
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.unknown()).optional(),
@@ -81,6 +92,14 @@ export const EmbedJwtSchema = z
                     isPreview: z.boolean().optional(),
                 })
                 .merge(InteractivityOptionsSchema),
+            z
+                .object({
+                    type: z.literal('chart'),
+                    projectUuid: z.string().optional(),
+                    contentId: z.string(),
+                    isPreview: z.boolean().optional(),
+                })
+                .merge(ChartInteractivityOptionsSchema),
         ]),
         iat: z.number().optional(),
         exp: z.number(),
@@ -92,7 +111,7 @@ export const EmbedJwtSchema = z
 export type EmbedJwt = z.infer<typeof EmbedJwtSchema>;
 
 // Note: we can't extend zod types since tsoa doesn't support it
-type CommonEmbedJwtContent = {
+export type CommonEmbedJwtContent = {
     type: 'dashboard';
     projectUuid?: string;
     isPreview?: boolean;
@@ -108,6 +127,16 @@ type CommonEmbedJwtContent = {
     canViewUnderlyingData?: boolean;
 };
 
+type CommonChartEmbedJwtContent = {
+    type: 'chart';
+    projectUuid?: string;
+    isPreview?: boolean;
+    scopes?: string[];
+    canExportCsv?: boolean;
+    canExportImages?: boolean;
+    canViewUnderlyingData?: boolean;
+};
+
 type EmbedJwtContentDashboardUuid = CommonEmbedJwtContent & {
     dashboardUuid: string;
 };
@@ -116,8 +145,15 @@ type EmbedJwtContentDashboardSlug = CommonEmbedJwtContent & {
     dashboardSlug: string;
 };
 
+type EmbedJwtContentChart = CommonChartEmbedJwtContent & {
+    contentId: string;
+};
+
 export type CreateEmbedJwt = {
-    content: EmbedJwtContentDashboardUuid | EmbedJwtContentDashboardSlug;
+    content:
+        | EmbedJwtContentDashboardUuid
+        | EmbedJwtContentDashboardSlug
+        | EmbedJwtContentChart;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;
@@ -131,13 +167,25 @@ export type CreateEmbedJwt = {
 export function isDashboardUuidContent(
     content: CreateEmbedJwt['content'],
 ): content is EmbedJwtContentDashboardUuid {
-    return 'dashboardUuid' in content;
+    return content.type === 'dashboard' && 'dashboardUuid' in content;
 }
 
 export function isDashboardSlugContent(
     content: CreateEmbedJwt['content'],
 ): content is EmbedJwtContentDashboardSlug {
-    return 'dashboardSlug' in content;
+    return content.type === 'dashboard' && 'dashboardSlug' in content;
+}
+
+export function isChartContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentChart {
+    return content.type === 'chart';
+}
+
+export function isDashboardContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentDashboardUuid | EmbedJwtContentDashboardSlug {
+    return content.type === 'dashboard';
 }
 
 export type EmbedUrl = {

@@ -20,11 +20,17 @@ export class PermissionsService extends BaseService {
     ) {
         const { projectUuid, dashboardUuids, allowAllDashboards } =
             account.embed;
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
 
         if (!projectUuid) {
             throw new ForbiddenError(
                 'Project UUID is required to check embed permissions',
+            );
+        }
+
+        if (!dashboardUuid) {
+            throw new ForbiddenError(
+                'Dashboard ID is required to check embed permissions',
             );
         }
 

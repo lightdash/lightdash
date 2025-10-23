@@ -70,9 +70,11 @@ describe('account', () => {
 
             expect(result.organization).toEqual(mockEmbed.organization);
 
-            expect(result.access.dashboardId).toBe('test-dashboard-uuid');
+            expect(result.access.contentId).toBe('test-dashboard-uuid');
             expect(result.access.filtering).toEqual(
-                mockDecodedToken.content.dashboardFiltersInteractivity,
+                mockDecodedToken.content.type === 'dashboard'
+                    ? mockDecodedToken.content.dashboardFiltersInteractivity
+                    : undefined,
             );
             expect(result.access.controls).toBe(mockUserAttributes);
 
