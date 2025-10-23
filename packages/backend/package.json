@@ -39,9 +39,9 @@
         "ts-node": "^10.9.2"
     },
     "dependencies": {
-        "@ai-sdk/anthropic": "^2.0.13",
-        "@ai-sdk/azure": "^2.0.25",
-        "@ai-sdk/openai": "^2.0.25",
+        "@ai-sdk/anthropic": "^2.0.36",
+        "@ai-sdk/azure": "^2.0.54",
+        "@ai-sdk/openai": "^2.0.53",
         "@aws-sdk/client-s3": "^3.529.0",
         "@aws-sdk/lib-storage": "^3.529.0",
         "@aws-sdk/s3-request-presigner": "^3.529.0",
@@ -74,7 +74,7 @@
         "@tsoa/runtime": "^6.6.0",
         "@types/async": "^3.2.16",
         "@types/sshpk": "^1.17.1",
-        "ai": "^5.0.35",
+        "ai": "^5.0.77",
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
         "apache-arrow": "^16.1.0",
