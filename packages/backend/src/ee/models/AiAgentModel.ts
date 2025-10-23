@@ -50,6 +50,7 @@ import {
     type AiAgent,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import { DbUser, UserTableName } from '../../database/entities/users';
@@ -2234,6 +2235,22 @@ export class AiAgentModel {
 
             return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
         });
+    }
+
+    async createReasoning(data: {
+        promptUuid: string;
+        reasoningId: string;
+        text: string;
+    }): Promise<string> {
+        const [reasoning] = await this.database(AiAgentReasoningTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                reasoning_id: data.reasoningId,
+                text: data.text,
+            })
+            .returning('ai_agent_reasoning_uuid');
+
+        return reasoning.ai_agent_reasoning_uuid;
     }
 
     async updateToolResultMetadata(

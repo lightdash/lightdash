@@ -451,7 +451,7 @@ export const streamAgentResponse = async ({
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
                 switch (event.chunk.type) {
-                    case 'tool-call': {
+                    case 'tool-call':
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -491,8 +491,8 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    }
-                    case 'tool-result': {
+
+                    case 'tool-result':
                         logger(
                             'Chunk Tool Result',
                             `Storing tool result for Prompt UUID ${
@@ -523,14 +523,13 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    }
-                    case 'text-delta': {
+
+                    case 'text-delta':
                         logger(
                             'Chunk Text Delta',
                             `Received text chunk: ${event.chunk.text}`,
                         );
                         break;
-                    }
                     case 'raw':
                     case 'reasoning-delta':
                     case 'source':
@@ -542,7 +541,7 @@ export const streamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onFinish: ({ text, usage, steps }) => {
+            onFinish: ({ usage, steps }) => {
                 logger(
                     'On Finish',
                     'Stream finished. Updating prompt with response.',
@@ -604,6 +603,51 @@ export const streamAgentResponse = async ({
                 args,
             ),
         });
+
+        const reasonings = new Map<string, string>();
+
+        for await (const chunk of result.fullStream) {
+            switch (chunk.type) {
+                case 'reasoning-start':
+                    reasonings.set(chunk.id, '');
+                    break;
+                case 'reasoning-delta':
+                    reasonings.set(
+                        chunk.id,
+                        (reasonings.get(chunk.id) || '') + chunk.text,
+                    );
+                    break;
+                case 'reasoning-end':
+                    {
+                        const reasoning = reasonings.get(chunk.id);
+                        if (reasoning) {
+                            logger(
+                                'Reasoning End',
+                                `Storing reasoning with ID ${chunk.id}`,
+                            );
+                            void dependencies
+                                .storeReasoning({
+                                    promptUuid: args.promptUuid,
+                                    reasoningId: chunk.id,
+                                    text: reasoning,
+                                })
+                                .catch((error) => {
+                                    Logger.error(
+                                        '[AiAgent][Reasoning End] Failed to store reasoning',
+                                        error,
+                                    );
+                                    Sentry.captureException(error);
+                                });
+
+                            reasonings.delete(chunk.id);
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
         logger('Stream Agent Response', 'Returning stream result.');
         return result;
     } catch (error) {
