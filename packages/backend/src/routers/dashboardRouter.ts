@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { type Router } from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const dashboardRouter = express.Router({ mergeParams: true });
+export const dashboardRouter: Router = express.Router({ mergeParams: true });
 
 dashboardRouter.get(
     '/:dashboardUuidOrSlug',

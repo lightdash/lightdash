@@ -6,11 +6,13 @@ import {
 } from '@lightdash/common';
 import { sign } from 'cookie-signature';
 import { createHmac } from 'crypto';
-import express from 'express';
+import express, { type Router } from 'express';
 import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
 
-export const headlessBrowserRouter = express.Router({ mergeParams: true });
+export const headlessBrowserRouter: Router = express.Router({
+    mergeParams: true,
+});
 
 export const getAuthenticationToken = (value: string) =>
     createHmac('sha512', lightdashConfig.lightdashSecret)

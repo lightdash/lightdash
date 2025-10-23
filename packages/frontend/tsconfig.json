@@ -29,10 +29,19 @@
             "@testing-library/jest-dom"
         ],
         "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
+        "tsBuildInfoFile": "dist/.tsbuildinfo",
     },
     "include": [
         "./src",
         "./sdk/index.tsx",
         "./vite-env.d.ts",
     ],
+    "references": [
+        {
+            "path": "../common"
+        },
+        {
+            "path": "./tsconfig.node.json"
+        }
+    ]
 }

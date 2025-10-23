@@ -227,10 +227,11 @@ export const getDeprecatedRouteMiddleware =
         next();
     };
 
-export const deprecatedResultsRoute = getDeprecatedRouteMiddleware(
-    new Date('2025-04-30'),
-    `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
-);
+export const deprecatedResultsRoute: RequestHandler =
+    getDeprecatedRouteMiddleware(
+        new Date('2025-04-30'),
+        `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
+    );
 
 export const invalidUserErrorHandler: ErrorRequestHandler = (
     err,

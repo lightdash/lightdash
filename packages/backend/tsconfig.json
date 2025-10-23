@@ -12,14 +12,14 @@
         // "checkJs": true,                             /* Report errors in .js files. */
         "jsx": "react" /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */,
         "jsxFactory": "xmlBuilder" /* Specify the JSX factory function when targeting React JSX emit. */,
-        // "declaration": true,                         /* Generates corresponding '.d.ts' file. */
-        // "declarationMap": true,                      /* Generates a sourcemap for each corresponding '.d.ts' file. */
+        "declaration": true /* Generates corresponding '.d.ts' file. */,
+        "declarationMap": true /* Generates a sourcemap for each corresponding '.d.ts' file. */,
         // "sourceMap": true,                           /* Generates corresponding '.map' file. */
         // "outFile": "./",                             /* Concatenate and emit output to single file. */
         "outDir": "dist",
         "rootDir": "src",
-        // "composite": true,                           /* Enable project compilation */
-        "tsBuildInfoFile": ".tsbuildinfo" /* Specify file to store incremental compilation information */,
+        "composite": true /* Enable project compilation */,
+        "tsBuildInfoFile": "dist/.tsbuildinfo" /* Specify file to store incremental compilation information */,
         // "removeComments": true,                      /* Do not emit comments to output. */
         // "noEmit": true,                              /* Do not emit outputs. */
         "importHelpers": true /* Import emit helpers from 'tslib'. */,
@@ -67,5 +67,13 @@
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
     },
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
-    "exclude": ["dist", "node_modules"]
+    "exclude": ["dist", "node_modules"],
+    "references": [
+        {
+            "path": "../common"
+        },
+        {
+            "path": "../warehouses"
+        }
+    ]
 }
