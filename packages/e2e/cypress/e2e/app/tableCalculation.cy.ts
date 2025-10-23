@@ -47,7 +47,7 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `SUM("payments_total_revenue") OVER ( ORDER BY "payments_total_revenue" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW )`,
+            `SUM("payments_total_revenue") OVER ( ORDER BY "payments_payment_method" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW )`,
             `AS "running_total_of_total_revenue"`,
             `FROM metrics`,
         ];
