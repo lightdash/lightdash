@@ -73,7 +73,12 @@ export const validateRunQueryTool = (
     );
 
     validateCustomMetricsDefinition(explore, queryTool.customMetrics);
-    validateFilterRules(explore, filterRules, queryTool.customMetrics);
+    validateFilterRules(
+        explore,
+        filterRules,
+        queryTool.customMetrics,
+        queryTool.tableCalculations,
+    );
     validateMetricDimensionFilterPlacement(
         explore,
         queryTool.customMetrics,
