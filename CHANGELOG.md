@@ -1,3 +1,10 @@
+## [0.2104.9](https://github.com/lightdash/lightdash/compare/0.2104.8...0.2104.9) (2025-10-23)
+
+
+### Bug Fixes
+
+* restructure message tool history to support anthropics requirements ([#17611](https://github.com/lightdash/lightdash/issues/17611)) ([342de31](https://github.com/lightdash/lightdash/commit/342de31c2cee771dc292c0e0dff7cd9228562d2f)), closes [#17604](https://github.com/lightdash/lightdash/issues/17604)
+
 ## [0.2104.8](https://github.com/lightdash/lightdash/compare/0.2104.7...0.2104.8) (2025-10-23)
 
 
