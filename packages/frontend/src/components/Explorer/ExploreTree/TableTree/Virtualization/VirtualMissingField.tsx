@@ -36,9 +36,7 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
     );
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualMissingField = memo(VirtualMissingFieldComponent);
+const VirtualMissingField = memo(VirtualMissingFieldComponent);
 VirtualMissingField.displayName = 'VirtualMissingField';
 
-// ts-unused-exports:disable-next-line
 export default VirtualMissingField;

@@ -40,9 +40,7 @@ const VirtualTreeItemComponent: FC<VirtualTreeItemProps> = ({
     }
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualTreeItem = memo(VirtualTreeItemComponent);
+const VirtualTreeItem = memo(VirtualTreeItemComponent);
 VirtualTreeItem.displayName = 'VirtualTreeItem';
 
-// ts-unused-exports:disable-next-line
 export default VirtualTreeItem;

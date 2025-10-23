@@ -23,9 +23,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     );
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualSectionHeader = memo(VirtualSectionHeaderComponent);
+const VirtualSectionHeader = memo(VirtualSectionHeaderComponent);
 VirtualSectionHeader.displayName = 'VirtualSectionHeader';
 
-// ts-unused-exports:disable-next-line
 export default VirtualSectionHeader;

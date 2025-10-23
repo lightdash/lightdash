@@ -40,6 +40,8 @@ import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
+import { flattenTreeForVirtualization } from './TableTree/Virtualization/flattenTree';
+import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
 
 type ExploreTreeProps = {
     explore: Explore;
@@ -82,6 +84,10 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
     const { data: experimentalExplorerImprovements } = useFeatureFlag(
         FeatureFlags.ExperimentalExplorerImprovements,
+    );
+
+    const { data: experimentalVirtualizedSideBar } = useFeatureFlag(
+        FeatureFlags.ExperimentalVirtualizedSideBar,
     );
 
     const handleSearchChange = useCallback(
@@ -254,6 +260,43 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             toggleTable,
         ],
     );
+    // Prepare virtualized tree data when experimental improvements are enabled
+    const virtualizedTreeData = useMemo(() => {
+        if (!experimentalVirtualizedSideBar?.enabled) {
+            return null;
+        }
+
+        return flattenTreeForVirtualization({
+            tables: tableTrees,
+            showMultipleTables: Object.keys(explore.tables).length > 1,
+            expandedTables,
+            expandedGroups,
+            searchQuery: debouncedSearch,
+            searchResultsMap,
+            isSearching,
+            additionalMetrics,
+            customDimensions: customDimensions ?? [],
+            missingCustomMetrics,
+            missingCustomDimensions,
+            missingFieldIds,
+            activeFields,
+        });
+    }, [
+        activeFields,
+        additionalMetrics,
+        customDimensions,
+        debouncedSearch,
+        expandedGroups,
+        expandedTables,
+        experimentalVirtualizedSideBar?.enabled,
+        explore.tables,
+        isSearching,
+        missingCustomDimensions,
+        missingCustomMetrics,
+        missingFieldIds,
+        searchResultsMap,
+        tableTrees,
+    ]);
 
     return (
         <>
@@ -277,15 +320,19 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            <ScrollArea
-                variant="primary"
-                className="only-vertical"
-                offsetScrollbars
-                scrollbarSize={8}
-                viewportRef={scrollAreaViewportRef}
-            >
-                {tableTreeComponents}
-            </ScrollArea>
+            {experimentalVirtualizedSideBar?.enabled && virtualizedTreeData ? (
+                <VirtualizedTreeList data={virtualizedTreeData} />
+            ) : (
+                <ScrollArea
+                    variant="primary"
+                    className="only-vertical"
+                    offsetScrollbars
+                    scrollbarSize={8}
+                    viewportRef={scrollAreaViewportRef}
+                >
+                    {tableTreeComponents}
+                </ScrollArea>
+            )}
         </>
     );
 };

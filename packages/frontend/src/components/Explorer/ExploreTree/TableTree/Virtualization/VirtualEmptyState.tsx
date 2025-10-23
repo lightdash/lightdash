@@ -19,9 +19,7 @@ const VirtualEmptyStateComponent: FC<VirtualEmptyStateProps> = ({ item }) => {
     );
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualEmptyState = memo(VirtualEmptyStateComponent);
+const VirtualEmptyState = memo(VirtualEmptyStateComponent);
 VirtualEmptyState.displayName = 'VirtualEmptyState';
 
-// ts-unused-exports:disable-next-line
 export default VirtualEmptyState;
