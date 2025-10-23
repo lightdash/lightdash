@@ -1,12 +1,15 @@
 import {
     type ApiError,
+    type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
     type KnexPaginateArgs,
     type ProjectCompileLog,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
+    useQuery,
     type UseInfiniteQueryResult,
+    type UseQueryResult,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
@@ -91,4 +94,32 @@ export const useProjectCompileLogs = ({
             enabled: !!projectUuid,
         },
     );
+};
+
+const getProjectCompileLogByJob = async (
+    projectUuid: string,
+    jobUuid: string,
+): Promise<ProjectCompileLog | undefined> => {
+    const response = await lightdashApi<
+        ApiProjectCompileLogResponse['results']
+    >({
+        url: `/projects/${projectUuid}/compile-logs/job/${jobUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+    return response.log;
+};
+
+export const useProjectCompileLogByJob = ({
+    projectUuid,
+    jobUuid,
+}: {
+    projectUuid: string;
+    jobUuid: string;
+}): UseQueryResult<ProjectCompileLog | undefined, ApiError> => {
+    return useQuery<ProjectCompileLog | undefined, ApiError>({
+        queryKey: ['projectCompileLogByJob', projectUuid, jobUuid],
+        queryFn: () => getProjectCompileLogByJob(projectUuid, jobUuid),
+    });
 };
