@@ -1,3 +1,10 @@
+## [0.2108.1](https://github.com/lightdash/lightdash/compare/0.2108.0...0.2108.1) (2025-10-24)
+
+
+### Bug Fixes
+
+* prevent potential infinite loop on session expiration ([#17641](https://github.com/lightdash/lightdash/issues/17641)) ([693cc84](https://github.com/lightdash/lightdash/commit/693cc84951508646e408dec114f125a77ffaeb19))
+
 # [0.2108.0](https://github.com/lightdash/lightdash/compare/0.2107.1...0.2108.0) (2025-10-24)
 
 

@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { ProjectType, type AnyType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
@@ -229,15 +229,21 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         isSidebarResizing,
         { open: startSidebarResizing, close: stopSidebarResizing },
     ] = useDisclosure(false);
+
     const { activeProjectUuid } = useActiveProjectUuid({
         refetchOnMount: true,
+        enabled: withNavbar,
+    } as AnyType);
+    const { data: projects } = useProjects({
+        enabled: withNavbar,
     });
-    const { data: projects } = useProjects();
-    const isCurrentProjectPreview = !!projects?.find(
-        (project) =>
-            project.projectUuid === activeProjectUuid &&
-            project.type === ProjectType.PREVIEW,
-    );
+    const isCurrentProjectPreview =
+        withNavbar &&
+        !!projects?.find(
+            (project) =>
+                project.projectUuid === activeProjectUuid &&
+                project.type === ProjectType.PREVIEW,
+        );
 
     const { classes } = usePageStyles(
         {
