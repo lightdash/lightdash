@@ -38,6 +38,7 @@ import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import MantineIcon from '../../../common/MantineIcon';
 import { TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
+import { TreeSection } from './Virtualization/types';
 
 type Props = {
     searchQuery?: string;
@@ -50,6 +51,8 @@ type Props = {
     missingFieldIds: string[];
     searchResults: string[];
     isSearching: boolean;
+    expandedGroups: Set<string>;
+    onToggleGroup: (groupKey: string) => void;
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
@@ -62,6 +65,8 @@ const TableTreeSections: FC<Props> = ({
     onSelectedNodeChange,
     searchResults,
     isSearching,
+    expandedGroups,
+    onToggleGroup,
 }) => {
     const selectedDimensions = useExplorerSelector(selectDimensions);
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -309,6 +314,10 @@ const TableTreeSections: FC<Props> = ({
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
                     searchResults={searchResults}
+                    tableName={table.name}
+                    treeSectionType={TreeSection.Dimensions}
+                    expandedGroups={expandedGroups}
+                    onToggleGroup={onToggleGroup}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -357,6 +366,10 @@ const TableTreeSections: FC<Props> = ({
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickMetric}
                     searchResults={searchResults}
+                    tableName={table.name}
+                    treeSectionType={TreeSection.Metrics}
+                    expandedGroups={expandedGroups}
+                    onToggleGroup={onToggleGroup}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -408,6 +421,10 @@ const TableTreeSections: FC<Props> = ({
                     isGithubIntegrationEnabled={isGithubProject}
                     gitIntegration={gitIntegration}
                     searchResults={searchResults}
+                    tableName={table.name}
+                    treeSectionType={TreeSection.CustomMetrics}
+                    expandedGroups={expandedGroups}
+                    onToggleGroup={onToggleGroup}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -460,6 +477,10 @@ const TableTreeSections: FC<Props> = ({
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
                     searchResults={searchResults}
+                    tableName={table.name}
+                    treeSectionType={TreeSection.CustomDimensions}
+                    expandedGroups={expandedGroups}
+                    onToggleGroup={onToggleGroup}
                 >
                     <TreeRoot />
                 </TreeProvider>

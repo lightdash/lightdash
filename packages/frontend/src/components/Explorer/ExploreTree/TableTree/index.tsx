@@ -86,7 +86,8 @@ const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
 };
 
 type Props = {
-    isOpenByDefault: boolean;
+    isExpanded: boolean;
+    onToggle: () => void;
     searchQuery?: string;
     showTableLabel: boolean;
     table: CompiledTable;
@@ -98,6 +99,8 @@ type Props = {
     missingFieldIds: string[];
     searchResults: string[];
     isSearching: boolean;
+    expandedGroups: Set<string>;
+    onToggleGroup: (groupKey: string) => void;
 };
 
 const EmptyWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => (
@@ -122,7 +125,8 @@ const themeOverride = getMantineThemeOverride({
 });
 
 const TableTreeComponent: FC<Props> = ({
-    isOpenByDefault,
+    isExpanded,
+    onToggle,
     showTableLabel,
     table,
     additionalMetrics,
@@ -132,17 +136,18 @@ const TableTreeComponent: FC<Props> = ({
     missingFieldIds,
     searchQuery,
     isSearching,
+    expandedGroups,
+    onToggleGroup,
     ...rest
 }) => {
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
-    const [isOpen, toggle] = useToggle(isOpenByDefault);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
                 <Wrapper
-                    isOpen={isSearching || isOpen}
-                    toggle={toggle}
+                    isOpen={isSearching || isExpanded}
+                    toggle={onToggle}
                     table={table}
                 >
                     <TableTreeSections
@@ -154,6 +159,8 @@ const TableTreeComponent: FC<Props> = ({
                         missingCustomDimensions={missingCustomDimensions}
                         missingFieldIds={missingFieldIds}
                         isSearching={isSearching}
+                        expandedGroups={expandedGroups}
+                        onToggleGroup={onToggleGroup}
                         {...rest}
                     />
                 </Wrapper>

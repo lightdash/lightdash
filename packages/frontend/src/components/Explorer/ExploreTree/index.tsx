@@ -143,6 +143,42 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             );
     }, [explore, isSearching, searchResultsMap]);
 
+    // Manage table expansion state
+    const [expandedTables, setExpandedTables] = useState<Set<string>>(() => {
+        // Initialize with first table expanded
+        const firstTable = tableTrees[0];
+        return firstTable ? new Set([firstTable.name]) : new Set();
+    });
+
+    // Manage group expansion state
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const toggleTable = useCallback((tableName: string) => {
+        setExpandedTables((prev) => {
+            const next = new Set(prev);
+            if (next.has(tableName)) {
+                next.delete(tableName);
+            } else {
+                next.add(tableName);
+            }
+            return next;
+        });
+    }, []);
+
+    const toggleGroup = useCallback((groupKey: string) => {
+        setExpandedGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupKey)) {
+                next.delete(groupKey);
+            } else {
+                next.add(groupKey);
+            }
+            return next;
+        });
+    }, []);
+
     /**
      * Preserve scroll position when fields are selected/deselected
      *
@@ -175,12 +211,13 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const tableTreeComponents = useMemo(
         () =>
             tableTrees.length > 0 ? (
-                tableTrees.map((table, index) => (
+                tableTrees.map((table) => (
                     <TableTree
                         key={table.name}
-                        isOpenByDefault={index === 0}
+                        isExpanded={expandedTables.has(table.name)}
+                        onToggle={() => toggleTable(table.name)}
                         searchQuery={debouncedSearch}
-                        showTableLabel={tableTrees.length > 1}
+                        showTableLabel={Object.keys(explore.tables).length > 1}
                         table={table}
                         additionalMetrics={additionalMetrics}
                         onSelectedNodeChange={onSelectedFieldChange}
@@ -190,6 +227,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         missingFieldIds={missingFieldIds}
                         searchResults={searchResultsMap[table.name]}
                         isSearching={isSearching}
+                        expandedGroups={expandedGroups}
+                        onToggleGroup={toggleGroup}
                     />
                 ))
             ) : (
@@ -201,6 +240,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             additionalMetrics,
             customDimensions,
             debouncedSearch,
+            expandedGroups,
+            expandedTables,
+            explore.tables,
             isSearching,
             missingCustomDimensions,
             missingCustomMetrics,
@@ -208,6 +250,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             onSelectedFieldChange,
             searchResultsMap,
             tableTrees,
+            toggleGroup,
+            toggleTable,
         ],
     );
 
