@@ -118,14 +118,14 @@ importers:
   packages/backend:
     dependencies:
       '@ai-sdk/anthropic':
-        specifier: ^2.0.13
-        version: 2.0.13(zod@3.25.55)
+        specifier: ^2.0.36
+        version: 2.0.37(zod@3.25.55)
       '@ai-sdk/azure':
-        specifier: ^2.0.25
-        version: 2.0.25(zod@3.25.55)
+        specifier: ^2.0.54
+        version: 2.0.54(zod@3.25.55)
       '@ai-sdk/openai':
-        specifier: ^2.0.25
-        version: 2.0.25(zod@3.25.55)
+        specifier: ^2.0.53
+        version: 2.0.53(zod@3.25.55)
       '@aws-sdk/client-s3':
         specifier: ^3.529.0
         version: 3.622.0
@@ -161,10 +161,10 @@ importers:
         version: 0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55)
       '@mastra/evals':
         specifier: ^0.13.4
-        version: 0.13.4(@mastra/core@0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55))(ai@5.0.35(zod@3.25.55))(zod@3.25.55)
+        version: 0.13.4(@mastra/core@0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55))(ai@5.0.77(zod@3.25.55))(zod@3.25.55)
       '@mastra/schema-compat':
         specifier: ^0.11.2
-        version: 0.11.2(ai@5.0.35(zod@3.25.55))(zod@3.25.55)
+        version: 0.11.2(ai@5.0.77(zod@3.25.55))(zod@3.25.55)
       '@modelcontextprotocol/sdk':
         specifier: ^1.17.5
         version: 1.17.5
@@ -191,7 +191,7 @@ importers:
         version: 20.1.1
       '@openrouter/ai-sdk-provider':
         specifier: ^1.2.0
-        version: 1.2.0(ai@5.0.35(zod@3.25.55))(zod@3.25.55)
+        version: 1.2.0(ai@5.0.77(zod@3.25.55))(zod@3.25.55)
       '@rudderstack/rudder-sdk-node':
         specifier: ^2.0.6
         version: 2.1.1(tslib@2.8.1)
@@ -223,8 +223,8 @@ importers:
         specifier: ^1.17.1
         version: 1.17.1
       ai:
-        specifier: ^5.0.35
-        version: 5.0.35(zod@3.25.55)
+        specifier: ^5.0.77
+        version: 5.0.77(zod@3.25.55)
       ajv:
         specifier: ^8.3.0
         version: 8.11.0
@@ -1426,17 +1426,17 @@ packages:
   '@adobe/css-tools@4.4.2':
     resolution: {integrity: sha512-baYZExFpsdkBNuvGKTKWCwKH57HRZLVtycZS05WTQNVOiXVSeAki3nU35zlRbToeMW8aHlJfyS+1C4BOv27q0A==}
 
-  '@ai-sdk/anthropic@2.0.13':
-    resolution: {integrity: sha512-5Kt1sNy80pKJsThe3snL9OajgNfdjH7GiWj/CyDoMNY82+Pb5mHimCwZzMUUoAM77GjfSd3Ico8sE7pPdJOuYQ==}
+  '@ai-sdk/anthropic@2.0.37':
+    resolution: {integrity: sha512-r2e9BWoobisH9B5b7x3yYG/k9WlsZqa4D94o7gkwktReqrjjv83zNMop4KmlJsh/zBhbsaP8S8SUfiwK+ESxgg==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.25.76 || ^4
+      zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/azure@2.0.25':
-    resolution: {integrity: sha512-DRlugiiYi0UqPyJYn1+225iol1Q99y3I1oXc48dxYugavkiEOZ6ET9VZGbf+9nYHGrnUGAJHdx3GBjcufn5l2g==}
+  '@ai-sdk/azure@2.0.54':
+    resolution: {integrity: sha512-nJtKcv2+4WmwfRpzc6GcVy3OlKjs7MiHhuNeibxDcDIST3h+qEX1UZYw9FDwjRFhWKbRyjSFwWxnoEP+Zwd6kQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.25.76 || ^4
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/gateway@1.0.15':
     resolution: {integrity: sha512-xySXoQ29+KbGuGfmDnABx+O6vc7Gj7qugmj1kGpn0rW0rQNn6UKUuvscKMzWyv1Uv05GyC1vqHq8ZhEOLfXscQ==}
@@ -1450,17 +1450,29 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4
 
-  '@ai-sdk/openai@2.0.25':
-    resolution: {integrity: sha512-2jRVn/8j7oOS+6y808YNLH3QGgBuQFZJygOBMC9z8lQfNiRMaK0iD4vqMeR0dSZce2TrqcEaTPpn/bHfPJp7iA==}
+  '@ai-sdk/gateway@2.0.0':
+    resolution: {integrity: sha512-Gj0PuawK7NkZuyYgO/h5kDK/l6hFOjhLdTq3/Lli1FTl47iGmwhH1IZQpAL3Z09BeFYWakcwUmn02ovIm2wy9g==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.25.76 || ^4
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@2.0.53':
+    resolution: {integrity: sha512-GIkR3+Fyif516ftXv+YPSPstnAHhcZxNoR2s8uSHhQ1yBT7I7aQYTVwpjAuYoT3GR+TeP50q7onj2/nDRbT2FQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/provider-utils@2.2.8':
     resolution: {integrity: sha512-fqhG+4sCVv8x7nFzYnFo19ryhAa3w096Kmc3hWxMQfW/TubPOmt3A6tYZhl4mUfQWWQMsuSkLrtjlWuXBVSGQA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.8
+
+  '@ai-sdk/provider-utils@3.0.12':
+    resolution: {integrity: sha512-ZtbdvYxdMoria+2SlNarEk6Hlgyf+zzcznlD55EAl+7VZvJaSg2sqPvwArY7L6TfDEDJsnCq0fdhBSkYo0Xqdg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/provider-utils@3.0.3':
     resolution: {integrity: sha512-kAxIw1nYmFW1g5TvE54ZB3eNtgZna0RnLjPUp1ltz1+t9xkXJIuDT4atrwfau9IbS0BOef38wqrI8CjFfQrxhw==}
@@ -8107,6 +8119,10 @@ packages:
     resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
+  '@vercel/oidc@3.0.3':
+    resolution: {integrity: sha512-yNEQvPcVrK9sIe637+I0jD6leluPxzwJKx/Haw6F4H77CdDsszUn5V3o96LPziXkSNE2B83+Z3mjqGKBK/R6Gg==}
+    engines: {node: '>= 20'}
+
   '@vitejs/plugin-react-swc@4.0.1':
     resolution: {integrity: sha512-NQhPjysi5duItyrMd5JWZFf2vNOuSMyw+EoZyTBDzk+DkfYD8WNrsUs09sELV2cr1P15nufsN25hsUBt4CKF9Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -8326,6 +8342,12 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4
+
+  ai@5.0.77:
+    resolution: {integrity: sha512-w0xP/guV27qLUR+60ru7dSDfF1Wlk6lPEHtXPBLfa8TNQ8Qc4FZ1RE9UGAdZmZU396FA6lKtP9P89Jzb5Z+Hnw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
@@ -14430,6 +14452,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.13.0:
@@ -17262,17 +17285,17 @@ snapshots:
 
   '@adobe/css-tools@4.4.2': {}
 
-  '@ai-sdk/anthropic@2.0.13(zod@3.25.55)':
+  '@ai-sdk/anthropic@2.0.37(zod@3.25.55)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.8(zod@3.25.55)
+      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.55)
       zod: 3.25.55
 
-  '@ai-sdk/azure@2.0.25(zod@3.25.55)':
+  '@ai-sdk/azure@2.0.54(zod@3.25.55)':
     dependencies:
-      '@ai-sdk/openai': 2.0.25(zod@3.25.55)
+      '@ai-sdk/openai': 2.0.53(zod@3.25.55)
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.8(zod@3.25.55)
+      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.55)
       zod: 3.25.55
 
   '@ai-sdk/gateway@1.0.15(zod@3.25.55)':
@@ -17287,10 +17310,17 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.8(zod@3.25.55)
       zod: 3.25.55
 
-  '@ai-sdk/openai@2.0.25(zod@3.25.55)':
+  '@ai-sdk/gateway@2.0.0(zod@3.25.55)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.8(zod@3.25.55)
+      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.55)
+      '@vercel/oidc': 3.0.3
+      zod: 3.25.55
+
+  '@ai-sdk/openai@2.0.53(zod@3.25.55)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.55)
       zod: 3.25.55
 
   '@ai-sdk/provider-utils@2.2.8(zod@3.25.55)':
@@ -17298,6 +17328,13 @@ snapshots:
       '@ai-sdk/provider': 1.1.3
       nanoid: 3.3.8
       secure-json-parse: 2.7.0
+      zod: 3.25.55
+
+  '@ai-sdk/provider-utils@3.0.12(zod@3.25.55)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@standard-schema/spec': 1.0.0
+      eventsource-parser: 3.0.6
       zod: 3.25.55
 
   '@ai-sdk/provider-utils@3.0.3(zod@3.25.55)':
@@ -20930,7 +20967,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -21189,10 +21226,10 @@ snapshots:
       - supports-color
       - typescript
 
-  '@mastra/evals@0.13.4(@mastra/core@0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55))(ai@5.0.35(zod@3.25.55))(zod@3.25.55)':
+  '@mastra/evals@0.13.4(@mastra/core@0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55))(ai@5.0.77(zod@3.25.55))(zod@3.25.55)':
     dependencies:
       '@mastra/core': 0.16.0(encoding@0.1.13)(openapi-types@12.1.3)(react@19.2.0)(zod@3.25.55)
-      ai: 5.0.35(zod@3.25.55)
+      ai: 5.0.77(zod@3.25.55)
       compromise: 14.14.4
       difflib: 0.2.4
       fs-extra: 11.3.1
@@ -21230,9 +21267,9 @@ snapshots:
       zod-from-json-schema-v3: zod-from-json-schema@0.0.5
       zod-to-json-schema: 3.24.6(zod@3.25.55)
 
-  '@mastra/schema-compat@0.11.2(ai@5.0.35(zod@3.25.55))(zod@3.25.55)':
+  '@mastra/schema-compat@0.11.2(ai@5.0.77(zod@3.25.55))(zod@3.25.55)':
     dependencies:
-      ai: 5.0.35(zod@3.25.55)
+      ai: 5.0.77(zod@3.25.55)
       json-schema: 0.4.0
       zod: 3.25.55
       zod-from-json-schema: 0.5.0
@@ -21583,9 +21620,9 @@ snapshots:
       '@octokit/webhooks-types': 7.3.2
       aggregate-error: 3.1.0
 
-  '@openrouter/ai-sdk-provider@1.2.0(ai@5.0.35(zod@3.25.55))(zod@3.25.55)':
+  '@openrouter/ai-sdk-provider@1.2.0(ai@5.0.77(zod@3.25.55))(zod@3.25.55)':
     dependencies:
-      ai: 5.0.35(zod@3.25.55)
+      ai: 5.0.77(zod@3.25.55)
       zod: 3.25.55
 
   '@opentelemetry/api-logs@0.202.0':
@@ -26195,7 +26232,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -26229,7 +26266,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -26507,6 +26544,8 @@ snapshots:
   '@ungap/structured-clone@1.2.1': {}
 
   '@vercel/ncc@0.38.4': {}
+
+  '@vercel/oidc@3.0.3': {}
 
   '@vitejs/plugin-react-swc@4.0.1(vite@6.3.2(@types/node@24.3.1)(lightningcss@1.22.0)(tsx@4.19.4)(yaml@2.7.0))':
     dependencies:
@@ -26838,6 +26877,14 @@ snapshots:
       '@ai-sdk/gateway': 1.0.19(zod@3.25.55)
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.8(zod@3.25.55)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.55
+
+  ai@5.0.77(zod@3.25.55):
+    dependencies:
+      '@ai-sdk/gateway': 2.0.0(zod@3.25.55)
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.12(zod@3.25.55)
       '@opentelemetry/api': 1.9.0
       zod: 3.25.55
 
@@ -33272,7 +33319,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -35668,7 +35715,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -37774,7 +37821,7 @@ snapshots:
 
   zod-from-json-schema@0.0.5:
     dependencies:
-      zod: 3.25.76
+      zod: 3.25.55
 
   zod-from-json-schema@0.5.0:
     dependencies:

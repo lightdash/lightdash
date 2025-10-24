@@ -36,7 +36,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateBarVizConfig: 'vertical_bar_chart',
     runQuery: 'query_result',
     generateDashboard: 'generate_dashboard',
-    generateDashboardV2: 'generate_dashboard_v2',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
 } satisfies Record<ToolName, string>;
@@ -49,8 +48,8 @@ const TOOL_SCHEMAS = {
     generateBarVizConfig: toolVerticalBarArgsSchema,
     generateTableVizConfig: toolTableVizArgsSchema,
     generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
-    generateDashboard: toolDashboardArgsSchema,
-    generateDashboardV2: toolDashboardV2ArgsSchema,
+    // TODO: agent needs to be v2 for this to work
+    generateDashboard: toolDashboardV2ArgsSchema,
     findContent: toolFindContentArgsSchema,
     findDashboards: toolFindDashboardsArgsSchema,
     findCharts: toolFindChartsArgsSchema,

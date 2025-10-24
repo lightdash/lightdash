@@ -1,419 +1,17 @@
 import {
-    AiResultType,
-    assertUnreachable,
-    parseToolArgs,
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
-    type ToolName,
     ToolNameSchema,
 } from '@lightdash/common';
-import {
-    Badge,
-    Button,
-    Group,
-    Paper,
-    rem,
-    Stack,
-    Text,
-    Timeline,
-} from '@mantine-8/core';
-import {
-    IconChartDots3,
-    IconChartHistogram,
-    IconChartLine,
-    IconDatabase,
-    IconLayoutDashboard,
-    IconPencil,
-    IconSchool,
-    IconSearch,
-    IconSelector,
-    IconTable,
-    IconTools,
-    type TablerIconsProps,
-} from '@tabler/icons-react';
-import { type FC, type JSX } from 'react';
+import { Paper, Stack, Text, Timeline } from '@mantine-8/core';
+import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useAppendInstructionMutation } from '../../../hooks/useProjectAiAgents';
-import { clearImproveContextNotification } from '../../../store/aiAgentThreadStreamSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../../store/hooks';
-import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
-import { ToolCallPaper } from './ToolCallPaper';
-
-const getToolIcon = (toolName: ToolName) => {
-    const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
-        {
-            findExplores: IconDatabase,
-            findFields: IconSearch,
-            searchFieldValues: IconSelector,
-            generateBarVizConfig: IconChartHistogram,
-            generateTimeSeriesVizConfig: IconChartLine,
-            generateTableVizConfig: IconTable,
-            generateDashboard: IconLayoutDashboard,
-            generateDashboardV2: IconLayoutDashboard,
-            findContent: IconSearch,
-            findDashboards: IconLayoutDashboard,
-            findCharts: IconChartDots3,
-            improveContext: IconSchool,
-            proposeChange: IconPencil,
-            runQuery: IconTable,
-        };
-
-    return iconMap[toolName];
-};
-
-type ToolCallDisplayType = 'streaming' | 'finished-streaming' | 'persisted';
-type ToolCallSummary = {
-    toolCallId: string;
-    toolName: string;
-    toolArgs: unknown;
-};
-
-const ToolCallContainer = ({
-    children,
-    defaultOpened = true,
-}: {
-    children: React.ReactNode;
-    defaultOpened?: boolean;
-}) => {
-    return (
-        <ToolCallPaper
-            defaultOpened={defaultOpened}
-            variant="dashed"
-            icon={IconTools}
-            title="How it is calculated"
-        >
-            {children}
-        </ToolCallPaper>
-    );
-};
-
-const ToolCallDescription: FC<{
-    toolCall: ToolCallSummary;
-}> = ({ toolCall }) => {
-    const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
-
-    if (!toolNameParsed.success) {
-        console.error(
-            `Failed to parse tool name ${toolCall.toolName} ${toolCall.toolCallId}`,
-            toolNameParsed.error,
-        );
-        return null;
-    }
-
-    const toolName = toolNameParsed.data;
-    const toolArgsParsed = parseToolArgs(toolName, toolCall.toolArgs);
-
-    if (!toolArgsParsed.success) {
-        console.error(
-            `Failed to parse tool args for ${toolName} ${toolCall.toolCallId}`,
-            toolArgsParsed.error,
-        );
-        return null;
-    }
-
-    const toolArgs = toolArgsParsed.data;
-
-    switch (toolArgs.type) {
-        case 'find_explores':
-        case 'find_explores_v2':
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched relevant explores{' '}
-                    {toolArgs.exploreName && (
-                        <Badge
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            mx={rem(2)}
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
-                            {toolArgs.exploreName}
-                        </Badge>
-                    )}
-                </Text>
-            );
-        case 'find_fields':
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched for fields{' '}
-                    {toolArgs.fieldSearchQueries.map((query) => (
-                        <Badge
-                            key={query.label}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            mx={rem(2)}
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
-                            {query.label}
-                        </Badge>
-                    ))}
-                </Text>
-            );
-        case 'search_field_values':
-            const searchFieldValuesArgs = toolArgs as any;
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched for values in field{' '}
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        mx={rem(2)}
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {searchFieldValuesArgs.fieldId}
-                    </Badge>
-                    {searchFieldValuesArgs.query && (
-                        <>
-                            {' '}
-                            matching{' '}
-                            <Badge
-                                color="gray"
-                                variant="light"
-                                size="xs"
-                                mx={rem(2)}
-                                radius="sm"
-                                style={{
-                                    textTransform: 'none',
-                                    fontWeight: 400,
-                                }}
-                            >
-                                "{searchFieldValuesArgs.query}"
-                            </Badge>
-                        </>
-                    )}
-                </Text>
-            );
-        case AiResultType.VERTICAL_BAR_RESULT:
-            const barVizConfigToolArgs = toolArgs;
-
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={barVizConfigToolArgs.title}
-                    dimensions={[barVizConfigToolArgs.vizConfig.xDimension]}
-                    metrics={barVizConfigToolArgs.vizConfig.yMetrics}
-                    breakdownByDimension={
-                        barVizConfigToolArgs.vizConfig.breakdownByDimension
-                    }
-                />
-            );
-        case AiResultType.TABLE_RESULT:
-            const tableVizConfigToolArgs = toolArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={tableVizConfigToolArgs.title}
-                    dimensions={
-                        tableVizConfigToolArgs.vizConfig.dimensions ?? []
-                    }
-                    metrics={tableVizConfigToolArgs.vizConfig.metrics}
-                />
-            );
-        case AiResultType.TIME_SERIES_RESULT:
-            const timeSeriesToolCallArgs = toolArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={timeSeriesToolCallArgs.title}
-                    dimensions={[timeSeriesToolCallArgs.vizConfig.xDimension]}
-                    metrics={timeSeriesToolCallArgs.vizConfig.yMetrics}
-                    breakdownByDimension={
-                        timeSeriesToolCallArgs.vizConfig.breakdownByDimension
-                    }
-                />
-            );
-        case 'find_content':
-            const findContentToolArgs = toolArgs;
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched for content{' '}
-                    {findContentToolArgs.searchQueries.map((query) => (
-                        <Badge
-                            key={query.label}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            mx={rem(2)}
-                            radius="sm"
-                            style={{ textTransform: 'none', fontWeight: 400 }}
-                        >
-                            {query.label}
-                        </Badge>
-                    ))}
-                </Text>
-            );
-        case 'find_dashboards':
-            const findDashboardsToolArgs = toolArgs;
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched for dashboards{' '}
-                    {findDashboardsToolArgs.dashboardSearchQueries.map(
-                        (query) => (
-                            <Badge
-                                key={query.label}
-                                color="gray"
-                                variant="light"
-                                size="xs"
-                                mx={rem(2)}
-                                radius="sm"
-                                style={{
-                                    textTransform: 'none',
-                                    fontWeight: 400,
-                                }}
-                            >
-                                {query.label}
-                            </Badge>
-                        ),
-                    )}
-                </Text>
-            );
-        case 'find_charts':
-            const findChartsToolArgs = toolArgs;
-            return (
-                <Text c="dimmed" size="xs">
-                    Searched for charts{' '}
-                    {findChartsToolArgs.chartSearchQueries.map((query) => (
-                        <Badge
-                            key={query.label}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            mx={rem(2)}
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
-                            {query.label}
-                        </Badge>
-                    ))}
-                </Text>
-            );
-        case AiResultType.DASHBOARD_RESULT:
-        case AiResultType.DASHBOARD_V2_RESULT:
-            const dashboardToolArgs = toolArgs;
-            return (
-                <Text c="dimmed" size="xs">
-                    Generated dashboard: "{dashboardToolArgs.title}" with{' '}
-                    {dashboardToolArgs.visualizations.length} visualization
-                    {dashboardToolArgs.visualizations.length !== 1 ? 's' : ''}
-                </Text>
-            );
-        case AiResultType.IMPROVE_CONTEXT:
-        case AiResultType.QUERY_RESULT:
-        case AiResultType.PROPOSE_CHANGE:
-            return <> </>;
-        default:
-            return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
-    }
-};
-
-const ImproveContextToolCall: FC<{
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    promptUuid: string;
-}> = ({ projectUuid, agentUuid, threadUuid, promptUuid }) => {
-    const improveContextNotification = useAiAgentStoreSelector((state) => {
-        const thread = state.aiAgentThreadStream[threadUuid];
-        if (thread?.messageUuid === promptUuid) {
-            return thread.improveContextNotification;
-        }
-        return null;
-    });
-    const dispatch = useAiAgentStoreDispatch();
-
-    const appendInstructionMutation = useAppendInstructionMutation(
-        projectUuid,
-        agentUuid,
-    );
-
-    if (!improveContextNotification) {
-        return null;
-    }
-
-    const handleSave = async () => {
-        if (!improveContextNotification) return;
-
-        await appendInstructionMutation.mutateAsync({
-            instruction: improveContextNotification.suggestedInstruction,
-        });
-
-        dispatch(
-            clearImproveContextNotification({
-                threadUuid,
-            }),
-        );
-    };
-
-    const handleDismiss = () => {
-        dispatch(
-            clearImproveContextNotification({
-                threadUuid,
-            }),
-        );
-    };
-
-    return (
-        <Paper bg="white" p="xs" mb="xs" withBorder>
-            <Group gap="xs" align="flex-start" wrap="nowrap">
-                <MantineIcon icon={IconSchool} size="md" color="indigo.6" />
-                <Stack gap="xs" style={{ flex: 1 }}>
-                    <Text fz="xs" fw={500} c="gray.9" lh="normal" m={0}>
-                        Save instruction to memory?
-                    </Text>
-
-                    <Text
-                        fz="xs"
-                        c="gray.7"
-                        bg="gray.0"
-                        p="xs"
-                        style={{
-                            borderRadius: '4px',
-                            fontStyle: 'italic',
-                        }}
-                    >
-                        {improveContextNotification.suggestedInstruction}
-                    </Text>
-                    <Group justify="flex-end" gap="xs">
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            onClick={handleDismiss}
-                            disabled={appendInstructionMutation.isLoading}
-                        >
-                            Dismiss
-                        </Button>
-                        <Button
-                            size="compact-xs"
-                            color="indigo"
-                            onClick={handleSave}
-                            loading={appendInstructionMutation.isLoading}
-                        >
-                            Save
-                        </Button>
-                    </Group>
-                </Stack>
-            </Group>
-        </Paper>
-    );
-};
+import { ToolCallDescription } from './descriptions/ToolCallDescription';
+import { ImproveContextToolCall } from './ImproveContextToolCall';
+import { ToolCallContainer } from './ToolCallContainer';
+import { getContainerMetadata } from './utils/getContainerMetadata';
+import { getToolIcon } from './utils/toolIcons';
+import type { ToolCallDisplayType, ToolCallSummary } from './utils/types';
 
 type AiChartToolCallsProps = {
     toolCalls: ToolCallSummary[] | undefined;
@@ -425,6 +23,7 @@ type AiChartToolCallsProps = {
 };
 
 const EXCLUDED_TOOL_NAMES = ['improveContext', 'proposeChange'];
+
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     type,
@@ -444,6 +43,8 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
 
     if (!toolCalls || toolCalls.length === 0) return null;
 
+    const { title, icon } = getContainerMetadata(calculationToolCalls, type);
+
     return (
         <>
             {projectUuid && agentUuid && threadUuid && (
@@ -455,7 +56,12 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                 />
             )}
             {!!calculationToolCalls?.length && (
-                <ToolCallContainer defaultOpened={type !== 'persisted'}>
+                <ToolCallContainer
+                    defaultOpened={type !== 'persisted'}
+                    title={title}
+                    isStreaming={type === 'streaming'}
+                    icon={icon}
+                >
                     <Stack pt="xs">
                         <Timeline
                             active={calculationToolCalls.length - 1}

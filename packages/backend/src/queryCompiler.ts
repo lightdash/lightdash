@@ -51,7 +51,9 @@ const buildTableCalculationDependencyGraph = (
                     : [];
 
             const partitionByFields =
-                'partitionBy' in calc.template ? calc.template.partitionBy : [];
+                'partitionBy' in calc.template && calc.template.partitionBy
+                    ? calc.template.partitionBy
+                    : [];
 
             return {
                 name: calc.name,

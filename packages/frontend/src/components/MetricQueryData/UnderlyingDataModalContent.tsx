@@ -22,15 +22,17 @@ import { Box, Button, Group, Modal, Popover, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     getUnderlyingDataResults,
     useUnderlyingDataResults,
 } from '../../hooks/useUnderlyingDataResults';
 import { Can } from '../../providers/Ability';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
@@ -47,7 +49,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const modalContentElementSize = useElementSize();
 
     const modalHeaderElementSize = useElementSize();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const {
         tableName,
         metricQuery,
@@ -57,8 +59,10 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     } = useMetricQueryDataContext();
 
     const { user } = useApp();
+    const { data: organization } = useOrganization();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+    const ability = useAbilityContext();
 
     const underlyingDataItemId = useMemo(
         () =>
@@ -300,6 +304,22 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         ],
     );
 
+    const canExportCsv =
+        ability.can(
+            'manage',
+            subject('ExportCsv', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            }),
+        ) ||
+        ability.can(
+            'export',
+            subject('Dashboard', {
+                type: 'csv',
+                organizationUuid: organization?.organizationUuid,
+            }),
+        );
+
     return (
         <Modal.Content
             ref={modalContentElementSize.ref}
@@ -314,14 +334,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     <Group position="apart">
                         <Title order={5}>View underlying data</Title>
                         <Box mr="md">
-                            <Can
-                                I="manage"
-                                this={subject('ExportCsv', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
+                            {canExportCsv && (
                                 <Popover
                                     disabled={!resultsData}
                                     position="bottom-end"
@@ -356,7 +369,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                         )}
                                     </Popover.Dropdown>
                                 </Popover>
-                            </Can>
+                            )}
                             <Can
                                 I="manage"
                                 this={subject('Explore', {

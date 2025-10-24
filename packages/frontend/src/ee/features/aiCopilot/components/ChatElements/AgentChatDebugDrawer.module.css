@@ -1,0 +1,49 @@
+.codeBlock {
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-2);
+    overflow: hidden;
+}
+
+.toolCallItem {
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-2);
+    overflow: hidden;
+    transition: background-color 0.2s ease;
+    background-color: var(--mantine-color-gray-0);
+}
+
+.toolCallHeader {
+    padding: 8px 12px;
+    background-color: var(--mantine-color-gray-0);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.toolCallHeader:hover {
+    background-color: var(--mantine-color-gray-0);
+}
+
+.toolCallName {
+    font-family: monospace;
+}
+
+.emptyState {
+    text-align: center;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-2);
+    background-color: var(--mantine-color-gray-0);
+}
+
+.emptyStateIcon {
+    opacity: 0.3;
+    margin: 0 auto 12px;
+}
+
+.centerText {
+    text-align: center;
+}
+
+.sectionHeader {
+    margin-bottom: 8px;
+}

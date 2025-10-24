@@ -1,0 +1,37 @@
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.streamingTitle {
+    background: linear-gradient(
+        90deg,
+        #94a3b8 0%,
+        #cbd5e1 25%,
+        #e2e8f0 50%,
+        #cbd5e1 75%,
+        #94a3b8 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+.streamingIcon {
+    animation: spin 2s linear infinite;
+}

@@ -1,11 +1,11 @@
-import { memo, useEffect } from 'react';
+import { lazy, memo, Suspense, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel';
+import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { explorerStore } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
@@ -16,6 +16,10 @@ import { defaultQueryExecution } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 
+const LazyExplorePanel = lazy(
+    () => import('../components/Explorer/ExplorePanel'),
+);
+
 const SavedExplorerContent = memo<{ isEditMode: boolean }>(({ isEditMode }) => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
@@ -24,7 +28,11 @@ const SavedExplorerContent = memo<{ isEditMode: boolean }>(({ isEditMode }) => {
         <Page
             title={undefined} // Will be set by SavedChartsHeader
             header={<SavedChartsHeader />}
-            sidebar={<ExplorePanel />}
+            sidebar={
+                <Suspense fallback={<LoadingSkeleton />}>
+                    <LazyExplorePanel />
+                </Suspense>
+            }
             isSidebarOpen={isEditMode}
             withFullHeight
             withPaddedContent

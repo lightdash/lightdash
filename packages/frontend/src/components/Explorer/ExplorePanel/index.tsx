@@ -5,7 +5,7 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
+import { ActionIcon, Group, Menu, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import {
     memo,
@@ -38,22 +38,9 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
+import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import { VisualizationConfigPortalId } from './constants';
-
-const LoadingSkeleton = () => (
-    <Stack>
-        <Skeleton h="md" />
-
-        <Skeleton h="xxl" />
-
-        <Stack spacing="xxs">
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => (
-                <Skeleton key={index} h="xxl" />
-            ))}
-        </Stack>
-    </Stack>
-);
 
 interface ExplorePanelProps {
     onBack?: () => void;
@@ -97,7 +84,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         selectIsVisualizationConfigOpen,
     );
 
-    const { data: explore, status, error } = useExplore(activeTableName);
+    const {
+        data: explore,
+        isFetching,
+        status,
+        error,
+    } = useExplore(activeTableName);
 
     useEffect(() => {
         if (
@@ -159,7 +151,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return items;
     }, [onBack, explore]);
 
-    if (status === 'loading') {
+    if (isFetching) {
         return <LoadingSkeleton />;
     }
 

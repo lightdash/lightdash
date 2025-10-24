@@ -68,6 +68,7 @@ describe('Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         cy.findByText('Edit chart').parent().click();
+        cy.wait(200);
         cy.findByText('Configure').click();
         cy.findByText('Bar chart').click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();

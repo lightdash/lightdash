@@ -29,6 +29,7 @@ import { OrganizationModel } from './OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
+import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
@@ -81,6 +82,7 @@ export type ModelManifest = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
+    projectCompileLogModel: ProjectCompileLogModel;
     resourceViewItemModel: ResourceViewItemModel;
     rolesModel: RolesModel;
     savedChartModel: SavedChartModel;
@@ -411,6 +413,13 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getProjectCompileLogModel(): ProjectCompileLogModel {
+        return this.getModel(
+            'projectCompileLogModel',
+            () => new ProjectCompileLogModel({ database: this.database }),
         );
     }
 

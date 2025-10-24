@@ -33,6 +33,7 @@ import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
+import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -192,6 +193,7 @@ const getMockedAsyncQueryService = (
         projectParametersModel: {} as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
+        projectCompileLogModel: {} as ProjectCompileLogModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             s3Client: {} as S3Client,
