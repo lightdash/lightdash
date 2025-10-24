@@ -14,6 +14,7 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentMessageUser,
     AiAgentNotFoundError,
+    AiAgentReasoning,
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentToolCall,
@@ -1276,6 +1277,10 @@ export class AiAgentModel {
                 row.ai_prompt_uuid,
             );
 
+            const reasoning = await this.getReasoningForPrompt(
+                row.ai_prompt_uuid,
+            );
+
             if (row.responded_at != null) {
                 const artifacts = artifactsMap.get(row.ai_prompt_uuid) || [];
 
@@ -1304,6 +1309,7 @@ export class AiAgentModel {
                             toolArgs: tc.tool_args,
                         })),
                     toolResults,
+                    reasoning,
                     savedQueryUuid: row.saved_query_uuid,
                 });
             }
@@ -1530,6 +1536,9 @@ export class AiAgentModel {
                 const toolResults = await this.getToolResultsForPrompt(
                     row.ai_prompt_uuid,
                 );
+                const reasoning = await this.getReasoningForPrompt(
+                    row.ai_prompt_uuid,
+                );
                 return {
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
@@ -1558,6 +1567,7 @@ export class AiAgentModel {
                             toolArgs: tc.tool_args,
                         })),
                     toolResults,
+                    reasoning,
                     savedQueryUuid: row.saved_query_uuid,
                 } satisfies AiAgentMessageAssistant;
             default:
@@ -2251,6 +2261,22 @@ export class AiAgentModel {
             .returning('ai_agent_reasoning_uuid');
 
         return reasoning.ai_agent_reasoning_uuid;
+    }
+
+    async getReasoningForPrompt(
+        promptUuid: string,
+    ): Promise<AiAgentReasoning[]> {
+        const rows = await this.database(AiAgentReasoningTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .orderBy('created_at', 'asc');
+
+        return rows.map((row) => ({
+            uuid: row.ai_agent_reasoning_uuid,
+            promptUuid: row.ai_prompt_uuid,
+            reasoningId: row.reasoning_id,
+            text: row.text,
+            createdAt: row.created_at,
+        }));
     }
 
     async updateToolResultMetadata(
