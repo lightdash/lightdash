@@ -361,11 +361,11 @@ importers:
         specifier: ^0.15.0
         version: 0.15.0
       nodemailer:
-        specifier: ^6.9.9
-        version: 6.9.9
+        specifier: ^7.0.7
+        version: 7.0.7
       nodemailer-express-handlebars:
         specifier: ^6.1.0
-        version: 6.1.0(express-handlebars@7.1.2)(nodemailer@6.9.9)
+        version: 6.1.0(express-handlebars@7.1.2)(nodemailer@7.0.7)
       octokit:
         specifier: ^3.1.2
         version: 3.1.2
@@ -13559,8 +13559,8 @@ packages:
       express-handlebars: '>= 6.0.0'
       nodemailer: '>= 6.0.0'
 
-  nodemailer@6.9.9:
-    resolution: {integrity: sha512-dexTll8zqQoVJEZPwQAKzxxtFn0qTnjdQTchoU6Re9BUUGBJiOy3YMn/0ShTW6J5M0dfQ1NeDeRTTl4oIWgQMA==}
+  nodemailer@7.0.7:
+    resolution: {integrity: sha512-jGOaRznodf62TVzdyhKt/f1Q/c3kYynk8629sgJHpRzGZj01ezbgMMWJSAjHADcwTKxco3B68/R+KHJY2T5BaA==}
     engines: {node: '>=6.0.0'}
 
   nodemon@3.1.9:
@@ -33420,12 +33420,12 @@ snapshots:
       nodejs-polars-linux-x64-musl: 0.15.0
       nodejs-polars-win32-x64-msvc: 0.15.0
 
-  nodemailer-express-handlebars@6.1.0(express-handlebars@7.1.2)(nodemailer@6.9.9):
+  nodemailer-express-handlebars@6.1.0(express-handlebars@7.1.2)(nodemailer@7.0.7):
     dependencies:
       express-handlebars: 7.1.2
-      nodemailer: 6.9.9
+      nodemailer: 7.0.7
 
-  nodemailer@6.9.9: {}
+  nodemailer@7.0.7: {}
 
   nodemon@3.1.9:
     dependencies:
