@@ -1,37 +1,29 @@
 import { useParams } from 'react-router';
+import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../../../../features/explorer/store';
 import { useExplore } from '../../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../../hooks/useExplorerQuery';
 import { useProject } from '../../../../hooks/useProject';
-import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
 
 export const useDataForFiltersProvider = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const project = useProject(projectUuid);
 
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    const tableName = useExplorerSelector(selectTableName);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
 
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
 
     const { data: exploreData } = useExplore(tableName);
-
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
 
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData,

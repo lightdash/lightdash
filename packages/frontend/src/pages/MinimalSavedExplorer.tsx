@@ -4,15 +4,17 @@ import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
-import { explorerStore } from '../features/explorer/store';
+import {
+    explorerStore,
+    selectSavedChart,
+    useExplorerInitialization,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
-import { defaultQueryExecution } from '../providers/Explorer/defaultState';
-import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 const themeOverride: MantineThemeOverride = {
     globalStyles: () => ({
@@ -23,6 +25,16 @@ const themeOverride: MantineThemeOverride = {
 };
 
 const MinimalExplorerContent = memo(() => {
+    const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
+    const { data } = useSavedQuery({ id: savedQueryUuid });
+
+    // Initialize Redux store
+    useExplorerInitialization({
+        savedChart: data,
+        minimal: true,
+        expandedSections: [ExplorerSection.VISUALIZATION],
+    });
+
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
 
@@ -40,9 +52,8 @@ const MinimalExplorerContent = memo(() => {
         [queryResults, query.data],
     );
 
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
-    );
+    // Get savedChart from Redux
+    const savedChart = useExplorerSelector(selectSavedChart);
 
     const isLoadingQueryResults =
         query.isFetching || queryResults.isFetchingRows;
@@ -86,7 +97,7 @@ const MinimalSavedExplorer: FC = () => {
         id: savedQueryUuid,
     });
 
-    if (isInitialLoading) {
+    if (isInitialLoading || !data) {
         return null;
     }
 
@@ -95,51 +106,10 @@ const MinimalSavedExplorer: FC = () => {
     }
 
     return (
-        <Provider store={explorerStore}>
-            <ExplorerProvider
-                savedChart={data}
-                initialState={
-                    data
-                        ? {
-                              parameterReferences: Object.keys(
-                                  data.parameters ?? {},
-                              ),
-                              parameterDefinitions: {},
-                              expandedSections: [ExplorerSection.VISUALIZATION],
-                              unsavedChartVersion: {
-                                  tableName: data.tableName,
-                                  chartConfig: data.chartConfig,
-                                  metricQuery: data.metricQuery,
-                                  tableConfig: data.tableConfig,
-                                  pivotConfig: data.pivotConfig,
-                                  parameters: data.parameters,
-                              },
-                              modals: {
-                                  format: {
-                                      isOpen: false,
-                                  },
-                                  additionalMetric: {
-                                      isOpen: false,
-                                  },
-                                  customDimension: {
-                                      isOpen: false,
-                                  },
-                                  writeBack: {
-                                      isOpen: false,
-                                  },
-                                  itemDetail: {
-                                      isOpen: false,
-                                  },
-                              },
-                              queryExecution: defaultQueryExecution,
-                          }
-                        : undefined
-                }
-            >
-                <MantineProvider inherit theme={themeOverride}>
-                    <MinimalExplorerContent />
-                </MantineProvider>
-            </ExplorerProvider>
+        <Provider store={explorerStore} key={`minimal-${savedQueryUuid}`}>
+            <MantineProvider inherit theme={themeOverride}>
+                <MinimalExplorerContent />
+            </MantineProvider>
         </Provider>
     );
 };

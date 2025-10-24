@@ -3,17 +3,19 @@ import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import {
+    selectSavedChart,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import useApp from '../../providers/App/useApp';
-import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = () => {
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
-    );
+    // Get savedChart from Redux
+    const savedChart = useExplorerSelector(selectSavedChart);
     const exploreFromHereUrl = useMemo(() => {
         if (savedChart) {
             return getExplorerUrlFromCreateSavedChartVersion(
