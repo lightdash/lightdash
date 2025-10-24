@@ -74,7 +74,10 @@ const VerifyEmailPage: FC = () => {
                     my="lg"
                 />
                 <Card p="xl" radius="xs" withBorder shadow="xs">
-                    <VerifyEmailForm />
+                    <VerifyEmailForm
+                        emailStatusData={data}
+                        statusLoading={statusLoading}
+                    />
                 </Card>
                 <Text color="gray.6" ta="center" px="xs">
                     You need to verify your email to get access to Lightdash. If

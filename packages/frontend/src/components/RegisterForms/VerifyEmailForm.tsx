@@ -1,3 +1,4 @@
+import { type EmailStatusExpiring } from '@lightdash/common';
 import {
     Alert,
     Anchor,
@@ -12,7 +13,6 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
-    useEmailStatus,
     useOneTimePassword,
     useVerifyEmail,
 } from '../../hooks/useEmailVerification';
@@ -20,13 +20,15 @@ import useApp from '../../providers/App/useApp';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 
-const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
+const VerifyEmailForm: FC<{
+    isLoading?: boolean;
+    emailStatusData?: EmailStatusExpiring;
+    statusLoading?: boolean;
+}> = ({ isLoading, emailStatusData, statusLoading }) => {
     const { health, user } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
-    const { data, isInitialLoading: statusLoading } = useEmailStatus(
-        !!health.data?.isAuthenticated,
-    );
+    const data = emailStatusData;
     const { mutate: sendVerificationEmail, isLoading: emailLoading } =
         useOneTimePassword();
     const form = useForm<{ code: string }>({
