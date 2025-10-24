@@ -76,21 +76,30 @@ export const fromJwt = ({
     decodedToken,
     embed,
     source,
+    contentUuid,
+    contentType = 'dashboard',
     dashboardUuid,
     userAttributes,
 }: {
     decodedToken: CreateEmbedJwt;
     embed: OssEmbed;
     source: string;
-    dashboardUuid: string;
+    contentUuid?: string;
+    contentType?: 'dashboard' | 'chart';
+    dashboardUuid?: string;
     userAttributes: UserAccessControls;
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
 
+    // Support legacy dashboardUuid parameter for backward compatibility
+    const resolvedContentUuid = contentUuid || dashboardUuid;
+    const resolvedContentType = contentType || 'dashboard';
+
     applyEmbeddedAbility(
         decodedToken,
-        dashboardUuid,
+        resolvedContentUuid,
+        resolvedContentType,
         embed,
         externalId,
         builder,
@@ -106,8 +115,17 @@ export const fromJwt = ({
         organization: embed.organization,
         embed,
         access: {
-            dashboardId: dashboardUuid,
-            filtering: decodedToken.content.dashboardFiltersInteractivity,
+            contentId: resolvedContentUuid,
+            contentType: resolvedContentType,
+            // Legacy field for backward compatibility
+            dashboardId:
+                resolvedContentType === 'dashboard'
+                    ? resolvedContentUuid
+                    : undefined,
+            filtering:
+                decodedToken.content.type === 'dashboard'
+                    ? decodedToken.content.dashboardFiltersInteractivity
+                    : undefined,
             controls: userAttributes,
         },
         // Create the fields we're able to set from the JWT
