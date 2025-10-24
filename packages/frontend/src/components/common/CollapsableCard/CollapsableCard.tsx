@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, type FC, type Ref } from 'react';
+import { Activity, useCallback, useMemo, type FC, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
 import { COLLAPSIBLE_CARD_GAP_SIZE } from './constants';
 
@@ -57,7 +57,10 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
         [onToggle],
     );
 
-    const shouldExpand = isOpen && isVisualizationCard;
+    const shouldExpand = useMemo(
+        () => isOpen && isVisualizationCard,
+        [isOpen, isVisualizationCard],
+    );
 
     /**
      * Collapsible cards can be toggled via the heading, in which case we need to
@@ -152,7 +155,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 )}
             </Flex>
 
-            {isOpen && (
+            <Activity mode={isOpen ? 'visible' : 'hidden'}>
                 <Flex
                     direction="column"
                     style={shouldExpand ? { minHeight, flex: 1 } : undefined}
@@ -190,7 +193,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         children
                     )}
                 </Flex>
-            )}
+            </Activity>
         </Card>
     );
 };

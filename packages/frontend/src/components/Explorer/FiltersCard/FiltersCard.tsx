@@ -67,10 +67,10 @@ const FiltersCard: FC = memo(() => {
     );
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
-    const dispatch = useExplorerDispatch();
-
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const dispatch = useExplorerDispatch();
+
     const { data } = useExplore(tableName);
 
     // Cache visible fields to avoid repeated expensive flatMap operations
@@ -223,23 +223,29 @@ const FiltersCard: FC = memo(() => {
         hasDefaultFiltersApplied,
         data,
         tableName,
-        metricQuery,
         isEditMode,
-        processedFilters.dimensions,
         dispatch,
+        processedFilters.dimensions,
+        metricQuery.metrics.length,
+        metricQuery.tableCalculations.length,
+        metricQuery.dimensions.length,
     ]);
 
     // Only compute expensive field suggestions when panel is open
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData: data,
-        rows: filterIsOpen ? rows : undefined,
+        rows,
         customDimensions,
         additionalMetrics,
         tableCalculations,
     });
 
     // Pre-compute filter rule labels for tooltip (extract directly from tree)
+    // OPTIMIZATION: Only compute when panel is closed (when tooltip is visible)
     const filterRuleLabels = useMemo(() => {
+        // Skip expensive computation when panel is open (labels not visible)
+        if (filterIsOpen) return [];
+
         const filterRules = Object.values(filterTree.byId)
             .filter(
                 (node): node is Extract<typeof node, { type: 'rule' }> =>
@@ -252,17 +258,17 @@ const FiltersCard: FC = memo(() => {
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const labels = getConditionalRuleLabelFromItem(
+                const conditionalLabel = getConditionalRuleLabelFromItem(
                     filterRule,
                     field,
                 );
                 return (
                     <div key={field.name}>
-                        {labels.field}: {labels.operator}{' '}
+                        {conditionalLabel.field}: {conditionalLabel.operator}{' '}
                         {filterRule.operator !== FilterOperator.NULL &&
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <Text span fw={700}>
-                                {labels.value}
+                                {conditionalLabel.value}
                             </Text>
                         ) : (
                             ''
@@ -272,7 +278,7 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         });
-    }, [filterTree, visibleFields]);
+    }, [filterTree, visibleFields, filterIsOpen]);
 
     return (
         <CollapsableCard

@@ -145,6 +145,7 @@ describe('Table calculations', () => {
         cy.contains('greater than').click(); // If the type is string, this option will not be available and it will fail when running the query
 
         cy.findByPlaceholderText('Enter value(s)').clear().type('2000');
+        cy.wait(300); // Wait for the debounce to complete
         cy.get('button').contains('Run query').click();
 
         // Check valid results`
