@@ -24,12 +24,14 @@ import {
     type FlattenedItem,
     type FlattenedTreeData,
     type FlattenTreeOptions,
+    type GroupedTreeData,
     type MissingFieldItem,
     type SectionContext,
     type SectionHeaderItem,
     type SectionInfo,
     type TableHeaderItem,
     type TreeNodeItem,
+    type VirtualizedTableGroup,
 } from './types';
 
 /**
@@ -571,4 +573,308 @@ export function getNodeMapsForVirtualization(
     });
 
     return maps;
+}
+
+/**
+ * Create grouped tree data where table headers are separated from content
+ * This allows each table's header to be sticky within its own section
+ */
+export function flattenTreeForGroupedVirtualization(
+    options: FlattenTreeOptions,
+): GroupedTreeData {
+    const sectionContexts = new Map<string, SectionContext>();
+    const tables: VirtualizedTableGroup[] = [];
+
+    // Filter tables that have search results (or all if not searching)
+    const visibleTables = options.tables.filter((table) => {
+        if (!options.isSearching) return true;
+        const results = options.searchResultsMap[table.name] || [];
+        return results.length > 0;
+    });
+
+    visibleTables.forEach((table) => {
+        const tableName = table.name;
+        const isExpanded =
+            options.expandedTables.has(tableName) || options.isSearching;
+        const tableItems: FlattenedItem[] = [];
+
+        // Skip table content if not expanded and not searching
+        if (!isExpanded && !options.isSearching) {
+            tables.push({
+                tableHeader: options.showMultipleTables
+                    ? { table, isExpanded }
+                    : undefined,
+                items: [],
+            });
+            return;
+        }
+
+        const searchResults = options.searchResultsMap[tableName] || [];
+
+        // Add missing fields if any
+        const missingFieldsForTable = options.missingFieldIds;
+        if (missingFieldsForTable.length > 0) {
+            tableItems.push({
+                id: `${tableName}-section-missing`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.Dimensions,
+                    label: 'Missing fields',
+                    color: 'gray.6',
+                },
+            } satisfies SectionHeaderItem);
+
+            missingFieldsForTable.forEach((fieldId) => {
+                tableItems.push({
+                    id: `${tableName}-missing-${fieldId}`,
+                    type: 'missing-field',
+                    estimatedHeight: ITEM_HEIGHTS.MISSING_FIELD,
+                    data: {
+                        fieldId,
+                        tableName,
+                        isDimension: true,
+                    },
+                } satisfies MissingFieldItem);
+            });
+        }
+
+        // Helper to check if section has any visible items
+        const sectionHasResults = (sectionResults: TreeNodeItem[]) => {
+            return sectionResults.length > 0;
+        };
+
+        // 1. Dimensions section
+        const dimensionsMap = Object.values(table.dimensions).reduce(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+        const hasDimensions = Object.keys(dimensionsMap).length > 0;
+
+        if (
+            hasDimensions ||
+            (!options.isSearching && !hasDimensions) ||
+            (options.isSearching && searchResults.length > 0)
+        ) {
+            tableItems.push({
+                id: `${tableName}-section-dimensions`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.Dimensions,
+                    label: 'Dimensions',
+                    color: 'blue.9',
+                },
+            } satisfies SectionHeaderItem);
+        }
+
+        if (hasDimensions) {
+            const dimensionItems = flattenSection(
+                {
+                    type: TreeSection.Dimensions,
+                    label: 'Dimensions',
+                    color: 'blue.9',
+                    itemsMap: dimensionsMap,
+                    orderFieldsBy: table.orderFieldsBy,
+                },
+                tableName,
+                options.expandedGroups,
+                searchResults,
+                options.isSearching,
+                options,
+                sectionContexts,
+            );
+
+            if (sectionHasResults(dimensionItems) || !options.isSearching) {
+                tableItems.push(...dimensionItems);
+            }
+        } else if (!options.isSearching) {
+            tableItems.push({
+                id: `${tableName}-empty-dimensions`,
+                type: 'empty-state',
+                estimatedHeight: ITEM_HEIGHTS.EMPTY_STATE,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.Dimensions,
+                    message: 'No dimensions defined in your dbt project',
+                },
+            } satisfies EmptyStateItem);
+        }
+
+        // 2. Metrics section
+        const metricsMap = Object.values(table.metrics).reduce(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+        const hasMetrics = Object.keys(metricsMap).length > 0;
+
+        if (
+            hasMetrics ||
+            (!options.isSearching && !hasMetrics) ||
+            (options.isSearching && searchResults.length > 0)
+        ) {
+            tableItems.push({
+                id: `${tableName}-section-metrics`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.Metrics,
+                    label: 'Metrics',
+                    color: 'yellow.9',
+                },
+            } satisfies SectionHeaderItem);
+        }
+
+        if (hasMetrics) {
+            const metricItems = flattenSection(
+                {
+                    type: TreeSection.Metrics,
+                    label: 'Metrics',
+                    color: 'yellow.9',
+                    itemsMap: metricsMap,
+                    orderFieldsBy: table.orderFieldsBy,
+                },
+                tableName,
+                options.expandedGroups,
+                searchResults,
+                options.isSearching,
+                options,
+                sectionContexts,
+            );
+
+            if (sectionHasResults(metricItems) || !options.isSearching) {
+                tableItems.push(...metricItems);
+            }
+        }
+
+        // 3. Custom metrics section
+        const customMetricsForTable = options.additionalMetrics.filter(
+            (metric) => metric.table === tableName,
+        );
+        const customMetricsMap = [
+            ...customMetricsForTable,
+            ...options.missingCustomMetrics.filter(
+                (m) => m.table === tableName,
+            ),
+        ].reduce((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
+
+        if (Object.keys(customMetricsMap).length > 0) {
+            tableItems.push({
+                id: `${tableName}-section-custom-metrics`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.CustomMetrics,
+                    label: 'Custom metrics',
+                    color: 'yellow.9',
+                },
+            } satisfies SectionHeaderItem);
+
+            const customMetricsIssues = options.additionalMetrics.reduce(
+                (acc, item) => {
+                    const foundDuplicateId = Object.keys(metricsMap).includes(
+                        getItemId(item),
+                    );
+                    return {
+                        ...acc,
+                        [getItemId(item)]: {
+                            errors: foundDuplicateId
+                                ? [
+                                      {
+                                          message:
+                                              'A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts.',
+                                      },
+                                  ]
+                                : undefined,
+                        },
+                    };
+                },
+                {},
+            );
+
+            const customMetricItems = flattenSection(
+                {
+                    type: TreeSection.CustomMetrics,
+                    label: 'Custom metrics',
+                    color: 'yellow.9',
+                    itemsMap: customMetricsMap,
+                    missingItems: options.missingCustomMetrics.filter(
+                        (m) => m.table === tableName,
+                    ),
+                    itemsAlerts: customMetricsIssues,
+                    orderFieldsBy: table.orderFieldsBy,
+                },
+                tableName,
+                options.expandedGroups,
+                searchResults,
+                options.isSearching,
+                options,
+                sectionContexts,
+            );
+
+            tableItems.push(...customMetricItems);
+        }
+
+        // 4. Custom dimensions section
+        const customDimensionsForTable =
+            options.customDimensions?.filter(
+                (dim) => dim.table === tableName,
+            ) || [];
+        const customDimensionsMap = customDimensionsForTable.reduce(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+
+        if (Object.keys(customDimensionsMap).length > 0) {
+            tableItems.push({
+                id: `${tableName}-section-custom-dimensions`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName,
+                    treeSection: TreeSection.CustomDimensions,
+                    label: 'Custom dimensions',
+                    color: 'blue.9',
+                },
+            } satisfies SectionHeaderItem);
+
+            const customDimensionItems = flattenSection(
+                {
+                    type: TreeSection.CustomDimensions,
+                    label: 'Custom dimensions',
+                    color: 'blue.9',
+                    itemsMap: customDimensionsMap,
+                    missingItems: options.missingCustomDimensions.filter(
+                        (d) => d.table === tableName,
+                    ),
+                    orderFieldsBy: table.orderFieldsBy,
+                },
+                tableName,
+                options.expandedGroups,
+                searchResults,
+                options.isSearching,
+                options,
+                sectionContexts,
+            );
+
+            tableItems.push(...customDimensionItems);
+        }
+
+        // Add the table group
+        tables.push({
+            tableHeader: options.showMultipleTables
+                ? { table, isExpanded }
+                : undefined,
+            items: tableItems,
+        });
+    });
+
+    return {
+        tables,
+        sectionContexts,
+    };
 }

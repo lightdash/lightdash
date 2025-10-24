@@ -41,7 +41,7 @@ import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
 import {
-    flattenTreeForVirtualization,
+    flattenTreeForGroupedVirtualization,
     getNodeMapsForVirtualization,
 } from './TableTree/Virtualization/flattenTree';
 import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
@@ -279,7 +279,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             return null;
         }
 
-        return flattenTreeForVirtualization({
+        return flattenTreeForGroupedVirtualization({
             tables: tableTrees,
             showMultipleTables: Object.keys(explore.tables).length > 1,
             expandedTables,
