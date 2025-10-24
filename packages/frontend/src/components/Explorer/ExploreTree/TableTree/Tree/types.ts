@@ -54,4 +54,6 @@ export type TableTreeContext = TreeProviderProps & {
     nodeMap: NodeMap;
     isSearching: boolean;
     searchResults: string[];
+    isVirtualized?: boolean; // Flag to prevent group nodes from rendering children inline
+    depth?: number; // Nesting depth for indentation in virtualized mode
 };

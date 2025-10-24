@@ -60,9 +60,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({ item }) => {
     );
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualTableHeader = memo(VirtualTableHeaderComponent);
+const VirtualTableHeader = memo(VirtualTableHeaderComponent);
 VirtualTableHeader.displayName = 'VirtualTableHeader';
 
-// ts-unused-exports:disable-next-line
 export default VirtualTableHeader;

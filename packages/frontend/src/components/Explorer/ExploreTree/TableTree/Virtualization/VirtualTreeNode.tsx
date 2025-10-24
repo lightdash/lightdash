@@ -19,7 +19,7 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
     item,
     sectionContexts,
 }) => {
-    const { node, isGroup, sectionKey } = item.data;
+    const { node, isGroup, sectionKey, depth } = item.data;
 
     // Look up the shared section context
     const sectionContext = sectionContexts.get(sectionKey);
@@ -80,8 +80,10 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
             treeSectionType: sectionContext.sectionType,
             expandedGroups: new Set<string>(), // Will be provided by parent
             onToggleGroup: () => {}, // Will be provided by parent
+            isVirtualized: true, // Flag to prevent inline children rendering
+            depth, // Nesting depth for indentation
         };
-    }, [sectionContext, nodeMap]);
+    }, [sectionContext, nodeMap, depth]);
 
     if (!sectionContext) {
         console.error(`Section context not found for key: ${sectionKey}`);
@@ -99,9 +101,7 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
     );
 };
 
-// ts-unused-exports:disable-next-line
-export const VirtualTreeNode = memo(VirtualTreeNodeComponent);
+const VirtualTreeNode = memo(VirtualTreeNodeComponent);
 VirtualTreeNode.displayName = 'VirtualTreeNode';
 
-// ts-unused-exports:disable-next-line
 export default VirtualTreeNode;
