@@ -24,6 +24,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.AgentV2]:
                 CommercialFeatureFlagModel.getAgentV2Flag.bind(this),
+            [CommercialFeatureFlags.AgentReasoning]:
+                CommercialFeatureFlagModel.getAgentReasoningFlag.bind(this),
         };
     }
 
@@ -114,6 +116,29 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         const enabled = user
             ? await isFeatureFlagEnabled(
                   CommercialFeatureFlags.AgentV2 as AnyType as FeatureFlags,
+                  {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                      organizationName: user.organizationName,
+                  },
+                  {
+                      throwOnTimeout: false,
+                  },
+              )
+            : false;
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private static async getAgentReasoningFlag({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled = user
+            ? await isFeatureFlagEnabled(
+                  CommercialFeatureFlags.AgentReasoning as AnyType as FeatureFlags,
                   {
                       userUuid: user.userUuid,
                       organizationUuid: user.organizationUuid,
