@@ -40,7 +40,10 @@ import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
-import { flattenTreeForVirtualization } from './TableTree/Virtualization/flattenTree';
+import {
+    flattenTreeForVirtualization,
+    getNodeMapsForVirtualization,
+} from './TableTree/Virtualization/flattenTree';
 import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
 
 type ExploreTreeProps = {
@@ -75,9 +78,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     >({});
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const isSearching = useMemo(() => {
-        const trimmedSearch = search.trim();
+        const trimmedSearch = debouncedSearch.trim();
         return !!trimmedSearch && trimmedSearch !== '';
-    }, [search]);
+    }, [debouncedSearch]);
     const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
     const savedScrollTopRef = useRef<number>(0);
     const previousActiveFieldsRef = useRef(activeFields);
@@ -89,6 +92,15 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const { data: experimentalVirtualizedSideBar } = useFeatureFlag(
         FeatureFlags.ExperimentalVirtualizedSideBar,
     );
+
+    // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
+    const sectionNodeMaps = useMemo(() => {
+        return getNodeMapsForVirtualization(
+            explore,
+            additionalMetrics,
+            customDimensions,
+        );
+    }, [explore, additionalMetrics, customDimensions]);
 
     const handleSearchChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +133,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
     useEffect(() => {
         startTransition(() => {
+            if (!isSearching) return;
             setSearchResultsMap(
                 Object.values(explore.tables).reduce<Record<string, string[]>>(
                     (acc, table) => {
@@ -130,7 +143,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 ),
             );
         });
-    }, [explore, searchResults]);
+    }, [explore, isSearching, searchResults]);
 
     const tableTrees = useMemo(() => {
         return Object.values(explore.tables)
@@ -231,7 +244,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         missingCustomMetrics={missingCustomMetrics}
                         missingCustomDimensions={missingCustomDimensions}
                         missingFieldIds={missingFieldIds}
-                        searchResults={searchResultsMap[table.name]}
+                        searchResults={searchResultsMap[table.name] ?? []}
                         isSearching={isSearching}
                         expandedGroups={expandedGroups}
                         onToggleGroup={toggleGroup}
@@ -280,6 +293,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             missingCustomDimensions,
             missingFieldIds,
             activeFields,
+            sectionNodeMaps,
         });
     }, [
         activeFields,
@@ -295,6 +309,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         missingCustomMetrics,
         missingFieldIds,
         searchResultsMap,
+        sectionNodeMaps,
         tableTrees,
     ]);
 

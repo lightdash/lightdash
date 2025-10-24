@@ -3,10 +3,17 @@ import {
     isAdditionalMetric,
     isCustomDimension,
     OrderFieldsByStrategy,
+    type AdditionalMetric,
     type CompiledTable,
+    type CustomDimension,
+    type Explore,
 } from '@lightdash/common';
 import { sortNodes } from '../Tree/sortNodes';
-import { isGroupNode, type Node as TreeNode } from '../Tree/types';
+import {
+    isGroupNode,
+    type NodeMap,
+    type Node as TreeNode,
+} from '../Tree/types';
 import { getNodeMapFromItemsMap } from '../Tree/utils';
 import {
     buildGroupKey,
@@ -129,12 +136,22 @@ function flattenSection(
     options: FlattenTreeOptions,
     sectionContexts: Map<string, SectionContext>,
 ): TreeNodeItem[] {
+    // Use pre-computed nodeMap from options instead of computing it here
+    const nodeMapKey = `${tableName}-${sectionInfo.type}`;
+    const nodeMap = options.sectionNodeMaps.get(nodeMapKey);
+
+    // If no nodeMap found (shouldn't happen), return empty array
+    if (!nodeMap) {
+        return [];
+    }
+
     // Create section context and store it
     const sectionKey = buildSectionKey(tableName, sectionInfo.type);
     const sectionContext: SectionContext = {
         tableName,
         sectionType: sectionInfo.type,
         itemsMap: sectionInfo.itemsMap,
+        nodeMap, // Store the pre-computed nodeMap
         missingCustomMetrics:
             sectionInfo.type === TreeSection.CustomMetrics &&
             sectionInfo.missingItems
@@ -153,12 +170,6 @@ function flattenSection(
         searchResults,
     };
     sectionContexts.set(sectionKey, sectionContext);
-
-    const nodeMap = getNodeMapFromItemsMap(
-        sectionInfo.itemsMap,
-        // Get group details from table if available
-        options.tables.find((t) => t.name === tableName)?.groupDetails,
-    );
 
     const items: TreeNodeItem[] = [];
 
@@ -497,4 +508,67 @@ export function flattenTreeForVirtualization(
         items,
         sectionContexts,
     };
+}
+
+export function getNodeMapsForVirtualization(
+    explore: Explore,
+    additionalMetrics: AdditionalMetric[],
+    customDimensions: CustomDimension[],
+) {
+    const maps = new Map<string, NodeMap>();
+
+    Object.values(explore.tables).forEach((table) => {
+        const tableName = table.name;
+
+        // Dimensions section
+        const dimensionsMap = Object.fromEntries(
+            Object.values(table.dimensions).map((d) => [getItemId(d), d]),
+        );
+        if (Object.keys(dimensionsMap).length > 0) {
+            maps.set(
+                `${tableName}-dimensions`,
+                getNodeMapFromItemsMap(dimensionsMap, table.groupDetails),
+            );
+        }
+
+        // Metrics section
+        const metricsMap = Object.fromEntries(
+            Object.values(table.metrics).map((m) => [getItemId(m), m]),
+        );
+        if (Object.keys(metricsMap).length > 0) {
+            maps.set(
+                `${tableName}-metrics`,
+                getNodeMapFromItemsMap(metricsMap, table.groupDetails),
+            );
+        }
+
+        // Custom metrics section
+        const customMetricsForTable = additionalMetrics.filter(
+            (metric) => metric.table === tableName,
+        );
+        if (customMetricsForTable.length > 0) {
+            const customMetricsMap = Object.fromEntries(
+                customMetricsForTable.map((m) => [getItemId(m), m]),
+            );
+            maps.set(
+                `${tableName}-custom-metrics`,
+                getNodeMapFromItemsMap(customMetricsMap, table.groupDetails),
+            );
+        }
+
+        // Custom dimensions section
+        const customDimensionsForTable =
+            customDimensions?.filter((dim) => dim.table === tableName) || [];
+        if (customDimensionsForTable.length > 0) {
+            const customDimensionsMap = Object.fromEntries(
+                customDimensionsForTable.map((d) => [getItemId(d), d]),
+            );
+            maps.set(
+                `${tableName}-custom-dimensions`,
+                getNodeMapFromItemsMap(customDimensionsMap, table.groupDetails),
+            );
+        }
+    });
+
+    return maps;
 }
