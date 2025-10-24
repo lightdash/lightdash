@@ -140,9 +140,24 @@ export type FlattenedItem =
     | TreeNodeItem
     | EmptyStateItem;
 
+// Grouped table data for virtualization
+export interface VirtualizedTableGroup {
+    tableHeader?: {
+        table: CompiledTable;
+        isExpanded: boolean;
+    };
+    items: FlattenedItem[]; // All items for this table (sections, nodes, etc)
+}
+
 // Return type from flattenTree that includes both items and shared contexts
 export interface FlattenedTreeData {
     items: FlattenedItem[];
+    sectionContexts: Map<string, SectionContext>;
+}
+
+// Grouped version for proper sticky header context
+export interface GroupedTreeData {
+    tables: VirtualizedTableGroup[];
     sectionContexts: Map<string, SectionContext>;
 }
 

@@ -61,7 +61,10 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
                 backgroundColor: 'white',
                 zIndex: 1,
             }}
-        />
+        >
+            {/* Hack to render the icons from NavLink */}
+            {[]}
+        </NavLink>
     );
 };
 
