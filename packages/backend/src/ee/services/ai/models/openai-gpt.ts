@@ -1,4 +1,4 @@
-import { createOpenAI, OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { AiModel } from './types';
 
@@ -8,6 +8,9 @@ export const getOpenaiGptmodel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
+    options?: {
+        enableReasoning?: boolean;
+    },
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
@@ -18,6 +21,12 @@ export const getOpenaiGptmodel = (
     const model = openai(config.modelName);
 
     const isGpt5 = model.modelId.includes('gpt-5');
+
+    // Use agent-specific enableReasoning if provided, otherwise fall back to config
+    const reasoningEnabled =
+        options?.enableReasoning !== undefined
+            ? options.enableReasoning
+            : config.reasoning.enabled;
 
     return {
         model,
@@ -31,7 +40,7 @@ export const getOpenaiGptmodel = (
             [PROVIDER]: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,
-                ...(config.reasoning.enabled && {
+                ...(reasoningEnabled && {
                     reasoningSummary: config.reasoning.reasoningSummary,
                     reasoningEffort: config.reasoning.reasoningEffort,
                 }),

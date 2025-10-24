@@ -67,6 +67,7 @@ export const baseAgentSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -88,6 +89,7 @@ export type AiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -107,6 +109,7 @@ export type AiAgentSummary = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -201,6 +204,7 @@ export type ApiCreateAiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -217,6 +221,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'userAccess'
         | 'enableDataAccess'
         | 'enableSelfImprovement'
+        | 'enableReasoning'
         | 'version'
     >
 > & {

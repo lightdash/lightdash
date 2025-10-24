@@ -76,6 +76,7 @@ const formSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -424,6 +425,51 @@ export const AiAgentFormSetup = ({
                                         type: 'checkbox',
                                     },
                                 )}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Enable Reasoning
+                                        </Text>
+                                        <Tooltip
+                                            label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                        <Badge
+                                            color="yellow"
+                                            radius="sm"
+                                            variant="light"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconAlertTriangle}
+                                                    size={12}
+                                                />
+                                            }
+                                        >
+                                            Experimental
+                                        </Badge>
+                                    </Group>
+                                }
+                                description={
+                                    <>
+                                        Display the AI agent's reasoning process
+                                        while it works, showing how it thinks
+                                        through problems and arrives at answers.
+                                    </>
+                                }
+                                {...form.getInputProps('enableReasoning', {
+                                    type: 'checkbox',
+                                })}
                             />
                             {isAgentV2Enabled && (
                                 <Switch
