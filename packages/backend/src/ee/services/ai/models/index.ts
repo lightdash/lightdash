@@ -5,14 +5,19 @@ import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 
-export const getModel = (config: LightdashConfig['ai']['copilot']) => {
+export const getModel = (
+    config: LightdashConfig['ai']['copilot'],
+    options?: {
+        enableReasoning?: boolean;
+    },
+) => {
     switch (config.defaultProvider) {
         case 'openai': {
             const openaiConfig = config.providers.openai;
             if (!openaiConfig) {
                 throw new ParameterError('OpenAI configuration is required');
             }
-            return getOpenaiGptmodel(openaiConfig);
+            return getOpenaiGptmodel(openaiConfig, options);
         }
         case 'azure': {
             const azureConfig = config.providers.azure;
