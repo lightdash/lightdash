@@ -7,6 +7,9 @@ import VirtualTreeItem from './VirtualTreeItem';
 
 interface VirtualizedTreeListProps {
     data: FlattenedTreeData;
+    onToggleTable: (tableName: string) => void;
+    onToggleGroup: (groupKey: string) => void;
+    onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
 }
 
 const themeOverride = getMantineThemeOverride({
@@ -32,6 +35,9 @@ const themeOverride = getMantineThemeOverride({
  */
 const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
     data,
+    onToggleTable,
+    onToggleGroup,
+    onSelectedFieldChange,
 }) => {
     const { items, sectionContexts } = data;
     const parentRef = useRef<HTMLDivElement>(null);
@@ -66,7 +72,7 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                         const item = items[virtualItem.index];
                         return (
                             <div
-                                key={virtualItem.key}
+                                key={item.id}
                                 data-index={virtualItem.index}
                                 style={{
                                     position: 'absolute',
@@ -79,6 +85,11 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                                 <VirtualTreeItem
                                     item={item}
                                     sectionContexts={sectionContexts}
+                                    onToggleTable={onToggleTable}
+                                    onToggleGroup={onToggleGroup}
+                                    onSelectedFieldChange={
+                                        onSelectedFieldChange
+                                    }
                                 />
                             </div>
                         );

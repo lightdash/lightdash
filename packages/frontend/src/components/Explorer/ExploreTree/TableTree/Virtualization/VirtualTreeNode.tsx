@@ -9,6 +9,8 @@ import { TreeSection, type SectionContext, type TreeNodeItem } from './types';
 interface VirtualTreeNodeProps {
     item: TreeNodeItem;
     sectionContexts: Map<string, SectionContext>;
+    onToggleGroup: (groupKey: string) => void;
+    onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
 }
 
 /**
@@ -18,6 +20,8 @@ interface VirtualTreeNodeProps {
 const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
     item,
     sectionContexts,
+    onToggleGroup,
+    onSelectedFieldChange,
 }) => {
     const { node, isGroup, sectionKey, depth } = item.data;
 
@@ -70,20 +74,23 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
             onItemClick: (key: string) => {
                 const clickedItem = sectionContext.itemsMap[key];
                 if (clickedItem) {
-                    // This would need to be wired up properly in the parent
-                    // For now, we'll leave it as a no-op since the actual
-                    // click handler will come from the integration phase
+                    // Determine if it's a dimension based on section type
+                    const isDimension =
+                        sectionContext.sectionType === TreeSection.Dimensions ||
+                        sectionContext.sectionType ===
+                            TreeSection.CustomDimensions;
+                    onSelectedFieldChange(key, isDimension);
                 }
             },
             searchResults: sectionContext.searchResults,
             tableName: sectionContext.tableName,
             treeSectionType: sectionContext.sectionType,
-            expandedGroups: new Set<string>(), // Will be provided by parent
-            onToggleGroup: () => {}, // Will be provided by parent
+            expandedGroups: new Set<string>(), // Not needed - expansion state is in flattened data
+            onToggleGroup,
             isVirtualized: true, // Flag to prevent inline children rendering
             depth, // Nesting depth for indentation
         };
-    }, [sectionContext, nodeMap, depth]);
+    }, [sectionContext, nodeMap, depth, onSelectedFieldChange, onToggleGroup]);
 
     if (!sectionContext) {
         console.error(`Section context not found for key: ${sectionKey}`);
