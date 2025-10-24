@@ -32,7 +32,7 @@ export const aiCopilotConfigSchema = z
                         .default({
                             enabled: false,
                             reasoningSummary: 'auto',
-                            reasoningEffort: 'medium',
+                            reasoningEffort: 'low',
                         }),
                 })
                 .optional(),
