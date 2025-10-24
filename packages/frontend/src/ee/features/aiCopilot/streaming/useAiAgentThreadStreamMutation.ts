@@ -122,6 +122,7 @@ export function useAiAgentThreadStreamMutation() {
                                 case 'tool-improveContext':
                                 case 'tool-searchFieldValues':
                                 case 'tool-runQuery':
+                                case 'tool-generateDashboard':
                                     if (part.state !== 'input-available') break;
 
                                     const toolNameUnsafe =

@@ -42,9 +42,13 @@ export const parseToolArgs = (toolName: ToolName, toolArgs: unknown) => {
         case 'generateTimeSeriesVizConfig':
             return toolTimeSeriesArgsSchemaTransformed.safeParse(toolArgs);
         case 'generateDashboard':
+            // try v2 then v1
+            const v2Result =
+                toolDashboardV2ArgsSchemaTransformed.safeParse(toolArgs);
+            if (v2Result.success) {
+                return v2Result;
+            }
             return toolDashboardArgsSchemaTransformed.safeParse(toolArgs);
-        case 'generateDashboardV2':
-            return toolDashboardV2ArgsSchemaTransformed.safeParse(toolArgs);
         case 'findDashboards':
             return toolFindDashboardsArgsSchemaTransformed.safeParse(toolArgs);
         case 'findCharts':
