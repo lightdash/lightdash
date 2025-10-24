@@ -1,3 +1,15 @@
+# [0.2106.0](https://github.com/lightdash/lightdash/compare/0.2105.0...0.2106.0) (2025-10-24)
+
+
+### Bug Fixes
+
+* correctly get debug drawer json ([#17594](https://github.com/lightdash/lightdash/issues/17594)) ([c92386a](https://github.com/lightdash/lightdash/commit/c92386a9105023fb2bf292c6282648caaa5cfae8)), closes [#17573](https://github.com/lightdash/lightdash/issues/17573) [#17622](https://github.com/lightdash/lightdash/issues/17622)
+
+
+### Features
+
+* improve messaging to user when ai is working ([#17590](https://github.com/lightdash/lightdash/issues/17590)) ([e7f7bff](https://github.com/lightdash/lightdash/commit/e7f7bff8aece16b9bb9afeb726c2c494f59569d4)), closes [#1234](https://github.com/lightdash/lightdash/issues/1234)
+
 # [0.2105.0](https://github.com/lightdash/lightdash/compare/0.2104.9...0.2105.0) (2025-10-23)
 
 
