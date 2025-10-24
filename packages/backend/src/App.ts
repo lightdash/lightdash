@@ -332,9 +332,9 @@ export default class App {
 
         const store = new KnexSessionStore({
             knex: this.database as AnyType,
-            createtable: false,
-            tablename: 'sessions',
-            sidfieldname: 'sid',
+            createTable: false,
+            tableName: 'sessions',
+            sidFieldName: 'sid',
         });
 
         // Use custom middlewares if provided
