@@ -20,6 +20,7 @@ export const ToolNameSchema = z.enum([
     'searchFieldValues',
     'findDashboards',
     'findCharts',
+    'runSavedChartQuery',
     'improveContext',
     'proposeChange',
     'runQuery',
@@ -43,6 +44,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
     findCharts: 'Finding relevant charts',
+    runSavedChartQuery: 'Running saved chart query',
     improveContext: 'Improving context',
     runQuery: 'Generating visualization',
 });
@@ -61,6 +63,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findCharts: 'Found relevant charts',
         improveContext: 'Improved context',
         runQuery: 'Generated visualization',
+        runSavedChartQuery: 'Ran saved chart query',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

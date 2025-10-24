@@ -9,6 +9,7 @@ export * from './toolImproveContextArgs';
 export * from './toolProposeChangeArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
+export * from './toolRunSavedChartQueryArgs';
 export * from './toolSearchFieldValuesArgs';
 export * from './toolTableVizArgs';
 export * from './toolTimeSeriesArgs';

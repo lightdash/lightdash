@@ -6,6 +6,7 @@ import {
     AiWebAppPrompt,
     AllChartsSearchResult,
     AnyType,
+    ApiGetAsyncQueryResults,
     CacheMetadata,
     CatalogField,
     CatalogTable,
@@ -157,3 +158,12 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
+
+export type RunSavedChartQueryFn = (args: {
+    chartUuid: string;
+    versionUuid?: string;
+    limit?: number | null;
+}) => Promise<{
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+}>;

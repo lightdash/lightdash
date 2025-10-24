@@ -16,6 +16,7 @@ export enum AiResultType {
     DASHBOARD_V2_RESULT = 'dashboard_v2',
     IMPROVE_CONTEXT = 'improve_context',
     PROPOSE_CHANGE = 'propose_change',
+    RUN_SAVED_CHART_QUERY = 'run_saved_chart_query',
 }
 
 export type AiMetricQuery = Pick<

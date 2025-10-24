@@ -10,6 +10,7 @@ import {
     toolImproveContextArgsSchema,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunSavedChartQueryArgsSchemaTransformed,
     toolSearchFieldValuesArgsSchemaTransformed,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
@@ -59,6 +60,10 @@ export const parseToolArgs = (toolName: ToolName, toolArgs: unknown) => {
             return toolProposeChangeArgsSchema.safeParse(toolArgs);
         case 'runQuery':
             return toolRunQueryArgsSchemaTransformed.safeParse(toolArgs);
+        case 'runSavedChartQuery':
+            return toolRunSavedChartQueryArgsSchemaTransformed.safeParse(
+                toolArgs,
+            );
         default:
             return assertUnreachable(
                 toolName,

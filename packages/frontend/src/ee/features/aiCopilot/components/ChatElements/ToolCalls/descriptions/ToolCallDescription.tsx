@@ -145,6 +145,7 @@ export const ToolCallDescription: FC<{
             );
         case AiResultType.IMPROVE_CONTEXT:
         case AiResultType.PROPOSE_CHANGE:
+        case AiResultType.RUN_SAVED_CHART_QUERY:
             return <> </>;
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
