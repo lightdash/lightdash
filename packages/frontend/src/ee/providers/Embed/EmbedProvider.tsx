@@ -46,6 +46,11 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
 
+    // Remove the token from the URL.
+    if (window.location.hash === `#${embedToken}`) {
+        window.history.pushState('', document.title, window.location.pathname);
+    }
+
     // We sync embed UI changes with the URL just as with the main app.
     // For iframe embeds only, we emit messages to the parent window.
     useEffect(() => {
