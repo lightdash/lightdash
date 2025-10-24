@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine/core';
-import { lazy, memo, Suspense, useEffect, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetricModal,
@@ -31,19 +31,14 @@ import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider'
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import ExplorerHeader from './ExplorerHeader';
+import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
+import ParametersCard from './ParametersCard/ParametersCard';
+import ResultsCard from './ResultsCard/ResultsCard';
+import SqlCard from './SqlCard/SqlCard';
+import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
-
-const LazyExplorerHeader = lazy(() => import('./ExplorerHeader'));
-const LazyFiltersCard = lazy(() => import('./FiltersCard/FiltersCard'));
-const LazyResultsCard = lazy(() => import('./ResultsCard/ResultsCard'));
-const LazySqlCard = lazy(() => import('./SqlCard/SqlCard'));
-const LazyParametersCard = lazy(
-    () => import('./ParametersCard/ParametersCard'),
-);
-const LazyVisualizationCard = lazy(
-    () => import('./VisualizationCard/VisualizationCard'),
-);
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
@@ -154,35 +149,23 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
             >
                 <Stack sx={{ flexGrow: 1 }}>
-                    {!hideHeader && isEditMode && (
-                        <Suspense>
-                            <LazyExplorerHeader />
-                        </Suspense>
-                    )}
+                    {!hideHeader && isEditMode && <ExplorerHeader />}
 
                     {!!tableName &&
                         parameterReferencesFromRedux &&
                         parameterReferencesFromRedux?.length > 0 && (
-                            <Suspense>
-                                <LazyParametersCard
-                                    parameterReferences={
-                                        parameterReferencesFromRedux
-                                    }
-                                />
-                            </Suspense>
+                            <ParametersCard
+                                parameterReferences={
+                                    parameterReferencesFromRedux
+                                }
+                            />
                         )}
 
-                    <Suspense>
-                        <LazyFiltersCard />
-                    </Suspense>
+                    <FiltersCard />
 
-                    <Suspense>
-                        <LazyVisualizationCard projectUuid={projectUuid} />
-                    </Suspense>
+                    <VisualizationCard projectUuid={projectUuid} />
 
-                    <Suspense>
-                        <LazyResultsCard />
-                    </Suspense>
+                    <ResultsCard />
 
                     <Can
                         I="manage"
@@ -191,11 +174,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             projectUuid,
                         })}
                     >
-                        {!!projectUuid && (
-                            <Suspense>
-                                <LazySqlCard projectUuid={projectUuid} />
-                            </Suspense>
-                        )}
+                        {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
                     </Can>
                 </Stack>
 
