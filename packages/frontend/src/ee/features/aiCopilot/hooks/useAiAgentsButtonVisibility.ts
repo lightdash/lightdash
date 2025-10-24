@@ -1,4 +1,6 @@
+import { CommercialFeatureFlags } from '@lightdash/common';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
+import { useFeatureFlag } from '../../../../hooks/useFeatureFlagEnabled';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentPermission } from './useAiAgentPermission';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
@@ -9,19 +11,12 @@ import { useProjectAiAgents } from './useProjectAiAgents';
  * @returns true if the ai agent button should be visible
  */
 export const useAiAgentButtonVisibility = () => {
-    const { data: projectUuid } = useActiveProject();
-    const canViewAiAgents = useAiAgentPermission({
-        action: 'view',
-        projectUuid: projectUuid ?? undefined,
-    });
-    const appQuery = useApp();
-    const canManageAiAgents = useAiAgentPermission({
-        action: 'manage',
-        projectUuid: projectUuid ?? undefined,
-    });
-    const organizationSettingsQuery = useAiOrganizationSettings();
+    const activeProjectQuery = useActiveProject();
+    const projectUuid = activeProjectQuery.data ?? undefined;
 
-    const agents = useProjectAiAgents({
+    const appQuery = useApp();
+    const organizationSettingsQuery = useAiOrganizationSettings();
+    const agentsQuery = useProjectAiAgents({
         projectUuid,
         options: {
             enabled:
@@ -31,24 +26,37 @@ export const useAiAgentButtonVisibility = () => {
         redirectOnUnauthorized: false,
     });
 
-    const canViewButton =
-        (canViewAiAgents &&
-            agents.isSuccess &&
-            agents.data?.length &&
-            agents.data.length > 0) ||
-        canManageAiAgents;
+    const canViewAiAgents = useAiAgentPermission({
+        action: 'view',
+        projectUuid,
+    });
+    const canManageAiAgents = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
 
-    if (!appQuery.user.isSuccess || !organizationSettingsQuery.isSuccess) {
+    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
+
+    if (
+        agentsQuery.isLoading ||
+        organizationSettingsQuery.isLoading ||
+        appQuery.user.isLoading ||
+        appQuery.health.isLoading ||
+        aiCopilotFlagQuery.isLoading
+    ) {
         return false;
     }
 
+    const hasAgents = agentsQuery.data && agentsQuery.data.length > 0;
+    const canViewButton = (canViewAiAgents && hasAgents) || canManageAiAgents;
     const isAiAgentEnabled = organizationSettingsQuery.data?.aiAgentsVisible;
 
     if (
         !canViewButton ||
         !canViewAiAgents ||
         !isAiAgentEnabled ||
-        !projectUuid
+        !projectUuid ||
+        !aiCopilotFlagQuery.data?.enabled
     ) {
         return false;
     }
