@@ -19,6 +19,7 @@ import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getImproveContext } from '../tools/improveContext';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
+import { getRunSavedChartQuery } from '../tools/runSavedChartQuery';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -170,6 +171,12 @@ const getAgentTools = (
         enableSelfImprovement: args.enableSelfImprovement,
     });
 
+    const runSavedChartQuery = getRunSavedChartQuery({
+        runSavedChartQuery: dependencies.runSavedChartQuery,
+        updateProgress: dependencies.updateProgress,
+        getPrompt: dependencies.getPrompt,
+    });
+
     const generateDashboard = getGenerateDashboardV2({
         getExplore: dependencies.getExplore,
         getPrompt: dependencies.getPrompt,
@@ -198,7 +205,9 @@ const getAgentTools = (
         ...(args.enableSelfImprovement && args.canManageAgent
             ? { proposeChange }
             : {}),
-        ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(args.enableDataAccess
+            ? { runSavedChartQuery, searchFieldValues }
+            : {}),
     };
 
     logger(
