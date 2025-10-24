@@ -54,6 +54,7 @@ export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
 export * from './authorization/types';
+export * from './compiler/compilationReport';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/parameters';

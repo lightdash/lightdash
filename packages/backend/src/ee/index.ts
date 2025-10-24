@@ -220,6 +220,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -291,6 +292,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
