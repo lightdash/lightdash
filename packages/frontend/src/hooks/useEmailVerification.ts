@@ -32,6 +32,11 @@ export const useEmailStatus = (enabled: boolean) =>
         queryKey: ['email_status'],
         queryFn: () => getEmailStatusQuery(),
         enabled,
+        // Prevent infinite loop on /verify-email page when session has issues
+        // This query only needs to run once on mount - verification updates via
+        // manual invalidation (useVerifyEmail onSuccess)
+        refetchOnMount: false,
+        refetchOnReconnect: false,
     });
 
 export const useOneTimePassword = () => {
