@@ -1,3 +1,16 @@
+# [0.2107.0](https://github.com/lightdash/lightdash/compare/0.2106.1...0.2107.0) (2025-10-24)
+
+
+### Bug Fixes
+
+* make partitionBy optional in table calculation template (backwards-compat) ([#17625](https://github.com/lightdash/lightdash/issues/17625)) ([16718e1](https://github.com/lightdash/lightdash/commit/16718e1dd77e6858d9f007e351c8adfa7af89acd)), closes [#17626](https://github.com/lightdash/lightdash/issues/17626)
+
+
+### Features
+
+* add project compile log table ([#17549](https://github.com/lightdash/lightdash/issues/17549)) ([bc3e98d](https://github.com/lightdash/lightdash/commit/bc3e98dbabb11307d1ab0f6d3a0b1c029966a40c))
+* project compile model ([#17550](https://github.com/lightdash/lightdash/issues/17550)) ([5983f3f](https://github.com/lightdash/lightdash/commit/5983f3f92e76d7e32065285c76b5e3046a2416b0))
+
 ## [0.2106.1](https://github.com/lightdash/lightdash/compare/0.2106.0...0.2106.1) (2025-10-24)
 
 
