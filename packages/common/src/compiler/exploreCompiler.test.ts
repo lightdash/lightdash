@@ -12,6 +12,7 @@ import {
     compiledExploreWithParameters,
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
+    compiledJoinedExploreOverridingJoinDescription,
     compiledJoinedExploreOverridingJoinLabel,
     compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields,
     compiledJoinedExploreWithSubsetOfFields,
@@ -19,6 +20,7 @@ import {
     compiledJoinedExploreWithTwoJoinsToTheSameTable,
     compiledSimpleJoinedExplore,
     compiledSimpleJoinedExploreWithAlwaysTrue,
+    compiledSimpleJoinedExploreWithBaseTableDescription,
     customSqlDimensionWithNoReferences,
     customSqlDimensionWithReferences,
     expectedCompiledCustomSqlDimensionWithNoReferences,
@@ -51,6 +53,7 @@ import {
     exploreWithRequiredAttributesCompiled,
     joinedExploreOverridingAliasAndLabel,
     joinedExploreOverridingJoinAlias,
+    joinedExploreOverridingJoinDescription,
     joinedExploreOverridingJoinLabel,
     joinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields,
     joinedExploreWithSubsetOfFields,
@@ -58,6 +61,7 @@ import {
     joinedExploreWithTwoJoinsToTheSameTable,
     simpleJoinedExplore,
     simpleJoinedExploreWithAlwaysTrue,
+    simpleJoinedExploreWithBaseTableDescription,
     tablesWithMetricsWithFilters,
     warehouseClientMock,
 } from './exploreCompiler.mock';
@@ -196,6 +200,18 @@ describe('Explores with a base table and joined table', () => {
         expect(compiler.compileExplore(exploreWithHiddenJoin)).toStrictEqual(
             compiledExploreWithHiddenJoin,
         );
+    });
+    test('should use base table description when join has no description override', () => {
+        expect(
+            compiler.compileExplore(
+                simpleJoinedExploreWithBaseTableDescription,
+            ),
+        ).toStrictEqual(compiledSimpleJoinedExploreWithBaseTableDescription);
+    });
+    test('should override base table description with join description', () => {
+        expect(
+            compiler.compileExplore(joinedExploreOverridingJoinDescription),
+        ).toStrictEqual(compiledJoinedExploreOverridingJoinDescription);
     });
 });
 describe('Default field labels render correctly for various input formats', () => {

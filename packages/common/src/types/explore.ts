@@ -31,6 +31,7 @@ export type ExploreJoin = {
     fields?: string[]; // Optional list of fields to include from the joined table
     always?: boolean; // Optional flag to always join the table
     relationship?: JoinRelationship;
+    description?: string; // Optional description override for the joined table
 };
 
 export type CompiledExploreJoin = Pick<

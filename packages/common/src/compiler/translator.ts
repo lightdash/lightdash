@@ -928,6 +928,7 @@ export const convertExplores = async (
                         hidden: join.hidden,
                         always: join.always,
                         relationship: join.relationship,
+                        description: join.description,
                     })),
                     tables: exploreToCreate.tables,
                     targetDatabase: adapterType,

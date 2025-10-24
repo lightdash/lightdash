@@ -2100,3 +2100,54 @@ export const exploreWithInvalidParameterReference: UncompiledExplore = {
         },
     },
 };
+
+// Test data for join description overrides
+export const simpleJoinedExploreWithBaseTableDescription: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    tables: {
+        ...simpleJoinedExplore.tables,
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            description: 'Base table B description',
+        },
+    },
+};
+
+export const compiledSimpleJoinedExploreWithBaseTableDescription: Explore = {
+    ...compiledSimpleJoinedExplore,
+    tables: {
+        ...compiledSimpleJoinedExplore.tables,
+        b: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            description: 'Base table B description',
+        },
+    },
+};
+
+export const joinedExploreOverridingJoinDescription: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            ...simpleJoinedExplore.joinedTables[0],
+            description: 'Custom join description',
+        },
+    ],
+    tables: {
+        ...simpleJoinedExplore.tables,
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            description: 'Base table B description',
+        },
+    },
+};
+
+export const compiledJoinedExploreOverridingJoinDescription: Explore = {
+    ...compiledSimpleJoinedExplore,
+    tables: {
+        ...compiledSimpleJoinedExplore.tables,
+        b: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            description: 'Custom join description',
+        },
+    },
+};

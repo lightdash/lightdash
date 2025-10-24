@@ -22,6 +22,8 @@ models:
           - join: plan
             sql_on: ${membership.plan_id} = ${plan.id}
             relationship: many-to-one
+            label: Subscription Plan
+            description: The subscription plan associated with this customer's membership
         ai_hint:
           - This is a customers table.
           - Contains customer information and demographics.

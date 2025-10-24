@@ -184,6 +184,10 @@ export class ExploreCompiler {
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
+                const joinDescription =
+                    join.description !== undefined
+                        ? join.description
+                        : tables[join.table].description;
 
                 // Expand field sets if join.fields contains set references
                 let expandedFields: string[] | undefined;
@@ -212,6 +216,9 @@ export class ExploreCompiler {
                         originalName: tables[join.table].name,
                         name: joinTableName,
                         label: joinTableLabel,
+                        ...(joinDescription !== undefined && {
+                            description: joinDescription,
+                        }),
                         hidden: join.hidden,
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
