@@ -1,21 +1,26 @@
 import { Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../common/MantineIcon';
 import type { MissingFieldItem } from './types';
 
 interface VirtualMissingFieldProps {
     item: MissingFieldItem;
+    onRemove: (fieldId: string, isDimension: boolean) => void;
 }
 
 /**
  * Renders a missing field alert in the virtualized tree
- * TODO: Wire up click handler in integration phase (PR5)
  */
 const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
     item,
+    onRemove,
 }) => {
-    const { fieldId } = item.data;
+    const { fieldId, isDimension } = item.data;
+
+    const handleClick = useCallback(() => {
+        onRemove(fieldId, isDimension);
+    }, [onRemove, fieldId, isDimension]);
 
     return (
         <Tooltip
@@ -24,7 +29,12 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
             position="bottom-start"
             maw={700}
         >
-            <Group ml={12} my="xs" style={{ cursor: 'pointer' }}>
+            <Group
+                onClick={handleClick}
+                ml={12}
+                my="xs"
+                style={{ cursor: 'pointer' }}
+            >
                 <MantineIcon
                     icon={IconAlertTriangle}
                     color="yellow.9"
