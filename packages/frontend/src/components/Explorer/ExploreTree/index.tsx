@@ -321,7 +321,12 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             />
 
             {experimentalVirtualizedSideBar?.enabled && virtualizedTreeData ? (
-                <VirtualizedTreeList data={virtualizedTreeData} />
+                <VirtualizedTreeList
+                    data={virtualizedTreeData}
+                    onToggleTable={toggleTable}
+                    onToggleGroup={toggleGroup}
+                    onSelectedFieldChange={onSelectedFieldChange}
+                />
             ) : (
                 <ScrollArea
                     variant="primary"
