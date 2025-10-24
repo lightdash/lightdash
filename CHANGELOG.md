@@ -1,3 +1,10 @@
+# [0.2108.0](https://github.com/lightdash/lightdash/compare/0.2107.1...0.2108.0) (2025-10-24)
+
+
+### Features
+
+* enable embedded csv export in underlying data ([#17648](https://github.com/lightdash/lightdash/issues/17648)) ([a62fbba](https://github.com/lightdash/lightdash/commit/a62fbbaf1335b3f74c35bf4afe23312ce4c90103)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2107.1](https://github.com/lightdash/lightdash/compare/0.2107.0...0.2107.1) (2025-10-24)
 
 
