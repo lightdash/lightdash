@@ -566,9 +566,12 @@ export const renameMetricQuery = (
                             fieldId: replaceId(o.fieldId),
                         })),
                     }),
-                    ...('partitionBy' in tc.template && {
-                        partitionBy: tc.template.partitionBy.map(replaceId),
-                    }),
+                    ...('partitionBy' in tc.template && tc.template.partitionBy
+                        ? {
+                              partitionBy:
+                                  tc.template.partitionBy.map(replaceId),
+                          }
+                        : {}),
                 },
             }),
         })),

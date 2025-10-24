@@ -119,7 +119,9 @@ export class ValidationService extends BaseService {
                         ? tc.template.orderBy.map((o) => o.fieldId)
                         : [];
                 const partitionByPart =
-                    'partitionBy' in tc.template ? tc.template.partitionBy : [];
+                    'partitionBy' in tc.template && tc.template.partitionBy
+                        ? tc.template.partitionBy
+                        : [];
                 const fieldsInTemplate = [
                     ...fieldIdPart,
                     ...orderByPart,
