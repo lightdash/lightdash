@@ -5,11 +5,9 @@ import {
     type CartesianChartConfig,
     CartesianSeriesType,
     ChartType,
-    type PivotReference,
 } from '../../../../../types/savedCharts';
 import { type TimeSeriesMetricVizConfigSchemaType } from '../../../schemas';
 import { formatFieldLabel } from '../../shared/formatFieldLabel';
-import { formatPivotValueLabel } from '../shared/formatPivotValueLabel';
 
 export const getTimeSeriesChartConfig = (
     config: TimeSeriesMetricVizConfigSchemaType,
@@ -17,7 +15,7 @@ export const getTimeSeriesChartConfig = (
     metadata: AiVizMetadata,
     fieldsMap: ItemsMap,
 ): CartesianChartConfig => {
-    const metrics: (string | PivotReference)[] = config.yMetrics;
+    const metrics: string[] = config.yMetrics;
 
     return {
         type: ChartType.CARTESIAN,
@@ -47,33 +45,16 @@ export const getTimeSeriesChartConfig = (
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => {
-                    const defaultProperties = {
-                        type: CartesianSeriesType.LINE,
-                        yAxisIndex: 0,
-                        ...(config.lineType === 'area' && { areaStyle: {} }),
-                    };
-
-                    if (typeof metric === 'string') {
-                        return {
-                            ...defaultProperties,
-                            name: formatFieldLabel(metric, fieldsMap),
-                            encode: {
-                                xRef: { field: config.xDimension },
-                                yRef: { field: metric },
-                            },
-                        };
-                    }
-
-                    return {
-                        ...defaultProperties,
-                        name: formatPivotValueLabel(metric, fieldsMap),
-                        encode: {
-                            xRef: { field: config.xDimension },
-                            yRef: metric,
-                        },
-                    };
-                }),
+                series: metrics.map((metric) => ({
+                    type: CartesianSeriesType.LINE,
+                    yAxisIndex: 0,
+                    ...(config.lineType === 'area' && { areaStyle: {} }),
+                    name: formatFieldLabel(metric, fieldsMap),
+                    encode: {
+                        xRef: { field: config.xDimension },
+                        yRef: { field: metric },
+                    },
+                })),
             },
         },
     };

@@ -5,11 +5,9 @@ import {
     type CartesianChartConfig,
     CartesianSeriesType,
     ChartType,
-    type PivotReference,
 } from '../../../../../types/savedCharts';
 import { type VerticalBarMetricVizConfigSchemaType } from '../../../schemas';
 import { formatFieldLabel } from '../../shared/formatFieldLabel';
-import { formatPivotValueLabel } from '../shared/formatPivotValueLabel';
 
 export const getVerticalBarChartConfig = (
     config: VerticalBarMetricVizConfigSchemaType,
@@ -17,7 +15,7 @@ export const getVerticalBarChartConfig = (
     metadata: AiVizMetadata,
     fieldsMap: ItemsMap,
 ): CartesianChartConfig => {
-    const metrics: (string | PivotReference)[] = config.yMetrics;
+    const metrics: string[] = config.yMetrics;
 
     return {
         type: ChartType.CARTESIAN,
@@ -47,34 +45,18 @@ export const getVerticalBarChartConfig = (
                             : {}),
                     },
                 ],
-                series: metrics.map((metric) => {
-                    const defaultProperties = {
-                        type: CartesianSeriesType.BAR,
-                        yAxisIndex: 0,
-                    };
-
-                    if (typeof metric === 'string') {
-                        return {
-                            ...defaultProperties,
-                            name: formatFieldLabel(metric, fieldsMap),
-                            encode: {
-                                xRef: { field: config.xDimension },
-                                yRef: {
-                                    field: metric,
-                                },
-                            },
-                        };
-                    }
-                    return {
-                        ...defaultProperties,
-                        name: formatPivotValueLabel(metric, fieldsMap),
-                        encode: {
-                            xRef: { field: config.xDimension },
-                            yRef: metric,
+                series: metrics.map((metric) => ({
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    name: formatFieldLabel(metric, fieldsMap),
+                    encode: {
+                        xRef: { field: config.xDimension },
+                        yRef: {
+                            field: metric,
                         },
-                        stack: metric.field,
-                    };
-                }),
+                    },
+                    ...(config.stackBars ? { stack: 'stack' } : {}),
+                })),
             },
         },
     };
