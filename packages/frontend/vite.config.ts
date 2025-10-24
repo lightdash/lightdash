@@ -1,6 +1,6 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
-import path from 'path';
+import * as path from 'path';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
@@ -124,6 +124,10 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/testing/vitest.setup.ts',
+        env: {
+            VITE_REACT_SCAN_ENABLED: 'false',
+            VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
+        },
     },
     server: {
         port: FE_PORT,

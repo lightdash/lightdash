@@ -38,7 +38,9 @@ export const getGithubApp = () => {
     return githubApp;
 };
 
-export const getOctokitRestForUser = (authToken: string) => {
+export const getOctokitRestForUser = (
+    authToken: string,
+): { octokit: OctokitRest; headers: { authorization: string } } => {
     const octokit = new OctokitRest();
     const headers = {
         authorization: `Bearer ${authToken}`,
@@ -49,7 +51,7 @@ export const getOctokitRestForUser = (authToken: string) => {
     };
 };
 
-export const getOctokitRestForApp = (installationId: string) => {
+export const getOctokitRestForApp = (installationId: string): OctokitRest => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
 
@@ -68,7 +70,10 @@ export const getOctokitRestForApp = (installationId: string) => {
  * otherwise use the token as a user
  * The token can be generated using the installation id
  */
-export const getOctokit = (installationId?: string, token?: string) => {
+export const getOctokit = (
+    installationId?: string,
+    token?: string,
+): { octokit: OctokitRest; headers: { authorization: string } | undefined } => {
     if (installationId) {
         return {
             octokit: getOctokitRestForApp(installationId),
@@ -187,7 +192,7 @@ export const createBranch = async ({
     branch: string;
     token: string;
     hostDomain?: string;
-}) => {
+}): Promise<Awaited<ReturnType<OctokitRest['rest']['git']['createRef']>>> => {
     const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
@@ -235,7 +240,11 @@ export const updateFile = async ({
     branch: string;
     message: string;
     token: string;
-}) => {
+}): Promise<
+    Awaited<
+        ReturnType<OctokitRest['rest']['repos']['createOrUpdateFileContents']>
+    >
+> => {
     const { octokit, headers } = getOctokitRestForUser(token);
     try {
         const response = await octokit.rest.repos.createOrUpdateFileContents({
@@ -278,7 +287,11 @@ export const createFile = async ({
     branch: string;
     message: string;
     token: string;
-}) => {
+}): Promise<
+    Awaited<
+        ReturnType<OctokitRest['rest']['repos']['createOrUpdateFileContents']>
+    >
+> => {
     const { octokit, headers } = getOctokitRestForUser(token);
 
     try {

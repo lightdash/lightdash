@@ -6,7 +6,7 @@ import {
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
-import express from 'express';
+import express, { type Router } from 'express';
 
 import path from 'path';
 import {
@@ -17,7 +17,7 @@ import {
 
 const fs = require('fs');
 
-export const projectRouter = express.Router({ mergeParams: true });
+export const projectRouter: Router = express.Router({ mergeParams: true });
 
 projectRouter.patch(
     '/',

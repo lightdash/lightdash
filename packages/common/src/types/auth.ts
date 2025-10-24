@@ -195,15 +195,17 @@ export function isJwtUser(account?: Account): account is AnonymousAccount {
     return account.isJwtUser();
 }
 
-export const assertIsAccountWithOrg = (
-    account: Account,
-): asserts account is Account & {
+type AccountWithOrg = Account & {
     organization: {
         organizationUuid: string;
         name: string;
         createdAt: Date;
     };
-} => {
+};
+
+export function assertIsAccountWithOrg(
+    account: Account,
+): asserts account is AccountWithOrg {
     const { organization } = account;
     const isValidOrg =
         typeof organization.organizationUuid === 'string' &&
@@ -221,4 +223,4 @@ export const assertIsAccountWithOrg = (
                 'Session user does not have a role in an organization',
             );
     }
-};
+}
