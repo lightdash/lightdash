@@ -10,7 +10,12 @@ import {
     Text,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconArrowUp, IconSettings, IconSparkles } from '@tabler/icons-react';
+import {
+    IconArrowUp,
+    IconCornerDownLeft,
+    IconSettings,
+    IconSparkles,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
@@ -142,25 +147,32 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                         ? `Ask ${selectedAgent.name} or search your data`
                                         : 'Search your data'
                                 }
-                                footer={
+                                onHeaderClick={handleSubmit}
+                                header={
                                     <PolymorphicGroupButton
-                                        p="xs"
-                                        className={styles.askAiFooter}
-                                        onClick={() => {
-                                            void handleSubmit();
-                                        }}
+                                        p="sm"
+                                        className={styles.askAiSection}
                                         gap="xs"
+                                        wrap="nowrap"
+                                        style={{ overflow: 'hidden' }}
+                                        align="flex-start"
                                     >
                                         <MantineIcon
                                             style={{
-                                                marginTop: 2,
                                                 flexShrink: 0,
+                                                marginTop: 4,
                                             }}
                                             icon={IconSparkles}
                                             color="violet.4"
+                                            fill="violet.4"
                                             size={16}
                                         />
-                                        <Text size="sm" c="dark.7">
+                                        <Text
+                                            size="sm"
+                                            c="dark.7"
+                                            flex="1"
+                                            mt={2}
+                                        >
                                             Ask{' '}
                                             {selectedAgent
                                                 ? selectedAgent.name
@@ -174,6 +186,16 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                                 "{form.values.prompt.trim()}"
                                             </Text>
                                         </Text>
+                                        <Box
+                                            className={styles.askAiSectionArrow}
+                                            p={4}
+                                        >
+                                            <MantineIcon
+                                                icon={IconCornerDownLeft}
+                                                size={16}
+                                                color="gray.5"
+                                            />
+                                        </Box>
                                     </PolymorphicGroupButton>
                                 }
                             />

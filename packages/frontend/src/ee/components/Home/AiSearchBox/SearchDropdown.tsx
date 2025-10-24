@@ -29,6 +29,8 @@ type Props = {
     onSearchItemSelect?: (item: SearchItem) => void;
     placeholder?: string;
     footer?: React.ReactNode;
+    header?: React.ReactNode;
+    onHeaderClick?: () => void;
 };
 
 export const SearchDropdown: FC<Props> = ({
@@ -38,6 +40,8 @@ export const SearchDropdown: FC<Props> = ({
     onSearchItemSelect,
     placeholder,
     footer,
+    header,
+    onHeaderClick,
 }) => {
     const navigate = useNavigate();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -119,6 +123,22 @@ export const SearchDropdown: FC<Props> = ({
 
             <Combobox.Dropdown>
                 <Combobox.Options>
+                    {header && (
+                        <Combobox.Header
+                            p={0}
+                            className={styles.comboboxHeader}
+                        >
+                            <Combobox.Option
+                                key="combobox-header"
+                                value="combobox-header"
+                                p={0}
+                                onClick={onHeaderClick}
+                                selected
+                            >
+                                {header}
+                            </Combobox.Option>
+                        </Combobox.Header>
+                    )}
                     <ScrollArea.Autosize
                         maw="100%"
                         mah={300}
