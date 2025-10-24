@@ -1,3 +1,10 @@
+## [0.2107.1](https://github.com/lightdash/lightdash/compare/0.2107.0...0.2107.1) (2025-10-24)
+
+
+### Bug Fixes
+
+* stacked bar charts for agent v1 ([#17634](https://github.com/lightdash/lightdash/issues/17634)) ([54889fa](https://github.com/lightdash/lightdash/commit/54889fa30112a26543616a096c2323102edbbf6e))
+
 # [0.2107.0](https://github.com/lightdash/lightdash/compare/0.2106.1...0.2107.0) (2025-10-24)
 
 
