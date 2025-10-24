@@ -16,6 +16,7 @@ import {
     IconLock,
     IconPalette,
     IconPlug,
+    IconRefresh,
     IconReportAnalytics,
     IconTableOptions,
     IconUserCircle,
@@ -421,6 +422,12 @@ const Settings: FC = () => {
                     path: '/generalSettings/projectManagement/:projectUuid/scheduledDeliveries',
                 },
                 location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
+                },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -731,6 +738,15 @@ const Settings: FC = () => {
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/changesets`}
                                         icon={
                                             <MantineIcon icon={IconHistory} />
+                                        }
+                                    />
+
+                                    <RouterNavLink
+                                        label="Compilation history"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/compilationHistory`}
+                                        icon={
+                                            <MantineIcon icon={IconRefresh} />
                                         }
                                     />
 
