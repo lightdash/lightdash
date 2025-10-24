@@ -1,3 +1,10 @@
+## [0.2106.1](https://github.com/lightdash/lightdash/compare/0.2106.0...0.2106.1) (2025-10-24)
+
+
+### Bug Fixes
+
+* optimize SQL query processing and preserve whitespace in table cells ([#17610](https://github.com/lightdash/lightdash/issues/17610)) ([af1580d](https://github.com/lightdash/lightdash/commit/af1580db656ef7d8e34851c2260ad7cd18dd2287)), closes [#17608](https://github.com/lightdash/lightdash/issues/17608)
+
 # [0.2106.0](https://github.com/lightdash/lightdash/compare/0.2105.0...0.2106.0) (2025-10-24)
 
 
