@@ -1,17 +1,12 @@
 import {
     FilterGroupOperator,
     createFilterRuleFromField,
-    getFilterGroupItemsPropertyName,
-    getFiltersFromGroup,
-    getItemsFromFilterGroup,
-    isAndFilterGroup,
+    getGroupKey,
     isCustomSqlDimension,
     isDimension,
-    isFilterGroup,
     isMetric,
     isTableCalculation,
     type CustomSqlDimension,
-    type FilterGroup,
     type FilterRule,
     type FilterableDimension,
     type FilterableField,
@@ -29,20 +24,36 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
+import type { FilterTreeState } from '../../../features/explorer/store/filterTree';
+import type { FieldsWithSuggestions } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
 import { FILTER_SELECT_LIMIT } from './constants';
+
+/**
+ * FilterGroupForm - Recursive component for editing nested filter groups
+ *
+ * ARCHITECTURE: Tree-based rendering with zero denormalization:
+ * - Reads directly from filterTree.byId for O(1) access
+ * - Uses atomic actions: removeFilterRuleFromTree, updateFilterRuleInTree, setFilterGroupOperator
+ * - groupKey is stored in rule nodes - no need to pass or compute it!
+ * - No FilterGroup conversion needed - renders from tree structure
+ */
 
 type Props = {
     hideButtons?: boolean;
     hideLine?: boolean;
     groupDepth?: number;
     fields: FilterableField[];
-    filterGroup: FilterGroup;
+    itemsMap: FieldsWithSuggestions;
+    groupId: string; // Tree node ID instead of FilterGroup
+    filterTree: FilterTreeState; // Direct tree access
     isEditMode: boolean;
-    onChange: (value: FilterGroup) => void;
-    onDelete: () => void;
+    onDelete?: () => void; // Optional: for synthetic root groups that need special handling
 };
 
 const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
@@ -53,13 +64,22 @@ const FilterGroupForm: FC<Props> = memo(
         hideLine,
         groupDepth = 0,
         fields,
-        filterGroup,
+        itemsMap,
+        groupId,
+        filterTree,
         isEditMode,
-        onChange,
         onDelete,
     }) => {
-        const items = getItemsFromFilterGroup(filterGroup);
+        const dispatch = useExplorerDispatch();
         const [conditionLabel, setConditionLabel] = useState('');
+
+        // Read group node from tree (O(1) access)
+        // Note: FilterGroupForm should only be called with valid group IDs
+        const node = filterTree.byId[groupId];
+        const groupNode = (node?.type === 'group' ? node : null) as Extract<
+            typeof node,
+            { type: 'group' }
+        > | null;
 
         const [dimensions, metrics, tableCalculations] = useMemo<
             [
@@ -79,85 +99,132 @@ const FilterGroupForm: FC<Props> = memo(
         }, [fields]);
 
         const availableFieldsForGroupRules = useMemo<FilterableField[]>(() => {
-            // If the group is an AND group, we can use all fields
-            if (isAndFilterGroup(filterGroup)) {
+            if (!groupNode) return [];
+
+            // If the group is root and an AND group, we can use all fields
+            if (
+                groupNode.operator === FilterGroupOperator.and &&
+                groupNode.id === filterTree.rootId
+            ) {
                 return [...dimensions, ...metrics, ...tableCalculations];
             }
 
-            // If the group is an OR group, we can only use fields that are of the same type
-            const filters = getFiltersFromGroup(filterGroup, fields);
-            if (filters.dimensions) {
-                setConditionLabel('dimension');
-                return dimensions;
+            // In every other case we can only use fields of the same type
+            // Determine type from existing children, or allow all if no children yet
+            if (groupNode.childIds.length > 0) {
+                // Find first rule child to determine the group type
+                const firstRuleChild = groupNode.childIds
+                    .map((id: string) => filterTree.byId[id])
+                    .find(
+                        (childNode: typeof filterTree.byId[string]) =>
+                            childNode?.type === 'rule',
+                    );
+
+                if (firstRuleChild && firstRuleChild.type === 'rule') {
+                    // Read groupKey directly from rule node (no field lookup needed!)
+                    const groupType = firstRuleChild.groupKey;
+                    if (groupType === 'dimensions') {
+                        setConditionLabel('dimension');
+                        return dimensions;
+                    }
+                    if (groupType === 'metrics') {
+                        setConditionLabel('metric');
+                        return metrics;
+                    }
+                    if (groupType === 'tableCalculations') {
+                        setConditionLabel('table calculation');
+                        return tableCalculations;
+                    }
+                }
             }
 
-            if (filters.metrics) {
-                setConditionLabel('metric');
-                return metrics;
-            }
+            // No children yet, allow all fields
+            return [...dimensions, ...metrics, ...tableCalculations];
+        }, [dimensions, groupNode, filterTree, metrics, tableCalculations]);
 
-            if (filters.tableCalculations) {
-                setConditionLabel('table calculation');
-                return tableCalculations;
-            }
-
-            return [];
-        }, [dimensions, fields, filterGroup, metrics, tableCalculations]);
-
+        // Atomic O(1) deletion using filter tree
         const onDeleteItem = useCallback(
-            (index: number) => {
-                if (items.length <= 1) {
+            (nodeId: string) => {
+                if (groupNode && groupNode.childIds.length <= 1 && onDelete) {
+                    // If this is the last child and parent provided onDelete, use it
                     onDelete();
                 } else {
-                    onChange({
-                        ...filterGroup,
-                        [getFilterGroupItemsPropertyName(filterGroup)]: [
-                            ...items.slice(0, index),
-                            ...items.slice(index + 1),
-                        ],
-                    });
+                    // Use atomic action to remove from tree
+                    dispatch(
+                        explorerActions.removeFilterRuleFromTree({
+                            ruleId: nodeId,
+                        }),
+                    );
                 }
             },
-            [filterGroup, items, onChange, onDelete],
+            [dispatch, groupNode, onDelete],
         );
 
+        // Atomic O(1) update using filter tree
+        // Note: This is only called for rules, not groups.
+        // Groups use atomic actions directly (setFilterGroupOperator, etc.)
         const onChangeItem = useCallback(
-            (index: number, item: FilterRule | FilterGroup) => {
-                onChange({
-                    ...filterGroup,
-                    [getFilterGroupItemsPropertyName(filterGroup)]: [
-                        ...items.slice(0, index),
-                        item,
-                        ...items.slice(index + 1),
-                    ],
-                });
+            (ruleId: string, item: FilterRule) => {
+                const targetItem = itemsMap[item.target.fieldId];
+
+                if (targetItem) {
+                    dispatch(
+                        explorerActions.updateFilterRuleInTree({
+                            ruleId,
+                            updates: item,
+                            groupKey: getGroupKey(targetItem),
+                        }),
+                    );
+                }
             },
-            [filterGroup, items, onChange],
+            [dispatch, itemsMap],
         );
 
+        // Atomic O(1) add using filter tree
         const onAddFilterRule = useCallback(() => {
             if (availableFieldsForGroupRules.length > 0) {
-                onChange({
-                    ...filterGroup,
-                    [getFilterGroupItemsPropertyName(filterGroup)]: [
-                        ...items,
-                        createFilterRuleFromField(
-                            availableFieldsForGroupRules[0],
-                        ),
-                    ],
-                });
+                const field = availableFieldsForGroupRules[0];
+                const newRule = createFilterRuleFromField(field);
+                // Determine groupKey from the field we're adding
+                const addGroupKey = getGroupKey(field) as
+                    | 'dimensions'
+                    | 'metrics'
+                    | 'tableCalculations';
+                dispatch(
+                    explorerActions.addFilterRuleToTree({
+                        groupKey: addGroupKey,
+                        parentId: groupId,
+                        rule: newRule,
+                    }),
+                );
             }
-        }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
+        }, [availableFieldsForGroupRules, dispatch, groupId]);
 
+        // Atomic O(1) set operator using filter tree
         const onChangeOperator = useCallback(
-            (value: FilterGroupOperator) => {
-                onChange({
-                    id: filterGroup.id,
-                    [value]: items,
-                } as FilterGroup);
+            (operator: string | null) => {
+                if (!operator) return;
+                dispatch(
+                    explorerActions.setFilterGroupOperator({
+                        groupId,
+                        operator: operator as FilterGroupOperator,
+                    }),
+                );
             },
-            [filterGroup, items, onChange],
+            [dispatch, groupId],
         );
+
+        const newGroupOperator = useMemo<FilterGroupOperator>(() => {
+            if (!groupNode) return FilterGroupOperator.and;
+            return groupNode.operator === FilterGroupOperator.and
+                ? FilterGroupOperator.or
+                : FilterGroupOperator.and;
+        }, [groupNode]);
+
+        // Validate group node after all hooks
+        if (!groupNode) {
+            return null;
+        }
 
         return (
             <Stack pos="relative" spacing="sm" mb="xxs">
@@ -190,14 +257,8 @@ const FilterGroupForm: FC<Props> = memo(
                                     label: 'Any',
                                 },
                             ]}
-                            value={
-                                isAndFilterGroup(filterGroup)
-                                    ? FilterGroupOperator.and
-                                    : FilterGroupOperator.or
-                            }
-                            onChange={(operator: FilterGroupOperator) =>
-                                onChangeOperator(operator)
-                            }
+                            value={groupNode.operator}
+                            onChange={onChangeOperator}
                         />
                     </Box>
 
@@ -211,53 +272,52 @@ const FilterGroupForm: FC<Props> = memo(
                     pl={36}
                     style={{ flexGrow: 1, overflowY: 'auto' }}
                 >
-                    {items.map((item, index) => (
-                        <React.Fragment key={item.id}>
-                            {!isFilterGroup(item) ? (
-                                <FilterRuleForm
-                                    filterRule={item}
-                                    fields={availableFieldsForGroupRules}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        onChangeItem(index, value)
-                                    }
-                                    onDelete={() => onDeleteItem(index)}
-                                    onConvertToGroup={
-                                        ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH >
-                                        groupDepth
-                                            ? () =>
-                                                  onChangeItem(
-                                                      index,
-                                                      // create new group with opposite operator
-                                                      isAndFilterGroup(
-                                                          filterGroup,
-                                                      )
-                                                          ? {
-                                                                id: uuidv4(),
-                                                                or: [item],
-                                                            }
-                                                          : {
-                                                                id: uuidv4(),
-                                                                and: [item],
-                                                            },
-                                                  )
-                                            : undefined
-                                    }
-                                />
-                            ) : (
-                                <FilterGroupForm
-                                    groupDepth={groupDepth + 1}
-                                    isEditMode={isEditMode}
-                                    filterGroup={item}
-                                    fields={availableFieldsForGroupRules}
-                                    onChange={(value) =>
-                                        onChangeItem(index, value)
-                                    }
-                                    onDelete={() => onDeleteItem(index)}
-                                />
-                            )}
-                        </React.Fragment>
-                    ))}
+                    {groupNode.childIds.map((childId) => {
+                        const childNode = filterTree.byId[childId];
+                        if (!childNode) return null;
+
+                        return (
+                            <React.Fragment key={childId}>
+                                {childNode.type === 'rule' ? (
+                                    <FilterRuleForm
+                                        filterRule={childNode.rule}
+                                        fields={availableFieldsForGroupRules}
+                                        isEditMode={isEditMode}
+                                        onChange={(value) =>
+                                            onChangeItem(childNode.id, value)
+                                        }
+                                        onDelete={() => onDeleteItem(childId)}
+                                        onConvertToGroup={
+                                            ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH >
+                                            groupDepth
+                                                ? () => {
+                                                      // Create new group with opposite operator
+                                                      dispatch(
+                                                          explorerActions.convertFilterRuleToGroup(
+                                                              {
+                                                                  ruleId: childId,
+                                                                  newGroupOperator,
+                                                              },
+                                                          ),
+                                                      );
+                                                  }
+                                                : undefined
+                                        }
+                                    />
+                                ) : (
+                                    <FilterGroupForm
+                                        groupDepth={groupDepth + 1}
+                                        isEditMode={isEditMode}
+                                        groupId={childId}
+                                        filterTree={filterTree}
+                                        fields={availableFieldsForGroupRules}
+                                        itemsMap={itemsMap}
+                                        onDelete={() => onDeleteItem(childId)}
+                                    />
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
                 </Stack>
 
                 {isEditMode &&

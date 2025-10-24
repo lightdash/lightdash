@@ -33,7 +33,6 @@ import {
 } from '../../../../../features/explorer/store';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
-import { useFilteredFields } from '../../../../../hooks/useFilters';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -61,7 +60,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
-    const { addFilter } = useFilteredFields();
     const { track } = useTracking();
 
     const dispatch = useExplorerDispatch();
@@ -134,7 +132,12 @@ const TreeSingleNodeActions: FC<Props> = ({
                             track({
                                 name: EventName.ADD_FILTER_CLICKED,
                             });
-                            addFilter(item, undefined);
+                            dispatch(
+                                explorerActions.addFilterRuleFromField({
+                                    field: item,
+                                    value: undefined,
+                                }),
+                            );
                         }}
                     >
                         Add filter

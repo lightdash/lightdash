@@ -12,6 +12,7 @@ export type ExplorerStoreDispatch = typeof explorerStore.dispatch;
 
 // Export the actions and selectors for easy access
 export { explorerActions } from './explorerSlice';
+export type { FilterTreeNode, FilterTreeState } from './filterTree';
 export * from './hooks';
 export * from './selectors';
 export { useExplorerInitialization } from './useExplorerInitialization';

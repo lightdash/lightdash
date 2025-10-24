@@ -1,4 +1,6 @@
 import {
+    createFilterRuleFromField,
+    getGroupKey,
     getItemId,
     toggleArrayValue,
     type AdditionalMetric,
@@ -7,6 +9,9 @@ import {
     type CustomFormat,
     type Dimension,
     type FieldId,
+    type FilterGroupOperator,
+    type FilterRule,
+    type Filters,
     type Item,
     type Metric,
     type MetricQuery,
@@ -15,25 +20,62 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
+import type { AddFilterRuleArgs } from '@lightdash/common/src/utils/filters';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { v4 as uuidv4 } from 'uuid';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
+    ExplorerSection,
     type ExplorerReduceState,
-    type ExplorerSection,
 } from '../../../providers/Explorer/types';
+import {
+    addFilterRuleToTree,
+    convertRuleToGroup,
+    createEmptyFilterTree,
+    moveNode,
+    normalizeFilters,
+    removeNodeFromTree,
+    setGroupOperator,
+    updateFilterRule,
+    type FilterTreeGroupKey,
+    type FilterTreeState,
+} from './filterTree';
 import { calcColumnOrder } from './utils';
 
-export type ExplorerSliceState = ExplorerReduceState;
+/**
+ * Explorer slice state with single normalized filter tree
+ *
+ * ARCHITECTURE:
+ * - filterTree: Single normalized tree with synthetic root (source of truth)
+ * - metricQuery.filters: Computed from filterTree via selectors (for API calls)
+ * - groupKey stored in rule nodes - no re-computation needed
+ *
+ * See CLAUDE.md for detailed architecture documentation.
+ */
+export type ExplorerSliceState = ExplorerReduceState & {
+    filterTree: FilterTreeState; // Single tree with synthetic root
+};
 
-const initialState: ExplorerSliceState = defaultState;
+// Initialize filterTree from defaultState filters
+const initialState: ExplorerSliceState = {
+    ...defaultState,
+    filterTree: normalizeFilters(
+        defaultState.unsavedChartVersion.metricQuery.filters,
+    ),
+};
 
 const explorerSlice = createSlice({
     name: 'explorer',
     initialState,
     reducers: {
-        reset: (_state, action: PayloadAction<ExplorerSliceState>) => {
-            return action.payload;
+        reset: (_state, action: PayloadAction<ExplorerReduceState>) => {
+            return {
+                ...action.payload,
+                filterTree: normalizeFilters(
+                    action.payload.unsavedChartVersion.metricQuery.filters,
+                ),
+            };
         },
         setTableName: (state, action: PayloadAction<string>) => {
             state.unsavedChartVersion.tableName = action.payload;
@@ -64,8 +106,145 @@ const explorerSlice = createSlice({
             }
         },
 
-        setFilters: (state, action: PayloadAction<MetricQuery['filters']>) => {
-            state.unsavedChartVersion.metricQuery.filters = action.payload;
+        /**
+         * Clear all filters - resets tree to empty state with synthetic root
+         */
+        resetFilterTree: (state) => {
+            state.filterTree = createEmptyFilterTree();
+        },
+
+        /**
+         * Bulk operation for setting default/required filters
+         * Replaces entire filter tree - use for loading saved filters or setting defaults
+         */
+        overrideDefaultFilters: (state, action: PayloadAction<Filters>) => {
+            state.filterTree = normalizeFilters(action.payload);
+        },
+
+        /**
+         * Add a filter from field selection (used by "Add filter" button)
+         * Uses atomic operation to add to tree at root level
+         *
+         * Note: This is the ONLY action that reads from field metadata to determine groupKey.
+         * All other operations read groupKey from the node itself (already stored).
+         */
+        addFilterRuleFromField: (
+            state,
+            action: PayloadAction<Pick<AddFilterRuleArgs, 'field' | 'value'>>,
+        ) => {
+            const { field, value } = action.payload;
+            const groupKey = getGroupKey(field) as
+                | 'dimensions'
+                | 'metrics'
+                | 'tableCalculations';
+
+            const newFilterRule = createFilterRuleFromField(field, value);
+
+            addFilterRuleToTree(
+                state.filterTree,
+                state.filterTree.rootId,
+                groupKey,
+                newFilterRule,
+            );
+
+            if (!state.expandedSections.includes(ExplorerSection.FILTERS)) {
+                state.expandedSections.push(ExplorerSection.FILTERS);
+            }
+        },
+
+        /**
+         * ATOMIC FILTER OPERATIONS
+         *
+         * These actions provide O(1) updates to the filter tree without rebuilding.
+         * groupKey is stored in rule nodes, so most operations don't need it as a parameter.
+         *
+         * Key difference from old architecture:
+         * - OLD: Rebuild entire filter structure on every change
+         * - NEW: Direct byId lookup and atomic update
+         */
+        updateFilterRuleInTree: (
+            state,
+            action: PayloadAction<{
+                ruleId: string;
+                updates: Partial<FilterRule>;
+                groupKey: FilterTreeGroupKey;
+            }>,
+        ) => {
+            const { ruleId, updates, groupKey } = action.payload;
+            updateFilterRule(state.filterTree, ruleId, updates, groupKey);
+        },
+
+        addFilterRuleToTree: (
+            state,
+            action: PayloadAction<{
+                groupKey: FilterTreeGroupKey;
+                parentId: string;
+                rule: FilterRule;
+                index?: number;
+            }>,
+        ) => {
+            const { groupKey, parentId, rule, index } = action.payload;
+            addFilterRuleToTree(
+                state.filterTree,
+                parentId,
+                groupKey,
+                rule,
+                index,
+            );
+
+            if (!state.expandedSections.includes(ExplorerSection.FILTERS)) {
+                state.expandedSections.push(ExplorerSection.FILTERS);
+            }
+        },
+
+        removeFilterRuleFromTree: (
+            state,
+            action: PayloadAction<{
+                ruleId: string;
+            }>,
+        ) => {
+            const { ruleId } = action.payload;
+            removeNodeFromTree(state.filterTree, ruleId);
+        },
+
+        moveFilterRuleInTree: (
+            state,
+            action: PayloadAction<{
+                ruleId: string;
+                newParentId: string;
+                index?: number;
+            }>,
+        ) => {
+            const { ruleId, newParentId, index } = action.payload;
+            moveNode(state.filterTree, ruleId, newParentId, index);
+        },
+
+        setFilterGroupOperator: (
+            state,
+            action: PayloadAction<{
+                groupId: string;
+                operator: FilterGroupOperator;
+            }>,
+        ) => {
+            const { groupId, operator } = action.payload;
+            setGroupOperator(state.filterTree, groupId, operator);
+        },
+
+        convertFilterRuleToGroup: (
+            state,
+            action: PayloadAction<{
+                ruleId: string;
+                newGroupOperator: FilterGroupOperator;
+            }>,
+        ) => {
+            const { ruleId, newGroupOperator } = action.payload;
+            const newGroupId = uuidv4();
+            convertRuleToGroup(
+                state.filterTree,
+                ruleId,
+                newGroupId,
+                newGroupOperator,
+            );
         },
 
         setSortFields: (state, action: PayloadAction<SortField[]>) => {

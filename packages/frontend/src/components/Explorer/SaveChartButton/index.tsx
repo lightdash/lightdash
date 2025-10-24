@@ -15,7 +15,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
-    // Get the merged version (Context chartConfig/pivotConfig + Redux fields)
+    // Get the merged version WITH filters for saving to API
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.mergedUnsavedChartVersion,
     );
