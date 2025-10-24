@@ -1,7 +1,9 @@
 import {
     AuthorizationError,
     DbtExposure,
+    DbtVersionOptionLatest,
     getErrorMessage,
+    isDbtVersion110OrHigher,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
@@ -12,6 +14,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { getDbtVersion } from './dbt/getDbtVersion';
 
 type GenerateExposuresHandlerOptions = {
     projectDir: string;
@@ -53,6 +56,13 @@ export const generateExposuresHandler = async (
     try {
         const absoluteProjectPath = path.resolve(options.projectDir);
 
+        // Detect dbt version to determine format
+        const dbtVersionInfo = await getDbtVersion();
+        const isDbt110Plus =
+            dbtVersionInfo.versionOption === DbtVersionOptionLatest.LATEST
+                ? true
+                : isDbtVersion110OrHigher(dbtVersionInfo.versionOption);
+
         const exposures = await lightdashApi<Record<string, DbtExposure>>({
             method: 'GET',
             url: `/api/v1/projects/${config.context.project}/dbt-exposures`,
@@ -66,14 +76,32 @@ export const generateExposuresHandler = async (
         const outputFilePath =
             options.output ||
             path.join(absoluteProjectPath, 'models', 'lightdash_exposures.yml');
-        const updatedYml = {
-            version: 2 as const,
-            exposures: Object.values(exposures).map(
-                ({ dependsOn, ...rest }) => ({
+
+        // Transform exposures based on dbt version
+        const transformedExposures = Object.values(exposures).map(
+            ({ dependsOn, tags, ...rest }) => {
+                if (isDbt110Plus && tags) {
+                    // For dbt 1.10+, move tags under config
+                    return {
+                        ...rest,
+                        depends_on: dependsOn,
+                        config: {
+                            tags,
+                        },
+                    };
+                }
+                // For older versions, keep tags at top level
+                return {
                     ...rest,
                     depends_on: dependsOn,
-                }),
-            ),
+                    ...(tags ? { tags } : {}),
+                };
+            },
+        );
+
+        const updatedYml = {
+            version: 2 as const,
+            exposures: transformedExposures,
         };
         const ymlString = yaml.dump(updatedYml, {
             quotingType: '"',

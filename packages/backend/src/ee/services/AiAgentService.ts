@@ -1812,60 +1812,53 @@ export class AiAgentService {
                     } satisfies UserModelMessage,
                 ];
 
-                const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
-                    message.ai_prompt_uuid,
-                );
-                const toolResults =
-                    await this.aiAgentModel.getToolResultsForPrompt(
+                const toolCallsAndResults =
+                    await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
-
-                if (toolCalls.length > 0) {
-                    messages.push({
-                        role: 'assistant',
-                        content: toolCalls.map(
-                            (toolCall) =>
-                                ({
-                                    type: 'tool-call',
-                                    toolCallId: toolCall.tool_call_id,
-                                    toolName: toolCall.tool_name,
-                                    input: toolCall.tool_args,
-                                } satisfies ToolCallPart),
-                        ),
-                    } satisfies AssistantModelMessage);
-
-                    messages.push({
-                        role: 'tool',
-                        content: toolResults.map((toolResult) => {
-                            if (
-                                toolResult.toolName === 'proposeChange' &&
-                                toolResult.metadata.status === 'success' &&
-                                toolResult.metadata.userFeedback === 'rejected'
-                            ) {
-                                return {
+                const toolCallmessages = toolCallsAndResults.flatMap(
+                    ({ toolCall, toolResult }) => [
+                        {
+                            role: 'assistant',
+                            content: [
+                                {
+                                    type: 'tool-call' as const,
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName: toolCall.toolName,
+                                    input: toolCall.toolArgs,
+                                },
+                            ] satisfies ToolCallPart[],
+                        } satisfies AssistantModelMessage,
+                        {
+                            role: 'tool',
+                            content: [
+                                {
                                     type: 'tool-result',
                                     toolCallId: toolResult.toolCallId,
                                     toolName: toolResult.toolName,
-                                    output: {
-                                        type: 'json',
-                                        value: `${toolResult.result}\nUser rejected proposed change.`,
-                                    },
-                                } satisfies ToolResultPart;
-                            }
-
-                            return {
-                                type: 'tool-result',
-                                toolCallId: toolResult.toolCallId,
-                                toolName: toolResult.toolName,
-                                output: {
-                                    type: 'json',
-                                    // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                    value: toolResult.result,
+                                    output:
+                                        toolResult.toolName ===
+                                            'proposeChange' &&
+                                        toolResult.metadata.status ===
+                                            'success' &&
+                                        toolResult.metadata.userFeedback ===
+                                            'rejected'
+                                            ? {
+                                                  type: 'json',
+                                                  value: `${toolResult.result}\nUser rejected proposed change.`,
+                                              }
+                                            : {
+                                                  type: 'json',
+                                                  // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                                  value: toolResult.result,
+                                              },
                                 },
-                            } satisfies ToolResultPart;
-                        }),
-                    } satisfies ToolModelMessage);
-                }
+                            ],
+                        } satisfies ToolModelMessage,
+                    ],
+                );
+
+                messages.push(...toolCallmessages);
 
                 if (message.response) {
                     messages.push({

@@ -225,6 +225,7 @@ export class PivotTableService extends BaseService {
                 csvResults,
                 {
                     delimiter: ',',
+                    quoted: true,
                 },
                 (err, output) => {
                     if (err) {

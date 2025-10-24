@@ -1,0 +1,23 @@
+{
+    "extends": "./../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "types": ["node"],
+        "tsBuildInfoFile": "dist/.tsbuildinfo.node"
+    },
+    "include": [
+        "vite.config.ts",
+        "vite.config.*.ts"
+    ],
+    "references": [
+        {
+            "path": "../common"
+        }
+    ]
+}

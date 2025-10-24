@@ -1,3 +1,39 @@
+# [0.2105.0](https://github.com/lightdash/lightdash/compare/0.2104.9...0.2105.0) (2025-10-23)
+
+
+### Features
+
+* quoted: true for pivoted results (consistent with non-pivoted ones) ([#17613](https://github.com/lightdash/lightdash/issues/17613)) ([28b4f16](https://github.com/lightdash/lightdash/commit/28b4f16a4f1c453b0081f9627e6f8936604f0004))
+
+## [0.2104.9](https://github.com/lightdash/lightdash/compare/0.2104.8...0.2104.9) (2025-10-23)
+
+
+### Bug Fixes
+
+* restructure message tool history to support anthropics requirements ([#17611](https://github.com/lightdash/lightdash/issues/17611)) ([342de31](https://github.com/lightdash/lightdash/commit/342de31c2cee771dc292c0e0dff7cd9228562d2f)), closes [#17604](https://github.com/lightdash/lightdash/issues/17604)
+
+## [0.2104.8](https://github.com/lightdash/lightdash/compare/0.2104.7...0.2104.8) (2025-10-23)
+
+
+### Bug Fixes
+
+* add tableCalculations to validateFilterRules parameters ([#17605](https://github.com/lightdash/lightdash/issues/17605)) ([b40c5b8](https://github.com/lightdash/lightdash/commit/b40c5b801c2cbc47c8cbfbd6ff110abe9298b266))
+
+## [0.2104.7](https://github.com/lightdash/lightdash/compare/0.2104.6...0.2104.7) (2025-10-23)
+
+
+### Bug Fixes
+
+* extract first and last name from OIDC profile JSON ([#17597](https://github.com/lightdash/lightdash/issues/17597)) ([12d787a](https://github.com/lightdash/lightdash/commit/12d787aae6e23b03c0afd5bbef4b3298cc574e17)), closes [#17601](https://github.com/lightdash/lightdash/issues/17601)
+* table calculation e2e test ([#17602](https://github.com/lightdash/lightdash/issues/17602)) ([3fcf098](https://github.com/lightdash/lightdash/commit/3fcf098898d188bfc77cb6ad2d324d7f3e77483f))
+
+## [0.2104.6](https://github.com/lightdash/lightdash/compare/0.2104.5...0.2104.6) (2025-10-23)
+
+
+### Bug Fixes
+
+* add config for generate-exposures on dbt 1.10 ([#17584](https://github.com/lightdash/lightdash/issues/17584)) ([c6cb4c2](https://github.com/lightdash/lightdash/commit/c6cb4c20c9a13d727a54bff74b5420e43336a8eb))
+
 ## [0.2104.5](https://github.com/lightdash/lightdash/compare/0.2104.4...0.2104.5) (2025-10-22)
 
 

@@ -1,12 +1,12 @@
 import { getObjectValue } from '@lightdash/common';
-import express from 'express';
+import express, { type Router } from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const savedChartRouter = express.Router();
+export const savedChartRouter: Router = express.Router();
 
 savedChartRouter.get(
     '/:savedQueryUuidOrSlug',
