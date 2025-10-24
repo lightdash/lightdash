@@ -18,6 +18,8 @@ type ToolCallPaperProps = {
     title: ReactNode;
     icon: MantineIconProps['icon'];
     defaultOpened?: boolean;
+    opened?: boolean;
+    onToggle?: (opened: boolean) => void;
     variant?: 'default' | 'dashed';
     hasError?: boolean;
     rightAction?: ReactNode;
@@ -28,11 +30,25 @@ export const ToolCallPaper = ({
     title,
     icon,
     defaultOpened = true,
+    opened: controlledOpened,
+    onToggle,
     variant = 'default',
     hasError,
     rightAction,
 }: ToolCallPaperProps) => {
-    const [opened, { toggle }] = useDisclosure(defaultOpened);
+    const [internalOpened, { toggle: internalToggle }] =
+        useDisclosure(defaultOpened);
+
+    const isControlled = controlledOpened !== undefined;
+    const opened = isControlled ? controlledOpened : internalOpened;
+
+    const handleToggle = () => {
+        if (isControlled && onToggle) {
+            onToggle(!opened);
+        } else {
+            internalToggle();
+        }
+    };
 
     const styles: MantineStyleProp = (theme) => ({
         borderStyle: variant === 'dashed' ? 'dashed' : null,
@@ -48,7 +64,7 @@ export const ToolCallPaper = ({
             style={styles}
             shadow={opened ? 'none' : undefined}
         >
-            <UnstyledButton onClick={toggle} w="100%" h="18px">
+            <UnstyledButton onClick={handleToggle} w="100%" h="18px">
                 <Group justify="space-between" w="100%" h="100%">
                     <Group gap="xs">
                         <MantineIcon

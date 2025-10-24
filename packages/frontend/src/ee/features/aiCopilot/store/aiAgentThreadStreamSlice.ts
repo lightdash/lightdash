@@ -7,12 +7,20 @@ type ToolCall = {
     toolArgs: unknown;
 };
 
+type Reasoning = {
+    reasoningId: string;
+    parts: string[];
+};
+
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
     isStreaming: boolean;
     toolCalls: ToolCall[];
+    reasoning: Reasoning[];
+    reasoningPanelOpen: boolean;
+    reasoningPanelUserInteracted: boolean;
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -30,6 +38,9 @@ const initialThread: Omit<
     content: '',
     isStreaming: true,
     toolCalls: [],
+    reasoning: [],
+    reasoningPanelOpen: false,
+    reasoningPanelUserInteracted: false,
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -144,6 +155,62 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.improveContextNotification = undefined;
             }
         },
+        addReasoning: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                reasoningId: string;
+                text: string;
+            }>,
+        ) => {
+            const { threadUuid, reasoningId, text } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                const existingIndex = streamingThread.reasoning.findIndex(
+                    (r: Reasoning) => r.reasoningId === reasoningId,
+                );
+                if (existingIndex !== -1) {
+                    const existing = streamingThread.reasoning[existingIndex];
+
+                    // Find which part this text is continuing
+                    const matchingPartIndex = existing.parts.findIndex((part) =>
+                        text.startsWith(part),
+                    );
+
+                    if (matchingPartIndex !== -1) {
+                        // Update the matching part with longer text
+                        existing.parts[matchingPartIndex] = text;
+                    } else {
+                        // No match found - new part
+                        existing.parts.push(text);
+                    }
+                } else {
+                    // New reasoning
+                    streamingThread.reasoning.push({
+                        reasoningId,
+                        parts: [text],
+                    });
+                }
+                // Open panel when reasoning is added during streaming
+                if (
+                    streamingThread.isStreaming &&
+                    !streamingThread.reasoningPanelUserInteracted
+                ) {
+                    streamingThread.reasoningPanelOpen = true;
+                }
+            }
+        },
+        toggleReasoningPanel: (
+            state,
+            action: PayloadAction<{ threadUuid: string; opened: boolean }>,
+        ) => {
+            const { threadUuid, opened } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.reasoningPanelOpen = opened;
+                streamingThread.reasoningPanelUserInteracted = true;
+            }
+        },
     },
 });
 
@@ -153,6 +220,8 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
+    addReasoning,
+    toggleReasoningPanel,
     setImproveContextNotification,
     clearImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

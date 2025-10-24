@@ -2136,14 +2136,17 @@ export class AiAgentService {
             );
         };
 
-        const storeReasoning: StoreReasoningFn = async (args) => {
+        const storeReasoning: StoreReasoningFn = async (
+            promptUuid,
+            reasonings,
+        ) => {
             void wrapSentryTransaction(
                 'AiAgent.storeReasoning',
                 {
-                    promptUuid: args.promptUuid,
-                    reasoningId: args.reasoningId,
+                    promptUuid,
+                    reasoningCount: reasonings.length,
                 },
-                () => this.aiAgentModel.createReasoning(args),
+                () => this.aiAgentModel.createReasoning(promptUuid, reasonings),
             );
         };
 

@@ -123,11 +123,13 @@ export type StoreToolResultsFn = (
     }>,
 ) => Promise<void>;
 
-export type StoreReasoningFn = (data: {
-    promptUuid: string;
-    reasoningId: string;
-    text: string;
-}) => Promise<void>;
+export type StoreReasoningFn = (
+    promptUuid: string,
+    reasonings: Array<{
+        reasoningId: string;
+        text: string;
+    }>,
+) => Promise<void>;
 
 export type TrackEventFn = (
     event: AiAgentResponseStreamed | AiAgentToolCallEvent,

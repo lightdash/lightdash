@@ -162,8 +162,20 @@ const AssistantBubbleContent: FC<{
                 </Paper>
             )}
 
+            {isStreaming && streamingState?.reasoning && (
+                <AiReasoning
+                    reasoning={streamingState.reasoning}
+                    type="streaming"
+                    threadUuid={message.threadUuid}
+                    reasoningPanelOpen={streamingState.reasoningPanelOpen}
+                />
+            )}
             {!isStreaming && message.reasoning.length > 0 && (
-                <AiReasoning reasoning={message.reasoning} />
+                <AiReasoning
+                    reasoning={message.reasoning}
+                    type="persisted"
+                    threadUuid={message.threadUuid}
+                />
             )}
             {isStreaming && (
                 <AiChartToolCalls
