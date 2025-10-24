@@ -545,6 +545,8 @@ export const streamAgentResponse = async ({
                 const reasoningsToStore = step.reasoning
                     .map((reasoning) => {
                         if (
+                            reasoning.text &&
+                            reasoning.text.length > 0 &&
                             'providerMetadata' in reasoning &&
                             typeof reasoning.providerMetadata === 'object' &&
                             reasoning.providerMetadata !== null &&
