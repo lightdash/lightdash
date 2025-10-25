@@ -55,7 +55,7 @@
         "@mastra/core": "^0.16.0",
         "@mastra/evals": "^0.13.4",
         "@mastra/schema-compat": "^0.11.2",
-        "@modelcontextprotocol/sdk": "^1.17.5",
+        "@modelcontextprotocol/sdk": "^1.20.1",
         "@node-oauth/oauth2-server": "^5.2.0",
         "@octokit/app": "^14.0.2",
         "@octokit/auth-app": "^6.0.3",

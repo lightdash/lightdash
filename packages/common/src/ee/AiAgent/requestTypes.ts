@@ -55,6 +55,9 @@ export type AiWebAppPrompt = AiPrompt & {
 export const isSlackPrompt = (prompt: AiPrompt): prompt is SlackPrompt =>
     'slackUserId' in prompt;
 
+export const isMcpPrompt = (prompt: AiPrompt): prompt is AiWebAppPrompt =>
+    'userUuid' in prompt && !prompt.promptUuid && !prompt.threadUuid;
+
 export type CreateSlackPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
