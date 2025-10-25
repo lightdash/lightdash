@@ -193,13 +193,13 @@ const getMockedAsyncQueryService = (
         projectParametersModel: {} as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
-        projectCompileLogModel: {} as ProjectCompileLogModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             s3Client: {} as S3Client,
             downloadFileModel: {} as DownloadFileModel,
         }),
         permissionsService: {} as PermissionsService,
+        projectCompileLogModel: {} as ProjectCompileLogModel,
         ...overrides,
     });
 
