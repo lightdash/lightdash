@@ -118,6 +118,7 @@ export function useAiAgentThreadStreamMutation() {
                                 case 'tool-findExplores':
                                 case 'tool-findFields':
                                 case 'tool-findDashboards':
+                                case 'tool-findContent':
                                 case 'tool-findCharts':
                                 case 'tool-improveContext':
                                 case 'tool-searchFieldValues':
