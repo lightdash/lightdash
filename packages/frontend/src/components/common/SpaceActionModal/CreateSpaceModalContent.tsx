@@ -14,7 +14,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle, IconLock, IconUsers } from '@tabler/icons-react';
 import upperFirst from 'lodash/upperFirst';
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -135,20 +135,30 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
 
                     {canSetSpaceAccess ? (
                         <Radio.Group
-                            value={privateAccessType}
+                            value={privateAccessType || ''}
                             onChange={(value: SpacePrivateAccessType) => {
                                 onPrivateAccessTypeChange(value);
                             }}
                         >
                             <Stack spacing="xs">
                                 <Radio
-                                    label="Private"
+                                    label={
+                                        <Group spacing="xs">
+                                            <MantineIcon icon={IconLock} />
+                                            <Text fw={500}>Private</Text>
+                                        </Group>
+                                    }
                                     description="Only you and admins can access this space."
                                     value={SpacePrivateAccessType.PRIVATE}
                                 />
 
                                 <Radio
-                                    label="Shared"
+                                    label={
+                                        <Group spacing="xs">
+                                            <MantineIcon icon={IconUsers} />
+                                            <Text fw={500}>Shared</Text>
+                                        </Group>
+                                    }
                                     description="Choose who can access this space."
                                     value={SpacePrivateAccessType.SHARED}
                                 />
