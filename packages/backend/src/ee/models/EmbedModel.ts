@@ -18,6 +18,8 @@ export class EmbedModel {
                 'embedding.encoded_secret',
                 'embedding.dashboard_uuids',
                 'embedding.allow_all_dashboards',
+                'embedding.chart_uuids',
+                'embedding.allow_all_charts',
                 'embedding.created_at',
                 'users.user_uuid',
                 'users.first_name',
@@ -60,6 +62,12 @@ export class EmbedModel {
             (dashboard) => dashboard.dashboard_uuid,
         );
 
+        const charts = await this.database('saved_queries')
+            .select()
+            .whereIn('saved_query_uuid', embed.chart_uuids);
+
+        const validChartUuids = charts.map((chart) => chart.saved_query_uuid);
+
         return {
             projectUuid: embed.project_uuid,
             organization: {
@@ -70,6 +78,8 @@ export class EmbedModel {
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
             allowAllDashboards: embed.allow_all_dashboards,
+            chartUuids: validChartUuids,
+            allowAllCharts: embed.allow_all_charts,
             createdAt: embed.created_at,
             user: {
                 userUuid: embed.user_uuid,
@@ -82,9 +92,11 @@ export class EmbedModel {
     async save(
         projectUuid: string,
         encodedSecret: Buffer,
-        dashboardUuids: string[],
         userUuid: string,
+        dashboardUuids: string[] = [],
         allowAllDashboards: boolean = false,
+        chartUuids: string[] = [],
+        allowAllCharts: boolean = false,
     ): Promise<void> {
         await this.database('embedding')
             .insert({
@@ -93,6 +105,8 @@ export class EmbedModel {
                 dashboard_uuids: dashboardUuids,
                 created_by: userUuid,
                 allow_all_dashboards: allowAllDashboards,
+                chart_uuids: chartUuids,
+                allow_all_charts: allowAllCharts,
             })
             .onConflict('project_uuid')
             .merge();
@@ -100,12 +114,34 @@ export class EmbedModel {
 
     async updateDashboards(
         projectUuid: string,
-        { dashboardUuids, allowAllDashboards }: UpdateEmbed,
+        {
+            dashboardUuids,
+            allowAllDashboards,
+        }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ): Promise<void> {
         await this.database('embedding')
             .update({
                 dashboard_uuids: dashboardUuids,
                 allow_all_dashboards: allowAllDashboards,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async updateConfig(
+        projectUuid: string,
+        {
+            dashboardUuids,
+            allowAllDashboards,
+            chartUuids,
+            allowAllCharts,
+        }: UpdateEmbed,
+    ): Promise<void> {
+        await this.database('embedding')
+            .update({
+                dashboard_uuids: dashboardUuids,
+                allow_all_dashboards: allowAllDashboards,
+                chart_uuids: chartUuids,
+                allow_all_charts: allowAllCharts,
             })
             .where('project_uuid', projectUuid);
     }

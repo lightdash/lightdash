@@ -63,6 +63,8 @@ export type OssEmbed = {
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;
+    chartUuids: string[];
+    allowAllCharts: boolean;
     createdAt: string;
     user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
 };
