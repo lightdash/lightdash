@@ -15,7 +15,9 @@ import {
     getFilterRules,
     getItemId,
     InlineErrorType,
+    isChartValidationError,
     isDashboardFieldTarget,
+    isDashboardValidationError,
     isExploreError,
     isSqlTableCalculation,
     isTemplateTableCalculation,
@@ -810,6 +812,21 @@ export class ValidationService extends BaseService {
         // Filter private content to developers
         return Promise.all(
             validations.map(async (validation) => {
+                const isDeleted =
+                    (isDashboardValidationError(validation) &&
+                        !validation.dashboardUuid) ||
+                    (isChartValidationError(validation) &&
+                        !validation.chartUuid);
+
+                if (isDeleted) {
+                    return {
+                        ...validation,
+                        chartUuid: undefined,
+                        dashboardUuid: undefined,
+                        name: 'Deleted content',
+                    };
+                }
+
                 const space = spaces.find(
                     (s) => s.uuid === validation.spaceUuid,
                 );

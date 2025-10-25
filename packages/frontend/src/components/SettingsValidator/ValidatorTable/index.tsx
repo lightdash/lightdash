@@ -117,23 +117,9 @@ const TableValidationItem = forwardRef<
                         <Icon validationError={validationError} />
 
                         <Stack spacing={4}>
-                            {isDeleted(validationError) ? (
-                                <Tooltip
-                                    label={`This ${
-                                        isChartValidationError(validationError)
-                                            ? 'chart'
-                                            : 'dashboard'
-                                    } has been deleted`}
-                                >
-                                    <Text fw={600} color={'gray.6'}>
-                                        {getErrorName(validationError)}
-                                    </Text>
-                                </Tooltip>
-                            ) : (
-                                <Text fw={600}>
-                                    {getErrorName(validationError)}
-                                </Text>
-                            )}
+                            <Text fw={600}>
+                                {getErrorName(validationError)}
+                            </Text>
 
                             {(isChartValidationError(validationError) ||
                                 isDashboardValidationError(validationError)) &&
