@@ -16,6 +16,10 @@ const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     gitIntegration,
     onItemClick,
     searchResults,
+    tableName,
+    treeSectionType,
+    expandedGroups,
+    onToggleGroup,
 }) => {
     const nodeMap = useMemo(
         () => getNodeMapFromItemsMap(itemsMap, groupDetails),
@@ -39,6 +43,10 @@ const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
             gitIntegration,
             onItemClick,
             searchResults,
+            tableName,
+            treeSectionType,
+            expandedGroups,
+            onToggleGroup,
         }),
         [
             itemsMap,
@@ -53,6 +61,10 @@ const TreeProviderComponent: FC<React.PropsWithChildren<TreeProviderProps>> = ({
             gitIntegration,
             onItemClick,
             searchResults,
+            tableName,
+            treeSectionType,
+            expandedGroups,
+            onToggleGroup,
         ],
     );
 
