@@ -1,3 +1,10 @@
+# [0.2109.0](https://github.com/lightdash/lightdash/compare/0.2108.1...0.2109.0) (2025-10-27)
+
+
+### Features
+
+* improved search box ai selection ([#17638](https://github.com/lightdash/lightdash/issues/17638)) ([6ce5f80](https://github.com/lightdash/lightdash/commit/6ce5f8085997757f6213f5a59bb04bb217db1dec))
+
 ## [0.2108.1](https://github.com/lightdash/lightdash/compare/0.2108.0...0.2108.1) (2025-10-24)
 
 
