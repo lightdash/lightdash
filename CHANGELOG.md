@@ -1,3 +1,10 @@
+# [0.2110.0](https://github.com/lightdash/lightdash/compare/0.2109.0...0.2110.0) (2025-10-27)
+
+
+### Features
+
+* add project to login on cli ([#17655](https://github.com/lightdash/lightdash/issues/17655)) ([46d5208](https://github.com/lightdash/lightdash/commit/46d52080a707ae41fc91457cb2db98701c298c78))
+
 # [0.2109.0](https://github.com/lightdash/lightdash/compare/0.2108.1...0.2109.0) (2025-10-27)
 
 
