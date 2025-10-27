@@ -471,10 +471,11 @@ export const AiAgentFormSetup = ({
                                     }
                                     description={
                                         <>
-                                            Display the AI agent's reasoning
-                                            process while it works, showing how
-                                            it thinks through problems and
-                                            arrives at answers.
+                                            Displays the agent's reasoning
+                                            process while generating responses,
+                                            helping you understand how it thinks
+                                            through problems and reaches
+                                            conclusions.
                                         </>
                                     }
                                     {...form.getInputProps('enableReasoning', {
