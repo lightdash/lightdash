@@ -68,7 +68,11 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import { getLegendStyle } from './echartsStyleUtils';
+import {
+    getBarBorderRadius,
+    getBarStyle,
+    getLegendStyle,
+} from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -1807,13 +1811,111 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
+        const isHorizontal = validCartesianConfig?.layout.flipAxes;
+
         const seriesWithValidStack = series.map<EChartSeries>((serie) => {
-            return {
+            const baseConfig = {
                 ...serie,
                 color: getSeriesColor(serie),
                 stack: getValidStack(serie),
             };
+
+            // Apply bar styling for bar charts
+            if (serie.type === CartesianSeriesType.BAR) {
+                return {
+                    ...baseConfig,
+                    ...getBarStyle(),
+                    // Non-stacked bars get border radius on all bars
+                    ...((!serie.stack ||
+                        getValidStack(serie) === undefined) && {
+                        itemStyle: {
+                            borderRadius: getBarBorderRadius(
+                                !!isHorizontal,
+                                true,
+                            ),
+                        },
+                    }),
+                };
+            }
+
+            return baseConfig;
         });
+
+        // Add border radius to stacked bar charts - per data point approach
+        // Only apply to regular stacked charts (not 100% stacked)
+        const isStack100 =
+            validCartesianConfig?.layout?.stack === StackType.PERCENT;
+
+        const stackedBarSeries = seriesWithValidStack.filter(
+            (s) => s.type === CartesianSeriesType.BAR && s.stack && !isStack100,
+        );
+
+        if (stackedBarSeries.length > 0) {
+            // Build stackInfo to track which series is the end for each data point
+            const stackInfo: Record<string, (number | null)[]> = {};
+
+            for (let i = 0; i < rows.length; i++) {
+                for (let j = 0; j < stackedBarSeries.length; j++) {
+                    const serie = stackedBarSeries[j];
+                    const stackName = serie.stack!;
+
+                    if (!stackInfo[stackName]) {
+                        stackInfo[stackName] = new Array(rows.length).fill(
+                            null,
+                        );
+                    }
+
+                    const valueFieldHash = isHorizontal
+                        ? serie.encode?.x
+                        : serie.encode?.y;
+
+                    if (!valueFieldHash) continue;
+
+                    const rawValue = rows[i]?.[valueFieldHash]?.value?.raw;
+                    const hasData =
+                        rawValue !== null &&
+                        rawValue !== undefined &&
+                        rawValue !== '-';
+
+                    if (hasData) {
+                        stackInfo[stackName][i] = j; // Track last series with data
+                    }
+                }
+            }
+
+            // Now build data arrays with border radius only where needed
+            stackedBarSeries.forEach((serie, seriesIndex) => {
+                const stackName = serie.stack!;
+                const valueFieldHash = isHorizontal
+                    ? serie.encode?.x
+                    : serie.encode?.y;
+
+                if (!valueFieldHash) return;
+
+                // Build data array - each element can be a value or {value, itemStyle}
+                serie.data = rows.map((row, dataIndex) => {
+                    const value = row[valueFieldHash]?.value?.raw;
+                    const isStackEnd =
+                        stackInfo[stackName]?.[dataIndex] === seriesIndex;
+
+                    if (isStackEnd) {
+                        return {
+                            value,
+                            itemStyle: {
+                                borderRadius: getBarBorderRadius(
+                                    !!isHorizontal,
+                                    true,
+                                ),
+                            },
+                        };
+                    }
+
+                    // Just return the value for non-end points
+                    return value;
+                });
+            });
+        }
+
         return [
             ...seriesWithValidStack,
             ...getStackTotalSeries(
@@ -1825,10 +1927,11 @@ const useEchartsCartesianConfig = (
             ),
         ];
     }, [
-        series,
-        rows,
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.stack,
+        series,
+        rows,
         validCartesianConfigLegend,
         getSeriesColor,
     ]);
@@ -2104,7 +2207,10 @@ const useEchartsCartesianConfig = (
                         // When flipping axes, the axisValueLabel is the value, not the serie name
                         return params[0].seriesName;
                     }
-                    return params[0].axisValueLabel;
+
+                    // When using data arrays, axisValueLabel might be undefined
+                    // Fall back to params[0].name which should be the category value
+                    return params[0].axisValueLabel || params[0].name;
                 };
                 // When flipping axes, we get all series in the chart
                 const tooltipRows = params
@@ -2128,13 +2234,29 @@ const useEchartsCartesianConfig = (
                                         ? dimensionNames[encode?.y[0]]
                                         : '';
                             }
-                            const tooltipValue = (
-                                value as Record<string, unknown>
-                            )[dim];
+
+                            // Get tooltip value - handle both dataset and data array approaches
+                            let tooltipValue: unknown;
                             if (
                                 value &&
                                 typeof value === 'object' &&
                                 dim in value
+                            ) {
+                                // Dataset approach: value is the full row object
+                                tooltipValue = (
+                                    value as Record<string, unknown>
+                                )[dim];
+                            } else if (
+                                typeof value === 'number' ||
+                                typeof value === 'string'
+                            ) {
+                                // Data array approach: value is provided directly by ECharts
+                                tooltipValue = value;
+                            }
+
+                            if (
+                                tooltipValue !== undefined &&
+                                tooltipValue !== null
                             ) {
                                 return `<tr>
                                 <td>${marker}</td>
@@ -2286,10 +2408,59 @@ const useEchartsCartesianConfig = (
         theme,
     ]);
 
-    const eChartsOptions = useMemo(
-        () => ({
-            xAxis: axes.xAxis,
-            yAxis: axes.yAxis,
+    const eChartsOptions = useMemo(() => {
+        // Check if any series are using data arrays (stacked bars)
+        const hasDataArraySeries = stackedSeriesWithColorAssignments?.some(
+            (s) => s.data !== undefined,
+        );
+
+        // If using data arrays, we need to provide category data to the category axis
+        let modifiedAxes = { xAxis: axes.xAxis, yAxis: axes.yAxis };
+        if (hasDataArraySeries) {
+            const categoryFieldHash = validCartesianConfig?.layout.flipAxes
+                ? validCartesianConfig?.layout?.yField?.[0]
+                : validCartesianConfig?.layout?.xField;
+
+            if (categoryFieldHash) {
+                // Extract category values from rows
+                const categoryData = rows.map(
+                    (row) => row[categoryFieldHash]?.value?.raw,
+                );
+
+                // Add data to the appropriate axis
+                if (validCartesianConfig?.layout.flipAxes) {
+                    // Horizontal: categories on y-axis
+                    modifiedAxes = {
+                        xAxis: axes.xAxis,
+                        yAxis: axes.yAxis.map((axis, idx) =>
+                            idx === 0
+                                ? ({
+                                      ...axis,
+                                      data: categoryData,
+                                  } as typeof axis)
+                                : axis,
+                        ),
+                    };
+                } else {
+                    // Vertical: categories on x-axis
+                    modifiedAxes = {
+                        xAxis: axes.xAxis.map((axis, idx) =>
+                            idx === 0
+                                ? ({
+                                      ...axis,
+                                      data: categoryData,
+                                  } as typeof axis)
+                                : axis,
+                        ),
+                        yAxis: axes.yAxis,
+                    };
+                }
+            }
+        }
+
+        return {
+            xAxis: modifiedAxes.xAxis,
+            yAxis: modifiedAxes.yAxis,
             useUTC: true,
             series: stackedSeriesWithColorAssignments,
             animation: !(isInDashboard || minimal),
@@ -2305,20 +2476,23 @@ const useEchartsCartesianConfig = (
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],
-        }),
-        [
-            axes.xAxis,
-            axes.yAxis,
-            stackedSeriesWithColorAssignments,
-            isInDashboard,
-            minimal,
-            legendConfigWithInstructionsTooltip,
-            dataToRender,
-            tooltip,
-            theme?.other.chartFont,
-            currentGrid,
-        ],
-    );
+        };
+    }, [
+        axes.xAxis,
+        axes.yAxis,
+        stackedSeriesWithColorAssignments,
+        isInDashboard,
+        minimal,
+        legendConfigWithInstructionsTooltip,
+        dataToRender,
+        tooltip,
+        theme?.other.chartFont,
+        currentGrid,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout.xField,
+        validCartesianConfig?.layout.yField,
+        rows,
+    ]);
 
     if (
         !itemsMap ||
