@@ -1,3 +1,10 @@
+## [0.2113.1](https://github.com/lightdash/lightdash/compare/0.2113.0...0.2113.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* table calculations when filtering non selected metric ([#17660](https://github.com/lightdash/lightdash/issues/17660)) ([1027863](https://github.com/lightdash/lightdash/commit/1027863640891c3ff31312f1e641eb9987eca4be))
+
 # [0.2113.0](https://github.com/lightdash/lightdash/compare/0.2112.0...0.2113.0) (2025-10-27)
 
 
