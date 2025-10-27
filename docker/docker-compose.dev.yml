@@ -84,10 +84,13 @@ x-lightdash-base: &lightdash-base
 
 services:
     minio:
-        image: bitnami/minio:latest
+        image: coollabsio/minio:latest
         ports:
             - '9000:9000'
             - '9001:9001' # for minio console
+        volumes:
+            - ./init-minio.sh:/init-minio.sh
+        entrypoint: '/init-minio.sh'
         environment:
             - MINIO_ROOT_USER=${MINIO_ROOT_USER}
             - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
