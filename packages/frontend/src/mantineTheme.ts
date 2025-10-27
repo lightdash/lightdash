@@ -171,6 +171,7 @@ export const getMantineThemeOverride = (overrides?: {
         other: {
             transitionTimingFunction: 'ease-in-out',
             transitionDuration: 200, // in ms
+            chartFont: 'Inter, sans-serif',
         },
 
         globalStyles: (theme) => ({
