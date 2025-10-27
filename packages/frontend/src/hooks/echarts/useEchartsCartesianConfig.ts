@@ -68,6 +68,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { getLegendStyle } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2265,8 +2266,16 @@ const useEchartsCartesianConfig = (
             series,
         );
 
+        // Check if we have any line charts in the series
+        const hasLineCharts = series.some(
+            (s) =>
+                s.type === CartesianSeriesType.LINE ||
+                s.type === CartesianSeriesType.AREA,
+        );
+
         return {
             ...mergedLegendConfig,
+            ...getLegendStyle(theme, hasLineCharts ? 'line' : 'square'),
             tooltip: legendDoubleClickTooltip,
         };
     }, [
@@ -2274,6 +2283,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfigLegend,
         series,
+        theme,
     ]);
 
     const eChartsOptions = useMemo(

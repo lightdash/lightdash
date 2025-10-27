@@ -10,6 +10,7 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { getLegendStyle } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -176,6 +177,7 @@ const useEchartsPieConfig = (
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
+                ...getLegendStyle(theme, 'square'),
                 formatter: (name) => {
                     return name.length >
                         (legendMaxItemLength ??
