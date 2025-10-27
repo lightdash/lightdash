@@ -186,6 +186,12 @@ ${styles.bold('Examples:')}
         'Login using OAuth2 flow (opens browser for authentication)',
         false,
     )
+    .option(
+        '--project <project uuid>',
+        'Select a project by UUID after login',
+        parseProjectArgument,
+        undefined,
+    )
     .option('--verbose', undefined, false)
     .action(login);
 
