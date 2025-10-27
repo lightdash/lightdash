@@ -36,6 +36,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isParameterInteractivityEnabled,
     LightdashSessionUser,
     MetricQuery,
     NotFoundError,
@@ -473,7 +474,7 @@ export class EmbedService extends BaseService {
             isPrivate: false,
             access: [],
             dashboardFiltersInteractivity: account.access.filtering,
-            canChangeParameters: account.access.canChangeParameters,
+            parameterInteractivity: account.access.parameters,
             canExportCsv,
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
@@ -923,7 +924,10 @@ export class EmbedService extends BaseService {
 
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
         const acceptedUserParameters =
-            account.access.canChangeParameters && parameters ? parameters : {};
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            parameters
+                ? parameters
+                : {};
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             explore,
@@ -1034,7 +1038,8 @@ export class EmbedService extends BaseService {
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         const acceptedUserParameters =
-            account.access.canChangeParameters && userParameters
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            userParameters
                 ? userParameters
                 : {};
         const combinedParameters = await this.projectService.combineParameters(
@@ -1179,7 +1184,8 @@ export class EmbedService extends BaseService {
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         const acceptedUserParameters =
-            account.access.canChangeParameters && userParameters
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            userParameters
                 ? userParameters
                 : {};
         const combinedParameters = await this.projectService.combineParameters(
@@ -1271,7 +1277,8 @@ export class EmbedService extends BaseService {
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         const acceptedUserParameters =
-            account.access.canChangeParameters && userParameters
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            userParameters
                 ? userParameters
                 : {};
         const combinedParameters = await this.projectService.combineParameters(

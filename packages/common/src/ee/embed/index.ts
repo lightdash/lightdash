@@ -48,10 +48,18 @@ export type DashboardFilterInteractivityOptions = z.infer<
     typeof DashboardFilterInteractivityOptionsSchema
 >;
 
+export const ParameterInteractivityOptionsSchema = z.object({
+    enabled: z.boolean(),
+});
+
+export type ParameterInteractivityOptions = z.infer<
+    typeof ParameterInteractivityOptionsSchema
+>;
+
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
-    canChangeParameters: z.boolean().optional(),
+    parameterInteractivity: ParameterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
@@ -109,7 +117,9 @@ type CommonEmbedJwtContent = {
         // Should the filters be rendered hidden or visible in the UI
         hidden?: boolean;
     };
-    canChangeParameters?: boolean;
+    parameterInteractivity?: {
+        enabled: boolean;
+    };
     canExportCsv?: boolean;
     canExportImages?: boolean;
     canDateZoom?: boolean;
@@ -192,4 +202,10 @@ export function isFilterInteractivityEnabled(
                 `Unknown FilterInteractivityValue ${filterInteractivityValue}`,
             );
     }
+}
+
+export function isParameterInteractivityEnabled(
+    parameterInteractivityOptions?: ParameterInteractivityOptions,
+): boolean {
+    return parameterInteractivityOptions?.enabled ?? false;
 }
