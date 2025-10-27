@@ -20,7 +20,10 @@ import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import { compile } from './compile';
-import { createProject } from './createProject';
+import {
+    createProject,
+    resolveOrganizationCredentialsName,
+} from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
@@ -35,6 +38,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
+    organizationCredentials?: string;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -218,6 +222,23 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         options.skipDbtCompile = true;
         options.skipWarehouseCatalog = true;
     }
+
+    // Resolve organization credentials early before doing any heavy work
+    if (options.organizationCredentials) {
+        try {
+            await resolveOrganizationCredentialsName(
+                options.organizationCredentials,
+            );
+        } catch (error) {
+            console.error(
+                styles.error(
+                    error instanceof Error ? error.message : 'Unknown error',
+                ),
+            );
+            process.exit(1);
+        }
+    }
+
     const dbtVersion = await getDbtVersion();
     await checkLightdashVersion();
     const executionId = uuidv4();

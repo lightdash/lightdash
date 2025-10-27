@@ -8411,6 +8411,51 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_OrganizationWarehouseCredentials.organizationWarehouseCredentialsUuid-or-name-or-description-or-warehouseType_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "organizationWarehouseCredentialsUuid",
+                    "warehouseType"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OrganizationWarehouseCredentialsSummary": {
+                "$ref": "#/components/schemas/Pick_OrganizationWarehouseCredentials.organizationWarehouseCredentialsUuid-or-name-or-description-or-warehouseType_"
+            },
+            "ApiOrganizationWarehouseCredentialsSummaryListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationWarehouseCredentialsSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiOrganizationWarehouseCredentialsResponse": {
                 "properties": {
                     "results": {
@@ -21383,7 +21428,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2117.0",
+        "version": "0.2118.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -21434,7 +21479,14 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsSummaryListResponse"
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -21454,7 +21506,17 @@
                 "summary": "List warehouse credentials",
                 "tags": ["Organization Warehouse Credentials"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "description": "If true, returns only summaries (name, type) accessible to all members. If false/undefined, returns full credentials requiring manage permission.",
+                        "in": "query",
+                        "name": "summary",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
             },
             "post": {
                 "operationId": "CreateOrganizationWarehouseCredentials",
