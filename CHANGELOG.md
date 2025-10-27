@@ -1,3 +1,10 @@
+# [0.2113.0](https://github.com/lightdash/lightdash/compare/0.2112.0...0.2113.0) (2025-10-27)
+
+
+### Features
+
+* **perf:** only call getNodeMapFromItemsMap once per section at the root level and memoize it ([#17651](https://github.com/lightdash/lightdash/issues/17651)) ([7090a91](https://github.com/lightdash/lightdash/commit/7090a91c772dc7f4cf6b2ce0c87e16de182688b2))
+
 # [0.2112.0](https://github.com/lightdash/lightdash/compare/0.2111.0...0.2112.0) (2025-10-27)
 
 
