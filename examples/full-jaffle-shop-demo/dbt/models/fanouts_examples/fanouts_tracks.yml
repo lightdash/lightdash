@@ -1,9 +1,9 @@
 version: 2
 models:
   - name: fanouts_tracks
-    meta: 
-      required_attributes: 
-        is_admin_saas_demo: 'true'
+    meta:
+      required_attributes:
+        is_admin_saas_demo: "true"
       primary_key: event_id
     columns:
       - name: user_id
@@ -23,7 +23,6 @@ models:
               description: "✅ CORRECT: Uses count_distinct so won't inflate"
             event_count:
               type: count
-              description: ""
       - name: event_name
         description: ""
         meta:

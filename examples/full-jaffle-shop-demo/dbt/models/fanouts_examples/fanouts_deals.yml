@@ -1,9 +1,9 @@
 version: 2
 models:
   - name: fanouts_deals
-    meta: 
-      required_attributes: 
-        is_admin_saas_demo: 'true'
+    meta:
+      required_attributes:
+        is_admin_saas_demo: "true"
       primary_key: deal_id
     columns:
       - name: deal_id
@@ -20,7 +20,8 @@ models:
             inflated_deal_count:
               type: count
               label: "🚨 INFLATED Deal Count"
-              description: "❌ WRONG: Each deal gets multiplied by (users × events) in that
+              description:
+                "❌ WRONG: Each deal gets multiplied by (users × events) in that
                 account"
 
       - name: account_id
@@ -43,33 +44,30 @@ models:
           metrics:
             total_deal_value:
               label: "Total Deal Value"
-              description: ""
-              format: 'usd'
+              format: "usd"
               type: sum
 
             average_deal_value:
               type: average
-              label: ""
-              description: ""
-              format: 'usd'
+              format: "usd"
 
             max_deal_value:
               type: max
               label: "✅ FANOUT SAFE Max Deal Value"
               description: "Maximum deal value in the dataset"
-              format: 'usd'
+              format: "usd"
 
             min_deal_value:
               type: max
               label: "✅ FANOUT SAFE Min Deal Value"
               description: "Minimum deal value in the dataset"
-              format: 'usd'
+              format: "usd"
 
             median_deal_value:
               type: median
               label: "🚨 INFLATED Median Deal Value"
               description: "Median deal value in the dataset"
-              format: 'usd'
+              format: "usd"
 
       - name: created_date
         description: "When the deal was created"

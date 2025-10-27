@@ -241,7 +241,7 @@ describe('CLI', () => {
         ).then((result) => {
             expect(result.code).to.eq(1);
             expect(result.stderr).to.contain(
-                'Failed to compile project. Found 1 error',
+                'Failed to compile project. Found 2 errors',
             );
         });
     });
