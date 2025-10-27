@@ -17,6 +17,8 @@ type LoginOptions = {
     token?: string;
     /** Use OAuth2 flow instead of password/token */
     oauth?: boolean;
+    /** Project UUID to select after login */
+    project?: string;
     interactive?: boolean;
     verbose: boolean;
 };
@@ -175,7 +177,9 @@ export const login = async (url: string, options: LoginOptions) => {
     console.error(`\n  ✅️ Login successful\n`);
 
     try {
-        if (process.env.CI === 'true') {
+        if (options.project) {
+            await setProjectCommand(undefined, options.project);
+        } else if (process.env.CI === 'true') {
             await setFirstProject();
         } else {
             const project = await setProjectCommand();
