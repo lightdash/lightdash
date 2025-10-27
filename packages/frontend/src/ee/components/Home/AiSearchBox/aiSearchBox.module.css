@@ -1,16 +1,46 @@
-.askAiFooter {
-    border-bottom-left-radius: var(--mantine-radius-md);
-    border-bottom-right-radius: var(--mantine-radius-md);
-    overflow: hidden;
+.askAiSection {
+    --saturation-mix: 0%;
+
     background: linear-gradient(
         90deg,
-        var(--mantine-color-grape-0) 0%,
-        var(--mantine-color-violet-0) 40%,
-        var(--mantine-color-indigo-0) 100%
+        color-mix(
+                in oklch,
+                var(--mantine-color-grape-0),
+                var(--mantine-color-grape-1) var(--saturation-mix)
+            )
+            0%,
+        color-mix(
+                in oklch,
+                var(--mantine-color-violet-0),
+                var(--mantine-color-violet-1) var(--saturation-mix)
+            )
+            40%,
+        color-mix(
+                in oklch,
+                var(--mantine-color-indigo-0),
+                var(--mantine-color-indigo-1) var(--saturation-mix)
+            )
+            100%
     );
+
     width: 100%;
-    height: 52px;
     cursor: pointer;
+}
+
+[data-combobox-selected='true'] .askAiSection {
+    --saturation-mix: 30%;
+}
+
+.askAiSectionArrow {
+    visibility: hidden;
+    background-color: var(--mantine-color-white);
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid var(--mantine-color-gray-2);
+    flex-shrink: 0;
+}
+
+[data-combobox-selected='true'] .askAiSectionArrow {
+    visibility: visible;
 }
 
 .actionIcon {
