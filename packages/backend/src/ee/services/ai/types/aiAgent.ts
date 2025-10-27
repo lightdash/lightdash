@@ -49,6 +49,12 @@ export type AiAgentArgs = AnyAiModel & {
 export type PerformanceMetrics = {
     measureGenerateResponseTime: (durationMs: number) => void;
     measureStreamResponseTime: (durationMs: number) => void;
+    measureStreamFirstChunk: (durationMs: number) => void;
+    measureTTFT: (
+        durationMs: number,
+        model: string,
+        mode: 'stream' | 'generate',
+    ) => void;
 };
 
 export type AiAgentDependencies = {

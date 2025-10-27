@@ -23,6 +23,10 @@ export default class PrometheusMetrics {
     public aiAgentStreamResponseDurationHistogram: prometheus.Histogram | null =
         null;
 
+    public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
+
+    public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -110,6 +114,54 @@ export default class PrometheusMetrics {
                         ],
                         ...rest,
                     });
+
+                this.aiAgentStreamFirstChunkHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_stream_first_chunk_ms',
+                        help: 'Histogram of AI Agent time to first chunk (any type)',
+                        buckets: [
+                            50, // 50ms
+                            100, // 100ms
+                            250, // 250ms
+                            500, // 500ms
+                            1000, // 1 second
+                            2500, // 2.5 seconds
+                            5000, // 5 seconds
+                            10000, // 10 seconds
+                            15000, // 15 seconds
+                            20000, // 20 seconds
+                            30000, // 30 seconds
+                            45000, // 45 seconds
+                            60000, // 1 minute
+                            90000, // 1.5 minutes
+                            120000, // 2 minutes
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentTTFTHistogram = new prometheus.Histogram({
+                    name: 'ai_agent_ttft_ms',
+                    help: 'Histogram of AI Agent TTFT (time to first token)',
+                    labelNames: ['model', 'mode'],
+                    buckets: [
+                        50, // 50ms
+                        100, // 100ms
+                        250, // 250ms
+                        500, // 500ms
+                        1000, // 1 second
+                        2500, // 2.5 seconds
+                        5000, // 5 seconds
+                        10000, // 10 seconds
+                        15000, // 15 seconds
+                        20000, // 20 seconds
+                        30000, // 30 seconds
+                        45000, // 45 seconds
+                        60000, // 1 minute
+                        90000, // 1.5 minutes
+                        120000, // 2 minutes
+                    ],
+                    ...rest,
+                });
 
                 const app = express();
                 this.server = http.createServer(app);
