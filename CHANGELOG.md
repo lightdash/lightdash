@@ -1,3 +1,10 @@
+# [0.2111.0](https://github.com/lightdash/lightdash/compare/0.2110.0...0.2111.0) (2025-10-27)
+
+
+### Features
+
+* add virtualized side bar ([#17620](https://github.com/lightdash/lightdash/issues/17620)) ([1feb5b4](https://github.com/lightdash/lightdash/commit/1feb5b42fefbc6408119cdd50f2ec2220fb99f5c))
+
 # [0.2110.0](https://github.com/lightdash/lightdash/compare/0.2109.0...0.2110.0) (2025-10-27)
 
 
