@@ -7,7 +7,7 @@ import type {
     Metric,
     OrderFieldsByStrategy,
 } from '@lightdash/common';
-import type { Node, NodeItem } from '../Tree/types';
+import type { Node, NodeItem, NodeMap } from '../Tree/types';
 
 export enum TreeSection {
     Dimensions = 'dimensions',
@@ -92,6 +92,7 @@ export interface SectionContext {
     tableName: string;
     sectionType: TreeSection;
     itemsMap: Record<string, NodeItem>;
+    nodeMap: NodeMap; // Pre-computed node hierarchy
     missingCustomMetrics?: AdditionalMetric[];
     missingCustomDimensions?: CustomDimension[];
     itemsAlerts?: {
@@ -173,6 +174,9 @@ export interface FlattenTreeOptions {
     // Git integration
     isGithubIntegrationEnabled?: boolean;
     gitIntegration?: GitIntegrationConfiguration;
+
+    // Pre-computed node maps (key: `${tableName}-${sectionType}`)
+    sectionNodeMaps: Map<string, NodeMap>;
 }
 
 // Section info for organizing nodes
