@@ -1,3 +1,10 @@
+# [0.2112.0](https://github.com/lightdash/lightdash/compare/0.2111.0...0.2112.0) (2025-10-27)
+
+
+### Features
+
+* add interactions to virtualized tree ([#17646](https://github.com/lightdash/lightdash/issues/17646)) ([1eaddf2](https://github.com/lightdash/lightdash/commit/1eaddf238057bb8015bc9da91e9385410574e2b0))
+
 # [0.2111.0](https://github.com/lightdash/lightdash/compare/0.2110.0...0.2111.0) (2025-10-27)
 
 
