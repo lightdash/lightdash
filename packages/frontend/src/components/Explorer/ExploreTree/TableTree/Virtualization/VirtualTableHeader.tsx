@@ -8,12 +8,16 @@ import type { TableHeaderItem } from './types';
 
 interface VirtualTableHeaderProps {
     item: TableHeaderItem;
+    onToggle: () => void;
 }
 
 /**
  * Renders a table header in the virtualized tree
  */
-const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({ item }) => {
+const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
+    item,
+    onToggle,
+}) => {
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
 
@@ -46,6 +50,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({ item }) => {
     return (
         <NavLink
             opened={isExpanded}
+            onClick={onToggle}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
