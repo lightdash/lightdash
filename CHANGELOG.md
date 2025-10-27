@@ -1,3 +1,10 @@
+# [0.2114.0](https://github.com/lightdash/lightdash/compare/0.2113.1...0.2114.0) (2025-10-27)
+
+
+### Features
+
+* add description override support for table joins ([#17599](https://github.com/lightdash/lightdash/issues/17599)) ([f9ef27f](https://github.com/lightdash/lightdash/commit/f9ef27f1077ee6eb037db697124cec0268cb590e))
+
 ## [0.2113.1](https://github.com/lightdash/lightdash/compare/0.2113.0...0.2113.1) (2025-10-27)
 
 
