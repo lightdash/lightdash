@@ -10,7 +10,14 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { getLegendStyle } from './echartsStyleUtils';
+import {
+    getLegendStyle,
+    getPieExternalLabelStyle,
+    getPieInternalLabelStyle,
+    getPieLabelLineStyle,
+    getPieSliceStyle,
+    isColorDark,
+} from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -78,6 +85,8 @@ const useEchartsPieConfig = (
                     groupColorOverrides?.[name] ??
                     getGroupColor(groupPrefix, name);
 
+                const isDark = isColorDark(itemColor);
+
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
@@ -90,10 +99,29 @@ const useEchartsPieConfig = (
                         show: valueLabel !== 'hidden',
                         position:
                             valueLabel === 'outside' ? 'outside' : 'inside',
+                        ...(valueLabel === 'outside'
+                            ? getPieExternalLabelStyle(theme)
+                            : getPieInternalLabelStyle(theme, isDark)),
                         formatter: (params) => {
-                            return valueLabel !== 'hidden' &&
-                                showValue &&
-                                showPercentage
+                            const isOutside = valueLabel === 'outside';
+
+                            if (valueLabel === 'hidden') return '';
+
+                            // For outside labels, use rich text formatting
+                            if (isOutside) {
+                                if (showValue && showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}% - ${meta.value.formatted}}`;
+                                } else if (showValue) {
+                                    return `{name|${params.name}}\n{value|${meta.value.formatted}}`;
+                                } else if (showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}%}`;
+                                } else {
+                                    return `{name|${params.name}}`;
+                                }
+                            }
+
+                            // For inside labels, use plain formatting (no rich text)
+                            return showValue && showPercentage
                                 ? `${params.percent}% - ${meta.value.formatted}`
                                 : showValue
                                 ? `${meta.value.formatted}`
@@ -102,12 +130,13 @@ const useEchartsPieConfig = (
                                 : `${params.name}`;
                         },
                     },
+                    labelLine: getPieLabelLineStyle(theme),
                     meta,
                 };
 
                 return config;
             });
-    }, [chartConfig, getGroupColor]);
+    }, [chartConfig, getGroupColor, theme]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
@@ -138,6 +167,7 @@ const useEchartsPieConfig = (
                         ? ['50%', '52%']
                         : ['50%', '50%']
                     : ['50%', '50%'],
+            ...getPieSliceStyle(!!isDonut),
             tooltip: {
                 trigger: 'item',
                 formatter: ({ marker, name, value, percent }) => {
