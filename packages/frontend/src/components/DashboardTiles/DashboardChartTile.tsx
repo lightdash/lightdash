@@ -1346,14 +1346,17 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     }}
                 />
             )}
-
             <ExportDataModal
                 isOpen={isDataExportModalOpen}
                 onClose={closeDataExportModal}
                 projectUuid={projectUuid!}
                 totalResults={totalResults}
                 getDownloadQueryUuid={getDownloadQueryUuid}
-                showTableNames
+                showTableNames={
+                    isTableChartConfig(chart.chartConfig.config)
+                        ? chart.chartConfig.config.showTableNames ?? false
+                        : true
+                }
                 chartName={title || chart.name}
                 columnOrder={chart.tableConfig.columnOrder}
                 customLabels={getCustomLabelsFromTableConfig(
@@ -1621,7 +1624,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     projectUuid={projectUuid!}
                     totalResults={resultsData.totalResults}
                     getDownloadQueryUuid={getDownloadQueryUuid}
-                    showTableNames
+                    showTableNames={
+                        isTableChartConfig(chart.chartConfig.config)
+                            ? chart.chartConfig.config.showTableNames ?? false
+                            : true
+                    }
                     chartName={title || chart.name}
                     columnOrder={chart.tableConfig.columnOrder}
                     customLabels={getCustomLabelsFromTableConfig(
