@@ -1,6 +1,5 @@
 import {
     AiAgent,
-    AiWebAppPrompt,
     AVAILABLE_VISUALIZATION_TYPES,
     CatalogType,
     isDateItem,
@@ -9,7 +8,6 @@ import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
-    getModels,
     getServices,
     getTestContext,
     IntegrationTestContext,
@@ -18,6 +16,7 @@ import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { llmAsAJudge } from './utils/llmAsAJudge';
 import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
+import { promptAndGetToolCalls } from './utils/testHelpers';
 import { createTestReport } from './utils/testReportWrapper';
 
 // Skip if no OpenAI API key
@@ -56,75 +55,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
         createdAgent = agent;
     }, TIMEOUT);
 
-    const promptAgent = async (
-        prompt: string,
-        threadUuid?: string,
-    ): Promise<{
-        response: string;
-        prompt: AiWebAppPrompt | undefined;
-        threadUuid: string;
-    }> => {
-        if (!createdAgent) {
-            throw new Error('Agent not created');
-        }
-
-        let threadUuidToUse = threadUuid;
-
-        const services = getServices(context.app);
-        const models = getModels(context.app);
-
-        if (threadUuidToUse) {
-            // Add message to existing thread
-            await models.aiAgentModel.createWebAppPrompt({
-                threadUuid: threadUuidToUse,
-                createdByUserUuid: context.testUser.userUuid,
-                prompt,
-            });
-        } else {
-            // Create new thread
-            const thread = await services.aiAgentService.createAgentThread(
-                context.testUser,
-                createdAgent.uuid,
-                {
-                    prompt,
-                },
-            );
-
-            if (!thread) {
-                throw new Error('Failed to create test thread');
-            }
-            threadUuidToUse = thread.uuid;
-        }
-
-        const threadMessages = await models.aiAgentModel.getThreadMessages(
-            context.testUser.organizationUuid!,
-            createdAgent.projectUuid,
-            threadUuidToUse,
-        );
-
-        const promptData = await models.aiAgentModel.findWebAppPrompt(
-            threadMessages.at(-1)!.ai_prompt_uuid,
-        );
-
-        const chatHistoryMessages =
-            await services.aiAgentService.getChatHistoryFromThreadMessages(
-                threadMessages,
-            );
-
-        const response =
-            await services.aiAgentService.generateOrStreamAgentResponse(
-                context.testUser,
-                chatHistoryMessages,
-                {
-                    prompt: promptData!,
-                    stream: false,
-                    canManageAgent: true,
-                },
-            );
-
-        return { response, prompt: promptData, threadUuid: threadUuidToUse };
-    };
-
     it(
         'should be able to tell the user what data models are available to explore with their agent',
         async (test) => {
@@ -135,12 +65,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
             const promptQueryText = 'What data models are available?';
 
-            const { response, prompt } = await promptAgent(promptQueryText);
-
-            const toolCalls = await context
-                .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                .where('ai_prompt_uuid', prompt!.promptUuid)
-                .select('*');
+            const { response, toolCalls } = await promptAndGetToolCalls(
+                context,
+                createdAgent,
+                promptQueryText,
+            );
 
             const { data: tables } =
                 await services.catalogService.searchCatalog({
@@ -199,12 +128,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
         const promptQueryText = 'What is the total revenue?';
 
-        const { response, prompt } = await promptAgent(promptQueryText);
-
-        const toolCalls = await context
-            .db<DbAiAgentToolCall>('ai_agent_tool_call')
-            .where('ai_prompt_uuid', prompt!.promptUuid)
-            .select('*');
+        const { response, toolCalls } = await promptAndGetToolCalls(
+            context,
+            createdAgent,
+            promptQueryText,
+        );
 
         const { meta: factualityMeta } = await llmAsAJudge({
             query: promptQueryText,
@@ -246,12 +174,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
         const promptQueryText =
             'Generate a time-series chart of revenue over time monthly';
 
-        const { response, prompt } = await promptAgent(promptQueryText);
-
-        const toolCalls = await context
-            .db<DbAiAgentToolCall>('ai_agent_tool_call')
-            .where('ai_prompt_uuid', prompt!.promptUuid)
-            .select('*');
+        const { response, toolCalls } = await promptAndGetToolCalls(
+            context,
+            createdAgent,
+            promptQueryText,
+        );
 
         const { meta: factualityMeta } = await llmAsAJudge({
             query: promptQueryText,
@@ -319,17 +246,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
             const promptQueryText =
                 'Show me revenue by month from the orders data';
 
-            const { response, prompt } = await promptAgent(promptQueryText);
-
-            const toolCalls = await context
-                .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                .leftJoin(
-                    'ai_agent_tool_result',
-                    'ai_agent_tool_call.tool_call_id',
-                    'ai_agent_tool_result.tool_call_id',
-                )
-                .where('ai_agent_tool_call.ai_prompt_uuid', prompt!.promptUuid)
-                .select('*');
+            const { response, toolCalls } = await promptAndGetToolCalls(
+                context,
+                createdAgent,
+                promptQueryText,
+            );
 
             const findFieldsToolCall = toolCalls.find(
                 (call) => call.tool_name === 'findFields',
@@ -393,12 +314,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
             const promptQueryText = 'How many orders were there in 2024?';
 
-            const { response, prompt } = await promptAgent(promptQueryText);
-
-            const toolCalls = await context
-                .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                .where('ai_prompt_uuid', prompt!.promptUuid)
-                .select('*');
+            const { response, toolCalls } = await promptAndGetToolCalls(
+                context,
+                createdAgent,
+                promptQueryText,
+            );
 
             const { meta: factualityMeta } = await llmAsAJudge({
                 query: promptQueryText,
@@ -429,13 +349,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
         const promptQueryText = 'What can you do?';
 
-        const { response, prompt } = await promptAgent(promptQueryText);
-
-        // Fetch tool calls for this test
-        const toolCalls = await context
-            .db<DbAiAgentToolCall>('ai_agent_tool_call')
-            .where('ai_prompt_uuid', prompt!.promptUuid)
-            .select('*');
+        const { response, toolCalls } = await promptAndGetToolCalls(
+            context,
+            createdAgent,
+            promptQueryText,
+        );
 
         const availableExplores = await getServices(
             context.app,
@@ -488,21 +406,22 @@ describeOrSkip.concurrent('agent integration tests', () => {
             const prompt3 =
                 'Then show me a breakdown of that metric by payment method';
 
-            const { threadUuid, response: response1 } = await promptAgent(
-                prompt1,
-            );
-            const { response: response2 } = await promptAgent(
+            const { threadUuid, response: response1 } =
+                await promptAndGetToolCalls(context, createdAgent, prompt1);
+            const { response: response2 } = await promptAndGetToolCalls(
+                context,
+                createdAgent,
                 prompt2,
                 threadUuid,
             );
 
-            const { response: response3, prompt: webPrompt3 } =
-                await promptAgent(prompt3, threadUuid);
-
-            const toolCallsForPrompt3 = await context
-                .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                .where('ai_prompt_uuid', webPrompt3!.promptUuid)
-                .select('*');
+            const { response: response3, toolCalls: toolCallsForPrompt3 } =
+                await promptAndGetToolCalls(
+                    context,
+                    createdAgent,
+                    prompt3,
+                    threadUuid,
+                );
 
             const report = createTestReport({
                 prompts: [prompt1, prompt2, prompt3],
@@ -557,26 +476,20 @@ describeOrSkip.concurrent('agent integration tests', () => {
             () => {
                 let toolCalls: DbAiAgentToolCall[] = [];
                 let response: string = '';
-                let prompt: AiWebAppPrompt | undefined;
 
                 beforeAll(async () => {
-                    const agentResponse = await promptAgent(testCase.question);
+                    if (!createdAgent) {
+                        throw new Error('Agent not created');
+                    }
+
+                    const agentResponse = await promptAndGetToolCalls(
+                        context,
+                        createdAgent,
+                        testCase.question,
+                    );
 
                     response = agentResponse.response;
-                    prompt = agentResponse.prompt;
-
-                    toolCalls = await context
-                        .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                        .leftJoin(
-                            'ai_agent_tool_result',
-                            'ai_agent_tool_call.tool_call_id',
-                            'ai_agent_tool_result.tool_call_id',
-                        )
-                        .where(
-                            'ai_agent_tool_call.ai_prompt_uuid',
-                            prompt!.promptUuid,
-                        )
-                        .select('*');
+                    toolCalls = agentResponse.toolCalls;
                 });
 
                 it('should use appropriate tools and not exceed max tool calls', async (test) => {
@@ -717,7 +630,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         throw new Error('Agent not created');
                     }
 
-                    const { response } = await promptAgent(testCase.prompt);
+                    const { response, toolCalls } = await promptAndGetToolCalls(
+                        context,
+                        createdAgent,
+                        testCase.prompt,
+                    );
 
                     const { meta } = await llmAsAJudge({
                         query: testCase.prompt,
@@ -731,6 +648,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     const report = createTestReport({
                         prompt: testCase.prompt,
                         response,
+                        toolCalls,
                     }).addLlmJudgeResult(meta);
 
                     await report.finalize(test, () => {
