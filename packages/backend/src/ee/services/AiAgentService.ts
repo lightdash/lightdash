@@ -2465,6 +2465,17 @@ export class AiAgentService {
                         durationMs,
                     );
                 },
+                measureStreamFirstChunk: (durationMs) => {
+                    this.prometheusMetrics?.aiAgentStreamFirstChunkHistogram?.observe(
+                        durationMs,
+                    );
+                },
+                measureTTFT: (durationMs, model, mode) => {
+                    this.prometheusMetrics?.aiAgentTTFTHistogram?.observe(
+                        { model, mode },
+                        durationMs,
+                    );
+                },
             },
         };
 

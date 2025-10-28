@@ -441,7 +441,9 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}`,
         );
 
-        dependencies.perf.measureGenerateResponseTime(Date.now() - startTime);
+        const totalTime = Date.now() - startTime;
+        dependencies.perf.measureGenerateResponseTime(totalTime);
+        dependencies.perf.measureTTFT(totalTime, modelName, 'generate');
 
         return result.text;
     } catch (error) {
@@ -475,6 +477,8 @@ export const streamAgentResponse = async ({
     const tools = getAgentTools(args, dependencies);
 
     const startTime = Date.now();
+    let firstChunkTime: number | null = null;
+    let firstTextTime: number | null = null;
     const modelName =
         typeof args.model === 'string' ? args.model : args.model.modelId;
 
@@ -492,6 +496,17 @@ export const streamAgentResponse = async ({
             messages,
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
+                // Track time to first chunk (any type) - only once
+                if (firstChunkTime === null) {
+                    firstChunkTime = Date.now();
+                    const ttfc = firstChunkTime - startTime;
+                    logger(
+                        'First Chunk',
+                        `Time to first chunk (${event.chunk.type}): ${ttfc}ms`,
+                    );
+                    dependencies.perf.measureStreamFirstChunk(ttfc);
+                }
+
                 switch (event.chunk.type) {
                     case 'tool-call': {
                         logger(
@@ -567,6 +582,20 @@ export const streamAgentResponse = async ({
                         break;
                     }
                     case 'text-delta': {
+                        // Track time to first text token (TTFT) - only once
+                        if (firstTextTime === null) {
+                            firstTextTime = Date.now();
+                            const ttft = firstTextTime - startTime;
+                            logger(
+                                'Chunk Text Delta',
+                                `Time to first text token (TTFT): ${ttft}ms`,
+                            );
+                            dependencies.perf.measureTTFT(
+                                ttft,
+                                modelName,
+                                'stream',
+                            );
+                        }
                         logger(
                             'Chunk Text Delta',
                             `Received text chunk: ${event.chunk.text}`,
