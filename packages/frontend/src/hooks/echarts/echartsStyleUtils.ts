@@ -155,3 +155,51 @@ export const getPieInternalLabelStyle = (
     fontWeight: 500,
     fontSize: 12,
 });
+
+/**
+ * Get grid line styling for line charts
+ * Color: gray.1, Type: Solid
+ */
+export const getLineChartGridStyle = (theme: MantineTheme) => ({
+    show: true,
+    lineStyle: {
+        color: theme.colors.gray[1],
+        type: 'solid' as const,
+    },
+});
+
+/**
+ * Get grid line styling for bar charts
+ * Color: gray.2, Type: Dashed with 3px gaps
+ */
+export const getBarChartGridStyle = (theme: MantineTheme) => ({
+    show: true,
+    lineStyle: {
+        color: theme.colors.gray[2],
+        type: [3, 3] as const, // [dash length, gap length]
+    },
+});
+
+/**
+ * Get axis line styling (the main axis line)
+ * Color: gray.3, Style: Solid
+ */
+export const getAxisLineStyle = (theme: MantineTheme) => ({
+    show: true,
+    lineStyle: {
+        color: theme.colors.gray[3],
+        type: 'solid' as const,
+    },
+});
+
+/**
+ * Get tick line styling (small marks on axis)
+ * Color: gray.3, Style: Solid
+ */
+export const getAxisTickStyle = (theme: MantineTheme) => ({
+    show: true,
+    lineStyle: {
+        color: theme.colors.gray[3],
+        type: 'solid' as const,
+    },
+});

@@ -70,11 +70,15 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
     getAxisLabelStyle,
+    getAxisLineStyle,
+    getAxisTickStyle,
     getAxisTitleStyle,
     getBarBorderRadius,
+    getBarChartGridStyle,
     getBarStyle,
     getBarTotalLabelStyle,
     getLegendStyle,
+    getLineChartGridStyle,
 } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -1116,6 +1120,12 @@ const getEchartAxes = ({
             ? validCartesianConfig.layout.showYAxis
             : true;
 
+    // Determine if we have bar charts to apply appropriate grid styling
+    const hasBarChart = series.some((s) => s.type === CartesianSeriesType.BAR);
+    const gridStyle = hasBarChart
+        ? getBarChartGridStyle(theme)
+        : getLineChartGridStyle(theme);
+
     // There is no Top x axis when no flipped
     const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
@@ -1393,11 +1403,16 @@ const getEchartAxes = ({
                     show: showXAxis,
                     axisLabelStyle: getAxisLabelStyle(theme),
                 }),
-                splitLine: {
-                    show: validCartesianConfig.layout.flipAxes
+                splitLine:
+                    validCartesianConfig.layout.flipAxes
                         ? showGridY
-                        : showGridX,
-                },
+                            ? gridStyle
+                            : { show: false }
+                        : showGridX
+                        ? gridStyle
+                        : { show: false },
+                axisLine: getAxisLineStyle(theme),
+                axisTick: getAxisTickStyle(theme),
                 // Override formatter for 100% stacking with flipped axes
                 ...(shouldStack100 &&
                     validCartesianConfig.layout.flipAxes &&
@@ -1452,9 +1467,11 @@ const getEchartAxes = ({
                     show: showXAxis,
                     axisLabelStyle: getAxisLabelStyle(theme),
                 }),
-                splitLine: {
-                    show: isAxisTheSameForAllSeries,
-                },
+                splitLine: isAxisTheSameForAllSeries
+                    ? gridStyle
+                    : { show: false },
+                axisLine: getAxisLineStyle(theme),
+                axisTick: getAxisTickStyle(theme),
                 ...topAxisExtraConfig,
             },
         ],
@@ -1502,11 +1519,16 @@ const getEchartAxes = ({
                             formatter: '{value}%',
                         },
                     }),
-                splitLine: {
-                    show: validCartesianConfig.layout.flipAxes
+                splitLine:
+                    validCartesianConfig.layout.flipAxes
                         ? showGridX
-                        : showGridY,
-                },
+                            ? gridStyle
+                            : { show: false }
+                        : showGridY
+                        ? gridStyle
+                        : { show: false },
+                axisLine: getAxisLineStyle(theme),
+                axisTick: getAxisTickStyle(theme),
                 inverse: !!yAxisConfiguration?.[0].inverse,
                 ...leftAxisExtraConfig,
             },
@@ -1556,9 +1578,11 @@ const getEchartAxes = ({
                     show: showYAxis,
                     axisLabelStyle: getAxisLabelStyle(theme),
                 }),
-                splitLine: {
-                    show: isAxisTheSameForAllSeries,
-                },
+                splitLine: isAxisTheSameForAllSeries
+                    ? gridStyle
+                    : { show: false },
+                axisLine: getAxisLineStyle(theme),
+                axisTick: getAxisTickStyle(theme),
                 ...rightAxisExtraConfig,
             },
         ],
