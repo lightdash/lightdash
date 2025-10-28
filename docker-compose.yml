@@ -1,10 +1,13 @@
 version: '3.8'
 services:
     minio:
-        image: bitnami/minio:latest
+        image: coollabsio/minio:latest
         ports:
             - '9000:9000'
             - '9001:9001' # for minio console
+        volumes:
+            - ./docker/init-minio.sh:/init-minio.sh
+        entrypoint: '/init-minio.sh'
         environment:
             - MINIO_ROOT_USER=minioadmin
             - MINIO_ROOT_PASSWORD=minioadmin

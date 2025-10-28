@@ -4,7 +4,7 @@ volumes:
 
 services:
     minio:
-        image: bitnami/minio:latest
+        image: coollabsio/minio:latest
         ports:
             - '9000:9000'
             - '9001:9001' # for minio console
@@ -14,7 +14,9 @@ services:
             - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
             - MINIO_BROWSER=${MINIO_BROWSER:-off}
         volumes:
-            - minio_data:/bitnami/minio/data
+            - minio_data:/minio/data
+            - ./init-minio.sh:/init-minio.sh
+        entrypoint: '/init-minio.sh'
 
     db-dev:
         image: pgvector/pgvector:pg16
