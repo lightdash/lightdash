@@ -8,7 +8,7 @@ interface TestReportData {
     prompts?: string[];
     responses?: string[];
     toolCalls?: string[];
-    llmJudgeResults?: Array<LlmJudgeResult & { passed: boolean }>;
+    llmJudgeResults?: LlmJudgeResult[];
     llmToolJudgeResults?: ToolJudgeResult[];
 }
 
@@ -66,15 +66,15 @@ export async function withTestReport<T>(
  * Helper to build report data incrementally during a test.
  *
  * @example
+ * const { meta } = await llmAsAJudge({ ... });
  * const report = createTestReport({
  *   prompt: promptQueryText,
  *   response,
  *   toolCalls,
- * });
- * report.addLlmJudgeResult({ ...factualityMeta, passed: isFactualityPassing });
+ * }).addLlmJudgeResult(meta);
  *
  * await report.finalize(test, () => {
- *   expect(isFactualityPassing).toBe(true);
+ *   expect(meta.passed).toBe(true);
  * });
  */
 export class TestReportBuilder {
