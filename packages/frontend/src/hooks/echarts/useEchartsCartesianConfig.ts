@@ -74,6 +74,7 @@ import {
     formatTooltipValue,
     getAxisLabelStyle,
     getAxisLineStyle,
+    getAxisPointerStyle,
     getAxisTickStyle,
     getAxisTitleStyle,
     getBarBorderRadius,
@@ -2222,12 +2223,7 @@ const useEchartsCartesianConfig = (
             enterable: true,
             extraCssText: 'overflow-y: auto; max-height:280px;',
             ...getTooltipStyle(theme),
-            axisPointer: {
-                type: 'shadow',
-                label: {
-                    show: true,
-                },
-            },
+            axisPointer: getAxisPointerStyle(theme),
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
 
