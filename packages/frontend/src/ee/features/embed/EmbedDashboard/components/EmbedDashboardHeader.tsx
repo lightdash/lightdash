@@ -4,12 +4,11 @@ import {
     type InteractivityOptions,
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
-import { Parameters } from '../../../../../features/parameters';
-import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
+import EmbedDashboardParameters from './EmbedDashboardParameters';
 
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
@@ -17,28 +16,6 @@ type Props = {
 };
 
 const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
-    const handleParameterChange = useDashboardContext((c) => c.setParameter);
-    const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
-    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
-    const missingRequiredParameters = useDashboardContext(
-        (c) => c.missingRequiredParameters,
-    );
-
-    const referencedParameters = useMemo(() => {
-        return Object.fromEntries(
-            Object.entries(parameterDefinitions).filter(([key]) =>
-                parameterReferences.has(key),
-            ),
-        );
-    }, [parameterDefinitions, parameterReferences]);
-
     const hasHeader =
         dashboard.canDateZoom ||
         dashboard.canChangeParameters ||
@@ -70,17 +47,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
             style={{ flexGrow: 1 }}
         >
             {shouldShowFilters && <EmbedDashboardFilters />}
-            {dashboard.canChangeParameters && (
-                <Parameters
-                    isEditMode={false}
-                    parameterValues={parameterValues}
-                    onParameterChange={handleParameterChange}
-                    onClearAll={clearAllParameters}
-                    parameters={referencedParameters}
-                    isLoading={!areAllChartsLoaded}
-                    missingRequiredParameters={missingRequiredParameters}
-                />
-            )}
+            {dashboard.canChangeParameters && <EmbedDashboardParameters />}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
             {dashboard.canExportPagePdf && (
