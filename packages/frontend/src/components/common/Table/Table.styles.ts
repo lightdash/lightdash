@@ -17,6 +17,7 @@ export const TableScrollableWrapper = styled.div`
     position: relative;
     overflow: auto;
     min-width: 100%;
+    border-radius: 4px;
 `;
 
 interface TableContainerProps {
@@ -53,8 +54,11 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     font-size: 14px;
     background-color: white;
     width: 100%;
-    border-left: 1px solid #dcdcdd;
-    border-right: 1px solid #dcdcdd;
+    border-radius: 4px;
+    overflow: hidden;
+
+    /* Outer table border - solid gray border around entire table with border-radius */
+    border: 1px solid #dcdcdd;
 
     th,
     td {
@@ -73,6 +77,8 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     td {
         color: #1c2127;
     }
+
+    /* Inner cell borders using box-shadow (from Blueprint CSS) */
     tbody tr:first-child th,
     tbody tr:first-child td,
     tfoot tr:first-child th,
@@ -96,9 +102,6 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
 
     /* FIXME: everything above this line is copied from blueprint's table css */
 
-    ${({ $showFooter }) =>
-        !$showFooter ? `border-bottom: 1px solid #dcdcdd;` : undefined}
-
     thead {
         z-index: 2;
         position: sticky;
@@ -106,13 +109,7 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         inset-block-start: 0; /* "top" */
     }
 
-    thead th:first-child {
-        border-top: 1px solid #dcdcdd;
-        border-bottom: none !important;
-    }
-
     thead th {
-        border-top: 1px solid #dcdcdd;
         border-bottom: none !important;
     }
 
@@ -131,8 +128,8 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     tfoot th {
         border-top: none !important;
         border-bottom: none !important;
-        box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd,
-            inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
+        /* Footer cell border: top separator between body and footer */
+        box-shadow: inset 0 1px 0 #dcdcdd !important;
     }
 
     .sticky-column {

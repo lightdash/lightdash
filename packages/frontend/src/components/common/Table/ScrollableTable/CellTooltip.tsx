@@ -7,7 +7,7 @@ type CellTooltipProps = Omit<TooltipProps, 'children'> & {
 
 const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
     <Portal>
-        <Tooltip {...rest} opened>
+        <Tooltip {...rest} opened variant="xs">
             <div
                 style={{
                     pointerEvents: 'none',
