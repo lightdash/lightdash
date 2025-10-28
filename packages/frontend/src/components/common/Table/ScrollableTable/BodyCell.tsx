@@ -5,7 +5,12 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { getHotkeyHandler, useClipboard, useDisclosure } from '@mantine/hooks';
+import {
+    getHotkeyHandler,
+    useClipboard,
+    useDisclosure,
+    useTimeout,
+} from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import {
     useCallback,
@@ -64,6 +69,11 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
+
+    const { start: startTooltipTimer, clear: clearTooltipTimer } = useTimeout(
+        openTooltip,
+        500,
+    );
     const item = cell.column.columnDef.meta?.item;
     const hasUrls = isField(item) && item.urls ? item.urls.length > 0 : false;
 
@@ -146,8 +156,15 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     displayValue.includes('\n')
                 }
                 onClick={canHaveMenu ? toggleMenu : undefined}
-                onMouseEnter={canHaveTooltip ? openTooltip : undefined}
-                onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
+                onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
+                onMouseLeave={
+                    canHaveTooltip
+                        ? () => {
+                              clearTooltipTimer();
+                              closeTooltip();
+                          }
+                        : undefined
+                }
             >
                 <span style={{ whiteSpace: 'pre' }}>{children}</span>
             </Td>
