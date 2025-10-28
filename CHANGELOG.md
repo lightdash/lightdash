@@ -1,3 +1,10 @@
+## [0.2114.2](https://github.com/lightdash/lightdash/compare/0.2114.1...0.2114.2) (2025-10-28)
+
+
+### Bug Fixes
+
+* don't wrap sql in parentheses for attribute replacement in sql runner queries ([#17680](https://github.com/lightdash/lightdash/issues/17680)) ([ca7e42a](https://github.com/lightdash/lightdash/commit/ca7e42a6ddc38bfb9fdb880b6bd8b31f2f4c3c4d))
+
 ## [0.2114.1](https://github.com/lightdash/lightdash/compare/0.2114.0...0.2114.1) (2025-10-28)
 
 
