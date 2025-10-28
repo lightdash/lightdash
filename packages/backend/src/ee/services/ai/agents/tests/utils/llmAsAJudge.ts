@@ -1,5 +1,4 @@
 import { assertUnreachable } from '@lightdash/common';
-import { ContextRelevancyMetric } from '@mastra/evals/llm';
 import { generateObject, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
@@ -196,14 +195,47 @@ export async function llmAsAJudge({
             if (!context) {
                 throw new Error('context is required for contextRelevancy');
             }
-            const metric = new ContextRelevancyMetric(model, {
-                context,
+
+            const { object } = await generateObject({
+                model,
+                ...defaultAgentOptions,
+                ...callOptions,
+                schema: z.object({
+                    score: z
+                        .number()
+                        .min(0)
+                        .max(1)
+                        .describe('Relevancy score between 0 and 1'),
+                    reason: z
+                        .string()
+                        .describe('Explanation for the relevancy score'),
+                }),
+                prompt: `
+You are evaluating the relevancy of context used to answer a query.
+
+[BEGIN DATA]
+************
+[Query]: ${query}
+************
+[Context]:
+${context.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+************
+[Response]: ${response}
+************
+[END DATA]
+
+Evaluate how relevant the provided context is to answering the query. Consider:
+1. Does the context contain information needed to answer the query?
+2. Is the context directly related to the query topic?
+3. How much of the context is actually useful for answering the query?
+
+Provide a relevancy score between 0 (not relevant at all) and 1 (highly relevant), and explain your reasoning.
+                `,
             });
-            const result = await metric.measure(query, response);
 
             const contextResult = {
-                score: result.score,
-                reason: result.info.reason,
+                score: object.score,
+                reason: object.reason,
             };
 
             return {
