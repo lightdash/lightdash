@@ -37,9 +37,7 @@ export const getBarBorderRadius = (
 
     // Horizontal (flipAxes): round right side [top-right, bottom-right, bottom-left, top-left]
     // Vertical: round top side [top-left, top-right, bottom-right, bottom-left]
-    return isHorizontal
-        ? [0, radius, radius, 0]
-        : [radius, radius, 0, 0];
+    return isHorizontal ? [0, radius, radius, 0] : [radius, radius, 0, 0];
 };
 
 /**
@@ -47,4 +45,34 @@ export const getBarBorderRadius = (
  */
 export const getBarStyle = () => ({
     barCategoryGap: '25%', // Gap between bars: width is 3x the gap (75% / 25% = 3)
+});
+
+/**
+ * Get axis label styling (for values like "Jan", "Feb", "Mar")
+ * Color: gray.6, Weight: 500, Size: 11px
+ */
+export const getAxisLabelStyle = (theme: MantineTheme) => ({
+    color: theme.colors.gray[6],
+    fontWeight: '500',
+    fontSize: 11,
+});
+
+/**
+ * Get axis title styling (for titles like "Month", "Amount")
+ * Color: gray.7, Weight: 500, Size: 12px
+ */
+export const getAxisTitleStyle = (theme: MantineTheme) => ({
+    color: theme.colors.gray[7],
+    fontWeight: '500',
+    fontSize: 12,
+});
+
+/**
+ * Get bar total label styling (values above/beside stacked bars)
+ * Color: gray.9, Weight: 500, Size: 11px
+ */
+export const getBarTotalLabelStyle = (theme: MantineTheme) => ({
+    color: theme.colors.gray[9],
+    fontWeight: '500',
+    fontSize: 11,
 });

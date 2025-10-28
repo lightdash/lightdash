@@ -17,6 +17,7 @@ import { isTimeInterval, timeFrameConfigs } from '../../utils/timeFrames';
  * @param rotate - Rotate
  * @param defaultNameGap - Default name gap
  * @param show - Show
+ * @param axisLabelStyle - Optional styling for axis labels (color, fontSize, fontWeight, etc.)
  * @returns Axis config
  */
 export const getCartesianAxisFormatterConfig = ({
@@ -25,12 +26,14 @@ export const getCartesianAxisFormatterConfig = ({
     rotate,
     defaultNameGap,
     show,
+    axisLabelStyle,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
     rotate?: number;
     defaultNameGap?: number;
     show?: boolean;
+    axisLabelStyle?: { color: string; fontWeight: string; fontSize: number };
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -161,6 +164,7 @@ export const getCartesianAxisFormatterConfig = ({
         const rotateRadians = (rotate * Math.PI) / 180;
         const oppositeSide = (longestLabelWidth || 0) * Math.sin(rotateRadians);
         axisConfig.axisLabel = {
+            ...(axisLabelStyle || {}),
             ...(axisConfig.axisLabel || {}),
             rotate,
             margin: 12,
@@ -168,6 +172,7 @@ export const getCartesianAxisFormatterConfig = ({
         axisConfig.nameGap = oppositeSide + 15;
     } else {
         axisConfig.axisLabel = {
+            ...(axisLabelStyle || {}),
             ...(axisConfig.axisLabel || {}),
             hideOverlap: true,
         };

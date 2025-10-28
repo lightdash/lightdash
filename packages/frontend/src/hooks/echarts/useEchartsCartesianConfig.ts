@@ -43,7 +43,7 @@ import {
     type TableCalculation,
     type TooltipParam,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme, type MantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import {
@@ -69,8 +69,11 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
+    getAxisLabelStyle,
+    getAxisTitleStyle,
     getBarBorderRadius,
     getBarStyle,
+    getBarTotalLabelStyle,
     getLegendStyle,
 } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
@@ -1048,12 +1051,14 @@ const getEchartAxes = ({
     series,
     resultsData,
     minsAndMaxes,
+    theme,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
     series: EChartSeries[];
     resultsData: InfiniteQueryResults | undefined;
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
+    theme: MantineTheme;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1375,9 +1380,7 @@ const getEchartAxes = ({
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
-                          nameTextStyle: {
-                              fontWeight: 'bold',
-                          },
+                          nameTextStyle: getAxisTitleStyle(theme),
                       }
                     : {}),
                 ...getAxisFormatterConfig({
@@ -1388,6 +1391,7 @@ const getEchartAxes = ({
                     rotate: xAxisConfiguration?.[0]?.rotate,
                     defaultNameGap: 30,
                     show: showXAxis,
+                    axisLabelStyle: getAxisLabelStyle(theme),
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1424,9 +1428,7 @@ const getEchartAxes = ({
                                 })
                               : undefined,
                           nameLocation: 'center',
-                          nameTextStyle: {
-                              fontWeight: 'bold',
-                          },
+                          nameTextStyle: getAxisTitleStyle(theme),
                       }
                     : {}),
                 min:
@@ -1448,6 +1450,7 @@ const getEchartAxes = ({
                     longestLabelWidth: calculateWidthText(longestValueXAxisTop),
                     defaultNameGap: 30,
                     show: showXAxis,
+                    axisLabelStyle: getAxisLabelStyle(theme),
                 }),
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
@@ -1478,7 +1481,7 @@ const getEchartAxes = ({
                                 }),
                           nameLocation: 'center',
                           nameTextStyle: {
-                              fontWeight: 'bold',
+                              ...getAxisTitleStyle(theme),
                               align: 'center',
                           },
                       }
@@ -1489,6 +1492,7 @@ const getEchartAxes = ({
                     axisItem: leftAxisYField,
                     defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
                     show: showYAxis,
+                    axisLabelStyle: getAxisLabelStyle(theme),
                 }),
                 // Override formatter for 100% stacking without flipped axes
                 ...(shouldStack100 &&
@@ -1525,7 +1529,7 @@ const getEchartAxes = ({
                           nameLocation: 'center',
                           nameRotate: -90,
                           nameTextStyle: {
-                              fontWeight: 'bold',
+                              ...getAxisTitleStyle(theme),
                               align: 'center',
                           },
                       }
@@ -1550,6 +1554,7 @@ const getEchartAxes = ({
                     axisItem: rightAxisYField,
                     defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
                     show: showYAxis,
+                    axisLabelStyle: getAxisLabelStyle(theme),
                 }),
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
@@ -1633,6 +1638,7 @@ const getStackTotalSeries = (
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
+    theme: MantineTheme,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
@@ -1645,6 +1651,7 @@ const getStackTotalSeries = (
                 connectNulls: true,
                 stack: stack,
                 label: {
+                    ...getBarTotalLabelStyle(theme),
                     show: series[0].stackLabel?.show,
                     formatter: (param) => {
                         const stackTotal = param.data[2];
@@ -1658,7 +1665,6 @@ const getStackTotalSeries = (
                         }
                         return '';
                     },
-                    fontWeight: 'bold',
                     position: flipAxis ? 'right' : 'top',
                 },
                 labelLayout: {
@@ -1799,6 +1805,7 @@ const useEchartsCartesianConfig = (
             validCartesianConfig,
             resultsData,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
+            theme,
         });
     }, [
         itemsMap,
@@ -1806,6 +1813,7 @@ const useEchartsCartesianConfig = (
         series,
         resultsData,
         resultsAndMinsAndMaxes.minsAndMaxes,
+        theme,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -1924,6 +1932,7 @@ const useEchartsCartesianConfig = (
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
+                theme,
             ),
         ];
     }, [
@@ -1934,6 +1943,7 @@ const useEchartsCartesianConfig = (
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
+        theme,
     ]);
     const sortedResults = useMemo(() => {
         const results =
