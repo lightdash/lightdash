@@ -11,11 +11,14 @@ import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 import {
+    formatColorIndicator,
+    formatTooltipValue,
     getLegendStyle,
     getPieExternalLabelStyle,
     getPieInternalLabelStyle,
     getPieLabelLineStyle,
     getPieSliceStyle,
+    getTooltipStyle,
     isColorDark,
 } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
@@ -170,7 +173,8 @@ const useEchartsPieConfig = (
             ...getPieSliceStyle(!!isDonut),
             tooltip: {
                 trigger: 'item',
-                formatter: ({ marker, name, value, percent }) => {
+                formatter: (params) => {
+                    const { color, name, value, percent } = params;
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
@@ -184,11 +188,22 @@ const useEchartsPieConfig = (
                               )}...`
                             : name;
 
-                    return `${marker} <b>${truncatedName}</b><br />${percent}% - ${formattedValue}`;
+                    // Build tooltip with proper spacing
+                    const colorIndicator = formatColorIndicator(
+                        color as string,
+                    );
+                    const label = `<span style="color: ${theme.colors.gray[7]};">${truncatedName}</span>`;
+                    const valueWithPercent = `${percent}% - ${formattedValue}`;
+                    const valuePill = formatTooltipValue(
+                        valueWithPercent,
+                        theme,
+                    );
+
+                    return `<div style="display: flex; align-items: center; gap: 2px;">${colorIndicator}${label}</div><div style="margin-top: 2px; margin-left: 16px;">${valuePill}</div>`;
                 },
             },
         };
-    }, [chartConfig, seriesData]);
+    }, [chartConfig, seriesData, theme]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
@@ -235,6 +250,7 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
+                ...getTooltipStyle(theme),
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),

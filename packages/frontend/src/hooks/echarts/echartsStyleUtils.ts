@@ -203,3 +203,57 @@ export const getAxisTickStyle = (theme: MantineTheme) => ({
         type: 'solid' as const,
     },
 });
+
+/**
+ * Get base tooltip styling
+ * Padding: 8px, Border: gray.3, Border radius: 8px
+ */
+export const getTooltipStyle = (theme: MantineTheme) => ({
+    padding: 8,
+    borderColor: theme.colors.gray[3],
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    textStyle: {
+        color: theme.colors.gray[7],
+    },
+});
+
+/**
+ * Format a tooltip value with pill styling
+ * Background: gray.0, Border: gray.1, Text: gray.7
+ * Padding: 2px 6px, Border radius: 6px
+ */
+export const formatTooltipValue = (
+    value: string,
+    theme: MantineTheme,
+): string => {
+    return `<span style="display: inline-block; background-color: ${theme.colors.gray[0]}; border: 1px solid ${theme.colors.gray[1]}; color: ${theme.colors.gray[7]}; padding: 2px 6px; border-radius: 6px; font-weight: 500;">${value}</span>`;
+};
+
+/**
+ * Format tooltip header with proper styling and margin
+ * Color: gray.7, margin-bottom: 4px
+ */
+export const formatTooltipHeader = (
+    header: string,
+    theme: MantineTheme,
+): string => {
+    return `<div style="color: ${theme.colors.gray[7]}; font-weight: 500; margin-bottom: 4px;">${header}</div>`;
+};
+
+/**
+ * Get tooltip divider
+ * Color: gray.1, margin-bottom: 4px
+ */
+export const getTooltipDivider = (theme: MantineTheme): string => {
+    return `<div style="height: 1px; background-color: ${theme.colors.gray[1]}; margin-bottom: 4px;"></div>`;
+};
+
+/**
+ * Format a color indicator (square) for tooltip
+ * Size: 10px × 10px, Border radius: 2px
+ */
+export const formatColorIndicator = (color: string): string => {
+    return `<span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 2px; margin-right: 6px; vertical-align: middle;"></span>`;
+};
