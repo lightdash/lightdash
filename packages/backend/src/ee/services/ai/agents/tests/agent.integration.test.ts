@@ -18,7 +18,7 @@ import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { llmAsAJudge } from './utils/llmAsAJudge';
 import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
-import { setTaskMeta } from './utils/taskMeta';
+import { createTestReport } from './utils/testReportWrapper';
 
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -127,7 +127,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
     it(
         'should be able to tell the user what data models are available to explore with their agent',
-        async ({ task }) => {
+        async (test) => {
             const services = getServices(context.app);
             if (!createdAgent) {
                 throw new Error('Agent not created');
@@ -185,32 +185,26 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 callOptions,
             });
 
-            // ================================
-            // Report creation
-            // ================================
-            setTaskMeta(task.meta, 'llmJudgeResults', [
-                { ...factualityMeta, passed: isFactualityPassing },
-            ]);
+            const report = createTestReport({
+                prompt: promptQueryText,
+                response,
+                toolCalls,
+            })
+                .addLlmJudgeResult({
+                    ...factualityMeta,
+                    passed: isFactualityPassing,
+                })
+                .addLlmToolJudgeResult(toolsEvaluation);
 
-            setTaskMeta(
-                task.meta,
-                'toolCalls',
-                toolCalls.map((tc) => tc.tool_name),
-            );
-            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-            setTaskMeta(task.meta, 'responses', [response]);
-            setTaskMeta(task.meta, 'llmToolJudgeResults', [toolsEvaluation]);
-
-            // ================================
-            // Assertions
-            // ================================
-            expect(isFactualityPassing).toBe(true);
-            expect(toolsEvaluation.passed).toBe(true);
+            await report.finalize(test, () => {
+                expect(isFactualityPassing).toBe(true);
+                expect(toolsEvaluation.passed).toBe(true);
+            });
         },
         TIMEOUT,
     );
 
-    it('should be able to get total revenue', async ({ task }) => {
+    it('should be able to get total revenue', async (test) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
@@ -251,29 +245,24 @@ describeOrSkip.concurrent('agent integration tests', () => {
             callOptions,
         });
 
-        // ================================
-        // Report creation
-        // ================================
-        setTaskMeta(task.meta, 'llmJudgeResults', [
-            { ...factualityMeta, passed: isFactualityPassing },
-        ]);
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
-        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-        setTaskMeta(task.meta, 'responses', [response]);
-        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+        const report = createTestReport({
+            prompt: promptQueryText,
+            response,
+            toolCalls,
+        })
+            .addLlmJudgeResult({
+                ...factualityMeta,
+                passed: isFactualityPassing,
+            })
+            .addLlmToolJudgeResult(toolUsageEvaluation);
 
-        // ================================
-        // Assertions
-        // ================================
-        expect(isFactualityPassing).toBe(true);
-        expect(toolUsageEvaluation.passed).toBe(true);
+        await report.finalize(test, () => {
+            expect(isFactualityPassing).toBe(true);
+            expect(toolUsageEvaluation.passed).toBe(true);
+        });
     });
 
-    it('should generate a time-series chart', async ({ task }) => {
+    it('should generate a time-series chart', async (test) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
@@ -339,31 +328,26 @@ describeOrSkip.concurrent('agent integration tests', () => {
             callOptions,
         });
 
-        // ================================
-        // Report creation
-        // ================================
-        setTaskMeta(task.meta, 'llmJudgeResults', [
-            { ...factualityMeta, passed: isFactualityPassing },
-        ]);
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
-        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-        setTaskMeta(task.meta, 'responses', [response]);
-        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+        const report = createTestReport({
+            prompt: promptQueryText,
+            response,
+            toolCalls,
+        })
+            .addLlmJudgeResult({
+                ...factualityMeta,
+                passed: isFactualityPassing,
+            })
+            .addLlmToolJudgeResult(toolUsageEvaluation);
 
-        // ================================
-        // Assertions
-        // ================================
-        expect(isFactualityPassing).toBe(true);
-        expect(toolUsageEvaluation.passed).toBe(true);
+        await report.finalize(test, () => {
+            expect(isFactualityPassing).toBe(true);
+            expect(toolUsageEvaluation.passed).toBe(true);
+        });
     });
 
     it(
         'should retrieve relevant context for a time-based query',
-        async ({ task }) => {
+        async (test) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -430,32 +414,25 @@ describeOrSkip.concurrent('agent integration tests', () => {
             const isContextRelevancyPassing =
                 contextRelevancyEvaluation.score >= 0.7;
 
-            // ================================
-            // Report creation
-            // ================================
-            setTaskMeta(task.meta, 'llmJudgeResults', [
-                { ...contextRelevancyMeta, passed: isContextRelevancyPassing },
-            ]);
+            const report = createTestReport({
+                prompt: promptQueryText,
+                response,
+                toolCalls,
+            }).addLlmJudgeResult({
+                ...contextRelevancyMeta,
+                passed: isContextRelevancyPassing,
+            });
 
-            setTaskMeta(
-                task.meta,
-                'toolCalls',
-                toolCalls.map((tc) => tc.tool_name),
-            );
-            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-            setTaskMeta(task.meta, 'responses', [response]);
-
-            // ================================
-            // Assertions
-            // ================================
-            expect(isContextRelevancyPassing).toBe(true);
+            await report.finalize(test, () => {
+                expect(isContextRelevancyPassing).toBe(true);
+            });
         },
         TIMEOUT,
     );
 
     it(
         'should answer "How many orders were there in 2024?" and generate a one line result',
-        async ({ task }) => {
+        async (test) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -487,32 +464,23 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 factualityEvaluation.answer === 'A' ||
                 factualityEvaluation.answer === 'B';
 
-            // ================================
-            // Report creation
-            // ================================
+            const report = createTestReport({
+                prompt: promptQueryText,
+                response,
+                toolCalls,
+            }).addLlmJudgeResult({
+                ...factualityMeta,
+                passed: isFactualityPassing,
+            });
 
-            setTaskMeta(task.meta, 'llmJudgeResults', [
-                { ...factualityMeta, passed: isFactualityPassing },
-            ]);
-            setTaskMeta(
-                task.meta,
-                'toolCalls',
-                toolCalls.map((tc) => tc.tool_name),
-            );
-            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-            setTaskMeta(task.meta, 'responses', [response]);
-
-            // ================================
-            // Assertions
-            // ================================
-            expect(isFactualityPassing).toBe(true);
+            await report.finalize(test, () => {
+                expect(isFactualityPassing).toBe(true);
+            });
         },
         TIMEOUT,
     );
 
-    it('gives an intro explanation of what the agent can do', async ({
-        task,
-    }) => {
+    it('gives an intro explanation of what the agent can do', async (test) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
@@ -563,34 +531,23 @@ describeOrSkip.concurrent('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
-        // ================================
-        // Report creation
-        // ================================
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
-        setTaskMeta(task.meta, 'llmJudgeResults', [
-            { ...factualityMeta, passed: isFactualityPassing },
-        ]);
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
-        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
-        setTaskMeta(task.meta, 'responses', [response]);
+        const report = createTestReport({
+            prompt: promptQueryText,
+            response,
+            toolCalls,
+        }).addLlmJudgeResult({
+            ...factualityMeta,
+            passed: isFactualityPassing,
+        });
 
-        // ================================
-        // Assertions
-        // ================================
-        expect(isFactualityPassing).toBe(true);
+        await report.finalize(test, () => {
+            expect(isFactualityPassing).toBe(true);
+        });
     });
 
     it.sequential(
         'should handle multiple consecutive prompts in the same thread maintaining context',
-        async ({ task }) => {
+        async (test) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -617,20 +574,15 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 .where('ai_prompt_uuid', webPrompt3!.promptUuid)
                 .select('*');
 
-            // ================================
-            // Report creation
-            // ================================
-            setTaskMeta(
-                task.meta,
-                'toolCalls',
-                toolCallsForPrompt3.map((tc) => tc.tool_name),
-            );
-            setTaskMeta(task.meta, 'prompts', [prompt1, prompt2, prompt3]);
-            setTaskMeta(task.meta, 'responses', [
-                response1,
-                response2,
-                response3,
-            ]);
+            const report = createTestReport({
+                prompts: [prompt1, prompt2, prompt3],
+                responses: [response1, response2, response3],
+                toolCalls: toolCallsForPrompt3,
+            });
+
+            await report.finalize(test, () => {
+                // Test passes if all prompts complete without error
+            });
         },
         TIMEOUT * 2, // Double timeout for multiple prompts
     );
@@ -697,9 +649,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         .select('*');
                 });
 
-                it('should use appropriate tools and not exceed max tool calls', async ({
-                    task,
-                }) => {
+                it('should use appropriate tools and not exceed max tool calls', async (test) => {
                     const toolsEvaluation = await llmAsJudgeForTools({
                         prompt: testCase.question,
                         toolCalls,
@@ -708,29 +658,20 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         callOptions,
                     });
 
-                    // ================================
-                    // Report creation
-                    // ================================
-                    setTaskMeta(task.meta, 'llmToolJudgeResults', [
-                        toolsEvaluation,
-                    ]);
-                    setTaskMeta(
-                        task.meta,
-                        'toolCalls',
-                        toolCalls.map((tc) => tc.tool_name),
-                    );
-                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
-                    setTaskMeta(task.meta, 'responses', [response]);
+                    const report = createTestReport({
+                        prompt: testCase.question,
+                        response,
+                        toolCalls,
+                    }).addLlmToolJudgeResult(toolsEvaluation);
 
-                    // ================================
-                    // Assertions
-                    // ================================
-                    expect(toolsEvaluation.passed).toBe(true);
+                    await report.finalize(test, () => {
+                        expect(toolsEvaluation.passed).toBe(true);
+                    });
                 });
 
                 it(
                     `should get relevant information to answer the question: ${testCase.question}`,
-                    async ({ task }) => {
+                    async (test) => {
                         if (!createdAgent) throw new Error('Agent not created');
 
                         const relevancyEvaluation = await llmAsAJudge({
@@ -754,34 +695,23 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         const isRelevancyPassing =
                             relevancyEvaluation.result.score === 1;
 
-                        // ================================
-                        // Report creation
-                        // ================================
-                        setTaskMeta(task.meta, 'llmJudgeResults', [
-                            {
-                                ...relevancyEvaluation.meta,
-                                passed: isRelevancyPassing,
-                            },
-                        ]);
-                        setTaskMeta(
-                            task.meta,
-                            'toolCalls',
-                            toolCalls.map((tc) => tc.tool_name),
-                        );
-                        setTaskMeta(task.meta, 'prompts', [testCase.question]);
-                        setTaskMeta(task.meta, 'responses', [response]);
+                        const report = createTestReport({
+                            prompt: testCase.question,
+                            response,
+                            toolCalls,
+                        }).addLlmJudgeResult({
+                            ...relevancyEvaluation.meta,
+                            passed: isRelevancyPassing,
+                        });
 
-                        // ================================
-                        // Assertions
-                        // ================================
-                        expect(isRelevancyPassing).toBe(true);
+                        await report.finalize(test, () => {
+                            expect(isRelevancyPassing).toBe(true);
+                        });
                     },
                     TIMEOUT,
                 );
 
-                it('should answer the question with correct factual information', async ({
-                    task,
-                }) => {
+                it('should answer the question with correct factual information', async (test) => {
                     const factualEvaluation = await llmAsAJudge({
                         query: testCase.question,
                         response,
@@ -802,28 +732,18 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         factualEvaluation.result.answer === 'A' ||
                         factualEvaluation.result.answer === 'B';
 
-                    // ================================
-                    // Report creation
-                    // ================================
+                    const report = createTestReport({
+                        prompt: testCase.question,
+                        response,
+                        toolCalls,
+                    }).addLlmJudgeResult({
+                        ...factualEvaluation.meta,
+                        passed: isFactualityPassing,
+                    });
 
-                    setTaskMeta(task.meta, 'llmJudgeResults', [
-                        {
-                            ...factualEvaluation.meta,
-                            passed: isFactualityPassing,
-                        },
-                    ]);
-                    setTaskMeta(
-                        task.meta,
-                        'toolCalls',
-                        toolCalls.map((tc) => tc.tool_name),
-                    );
-                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
-                    setTaskMeta(task.meta, 'responses', [response]);
-
-                    // ================================
-                    // Assertions
-                    // ================================
-                    expect(isFactualityPassing).toBe(true);
+                    await report.finalize(test, () => {
+                        expect(isFactualityPassing).toBe(true);
+                    });
                 });
             },
         );
@@ -873,7 +793,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
         limitationTestCases.forEach((testCase) => {
             it.concurrent(
                 `should provide specific limitations for ${testCase.name}`,
-                async ({ task }) => {
+                async (test) => {
                     if (!createdAgent) {
                         throw new Error('Agent not created');
                     }
@@ -900,19 +820,17 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         limitationQualityEvaluation.answer === 'A' ||
                         limitationQualityEvaluation.answer === 'B';
 
-                    // ==========
-                    // Report generation
-                    // ==========
-                    setTaskMeta(task.meta, 'llmJudgeResults', [
-                        { ...meta, passed: isLimitationQualityPassing },
-                    ]);
-                    setTaskMeta(task.meta, 'prompts', [testCase.prompt]);
-                    setTaskMeta(task.meta, 'responses', [response]);
+                    const report = createTestReport({
+                        prompt: testCase.prompt,
+                        response,
+                    }).addLlmJudgeResult({
+                        ...meta,
+                        passed: isLimitationQualityPassing,
+                    });
 
-                    // ==========
-                    // Assertions
-                    // ==========
-                    expect(isLimitationQualityPassing).toBe(true);
+                    await report.finalize(test, () => {
+                        expect(isLimitationQualityPassing).toBe(true);
+                    });
                 },
                 TIMEOUT,
             );
