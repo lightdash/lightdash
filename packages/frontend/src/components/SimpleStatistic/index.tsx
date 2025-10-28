@@ -41,10 +41,10 @@ const BOX_MIN_HEIGHT = 25;
 const BOX_MAX_HEIGHT = 1000;
 
 const VALUE_SIZE_MIN = 24;
-const VALUE_SIZE_MAX = 64;
+const VALUE_SIZE_MAX = 96;
 
 const LABEL_SIZE_MIN = 14;
-const LABEL_SIZE_MAX = 32;
+const LABEL_SIZE_MAX = 40;
 
 const COMPARISON_VALUE_SIZE_MIN = 12;
 const COMPARISON_VALUE_SIZE_MAX = 22;
@@ -71,10 +71,12 @@ const calculateFontSize = (
     return fontSize;
 };
 
-const BigNumberText: FC<TextProps & { children: ReactNode }> = forwardRef<
+const BigNumberText: FC<
+    TextProps & { children: ReactNode; isHeading?: boolean }
+> = forwardRef<
     HTMLDivElement,
-    TextProps & { children: ReactNode }
->(({ children, ...textProps }, ref) => {
+    TextProps & { children: ReactNode; isHeading?: boolean }
+>(({ children, isHeading = false, ...textProps }, ref) => {
     return (
         <Text
             ref={ref}
@@ -84,7 +86,10 @@ const BigNumberText: FC<TextProps & { children: ReactNode }> = forwardRef<
             {...textProps}
             style={{
                 transition: 'font-size 0.1s ease-in-out',
-                letterSpacing: '-0.02em',
+                ...(isHeading && {
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1,
+                }),
                 ...textProps.style,
             }}
         >
@@ -137,8 +142,14 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             BOX_MAX_WIDTH,
         );
 
+        // Smarter height calculation: subtract tile header height when not hidden
+        // This ensures font size calculation uses actual available content area
+        const availableHeight =
+            (observerElementSize?.height || 0) -
+            (isDashboard && !isTitleHidden ? TILE_HEADER_HEIGHT : 0);
+
         const boundHeight = clamp(
-            observerElementSize?.height || 0,
+            availableHeight,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
         );
@@ -169,7 +180,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             labelFontSize: labelSize,
             comparisonFontSize: comparisonValueSize,
         };
-    }, [observerElementSize]);
+    }, [observerElementSize, isDashboard, isTitleHidden]);
 
     if (!isBigNumber) return null;
 
@@ -202,21 +213,29 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             justify="center"
             align="center"
             gap={0}
-            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => {
                 setRef(elem);
             }}
             {...wrapperProps}
+            styles={{
+                root: {
+                    // TODO: remove this once Inter is the default font
+                    fontFamily:
+                        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                },
+            }}
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (
-                    <BigNumberText fz={valueFontSize}>
+                    <BigNumberText fz={valueFontSize} fw={600} isHeading>
                         {bigNumber}
                     </BigNumberText>
                 ) : (
                     <BigNumberContextMenu>
                         <BigNumberText
                             fz={valueFontSize}
+                            fw={600}
+                            isHeading
                             style={{ cursor: 'pointer' }}
                         >
                             {bigNumber}
@@ -226,10 +245,24 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             </Flex>
 
             {showBigNumberLabel ? (
-                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
-                    <BigNumberText fz={labelFontSize} c="gray.6" fw={400}>
+                <Flex
+                    style={{ flexShrink: 1 }}
+                    justify="center"
+                    align="center"
+                    mt={valueFontSize * 0.15}
+                >
+                    <Text
+                        fz={labelFontSize}
+                        c="gray.6"
+                        fw={500}
+                        ta="center"
+                        style={{
+                            transition: 'font-size 0.1s ease-in-out',
+                            lineHeight: '120%',
+                        }}
+                    >
                         {bigNumberLabel || defaultLabel}
-                    </BigNumberText>
+                    </Text>
                 </Flex>
             ) : null}
 
@@ -240,7 +273,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     display="inline-flex"
                     wrap="wrap"
                     style={{ flexShrink: 1 }}
-                    mt={labelFontSize / 2}
+                    mt={
+                        showBigNumberLabel
+                            ? labelFontSize * 0.85
+                            : valueFontSize * 0.15
+                    }
+                    gap="xs"
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
                         <Group
@@ -277,7 +315,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             fz={comparisonFontSize}
                             c="gray.6"
                             fw={400}
-                            ml="xs"
                         >
                             {comparisonLabel}
                         </BigNumberText>
