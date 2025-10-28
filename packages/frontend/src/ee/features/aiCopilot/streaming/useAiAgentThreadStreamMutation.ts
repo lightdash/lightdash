@@ -8,6 +8,7 @@ import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
+    addReasoning,
     addToolCall,
     setError,
     setImproveContextNotification,
@@ -179,10 +180,24 @@ export function useAiAgentThreadStreamMutation() {
                                         captureException(error);
                                     }
                                     break;
+                                case 'reasoning':
+                                    const reasoningId =
+                                        part.providerMetadata?.openai?.itemId;
+                                    const text = part.text;
+
+                                    if (typeof reasoningId === 'string') {
+                                        dispatch(
+                                            addReasoning({
+                                                threadUuid,
+                                                reasoningId,
+                                                text,
+                                            }),
+                                        );
+                                    }
+                                    break;
                                 case 'text':
                                 case 'dynamic-tool':
                                 case 'file':
-                                case 'reasoning':
                                 case 'source-document':
                                 case 'source-url':
                                 case 'step-start':

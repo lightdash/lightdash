@@ -565,7 +565,48 @@ export const streamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onFinish: ({ usage, steps }) => {
+            onStepFinish: (step) => {
+                const reasoningsToStore = step.reasoning
+                    .map((reasoning) => {
+                        if (
+                            'providerMetadata' in reasoning &&
+                            typeof reasoning.providerMetadata === 'object' &&
+                            reasoning.providerMetadata !== null &&
+                            'openai' in reasoning.providerMetadata &&
+                            typeof reasoning.providerMetadata.openai ===
+                                'object' &&
+                            reasoning.providerMetadata.openai !== null &&
+                            'itemId' in reasoning.providerMetadata.openai &&
+                            typeof reasoning.providerMetadata.openai.itemId ===
+                                'string'
+                        ) {
+                            return {
+                                reasoningId:
+                                    reasoning.providerMetadata.openai.itemId,
+                                text: reasoning.text,
+                            };
+                        }
+                        return null;
+                    })
+                    .filter((r) => r !== null);
+
+                if (reasoningsToStore.length > 0) {
+                    logger(
+                        'On Step Finish',
+                        `Storing ${reasoningsToStore.length} reasoning parts for Prompt UUID ${args.promptUuid}`,
+                    );
+                    void dependencies
+                        .storeReasoning(args.promptUuid, reasoningsToStore)
+                        .catch((error) => {
+                            Logger.error(
+                                'On Step Finish',
+                                `Failed to store reasoning: ${error}`,
+                            );
+                            Sentry.captureException(error);
+                        });
+                }
+            },
+            onFinish: ({ usage, steps, reasoning }) => {
                 logger(
                     'On Finish',
                     'Stream finished. Updating prompt with response.',
@@ -603,7 +644,9 @@ export const streamAgentResponse = async ({
                 });
                 logger(
                     'On Finish',
-                    `Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
+                    `Usage: ${JSON.stringify(usage)}, step length: ${
+                        steps.length
+                    }, reasoning length: ${reasoning.length}`,
                 );
 
                 dependencies.perf.measureStreamResponseTime(
@@ -627,50 +670,6 @@ export const streamAgentResponse = async ({
                 args,
             ),
         });
-
-        const reasonings = new Map<string, string>();
-
-        for await (const chunk of result.fullStream) {
-            switch (chunk.type) {
-                case 'reasoning-start':
-                    reasonings.set(chunk.id, '');
-                    break;
-                case 'reasoning-delta':
-                    reasonings.set(
-                        chunk.id,
-                        (reasonings.get(chunk.id) || '') + chunk.text,
-                    );
-                    break;
-                case 'reasoning-end':
-                    {
-                        const reasoning = reasonings.get(chunk.id);
-                        if (reasoning) {
-                            logger(
-                                'Reasoning End',
-                                `Storing reasoning with ID ${chunk.id}`,
-                            );
-                            void dependencies
-                                .storeReasoning({
-                                    promptUuid: args.promptUuid,
-                                    reasoningId: chunk.id,
-                                    text: reasoning,
-                                })
-                                .catch((error) => {
-                                    Logger.error(
-                                        '[AiAgent][Reasoning End] Failed to store reasoning',
-                                        error,
-                                    );
-                                    Sentry.captureException(error);
-                                });
-
-                            reasonings.delete(chunk.id);
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-        }
 
         logger('Stream Agent Response', 'Returning stream result.');
         return result;

@@ -2247,20 +2247,35 @@ export class AiAgentModel {
         });
     }
 
-    async createReasoning(data: {
-        promptUuid: string;
-        reasoningId: string;
-        text: string;
-    }): Promise<string> {
-        const [reasoning] = await this.database(AiAgentReasoningTableName)
-            .insert({
-                ai_prompt_uuid: data.promptUuid,
-                reasoning_id: data.reasoningId,
-                text: data.text,
-            })
+    async createReasoning(
+        promptUuid: string,
+        reasonings: Array<{ reasoningId: string; text: string }>,
+    ): Promise<string[]> {
+        if (reasonings.length === 0) return [];
+
+        // Group by reasoningId and concatenate texts
+        const grouped = reasonings.reduce<Record<string, string[]>>(
+            (acc, r) => {
+                if (!acc[r.reasoningId]) {
+                    acc[r.reasoningId] = [];
+                }
+                acc[r.reasoningId].push(r.text);
+                return acc;
+            },
+            {},
+        );
+
+        const inserted = await this.database(AiAgentReasoningTableName)
+            .insert(
+                Object.entries(grouped).map(([reasoningId, texts]) => ({
+                    ai_prompt_uuid: promptUuid,
+                    reasoning_id: reasoningId,
+                    text: texts.join('\n\n'),
+                })),
+            )
             .returning('ai_agent_reasoning_uuid');
 
-        return reasoning.ai_agent_reasoning_uuid;
+        return inserted.map((row) => row.ai_agent_reasoning_uuid);
     }
 
     async getReasoningForPrompt(
