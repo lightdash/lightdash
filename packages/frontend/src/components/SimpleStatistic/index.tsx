@@ -6,12 +6,17 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
     type TextProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
-import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
+import {
+    forwardRef,
+    useMemo,
+    type FC,
+    type HTMLAttributes,
+    type ReactNode,
+} from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
@@ -21,6 +26,7 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
+import styles from './SimpleStatistic.module.css';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
@@ -65,25 +71,48 @@ const calculateFontSize = (
     return fontSize;
 };
 
-const BigNumberText: FC<TextProps> = forwardRef<HTMLDivElement, TextProps>(
-    ({ children, ...textProps }, ref) => {
-        return (
-            <Text
-                ref={ref}
-                c="dark.4"
-                align="center"
-                fw={500}
-                {...textProps}
-                style={{
-                    transition: 'font-size 0.1s ease-in-out',
-                    ...textProps.style,
-                }}
-            >
-                {children}
-            </Text>
-        );
-    },
-);
+const BigNumberText: FC<TextProps & { children: ReactNode }> = forwardRef<
+    HTMLDivElement,
+    TextProps & { children: ReactNode }
+>(({ children, ...textProps }, ref) => {
+    return (
+        <Text
+            ref={ref}
+            c="gray.9"
+            ta="center"
+            fw={500}
+            {...textProps}
+            style={{
+                transition: 'font-size 0.1s ease-in-out',
+                letterSpacing: '-0.02em',
+                ...textProps.style,
+            }}
+        >
+            {children}
+        </Text>
+    );
+});
+
+const getTrendPillClass = (
+    comparisonDiff: ComparisonDiffTypes,
+    flipColors?: boolean,
+): string => {
+    const variantClass = (() => {
+        switch (comparisonDiff) {
+            case ComparisonDiffTypes.POSITIVE:
+                return flipColors ? styles.trendPillDown : styles.trendPillUp;
+            case ComparisonDiffTypes.NEGATIVE:
+                return flipColors ? styles.trendPillUp : styles.trendPillDown;
+            case ComparisonDiffTypes.NAN:
+            case ComparisonDiffTypes.UNDEFINED:
+            case ComparisonDiffTypes.NONE:
+            default:
+                return styles.trendPillNeutral;
+        }
+    })();
+
+    return `${styles.trendPill} ${variantClass}`;
+};
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -91,7 +120,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     isDashboard = false,
     ...wrapperProps
 }) => {
-    const theme = useMantineTheme();
     const ability = useAbilityContext();
     const { embedToken } = useEmbed();
 
@@ -143,30 +171,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         };
     }, [observerElementSize]);
 
-    const comparisonValueColor = useMemo(() => {
-        if (!isBigNumber) return undefined;
-
-        const { comparisonDiff, flipColors } = visualizationConfig.chartConfig;
-
-        switch (comparisonDiff) {
-            case ComparisonDiffTypes.NAN:
-            case ComparisonDiffTypes.UNDEFINED:
-                return theme.colors.gray[5];
-            case ComparisonDiffTypes.POSITIVE:
-                return flipColors ? theme.colors.red[7] : theme.colors.green[8];
-            case ComparisonDiffTypes.NEGATIVE:
-                return flipColors ? theme.colors.green[8] : theme.colors.red[7];
-            case ComparisonDiffTypes.NONE:
-                return 'inherit';
-        }
-    }, [
-        isBigNumber,
-        theme.colors.gray,
-        theme.colors.green,
-        theme.colors.red,
-        visualizationConfig.chartConfig,
-    ]);
-
     if (!isBigNumber) return null;
 
     const {
@@ -194,14 +198,17 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             w="100%"
             h="100%"
             component={Stack}
-            spacing={0}
+            dir="column"
+            justify="center"
+            align="center"
+            gap={0}
             pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => {
                 setRef(elem);
             }}
             {...wrapperProps}
         >
-            <Flex style={{ flexShrink: 1 }}>
+            <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (
                     <BigNumberText fz={valueFontSize}>
                         {bigNumber}
@@ -219,8 +226,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             </Flex>
 
             {showBigNumberLabel ? (
-                <Flex style={{ flexShrink: 1 }}>
-                    <BigNumberText fz={labelFontSize}>
+                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+                    <BigNumberText fz={labelFontSize} c="gray.6" fw={400}>
                         {bigNumberLabel || defaultLabel}
                     </BigNumberText>
                 </Flex>
@@ -229,42 +236,49 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             {showComparison ? (
                 <Flex
                     justify="center"
+                    align="center"
                     display="inline-flex"
                     wrap="wrap"
                     style={{ flexShrink: 1 }}
                     mt={labelFontSize / 2}
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
-                        <Group spacing="two" mr={comparisonLabel ? 'xs' : '0'}>
-                            <BigNumberText
-                                span
-                                fz={comparisonFontSize}
-                                c={comparisonValueColor}
-                            >
-                                {comparisonValue}
-                            </BigNumberText>
+                        <Group
+                            className={getTrendPillClass(
+                                comparisonDiff,
+                                visualizationConfig.chartConfig.flipColors,
+                            )}
+                            fz={13}
+                        >
+                            {comparisonValue}
 
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
                                     display="inline"
-                                    color={comparisonValueColor}
-                                    size={comparisonFontSize}
+                                    size={14}
+                                    stroke={2}
                                 />
                             ) : comparisonDiff ===
                               ComparisonDiffTypes.NEGATIVE ? (
                                 <MantineIcon
                                     icon={IconArrowDownRight}
                                     display="inline"
-                                    color={comparisonValueColor}
-                                    size={comparisonFontSize}
+                                    size={14}
+                                    stroke={2}
                                 />
                             ) : null}
                         </Group>
                     </Tooltip>
 
                     {comparisonLabel ? (
-                        <BigNumberText span fz={comparisonFontSize} c="gray.6">
+                        <BigNumberText
+                            span
+                            fz={comparisonFontSize}
+                            c="gray.6"
+                            fw={400}
+                            ml="xs"
+                        >
                             {comparisonLabel}
                         </BigNumberText>
                     ) : null}
