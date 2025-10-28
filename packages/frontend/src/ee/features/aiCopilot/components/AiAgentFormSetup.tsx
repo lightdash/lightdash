@@ -154,6 +154,14 @@ export const AiAgentFormSetup = ({
         agentV2FeatureFlagQuery.isSuccess &&
         agentV2FeatureFlagQuery.data.enabled;
 
+    const agentReasoningFeatureFlagQuery = useFeatureFlag(
+        CommercialFeatureFlags.AgentReasoning,
+    );
+
+    const isAgentReasoningEnabled =
+        agentReasoningFeatureFlagQuery.isSuccess &&
+        agentReasoningFeatureFlagQuery.data.enabled;
+
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
             includeMembers: 5,
@@ -426,51 +434,55 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
-                            <Switch
-                                variant="subtle"
-                                label={
-                                    <Group gap="xs">
-                                        <Text fz="sm" fw={500}>
-                                            Enable Reasoning
-                                        </Text>
-                                        <Tooltip
-                                            label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
-                                            withArrow
-                                            withinPortal
-                                            multiline
-                                            position="right"
-                                            maw="300px"
-                                        >
-                                            <MantineIcon
-                                                icon={IconInfoCircle}
-                                            />
-                                        </Tooltip>
-                                        <Badge
-                                            color="yellow"
-                                            radius="sm"
-                                            variant="light"
-                                            leftSection={
+                            {isAgentReasoningEnabled && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <Group gap="xs">
+                                            <Text fz="sm" fw={500}>
+                                                Enable Reasoning
+                                            </Text>
+                                            <Tooltip
+                                                label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
+                                                withArrow
+                                                withinPortal
+                                                multiline
+                                                position="right"
+                                                maw="300px"
+                                            >
                                                 <MantineIcon
-                                                    icon={IconAlertTriangle}
-                                                    size={12}
+                                                    icon={IconInfoCircle}
                                                 />
-                                            }
-                                        >
-                                            Experimental
-                                        </Badge>
-                                    </Group>
-                                }
-                                description={
-                                    <>
-                                        Display the AI agent's reasoning process
-                                        while it works, showing how it thinks
-                                        through problems and arrives at answers.
-                                    </>
-                                }
-                                {...form.getInputProps('enableReasoning', {
-                                    type: 'checkbox',
-                                })}
-                            />
+                                            </Tooltip>
+                                            <Badge
+                                                color="yellow"
+                                                radius="sm"
+                                                variant="light"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconAlertTriangle}
+                                                        size={12}
+                                                    />
+                                                }
+                                            >
+                                                Experimental
+                                            </Badge>
+                                        </Group>
+                                    }
+                                    description={
+                                        <>
+                                            Displays the agent's reasoning
+                                            process while generating responses,
+                                            helping you understand how it thinks
+                                            through problems and reaches
+                                            conclusions.
+                                        </>
+                                    }
+                                    {...form.getInputProps('enableReasoning', {
+                                        type: 'checkbox',
+                                    })}
+                                />
+                            )}
                             {isAgentV2Enabled && (
                                 <Switch
                                     variant="subtle"
