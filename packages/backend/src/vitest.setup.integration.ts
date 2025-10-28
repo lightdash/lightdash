@@ -194,6 +194,7 @@ export const setupIntegrationTest =
             imageUrl: null,
             enableDataAccess: false,
             enableSelfImprovement: false,
+            enableReasoning: false,
             version: 1,
         };
 

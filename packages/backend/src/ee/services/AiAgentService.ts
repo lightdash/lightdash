@@ -927,6 +927,7 @@ export class AiAgentService {
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            enableReasoning: body.enableReasoning,
             version: body.version,
         });
 
@@ -985,6 +986,7 @@ export class AiAgentService {
             userAccess: body.userAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
+            enableReasoning: body.enableReasoning,
             version: body.version,
         });
 
@@ -1239,8 +1241,16 @@ export class AiAgentService {
                     threadUuid,
                 });
 
-            // Get model configuration
-            const { model } = getModel(this.lightdashConfig.ai.copilot);
+            // Get agent settings to use reasoning preference
+            const agent = await this.aiAgentModel.getAgent({
+                organizationUuid: user.organizationUuid!,
+                agentUuid,
+            });
+
+            // Get model configuration with agent's reasoning setting
+            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: agent.enableReasoning,
+            });
 
             // Generate title using the dedicated title generator
             const title = await generateTitleFromMessages(
@@ -2414,8 +2424,10 @@ export class AiAgentService {
             createChange,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const modelProperties = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
+        const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: agentSettings.enableReasoning,
+        });
 
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
