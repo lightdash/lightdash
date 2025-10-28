@@ -1,3 +1,10 @@
+## [0.2114.1](https://github.com/lightdash/lightdash/compare/0.2114.0...0.2114.1) (2025-10-28)
+
+
+### Bug Fixes
+
+* add feature flag check to AI agent button visibility logic ([#17642](https://github.com/lightdash/lightdash/issues/17642)) ([b8110ff](https://github.com/lightdash/lightdash/commit/b8110ff1c7d7b1b43a2ab238d71e3e4305429234))
+
 # [0.2114.0](https://github.com/lightdash/lightdash/compare/0.2113.1...0.2114.0) (2025-10-27)
 
 
