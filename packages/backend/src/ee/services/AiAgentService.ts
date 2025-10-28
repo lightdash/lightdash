@@ -131,6 +131,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
+    StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
@@ -2135,6 +2136,17 @@ export class AiAgentService {
             );
         };
 
+        const storeReasoning: StoreReasoningFn = async (args) => {
+            void wrapSentryTransaction(
+                'AiAgent.storeReasoning',
+                {
+                    promptUuid: args.promptUuid,
+                    reasoningId: args.reasoningId,
+                },
+                () => this.aiAgentModel.createReasoning(args),
+            );
+        };
+
         const findDashboards: FindDashboardsFn = async (args) =>
             wrapSentryTransaction('AiAgent.findDashboards', args, async () => {
                 const searchResults = await this.searchModel.searchDashboards(
@@ -2308,6 +2320,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            storeReasoning,
             searchFieldValues,
             createChange,
             getExploreCompiler,
@@ -2392,6 +2405,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            storeReasoning,
             searchFieldValues,
             getExploreCompiler,
             createChange,
@@ -2440,6 +2454,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            storeReasoning,
             searchFieldValues,
             getExploreCompiler,
             createChange,

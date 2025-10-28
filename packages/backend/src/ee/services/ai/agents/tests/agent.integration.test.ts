@@ -35,6 +35,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
             ? parseFloat(process.env.OPENAI_TEMPERATURE)
             : 0.2,
         responsesApi: false,
+        reasoning: {
+            enabled: false,
+            reasoningEffort: 'medium',
+            reasoningSummary: 'auto',
+        },
     });
 
     beforeAll(async () => {
