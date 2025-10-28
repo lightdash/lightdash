@@ -14,6 +14,9 @@ import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 
+const EMPTY_METRIC_OVERRIDES = {};
+const EMPTY_PARAMETERS = {};
+
 // Base selectors
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
@@ -127,13 +130,13 @@ export const selectMetrics = createSelector(
 
 export const selectMetricOverrides = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.metricOverrides || {},
+    (metricQuery) => metricQuery.metricOverrides || EMPTY_METRIC_OVERRIDES,
 );
 
 // Parameter selectors
 export const selectParameters = createSelector(
     [selectUnsavedChartVersion],
-    (unsavedChartVersion) => unsavedChartVersion.parameters || {},
+    (unsavedChartVersion) => unsavedChartVersion.parameters || EMPTY_PARAMETERS,
 );
 
 export const selectParameterDefinitions = createSelector(
