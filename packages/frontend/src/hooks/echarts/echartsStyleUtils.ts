@@ -293,3 +293,18 @@ export const getReferenceLineStyle = (
         },
     };
 };
+
+/**
+ * Get axis pointer styling (for highlighting when hovering over series)
+ * Background: gray.7, Text matches axis label styling
+ */
+export const getAxisPointerStyle = (theme: MantineTheme) => ({
+    type: 'shadow' as const,
+    label: {
+        show: true,
+        fontWeight: 500,
+        fontSize: 11,
+        color: '#FFFFFF',
+        backgroundColor: theme.colors.gray[7],
+    },
+});
