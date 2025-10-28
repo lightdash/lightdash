@@ -159,7 +159,6 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 };
 
 export const useColumns = (): TableColumn[] => {
-    // Use Redux for state that's available
     const tableName = useExplorerSelector(selectTableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -167,12 +166,10 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
-    // Get state from new query hook
     const { activeFields, query } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
 
-    // Get parameters from Redux
     const parameters = useExplorerSelector(selectParameters);
 
     const { data: exploreData } = useExplore(tableName, {
@@ -181,8 +178,10 @@ export const useColumns = (): TableColumn[] => {
 
     const { embedToken } = useEmbed();
 
+    const hasNoActiveFields = activeFields.size === 0;
+
     const itemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (!exploreData) return;
+        if (!exploreData || hasNoActiveFields) return;
 
         const baseItemsMap = getItemMap(
             exploreData,
@@ -218,6 +217,7 @@ export const useColumns = (): TableColumn[] => {
             }),
         );
     }, [
+        hasNoActiveFields,
         resultsFields,
         exploreData,
         additionalMetrics,
@@ -271,6 +271,10 @@ export const useColumns = (): TableColumn[] => {
     });
 
     return useMemo(() => {
+        if (hasNoActiveFields) {
+            return [];
+        }
+
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
         >((acc, [fieldId, item]) => {
@@ -395,5 +399,12 @@ export const useColumns = (): TableColumn[] => {
             [],
         );
         return [...validColumns, ...invalidColumns];
-    }, [activeItemsMap, invalidActiveItems, sorts, totals, exploreData]);
+    }, [
+        hasNoActiveFields,
+        activeItemsMap,
+        invalidActiveItems,
+        sorts,
+        totals,
+        exploreData,
+    ]);
 };
