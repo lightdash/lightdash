@@ -354,16 +354,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
-COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
-COPY --from=prod-builder  /usr/local/dbt1.6 /usr/local/dbt1.6
-COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
-COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
-COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
 COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
 COPY --from=prod-builder  /usr/local/dbt1.11 /usr/local/dbt1.11
 COPY --from=build-final /usr/app /usr/app
 
+<<<<<<< HEAD
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
     && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
@@ -372,6 +367,10 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
+=======
+RUN ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt \
+    && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10
+>>>>>>> 84f96d721b (Removed multiple versions of dbt from dockerfile)
 
 
 # Run backend
