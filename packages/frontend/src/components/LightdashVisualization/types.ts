@@ -35,6 +35,7 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
         config: T['chartConfig']['validConfig'];
     }) => void;
     children: (props: { visualizationConfig: T }) => JSX.Element;
+    parameters?: ParametersValuesMap;
 };
 
 // Big Number

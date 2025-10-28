@@ -38,6 +38,7 @@ import {
     getAvailableParameterNames,
     getAvailableParametersFromTables,
     getParameterReferences,
+    getParameterReferencesFromSqlAndFormat,
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
@@ -487,8 +488,11 @@ export class ExploreCompiler {
 
         const compiledSql = compiledMetric.sql;
 
-        // Extract parameter references from metric sql
-        const parameterReferences = getParameterReferences(compiledSql);
+        // Extract parameter references from both SQL and format string
+        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+            compiledSql,
+            typeof metric.format === 'string' ? metric.format : undefined,
+        );
 
         validateParameterReferences(
             metric.table,
@@ -650,8 +654,12 @@ export class ExploreCompiler {
         );
 
         const compiledSql = compiledDimension.sql;
-        // Extract parameter references from dimension sql
-        const parameterReferences = getParameterReferences(compiledSql);
+
+        // Extract parameter references from both SQL and format string
+        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+            compiledSql,
+            typeof dimension.format === 'string' ? dimension.format : undefined,
+        );
 
         validateParameterReferences(
             dimension.table,

@@ -1566,4 +1566,160 @@ describe('Formatting', () => {
             expect(applyDefaultFormat(-1234)).toBe('-1,234');
         });
     });
+
+    describe('formatItemValue with parameters', () => {
+        describe('conditional format expressions with ternary operators', () => {
+            it('should format currency based on parameter value - USD', () => {
+                const metricWithConditionalFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+                };
+                const parameters = { currency: 'USD' };
+
+                expect(
+                    formatItemValue(
+                        metricWithConditionalFormat,
+                        1234.56,
+                        false,
+                        parameters,
+                    ),
+                ).toBe('$1,234.56');
+            });
+
+            it('should format currency based on parameter value - EUR', () => {
+                const metricWithConditionalFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+                };
+                const parameters = { currency: 'EUR' };
+
+                expect(
+                    formatItemValue(
+                        metricWithConditionalFormat,
+                        1234.56,
+                        false,
+                        parameters,
+                    ),
+                ).toBe('€1,234.56');
+            });
+
+            it('should handle simple currency parameter substitution', () => {
+                const metricWithSimpleFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.symbol}0,0.00',
+                };
+
+                expect(
+                    formatItemValue(metricWithSimpleFormat, 1234.56, false, {
+                        symbol: '£',
+                    }),
+                ).toBe('£1,234.56');
+
+                expect(
+                    formatItemValue(metricWithSimpleFormat, 1234.56, false, {
+                        symbol: '¥',
+                    }),
+                ).toBe('¥1,234.56');
+            });
+
+            it('should fall back to default formatting when parameters are not provided', () => {
+                const metricWithConditionalFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+                };
+
+                // Without parameters, should fall back to default number formatting
+                expect(
+                    formatItemValue(
+                        metricWithConditionalFormat,
+                        1234.56,
+                        false,
+                        undefined,
+                    ),
+                ).toBe('1,234.56');
+            });
+
+            it('should handle conditional rounding precision', () => {
+                const metricWithConditionalFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.precision=="high"?"$":"$"}0,0${ld.parameters.precision=="high"?".00":""}',
+                };
+
+                expect(
+                    formatItemValue(
+                        metricWithConditionalFormat,
+                        1234.567,
+                        false,
+                        { precision: 'high' },
+                    ),
+                ).toBe('$1,234.57');
+
+                expect(
+                    formatItemValue(
+                        metricWithConditionalFormat,
+                        1234.567,
+                        false,
+                        { precision: 'low' },
+                    ),
+                ).toBe('$1,235');
+            });
+
+            it('should work with both ld.parameters and lightdash.parameters prefixes', () => {
+                const metricWithLdPrefix = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.symbol}0,0.00',
+                };
+
+                const metricWithLightdashPrefix = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${lightdash.parameters.symbol}0,0.00',
+                };
+
+                expect(
+                    formatItemValue(metricWithLdPrefix, 1234.56, false, {
+                        symbol: '$',
+                    }),
+                ).toBe('$1,234.56');
+
+                expect(
+                    formatItemValue(metricWithLightdashPrefix, 1234.56, false, {
+                        symbol: '€',
+                    }),
+                ).toBe('€1,234.56');
+            });
+
+            it('should handle different currency symbols', () => {
+                const metricWithFormat = {
+                    ...metric,
+                    type: MetricType.NUMBER,
+                    format: '${ld.parameters.symbol}0,0.00',
+                };
+
+                expect(
+                    formatItemValue(metricWithFormat, 1000.5, false, {
+                        symbol: '$',
+                    }),
+                ).toBe('$1,000.50');
+
+                expect(
+                    formatItemValue(metricWithFormat, 1000.5, false, {
+                        symbol: '€',
+                    }),
+                ).toBe('€1,000.50');
+
+                expect(
+                    formatItemValue(metricWithFormat, 1000.5, false, {
+                        symbol: '£',
+                    }),
+                ).toBe('£1,000.50');
+            });
+        });
+    });
 });

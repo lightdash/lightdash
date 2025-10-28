@@ -53,3 +53,18 @@ parameters:
     options:
       - "count"
       - "revenue"
+  decimals:
+    label: "Decimals"
+    description: "Conditional formatting for decimals"
+    default: "true"
+    options:
+      - "true"
+      - "false"
+  currency:
+    label: "Currency"
+    description: "Conditional formatting for currency"
+    default: "usd"
+    options:
+      - "usd"
+      - "eur"
+      - "gbp"

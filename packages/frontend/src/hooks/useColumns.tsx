@@ -14,6 +14,7 @@ import {
     type CustomDimension,
     type Field,
     type ItemsMap,
+    type ParametersValuesMap,
     type RawResultRow,
     type ResultRow,
     type ResultValue,
@@ -62,8 +63,28 @@ export const getItemBgColor = (
     }
 };
 
-export const formatCellContent = (data?: { value: ResultValue }) => {
-    return data?.value.formatted ?? '-';
+export const formatCellContent = (
+    data?: { value: ResultValue },
+    item?: Field | AdditionalMetric | TableCalculation | CustomDimension,
+    parameters?: ParametersValuesMap,
+) => {
+    if (!data) return '-';
+
+    // Only re-format on frontend when there are parameters and the format uses them
+    // Otherwise, use the pre-formatted value from backend
+    const hasParameterFormat =
+        item &&
+        'format' in item &&
+        typeof item.format === 'string' &&
+        (item.format.includes('${ld.parameters') ||
+            item.format.includes('${lightdash.parameters'));
+
+    if (hasParameterFormat && parameters) {
+        return formatItemValue(item, data.value.raw, false, parameters);
+    }
+
+    // Use backend-formatted value by default
+    return data.value.formatted ?? '-';
 };
 
 const isBarDisplay = (
@@ -87,6 +108,7 @@ const formatBarDisplayCell = (
     info:
         | CellContext<ResultRow, { value: ResultValue }>
         | CellContext<RawResultRow, string>,
+    parameters?: ParametersValuesMap,
 ) => {
     const cellValue = info.getValue();
     const columnId = info.column.id;
@@ -108,7 +130,7 @@ const formatBarDisplayCell = (
 
         // Only render bar if value is a valid number
         if (Number.isNaN(value)) {
-            return formatCellContent(cellValue);
+            return formatCellContent(cellValue, item, parameters);
         }
     } else {
         value = Number(cellValue);
@@ -132,23 +154,28 @@ const formatBarDisplayCell = (
 
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
+    parameters?: ParametersValuesMap,
 ) => {
     const cellValue = info.getValue();
+    const item = info.column.columnDef.meta?.item;
 
     try {
-        if (isBarDisplay(info)) return formatBarDisplayCell(info);
+        if (isBarDisplay(info)) return formatBarDisplayCell(info, parameters);
     } catch (error) {
         console.error(`Unable to format value for bar display cell ${error}`);
     }
 
-    return formatCellContent(cellValue);
+    return formatCellContent(cellValue, item, parameters);
 };
 
-export const getValueCell = (info: CellContext<RawResultRow, string>) => {
+export const getValueCell = (
+    info: CellContext<RawResultRow, string>,
+    parameters?: ParametersValuesMap,
+) => {
     const value = info.getValue();
 
     try {
-        if (isBarDisplay(info)) return formatBarDisplayCell(info);
+        if (isBarDisplay(info)) return formatBarDisplayCell(info, parameters);
     } catch (error) {
         console.error(`Unable to get value for bar display cell ${error}`);
     }
@@ -336,11 +363,18 @@ export const useColumns = (): TableColumn[] => {
                         return formatItemValue(
                             currentItem,
                             cellValue.value.raw,
+                            false,
+                            parameters,
                         );
                     },
                     footer: () =>
                         totals?.[fieldId]
-                            ? formatItemValue(item, totals[fieldId])
+                            ? formatItemValue(
+                                  item,
+                                  totals[fieldId],
+                                  false,
+                                  parameters,
+                              )
                             : null,
                     meta: {
                         item,
@@ -406,5 +440,6 @@ export const useColumns = (): TableColumn[] => {
         sorts,
         totals,
         exploreData,
+        parameters,
     ]);
 };
