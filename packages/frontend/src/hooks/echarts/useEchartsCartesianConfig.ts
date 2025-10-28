@@ -82,6 +82,7 @@ import {
     getBarTotalLabelStyle,
     getLegendStyle,
     getLineChartGridStyle,
+    getReferenceLineStyle,
     getTooltipDivider,
     getTooltipStyle,
 } from './echartsStyleUtils';
@@ -352,6 +353,7 @@ export type EChartSeries = {
     data?: unknown[];
     showSymbol?: boolean;
     symbolSize?: number;
+    markLine?: Record<string, unknown>;
 };
 
 const convertPivotValuesColumnsIntoMap = (
@@ -795,6 +797,7 @@ type GetSimpleSeriesArg = {
     yFieldHash: string;
     xFieldHash: string;
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    theme: MantineTheme;
 };
 
 const getSimpleSeries = ({
@@ -804,6 +807,7 @@ const getSimpleSeries = ({
     xFieldHash,
     itemsMap,
     pivotValuesColumnsMap,
+    theme,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -853,6 +857,12 @@ const getSimpleSeries = ({
             hideOverlap: true,
         },
     }),
+    ...(series.markLine && {
+        markLine: {
+            ...series.markLine,
+            ...getReferenceLineStyle(theme, series.color),
+        },
+    }),
 });
 
 // New series generation for pre-pivoted data from backend
@@ -860,7 +870,8 @@ const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    pivotValuesColumnsMap: Record<string, PivotValuesColumn> | null | undefined,
+    theme: MantineTheme,
 ): EChartSeries[] => {
     // Use pivotDetails to find the correct column name for each series
     const findMatchingColumnName = (series: Series): string | undefined => {
@@ -948,6 +959,7 @@ const getEchartsSeriesFromPivotedData = (
                 yFieldHash,
                 xFieldHash,
                 pivotValuesColumnsMap,
+                theme,
             });
         });
 
@@ -958,6 +970,7 @@ const getEchartsSeries = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
+    theme: MantineTheme,
 ): EChartSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
@@ -983,6 +996,7 @@ const getEchartsSeries = (
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
+                theme,
             });
         });
 };
@@ -1798,6 +1812,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
+                theme,
             );
         }
 
@@ -1806,6 +1821,7 @@ const useEchartsCartesianConfig = (
             itemsMap,
             validCartesianConfig,
             pivotDimensions,
+            theme,
         );
     }, [
         validCartesianConfig,
@@ -1814,6 +1830,7 @@ const useEchartsCartesianConfig = (
         pivotDimensions,
         rowKeyMap,
         pivotValuesColumnsMap,
+        theme,
     ]);
 
     const resultsAndMinsAndMaxes = useMemo(
@@ -1849,10 +1866,18 @@ const useEchartsCartesianConfig = (
         const isHorizontal = validCartesianConfig?.layout.flipAxes;
 
         const seriesWithValidStack = series.map<EChartSeries>((serie) => {
+            console.log('serie', serie);
             const baseConfig = {
                 ...serie,
                 color: getSeriesColor(serie),
                 stack: getValidStack(serie),
+                // Apply reference line styling
+                ...(serie.markLine && {
+                    markLine: {
+                        ...serie.markLine,
+                        ...getReferenceLineStyle(theme, serie.color),
+                    },
+                }),
             };
 
             // Apply bar styling for bar charts

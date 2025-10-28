@@ -257,3 +257,39 @@ export const getTooltipDivider = (theme: MantineTheme): string => {
 export const formatColorIndicator = (color: string): string => {
     return `<span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 2px; margin-right: 6px; vertical-align: middle;"></span>`;
 };
+
+/**
+ * Get reference line styling with price tag label
+ * Line: gray.6 (default), Dashed style
+ * Label: Dark background with white text (or light background with dark text)
+ */
+export const getReferenceLineStyle = (
+    theme: MantineTheme,
+    lineColor?: string,
+) => {
+    const defaultLineColor = lineColor || theme.colors.gray[6];
+
+    return {
+        lineStyle: {
+            color: defaultLineColor,
+            type: [4, 4] as const, // Dashed: 5px dash, 5px gap
+            width: 1.5,
+        },
+        label: {
+            show: true,
+            position: 'insideStartTop' as const,
+            distance: 2,
+            formatter: (params: { name?: string; value?: number | string }) => {
+                return params.name || String(params.value || '');
+            },
+            backgroundColor: theme.colors.gray[7],
+            color: '#FFFFFF',
+            borderWidth: 1,
+            borderColor: theme.colors.gray[8],
+            padding: [2, 4],
+            borderRadius: 4,
+            fontSize: 11,
+            fontWeight: 500,
+        },
+    };
+};
