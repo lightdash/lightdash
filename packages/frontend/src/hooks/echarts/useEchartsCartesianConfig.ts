@@ -69,6 +69,9 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
+    formatColorIndicator,
+    formatTooltipHeader,
+    formatTooltipValue,
     getAxisLabelStyle,
     getAxisLineStyle,
     getAxisTickStyle,
@@ -79,6 +82,8 @@ import {
     getBarTotalLabelStyle,
     getLegendStyle,
     getLineChartGridStyle,
+    getTooltipDivider,
+    getTooltipStyle,
 } from './echartsStyleUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -1403,14 +1408,13 @@ const getEchartAxes = ({
                     show: showXAxis,
                     axisLabelStyle: getAxisLabelStyle(theme),
                 }),
-                splitLine:
-                    validCartesianConfig.layout.flipAxes
-                        ? showGridY
-                            ? gridStyle
-                            : { show: false }
-                        : showGridX
+                splitLine: validCartesianConfig.layout.flipAxes
+                    ? showGridY
                         ? gridStyle
-                        : { show: false },
+                        : { show: false }
+                    : showGridX
+                    ? gridStyle
+                    : { show: false },
                 axisLine: getAxisLineStyle(theme),
                 axisTick: getAxisTickStyle(theme),
                 // Override formatter for 100% stacking with flipped axes
@@ -1519,14 +1523,13 @@ const getEchartAxes = ({
                             formatter: '{value}%',
                         },
                     }),
-                splitLine:
-                    validCartesianConfig.layout.flipAxes
-                        ? showGridX
-                            ? gridStyle
-                            : { show: false }
-                        : showGridY
+                splitLine: validCartesianConfig.layout.flipAxes
+                    ? showGridX
                         ? gridStyle
-                        : { show: false },
+                        : { show: false }
+                    : showGridY
+                    ? gridStyle
+                    : { show: false },
                 axisLine: getAxisLineStyle(theme),
                 axisTick: getAxisTickStyle(theme),
                 inverse: !!yAxisConfiguration?.[0].inverse,
@@ -2193,6 +2196,7 @@ const useEchartsCartesianConfig = (
             trigger: 'axis',
             enterable: true,
             extraCssText: 'overflow-y: auto; max-height:280px;',
+            ...getTooltipStyle(theme),
             axisPointer: {
                 type: 'shadow',
                 label: {
@@ -2292,18 +2296,34 @@ const useEchartsCartesianConfig = (
                                 tooltipValue !== undefined &&
                                 tooltipValue !== null
                             ) {
-                                return `<tr>
-                                <td>${marker}</td>
-                                <td>${seriesName}</td>
-                                <td style="text-align: right;"><b>${getFormattedValue(
+                                const formattedValue = getFormattedValue(
                                     tooltipValue,
                                     dim.split('.')[0],
                                     itemsMap,
                                     undefined,
                                     pivotValuesColumnsMap,
-                                )}</b></td>
-                            </tr>
-                        `;
+                                );
+                                const valuePill = formatTooltipValue(
+                                    formattedValue,
+                                    theme,
+                                );
+                                // Extract color from marker HTML
+                                const markerStr =
+                                    typeof marker === 'string' ? marker : '';
+                                const colorMatch = markerStr.match(
+                                    /background-color:\s*([^;'"]+)/,
+                                );
+                                const color = colorMatch
+                                    ? colorMatch[1].trim()
+                                    : '#000';
+                                const colorIndicator =
+                                    formatColorIndicator(color);
+
+                                return `<div style="display: flex; align-items: center; gap: 2px; margin-bottom: 2px;">
+                                    ${colorIndicator}
+                                    <span style="color: ${theme.colors.gray[7]}; flex: 1;">${seriesName}</span>
+                                    ${valuePill}
+                                </div>`;
                             }
                         }
                         return '';
@@ -2345,15 +2365,22 @@ const useEchartsCartesianConfig = (
                 }
 
                 const dimensionId = params[0].dimensionNames?.[0];
+                const header = getTooltipHeader() || '';
+                const divider = getTooltipDivider(theme);
+
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
                     if (isTableCalculation(field)) {
-                        const tooltipHeader = formatItemValue(
+                        const tooltipHeaderText = formatItemValue(
                             field,
-                            getTooltipHeader(),
+                            header,
+                        );
+                        const formattedHeader = formatTooltipHeader(
+                            tooltipHeaderText,
+                            theme,
                         );
 
-                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                        return `${formattedHeader}${divider}${tooltipRows}`;
                     }
 
                     const hasFormat = isField(field)
@@ -2361,18 +2388,23 @@ const useEchartsCartesianConfig = (
                         : false;
 
                     if (hasFormat) {
-                        const tooltipHeader = getFormattedValue(
-                            getTooltipHeader(),
+                        const tooltipHeaderText = getFormattedValue(
+                            header,
                             dimensionId,
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
                         );
+                        const formattedHeader = formatTooltipHeader(
+                            tooltipHeaderText,
+                            theme,
+                        );
 
-                        return `${tooltipHeader}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
+                        return `${formattedHeader}${divider}${tooltipHtml}${tooltipRows}`;
                     }
                 }
-                return `${getTooltipHeader()}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
+                const formattedHeader = formatTooltipHeader(header, theme);
+                return `${formattedHeader}${divider}${tooltipHtml}${tooltipRows}`;
             },
         }),
         [
@@ -2383,6 +2415,7 @@ const useEchartsCartesianConfig = (
             tooltipConfig,
             pivotValuesColumnsMap,
             originalValues,
+            theme,
         ],
     );
 
