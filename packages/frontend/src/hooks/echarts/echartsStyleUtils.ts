@@ -39,6 +39,17 @@ export const getLegendStyle = (
         fontWeight: 500,
         padding: [0, 0, 0, 2],
     },
+    // Navigation controls (for scrollable legends)
+    pageButtonItemGap: 16, // Space between left arrow, page text, and right arrow
+    pageButtonGap: 8, // Space between legend items and navigation controls
+    pageTextStyle: {
+        color: theme.colors.gray[7],
+        fontSize: 12,
+        fontWeight: 500,
+    },
+    pageIconColor: theme.colors.gray[7], // Active chevron color
+    pageIconInactiveColor: theme.colors.gray[3], // Inactive chevron color
+    pageIconSize: 12,
 });
 
 /**
