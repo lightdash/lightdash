@@ -6583,7 +6583,6 @@
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
                     "generateDashboard",
-                    "generateDashboardV2",
                     "findContent",
                     "findExplores",
                     "findFields",
@@ -6728,6 +6727,19 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
                                             }
                                         ]
                                     },
@@ -6741,6 +6753,34 @@
                         ]
                     }
                 ]
+            },
+            "AiAgentReasoning": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "reasoningId": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "text",
+                    "reasoningId",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
             },
             "Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_": {
                 "properties": {
@@ -6794,6 +6834,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "reasoning": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReasoning"
+                        },
+                        "type": "array"
+                    },
                     "toolResults": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentToolResult"
@@ -6833,6 +6879,7 @@
                 "required": [
                     "artifacts",
                     "savedQueryUuid",
+                    "reasoning",
                     "toolResults",
                     "toolCalls",
                     "humanScore",
@@ -20999,7 +21046,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2104.5",
+        "version": "0.2114.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

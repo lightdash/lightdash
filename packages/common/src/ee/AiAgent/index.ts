@@ -150,6 +150,7 @@ export type AiAgentMessageAssistant = {
 
     toolCalls: AiAgentToolCall[];
     toolResults: AiAgentToolResult[];
+    reasoning: AiAgentReasoning[];
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
@@ -343,6 +344,14 @@ export type AiAgentToolResult = {
           metadata: AgentToolOutput['metadata'];
       }
 );
+
+export type AiAgentReasoning = {
+    uuid: string;
+    promptUuid: string;
+    reasoningId: string;
+    text: string;
+    createdAt: Date;
+};
 
 export type AiAgentExploreAccessSummary = {
     exploreName: string;
