@@ -2773,6 +2773,7 @@ export class AsyncQueryService extends ProjectService {
             intrinsicUserAttributes,
             userAttributes,
             warehouseConnection.warehouseClient,
+            { noWrap: true },
         );
 
         // Then replace parameters in SQL before running column discovery query

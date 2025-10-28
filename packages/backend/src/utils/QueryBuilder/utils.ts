@@ -272,29 +272,24 @@ export const replaceUserAttributes = (
 export const replaceUserAttributesAsStrings = (
     sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
-    userAtttributes: UserAttributeValueMap,
+    userAttributes: UserAttributeValueMap,
     warehouseSqlBuilder: WarehouseSqlBuilder,
+    opts?: { noWrap?: boolean },
 ) =>
     replaceUserAttributes(
         sql,
         intrinsicUserAttributes,
-        userAtttributes,
+        userAttributes,
         warehouseSqlBuilder.getStringQuoteChar(),
-        '(',
+        opts?.noWrap ? '' : '(',
     );
 
 export const replaceUserAttributesRaw = (
     sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
-    userAtttributes: UserAttributeValueMap,
+    userAttributes: UserAttributeValueMap,
 ) =>
-    replaceUserAttributes(
-        sql,
-        intrinsicUserAttributes,
-        userAtttributes,
-        '',
-        '',
-    );
+    replaceUserAttributes(sql, intrinsicUserAttributes, userAttributes, '', '');
 
 export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
