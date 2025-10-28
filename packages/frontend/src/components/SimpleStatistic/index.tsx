@@ -40,11 +40,16 @@ const BOX_MAX_WIDTH = 1000;
 const BOX_MIN_HEIGHT = 25;
 const BOX_MAX_HEIGHT = 1000;
 
+// POC: Testing increased font sizes for more impact
+// Original: VALUE_SIZE_MIN = 24, VALUE_SIZE_MAX = 64
+// Testing larger max to make big numbers more prominent
 const VALUE_SIZE_MIN = 24;
-const VALUE_SIZE_MAX = 64;
+const VALUE_SIZE_MAX = 96; // Increased from 64 to 96 for POC
 
+// Original: LABEL_SIZE_MIN = 14, LABEL_SIZE_MAX = 32
+// Proportionally increased to maintain hierarchy
 const LABEL_SIZE_MIN = 14;
-const LABEL_SIZE_MAX = 32;
+const LABEL_SIZE_MAX = 40; // Increased from 32 to 40 for POC
 
 const COMPARISON_VALUE_SIZE_MIN = 12;
 const COMPARISON_VALUE_SIZE_MAX = 22;
@@ -137,8 +142,14 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             BOX_MAX_WIDTH,
         );
 
+        // Smarter height calculation: subtract tile header height when not hidden
+        // This ensures font size calculation uses actual available content area
+        const availableHeight =
+            (observerElementSize?.height || 0) -
+            (isDashboard && !isTitleHidden ? TILE_HEADER_HEIGHT : 0);
+
         const boundHeight = clamp(
-            observerElementSize?.height || 0,
+            availableHeight,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
         );
@@ -164,12 +175,24 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             boundHeight,
         );
 
+        // POC: Debug logging to test different tile sizes
+        // eslint-disable-next-line no-console
+        console.log('[BigNumber POC] Tile size:', {
+            width: observerElementSize?.width,
+            height: observerElementSize?.height,
+            availableHeight,
+            boundWidth,
+            boundHeight,
+            valueFontSize: valueSize,
+            labelFontSize: labelSize,
+        });
+
         return {
             valueFontSize: valueSize,
             labelFontSize: labelSize,
             comparisonFontSize: comparisonValueSize,
         };
-    }, [observerElementSize]);
+    }, [observerElementSize, isDashboard, isTitleHidden]);
 
     if (!isBigNumber) return null;
 
@@ -202,7 +225,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             justify="center"
             align="center"
             gap={0}
-            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => {
                 setRef(elem);
             }}
@@ -226,7 +248,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             </Flex>
 
             {showBigNumberLabel ? (
-                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+                <Flex
+                    style={{ flexShrink: 1 }}
+                    justify="center"
+                    align="center"
+                    mt={valueFontSize * 0.1}
+                >
                     <BigNumberText fz={labelFontSize} c="gray.6" fw={400}>
                         {bigNumberLabel || defaultLabel}
                     </BigNumberText>
@@ -240,7 +267,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     display="inline-flex"
                     wrap="wrap"
                     style={{ flexShrink: 1 }}
-                    mt={labelFontSize / 2}
+                    mt={showBigNumberLabel ? labelFontSize * 0.5 : valueFontSize * 0.1}
+                    gap="xs"
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
                         <Group
@@ -277,7 +305,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             fz={comparisonFontSize}
                             c="gray.6"
                             fw={400}
-                            ml="xs"
                         >
                             {comparisonLabel}
                         </BigNumberText>
