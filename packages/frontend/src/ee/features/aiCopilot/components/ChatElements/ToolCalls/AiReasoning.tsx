@@ -7,7 +7,7 @@ import {
     rehypeRemoveHeaderLinks,
     useMdEditorStyle,
 } from '../../../../../../utils/markdownUtils';
-import { ToolCallPaper } from './ToolCallPaper';
+import { ToolCallContainer } from './ToolCallContainer';
 
 type StreamingReasoning = {
     reasoningId: string;
@@ -47,11 +47,12 @@ export const AiReasoning: FC<AiReasoningProps> = ({
         .join('\n\n---\n\n');
 
     return (
-        <ToolCallPaper
-            defaultOpened={false}
-            variant="dashed"
-            icon={IconBrain}
+        <ToolCallContainer
+            defaultOpened={type !== 'persisted'}
             title="Reasoning"
+            isStreaming={type === 'streaming'}
+            enableIconAnimation={false}
+            icon={IconBrain}
         >
             <MDEditor.Markdown
                 rehypeRewrite={rehypeRemoveHeaderLinks}
@@ -59,11 +60,11 @@ export const AiReasoning: FC<AiReasoningProps> = ({
                 style={{
                     ...mdStyle,
                     padding: '0.5rem 0',
-                    fontSize: '0.875rem',
+                    fontSize: 'var(--mantine-font-size-xs)',
                     color: 'var(--mantine-color-gray-7)',
                 }}
                 components={mdEditorComponents}
             />
-        </ToolCallPaper>
+        </ToolCallContainer>
     );
 };
