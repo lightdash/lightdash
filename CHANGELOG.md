@@ -1,3 +1,20 @@
+# [0.2115.0](https://github.com/lightdash/lightdash/compare/0.2114.2...0.2115.0) (2025-10-28)
+
+
+### Bug Fixes
+
+* add text existence check in agent reasoning storage ([#17636](https://github.com/lightdash/lightdash/issues/17636)) ([a4fc5b0](https://github.com/lightdash/lightdash/commit/a4fc5b0cce4dc7591509c74c886dff79d14c2665))
+
+
+### Features
+
+* add AgentReasoning feature flag for experimental reasoning functionality ([#17633](https://github.com/lightdash/lightdash/issues/17633)) ([467854f](https://github.com/lightdash/lightdash/commit/467854fcec538042da8492ce685161069cfcf1b2))
+* add AI agent reasoning configuration ([#17629](https://github.com/lightdash/lightdash/issues/17629)) ([08d9bba](https://github.com/lightdash/lightdash/commit/08d9bba628f6a34337c597175ae4a3a3d7dfe263))
+* add GPT-5 model support with custom reasoning settings ([#17628](https://github.com/lightdash/lightdash/issues/17628)) ([d7ce984](https://github.com/lightdash/lightdash/commit/d7ce984270dd9cbd3bb68918541e2fa9b91e23ae))
+* add reasoning display to AI agent responses ([#17630](https://github.com/lightdash/lightdash/issues/17630)) ([328a654](https://github.com/lightdash/lightdash/commit/328a6548e570dc92ab0e54c7b2eda05488d68471))
+* add reasoning feature toggle in AI agent settings ([#17632](https://github.com/lightdash/lightdash/issues/17632)) ([05d7b7b](https://github.com/lightdash/lightdash/commit/05d7b7b32d503ebed34390baa96626f52201f90b))
+* streaming reasoning ([#17631](https://github.com/lightdash/lightdash/issues/17631)) ([fd40123](https://github.com/lightdash/lightdash/commit/fd40123f903653f9c1d3e9e4e4cab8998f700a66)), closes [#1234](https://github.com/lightdash/lightdash/issues/1234)
+
 ## [0.2114.2](https://github.com/lightdash/lightdash/compare/0.2114.1...0.2114.2) (2025-10-28)
 
 
