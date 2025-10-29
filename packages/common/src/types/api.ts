@@ -105,6 +105,7 @@ import {
     type CreatePersonalAccessToken,
     type PersonalAccessToken,
 } from './personalAccessToken';
+import { type ApiProjectCompileLogsResults } from './projectCompileLogs';
 import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
@@ -171,7 +172,6 @@ import type {
 import type { PivotValuesColumn } from '../visualizations/types';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import { type PivotConfiguration } from './pivot';
-import { type ApiProjectCompileLogsResults } from './projectCompileLogs';
 import { type QueryHistoryStatus } from './queryHistory';
 
 export enum RequestMethod {

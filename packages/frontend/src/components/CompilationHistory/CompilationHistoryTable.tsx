@@ -42,6 +42,7 @@ import {
 } from '../../hooks/useProjectCompileLogs';
 import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
+import { CompilationLogDrawer } from './CompilationLogDrawer';
 import { CompilationSourceBadge } from './CompilationSourceBadge';
 
 type CompilationSource = 'cli_deploy' | 'refresh_dbt' | 'create_project';
@@ -68,6 +69,21 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     const [selectedSource, setSelectedSource] =
         useState<CompilationSource | null>(null);
+
+    const [drawerOpened, setDrawerOpened] = useState(false);
+    const [selectedLog, setSelectedLog] = useState<ProjectCompileLog | null>(
+        null,
+    );
+
+    const handleRowClick = useCallback((log: ProjectCompileLog) => {
+        setSelectedLog(log);
+        setDrawerOpened(true);
+    }, []);
+
+    const handleDrawerClose = useCallback(() => {
+        setDrawerOpened(false);
+        setSelectedLog(null);
+    }, []);
 
     const sortBy = useMemo(() => {
         if (sorting.length === 0) return undefined;
@@ -312,6 +328,10 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             highlightOnHover: true,
             withColumnBorders: false,
         },
+        mantineTableBodyRowProps: ({ row }) => ({
+            onClick: () => handleRowClick(row.original),
+            style: { cursor: 'pointer' },
+        }),
         mantineTableHeadCellProps: {
             h: '3xl',
             pos: 'relative',
@@ -389,7 +409,16 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         return null;
     }
 
-    return <MantineReactTable table={table} />;
+    return (
+        <>
+            <MantineReactTable table={table} />
+            <CompilationLogDrawer
+                opened={drawerOpened}
+                onClose={handleDrawerClose}
+                log={selectedLog}
+            />
+        </>
+    );
 };
 
 export default CompilationHistoryTable;
