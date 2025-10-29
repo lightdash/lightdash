@@ -10,17 +10,20 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { getLegendStyle } from './styles/legendStyles';
 import {
-    formatColorIndicator,
-    formatTooltipValue,
-    getLegendStyle,
     getPieExternalLabelStyle,
     getPieInternalLabelStyle,
     getPieLabelLineStyle,
     getPieSliceStyle,
+} from './styles/pieChartStyles';
+import {
+    formatColorIndicator,
+    formatTooltipLabel,
+    formatTooltipRow,
+    formatTooltipValue,
     getTooltipStyle,
-    isColorDark,
-} from './echartsStyleUtils';
+} from './styles/tooltipStyles';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -88,8 +91,6 @@ const useEchartsPieConfig = (
                     groupColorOverrides?.[name] ??
                     getGroupColor(groupPrefix, name);
 
-                const isDark = isColorDark(itemColor);
-
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
@@ -104,7 +105,7 @@ const useEchartsPieConfig = (
                             valueLabel === 'outside' ? 'outside' : 'inside',
                         ...(valueLabel === 'outside'
                             ? getPieExternalLabelStyle(theme)
-                            : getPieInternalLabelStyle(theme, isDark)),
+                            : getPieInternalLabelStyle(theme, itemColor)),
                         formatter: (params) => {
                             const isOutside = valueLabel === 'outside';
 
@@ -188,18 +189,17 @@ const useEchartsPieConfig = (
                               )}...`
                             : name;
 
-                    // Build tooltip with proper spacing
                     const colorIndicator = formatColorIndicator(
                         color as string,
                     );
-                    const label = `<span style="color: ${theme.colors.gray[7]};">${truncatedName}</span>`;
+                    const label = formatTooltipLabel(truncatedName, theme);
                     const valueWithPercent = `${percent}% - ${formattedValue}`;
                     const valuePill = formatTooltipValue(
                         valueWithPercent,
                         theme,
                     );
 
-                    return `<div style="display: flex; align-items: center; gap: 2px;">${colorIndicator}${label}</div><div style="margin-top: 2px; margin-left: 16px;">${valuePill}</div>`;
+                    return formatTooltipRow(colorIndicator, label, valuePill);
                 },
             },
         };

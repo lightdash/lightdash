@@ -13,7 +13,7 @@ import round from 'lodash/round';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { getLegendStyle } from './echartsStyleUtils';
+import { getLegendStyle } from './styles/legendStyles';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 export type FunnelSeriesDataPoint = NonNullable<
