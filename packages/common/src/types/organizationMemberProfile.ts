@@ -10,6 +10,18 @@ export enum OrganizationMemberRole {
     ADMIN = 'admin',
 }
 
+export const OrganizationMemberRoleLabels: Record<
+    OrganizationMemberRole,
+    string
+> = {
+    [OrganizationMemberRole.MEMBER]: 'Member',
+    [OrganizationMemberRole.VIEWER]: 'Viewer',
+    [OrganizationMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
+    [OrganizationMemberRole.EDITOR]: 'Editor',
+    [OrganizationMemberRole.DEVELOPER]: 'Developer',
+    [OrganizationMemberRole.ADMIN]: 'Admin',
+} as const;
+
 export const isOrganizationMemberRole = (
     x: string,
 ): x is OrganizationMemberRole =>

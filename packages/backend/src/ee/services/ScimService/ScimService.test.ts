@@ -60,6 +60,12 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
+                roles: [
+                    expect.objectContaining({
+                        value: OrganizationMemberRole.ADMIN,
+                        primary: true,
+                    }),
+                ],
                 [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
                     role: OrganizationMemberRole.ADMIN,
                 },
@@ -125,13 +131,14 @@ describe('ScimService', () => {
                 },
             });
 
-            // Additional verification that the extension schema is not present
+            // Additional verification that the extension schema is not present and no roles when none provided
             expect(scimUser.schemas).not.toContain(
                 ScimSchemaType.LIGHTDASH_USER_EXTENSION,
             );
             expect(
                 scimUser[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             ).toBeUndefined();
+            expect(scimUser.roles).toBeUndefined();
         });
     });
 
@@ -387,6 +394,14 @@ describe('ScimService', () => {
                             ScimSchemaType.USER,
                             ScimSchemaType.LIGHTDASH_USER_EXTENSION,
                         ],
+                        roles: [
+                            {
+                                display: 'Member',
+                                primary: true,
+                                type: 'organization',
+                                value: 'member',
+                            },
+                        ],
                         [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
                             role: OrganizationMemberRole.ADMIN,
                         },
@@ -544,6 +559,49 @@ describe('ScimService', () => {
                         ],
                     }),
                 );
+                // roles should be part of the core User schema now
+                expect(userSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'roles',
+                        type: 'complex',
+                        multiValued: true,
+                        subAttributes: expect.arrayContaining([
+                            expect.objectContaining({
+                                name: 'value',
+                                type: 'string',
+                            }),
+                            expect.objectContaining({
+                                name: 'display',
+                                type: 'string',
+                            }),
+                            expect.objectContaining({
+                                name: 'type',
+                                type: 'string',
+                            }),
+                            expect.objectContaining({
+                                name: 'primary',
+                                type: 'boolean',
+                            }),
+                        ]),
+                    }),
+                );
+                // ensure canonicalValues are defined for roles.value
+                const rolesAttr = userSchema!.attributes.find(
+                    (a) => a.name === 'roles',
+                );
+                expect(rolesAttr).toBeDefined();
+                const valueSubAttr = rolesAttr?.subAttributes?.find(
+                    (sa) => sa.name === 'value',
+                );
+                expect(valueSubAttr).toBeDefined();
+                expect(valueSubAttr!.canonicalValues).toEqual([
+                    'member',
+                    'viewer',
+                    'interactive_viewer',
+                    'editor',
+                    'developer',
+                    'admin',
+                ]);
 
                 // Test ServiceProviderConfig schema
                 const serviceProviderConfigSchema =
