@@ -1,6 +1,7 @@
 import { Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
+import CompilationHistory from '../components/CompilationHistory';
 import { DataOps } from '../components/DataOps';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -65,6 +66,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/parameters`,
                 element: <ProjectParameters projectUuid={projectUuid} />,
+            },
+            {
+                path: `/compilationHistory`,
+                element: <CompilationHistory projectUuid={projectUuid} />,
             },
             {
                 path: '*',

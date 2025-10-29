@@ -171,6 +171,7 @@ import type {
 import type { PivotValuesColumn } from '../visualizations/types';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import { type PivotConfiguration } from './pivot';
+import { type ApiProjectCompileLogsResults } from './projectCompileLogs';
 import { type QueryHistoryStatus } from './queryHistory';
 
 export enum RequestMethod {
@@ -809,7 +810,8 @@ type ApiResults =
     | ApiAppendInstructionResponse['results']
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
-    | ApiUpdateAiOrganizationSettingsResponse['results'];
+    | ApiUpdateAiOrganizationSettingsResponse['results']
+    | ApiProjectCompileLogsResults;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

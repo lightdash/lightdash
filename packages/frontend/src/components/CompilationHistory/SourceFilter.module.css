@@ -1,0 +1,21 @@
+.filterButton {
+    border: 1px dashed var(--mantine-color-gray-3);
+    background: var(--mantine-color-white);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.filterButton:hover {
+    border: 1px dashed var(--mantine-color-gray-4);
+    background: var(--mantine-color-gray-0);
+}
+
+.filterButtonSelected {
+    border: 1px solid var(--mantine-color-indigo-2);
+    background: var(--mantine-color-indigo-0);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.filterButtonSelected:hover {
+    border: 1px solid var(--mantine-color-indigo-3);
+    background: var(--mantine-color-indigo-1);
+}
