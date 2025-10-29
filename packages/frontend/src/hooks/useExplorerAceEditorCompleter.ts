@@ -89,15 +89,18 @@ export const useTableCalculationAceEditorCompleter = (): {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
-    const explore = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
     useEffect(() => {
-        if (aceEditor && explore.data) {
-            const activeExplore = explore.data;
+        if (aceEditor && exploreData) {
+            const activeExplore = exploreData;
             const customMetrics = (additionalMetrics || []).reduce<Metric[]>(
                 (acc, additionalMetric) => {
-                    const table = explore.data.tables[additionalMetric.table];
+                    const table = exploreData.tables[additionalMetric.table];
                     if (table) {
                         const metric = convertAdditionalMetric({
                             additionalMetric,
@@ -159,7 +162,7 @@ export const useTableCalculationAceEditorCompleter = (): {
         };
     }, [
         aceEditor,
-        explore,
+        exploreData,
         activeFields,
         additionalMetrics,
         customDimensions,
@@ -175,12 +178,15 @@ export const useCustomDimensionsAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
     const tableName = useExplorerSelector(selectTableName);
-    const explore = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
     useEffect(() => {
-        if (aceEditor && explore.data) {
-            const activeExplore = explore.data;
+        if (aceEditor && exploreData) {
+            const activeExplore = exploreData;
             const fields = mapFieldsToCompletions(
                 getDimensions(activeExplore),
                 'Dimension',
@@ -190,7 +196,7 @@ export const useCustomDimensionsAceEditorCompleter = (): {
         return () => {
             langTools.setCompleters([]);
         };
-    }, [aceEditor, explore]);
+    }, [aceEditor, exploreData]);
 
     return {
         setAceEditor,
