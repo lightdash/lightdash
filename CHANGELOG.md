@@ -1,3 +1,10 @@
+## [0.2116.1](https://github.com/lightdash/lightdash/compare/0.2116.0...0.2116.1) (2025-10-29)
+
+
+### Bug Fixes
+
+* handle deleted content in validation service ([#17595](https://github.com/lightdash/lightdash/issues/17595)) ([20ffd33](https://github.com/lightdash/lightdash/commit/20ffd33e07d70d5722cb929dc58b4478e65ef54a))
+
 # [0.2116.0](https://github.com/lightdash/lightdash/compare/0.2115.1...0.2116.0) (2025-10-29)
 
 
