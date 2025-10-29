@@ -32,6 +32,7 @@ import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
+import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
@@ -99,6 +100,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
+    projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -1036,6 +1038,17 @@ export class ServiceRepository
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getProjectCompileLogService(): ProjectCompileLogService {
+        return this.getService(
+            'projectCompileLogService',
+            () =>
+                new ProjectCompileLogService({
+                    projectCompileLogModel:
+                        this.models.getProjectCompileLogModel(),
                 }),
         );
     }

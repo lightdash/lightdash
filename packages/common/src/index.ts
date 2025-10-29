@@ -124,6 +124,7 @@ export * from './types/parameters';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
+export * from './types/projectCompileLogs';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
 export * from './types/projectMemberRole';
