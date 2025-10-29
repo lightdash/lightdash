@@ -25,7 +25,11 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import {
+    createNextState,
+    createSlice,
+    type PayloadAction,
+} from '@reduxjs/toolkit';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
@@ -844,19 +848,18 @@ const explorerSlice = createSlice({
         // Convenience action: Clear query but preserve tableName
         // Note: Components should also handle navigation side effects
         clearQuery: (
-            state,
-            action: PayloadAction<{
+            _state,
+            {
+                payload: { defaultState: d, tableName },
+            }: PayloadAction<{
                 defaultState: ExplorerSliceState;
                 tableName: string;
             }>,
         ) => {
-            const { defaultState: defaultStateValue, tableName } =
-                action.payload;
-            // Reset to default state
-            Object.assign(state, defaultStateValue);
-            // Preserve tableName
-            state.unsavedChartVersion.tableName = tableName;
-            state.unsavedChartVersion.metricQuery.exploreName = tableName;
+            return createNextState(d, (draft: ExplorerSliceState) => {
+                draft.unsavedChartVersion.tableName = tableName;
+                draft.unsavedChartVersion.metricQuery.exploreName = tableName;
+            });
         },
     },
 });
