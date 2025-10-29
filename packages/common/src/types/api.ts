@@ -105,7 +105,11 @@ import {
     type CreatePersonalAccessToken,
     type PersonalAccessToken,
 } from './personalAccessToken';
-import { type ApiProjectCompileLogsResults } from './projectCompileLogs';
+
+import {
+    type ApiProjectCompileLogResponse,
+    type ApiProjectCompileLogsResponse,
+} from './projectCompileLogs';
 import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
@@ -811,7 +815,8 @@ type ApiResults =
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
-    | ApiProjectCompileLogsResults;
+    | ApiProjectCompileLogsResponse['results']
+    | ApiProjectCompileLogResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
