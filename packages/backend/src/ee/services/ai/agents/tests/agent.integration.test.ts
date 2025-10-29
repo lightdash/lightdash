@@ -1,21 +1,12 @@
-import {
-    AiAgent,
-    AVAILABLE_VISUALIZATION_TYPES,
-    CatalogType,
-    isDateItem,
-    SEED_PROJECT,
-} from '@lightdash/common';
-import moment from 'moment';
+import { AiAgent, SEED_PROJECT } from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../../config/parseConfig';
-import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
     getServices,
     getTestContext,
     IntegrationTestContext,
 } from '../../../../../vitest.setup.integration';
-import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getModel } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { testCases } from './testCases';
@@ -46,9 +37,9 @@ describeOrSkip.concurrent('agent integration tests', () => {
     // Creating model to be used as judge
     const { model: judge, callOptions } = getOpenaiGptmodel({
         apiKey: process.env.OPENAI_API_KEY!,
-        modelName: 'gpt-5-nano-2025-08-07',
+        modelName: 'gpt-4.1-2025-04-14',
         temperature: 0.2,
-        responsesApi: false,
+        responsesApi: true,
         reasoning: {
             enabled: false,
             reasoningEffort: 'medium',
@@ -85,7 +76,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
     testCases.forEach((testCase) => {
         it.concurrent(
-            testCase.name,
+            testCase.name ?? testCase.prompt,
             async (test) => {
                 const services = getServices(context.app);
                 if (!createdAgent) {
@@ -185,7 +176,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
         );
     });
 
-    it.sequential.skip(
+    it.sequential(
         'should handle multiple consecutive prompts in the same thread maintaining context',
         async (test) => {
             if (!createdAgent) {
@@ -228,152 +219,4 @@ describeOrSkip.concurrent('agent integration tests', () => {
         },
         TIMEOUT * 2, // Double timeout for multiple prompts
     );
-
-    [
-        {
-            question:
-                'What are the order amounts for this year, broken down by order status month over month?',
-            expectedExplore: 'orders',
-            expectedFields: {
-                dimensions: ['Order date month'],
-                metrics: ['Total order amount'],
-                breakdownByDimension: 'Order status',
-                filters: [`Order year ${new Date().getFullYear()}`],
-            },
-            expectedVisualization: 'time_series_chart',
-            maxToolCalls: 3,
-        },
-        {
-            question:
-                'Revenue from the last 3 months for the "credit_card" and "coupon" payment method, displayed as a bar chart.',
-            expectedExplore: 'payments',
-            expectedFields: {
-                dimensions: [],
-                metrics: ['Total revenue'],
-                breakdownByDimension: 'Payment method',
-                filters: [
-                    `Order date from ${moment()
-                        .subtract(3, 'months')
-                        .format('YYYY-MM-DD')} to ${moment()
-                        .subtract(1, 'months')
-                        .format('YYYY-MM-DD')}`,
-                    'Payment method (credit_card, coupon)',
-                ],
-            },
-            expectedVisualization: 'vertical_bar_chart',
-            maxToolCalls: 3,
-        },
-    ].forEach((testCase) => {
-        describe.concurrent.skip(
-            `Evaluating answer for question: ${testCase.question}`,
-            () => {
-                let toolCalls: DbAiAgentToolCall[] = [];
-                let response: string = '';
-
-                beforeAll(async () => {
-                    if (!createdAgent) {
-                        throw new Error('Agent not created');
-                    }
-
-                    const agentResponse = await promptAndGetToolCalls(
-                        context,
-                        createdAgent,
-                        testCase.question,
-                    );
-
-                    response = agentResponse.response;
-                    toolCalls = agentResponse.toolCalls;
-                });
-
-                it('should use appropriate tools and not exceed max tool calls', async (test) => {
-                    const toolsEvaluation = await llmAsJudgeForTools({
-                        prompt: testCase.question,
-                        toolCalls,
-                        expectedOutcome: `Should use appropriate tools to answer "${testCase.question}". Expected to use findExplores to find the ${testCase.expectedExplore} explore, findFields to get relevant fields, and it MUST use the ${testCase.expectedVisualization} tool for visualization. Should not use more than ${testCase.maxToolCalls} tool calls total.`,
-                        judge,
-                        callOptions,
-                    });
-
-                    const report = createTestReport({
-                        agentInfo,
-                        prompt: testCase.question,
-                        response,
-                        toolCalls,
-                    }).addLlmToolJudgeResult(toolsEvaluation);
-
-                    await report.finalize(test, () => {
-                        expect(toolsEvaluation.passed).toBe(true);
-                    });
-                });
-
-                it(
-                    `should get relevant information to answer the question: ${testCase.question}`,
-                    async (test) => {
-                        if (!createdAgent) throw new Error('Agent not created');
-
-                        const { meta: relevancyMeta } = await llmAsAJudge({
-                            query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
-                            response: JSON.stringify(toolCalls),
-                            judge,
-                            callOptions,
-                            scorerType: 'contextRelevancy',
-                            contextRelevancyThreshold: 1.0, // Stricter threshold for this test
-                            context: [
-                                JSON.stringify(
-                                    await getServices(
-                                        context.app,
-                                    ).projectService.getExplore(
-                                        context.testUserSessionAccount,
-                                        createdAgent.projectUuid!,
-                                        testCase.expectedExplore,
-                                    ),
-                                ),
-                            ],
-                        });
-
-                        const report = createTestReport({
-                            agentInfo,
-                            prompt: testCase.question,
-                            response,
-                            toolCalls,
-                        }).addLlmJudgeResult(relevancyMeta);
-
-                        await report.finalize(test, () => {
-                            expect(relevancyMeta.passed).toBe(true);
-                        });
-                    },
-                    TIMEOUT,
-                );
-
-                it('should answer the question with correct factual information', async (test) => {
-                    const { meta: factualityMeta } = await llmAsAJudge({
-                        query: testCase.question,
-                        response,
-                        expectedAnswer: [
-                            `The explore is ${testCase.expectedExplore}.`,
-                            `The dimensions are ${testCase.expectedFields.dimensions.join()}.`,
-                            `The metrics are ${testCase.expectedFields.metrics.join()}.`,
-                            `The breakdown by dimension is ${testCase.expectedFields.breakdownByDimension}.`,
-                            `The filters are ${testCase.expectedFields.filters.join()}.`,
-                            `The visualization is a ${testCase.expectedVisualization}.`,
-                        ].join('\n'),
-                        scorerType: 'factuality',
-                        judge,
-                        callOptions,
-                    });
-
-                    const report = createTestReport({
-                        agentInfo,
-                        prompt: testCase.question,
-                        response,
-                        toolCalls,
-                    }).addLlmJudgeResult(factualityMeta);
-
-                    await report.finalize(test, () => {
-                        expect(factualityMeta.passed).toBe(true);
-                    });
-                });
-            },
-        );
-    });
 });
