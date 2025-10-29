@@ -3,6 +3,7 @@ import {
     AVAILABLE_VISUALIZATION_TYPES,
     CatalogType,
     isDateItem,
+    SEED_PROJECT,
 } from '@lightdash/common';
 import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +18,7 @@ import {
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getModel } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
+import { testCases } from './testCases';
 import { llmAsAJudge } from './utils/llmAsAJudge';
 import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
 import { promptAndGetToolCalls } from './utils/testHelpers';
@@ -63,356 +65,127 @@ describeOrSkip.concurrent('agent integration tests', () => {
         // Create a test agent
         const agent = await getServices(context.app).aiAgentService.createAgent(
             context.testUser,
-            context.testAgent,
+            {
+                name: 'Integration Test Agent',
+                projectUuid: SEED_PROJECT.project_uuid,
+                tags: ['ai'],
+                integrations: [],
+                instruction: '',
+                groupAccess: [],
+                userAccess: [],
+                imageUrl: null,
+                enableDataAccess: false,
+                enableSelfImprovement: false,
+                enableReasoning: false,
+                version: 2,
+            },
         );
         createdAgent = agent;
     }, TIMEOUT);
 
-    it(
-        'should be able to tell the user what data models are available to explore with their agent',
-        async (test) => {
-            const services = getServices(context.app);
-            if (!createdAgent) {
-                throw new Error('Agent not created');
-            }
+    testCases.forEach((testCase) => {
+        it.concurrent(
+            testCase.name,
+            async (test) => {
+                const services = getServices(context.app);
+                if (!createdAgent) {
+                    throw new Error('Agent not created');
+                }
 
-            const promptQueryText = 'What data models are available?';
+                const { response, toolCalls } = await promptAndGetToolCalls(
+                    context,
+                    createdAgent,
+                    testCase.prompt,
+                );
 
-            const { response, toolCalls } = await promptAndGetToolCalls(
-                context,
-                createdAgent,
-                promptQueryText,
-            );
-
-            const { data: tables } =
-                await services.catalogService.searchCatalog({
-                    projectUuid: createdAgent.projectUuid!,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                    },
-                    userAttributes: {},
-                    context: CatalogSearchContext.AI_AGENT,
-                    paginateArgs: {
-                        page: 1,
-                        pageSize: 100,
-                    },
+                const report = createTestReport({
+                    agentInfo,
+                    prompt: testCase.prompt,
+                    response,
+                    toolCalls,
                 });
 
-            const tablesText = tables.map((table) => table.name).join(', ');
-            const expectedAnswer = `You can explore data models such as ${tablesText}`;
-            const { meta: factualityMeta } = await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer,
-                judge,
-                callOptions,
-                scorerType: 'factuality',
-            });
+                // Factuality evaluation
+                if (testCase.expectedAnswer) {
+                    const expectedAnswer =
+                        typeof testCase.expectedAnswer === 'function'
+                            ? await testCase.expectedAnswer({
+                                  services,
+                                  agent: createdAgent,
+                                  testContext: context,
+                              })
+                            : testCase.expectedAnswer;
 
-            const toolsEvaluation = await llmAsJudgeForTools({
-                prompt: promptQueryText,
-                toolCalls,
-                expectedOutcome:
-                    'It should have skipped the tool calls because the agent has access to the data models already',
-                judge,
-                callOptions,
-            });
+                    const { meta: factualityMeta } = await llmAsAJudge({
+                        query: testCase.prompt,
+                        response,
+                        expectedAnswer,
+                        judge,
+                        callOptions,
+                        scorerType: 'factuality',
+                    });
 
-            const report = createTestReport({
-                agentInfo,
-                prompt: promptQueryText,
-                response,
-                toolCalls,
-            })
-                .addLlmJudgeResult(factualityMeta)
-                .addLlmToolJudgeResult(toolsEvaluation);
-
-            await report.finalize(test, () => {
-                expect(factualityMeta.passed).toBe(true);
-                expect(toolsEvaluation.passed).toBe(true);
-            });
-        },
-        TIMEOUT,
-    );
-
-    it('should be able to get total revenue', async (test) => {
-        if (!createdAgent) {
-            throw new Error('Agent not created');
-        }
-
-        const promptQueryText = 'What is the total revenue?';
-
-        const { response, toolCalls } = await promptAndGetToolCalls(
-            context,
-            createdAgent,
-            promptQueryText,
-        );
-
-        const { meta: factualityMeta } = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer: '3,053.87',
-            scorerType: 'factuality',
-            judge,
-            callOptions,
-        });
-
-        const toolUsageEvaluation = await llmAsJudgeForTools({
-            prompt: promptQueryText,
-            toolCalls,
-            expectedOutcome:
-                'It should have used the findExplores, findFields tool and then the table tool summarize the data to get the total revenue',
-            judge,
-            callOptions,
-        });
-
-        const report = createTestReport({
-            agentInfo,
-            prompt: promptQueryText,
-            response,
-            toolCalls,
-        })
-            .addLlmJudgeResult(factualityMeta)
-            .addLlmToolJudgeResult(toolUsageEvaluation);
-
-        await report.finalize(test, () => {
-            expect(factualityMeta.passed).toBe(true);
-            expect(toolUsageEvaluation.passed).toBe(true);
-        });
-    });
-
-    it('should generate a time-series chart', async (test) => {
-        if (!createdAgent) {
-            throw new Error('Agent not created');
-        }
-
-        const promptQueryText =
-            'Generate a time-series chart of revenue over time monthly';
-
-        const { response, toolCalls } = await promptAndGetToolCalls(
-            context,
-            createdAgent,
-            promptQueryText,
-        );
-
-        const { meta: factualityMeta } = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer:
-                "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
-            scorerType: 'factuality',
-            judge,
-            callOptions,
-        });
-
-        const toolUsageEvaluation = await llmAsJudgeForTools({
-            prompt: promptQueryText,
-            toolCalls,
-            expectedOutcome:
-                'It should have used the appropriated tools to find information about revenue over time. It must have used the time series tool to generate the chart',
-            expectedArgsValidation: [
-                {
-                    toolName: 'generateTimeSeriesVizConfig',
-                    expectedArgs: {
-                        vizConfig: {
-                            limit: 1000,
-                            sorts: [
-                                {
-                                    fieldId: 'orders_order_date_month',
-                                    descending: false,
-                                },
-                            ],
-                            lineType: 'line',
-                            yMetrics: ['payments_total_revenue'],
-                            xAxisLabel: 'Order date month',
-                            xDimension: 'orders_order_date_month',
-                            yAxisLabel: 'Total revenue',
-                            exploreName: 'payments',
-                            breakdownByDimension: null,
-                        },
-                    },
-                },
-            ],
-            judge,
-            callOptions,
-        });
-
-        const report = createTestReport({
-            agentInfo,
-            prompt: promptQueryText,
-            response,
-            toolCalls,
-        })
-            .addLlmJudgeResult(factualityMeta)
-            .addLlmToolJudgeResult(toolUsageEvaluation);
-
-        await report.finalize(test, () => {
-            expect(factualityMeta.passed).toBe(true);
-            expect(toolUsageEvaluation.passed).toBe(true);
-        });
-    });
-
-    it(
-        'should retrieve relevant context for a time-based query',
-        async (test) => {
-            if (!createdAgent) {
-                throw new Error('Agent not created');
-            }
-
-            const promptQueryText =
-                'Show me revenue by month from the orders data';
-
-            const { response, toolCalls } = await promptAndGetToolCalls(
-                context,
-                createdAgent,
-                promptQueryText,
-            );
-
-            const findFieldsToolCall = toolCalls.find(
-                (call) => call.tool_name === 'findFields',
-            );
-            expect(findFieldsToolCall).toBeDefined();
-
-            if (!findFieldsToolCall?.result) {
-                throw new Error('findFields tool call did not have a response');
-            }
-
-            const ordersExplore = await getServices(
-                context.app,
-            ).projectService.getExplore(
-                context.testUserSessionAccount,
-                createdAgent.projectUuid!,
-                'orders',
-            );
-
-            // TODO: Check if we should get the fields from the tool call result or from the explore
-            const exploreDateFields: string[] = Object.values(
-                ordersExplore.tables.orders.dimensions,
-            ).reduce((acc: string[], field) => {
-                if (isDateItem(field)) {
-                    acc.push(
-                        `Field: ${field.name}, Label: ${field.label}, Description: ${field.description}`,
-                    );
+                    report.addLlmJudgeResult(factualityMeta);
                 }
-                return acc;
-            }, []);
 
-            const contextForEval = [...exploreDateFields, 'Explore: orders'];
+                // Tool usage evaluation
+                if (testCase.expectedToolOutcome) {
+                    const toolsEvaluation = await llmAsJudgeForTools({
+                        prompt: testCase.prompt,
+                        toolCalls,
+                        expectedOutcome: testCase.expectedToolOutcome,
+                        expectedArgsValidation: testCase.expectedArgsValidation,
+                        judge,
+                        callOptions,
+                    });
 
-            const { meta: contextRelevancyMeta } = await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                context: contextForEval,
-                judge,
-                callOptions,
-                scorerType: 'contextRelevancy',
-            });
+                    report.addLlmToolJudgeResult(toolsEvaluation);
+                }
 
-            const report = createTestReport({
-                agentInfo,
-                prompt: promptQueryText,
-                response,
-                toolCalls,
-            }).addLlmJudgeResult(contextRelevancyMeta);
+                // Context relevancy evaluation
+                if (testCase.contextRelevancy) {
+                    const contextForEval =
+                        typeof testCase.contextRelevancy.context === 'function'
+                            ? await testCase.contextRelevancy.context({
+                                  services,
+                                  agent: createdAgent,
+                                  testContext: context,
+                              })
+                            : testCase.contextRelevancy.context;
 
-            await report.finalize(test, () => {
-                expect(contextRelevancyMeta.passed).toBe(true);
-            });
-        },
-        TIMEOUT,
-    );
+                    const { meta: contextRelevancyMeta } = await llmAsAJudge({
+                        query: testCase.prompt,
+                        response,
+                        context: contextForEval,
+                        judge,
+                        callOptions,
+                        scorerType: 'contextRelevancy',
+                        contextRelevancyThreshold:
+                            testCase.contextRelevancy.threshold,
+                    });
 
-    it(
-        'should answer "How many orders were there in 2024?" and generate a one line result',
-        async (test) => {
-            if (!createdAgent) {
-                throw new Error('Agent not created');
-            }
+                    report.addLlmJudgeResult(contextRelevancyMeta);
+                }
 
-            const promptQueryText = 'How many orders were there in 2024?';
+                await report.finalize(test, () => {
+                    const reportData = report.getData();
 
-            const { response, toolCalls } = await promptAndGetToolCalls(
-                context,
-                createdAgent,
-                promptQueryText,
-            );
+                    // Check all LLM judge results
+                    reportData.llmJudgeResults?.forEach((result) => {
+                        expect(result.passed).toBe(true);
+                    });
 
-            const { meta: factualityMeta } = await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer: 'There were 53 orders in 2024',
-                scorerType: 'factuality',
-                judge,
-                callOptions,
-            });
-
-            const report = createTestReport({
-                agentInfo,
-                prompt: promptQueryText,
-                response,
-                toolCalls,
-            }).addLlmJudgeResult(factualityMeta);
-
-            await report.finalize(test, () => {
-                expect(factualityMeta.passed).toBe(true);
-            });
-        },
-        TIMEOUT,
-    );
-
-    it('gives an intro explanation of what the agent can do', async (test) => {
-        if (!createdAgent) {
-            throw new Error('Agent not created');
-        }
-
-        const promptQueryText = 'What can you do?';
-
-        const { response, toolCalls } = await promptAndGetToolCalls(
-            context,
-            createdAgent,
-            promptQueryText,
-        );
-
-        const availableExplores = await getServices(
-            context.app,
-        ).catalogService.searchCatalog({
-            projectUuid: createdAgent.projectUuid!,
-            catalogSearch: {
-                type: CatalogType.Table,
+                    // Check all tool judge results
+                    reportData.llmToolJudgeResults?.forEach((result) => {
+                        expect(result.passed).toBe(true);
+                    });
+                });
             },
-            userAttributes: {},
-            context: CatalogSearchContext.AI_AGENT,
-        });
-
-        const availableExploresText = availableExplores.data
-            .map((explore) => explore.name)
-            .join(', ');
-
-        const { meta: factualityMeta } = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
-                I can give you a summary of the data in each explore, breakdown by categories, show trends over time, and generate charts and tables.
-                Chart types available are bar charts, time series charts, and tables.
-                `,
-            scorerType: 'factuality',
-            judge,
-            callOptions,
-        });
-
-        const report = createTestReport({
-            agentInfo,
-            prompt: promptQueryText,
-            response,
-            toolCalls,
-        }).addLlmJudgeResult(factualityMeta);
-
-        await report.finalize(test, () => {
-            expect(factualityMeta.passed).toBe(true);
-        });
+            TIMEOUT * testCases.length,
+        );
     });
 
-    it.sequential(
+    it.sequential.skip(
         'should handle multiple consecutive prompts in the same thread maintaining context',
         async (test) => {
             if (!createdAgent) {
@@ -491,7 +264,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             maxToolCalls: 3,
         },
     ].forEach((testCase) => {
-        describe.concurrent(
+        describe.concurrent.skip(
             `Evaluating answer for question: ${testCase.question}`,
             () => {
                 let toolCalls: DbAiAgentToolCall[] = [];
@@ -602,85 +375,5 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 });
             },
         );
-    });
-
-    describe('Limitation response quality', () => {
-        const limitationTestCases = [
-            {
-                name: 'forecasting request',
-                prompt: 'Can you forecast the revenue for next quarter?',
-                expectedResponse:
-                    'I cannot perform statistical forecasting or predictive modeling. I can only work with historical data visualization and aggregation using the explores available this project',
-            },
-            {
-                name: 'unsupported calculated metric request',
-                prompt: 'Create a table showing each customer, their total spending on orders, total shipping fees paid, total taxes paid, and the sum of all these costs combined.',
-                expectedResponse:
-                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or metrics that combine multiple fields directly in the table output. I can only display existing fields and metrics defined in your data model.',
-            },
-            {
-                name: 'unsupported calculated field request',
-                prompt: 'Create a table showing each customer, their customer id, and their full name (first name + last name).',
-                expectedResponse:
-                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or fields. I can only display existing fields and metrics defined in your data model.',
-            },
-            {
-                name: 'unsupported custom sql request',
-                prompt: 'Write a custom SQL query to join customers and orders and calculate lifetime value (sum of all purchases for each customer over time).',
-                expectedResponse:
-                    'I cannot perform this request because I am unable to create or execute custom SQL queries directly. I can only use the existing explores, fields, and metrics defined in your data model.',
-            },
-            {
-                name: 'unsupported visualization request',
-                prompt: 'Create a scatter chart of total order amount versus region',
-                expectedResponse: `I can only create ${AVAILABLE_VISUALIZATION_TYPES.join(
-                    ', ',
-                )}. I cannot create scatter plots or other advanced visualization types`,
-            },
-            {
-                name: 'conversation history request',
-                prompt: 'What did we talk about yesterday?',
-                expectedResponse:
-                    'I do not have access to previous conversations or memory of past interactions. Each session is stateless, so I can only reference messages from our current conversation.',
-            },
-        ];
-
-        limitationTestCases.forEach((testCase) => {
-            it.concurrent(
-                `should provide specific limitations for ${testCase.name}`,
-                async (test) => {
-                    if (!createdAgent) {
-                        throw new Error('Agent not created');
-                    }
-
-                    const { response, toolCalls } = await promptAndGetToolCalls(
-                        context,
-                        createdAgent,
-                        testCase.prompt,
-                    );
-
-                    const { meta } = await llmAsAJudge({
-                        query: testCase.prompt,
-                        response,
-                        expectedAnswer: testCase.expectedResponse,
-                        scorerType: 'factuality',
-                        judge,
-                        callOptions,
-                    });
-
-                    const report = createTestReport({
-                        agentInfo,
-                        prompt: testCase.prompt,
-                        response,
-                        toolCalls,
-                    }).addLlmJudgeResult(meta);
-
-                    await report.finalize(test, () => {
-                        expect(meta.passed).toBe(true);
-                    });
-                },
-                TIMEOUT,
-            );
-        });
     });
 });

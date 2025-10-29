@@ -26,7 +26,6 @@ export interface IntegrationTestContext {
     db: Knex;
     testUser: SessionUser;
     testUserSessionAccount: SessionAccount;
-    testAgent: ApiCreateAiAgent;
     cleanup: () => Promise<void>;
 }
 
@@ -183,21 +182,6 @@ export const setupIntegrationTest =
             isOauthUser: () => false,
         };
 
-        const testAgent: ApiCreateAiAgent = {
-            name: 'Integration Test Agent',
-            projectUuid: SEED_PROJECT.project_uuid,
-            tags: ['ai'],
-            integrations: [],
-            instruction: 'You are a helpful AI assistant for testing purposes.',
-            groupAccess: [],
-            userAccess: [],
-            imageUrl: null,
-            enableDataAccess: false,
-            enableSelfImprovement: false,
-            enableReasoning: false,
-            version: 1,
-        };
-
         const catalogService = app.getServiceRepository().getCatalogService();
         await catalogService.indexCatalog(
             SEED_PROJECT.project_uuid,
@@ -227,7 +211,6 @@ export const setupIntegrationTest =
             db,
             testUser,
             testUserSessionAccount,
-            testAgent,
             cleanup,
         };
     };
