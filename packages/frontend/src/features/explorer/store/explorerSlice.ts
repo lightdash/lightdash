@@ -73,6 +73,12 @@ const explorerSlice = createSlice({
             action: PayloadAction<MetricQuery>,
         ) => {
             state.previouslyFetchedState = action.payload;
+
+            // Clear table calculation metadata now that query has successfully run
+            // The new query results will have the updated table calculation names
+            if (state.metadata?.tableCalculations) {
+                state.metadata.tableCalculations = [];
+            }
         },
 
         toggleExpandedSection: (
@@ -429,6 +435,29 @@ const explorerSlice = createSlice({
             const { oldName, tableCalculation } = action.payload;
             const newName = tableCalculation.name;
 
+            // Update metadata to track the name change, this is used
+            // by consuming visualizations to translate old field names
+            // to new field names until the query re-runs
+            if (!state.metadata) {
+                state.metadata = {};
+            }
+            const tcMetadataIndex =
+                state.metadata.tableCalculations?.findIndex(
+                    (tc) => tc.name === oldName,
+                ) ?? -1;
+
+            if (tcMetadataIndex >= 0 && state.metadata.tableCalculations) {
+                state.metadata.tableCalculations[tcMetadataIndex] = {
+                    name: newName,
+                    oldName,
+                };
+            } else {
+                state.metadata.tableCalculations = [
+                    ...(state.metadata.tableCalculations ?? []),
+                    { name: newName, oldName },
+                ];
+            }
+
             // Update table calculation
             const index =
                 state.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
@@ -455,6 +484,15 @@ const explorerSlice = createSlice({
         },
         deleteTableCalculation: (state, action: PayloadAction<string>) => {
             const nameToRemove = action.payload;
+
+            // Remove from metadata if it exists
+            if (state.metadata?.tableCalculations) {
+                state.metadata.tableCalculations =
+                    state.metadata.tableCalculations.filter(
+                        (tc) => tc.name !== nameToRemove,
+                    );
+            }
+
             state.unsavedChartVersion.metricQuery.tableCalculations =
                 state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tc) => tc.name !== nameToRemove,
