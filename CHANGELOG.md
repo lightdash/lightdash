@@ -1,3 +1,15 @@
+# [0.2117.0](https://github.com/lightdash/lightdash/compare/0.2116.3...0.2117.0) (2025-10-29)
+
+
+### Features
+
+* **backend:** project compile log model, service and controller ([#17577](https://github.com/lightdash/lightdash/issues/17577)) ([4353a81](https://github.com/lightdash/lightdash/commit/4353a812bc9b7d714d7287282e606ba3e227bb50))
+* display compilation log on job details drawer ([#17614](https://github.com/lightdash/lightdash/issues/17614)) ([3fd635d](https://github.com/lightdash/lightdash/commit/3fd635d8b7a093e0c6a33521edcbf9c0a02b711f)), closes [#17520](https://github.com/lightdash/lightdash/issues/17520)
+* **frontend:** add project compilation log in project settings ([#17578](https://github.com/lightdash/lightdash/issues/17578)) ([c36162b](https://github.com/lightdash/lightdash/commit/c36162b312c8b983fd134b756adb72c442a9aea1)), closes [#17518](https://github.com/lightdash/lightdash/issues/17518)
+* log report on project compilation ([#17551](https://github.com/lightdash/lightdash/issues/17551)) ([0e4be06](https://github.com/lightdash/lightdash/commit/0e4be06dc38b5f08bd5209f4f4239815d178a7da)), closes [#17517](https://github.com/lightdash/lightdash/issues/17517)
+* see compilation raw information ([#17586](https://github.com/lightdash/lightdash/issues/17586)) ([1aa8d71](https://github.com/lightdash/lightdash/commit/1aa8d71710722b626ff70fcc9888c54129ef7246))
+* show last compiled in project update connection ([#17587](https://github.com/lightdash/lightdash/issues/17587)) ([01352e9](https://github.com/lightdash/lightdash/commit/01352e95e786dd747ea60f79382644c6b75d18dd))
+
 ## [0.2116.3](https://github.com/lightdash/lightdash/compare/0.2116.2...0.2116.3) (2025-10-29)
 
 
