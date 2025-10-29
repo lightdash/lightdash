@@ -37,6 +37,7 @@ import {
     ApiUpdateUserAgentPreferencesResponse,
     KnexPaginateArgs,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     Body,
     Delete,
@@ -59,6 +60,7 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import Logger from '../../logging/logger';
 import { type AiAgentService } from '../services/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
@@ -335,6 +337,27 @@ export class AiAgentController extends BaseController {
          * Hack to get the response object from the request
          */
         stream.pipeUIMessageStreamToResponse(req.res!);
+
+        // If client disconnects, continue consuming the stream so side-effects complete
+        let hasConsumed = false;
+        const handleClientDisconnect = () => {
+            if (hasConsumed) return;
+            hasConsumed = true;
+            Logger.info('Client disconnected, consuming stream');
+            void stream.consumeStream({
+                onError: (error) => {
+                    Logger.error('Error consuming stream');
+                    Sentry.captureException(error);
+                },
+            });
+        };
+        req.res?.on('finish', () => {
+            // If the request is finished, we can stop consuming the stream
+            hasConsumed = true;
+        });
+        req.res?.on('close', handleClientDisconnect);
+        req.res?.on('error', handleClientDisconnect);
+        req.on('aborted', handleClientDisconnect);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

@@ -381,10 +381,10 @@ const createOptimisticMessages = (
         },
         {
             role: 'assistant' as const,
+            status: 'pending' as const,
             uuid: promptUuid,
             threadUuid,
-            // Non-empty message to avoid brief flash of blank message
-            message: ' ',
+            message: '',
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
