@@ -1,3 +1,10 @@
+## [0.2116.3](https://github.com/lightdash/lightdash/compare/0.2116.2...0.2116.3) (2025-10-29)
+
+
+### Bug Fixes
+
+* show externalbrowser on snowflake UI when selected ([#17669](https://github.com/lightdash/lightdash/issues/17669)) ([b735855](https://github.com/lightdash/lightdash/commit/b735855af5f221b8f7af6bb7c3ad5d80494ae901))
+
 ## [0.2116.2](https://github.com/lightdash/lightdash/compare/0.2116.1...0.2116.2) (2025-10-29)
 
 
