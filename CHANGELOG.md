@@ -1,3 +1,10 @@
+## [0.2116.2](https://github.com/lightdash/lightdash/compare/0.2116.1...0.2116.2) (2025-10-29)
+
+
+### Bug Fixes
+
+* table calc modal clears viz config ([#17722](https://github.com/lightdash/lightdash/issues/17722)) ([64cf00d](https://github.com/lightdash/lightdash/commit/64cf00d03fea960687e20154a8b08fa31ccd0de4))
+
 ## [0.2116.1](https://github.com/lightdash/lightdash/compare/0.2116.0...0.2116.1) (2025-10-29)
 
 
