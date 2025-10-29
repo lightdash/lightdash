@@ -3359,6 +3359,21 @@ export class AiAgentService {
                     slackChannelId: event.channel,
                 });
 
+            if (slackSettings?.aiRequireOAuth) {
+                const user = await this.userModel.findSessionUserAndOrgByUuid(
+                    userUuid,
+                    agentConfig.organizationUuid,
+                );
+
+                const hasAccess = await this.checkAgentAccess(
+                    user,
+                    agentConfig,
+                );
+                if (!hasAccess) {
+                    throw new ForbiddenError();
+                }
+            }
+
             name = agentConfig.name;
 
             if (event.thread_ts) {
@@ -3398,6 +3413,14 @@ export class AiAgentService {
                 Logger.debug('Failed to find ai agent:', e);
                 await say({
                     text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${this.lightdashConfig.siteUrl}/ai-agents to configure one.`,
+                    thread_ts: event.ts,
+                });
+                return;
+            }
+
+            if (e instanceof ForbiddenError) {
+                await say({
+                    text: `⚠️ You are not authorized to access this agent. Please contact your administrator to get access.`,
                     thread_ts: event.ts,
                 });
                 return;
