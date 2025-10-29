@@ -1,3 +1,11 @@
+## [0.2115.1](https://github.com/lightdash/lightdash/compare/0.2115.0...0.2115.1) (2025-10-29)
+
+
+### Bug Fixes
+
+* adjust modal body height and improve space selector scrolling ([#17699](https://github.com/lightdash/lightdash/issues/17699)) ([ba69220](https://github.com/lightdash/lightdash/commit/ba692207fd37e7b5670d6f312ecdc06a95fc1593))
+* jinja replacement conflicts with missing jinja context ([#17708](https://github.com/lightdash/lightdash/issues/17708)) ([9db307b](https://github.com/lightdash/lightdash/commit/9db307bd55deedd807a1459700af33a1e57b42a0))
+
 # [0.2115.0](https://github.com/lightdash/lightdash/compare/0.2114.2...0.2115.0) (2025-10-28)
 
 
