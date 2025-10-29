@@ -595,7 +595,8 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     downloadAuditModel: this.models.getDownloadAuditModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
-                    storageClient: this.clients.getResultsFileStorageClient(),
+                    resultsStorageClient:
+                        this.clients.getResultsFileStorageClient(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),

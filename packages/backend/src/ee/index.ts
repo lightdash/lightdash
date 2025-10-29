@@ -284,7 +284,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     downloadAuditModel: models.getDownloadAuditModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
-                    storageClient: clients.getResultsFileStorageClient(),
+                    resultsStorageClient: clients.getResultsFileStorageClient(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:

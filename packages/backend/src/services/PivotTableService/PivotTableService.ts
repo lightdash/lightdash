@@ -109,11 +109,12 @@ export class PivotTableService extends BaseService {
             attachmentDownloadName?: string;
         };
     }): Promise<{ fileUrl: string; truncated: boolean }> {
-        const { onlyRaw, customLabels, pivotConfig } = options;
+        const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
+            options;
 
         // Load rows from the results file using shared streaming utility
         // Use the same logic as regular CSV exports - respect csvCellsLimit with field count
-        const readStream = await storageClient.getDowloadStream(
+        const readStream = await storageClient.getDownloadStream(
             resultsFileName,
         );
 
@@ -144,8 +145,7 @@ export class PivotTableService extends BaseService {
             );
         }
 
-        const fileName =
-            options.attachmentDownloadName || `pivot-${resultsFileName}`;
+        const fileName = attachmentDownloadName || `pivot-${resultsFileName}`;
 
         const attachmentUrl = await this.downloadPivotTableCsv({
             name: fileName,
