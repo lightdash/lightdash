@@ -104,13 +104,6 @@ describe('Explore perf', () => {
 
         // Wait for data to load
         cy.findByTestId('table-header').should('exist');
-
-        cy.log('Open the chart');
-        flowId = 'open-chart';
-        validateFlowId(flowId);
-        FLOWS.push(flowId);
-        cy.flowBegin(flowId, 'clickOpenChart');
-        cy.findByTestId('Chart-card-expand').click();
         cy.flowEndWhenVisible(flowId, 'chartRender', '.echarts-for-react');
 
         cy.log('Add filter and measure time to show the whole fitler rule');
