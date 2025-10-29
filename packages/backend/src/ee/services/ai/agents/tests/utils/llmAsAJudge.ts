@@ -58,7 +58,7 @@ type BaseLlmAsJudgeParams = {
     response: string;
     expectedAnswer?: string;
     context?: string[];
-    model: Exclude<LanguageModel, string>;
+    judge: Exclude<LanguageModel, string>;
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
     contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
     factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
@@ -92,7 +92,7 @@ export async function llmAsAJudge(
  * @param query The user's original query
  * @param response The agent's response
  * @param expectedAnswer The expected/reference answer
- * @param model Your configured AI model (e.g., openai('gpt-4'))
+ * @param judge Your configured AI model to be the judge (e.g., openai('gpt-4'))
  * @param scorerType The type of evaluation to perform
  * @param contextRelevancyThreshold Minimum score for context relevancy (0-1, default 0.7)
  * @param factualityThreshold Minimum acceptable factuality score (default 'A')
@@ -102,7 +102,7 @@ export async function llmAsAJudge({
     response,
     expectedAnswer,
     context,
-    model,
+    judge,
     callOptions,
     scorerType,
     contextRelevancyThreshold = 0.7,
@@ -150,7 +150,7 @@ export async function llmAsAJudge({
                 );
             }
             const { object } = await generateObject({
-                model,
+                model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
                 schema: z.object({
@@ -220,7 +220,7 @@ export async function llmAsAJudge({
             }
 
             const { object } = await generateObject({
-                model,
+                model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
                 schema: z.object({

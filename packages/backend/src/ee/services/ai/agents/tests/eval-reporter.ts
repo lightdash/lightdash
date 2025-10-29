@@ -29,6 +29,8 @@ interface EvalResult {
     llmToolJudgeResults?: TaskMeta['llmToolJudgeResults'];
     prompts?: TaskMeta['prompts'];
     responses?: TaskMeta['responses'];
+    agentProvider?: TaskMeta['agentProvider'];
+    agentModel?: TaskMeta['agentModel'];
 }
 
 export default class EvalHtmlReporter implements Reporter {
@@ -112,6 +114,8 @@ export default class EvalHtmlReporter implements Reporter {
                     llmToolJudgeResults: taskMeta.llmToolJudgeResults || [],
                     prompts: taskMeta.prompts || [],
                     responses: taskMeta.responses || [],
+                    agentProvider: taskMeta.agentProvider,
+                    agentModel: taskMeta.agentModel,
                 };
                 this.results.push(result);
             } else if (task.type === 'suite' && task.tasks) {
@@ -156,6 +160,13 @@ export default class EvalHtmlReporter implements Reporter {
             'en-GB',
         )} ${now.toLocaleTimeString('en-GB', { hour12: false })}`;
 
+        // Get agent provider/model from first test result that has it
+        const agentProvider =
+            this.results.find((r) => r.agentProvider)?.agentProvider ||
+            'unknown';
+        const agentModel =
+            this.results.find((r) => r.agentModel)?.agentModel || 'unknown';
+
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -186,6 +197,16 @@ export default class EvalHtmlReporter implements Reporter {
         .title .date {
             color: #6c757d;
             font-size: 14px;
+        }
+        .title .model-info {
+            color: #495057;
+            font-size: 12px;
+            margin-top: 8px;
+            font-family: monospace;
+            background: #e9ecef;
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
         }
         .summary {
             display: flex;
@@ -330,6 +351,7 @@ export default class EvalHtmlReporter implements Reporter {
     <div class="title">
         <h1>AI Agent Evaluation Report</h1>
         <div class="date">${formattedDate}</div>
+        <div class="model-info">Agent: ${agentProvider} / ${agentModel}</div>
     </div>
     
     <div class="summary">
@@ -827,5 +849,7 @@ declare module 'vitest' {
         responses: string[];
         llmJudgeResults: LlmJudgeResult[];
         llmToolJudgeResults: ToolJudgeResult[];
+        agentProvider: string;
+        agentModel: string;
     }
 }
