@@ -1,3 +1,15 @@
+# [0.2116.0](https://github.com/lightdash/lightdash/compare/0.2115.1...0.2116.0) (2025-10-29)
+
+
+### Bug Fixes
+
+* clarify that pagination starts at 1 in tool schema ([#17627](https://github.com/lightdash/lightdash/issues/17627)) ([0b1d247](https://github.com/lightdash/lightdash/commit/0b1d247fd8ce5a6d4fbac2177d367371bca0d657))
+
+
+### Features
+
+* add findContent tool to AI agent tools list ([#17635](https://github.com/lightdash/lightdash/issues/17635)) ([bef7918](https://github.com/lightdash/lightdash/commit/bef7918d28ff36314fb5b07740ba8f931d66d925))
+
 ## [0.2115.1](https://github.com/lightdash/lightdash/compare/0.2115.0...0.2115.1) (2025-10-29)
 
 
