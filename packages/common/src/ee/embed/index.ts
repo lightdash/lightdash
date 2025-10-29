@@ -36,6 +36,7 @@ export const DashboardFilterInteractivityOptionsSchema = z.object({
     enabled: z.union([z.boolean(), FilterInteractivityValuesSchema]),
     // Nullish because we have python clients that serialize None to null
     allowedFilters: z.array(z.string()).nullish(),
+    hidden: z.boolean().optional(),
 });
 
 export type DashboardFilterInteractivityOptions = z.infer<
@@ -99,6 +100,8 @@ type CommonEmbedJwtContent = {
     dashboardFiltersInteractivity?: {
         enabled: FilterInteractivityValues | boolean;
         allowedFilters?: string[] | null;
+        // Should the filters be rendered hidden or visible in the UI
+        hidden?: boolean;
     };
     canExportCsv?: boolean;
     canExportImages?: boolean;

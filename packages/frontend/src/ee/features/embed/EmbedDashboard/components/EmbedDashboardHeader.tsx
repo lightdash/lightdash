@@ -30,9 +30,10 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
         );
     }
 
-    const isFilteringEnabled =
+    const shouldShowFilters =
         dashboard.dashboardFiltersInteractivity &&
-        isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
+        isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity) &&
+        !dashboard.dashboardFiltersInteractivity.hidden;
     return (
         <Flex
             justify="flex-end"
@@ -43,7 +44,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
             gap="sm"
             style={{ flexGrow: 1 }}
         >
-            {isFilteringEnabled && <EmbedDashboardFilters />}
+            {shouldShowFilters && <EmbedDashboardFilters />}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
             {dashboard.canExportPagePdf && (
