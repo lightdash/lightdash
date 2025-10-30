@@ -1,3 +1,10 @@
+## [0.2118.1](https://github.com/lightdash/lightdash/compare/0.2118.0...0.2118.1) (2025-10-30)
+
+
+### Bug Fixes
+
+* handle agent access errors for Slack AI agents ([#17712](https://github.com/lightdash/lightdash/issues/17712)) ([2a88c84](https://github.com/lightdash/lightdash/commit/2a88c846007d7f45d7cd65e2b0aa961bfebbc781)), closes [#17711](https://github.com/lightdash/lightdash/issues/17711)
+
 # [0.2118.0](https://github.com/lightdash/lightdash/compare/0.2117.0...0.2118.0) (2025-10-30)
 
 
