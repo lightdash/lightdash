@@ -1,3 +1,10 @@
+## [0.2124.2](https://github.com/lightdash/lightdash/compare/0.2124.1...0.2124.2) (2025-10-30)
+
+
+### Bug Fixes
+
+* clarify table requests in AI system prompt ([#17742](https://github.com/lightdash/lightdash/issues/17742)) ([44a8e42](https://github.com/lightdash/lightdash/commit/44a8e429ed3c77d747dab1b300f3370d0a3effcb))
+
 ## [0.2124.1](https://github.com/lightdash/lightdash/compare/0.2124.0...0.2124.1) (2025-10-30)
 
 

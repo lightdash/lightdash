@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "0.2124.1",
+    "version": "0.2124.2",
     "private": true,
     "main": "index.js",
     "license": "MIT",
