@@ -31,6 +31,7 @@ const data = {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
         },
+        canChangeParameters: {{canChangeParameters}},
         canExportCsv: {{canExportCsvEnabled}},
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
@@ -64,6 +65,7 @@ data = {
             "enabled": "{{dashboardFiltersInteractivityEnabledPython}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFiltersPython}},
         },
+        "canChangeParameters": {{canChangeParametersPython}},
         "canExportCsv": {{canExportCsvEnabledPython}},
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
@@ -107,6 +109,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
             } \`json:"dashboardFiltersInteractivity"\`
+            CanChangeParameters bool \`json:"canChangeParameters"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
@@ -132,6 +135,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
             } \`json:"dashboardFiltersInteractivity"\`
+            CanChangeParameters bool \`json:"canChangeParameters"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
@@ -149,6 +153,7 @@ func main() {
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFiltersGo}}},
             },
+            CanChangeParameters: {{canChangeParameters}},
             CanExportCsv: {{canExportCsvEnabled}},
             CanExportImages: {{canExportImagesEnabled}},
             CanExportPagePdf: {{canExportPagePdf}},
@@ -247,6 +252,14 @@ const getCodeSnippet = (
                       '","',
                   )}"`
                 : 'nil',
+        )
+        .replace(
+            '{{canChangeParameters}}',
+            data.content.canChangeParameters ? 'true' : 'false',
+        )
+        .replace(
+            '{{canChangeParametersPython}}',
+            data.content.canChangeParameters ? 'True' : 'False',
         )
         .replace('{{canDateZoom}}', data.content.canDateZoom ? 'true' : 'false')
         .replace(
