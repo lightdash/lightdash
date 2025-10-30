@@ -55,6 +55,58 @@ export const hasFormatOptions = (
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
 
+/**
+ * Extracts the field name from a fieldId for a given table
+ * e.g., "payments_amount" with table "payments" -> "amount"
+ * Falls back to returning the input if it doesn't start with table prefix (backward compatibility)
+ */
+export const extractFieldNameFromFieldId = (
+    fieldId: string,
+    table: string,
+): string => {
+    const prefix = `${table}_`;
+    if (!fieldId.startsWith(prefix)) {
+        // Backward compatibility: assume it's already a field name
+        return fieldId;
+    }
+    // Remove table prefix
+    return fieldId.slice(prefix.length);
+};
+
+/**
+ * Resolves a baseDimensionName to a fieldId, handling both formats:
+ * - If already a fieldId (e.g., "payments_amount"), validates and returns it
+ * - If a field name (e.g., "amount"), constructs fieldId from table+name
+ *
+ * This provides backward compatibility for custom metrics that may specify
+ * baseDimensionName as either a fully qualified fieldId or just the field name.
+ *
+ * @param baseDimensionName - Either a fieldId or field name
+ * @param table - Table name for constructing fieldId
+ * @param exploreFields - Fields from explore to check against
+ * @returns The resolved fieldId
+ */
+export const resolveFieldIdFromBaseDimension = (
+    baseDimensionName: string,
+    table: string,
+    exploreFields: Array<{ name: string; table: string }>,
+): string => {
+    const getFieldId = (field: { name: string; table: string }) =>
+        `${field.table}_${field.name}`;
+
+    // Try treating baseDimensionName as a fieldId first
+    const fieldExists = exploreFields.some(
+        (f) => getFieldId(f) === baseDimensionName,
+    );
+
+    if (fieldExists) {
+        return baseDimensionName;
+    }
+
+    // Fall back: treat as field name (backward compatibility)
+    return `${table}_${baseDimensionName}`;
+};
+
 export type MetricOverrides = { [key: string]: Pick<Metric, 'formatOptions'> }; // Don't use Record to avoid issues in TSOA
 
 // Object used to query an explore. Queries only happen within a single explore

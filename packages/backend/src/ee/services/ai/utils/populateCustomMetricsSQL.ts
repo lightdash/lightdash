@@ -1,8 +1,10 @@
 import {
     AdditionalMetric,
     CustomMetricBase,
+    extractFieldNameFromFieldId,
     getFields,
     getItemId,
+    resolveFieldIdFromBaseDimension,
     type Explore,
 } from '@lightdash/common';
 
@@ -15,25 +17,35 @@ export function populateCustomMetricSQL(
     metric: CustomMetricBase | Omit<AdditionalMetric, 'sql'>,
     explore: Explore,
 ): AdditionalMetric | null {
+    if (!metric.baseDimensionName) {
+        return null;
+    }
+
     const exploreFields = getFields(explore);
 
-    // Find the dimension field to get its SQL
+    const fieldId = resolveFieldIdFromBaseDimension(
+        metric.baseDimensionName,
+        metric.table,
+        exploreFields,
+    );
+
     const dimensionField = exploreFields.find(
-        (field) =>
-            metric.baseDimensionName &&
-            getItemId(field) ===
-                getItemId({
-                    table: metric.table,
-                    name: metric.baseDimensionName,
-                }),
+        (field) => getItemId(field) === fieldId,
     );
 
     if (!dimensionField) {
         return null;
     }
 
+    // Convert fieldId to field name for query engine
+    const baseDimensionName = extractFieldNameFromFieldId(
+        metric.baseDimensionName,
+        metric.table,
+    );
+
     return {
         ...metric,
+        baseDimensionName,
         sql: dimensionField.sql,
     };
 }

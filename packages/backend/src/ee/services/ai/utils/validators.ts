@@ -29,6 +29,7 @@ import {
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    resolveFieldIdFromBaseDimension,
     stringFilterSchema,
     SupportedDbtAdapter,
     TableCalcSchema,
@@ -106,15 +107,13 @@ export function validateCustomMetricsDefinition(
             return;
         }
 
-        const field = exploreFields.find(
-            (f) =>
-                metric.baseDimensionName &&
-                getItemId(f) ===
-                    getItemId({
-                        name: metric.baseDimensionName,
-                        table: metric.table,
-                    }),
+        const fieldId = resolveFieldIdFromBaseDimension(
+            metric.baseDimensionName,
+            metric.table,
+            exploreFields,
         );
+
+        const field = exploreFields.find((f) => getItemId(f) === fieldId);
 
         if (!field) {
             errors.push(

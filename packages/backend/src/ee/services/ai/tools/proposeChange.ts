@@ -3,7 +3,9 @@ import {
     ChangeBase,
     convertAdditionalMetric,
     Explore,
+    getFields,
     getItemId,
+    resolveFieldIdFromBaseDimension,
     ToolProposeChangeArgs,
     toolProposeChangeArgsSchema,
     toolProposeChangeOutputSchema,
@@ -139,15 +141,19 @@ export const getProposeChange = ({
                         switch (change.value.type) {
                             case 'create':
                                 validateTableNames(explore, [entityTableName]);
+
+                                const exploreFields = getFields(explore);
+                                const fieldIdToValidate =
+                                    resolveFieldIdFromBaseDimension(
+                                        change.value.value.metric
+                                            .baseDimensionName,
+                                        entityTableName,
+                                        exploreFields,
+                                    );
+
                                 validateFieldEntityType(
                                     explore,
-                                    [
-                                        getItemId({
-                                            table: entityTableName,
-                                            name: change.value.value.metric
-                                                .baseDimensionName,
-                                        }),
-                                    ],
+                                    [fieldIdToValidate],
                                     'dimension',
                                 );
                                 break;

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MetricType } from '../../../types/field';
+import { getFieldIdSchema } from './fieldId';
 
 export const customMetricBaseSchema = z.object({
     name: z
@@ -17,11 +18,10 @@ export const customMetricBaseSchema = z.object({
         .describe(
             'Brief explanation of what the metric represents, how it is calculated, and why it matters. Example: "Calculates the total revenue by summing all transaction amounts in the sales table."',
         ),
-    baseDimensionName: z
-        .string()
-        .describe(
-            'Name of the base dimension/column this metric calculates from',
-        ),
+    baseDimensionName: getFieldIdSchema({
+        additionalDescription:
+            'Field ID of the base dimension/column this metric calculates from (e.g., "payments_amount"). Must be from the table specified in the table field.',
+    }),
     table: z
         .string()
         .describe(
@@ -54,14 +54,15 @@ export const customMetricsSchema = z
 IMPORTANT: If the user requests metrics that don't exist (like "average customer age"), create them using the customMetrics field. Analyze available dimensions from findFields results and create appropriate SQL aggregations.
 
 When using custom metrics:
-1. Create the metric in customMetrics array with just the metric name (e.g., "avg_customer_age")
+1. Create the metric object in customMetrics array with name, label, type, baseDimensionName (fieldId format like "table_fieldname"), and table
 2. Reference it in metrics array using the format "table_metricname" (e.g., "customers_avg_customer_age")
 3. Reference it in sorts array using the format "table_metricname" (e.g., "customers_avg_customer_age")
 4. DO NOT use the raw metric name in metrics or sorts arrays
+5. baseDimensionName must be in fieldId format (e.g., "customers_age") - use the fieldId from findFields results, not just the field name
 
 For example:
 - "Show me average customer age sorted descending" →
-customMetrics: [{name: "avg_customer_age", label: "Average Customer Age", type: "AVERAGE", baseDimensionName: "age", table: "customers"}]
+customMetrics: [{name: "avg_customer_age", label: "Average Customer Age", type: "AVERAGE", baseDimensionName: "customers_age", table: "customers"}]
 metrics: ["customers_avg_customer_age"]
 sorts: [{fieldId: "customers_avg_customer_age", descending: true}]`,
     );
