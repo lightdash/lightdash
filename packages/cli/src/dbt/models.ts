@@ -86,6 +86,28 @@ const wrapInConfig = (
     return useDbt110Metadata ? { config: { meta } } : { meta };
 };
 
+// Helper function to read meta from the correct location based on dbt version
+const getColumnMeta = (
+    column: { meta?: unknown; config?: { meta?: unknown } },
+    dbtVersion: SupportedDbtVersions | undefined,
+) => {
+    const useDbt110Metadata =
+        dbtVersion &&
+        Object.values(SupportedDbtVersions).indexOf(dbtVersion) >=
+            Object.values(SupportedDbtVersions).indexOf(
+                SupportedDbtVersions.V1_10,
+            );
+
+    // For dbt 1.10+, check config.meta first, then fall back to meta
+    // This handles migration cases where meta might still be at root level
+    if (useDbt110Metadata) {
+        return column.config?.meta ?? column.meta;
+    }
+
+    // For dbt < 1.10, use meta at root level
+    return column.meta;
+};
+
 const generateModelYml = ({
     model,
     table,
@@ -229,7 +251,11 @@ export const findAndUpdateModelYaml = async ({
             const hasDoc = docsNames.includes(column.name);
             const newDescription = hasDoc ? `{{doc('${column.name}')}}` : '';
             const existingDescription = column.description;
-            const existingDimensionType = column.meta?.dimension?.type;
+            // Read meta from the correct location based on dbt version
+            const columnMeta = getColumnMeta(column, dbtVersion);
+            const existingDimensionType = (
+                columnMeta as { dimension?: { type?: string } } | undefined
+            )?.dimension?.type;
             const dimensionType = table[column.name] as
                 | DimensionType
                 | undefined;
