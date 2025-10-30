@@ -247,6 +247,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 return {
                     parameterReferences: [],
                     parameterDefinitions: {},
+                    cachedChartConfigs: {},
                     expandedSections: unsavedChartVersion
                         ? [
                               ExplorerSection.VISUALIZATION,

@@ -285,6 +285,7 @@ const SavedChartsHeader: FC = () => {
                 isEditMode,
                 parameterReferences: Object.keys(savedChart.parameters ?? {}),
                 parameterDefinitions: {},
+                cachedChartConfigs: {},
                 expandedSections: [ExplorerSection.VISUALIZATION],
                 unsavedChartVersion: {
                     tableName: savedChart.tableName,

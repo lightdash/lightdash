@@ -20,6 +20,7 @@ export const defaultState: ExplorerSliceState = {
     parameterReferences: [],
     parameterDefinitions: {},
     previouslyFetchedState: undefined,
+    cachedChartConfigs: {},
     expandedSections: [ExplorerSection.RESULTS, ExplorerSection.PARAMETERS],
     unsavedChartVersion: {
         tableName: '',

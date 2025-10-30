@@ -28,6 +28,7 @@ import {
 import {
     createNextState,
     createSlice,
+    current,
     type PayloadAction,
 } from '@reduxjs/toolkit';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
@@ -373,18 +374,25 @@ const explorerSlice = createSlice({
             };
         },
 
-        // Chart config
         setChartType: (
             state,
-            action: PayloadAction<{
-                chartType: ChartType;
-                cachedConfigs: Partial<ConfigCacheMap>;
-            }>,
+            action: PayloadAction<{ chartType: ChartType }>,
         ) => {
+            const before = state.unsavedChartVersion.chartConfig;
+
+            // save the current config to the cache
+            state.cachedChartConfigs[before.type] = current(
+                before.config,
+            ) as any;
+
+            // take a plain snapshot of the cache to avoid passing drafts
+            const plainCache = current(
+                state.cachedChartConfigs,
+            ) as Partial<ConfigCacheMap>;
+
             state.unsavedChartVersion.chartConfig = getValidChartConfig(
                 action.payload.chartType,
-                state.unsavedChartVersion.chartConfig,
-                action.payload.cachedConfigs,
+                plainCache,
             );
         },
 
@@ -392,13 +400,12 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<{
                 chartConfig: ChartConfig;
-                cachedConfigs: Partial<ConfigCacheMap>;
             }>,
         ) => {
             state.unsavedChartVersion.chartConfig = getValidChartConfig(
                 action.payload.chartConfig.type,
+                state.cachedChartConfigs,
                 action.payload.chartConfig,
-                action.payload.cachedConfigs,
             );
         },
 
