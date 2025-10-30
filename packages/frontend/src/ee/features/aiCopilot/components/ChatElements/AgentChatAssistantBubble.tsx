@@ -344,10 +344,6 @@ export const AssistantBubble: FC<Props> = memo(
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-        const isArtifactAvailable = !!(
-            message.artifacts && message.artifacts.length > 0
-        );
-
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug);
 
@@ -377,11 +373,15 @@ export const AssistantBubble: FC<Props> = memo(
             });
         }, [hasRating, updateFeedbackMutation, message.uuid]);
 
+        const isPending = message.status === 'pending';
         const isLoading =
             useAiAgentThreadMessageStreaming(
                 message.threadUuid,
                 message.uuid,
-            ) || message.status === 'pending';
+            ) || isPending;
+
+        const isArtifactAvailable =
+            !!(message.artifacts && message.artifacts.length > 0) && !isPending;
 
         return (
             <Stack
