@@ -10,13 +10,18 @@ export const factualityScores = {
     B: 0.6,
     C: 1,
     D: 0,
-    E: 1,
+    E: 0.9,
 } as const;
 
 export type FactualityResponse = {
     answer: 'A' | 'B' | 'C' | 'D' | 'E';
     rationale: string;
 };
+
+export const meetsFactualityThreshold = (
+    answerScore: FactualityResponse['answer'],
+    requiredScore: FactualityResponse['answer'] = 'A',
+): boolean => factualityScores[answerScore] >= factualityScores[requiredScore];
 
 export type JsonDiffResponse = Score;
 
@@ -30,7 +35,7 @@ type LlmJudgeResultBase = {
     response: string;
     expectedAnswer?: string;
     timestamp: string;
-    passed?: boolean;
+    passed: boolean;
 };
 
 export type LlmJudgeResult =
@@ -55,6 +60,9 @@ type BaseLlmAsJudgeParams = {
     context?: string[];
     model: Exclude<LanguageModel, string>;
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
+    contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
+    factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
+    jsonDiffThreshold?: number; // Threshold for JSON diff score (default 0.9)
 };
 
 // Function overloads for type safety
@@ -86,6 +94,8 @@ export async function llmAsAJudge(
  * @param expectedAnswer The expected/reference answer
  * @param model Your configured AI model (e.g., openai('gpt-4'))
  * @param scorerType The type of evaluation to perform
+ * @param contextRelevancyThreshold Minimum score for context relevancy (0-1, default 0.7)
+ * @param factualityThreshold Minimum acceptable factuality score (default 'A')
  */
 export async function llmAsAJudge({
     query,
@@ -95,6 +105,9 @@ export async function llmAsAJudge({
     model,
     callOptions,
     scorerType,
+    contextRelevancyThreshold = 0.7,
+    factualityThreshold = 'A',
+    jsonDiffThreshold = 0.9,
 }: BaseLlmAsJudgeParams & {
     scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
 }): Promise<{
@@ -113,6 +126,9 @@ export async function llmAsAJudge({
                 expected: expectedAnswer,
             });
 
+            // Consider passed if score is >= 0.9
+            const passed = (diff.score ?? 0) >= jsonDiffThreshold;
+
             return {
                 result: diff,
                 meta: {
@@ -122,6 +138,7 @@ export async function llmAsAJudge({
                     expectedAnswer,
                     result: diff,
                     timestamp: new Date().toISOString(),
+                    passed,
                 },
             };
         }
@@ -178,6 +195,11 @@ export async function llmAsAJudge({
                 rationale: object.rationale,
             };
 
+            const passed = meetsFactualityThreshold(
+                object.answer,
+                factualityThreshold,
+            );
+
             return {
                 result: factualityResult,
                 meta: {
@@ -187,6 +209,7 @@ export async function llmAsAJudge({
                     expectedAnswer,
                     result: factualityResult,
                     timestamp: new Date().toISOString(),
+                    passed,
                 },
             };
         }
@@ -238,6 +261,8 @@ Provide a relevancy score between 0 (not relevant at all) and 1 (highly relevant
                 reason: object.reason,
             };
 
+            const passed = object.score >= contextRelevancyThreshold;
+
             return {
                 result: contextResult,
                 meta: {
@@ -248,6 +273,7 @@ Provide a relevancy score between 0 (not relevant at all) and 1 (highly relevant
                     context,
                     result: contextResult,
                     timestamp: new Date().toISOString(),
+                    passed,
                 },
             };
         }

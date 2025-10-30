@@ -158,23 +158,14 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
             const tablesText = tables.map((table) => table.name).join(', ');
             const expectedAnswer = `You can explore data models such as ${tablesText}`;
-            const { result: factualityEvaluation, meta: factualityMeta } =
-                await llmAsAJudge({
-                    query: promptQueryText,
-                    response,
-                    expectedAnswer,
-                    model,
-                    callOptions,
-                    scorerType: 'factuality',
-                });
-
-            if (!factualityEvaluation) {
-                throw new Error('Factuality evaluation not found');
-            }
-
-            const isFactualityPassing =
-                factualityEvaluation.answer === 'A' ||
-                factualityEvaluation.answer === 'B';
+            const { meta: factualityMeta } = await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                expectedAnswer,
+                model,
+                callOptions,
+                scorerType: 'factuality',
+            });
 
             const toolsEvaluation = await llmAsJudgeForTools({
                 prompt: promptQueryText,
@@ -190,14 +181,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 response,
                 toolCalls,
             })
-                .addLlmJudgeResult({
-                    ...factualityMeta,
-                    passed: isFactualityPassing,
-                })
+                .addLlmJudgeResult(factualityMeta)
                 .addLlmToolJudgeResult(toolsEvaluation);
 
             await report.finalize(test, () => {
-                expect(isFactualityPassing).toBe(true);
+                expect(factualityMeta.passed).toBe(true);
                 expect(toolsEvaluation.passed).toBe(true);
             });
         },
@@ -218,23 +206,14 @@ describeOrSkip.concurrent('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        const { result: factualityEvaluation, meta: factualityMeta } =
-            await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer: '3,053.87',
-                scorerType: 'factuality',
-                model,
-                callOptions,
-            });
-
-        if (!factualityEvaluation) {
-            throw new Error('Factuality evaluation not found');
-        }
-
-        const isFactualityPassing =
-            factualityEvaluation.answer === 'A' ||
-            factualityEvaluation.answer === 'B';
+        const { meta: factualityMeta } = await llmAsAJudge({
+            query: promptQueryText,
+            response,
+            expectedAnswer: '3,053.87',
+            scorerType: 'factuality',
+            model,
+            callOptions,
+        });
 
         const toolUsageEvaluation = await llmAsJudgeForTools({
             prompt: promptQueryText,
@@ -250,14 +229,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
             response,
             toolCalls,
         })
-            .addLlmJudgeResult({
-                ...factualityMeta,
-                passed: isFactualityPassing,
-            })
+            .addLlmJudgeResult(factualityMeta)
             .addLlmToolJudgeResult(toolUsageEvaluation);
 
         await report.finalize(test, () => {
-            expect(isFactualityPassing).toBe(true);
+            expect(factualityMeta.passed).toBe(true);
             expect(toolUsageEvaluation.passed).toBe(true);
         });
     });
@@ -277,24 +253,15 @@ describeOrSkip.concurrent('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        const { result: factualityEvaluation, meta: factualityMeta } =
-            await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer:
-                    "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
-                scorerType: 'factuality',
-                model,
-                callOptions,
-            });
-
-        if (!factualityEvaluation) {
-            throw new Error('Factuality evaluation not found');
-        }
-
-        const isFactualityPassing =
-            factualityEvaluation.answer === 'A' ||
-            factualityEvaluation.answer === 'B';
+        const { meta: factualityMeta } = await llmAsAJudge({
+            query: promptQueryText,
+            response,
+            expectedAnswer:
+                "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
+            scorerType: 'factuality',
+            model,
+            callOptions,
+        });
 
         const toolUsageEvaluation = await llmAsJudgeForTools({
             prompt: promptQueryText,
@@ -333,14 +300,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
             response,
             toolCalls,
         })
-            .addLlmJudgeResult({
-                ...factualityMeta,
-                passed: isFactualityPassing,
-            })
+            .addLlmJudgeResult(factualityMeta)
             .addLlmToolJudgeResult(toolUsageEvaluation);
 
         await report.finalize(test, () => {
-            expect(isFactualityPassing).toBe(true);
+            expect(factualityMeta.passed).toBe(true);
             expect(toolUsageEvaluation.passed).toBe(true);
         });
     });
@@ -398,10 +362,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
             const contextForEval = [...exploreDateFields, 'Explore: orders'];
 
-            const {
-                result: contextRelevancyEvaluation,
-                meta: contextRelevancyMeta,
-            } = await llmAsAJudge({
+            const { meta: contextRelevancyMeta } = await llmAsAJudge({
                 query: promptQueryText,
                 response,
                 context: contextForEval,
@@ -410,21 +371,14 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 scorerType: 'contextRelevancy',
             });
 
-            // The retrieved fields should be highly relevant to the query
-            const isContextRelevancyPassing =
-                contextRelevancyEvaluation.score >= 0.7;
-
             const report = createTestReport({
                 prompt: promptQueryText,
                 response,
                 toolCalls,
-            }).addLlmJudgeResult({
-                ...contextRelevancyMeta,
-                passed: isContextRelevancyPassing,
-            });
+            }).addLlmJudgeResult(contextRelevancyMeta);
 
             await report.finalize(test, () => {
-                expect(isContextRelevancyPassing).toBe(true);
+                expect(contextRelevancyMeta.passed).toBe(true);
             });
         },
         TIMEOUT,
@@ -446,35 +400,23 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
 
-            const { result: factualityEvaluation, meta: factualityMeta } =
-                await llmAsAJudge({
-                    query: promptQueryText,
-                    response,
-                    expectedAnswer: 'There were 53 orders in 2024',
-                    scorerType: 'factuality',
-                    model,
-                    callOptions,
-                });
-
-            if (!factualityEvaluation) {
-                throw new Error('Factuality evaluation not found');
-            }
-
-            const isFactualityPassing =
-                factualityEvaluation.answer === 'A' ||
-                factualityEvaluation.answer === 'B';
+            const { meta: factualityMeta } = await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                expectedAnswer: 'There were 53 orders in 2024',
+                scorerType: 'factuality',
+                model,
+                callOptions,
+            });
 
             const report = createTestReport({
                 prompt: promptQueryText,
                 response,
                 toolCalls,
-            }).addLlmJudgeResult({
-                ...factualityMeta,
-                passed: isFactualityPassing,
-            });
+            }).addLlmJudgeResult(factualityMeta);
 
             await report.finalize(test, () => {
-                expect(isFactualityPassing).toBe(true);
+                expect(factualityMeta.passed).toBe(true);
             });
         },
         TIMEOUT,
@@ -510,38 +452,26 @@ describeOrSkip.concurrent('agent integration tests', () => {
             .map((explore) => explore.name)
             .join(', ');
 
-        const { result: factualityEvaluation, meta: factualityMeta } =
-            await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
+        const { meta: factualityMeta } = await llmAsAJudge({
+            query: promptQueryText,
+            response,
+            expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
                 I can give you a summary of the data in each explore, breakdown by categories, show trends over time, and generate charts and tables.
                 Chart types available are bar charts, time series charts, and tables.
                 `,
-                scorerType: 'factuality',
-                model,
-                callOptions,
-            });
-
-        if (!factualityEvaluation) {
-            throw new Error('Factuality evaluation not found');
-        }
-
-        const isFactualityPassing =
-            factualityEvaluation.answer === 'A' ||
-            factualityEvaluation.answer === 'B';
+            scorerType: 'factuality',
+            model,
+            callOptions,
+        });
 
         const report = createTestReport({
             prompt: promptQueryText,
             response,
             toolCalls,
-        }).addLlmJudgeResult({
-            ...factualityMeta,
-            passed: isFactualityPassing,
-        });
+        }).addLlmJudgeResult(factualityMeta);
 
         await report.finalize(test, () => {
-            expect(isFactualityPassing).toBe(true);
+            expect(factualityMeta.passed).toBe(true);
         });
     });
 
@@ -674,12 +604,13 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     async (test) => {
                         if (!createdAgent) throw new Error('Agent not created');
 
-                        const relevancyEvaluation = await llmAsAJudge({
+                        const { meta: relevancyMeta } = await llmAsAJudge({
                             query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
                             response: JSON.stringify(toolCalls),
                             model,
                             callOptions,
                             scorerType: 'contextRelevancy',
+                            contextRelevancyThreshold: 1.0, // Stricter threshold for this test
                             context: [
                                 JSON.stringify(
                                     await getServices(
@@ -692,27 +623,22 @@ describeOrSkip.concurrent('agent integration tests', () => {
                                 ),
                             ],
                         });
-                        const isRelevancyPassing =
-                            relevancyEvaluation.result.score === 1;
 
                         const report = createTestReport({
                             prompt: testCase.question,
                             response,
                             toolCalls,
-                        }).addLlmJudgeResult({
-                            ...relevancyEvaluation.meta,
-                            passed: isRelevancyPassing,
-                        });
+                        }).addLlmJudgeResult(relevancyMeta);
 
                         await report.finalize(test, () => {
-                            expect(isRelevancyPassing).toBe(true);
+                            expect(relevancyMeta.passed).toBe(true);
                         });
                     },
                     TIMEOUT,
                 );
 
                 it('should answer the question with correct factual information', async (test) => {
-                    const factualEvaluation = await llmAsAJudge({
+                    const { meta: factualityMeta } = await llmAsAJudge({
                         query: testCase.question,
                         response,
                         expectedAnswer: [
@@ -728,21 +654,14 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         callOptions,
                     });
 
-                    const isFactualityPassing =
-                        factualEvaluation.result.answer === 'A' ||
-                        factualEvaluation.result.answer === 'B';
-
                     const report = createTestReport({
                         prompt: testCase.question,
                         response,
                         toolCalls,
-                    }).addLlmJudgeResult({
-                        ...factualEvaluation.meta,
-                        passed: isFactualityPassing,
-                    });
+                    }).addLlmJudgeResult(factualityMeta);
 
                     await report.finalize(test, () => {
-                        expect(isFactualityPassing).toBe(true);
+                        expect(factualityMeta.passed).toBe(true);
                     });
                 });
             },
@@ -800,36 +719,22 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                     const { response } = await promptAgent(testCase.prompt);
 
-                    const { result: limitationQualityEvaluation, meta } =
-                        await llmAsAJudge({
-                            query: testCase.prompt,
-                            response,
-                            expectedAnswer: testCase.expectedResponse,
-                            scorerType: 'factuality',
-                            model,
-                            callOptions,
-                        });
-
-                    if (!limitationQualityEvaluation) {
-                        throw new Error(
-                            'Limitation quality evaluation not found',
-                        );
-                    }
-
-                    const isLimitationQualityPassing =
-                        limitationQualityEvaluation.answer === 'A' ||
-                        limitationQualityEvaluation.answer === 'B';
+                    const { meta } = await llmAsAJudge({
+                        query: testCase.prompt,
+                        response,
+                        expectedAnswer: testCase.expectedResponse,
+                        scorerType: 'factuality',
+                        model,
+                        callOptions,
+                    });
 
                     const report = createTestReport({
                         prompt: testCase.prompt,
                         response,
-                    }).addLlmJudgeResult({
-                        ...meta,
-                        passed: isLimitationQualityPassing,
-                    });
+                    }).addLlmJudgeResult(meta);
 
                     await report.finalize(test, () => {
-                        expect(isLimitationQualityPassing).toBe(true);
+                        expect(meta.passed).toBe(true);
                     });
                 },
                 TIMEOUT,
