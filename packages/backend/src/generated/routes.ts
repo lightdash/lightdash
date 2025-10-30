@@ -8231,7 +8231,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DatabricksAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['personal_access_token', 'oauth'],
+        enums: ['personal_access_token', 'oauth_m2m'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__':
@@ -8832,6 +8832,8 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 requireUserCredentials: { dataType: 'boolean' },
+                oauthClientSecret: { dataType: 'string' },
+                oauthClientId: { dataType: 'string' },
                 token: { dataType: 'string' },
                 refreshToken: { dataType: 'string' },
                 personalAccessToken: { dataType: 'string' },

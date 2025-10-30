@@ -8472,7 +8472,7 @@
                 "type": "string"
             },
             "DatabricksAuthenticationType": {
-                "enum": ["personal_access_token", "oauth"],
+                "enum": ["personal_access_token", "oauth_m2m"],
                 "type": "string"
             },
             "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
@@ -9151,6 +9151,12 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
+                    },
+                    "oauthClientSecret": {
+                        "type": "string"
+                    },
+                    "oauthClientId": {
+                        "type": "string"
                     },
                     "token": {
                         "type": "string"

@@ -1,5 +1,6 @@
 import {
     CreateDatabricksCredentials,
+    DatabricksAuthenticationType,
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -20,7 +21,12 @@ export type DatabricksTarget = {
     schema: string;
     host: string;
     http_path: string;
-    token: string;
+    // PAT authentication
+    token?: string;
+    // OAuth M2M authentication
+    auth_type?: 'token' | 'oauth';
+    client_id?: string;
+    client_secret?: string;
     threads?: number;
     compute?: DatabricksComputeConfig;
 };
@@ -47,6 +53,20 @@ export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
         },
         token: {
             type: 'string',
+            nullable: true,
+        },
+        auth_type: {
+            type: 'string',
+            enum: ['token', 'oauth'],
+            nullable: true,
+        },
+        client_id: {
+            type: 'string',
+            nullable: true,
+        },
+        client_secret: {
+            type: 'string',
+            nullable: true,
         },
         threads: {
             type: 'number',
@@ -67,22 +87,43 @@ export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
             },
         },
     },
-    required: ['type', 'schema', 'host', 'http_path', 'token'],
+    required: ['type', 'schema', 'host', 'http_path'],
 };
 
 export const convertDatabricksSchema = (
     target: Target,
 ): CreateDatabricksCredentials => {
     const validate = ajv.compile<DatabricksTarget>(databricksSchema);
-    if (validate(target)) {
+    if (!validate(target)) {
+        const errs = betterAjvErrors(
+            databricksSchema,
+            target,
+            validate.errors || [],
+        );
+        throw new ParseError(
+            `Couldn't read profiles.yml file for ${target.type}:\n${errs}`,
+        );
+    }
+
+    const authType = target.auth_type || 'token';
+
+    // OAuth M2M authentication
+    if (authType === 'oauth') {
+        if (!target.client_id || !target.client_secret) {
+            throw new ParseError(
+                'Databricks OAuth authentication requires client_id and client_secret in profiles.yml',
+            );
+        }
+
         return {
             type: WarehouseTypes.DATABRICKS,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
             catalog: target.catalog,
-            // this supposed to be a `schema` but changing it will break for existing customers
             database: target.schema,
             serverHostName: target.host,
             httpPath: target.http_path,
-            personalAccessToken: target.token,
+            oauthClientId: target.client_id,
+            oauthClientSecret: target.client_secret,
             compute: Object.entries(target.compute || {}).map(
                 ([name, compute]) => ({
                     name,
@@ -91,12 +132,27 @@ export const convertDatabricksSchema = (
             ),
         };
     }
-    const errs = betterAjvErrors(
-        databricksSchema,
-        target,
-        validate.errors || [],
-    );
-    throw new ParseError(
-        `Couldn't read profiles.yml file for ${target.type}:\n${errs}`,
-    );
+
+    // Personal Access Token authentication (default)
+    if (!target.token) {
+        throw new ParseError(
+            'Databricks token is required when not using OAuth authentication',
+        );
+    }
+
+    return {
+        type: WarehouseTypes.DATABRICKS,
+        authenticationType: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+        catalog: target.catalog,
+        database: target.schema,
+        serverHostName: target.host,
+        httpPath: target.http_path,
+        personalAccessToken: target.token,
+        compute: Object.entries(target.compute || {}).map(
+            ([name, compute]) => ({
+                name,
+                httpPath: compute.http_path,
+            }),
+        ),
+    };
 };

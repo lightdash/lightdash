@@ -5,6 +5,8 @@ import IDBSQLClient, {
 import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
+import fetch from 'node-fetch';
+
 import {
     AnyType,
     CreateDatabricksCredentials,
@@ -229,7 +231,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         // Build connection options based on authentication type
         if (
             credentials.authenticationType ===
-            DatabricksAuthenticationType.OAUTH
+            DatabricksAuthenticationType.OAUTH_M2M
         ) {
             if (!credentials.token) {
                 throw new UnexpectedServerError(
@@ -496,3 +498,43 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 }
+
+/**
+ * Exchange Databricks OAuth M2M credentials for access and refresh tokens
+ */
+export const exchangeDatabricksOAuthCredentials = async (
+    host: string,
+    clientId: string,
+    clientSecret: string,
+): Promise<{ accessToken: string; refreshToken?: string }> => {
+    const tokenUrl = `https://${host}/oidc/v1/token`;
+
+    const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: clientId,
+            client_secret: clientSecret,
+            scope: 'sql',
+        }).toString(),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+            `Failed to obtain Databricks OAuth token: ${response.status} ${errorText}`,
+        );
+    }
+
+    const data = (await response.json()) as {
+        access_token: string;
+        refresh_token?: string;
+    };
+    return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+    };
+};
