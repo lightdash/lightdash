@@ -1,3 +1,10 @@
+## [0.2124.3](https://github.com/lightdash/lightdash/compare/0.2124.2...0.2124.3) (2025-10-30)
+
+
+### Bug Fixes
+
+* set dashboard tabs in embeds ([#17720](https://github.com/lightdash/lightdash/issues/17720)) ([3ac8aad](https://github.com/lightdash/lightdash/commit/3ac8aad262cb16a4e41b69b6909785c81996ddfd)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2124.2](https://github.com/lightdash/lightdash/compare/0.2124.1...0.2124.2) (2025-10-30)
 
 
