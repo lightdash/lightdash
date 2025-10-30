@@ -49,6 +49,7 @@ type TableRowProps = PolymorphicComponentProps<'tr', BoxProps> & {
     index: number;
 };
 type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
+    isMinimal: boolean;
     withMinimalWidth?: boolean;
     withAlignRight?: boolean;
     withBoldFont?: boolean;
@@ -344,6 +345,7 @@ const BaseCell = (
         (
             {
                 children,
+                isMinimal = false,
                 withMinimalWidth = false,
                 withAlignRight = false,
                 withTooltip = false,
@@ -393,12 +395,13 @@ const BaseCell = (
             });
 
             const cellHasLargeContent = useMemo(() => {
-                return (
+                return !!(
                     sectionType === SectionType.Body &&
-                    typeof children === 'string' &&
-                    children.length > SMALL_TEXT_LENGTH
+                    withValue &&
+                    typeof withValue === 'string' &&
+                    withValue.length > SMALL_TEXT_LENGTH
                 );
-            }, [sectionType, children]);
+            }, [sectionType, withValue]);
 
             const component = useMemo(() => {
                 switch (cellType) {
@@ -423,7 +426,8 @@ const BaseCell = (
                         data-is-selected={isSelected}
                         className={cx(classes.root, rest.className, {
                             [classes.withSticky]: withSticky,
-                            [classes.withLargeContent]: cellHasLargeContent,
+                            [classes.withLargeContent]:
+                                cellHasLargeContent && !isMinimal,
                             [classes.withMinimalWidth]: withMinimalWidth,
                             [classes.withAlignRight]: withAlignRight,
                             [classes.withBoldFont]: withBoldFont,
@@ -460,6 +464,7 @@ const BaseCell = (
                     component,
                     ref,
                     rest,
+                    isSelected,
                     cx,
                     classes.root,
                     classes.withSticky,
@@ -473,6 +478,7 @@ const BaseCell = (
                     classes.withCopying,
                     withSticky,
                     cellHasLargeContent,
+                    isMinimal,
                     withMinimalWidth,
                     withAlignRight,
                     withBoldFont,
@@ -480,11 +486,10 @@ const BaseCell = (
                     withInteractions,
                     withBackground,
                     clipboard.copied,
+                    children,
                     withTooltip,
-                    isSelected,
                     toggleCell,
                     cellId,
-                    children,
                 ],
             );
 

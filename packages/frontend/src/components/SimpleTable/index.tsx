@@ -196,6 +196,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         <PivotTable
                             className={className}
                             data={pivotTableData.data}
+                            isMinimal={minimal}
                             conditionalFormattings={conditionalFormattings}
                             minMaxMap={minMaxMap}
                             getFieldLabel={getFieldLabel}

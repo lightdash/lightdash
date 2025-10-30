@@ -149,7 +149,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 onMouseEnter={canHaveTooltip ? openTooltip : undefined}
                 onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
             >
-                <span style={{ whiteSpace: 'pre' }}>{children}</span>
+                <span>{children}</span>
             </Td>
 
             {shouldRenderMenu ? (
