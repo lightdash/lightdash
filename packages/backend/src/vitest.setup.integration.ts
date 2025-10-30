@@ -115,20 +115,24 @@ export const setupIntegrationTest =
 
         const db = app.getDatabase();
 
-        console.info('💣 Dropping and recreating database...');
+        const skipMigrations = process.env.SKIP_TEST_MIGRATIONS === 'true';
+        const skipSeeds = process.env.SKIP_TEST_SEEDS === 'true';
 
-        await db.raw('DROP SCHEMA IF EXISTS public CASCADE');
-        await db.raw('CREATE SCHEMA public');
-        await db.raw('GRANT ALL ON SCHEMA public TO public');
-        console.info('✅ Database reset completed');
+        if (!skipMigrations) {
+            console.info('🔧 Running database migrations...');
+            await db.migrate.latest();
+            console.info('✅ Database migrations completed');
+        } else {
+            console.info('⏭️  Skipping migrations (SKIP_TEST_MIGRATIONS=true)');
+        }
 
-        console.info('🔧 Running database migrations...');
-        await db.migrate.latest();
-        console.info('✅ Database migrations completed');
-
-        console.info('🌱 Running database seeds...');
-        await db.seed.run();
-        console.info('✅ Database seeds completed');
+        if (!skipSeeds) {
+            console.info('🌱 Running database seeds...');
+            await db.seed.run();
+            console.info('✅ Database seeds completed');
+        } else {
+            console.info('⏭️  Skipping seeds (SKIP_TEST_SEEDS=true)');
+        }
 
         // TODO: get first user from db that is an admin and active
         // Create a test user with appropriate permissions
@@ -189,19 +193,6 @@ export const setupIntegrationTest =
         );
 
         const cleanup = async () => {
-            console.info('🧹 Cleaning up test environment...');
-
-            // Clean up test data - rollback migrations to ensure clean state
-            console.info('↶ Rolling back migrations...');
-            try {
-                await db.migrate.rollback({}, true); // rollback all migrations
-            } catch (error) {
-                console.warn(
-                    'Migration rollback failed (this is usually safe to ignore in tests):',
-                    error,
-                );
-            }
-
             await app.stop();
             console.info('✅ Cleanup completed');
         };
