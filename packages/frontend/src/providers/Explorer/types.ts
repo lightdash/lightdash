@@ -205,6 +205,8 @@ export interface ExplorerReduceState {
     isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+
+    cachedChartConfigs: Partial<ConfigCacheMap>;
     /**
      * The parameters that are referenced in the query.
      * If null, this means we can't calculate the missing parameters, so we can't run the query.
