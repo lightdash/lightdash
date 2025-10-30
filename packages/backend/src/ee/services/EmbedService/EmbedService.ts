@@ -36,15 +36,15 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    LightdashSessionUser,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
     ParameterError,
-    PivotConfiguration,
     QueryExecutionContext,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
-    SessionUser,
+    SessionAccount,
     SortField,
     UpdateEmbed,
     UserAccessControls,
@@ -138,10 +138,11 @@ export class EmbedService extends BaseService {
     }
 
     async getEmbedUrl(
-        user: SessionUser,
+        account: SessionAccount,
         projectUuid: string,
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
+        const { user } = account;
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -178,7 +179,7 @@ export class EmbedService extends BaseService {
     }
 
     async getConfig(
-        user: SessionUser,
+        user: LightdashSessionUser,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -209,8 +210,8 @@ export class EmbedService extends BaseService {
         };
     }
 
-    async saveConfig(
-        user: SessionUser,
+    async createConfig(
+        user: LightdashSessionUser,
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
@@ -232,23 +233,31 @@ export class EmbedService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
         const secret = nanoidGenerator();
         const encodedSecret = this.encryptionUtil.encrypt(secret);
         await this.embedModel.save(
             projectUuid,
             encodedSecret,
-            data.dashboardUuids,
             user.userUuid,
+            data.dashboardUuids || [],
+            false,
+            data.chartUuids || [],
+            false,
         );
 
         return this.getConfig(user, projectUuid);
     }
 
     async updateDashboards(
-        user: SessionUser,
+        account: SessionAccount,
         projectUuid: string,
-        { dashboardUuids, allowAllDashboards }: UpdateEmbed,
+        {
+            dashboardUuids,
+            allowAllDashboards,
+        }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
+        const { user } = account;
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -270,6 +279,57 @@ export class EmbedService extends BaseService {
         await this.embedModel.updateDashboards(projectUuid, {
             dashboardUuids,
             allowAllDashboards,
+        });
+    }
+
+    async updateConfig(
+        account: SessionAccount,
+        projectUuid: string,
+        {
+            dashboardUuids,
+            allowAllDashboards,
+            chartUuids,
+            allowAllCharts,
+        }: UpdateEmbed,
+    ) {
+        const { user } = account;
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Require at least one of dashboardUuids or chartUuids
+        const includesDashboards =
+            allowAllDashboards || dashboardUuids.length > 0;
+        const includesCharts =
+            allowAllCharts || (chartUuids && chartUuids.length > 0);
+        if (!includesDashboards && !includesCharts) {
+            throw new ParameterError(
+                'At least one dashboard or chart must be specified for embedding',
+            );
+        }
+
+        await this.embedModel.updateConfig(projectUuid, {
+            dashboardUuids,
+            allowAllDashboards,
+            chartUuids,
+            allowAllCharts,
         });
     }
 

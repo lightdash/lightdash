@@ -20,12 +20,6 @@
         {
             "path": "./packages/warehouses"
         },
-        {
-            "path": "./packages/e2e"
-        },
-        {
-            "path": "./packages/sdk-test-app"
-        }
     ],
     "exclude": [
         "dist",
