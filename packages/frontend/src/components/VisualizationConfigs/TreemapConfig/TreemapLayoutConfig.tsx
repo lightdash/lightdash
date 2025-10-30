@@ -269,7 +269,7 @@ export const Layout: React.FC = () => {
                                     </Group>
                                 </Grid.Col>
                                 <Grid.Col span={8}>
-                                    <Group spacing="xs" justify="flex-end">
+                                    <Group spacing="xs" position="right">
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
                                             value={startColorThreshold}
@@ -280,7 +280,7 @@ export const Layout: React.FC = () => {
                                         />
                                     </Group>
                                 </Grid.Col>
-                                <Grid.Col span={4} justify="space-between">
+                                <Grid.Col span={4}>
                                     <Group>
                                         <Box w={60}>
                                             <Config.Label>
@@ -300,7 +300,12 @@ export const Layout: React.FC = () => {
                                     </Group>
                                 </Grid.Col>
                                 <Grid.Col span={8}>
-                                    <Group spacing="xs">
+                                    <Group
+                                        noWrap
+                                        w="100%"
+                                        spacing="xs"
+                                        position="right"
+                                    >
                                         <Config.Label>Threshold</Config.Label>
                                         <NumberInput
                                             value={endColorThreshold}
