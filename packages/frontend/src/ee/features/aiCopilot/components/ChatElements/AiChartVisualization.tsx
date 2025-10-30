@@ -149,6 +149,7 @@ export const AiChartVisualization: FC<Props> = ({
                                     description:
                                         queryExecutionHandle.data.metadata
                                             .description,
+                                    linkToMessage: true,
                                 }}
                                 compiledSql={compiledSql?.query}
                             />
