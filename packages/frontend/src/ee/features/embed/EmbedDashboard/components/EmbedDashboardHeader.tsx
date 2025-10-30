@@ -3,7 +3,7 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Box, Flex } from '@mantine/core';
+import { Flex } from '@mantine/core';
 import { type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
