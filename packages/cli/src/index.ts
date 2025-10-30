@@ -438,6 +438,10 @@ program
         'Skip copying content from the source project',
         false,
     )
+    .option(
+        '--organization-credentials <name>',
+        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+    )
     .action(previewHandler);
 
 program
@@ -673,6 +677,10 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
+    )
+    .option(
+        '--organization-credentials <name>',
+        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .action(deployHandler);
 

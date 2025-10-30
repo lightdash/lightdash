@@ -750,24 +750,35 @@ export class ProjectService extends BaseService {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(args: T, userUuid: string): Promise<T> {
+    >(args: T, userUuid: string, organizationUuid: string): Promise<T> {
         // If using organization credentials, load them from the organization table
         const organizationWarehouseCredentialsUuid =
-            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
-                ? args.organizationWarehouseCredentialsUuid ||
-                  args.warehouseConnection.organizationWarehouseCredentialsUuid
-                : undefined;
+            args.organizationWarehouseCredentialsUuid ||
+            (args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
+                ? args.warehouseConnection.organizationWarehouseCredentialsUuid
+                : undefined);
 
         if (organizationWarehouseCredentialsUuid) {
             this.logger.debug(
                 `Resolving organization warehouse credentials with uuid ${organizationWarehouseCredentialsUuid}`,
             );
 
-            const { credentials: orgCredentials } =
-                await this.organizationWarehouseCredentialsModel.getByUuid(
+            const orgCredentialData =
+                await this.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
                     organizationWarehouseCredentialsUuid,
-                    true, // withSensitiveData
                 );
+
+            // Security check: Verify the credentials belong to the user's organization
+            if (orgCredentialData.organizationUuid !== organizationUuid) {
+                this.logger.warn(
+                    `User attempted to use organization credentials from different organization. User org: ${organizationUuid}, Credentials org: ${orgCredentialData.organizationUuid}`,
+                );
+                throw new ForbiddenError(
+                    'You do not have permission to use these organization warehouse credentials',
+                );
+            }
+
+            const { credentials: orgCredentials } = orgCredentialData;
 
             if (orgCredentials.type !== WarehouseTypes.SNOWFLAKE) {
                 throw new UnexpectedServerError(
@@ -1197,6 +1208,7 @@ export class ProjectService extends BaseService {
                 ? await this._resolveWarehouseClientCredentials(
                       newProjectData,
                       user.userUuid,
+                      user.organizationUuid,
                   )
                 : newProjectData;
 
@@ -1371,6 +1383,7 @@ export class ProjectService extends BaseService {
             const createProject = await this._resolveWarehouseClientCredentials(
                 data,
                 user.userUuid,
+                user.organizationUuid,
             );
 
             await this.jobModel.update(jobUuid, {
@@ -1618,6 +1631,7 @@ export class ProjectService extends BaseService {
         const createProject = await this._resolveWarehouseClientCredentials(
             data,
             user.userUuid,
+            savedProject.organizationUuid,
         );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,

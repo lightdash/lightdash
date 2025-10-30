@@ -7,6 +7,7 @@ import {
     NotImplementedError,
     OpenIdIdentityIssuerType,
     OrganizationWarehouseCredentials,
+    OrganizationWarehouseCredentialsSummary,
     SnowflakeAuthenticationType,
     UpdateOrganizationWarehouseCredentials,
     WarehouseTypes,
@@ -57,7 +58,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                'You do not have permission to view organization warehouse credentials',
+                'You do not have permission to manage organization warehouse credentials',
             );
         }
     }
@@ -70,6 +71,47 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         return this.organizationWarehouseCredentialsModel.getAllByOrganizationUuid(
             organizationUuid,
         );
+    }
+
+    /**
+     * Get summaries of all organization warehouse credentials
+     * This is accessible to all organization editor members (no manage permission required)
+     * Returns only non-sensitive information: name, description, and warehouse type
+     */
+    async getAllSummaries(
+        account: Account,
+    ): Promise<OrganizationWarehouseCredentialsSummary[]> {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User must be in an organization');
+        }
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('OrganizationWarehouseCredentials', {
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view organization warehouse credentials',
+            );
+        }
+
+        const allCredentials =
+            await this.organizationWarehouseCredentialsModel.getAllByOrganizationUuid(
+                organizationUuid,
+            );
+
+        // Return only the summary fields
+        return allCredentials.map((cred) => ({
+            organizationWarehouseCredentialsUuid:
+                cred.organizationWarehouseCredentialsUuid,
+            name: cred.name,
+            description: cred.description,
+            warehouseType: cred.warehouseType,
+        }));
     }
 
     async get(
@@ -171,9 +213,8 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
 
         // Verify ownership before update
         const existing =
-            await this.organizationWarehouseCredentialsModel.getByUuid(
+            await this.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
                 credentialsUuid,
-                true, // withSensitiveData
             );
         if (existing.organizationUuid !== organizationUuid) {
             throw new ForbiddenError(

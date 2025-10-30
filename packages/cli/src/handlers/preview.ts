@@ -32,6 +32,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     tableConfiguration: CreateProjectTableConfiguration;
     skipCopyContent?: boolean;
+    organizationCredentials?: string;
 };
 
 type StopPreviewHandlerOptions = {
