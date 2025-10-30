@@ -839,8 +839,14 @@ const useCartesianChartConfig = ({
                 }
 
                 // don't fallback pivot dimensions if we are using sql pivot results
-                if (itemsMap !== undefined && !useSqlPivotResults?.enabled)
+                // also don't override existing pivot dimensions if they're already set
+                if (
+                    itemsMap !== undefined &&
+                    !useSqlPivotResults?.enabled &&
+                    !pivotKeys
+                ) {
                     setPivotDimensions(newPivotFields);
+                }
                 return {
                     ...prev,
                     xField: newXField,
@@ -852,6 +858,7 @@ const useCartesianChartConfig = ({
         availableDimensions,
         availableFields,
         availableMetrics,
+        pivotKeys,
         getXField,
         getYFields,
         isFieldValidTableCalculation,
