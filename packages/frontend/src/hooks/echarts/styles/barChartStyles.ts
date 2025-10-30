@@ -188,13 +188,19 @@ export const applyStackedBarCategoryData = (
     const categoryData = rows.map((row) => row[categoryFieldHash]?.value?.raw);
 
     // Add category data to the appropriate axis
+    // For stacked bars with data arrays, must use 'category' axis type
+    // This ensures bars are positioned at discrete points, not spread across continuous time
     if (isFlipAxes) {
         // Horizontal: categories on y-axis
         return {
             xAxis: axes.xAxis,
             yAxis: axes.yAxis.map((axis, idx) =>
                 idx === 0
-                    ? ({ ...axis, data: categoryData } as typeof axis)
+                    ? ({
+                          ...axis,
+                          type: 'category',
+                          data: categoryData,
+                      } as typeof axis)
                     : axis,
             ),
         };
@@ -203,7 +209,11 @@ export const applyStackedBarCategoryData = (
         return {
             xAxis: axes.xAxis.map((axis, idx) =>
                 idx === 0
-                    ? ({ ...axis, data: categoryData } as typeof axis)
+                    ? ({
+                          ...axis,
+                          type: 'category',
+                          data: categoryData,
+                      } as typeof axis)
                     : axis,
             ),
             yAxis: axes.yAxis,

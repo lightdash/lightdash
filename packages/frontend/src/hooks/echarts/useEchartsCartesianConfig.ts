@@ -772,9 +772,14 @@ const getPivotSeries = ({
                     )),
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
-                        formatter: (value: any) => {
+                        formatter: (param: any) => {
                             const field = itemsMap[series.encode.yRef.field];
-                            const rawValue = value?.value?.[yFieldHash];
+                            // Handle both dataset encoding and data array modes
+                            // Dataset mode: param.value is the row, access via field hash
+                            // Data array mode: param.value is the actual number value
+                            const rawValue = param?.value?.[yFieldHash] !== undefined
+                                ? param.value[yFieldHash]
+                                : param?.value;
                             return seriesValueFormatter(field, rawValue);
                         },
                     }),
@@ -870,9 +875,14 @@ const getSimpleSeries = ({
                 getValueLabelStyle(theme, series.color, series.label.position)),
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
-                    formatter: (value: any) => {
+                    formatter: (param: any) => {
                         const field = itemsMap[yFieldHash];
-                        const rawValue = value?.value?.[yFieldHash];
+                        // Handle both dataset encoding and data array modes
+                        // Dataset mode: param.value is the row, access via field hash
+                        // Data array mode: param.value is the actual number value
+                        const rawValue = param?.value?.[yFieldHash] !== undefined
+                            ? param.value[yFieldHash]
+                            : param?.value;
                         return seriesValueFormatter(field, rawValue);
                     },
                 }),
@@ -1998,6 +2008,13 @@ const useEchartsCartesianConfig = (
             (s) => s.type === CartesianSeriesType.BAR && s.stack && !isStack100,
         );
 
+        console.log('[useEchartsCartesianConfig] Before applyStackedBarBorderRadius:', {
+            isStack100,
+            stackedBarSeriesCount: stackedBarSeries.length,
+            allSeriesCount: seriesWithValidStack.length,
+            rowsCount: rows.length,
+        });
+
         const seriesWithBorderRadius = applyStackedBarBorderRadius(
             seriesWithValidStack,
             stackedBarSeries,
@@ -2594,6 +2611,15 @@ const useEchartsCartesianConfig = (
         const categoryFieldHash = validCartesianConfig?.layout.flipAxes
             ? validCartesianConfig?.layout?.yField?.[0]
             : validCartesianConfig?.layout?.xField;
+
+        console.log('[useEchartsCartesianConfig] Before applyStackedBarCategoryData:', {
+            categoryFieldHash,
+            flipAxes: validCartesianConfig?.layout.flipAxes,
+            xAxisType: axes.xAxis[0]?.type,
+            yAxisType: axes.yAxis[0]?.type,
+            xAxisData: axes.xAxis[0]?.data?.length || 'no data',
+            yAxisData: axes.yAxis[0]?.data?.length || 'no data',
+        });
 
         const modifiedAxes = applyStackedBarCategoryData(
             axes,
