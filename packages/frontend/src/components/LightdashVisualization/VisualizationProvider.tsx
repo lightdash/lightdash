@@ -261,7 +261,7 @@ const VisualizationProvider: FC<
             if ('pivotReference' in seriesLike && seriesLike.pivotReference) {
                 pivot = seriesLike.pivotReference.pivotValues?.[0];
             } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
-                pivot = seriesLike.encode.yRef.pivotValues?.[0];
+                pivot = seriesLike.encode.yRef?.pivotValues?.[0];
             }
             if (itemsMap && pivot) {
                 const { field, value } = pivot;

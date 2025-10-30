@@ -24,7 +24,7 @@ export const getAxisTitleStyle = () => ({
 export const getAxisLineStyle = (theme: MantineTheme) => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[3],
+        color: theme.colors.gray[4],
         type: 'solid' as const,
     },
 });
@@ -35,7 +35,7 @@ export const getAxisLineStyle = (theme: MantineTheme) => ({
 export const getAxisTickStyle = (theme: MantineTheme) => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[3],
+        color: theme.colors.gray[4],
         type: 'solid' as const,
     },
 });
