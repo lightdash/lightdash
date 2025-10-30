@@ -5,6 +5,7 @@ export enum OpenIdIdentityIssuerType {
     AZUREAD = 'azuread',
     GENERIC_OIDC = 'oidc',
     SNOWFLAKE = 'snowflake',
+    DATABRICKS = 'databricks',
     SLACK = 'slack',
 }
 

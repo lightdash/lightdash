@@ -352,6 +352,9 @@ export type HealthState = {
         snowflake: {
             enabled: boolean;
         };
+        databricks: {
+            enabled: boolean;
+        };
     };
     posthog:
         | {
