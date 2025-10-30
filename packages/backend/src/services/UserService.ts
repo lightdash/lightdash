@@ -1687,6 +1687,46 @@ export class UserService extends BaseService {
         });
     }
 
+    /**
+     * Exchange Databricks OAuth M2M credentials for access and refresh tokens
+     */
+    static async exchangeDatabricksOAuthCredentials(
+        host: string,
+        clientId: string,
+        clientSecret: string,
+    ): Promise<{ accessToken: string; refreshToken?: string }> {
+        const tokenUrl = `https://${host}/oidc/v1/token`;
+
+        const response = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: clientId,
+                client_secret: clientSecret,
+                scope: 'sql',
+            }).toString(),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+                `Failed to obtain Databricks OAuth token: ${response.status} ${errorText}`,
+            );
+        }
+
+        const data = (await response.json()) as {
+            access_token: string;
+            refresh_token?: string;
+        };
+        return {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+        };
+    }
+
     async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
