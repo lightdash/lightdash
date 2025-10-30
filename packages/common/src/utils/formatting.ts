@@ -347,12 +347,18 @@ export function getCustomFormat(
         return item.format;
     }
 
-    // This converts legacy format type (which is Format), to CustomFormat
-    return getCustomFormatFromLegacy({
+    const legacyFormat = {
         ...('format' in item && { format: item.format }),
         ...('compact' in item && { compact: item.compact }),
         ...('round' in item && { round: item.round }),
-    });
+    };
+
+    // Only get custom format from legacy if there are any legacy format options
+    if (Object.keys(legacyFormat).length > 0) {
+        return getCustomFormatFromLegacy(legacyFormat);
+    }
+
+    return undefined;
 }
 
 function applyCompact(
@@ -441,7 +447,9 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         }
 
         // format number
-        return formatWithExpression(expression, Number(sanitizedValue));
+        return valueIsNaN(Number(sanitizedValue))
+            ? `${value}` // Return the raw value as a string if it's not a number
+            : formatWithExpression(expression, Number(sanitizedValue));
     } catch (e) {
         // eslint-disable-next-line no-console
         console.error('Error formatting value with expression', e);

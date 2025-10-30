@@ -6,6 +6,8 @@ import {
     formatRows,
     getErrorMessage,
     getFormatExpression,
+    isField,
+    isNumber,
     ItemsMap,
     MetricQuery,
     PivotConfig,
@@ -64,6 +66,7 @@ export class ExcelService {
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
             const rawValue = row[fieldId];
+
             if (onlyRaw) {
                 return rawValue;
             }
@@ -73,45 +76,33 @@ export class ExcelService {
             }
 
             const item = itemMap[fieldId];
+            const isItemField = isField(item);
 
-            const formatExpression = getFormatExpression(item);
-            if (formatExpression) {
-                // For date/timestamp fields with custom formatting, convert to Date object first
-                if (
-                    item &&
-                    'type' in item &&
-                    (item.type === DimensionType.DATE ||
-                        item.type === DimensionType.TIMESTAMP)
-                ) {
-                    return moment(rawValue).toDate();
-                }
+            // For date/timestamp fields with custom formatting, convert to Date object first
+            if (
+                isItemField &&
+                (item.type === DimensionType.DATE ||
+                    item.type === DimensionType.TIMESTAMP)
+            ) {
+                return moment(rawValue).toDate();
+            }
 
-                // Convert string numbers to actual numbers for Excel formatting
-                const stringValue = String(rawValue);
-                if (
-                    stringValue.trim() !== '' &&
-                    !Number.isNaN(Number(stringValue))
-                ) {
-                    return Number(stringValue);
-                }
+            const stringValue = String(rawValue);
+
+            // If the string value is empty, return the raw value
+            if (stringValue.trim() === '') {
                 return rawValue;
             }
 
-            if (item && 'type' in item) {
-                if (
-                    item.type === DimensionType.TIMESTAMP ||
-                    item.type === DimensionType.DATE
-                ) {
-                    return moment(rawValue).toDate();
-                }
+            // Convert string numbers to actual numbers for Excel formatting
+            // When there is a formatExpression, the formatting is applied at the column level
+            // so we need to convert the raw value to a number
+            if (isNumber(rawValue)) {
+                return Number(stringValue);
             }
 
-            // Use standard Lightdash formatting if not onlyRaw and we have item metadata but no format expression
-            if (item) {
-                return formatItemValue(item, rawValue);
-            }
-
-            return rawValue;
+            // Otherwise, use standard Lightdash formatting as there won't be a format expression
+            return formatItemValue(item, rawValue);
         });
     }
 
