@@ -1,3 +1,16 @@
+# [0.2123.0](https://github.com/lightdash/lightdash/compare/0.2122.0...0.2123.0) (2025-10-30)
+
+
+### Bug Fixes
+
+* trigger render on load of compilation table ([#17744](https://github.com/lightdash/lightdash/issues/17744)) ([ac34bf0](https://github.com/lightdash/lightdash/commit/ac34bf00e09cffab84d818e1b1087a6480c0c149))
+
+
+### Features
+
+* add charts to embedding table ([#17596](https://github.com/lightdash/lightdash/issues/17596)) ([38edc6b](https://github.com/lightdash/lightdash/commit/38edc6bde48e6a6600a42f8ab0d6e521a1610e48)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add parameter change option to embedded dashboards ([#17616](https://github.com/lightdash/lightdash/issues/17616)) ([243039d](https://github.com/lightdash/lightdash/commit/243039d5f3be19a462439f5c5dc46c28aa4f9588))
+
 # [0.2122.0](https://github.com/lightdash/lightdash/compare/0.2121.0...0.2122.0) (2025-10-30)
 
 
