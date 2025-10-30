@@ -6,6 +6,8 @@ import {
 } from '@lightdash/common';
 import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { aiCopilotConfigSchema } from '../../../../../config/aiConfigSchema';
+import { getAiConfig } from '../../../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
     getServices,
@@ -13,6 +15,7 @@ import {
     IntegrationTestContext,
 } from '../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
+import { getModel } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { llmAsAJudge } from './utils/llmAsAJudge';
 import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
@@ -22,17 +25,27 @@ import { createTestReport } from './utils/testReportWrapper';
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
 const describeOrSkip = hasApiKey ? describe : describe.skip;
+const aiCopilotConfig = aiCopilotConfigSchema.parse(getAiConfig());
 
 describeOrSkip.concurrent('agent integration tests', () => {
     let context: IntegrationTestContext;
     const TIMEOUT = 60_000;
     let createdAgent: AiAgent | null = null;
-    const { model, callOptions } = getOpenaiGptmodel({
+
+    const agentModel = getModel(aiCopilotConfig);
+
+    const agentInfo = {
+        provider: agentModel.providerOptions
+            ? Object.keys(agentModel.providerOptions)[0]
+            : 'not found',
+        model: agentModel.model.modelId,
+    };
+
+    // Creating model to be used as judge
+    const { model: judge, callOptions } = getOpenaiGptmodel({
         apiKey: process.env.OPENAI_API_KEY!,
-        modelName: 'gpt-4.1',
-        temperature: process.env.OPENAI_TEMPERATURE
-            ? parseFloat(process.env.OPENAI_TEMPERATURE)
-            : 0.2,
+        modelName: 'gpt-5-nano-2025-08-07',
+        temperature: 0.2,
         responsesApi: false,
         reasoning: {
             enabled: false,
@@ -91,7 +104,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 query: promptQueryText,
                 response,
                 expectedAnswer,
-                model,
+                judge,
                 callOptions,
                 scorerType: 'factuality',
             });
@@ -101,11 +114,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 toolCalls,
                 expectedOutcome:
                     'It should have skipped the tool calls because the agent has access to the data models already',
-                model,
+                judge,
                 callOptions,
             });
 
             const report = createTestReport({
+                agentInfo,
                 prompt: promptQueryText,
                 response,
                 toolCalls,
@@ -139,7 +153,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             response,
             expectedAnswer: '3,053.87',
             scorerType: 'factuality',
-            model,
+            judge,
             callOptions,
         });
 
@@ -148,11 +162,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
             toolCalls,
             expectedOutcome:
                 'It should have used the findExplores, findFields tool and then the table tool summarize the data to get the total revenue',
-            model,
+            judge,
             callOptions,
         });
 
         const report = createTestReport({
+            agentInfo,
             prompt: promptQueryText,
             response,
             toolCalls,
@@ -186,7 +201,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             expectedAnswer:
                 "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
             scorerType: 'factuality',
-            model,
+            judge,
             callOptions,
         });
 
@@ -218,11 +233,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     },
                 },
             ],
-            model,
+            judge,
             callOptions,
         });
 
         const report = createTestReport({
+            agentInfo,
             prompt: promptQueryText,
             response,
             toolCalls,
@@ -287,12 +303,13 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 query: promptQueryText,
                 response,
                 context: contextForEval,
-                model,
+                judge,
                 callOptions,
                 scorerType: 'contextRelevancy',
             });
 
             const report = createTestReport({
+                agentInfo,
                 prompt: promptQueryText,
                 response,
                 toolCalls,
@@ -325,11 +342,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 response,
                 expectedAnswer: 'There were 53 orders in 2024',
                 scorerType: 'factuality',
-                model,
+                judge,
                 callOptions,
             });
 
             const report = createTestReport({
+                agentInfo,
                 prompt: promptQueryText,
                 response,
                 toolCalls,
@@ -378,11 +396,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 Chart types available are bar charts, time series charts, and tables.
                 `,
             scorerType: 'factuality',
-            model,
+            judge,
             callOptions,
         });
 
         const report = createTestReport({
+            agentInfo,
             prompt: promptQueryText,
             response,
             toolCalls,
@@ -424,6 +443,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 );
 
             const report = createTestReport({
+                agentInfo,
                 prompts: [prompt1, prompt2, prompt3],
                 responses: [response1, response2, response3],
                 toolCalls: toolCallsForPrompt3,
@@ -497,11 +517,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         prompt: testCase.question,
                         toolCalls,
                         expectedOutcome: `Should use appropriate tools to answer "${testCase.question}". Expected to use findExplores to find the ${testCase.expectedExplore} explore, findFields to get relevant fields, and it MUST use the ${testCase.expectedVisualization} tool for visualization. Should not use more than ${testCase.maxToolCalls} tool calls total.`,
-                        model,
+                        judge,
                         callOptions,
                     });
 
                     const report = createTestReport({
+                        agentInfo,
                         prompt: testCase.question,
                         response,
                         toolCalls,
@@ -520,7 +541,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         const { meta: relevancyMeta } = await llmAsAJudge({
                             query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
                             response: JSON.stringify(toolCalls),
-                            model,
+                            judge,
                             callOptions,
                             scorerType: 'contextRelevancy',
                             contextRelevancyThreshold: 1.0, // Stricter threshold for this test
@@ -538,6 +559,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         });
 
                         const report = createTestReport({
+                            agentInfo,
                             prompt: testCase.question,
                             response,
                             toolCalls,
@@ -563,11 +585,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                             `The visualization is a ${testCase.expectedVisualization}.`,
                         ].join('\n'),
                         scorerType: 'factuality',
-                        model,
+                        judge,
                         callOptions,
                     });
 
                     const report = createTestReport({
+                        agentInfo,
                         prompt: testCase.question,
                         response,
                         toolCalls,
@@ -641,11 +664,12 @@ describeOrSkip.concurrent('agent integration tests', () => {
                         response,
                         expectedAnswer: testCase.expectedResponse,
                         scorerType: 'factuality',
-                        model,
+                        judge,
                         callOptions,
                     });
 
                     const report = createTestReport({
+                        agentInfo,
                         prompt: testCase.prompt,
                         response,
                         toolCalls,
