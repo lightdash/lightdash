@@ -1,3 +1,10 @@
+# [0.2122.0](https://github.com/lightdash/lightdash/compare/0.2121.0...0.2122.0) (2025-10-30)
+
+
+### Features
+
+* parameter support to embedded dashboards ui ([#17591](https://github.com/lightdash/lightdash/issues/17591)) ([c5c3643](https://github.com/lightdash/lightdash/commit/c5c36433f99545a0e4ab3308163e30ef62e5460d))
+
 # [0.2121.0](https://github.com/lightdash/lightdash/compare/0.2120.0...0.2121.0) (2025-10-30)
 
 
