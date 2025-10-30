@@ -8,6 +8,7 @@ import { type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
+import EmbedDashboardParameters from './EmbedDashboardParameters';
 
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
@@ -17,6 +18,7 @@ type Props = {
 const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
     const hasHeader =
         dashboard.canDateZoom ||
+        dashboard.canChangeParameters ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
     // If no header, and exportPagePdf is enabled, show the Export button on the top right corner
@@ -45,6 +47,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
             style={{ flexGrow: 1 }}
         >
             {shouldShowFilters && <EmbedDashboardFilters />}
+            {dashboard.canChangeParameters && <EmbedDashboardParameters />}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
             {dashboard.canExportPagePdf && (
