@@ -46,6 +46,7 @@ export type DashboardFilterInteractivityOptions = z.infer<
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
+    canChangeParameters: z.boolean().optional(),
     canExportCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
@@ -103,6 +104,7 @@ type CommonEmbedJwtContent = {
         // Should the filters be rendered hidden or visible in the UI
         hidden?: boolean;
     };
+    canChangeParameters?: boolean;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     canDateZoom?: boolean;
