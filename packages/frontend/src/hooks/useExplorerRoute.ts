@@ -71,7 +71,8 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     if (!projectUuid) {
         return { pathname: '', search: '' };
     }
-    const newParams = new URLSearchParams();
+    // Preserve existing search params (like fromSpace, fromDashboard, etc)
+    const newParams = new URLSearchParams(window.location.search);
 
     let stringifiedChart = JSON.stringify(createSavedChart);
     const stringifiedChartSize = stringifiedChart.length;
@@ -177,7 +178,7 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
     useEffect(() => {
-        if (pathParams.tableId && tableName) {
+        if (pathParams.tableId && metricQuery && tableName) {
             void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
