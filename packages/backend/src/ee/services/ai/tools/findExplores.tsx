@@ -10,16 +10,19 @@ import {
 import { tool } from 'ai';
 import type {
     FindExploresFn,
+    ListExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { validateExploreNameExists } from '../utils/validators';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
+    listExplores: ListExploresFn;
 };
 
 function getCatalogChartUsage(
@@ -177,6 +180,7 @@ export const getFindExplores = ({
     findExplores,
     updateProgress,
     fieldSearchSize,
+    listExplores,
 }: Dependencies) =>
     tool({
         description: toolFindExploresArgsSchemaV2.description,
@@ -187,6 +191,9 @@ export const getFindExplores = ({
                 await updateProgress(
                     `🔍 Searching explore: \`${args.exploreName}\`...`,
                 );
+
+                const availableExplores = await listExplores();
+                validateExploreNameExists(availableExplores, args.exploreName);
 
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,
