@@ -107,10 +107,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import {
-    generateAgentResponse as generateAgentResponseV1,
-    streamAgentResponse as streamAgentResponseV1,
-} from './ai/agents/agent';
+import { streamAgentResponse as streamAgentResponseV1 } from './ai/agents/agent';
 import {
     generateAgentResponse as generateAgentResponseV2,
     streamAgentResponse as streamAgentResponseV2,
@@ -2510,23 +2507,21 @@ export class AiAgentService {
         };
 
         // Route to correct agent version based on agentSettings.version
-        const agentVersion = agentSettings.version;
+        // const agentVersion = agentSettings.version;
 
-        if (agentVersion === 1) {
-            return stream
-                ? streamAgentResponseV1({ args, dependencies })
-                : generateAgentResponseV1({ args, dependencies });
-        }
+        // if (agentVersion === 1) {
+        //     return stream
+        //         ? streamAgentResponseV1({ args, dependencies })
+        //         : generateAgentResponseV1({ args, dependencies });
+        // }
 
-        if (agentVersion === 2) {
-            return stream
-                ? streamAgentResponseV2({ args, dependencies })
-                : generateAgentResponseV2({ args, dependencies });
-        }
+        return stream
+            ? streamAgentResponseV2({ args, dependencies })
+            : generateAgentResponseV2({ args, dependencies });
 
-        throw new Error(
-            `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
-        );
+        // throw new Error(
+        //     `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
+        // );
     }
 
     // TODO: user permissions

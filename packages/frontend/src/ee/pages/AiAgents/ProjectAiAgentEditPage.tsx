@@ -102,7 +102,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableDataAccess: false,
             enableSelfImprovement: false,
             enableReasoning: false,
-            version: 1, // TODO: Update to 2 when v2 is ready or allow version to be passed in
+            version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
     });
@@ -124,7 +124,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
                 enableReasoning: agent.enableReasoning ?? false,
-                version: agent.version ?? 1, // TODO: Update to 2 when v2 is ready or allow version to be passed in
+                version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);
             form.resetDirty(values);
