@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    DatabricksAuthenticationType,
     getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -13,6 +14,7 @@ import {
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import crypto from 'crypto';
 import execa from 'execa';
+import fetch from 'node-fetch';
 import path from 'path';
 import { getConfig } from '../../config';
 import {
@@ -21,6 +23,46 @@ import {
 } from '../../dbt/profile';
 import GlobalState from '../../globalState';
 import { lightdashApi } from './apiClient';
+
+/**
+ * Exchange Databricks OAuth M2M credentials for access token
+ */
+async function exchangeDatabricksOAuthCredentials(
+    host: string,
+    clientId: string,
+    clientSecret: string,
+): Promise<{ accessToken: string; refreshToken?: string }> {
+    const tokenUrl = `https://${host}/oidc/v1/token`;
+
+    const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: clientId,
+            client_secret: clientSecret,
+            scope: 'sql',
+        }).toString(),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new ParseError(
+            `Failed to obtain Databricks OAuth token: ${response.status} ${errorText}`,
+        );
+    }
+
+    const data = (await response.json()) as {
+        access_token: string;
+        refresh_token?: string;
+    };
+    return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+    };
+}
 
 /**
  * Cache warehouse clients to avoid repeated authentication prompts
@@ -292,6 +334,26 @@ export default async function getWarehouseClient(
         });
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
+
+        // Exchange Databricks OAuth credentials for access token if needed
+        if (
+            credentials.type === WarehouseTypes.DATABRICKS &&
+            credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH &&
+            credentials.oauthClientId &&
+            credentials.oauthClientSecret &&
+            !credentials.token
+        ) {
+            GlobalState.debug(
+                `> Exchanging Databricks OAuth credentials for access token`,
+            );
+            const { accessToken } = await exchangeDatabricksOAuthCredentials(
+                credentials.serverHostName,
+                credentials.oauthClientId,
+                credentials.oauthClientSecret,
+            );
+            credentials.token = accessToken;
+        }
 
         // Check if we should use cached client (e.g., for auth methods requiring user interaction)
         const cacheKey = getWarehouseClientCacheKey(credentials);

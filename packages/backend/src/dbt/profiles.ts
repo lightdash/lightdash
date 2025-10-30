@@ -204,7 +204,10 @@ const credentialsTarget = (
                     http_path: credentials.httpPath,
                 },
                 environment: {
-                    [envVar('token')]: credentials.personalAccessToken,
+                    [envVar('token')]:
+                        credentials.personalAccessToken ||
+                        credentials.token ||
+                        '',
                 },
             };
         case WarehouseTypes.CLICKHOUSE:

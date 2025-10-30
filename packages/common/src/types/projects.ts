@@ -94,6 +94,8 @@ export type CreateDatabricksCredentials = {
     personalAccessToken?: string; // Optional when using OAuth
     refreshToken?: string; // Refresh token for OAuth, used to generate a new access token
     token?: string; // Access token for OAuth, has a low expiry time (1 hour)
+    oauthClientId?: string; // OAuth M2M client ID (Service Principal)
+    oauthClientSecret?: string; // OAuth M2M client secret (Service Principal)
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
     compute?: Array<{
