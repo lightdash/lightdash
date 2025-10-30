@@ -1,3 +1,10 @@
+## [0.2124.1](https://github.com/lightdash/lightdash/compare/0.2124.0...0.2124.1) (2025-10-30)
+
+
+### Bug Fixes
+
+* reloading the explore when results is opened ([#17749](https://github.com/lightdash/lightdash/issues/17749)) ([3fd54eb](https://github.com/lightdash/lightdash/commit/3fd54ebd2f28e810f4a74d541ac58b685ac0cc13))
+
 # [0.2124.0](https://github.com/lightdash/lightdash/compare/0.2123.0...0.2124.0) (2025-10-30)
 
 
