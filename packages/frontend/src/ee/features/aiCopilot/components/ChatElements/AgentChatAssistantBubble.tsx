@@ -432,7 +432,9 @@ export const AssistantBubble: FC<Props> = memo(
                                                       messageArtifact.artifactUuid,
                                                   versionUuid:
                                                       messageArtifact.versionUuid,
-                                                  message: message,
+                                                  messageUuid: message.uuid,
+                                                  threadUuid:
+                                                      message.threadUuid,
                                                   projectUuid: projectUuid,
                                                   agentUuid: agentUuid,
                                               }),
