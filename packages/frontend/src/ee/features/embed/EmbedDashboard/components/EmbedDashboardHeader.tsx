@@ -1,5 +1,6 @@
 import {
     isFilterInteractivityEnabled,
+    isParameterInteractivityEnabled,
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
@@ -18,7 +19,7 @@ type Props = {
 const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
     const hasHeader =
         dashboard.canDateZoom ||
-        dashboard.canChangeParameters ||
+        isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
     // If no header, and exportPagePdf is enabled, show the Export button on the top right corner
@@ -47,7 +48,9 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
             style={{ flexGrow: 1 }}
         >
             {shouldShowFilters && <EmbedDashboardFilters />}
-            {dashboard.canChangeParameters && <EmbedDashboardParameters />}
+            {isParameterInteractivityEnabled(
+                dashboard.parameterInteractivity,
+            ) && <EmbedDashboardParameters />}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
             {dashboard.canExportPagePdf && (

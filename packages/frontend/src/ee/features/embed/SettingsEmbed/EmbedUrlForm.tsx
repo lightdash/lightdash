@@ -6,6 +6,7 @@ import {
     type DashboardFilterInteractivityOptions,
     type EmbedUrl,
     type IntrinsicUserAttributes,
+    type ParameterInteractivityOptions,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -63,7 +64,7 @@ type FormValues = {
         value: string;
     }>;
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
-    canChangeParameters?: boolean;
+    parameterInteractivity: ParameterInteractivityOptions;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     externalId?: string;
@@ -95,7 +96,9 @@ const EmbedUrlForm: FC<{
             dashboardFiltersInteractivity: {
                 enabled: FilterInteractivityValues.none,
             },
-            canChangeParameters: false,
+            parameterInteractivity: {
+                enabled: false,
+            },
             canExportCsv: false,
             canExportImages: false,
             canDateZoom: false,
@@ -132,7 +135,7 @@ const EmbedUrlForm: FC<{
                               }
                             : {}),
                     },
-                    canChangeParameters: values.canChangeParameters,
+                    parameterInteractivity: values.parameterInteractivity,
                     canExportCsv: values.canExportCsv,
                     canExportImages: values.canExportImages,
                     isPreview,
@@ -294,7 +297,12 @@ const EmbedUrlForm: FC<{
                 </Input.Wrapper>
 
                 <Switch
-                    {...form.getInputProps(`canChangeParameters`)}
+                    checked={form.values.parameterInteractivity.enabled}
+                    onChange={(event) =>
+                        form.setFieldValue('parameterInteractivity', {
+                            enabled: event.currentTarget.checked,
+                        })
+                    }
                     labelPosition="left"
                     label={`Allow users to change parameters`}
                 />

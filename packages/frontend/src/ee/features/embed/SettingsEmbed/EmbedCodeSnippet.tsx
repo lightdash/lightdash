@@ -31,7 +31,9 @@ const data = {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
         },
-        canChangeParameters: {{canChangeParameters}},
+        parameterInteractivity: {
+            enabled: {{canChangeParameters}},
+        },
         canExportCsv: {{canExportCsvEnabled}},
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
@@ -65,7 +67,9 @@ data = {
             "enabled": "{{dashboardFiltersInteractivityEnabledPython}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFiltersPython}},
         },
-        "canChangeParameters": {{canChangeParametersPython}},
+        "parameterInteractivity": {
+            "enabled": {{canChangeParametersPython}},
+        },
         "canExportCsv": {{canExportCsvEnabledPython}},
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
@@ -109,7 +113,9 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
             } \`json:"dashboardFiltersInteractivity"\`
-            CanChangeParameters bool \`json:"canChangeParameters"\`
+            ParameterInteractivity struct {
+                Enabled bool \`json:"enabled"\`
+            } \`json:"parameterInteractivity"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
@@ -135,7 +141,9 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
             } \`json:"dashboardFiltersInteractivity"\`
-            CanChangeParameters bool \`json:"canChangeParameters"\`
+            ParameterInteractivity struct {
+                Enabled bool \`json:"enabled"\`
+            } \`json:"parameterInteractivity"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
@@ -153,7 +161,11 @@ func main() {
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFiltersGo}}},
             },
-            CanChangeParameters: {{canChangeParameters}},
+            ParameterInteractivity: struct {
+                Enabled bool \`json:"enabled"\`
+            }{
+                Enabled: {{canChangeParameters}},
+            },
             CanExportCsv: {{canExportCsvEnabled}},
             CanExportImages: {{canExportImagesEnabled}},
             CanExportPagePdf: {{canExportPagePdf}},
@@ -255,11 +267,11 @@ const getCodeSnippet = (
         )
         .replace(
             '{{canChangeParameters}}',
-            data.content.canChangeParameters ? 'true' : 'false',
+            data.content.parameterInteractivity?.enabled ? 'true' : 'false',
         )
         .replace(
             '{{canChangeParametersPython}}',
-            data.content.canChangeParameters ? 'True' : 'False',
+            data.content.parameterInteractivity?.enabled ? 'True' : 'False',
         )
         .replace('{{canDateZoom}}', data.content.canDateZoom ? 'true' : 'false')
         .replace(

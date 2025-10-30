@@ -1,6 +1,7 @@
 import {
     type CreateEmbedJwt,
     type DashboardFilterInteractivityOptions,
+    type ParameterInteractivityOptions,
 } from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
@@ -88,8 +89,8 @@ export type DashboardAccess = {
     filtering?: DashboardFilterInteractivityOptions;
     /** User-specific access controls */
     controls?: UserAccessControls;
-    /** Whether users can change dashboard parameters in embedded dashboards */
-    canChangeParameters?: boolean;
+    /** Dashboard parameter interactivity options */
+    parameters?: ParameterInteractivityOptions;
 };
 
 export type AccountHelpers = {
