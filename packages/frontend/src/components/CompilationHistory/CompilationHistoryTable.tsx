@@ -292,7 +292,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         manualSorting: true,
         enableRowVirtualization: true,
         enableTopToolbar: true,
-        enableBottomToolbar: true,
+        enableBottomToolbar: false,
         enableRowActions: false,
         renderTopToolbar: () => (
             <CompilationHistoryTopToolbar
