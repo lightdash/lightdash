@@ -4,6 +4,7 @@ import {
     CartesianSeriesType,
     createStack100TooltipFormatter,
     DimensionType,
+    evaluateConditionalFormatExpression,
     formatItemValue,
     formatValueWithExpression,
     friendlyName,
@@ -36,6 +37,7 @@ import {
     type Field,
     type Item,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotReference,
     type PivotValuesColumn,
     type ResultRow,
@@ -352,10 +354,11 @@ export const getFormattedValue = (
     itemsMap: ItemsMap,
     convertToUTC: boolean = true,
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    parameters?: ParametersValuesMap,
 ): string => {
     const pivotValuesColumn = pivotValuesColumnsMap?.[key];
     const item = itemsMap[pivotValuesColumn?.referenceField ?? key];
-    return formatItemValue(item, value, convertToUTC);
+    return formatItemValue(item, value, convertToUTC, parameters);
 };
 
 const valueFormatter =
@@ -363,6 +366,7 @@ const valueFormatter =
         yFieldId: string,
         itemsMap: ItemsMap,
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+        parameters?: ParametersValuesMap,
     ) =>
     (rawValue: any) => {
         return getFormattedValue(
@@ -371,6 +375,7 @@ const valueFormatter =
             itemsMap,
             undefined,
             pivotValuesColumnsMap,
+            parameters,
         );
     };
 
@@ -640,18 +645,33 @@ type GetPivotSeriesArg = {
     xFieldHash: string;
     pivotReference: Required<PivotReference>;
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    parameters?: ParametersValuesMap;
 };
 
-const seriesValueFormatter = (item: Item, value: unknown) => {
+const seriesValueFormatter = (
+    item: Item,
+    value: unknown,
+    parameters?: ParametersValuesMap,
+) => {
     if (hasValidFormatExpression(item)) {
-        return formatValueWithExpression(item.format, value);
+        // Check if format uses parameter placeholders
+        const hasParameterPlaceholders =
+            item.format.includes('${ld.parameters');
+
+        // Evaluate conditional expressions if parameters are provided
+        const formatExpression =
+            hasParameterPlaceholders && parameters
+                ? evaluateConditionalFormatExpression(item.format, parameters)
+                : item.format;
+
+        return formatValueWithExpression(formatExpression, value);
     }
 
     if (isCustomDimension(item)) {
         return value;
     }
     if (isTableCalculation(item)) {
-        return formatItemValue(item, value);
+        return formatItemValue(item, value, false, parameters);
     } else {
         const defaultFormatOptions = getCustomFormatFromLegacy({
             format: item.format,
@@ -672,6 +692,7 @@ const getPivotSeries = ({
     flipAxes,
     cartesianChart,
     pivotValuesColumnsMap,
+    parameters,
 }: GetPivotSeriesArg): EChartSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -681,6 +702,7 @@ const getPivotSeries = ({
                 itemsMap,
                 undefined,
                 pivotValuesColumnsMap,
+                parameters,
             );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
@@ -724,6 +746,7 @@ const getPivotSeries = ({
                 series.encode.yRef.field,
                 itemsMap,
                 pivotValuesColumnsMap,
+                parameters,
             ),
         },
         showSymbol: series.showSymbol ?? true,
@@ -735,7 +758,11 @@ const getPivotSeries = ({
                         formatter: (value: any) => {
                             const field = itemsMap[series.encode.yRef.field];
                             const rawValue = value?.value?.[yFieldHash];
-                            return seriesValueFormatter(field, rawValue);
+                            return seriesValueFormatter(
+                                field,
+                                rawValue,
+                                parameters,
+                            );
                         },
                     }),
             },
@@ -778,6 +805,7 @@ type GetSimpleSeriesArg = {
     yFieldHash: string;
     xFieldHash: string;
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    parameters?: ParametersValuesMap;
 };
 
 const getSimpleSeries = ({
@@ -787,6 +815,7 @@ const getSimpleSeries = ({
     xFieldHash,
     itemsMap,
     pivotValuesColumnsMap,
+    parameters,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -817,6 +846,7 @@ const getSimpleSeries = ({
             yFieldHash,
             itemsMap,
             pivotValuesColumnsMap,
+            parameters,
         ),
     },
     ...getSimpleSeriesSymbolConfig(series),
@@ -828,7 +858,11 @@ const getSimpleSeries = ({
                     formatter: (value: any) => {
                         const field = itemsMap[yFieldHash];
                         const rawValue = value?.value?.[yFieldHash];
-                        return seriesValueFormatter(field, rawValue);
+                        return seriesValueFormatter(
+                            field,
+                            rawValue,
+                            parameters,
+                        );
                     },
                 }),
         },
@@ -844,6 +878,7 @@ const getEchartsSeriesFromPivotedData = (
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    parameters?: ParametersValuesMap,
 ): EChartSeries[] => {
     // Use pivotDetails to find the correct column name for each series
     const findMatchingColumnName = (series: Series): string | undefined => {
@@ -920,6 +955,7 @@ const getEchartsSeriesFromPivotedData = (
                     xFieldHash,
                     yFieldHash,
                     pivotValuesColumnsMap,
+                    parameters,
                 });
             }
 
@@ -931,6 +967,7 @@ const getEchartsSeriesFromPivotedData = (
                 yFieldHash,
                 xFieldHash,
                 pivotValuesColumnsMap,
+                parameters,
             });
         });
 
@@ -941,6 +978,7 @@ const getEchartsSeries = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
+    parameters?: ParametersValuesMap,
 ): EChartSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
@@ -957,6 +995,7 @@ const getEchartsSeries = (
                     flipAxes,
                     xFieldHash,
                     yFieldHash,
+                    parameters,
                 });
             }
 
@@ -966,6 +1005,7 @@ const getEchartsSeries = (
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
+                parameters,
             });
         });
 };
@@ -1043,12 +1083,14 @@ const getEchartAxes = ({
     series,
     resultsData,
     minsAndMaxes,
+    parameters,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
     series: EChartSeries[];
     resultsData: InfiniteQueryResults | undefined;
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
+    parameters?: ParametersValuesMap;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1383,6 +1425,7 @@ const getEchartAxes = ({
                     rotate: xAxisConfiguration?.[0]?.rotate,
                     defaultNameGap: 30,
                     show: showXAxis,
+                    parameters,
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1443,6 +1486,7 @@ const getEchartAxes = ({
                     longestLabelWidth: calculateWidthText(longestValueXAxisTop),
                     defaultNameGap: 30,
                     show: showXAxis,
+                    parameters,
                 }),
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
@@ -1484,6 +1528,7 @@ const getEchartAxes = ({
                     axisItem: leftAxisYField,
                     defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
                     show: showYAxis,
+                    parameters,
                 }),
                 // Override formatter for 100% stacking without flipped axes
                 ...(shouldStack100 &&
@@ -1545,6 +1590,7 @@ const getEchartAxes = ({
                     axisItem: rightAxisYField,
                     defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
                     show: showYAxis,
+                    parameters,
                 }),
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
@@ -1687,6 +1733,7 @@ const useEchartsCartesianConfig = (
         itemsMap,
         getSeriesColor,
         minimal,
+        parameters,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -1760,6 +1807,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
+                parameters,
             );
         }
 
@@ -1768,6 +1816,7 @@ const useEchartsCartesianConfig = (
             itemsMap,
             validCartesianConfig,
             pivotDimensions,
+            parameters,
         );
     }, [
         validCartesianConfig,
@@ -1776,6 +1825,7 @@ const useEchartsCartesianConfig = (
         pivotDimensions,
         rowKeyMap,
         pivotValuesColumnsMap,
+        parameters,
     ]);
 
     const resultsAndMinsAndMaxes = useMemo(
@@ -1794,6 +1844,7 @@ const useEchartsCartesianConfig = (
             validCartesianConfig,
             resultsData,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
+            parameters,
         });
     }, [
         itemsMap,
@@ -1801,6 +1852,7 @@ const useEchartsCartesianConfig = (
         series,
         resultsData,
         resultsAndMinsAndMaxes.minsAndMaxes,
+        parameters,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -2144,6 +2196,7 @@ const useEchartsCartesianConfig = (
                                     itemsMap,
                                     undefined,
                                     pivotValuesColumnsMap,
+                                    parameters,
                                 )}</b></td>
                             </tr>
                         `;
@@ -2179,6 +2232,7 @@ const useEchartsCartesianConfig = (
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
+                            parameters,
                         );
                         tooltipHtml = tooltipHtml.replace(
                             field,
@@ -2194,6 +2248,8 @@ const useEchartsCartesianConfig = (
                         const tooltipHeader = formatItemValue(
                             field,
                             getTooltipHeader(),
+                            false,
+                            parameters,
                         );
 
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
@@ -2210,6 +2266,7 @@ const useEchartsCartesianConfig = (
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
+                            parameters,
                         );
 
                         return `${tooltipHeader}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
@@ -2226,6 +2283,7 @@ const useEchartsCartesianConfig = (
             tooltipConfig,
             pivotValuesColumnsMap,
             originalValues,
+            parameters,
         ],
     );
 

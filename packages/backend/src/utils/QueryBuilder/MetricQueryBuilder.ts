@@ -1838,6 +1838,15 @@ export class MetricQueryBuilder {
             sqlBuilder: this.args.warehouseSqlBuilder,
         });
 
+        // Also collect parameter references from fields (e.g., format strings)
+        Object.values(fields).forEach((field) => {
+            if ('parameterReferences' in field && field.parameterReferences) {
+                field.parameterReferences.forEach((ref: string) => {
+                    parameterReferences.add(ref);
+                });
+            }
+        });
+
         if (missingParameterReferences.size > 0) {
             warnings.push({
                 message: `Missing parameters: ${Array.from(

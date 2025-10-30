@@ -4,6 +4,7 @@ import type {
     ChartType,
     ItemsMap,
     MetricQuery,
+    ParametersValuesMap,
     StackType,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
@@ -46,6 +47,7 @@ type VisualizationContext = {
     colorPalette: string[];
     chartConfig: ChartConfig;
     apiErrorDetail?: ApiErrorDetail | null;
+    parameters?: ParametersValuesMap;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

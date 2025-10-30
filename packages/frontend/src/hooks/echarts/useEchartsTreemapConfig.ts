@@ -11,7 +11,7 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 const EchartsTreemapType = 'treemap';
 
 const useEchartsTreemapConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap, colorPalette } =
+    const { visualizationConfig, itemsMap, colorPalette, parameters } =
         useVisualizationContext();
     const theme = useMantineTheme();
 
@@ -31,7 +31,12 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         };
 
         const getMetricDisplayValue = (metricId: string, value: any) => {
-            return formatItemValue(itemsMap?.[metricId], value);
+            return formatItemValue(
+                itemsMap?.[metricId],
+                value,
+                false,
+                parameters,
+            );
         };
 
         const getSimpleMetricDisplay = (metricId: string, value: any) => {
@@ -132,7 +137,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             ],
             data: data || [],
         };
-    }, [chartConfig, theme, itemsMap, colorPalette]);
+    }, [chartConfig, theme, itemsMap, colorPalette, parameters]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !treemapSeriesOption) return;

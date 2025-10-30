@@ -10,12 +10,14 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
     onChartConfigChange,
     children,
     tableCalculationsMetadata,
+    parameters,
 }) => {
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig,
         resultsData,
         itemsMap,
         tableCalculationsMetadata,
+        parameters,
     );
 
     useEffect(() => {

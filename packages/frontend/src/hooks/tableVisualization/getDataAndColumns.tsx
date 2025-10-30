@@ -4,6 +4,7 @@ import {
     isCustomDimension,
     isField,
     type ItemsMap,
+    type ParametersValuesMap,
     type ResultRow,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
@@ -30,6 +31,7 @@ type Args = {
     columnOrder: string[];
     totals?: Record<string, number>;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
+    parameters?: ParametersValuesMap;
 };
 
 export function getGroupingValuesAndSubtotalKey(
@@ -83,6 +85,7 @@ const getDataAndColumns = ({
     columnOrder,
     totals,
     groupedSubtotals,
+    parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     return columnOrder.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
@@ -130,11 +133,16 @@ const getDataAndColumns = ({
                             )}
                         </TableHeaderLabelContainer>
                     ),
-                    cell: getFormattedValueCell,
+                    cell: (info) => getFormattedValueCell(info, parameters),
 
                     footer: () =>
                         totals?.[itemId]
-                            ? formatItemValue(item, totals[itemId])
+                            ? formatItemValue(
+                                  item,
+                                  totals[itemId],
+                                  false,
+                                  parameters,
+                              )
                             : null,
                     meta: {
                         item,
@@ -192,7 +200,12 @@ const getDataAndColumns = ({
 
                             return (
                                 <Text span fw={600}>
-                                    {formatItemValue(item, subtotalValue)}
+                                    {formatItemValue(
+                                        item,
+                                        subtotalValue,
+                                        false,
+                                        parameters,
+                                    )}
                                 </Text>
                             );
                         }

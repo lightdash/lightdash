@@ -17,6 +17,7 @@ import { isTimeInterval, timeFrameConfigs } from '../../utils/timeFrames';
  * @param rotate - Rotate
  * @param defaultNameGap - Default name gap
  * @param show - Show
+ * @param parameters - Parameter values for conditional formatting
  * @returns Axis config
  */
 export const getCartesianAxisFormatterConfig = ({
@@ -25,12 +26,14 @@ export const getCartesianAxisFormatterConfig = ({
     rotate,
     defaultNameGap,
     show,
+    parameters,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
     rotate?: number;
     defaultNameGap?: number;
     show?: boolean;
+    parameters?: Record<string, unknown>;
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -69,7 +72,7 @@ export const getCartesianAxisFormatterConfig = ({
     if (axisItem && (hasFormattingConfig || axisMinInterval)) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, true),
+                formatItemValue(axisItem, value, true, parameters),
         };
         axisConfig.axisPointer = {
             label: {
@@ -78,7 +81,12 @@ export const getCartesianAxisFormatterConfig = ({
                     typeof value === 'object' &&
                     'value' in value &&
                     value.value !== undefined
-                        ? formatItemValue(axisItem, value.value, true)
+                        ? formatItemValue(
+                              axisItem,
+                              value.value,
+                              true,
+                              parameters,
+                          )
                         : undefined,
             },
         };
@@ -98,7 +106,12 @@ export const getCartesianAxisFormatterConfig = ({
                     typeof value === 'object' &&
                     'value' in value &&
                     value.value !== undefined
-                        ? formatItemValue(axisItem, value.value, true)
+                        ? formatItemValue(
+                              axisItem,
+                              value.value,
+                              true,
+                              parameters,
+                          )
                         : undefined,
             },
         };
@@ -108,7 +121,8 @@ export const getCartesianAxisFormatterConfig = ({
         axisItem.type === undefined
     ) {
         axisConfig.axisLabel = {
-            formatter: (value: AnyType) => formatItemValue(axisItem, value),
+            formatter: (value: AnyType) =>
+                formatItemValue(axisItem, value, false, parameters),
         };
         axisConfig.axisPointer = {
             label: {
@@ -117,7 +131,12 @@ export const getCartesianAxisFormatterConfig = ({
                     typeof value === 'object' &&
                     'value' in value &&
                     value.value !== undefined
-                        ? formatItemValue(axisItem, value.value)
+                        ? formatItemValue(
+                              axisItem,
+                              value.value,
+                              false,
+                              parameters,
+                          )
                         : undefined,
             },
         };
@@ -134,7 +153,7 @@ export const getCartesianAxisFormatterConfig = ({
             case TimeFrames.WEEK:
                 axisConfig.axisLabel = {
                     formatter: (value: AnyType) =>
-                        formatItemValue(axisItem, value, true),
+                        formatItemValue(axisItem, value, true, parameters),
                 };
 
                 axisConfig.axisPointer = {
@@ -144,7 +163,12 @@ export const getCartesianAxisFormatterConfig = ({
                             typeof value === 'object' &&
                             'value' in value &&
                             value.value !== undefined
-                                ? formatItemValue(axisItem, value.value, true)
+                                ? formatItemValue(
+                                      axisItem,
+                                      value.value,
+                                      true,
+                                      parameters,
+                                  )
                                 : undefined,
                     },
                 };
