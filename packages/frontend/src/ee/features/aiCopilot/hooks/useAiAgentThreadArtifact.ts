@@ -51,7 +51,7 @@ export const useAiAgentThreadArtifact = ({
     useEffect(() => {
         if (!artifact && prevArtifactRef.current && latestAssistantMessage) {
             const wasLatestArtifactOpen =
-                prevArtifactRef.current.message.uuid ===
+                prevArtifactRef.current.messageUuid ===
                 latestAssistantMessage.uuid;
             if (wasLatestArtifactOpen) {
                 lastHandledMessageUuidRef.current = latestAssistantMessage.uuid;
@@ -62,10 +62,16 @@ export const useAiAgentThreadArtifact = ({
 
     // Auto-select latest artifact if not already handled
     useEffect(() => {
-        if (!projectUuid || !agentUuid || !latestAssistantMessage) return;
+        if (
+            !projectUuid ||
+            !agentUuid ||
+            !threadUuid ||
+            !latestAssistantMessage
+        )
+            return;
         if (lastHandledMessageUuidRef.current === latestAssistantMessage.uuid)
             return;
-        if (artifact?.message.uuid === latestAssistantMessage.uuid) return;
+        if (artifact?.messageUuid === latestAssistantMessage.uuid) return;
 
         const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
         if (!latestArtifact) return;
@@ -73,12 +79,20 @@ export const useAiAgentThreadArtifact = ({
             setArtifact({
                 artifactUuid: latestArtifact.artifactUuid,
                 versionUuid: latestArtifact.versionUuid,
-                message: latestAssistantMessage,
+                messageUuid: latestAssistantMessage.uuid,
+                threadUuid,
                 projectUuid,
                 agentUuid,
             }),
         );
 
         lastHandledMessageUuidRef.current = latestAssistantMessage.uuid;
-    }, [artifact, latestAssistantMessage, projectUuid, agentUuid, dispatch]);
+    }, [
+        artifact,
+        latestAssistantMessage,
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        dispatch,
+    ]);
 };

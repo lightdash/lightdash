@@ -1,9 +1,10 @@
 import type { AiAgentMessageAssistant } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { ChatElementsUtils } from './utils';
@@ -14,7 +15,8 @@ type AiArtifactPanelProps = {
         agentUuid: string;
         artifactUuid: string;
         versionUuid: string;
-        message: AiAgentMessageAssistant;
+        messageUuid: string;
+        threadUuid: string;
     };
     showCloseButton?: boolean;
 };
@@ -32,7 +34,21 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             versionUuid: artifact.versionUuid,
         });
 
-        if (isArtifactLoading) {
+        const { data: thread } = useAiAgentThread(
+            artifact.projectUuid,
+            artifact.agentUuid,
+            artifact.threadUuid,
+        );
+
+        const message = useMemo(() => {
+            return thread?.messages.find(
+                (msg) =>
+                    msg.role === 'assistant' &&
+                    msg.uuid === artifact.messageUuid,
+            ) as AiAgentMessageAssistant | undefined;
+        }, [thread?.messages, artifact.messageUuid]);
+
+        if (isArtifactLoading || !message) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Center>
@@ -77,7 +93,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             projectUuid={artifact.projectUuid}
                             agentUuid={artifact.agentUuid}
                             dashboardConfig={artifactData.dashboardConfig!}
-                            message={artifact.message}
+                            message={message}
                             showCloseButton={showCloseButton}
                         />
                     </Stack>
@@ -95,7 +111,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         agentUuid={artifact.agentUuid}
                         artifactUuid={artifact.artifactUuid}
                         versionUuid={artifact.versionUuid}
-                        message={artifact.message}
+                        message={message}
                         showCloseButton={showCloseButton}
                     />
                 </Stack>
