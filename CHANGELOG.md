@@ -1,3 +1,15 @@
+# [0.2118.0](https://github.com/lightdash/lightdash/compare/0.2117.0...0.2118.0) (2025-10-30)
+
+
+### Bug Fixes
+
+* csv and xsls files should be stored using the S3Client instead of S3ResultsStorageClient ([#17729](https://github.com/lightdash/lightdash/issues/17729)) ([943b3b8](https://github.com/lightdash/lightdash/commit/943b3b803d40217c168331d27a702f73e78d5cc4))
+
+
+### Features
+
+* enabled hiding but applying embedded dashboard filters ([#17733](https://github.com/lightdash/lightdash/issues/17733)) ([9d02afc](https://github.com/lightdash/lightdash/commit/9d02afc27acf91b88908134b55424e4046abc17a))
+
 # [0.2117.0](https://github.com/lightdash/lightdash/compare/0.2116.3...0.2117.0) (2025-10-29)
 
 
