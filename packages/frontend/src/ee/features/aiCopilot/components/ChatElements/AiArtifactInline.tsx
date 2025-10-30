@@ -23,7 +23,8 @@ export const AiArtifactInline: FC<AiArtifactInlineProps> = ({
                 artifact={{
                     artifactUuid: artifact.artifactUuid,
                     versionUuid: artifact.versionUuid,
-                    message: message,
+                    messageUuid: message.uuid,
+                    threadUuid: message.threadUuid,
                     projectUuid: projectUuid,
                     agentUuid: agentUuid,
                 }}
