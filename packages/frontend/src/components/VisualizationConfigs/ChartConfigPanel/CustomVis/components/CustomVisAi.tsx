@@ -50,7 +50,13 @@ export const GenerateVizWithAi = ({
     ]);
 
     return (
-        <Popover width="400px" position="bottom" withArrow shadow="md">
+        <Popover
+            width="400px"
+            position="bottom"
+            withArrow
+            shadow="md"
+            withinPortal
+        >
             <Popover.Target>
                 <Button
                     compact
@@ -82,6 +88,7 @@ export const GenerateVizWithAi = ({
 
                 <Button
                     mt="sm"
+                    size="xs"
                     type="submit"
                     disabled={isLoading}
                     onClick={handleSubmit}
