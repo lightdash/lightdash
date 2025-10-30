@@ -77,6 +77,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             projectUuid={artifact.projectUuid}
                             agentUuid={artifact.agentUuid}
                             dashboardConfig={artifactData.dashboardConfig!}
+                            message={artifact.message}
                             showCloseButton={showCloseButton}
                         />
                     </Stack>

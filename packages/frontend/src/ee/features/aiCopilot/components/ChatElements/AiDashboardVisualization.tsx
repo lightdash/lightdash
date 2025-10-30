@@ -1,4 +1,8 @@
-import { type AiArtifact, type ToolDashboardArgs } from '@lightdash/common';
+import {
+    type AiAgentMessageAssistant,
+    type AiArtifact,
+    type ToolDashboardArgs,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -23,6 +27,7 @@ type Props = {
     projectUuid: string;
     agentUuid: string;
     dashboardConfig: ToolDashboardArgs;
+    message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
 };
 
@@ -32,6 +37,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
         projectUuid,
         agentUuid,
         dashboardConfig,
+        message,
         showCloseButton = true,
     }) => {
         const dispatch = useAiAgentStoreDispatch();
@@ -110,6 +116,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                             versionUuid={
                                                 artifactData.versionUuid
                                             }
+                                            message={message}
                                             index={index}
                                         />
                                     </ErrorBoundary>
