@@ -265,6 +265,18 @@ export class McpService extends BaseService {
                     findExplores,
                     updateProgress: async () => {}, // No-op for MCP context
                     fieldSearchSize: 200,
+                    listExplores: async () => {
+                        const { user } = (context as McpProtocolContext)
+                            .authInfo!.extra;
+                        const tagsFromContext = await this.getTagsFromContext(
+                            context as McpProtocolContext,
+                        );
+                        return this.getAvailableExplores(
+                            user,
+                            argsWithProject.projectUuid,
+                            tagsFromContext,
+                        );
+                    },
                 });
                 const result = await findExploresTool.execute!(
                     argsWithProject,
