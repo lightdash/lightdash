@@ -192,7 +192,14 @@ const credentialsTarget = (
             }
             return result;
         }
-        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.DATABRICKS: {
+            const tokenValue =
+                credentials.token ?? credentials.personalAccessToken;
+            if (!tokenValue) {
+                throw new Error(
+                    'Databricks credentials must have either token or personalAccessToken',
+                );
+            }
             return {
                 target: {
                     type: WarehouseTypes.DATABRICKS,
@@ -204,9 +211,10 @@ const credentialsTarget = (
                     http_path: credentials.httpPath,
                 },
                 environment: {
-                    [envVar('token')]: credentials.personalAccessToken,
+                    [envVar('token')]: tokenValue,
                 },
             };
+        }
         case WarehouseTypes.CLICKHOUSE:
             return {
                 target: {

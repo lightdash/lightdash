@@ -77,6 +77,12 @@ export type BigqueryCredentials = Omit<
     CreateBigqueryCredentials,
     SensitiveCredentialsFieldNames
 >;
+
+export enum DatabricksAuthenticationType {
+    PERSONAL_ACCESS_TOKEN = 'personal_access_token',
+    OAUTH = 'oauth',
+}
+
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
     catalog?: string;
@@ -84,7 +90,10 @@ export type CreateDatabricksCredentials = {
     database: string;
     serverHostName: string;
     httpPath: string;
-    personalAccessToken: string;
+    authenticationType?: DatabricksAuthenticationType;
+    personalAccessToken?: string; // Optional when using OAuth
+    refreshToken?: string; // Refresh token for OAuth, used to generate a new access token
+    token?: string; // Access token for OAuth, has a low expiry time (1 hour)
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
     compute?: Array<{

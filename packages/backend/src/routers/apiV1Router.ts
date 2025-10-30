@@ -233,6 +233,22 @@ apiV1Router.get(
     },
 );
 
+apiV1Router.get(
+    lightdashConfig.auth.databricks.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('databricks'),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.databricks.callbackPath,
+    (req, res, next) => {
+        passport.authenticate('databricks', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+        })(req, res, next);
+    },
+);
+
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {
         if (err) {

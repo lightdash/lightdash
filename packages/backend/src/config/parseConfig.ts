@@ -1054,6 +1054,15 @@ type AuthSnowflakeConfig = {
     loginPath: string;
 };
 
+type AuthDatabricksConfig = {
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    authorizationEndpoint: string | undefined;
+    tokenEndpoint: string | undefined;
+    callbackPath: string;
+    loginPath: string;
+};
+
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     /**
@@ -1068,6 +1077,7 @@ export type AuthConfig = {
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
+    databricks: AuthDatabricksConfig;
     pat: {
         enabled: boolean;
         allowedOrgRoles: OrganizationMemberRole[];
@@ -1365,6 +1375,15 @@ export const parseConfig = (): LightdashConfig => {
                 tokenEndpoint: process.env.SNOWFLAKE_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake',
                 callbackPath: '/oauth/redirect/snowflake',
+            },
+            databricks: {
+                clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,
+                clientSecret: process.env.DATABRICKS_OAUTH_CLIENT_SECRET,
+                authorizationEndpoint:
+                    process.env.DATABRICKS_OAUTH_AUTHORIZATION_ENDPOINT,
+                tokenEndpoint: process.env.DATABRICKS_OAUTH_TOKEN_ENDPOINT,
+                loginPath: '/login/databricks',
+                callbackPath: '/oauth/redirect/databricks',
             },
             oauthServer: {
                 accessTokenLifetime:
