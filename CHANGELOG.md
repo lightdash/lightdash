@@ -1,3 +1,10 @@
+# [0.2121.0](https://github.com/lightdash/lightdash/compare/0.2120.0...0.2121.0) (2025-10-30)
+
+
+### Features
+
+* include canChangeParameters in embed backend ([#17588](https://github.com/lightdash/lightdash/issues/17588)) ([7d48be5](https://github.com/lightdash/lightdash/commit/7d48be567cab0ec3004aaa82b0b48a6669670fe1))
+
 # [0.2120.0](https://github.com/lightdash/lightdash/compare/0.2119.0...0.2120.0) (2025-10-30)
 
 
