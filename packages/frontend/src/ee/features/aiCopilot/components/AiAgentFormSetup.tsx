@@ -146,14 +146,6 @@ export const AiAgentFormSetup = ({
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
 
-    const agentV2FeatureFlagQuery = useFeatureFlag(
-        CommercialFeatureFlags.AgentV2,
-    );
-
-    const isAgentV2Enabled =
-        agentV2FeatureFlagQuery.isSuccess &&
-        agentV2FeatureFlagQuery.data.enabled;
-
     const agentReasoningFeatureFlagQuery = useFeatureFlag(
         CommercialFeatureFlags.AgentReasoning,
     );
@@ -481,58 +473,6 @@ export const AiAgentFormSetup = ({
                                     {...form.getInputProps('enableReasoning', {
                                         type: 'checkbox',
                                     })}
-                                />
-                            )}
-                            {isAgentV2Enabled && (
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <Group gap="xs">
-                                            <Text fz="sm" fw={500}>
-                                                Enable Agent V2
-                                            </Text>
-                                            <Tooltip
-                                                label="Agent V2 provides enhanced charting capabilities including pie charts, scatter plots, and funnel visualizations for more diverse data representation."
-                                                withArrow
-                                                withinPortal
-                                                multiline
-                                                position="right"
-                                                maw="300px"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                />
-                                            </Tooltip>
-                                            <Badge
-                                                color="yellow"
-                                                radius="sm"
-                                                variant="light"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconAlertTriangle}
-                                                        size={12}
-                                                    />
-                                                }
-                                            >
-                                                Experimental
-                                            </Badge>
-                                        </Group>
-                                    }
-                                    description={
-                                        <>
-                                            Enables more charting options
-                                            including pie, scatter, and funnel
-                                            charts for richer data
-                                            visualization.{' '}
-                                        </>
-                                    }
-                                    checked={form.values.version === 2}
-                                    onChange={(event) => {
-                                        form.setFieldValue(
-                                            'version',
-                                            event.currentTarget.checked ? 2 : 1,
-                                        );
-                                    }}
                                 />
                             )}
                         </Stack>
