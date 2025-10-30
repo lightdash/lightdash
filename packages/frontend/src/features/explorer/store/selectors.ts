@@ -9,10 +9,15 @@ import {
     type AdditionalMetric,
     type CustomDimension,
     type Explore,
+    type MetricOverrides,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+
+const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
+const EMPTY_PARAMETERS: ParametersValuesMap = {};
 
 // Base selectors
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
@@ -127,13 +132,13 @@ export const selectMetrics = createSelector(
 
 export const selectMetricOverrides = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.metricOverrides || {},
+    (metricQuery) => metricQuery.metricOverrides || EMPTY_METRIC_OVERRIDES,
 );
 
 // Parameter selectors
 export const selectParameters = createSelector(
     [selectUnsavedChartVersion],
-    (unsavedChartVersion) => unsavedChartVersion.parameters || {},
+    (unsavedChartVersion) => unsavedChartVersion.parameters || EMPTY_PARAMETERS,
 );
 
 export const selectParameterDefinitions = createSelector(
