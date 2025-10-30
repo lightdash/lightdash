@@ -88,7 +88,10 @@ export const useExplorerQueryManager = () => {
     );
 
     // Get explore data and pivot configuration
-    const { data: explore } = useExplore(tableName);
+    const { data: explore } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
