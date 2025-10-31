@@ -271,7 +271,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
     const pl = useMemo(() => {
         if (isVirtualized) {
-            return depth ? `${(depth + 1) * 24}px` : '24px';
+            // Base padding is 12px, each nesting level adds 20px
+            return `${12 + (depth ?? 0) * 20}px`;
         }
         return undefined;
     }, [depth, isVirtualized]);
