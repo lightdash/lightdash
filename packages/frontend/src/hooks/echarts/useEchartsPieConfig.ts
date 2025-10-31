@@ -10,6 +10,20 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { getLegendStyle } from './styles/legendStyles';
+import {
+    getPieExternalLabelStyle,
+    getPieInternalLabelStyle,
+    getPieLabelLineStyle,
+    getPieSliceStyle,
+} from './styles/pieChartStyles';
+import {
+    formatColorIndicator,
+    formatTooltipLabel,
+    formatTooltipRow,
+    formatTooltipValue,
+    getTooltipStyle,
+} from './styles/tooltipStyles';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -89,10 +103,29 @@ const useEchartsPieConfig = (
                         show: valueLabel !== 'hidden',
                         position:
                             valueLabel === 'outside' ? 'outside' : 'inside',
+                        ...(valueLabel === 'outside'
+                            ? getPieExternalLabelStyle(theme)
+                            : getPieInternalLabelStyle(theme, itemColor)),
                         formatter: (params) => {
-                            return valueLabel !== 'hidden' &&
-                                showValue &&
-                                showPercentage
+                            const isOutside = valueLabel === 'outside';
+
+                            if (valueLabel === 'hidden') return '';
+
+                            // For outside labels, use rich text formatting
+                            if (isOutside) {
+                                if (showValue && showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}% - ${meta.value.formatted}}`;
+                                } else if (showValue) {
+                                    return `{name|${params.name}}\n{value|${meta.value.formatted}}`;
+                                } else if (showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}%}`;
+                                } else {
+                                    return `{name|${params.name}}`;
+                                }
+                            }
+
+                            // For inside labels, use plain formatting (no rich text)
+                            return showValue && showPercentage
                                 ? `${params.percent}% - ${meta.value.formatted}`
                                 : showValue
                                 ? `${meta.value.formatted}`
@@ -101,12 +134,13 @@ const useEchartsPieConfig = (
                                 : `${params.name}`;
                         },
                     },
+                    labelLine: getPieLabelLineStyle(theme),
                     meta,
                 };
 
                 return config;
             });
-    }, [chartConfig, getGroupColor]);
+    }, [chartConfig, getGroupColor, theme]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
@@ -137,9 +171,11 @@ const useEchartsPieConfig = (
                         ? ['50%', '52%']
                         : ['50%', '50%']
                     : ['50%', '50%'],
+            ...getPieSliceStyle(!!isDonut),
             tooltip: {
                 trigger: 'item',
-                formatter: ({ marker, name, value, percent }) => {
+                formatter: (params) => {
+                    const { color, name, value, percent } = params;
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
@@ -153,11 +189,21 @@ const useEchartsPieConfig = (
                               )}...`
                             : name;
 
-                    return `${marker} <b>${truncatedName}</b><br />${percent}% - ${formattedValue}`;
+                    const colorIndicator = formatColorIndicator(
+                        color as string,
+                    );
+                    const label = formatTooltipLabel(truncatedName, theme);
+                    const valueWithPercent = `${percent}% - ${formattedValue}`;
+                    const valuePill = formatTooltipValue(
+                        valueWithPercent,
+                        theme,
+                    );
+
+                    return formatTooltipRow(colorIndicator, label, valuePill);
                 },
             },
         };
-    }, [chartConfig, seriesData]);
+    }, [chartConfig, seriesData, theme]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
@@ -176,6 +222,7 @@ const useEchartsPieConfig = (
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
+                ...getLegendStyle(theme, 'square'),
                 formatter: (name) => {
                     return name.length >
                         (legendMaxItemLength ??
@@ -203,6 +250,7 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
+                ...getTooltipStyle(theme),
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),

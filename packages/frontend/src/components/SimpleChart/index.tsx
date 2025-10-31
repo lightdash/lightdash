@@ -3,11 +3,10 @@ import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
-import useEchartsCartesianConfig, {
-    getFormattedValue,
-    isLineSeriesOption,
-} from '../../hooks/echarts/useEchartsCartesianConfig';
+import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { isLineSeriesOption } from '../../hooks/echarts/utils/tooltipFormatter';
+import { getFormattedValue } from '../../hooks/echarts/utils/valueFormatter';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
@@ -163,6 +162,20 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                     // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
                                     // on `useEchartsCartesianConfig` to generate the tooltip
                                     if (eChartsOptions.tooltip.formatter) {
+                                        // When using data array approach with primitives (regular stacked)
+                                        // param.value is a number/string and param.name contains category
+                                        if (
+                                            typeof param.value !== 'object' ||
+                                            param.value === null
+                                        ) {
+                                            return (
+                                                eChartsOptions.tooltip
+                                                    .formatter as any
+                                            )([param]);
+                                        }
+
+                                        // When using data array approach with full row objects (100% stacked)
+                                        // or dataset approach, param.value is an object with dimension keys
                                         const dim =
                                             param.encode?.x?.[0] !== undefined
                                                 ? param.dimensionNames[
