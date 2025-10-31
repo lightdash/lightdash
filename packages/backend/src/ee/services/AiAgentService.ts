@@ -140,6 +140,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
 } from './ai/utils/getSlackBlocks';
+import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
@@ -3917,6 +3918,19 @@ export class AiAgentService {
                 completedAt: new Date(),
             });
 
+            try {
+                await this.assessResult(result.resultUuid);
+            } catch (assessmentError) {
+                // Log assessment error but don't fail the eval run ? (maybe we should)
+                Logger.error(
+                    `Failed to assess result ${result.resultUuid}: ${
+                        assessmentError instanceof Error
+                            ? assessmentError.message
+                            : String(assessmentError)
+                    }`,
+                );
+            }
+
             // Check if all results for this run are complete
             await this.aiAgentModel.checkAndUpdateEvalRunCompletion(
                 evalRunUuid,
@@ -3937,6 +3951,93 @@ export class AiAgentService {
 
             throw error;
         }
+    }
+
+    async assessResult(resultUuid: string): Promise<void> {
+        Logger.info(`Assessing result ${resultUuid}`);
+        const { query, response, expectedAnswer, artifact } =
+            await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+
+        // TODO: Implement judge configuration in the future!
+        // reusing existing configuration for now
+        const { model: judge, callOptions } = getModel(
+            this.lightdashConfig.ai.copilot,
+        );
+
+        const artifactContext: string[] = artifact
+            ? [
+                  `Artifact type: ${artifact.artifactType}`,
+                  artifact.chartConfig
+                      ? `Chart config: ${JSON.stringify(artifact.chartConfig)}`
+                      : '',
+                  artifact.dashboardConfig
+                      ? `Dashboard config: ${JSON.stringify(
+                            artifact.dashboardConfig,
+                        )}`
+                      : '',
+              ].filter(Boolean)
+            : [];
+
+        const factualityScore = expectedAnswer
+            ? await llmAsAJudge({
+                  query,
+                  response,
+                  expectedAnswer,
+                  judge,
+                  callOptions,
+                  scorerType: 'factuality',
+              })
+            : // if there is no expected answer, we will use the response as context and hope the judge does the best it can
+              await llmAsAJudge({
+                  query,
+                  context: [response],
+                  response,
+                  judge,
+                  callOptions,
+                  scorerType: 'contextRelevancy',
+              });
+
+        const contextRelevancyScore = artifact
+            ? await llmAsAJudge({
+                  query,
+                  response,
+                  context: artifactContext,
+                  judge,
+                  callOptions,
+                  scorerType: 'contextRelevancy',
+              })
+            : await Promise.resolve(null);
+
+        const reason = [
+            `Factuality result: ${
+                factualityScore.meta.passed ? 'passed' : 'failed'
+            }`,
+            `Factuality rationale: ${
+                'rationale' in factualityScore.result
+                    ? factualityScore.result.rationale
+                    : factualityScore.result.reason
+            }`,
+            contextRelevancyScore
+                ? `Context relevancy result: ${
+                      contextRelevancyScore.meta.passed ? 'passed' : 'failed'
+                  }`
+                : '',
+            contextRelevancyScore
+                ? `Context relevancy reason: ${contextRelevancyScore.result.reason}`
+                : '',
+        ].join('\n');
+
+        const passed =
+            factualityScore.meta.passed &&
+            (contextRelevancyScore?.meta.passed ?? true);
+
+        await this.aiAgentModel.createLlmAssessment({
+            runResultUuid: resultUuid,
+            passed,
+            reason,
+            llmJudgeProvider: judge.provider,
+            llmJudgeModel: judge.modelId,
+        });
     }
 
     async getArtifact(
