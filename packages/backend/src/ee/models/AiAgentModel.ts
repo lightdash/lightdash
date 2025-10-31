@@ -22,6 +22,7 @@ import {
     AiAgentUser,
     AiAgentUserPreferences,
     AiArtifact,
+    AiEvalRunResultAssessment,
     AiResultType,
     AiThread,
     AiWebAppPrompt,
@@ -31,6 +32,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     assertUnreachable,
+    CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
     CreateWebAppPrompt,
@@ -94,6 +96,7 @@ import {
 } from '../database/entities/aiArtifacts';
 import {
     AiEvalPromptTableName,
+    AiEvalRunResultAssessmentTableName,
     AiEvalRunResultTableName,
     AiEvalRunTableName,
     AiEvalTableName,
@@ -101,6 +104,7 @@ import {
     DbAiEvalPrompt,
     DbAiEvalRun,
     DbAiEvalRunResult,
+    DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 
 type Dependencies = {
@@ -2693,6 +2697,7 @@ export class AiAgentModel {
                         prompt: promptData,
                         ai_prompt_uuid: null,
                         ai_thread_uuid: null,
+                        expected_response: null,
                     };
                 }
                 // New object format with referenced prompt/thread
@@ -2701,6 +2706,7 @@ export class AiAgentModel {
                     prompt: null,
                     ai_prompt_uuid: promptData.promptUuid,
                     ai_thread_uuid: promptData.threadUuid,
+                    expected_response: null,
                 };
             });
 
@@ -2837,6 +2843,7 @@ export class AiAgentModel {
                                 prompt: promptData,
                                 ai_prompt_uuid: null,
                                 ai_thread_uuid: null,
+                                expected_response: null,
                             };
                         }
                         // New object format with referenced prompt/thread
@@ -2845,6 +2852,7 @@ export class AiAgentModel {
                             prompt: null,
                             ai_prompt_uuid: promptData.promptUuid,
                             ai_thread_uuid: promptData.threadUuid,
+                            expected_response: null,
                         };
                     });
                     await trx(AiEvalPromptTableName).insert(promptRecords);
@@ -2873,6 +2881,7 @@ export class AiAgentModel {
                         prompt: promptData,
                         ai_prompt_uuid: null,
                         ai_thread_uuid: null,
+                        expected_response: null,
                     };
                 }
                 return {
@@ -2880,6 +2889,7 @@ export class AiAgentModel {
                     prompt: null,
                     ai_prompt_uuid: promptData.promptUuid,
                     ai_thread_uuid: promptData.threadUuid,
+                    expected_response: null,
                 };
             });
             await trx(AiEvalPromptTableName).insert(promptRecords);
@@ -3103,6 +3113,41 @@ export class AiAgentModel {
                     });
             }
         });
+    }
+
+    async createLlmAssessment(
+        data: CreateLlmAssessment,
+    ): Promise<AiEvalRunResultAssessment> {
+        const [assessment] = await this.database(
+            AiEvalRunResultAssessmentTableName,
+        )
+            .insert({
+                ai_eval_run_result_uuid: data.runResultUuid,
+                assessment_type: 'llm',
+                passed: data.passed,
+                reason: data.reason,
+                assessed_by_user_uuid: null,
+                llm_judge_provider: data.llmJudgeProvider,
+                llm_judge_model: data.llmJudgeModel,
+            })
+            .returning('*');
+
+        if (!assessment) {
+            throw new Error('Failed to create LLM assessment');
+        }
+
+        return {
+            assessmentUuid: assessment.ai_eval_run_result_assessment_uuid,
+            runResultUuid: assessment.ai_eval_run_result_uuid,
+            assessmentType: assessment.assessment_type,
+            passed: assessment.passed,
+            reason: assessment.reason,
+            assessedByUserUuid: assessment.assessed_by_user_uuid,
+            llmJudgeProvider: assessment.llm_judge_provider,
+            llmJudgeModel: assessment.llm_judge_model,
+            assessedAt: assessment.assessed_at,
+            createdAt: assessment.created_at,
+        };
     }
 
     private async cloneThreadArtifacts({
