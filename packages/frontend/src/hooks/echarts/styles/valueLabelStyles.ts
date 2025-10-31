@@ -1,5 +1,5 @@
+import { CartesianSeriesType, type Series } from '@lightdash/common';
 import { type MantineTheme } from '@mantine/core';
-import { isColorDark } from './colorUtils';
 
 /**
  * Get value label styling for any chart series (line, bar, area, scatter, etc.)
@@ -12,30 +12,28 @@ import { isColorDark } from './colorUtils';
  */
 export const getValueLabelStyle = (
     theme: MantineTheme,
-    color: string,
     position: 'left' | 'right' | 'top' | 'bottom' | 'inside' | undefined,
+    type: Series['type'],
 ) => {
-    let labelColor = theme.colors.gray[9];
-    let fontWeight = 500;
-    let textBorderColor = undefined;
-    let textBorderWidth = undefined;
+    const isInside = position === 'inside';
 
-    if (position && position === 'inside') {
-        fontWeight = 400;
-        textBorderColor = color;
-        textBorderWidth = 2;
-        if (isColorDark(color)) {
-            labelColor = '#FFFFFF';
-        } else {
-            labelColor = theme.colors.gray[9];
-        }
+    const base = {
+        fontSize: 11,
+        fontWeight: '500',
+    } as const;
+
+    if (
+        // inside labels for line and area series should have a white border - similar way to bar series for legibility
+        isInside &&
+        (type === CartesianSeriesType.LINE || type === CartesianSeriesType.AREA)
+    ) {
+        return {
+            ...base,
+            textBorderColor: theme.white,
+            textBorderWidth: 2,
+            textBorderType: 'solid',
+        };
     }
 
-    return {
-        color: labelColor,
-        fontWeight,
-        fontSize: 11,
-        textBorderColor,
-        textBorderWidth,
-    };
+    return base;
 };
