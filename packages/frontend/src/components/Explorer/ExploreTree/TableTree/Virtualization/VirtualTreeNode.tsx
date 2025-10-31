@@ -3,7 +3,12 @@ import TreeContext from '../Tree/TreeContext';
 import TreeGroupNode from '../Tree/TreeGroupNode';
 import TreeSingleNode from '../Tree/TreeSingleNode';
 import { isGroupNode } from '../Tree/types';
-import { TreeSection, type SectionContext, type TreeNodeItem } from './types';
+import {
+    buildGroupKey,
+    TreeSection,
+    type SectionContext,
+    type TreeNodeItem,
+} from './types';
 
 interface VirtualTreeNodeProps {
     item: TreeNodeItem;
@@ -22,7 +27,7 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
     onToggleGroup,
     onSelectedFieldChange,
 }) => {
-    const { node, isGroup, sectionKey, depth } = item.data;
+    const { node, isGroup, sectionKey, depth, isExpanded } = item.data;
 
     // Look up the shared section context
     const sectionContext = sectionContexts.get(sectionKey);
@@ -48,6 +53,18 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
                 expandedGroups: new Set<string>(),
                 onToggleGroup: () => {},
             };
+        }
+
+        // Build expandedGroups Set from the node's isExpanded state
+        // This is used by TreeGroupNode to determine chevron rotation
+        const expandedGroups = new Set<string>();
+        if (isGroup && isExpanded) {
+            const groupKey = buildGroupKey(
+                sectionContext.tableName,
+                sectionContext.sectionType,
+                node.key,
+            );
+            expandedGroups.add(groupKey);
         }
 
         return {
@@ -78,12 +95,20 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
             searchResults: sectionContext.searchResults,
             tableName: sectionContext.tableName,
             treeSectionType: sectionContext.sectionType,
-            expandedGroups: new Set<string>(), // Not needed - expansion state is in flattened data
+            expandedGroups,
             onToggleGroup,
             isVirtualized: true, // Flag to prevent inline children rendering
             depth, // Nesting depth for indentation
         };
-    }, [sectionContext, depth, onSelectedFieldChange, onToggleGroup]);
+    }, [
+        sectionContext,
+        depth,
+        onSelectedFieldChange,
+        onToggleGroup,
+        isGroup,
+        isExpanded,
+        node.key,
+    ]);
 
     if (!sectionContext) {
         console.error(`Section context not found for key: ${sectionKey}`);
