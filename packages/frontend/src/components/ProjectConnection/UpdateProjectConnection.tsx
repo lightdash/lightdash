@@ -6,11 +6,11 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Button, Card, Flex } from '@mantine/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
+import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-
 import { useProject, useUpdateMutation } from '../../hooks/useProject';
+import { useProjectCompileLogs } from '../../hooks/useProjectCompileLogs';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -43,7 +43,13 @@ const UpdateProjectConnection: FC<{
         error,
     } = useUpdateMutation(projectUuid);
     const onProjectError = useOnProjectError();
-
+    const { data: compiledLogs } = useProjectCompileLogs({
+        projectUuid,
+        paginateArgs: { page: 1, pageSize: 1 },
+        sortBy: 'created_at',
+        sortDirection: 'desc',
+    });
+    const latestCompilationLog = compiledLogs?.pages[0]?.data[0];
     const warehouseType: WarehouseTypes =
         project.warehouseConnection?.type || WarehouseTypes.SNOWFLAKE;
 
@@ -146,7 +152,8 @@ const UpdateProjectConnection: FC<{
 
                     <Card
                         component={Flex}
-                        justify="flex-end"
+                        justify="space-between"
+                        align="center"
                         pos="sticky"
                         withBorder
                         shadow="sm"
@@ -155,6 +162,26 @@ const UpdateProjectConnection: FC<{
                             bottom: `-${theme.spacing.xl}`,
                         })}
                     >
+                        <Box>
+                            {latestCompilationLog && (
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    size="xs"
+                                    rightIcon={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                    component="a"
+                                    target="_blank"
+                                    href={`/generalSettings/projectManagement/${projectUuid}/compilationHistory`}
+                                >
+                                    Last compiled at{' '}
+                                    {new Date(
+                                        latestCompilationLog.createdAt,
+                                    ).toLocaleString()}
+                                </Button>
+                            )}
+                        </Box>
                         <Button
                             type="submit"
                             loading={isSaving}

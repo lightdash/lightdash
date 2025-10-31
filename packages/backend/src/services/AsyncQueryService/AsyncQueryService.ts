@@ -89,6 +89,8 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
+import { S3Client } from '../../clients/Aws/S3Client';
+import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
@@ -152,7 +154,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     featureFlagModel: FeatureFlagModel;
-    storageClient: S3ResultsFileStorageClient;
+    resultsStorageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
@@ -170,7 +172,9 @@ export class AsyncQueryService extends ProjectService {
 
     featureFlagModel: FeatureFlagModel;
 
-    storageClient: S3ResultsFileStorageClient;
+    resultsStorageClient: S3ResultsFileStorageClient;
+
+    exportsStorageClient: S3Client;
 
     pivotTableService: PivotTableService;
 
@@ -187,7 +191,8 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
         this.featureFlagModel = args.featureFlagModel;
-        this.storageClient = args.storageClient;
+        this.resultsStorageClient = args.resultsStorageClient;
+        this.exportsStorageClient = this.s3Client;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
@@ -282,7 +287,7 @@ export class AsyncQueryService extends ProjectService {
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        if (!this.storageClient.isEnabled) {
+        if (!this.resultsStorageClient.isEnabled) {
             throw new S3Error('S3 is not enabled');
         }
 
@@ -292,7 +297,9 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const cacheStream = await this.storageClient.getDowloadStream(fileName);
+        const cacheStream = await this.resultsStorageClient.getDownloadStream(
+            fileName,
+        );
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -532,7 +539,8 @@ export class AsyncQueryService extends ProjectService {
             durationMs,
         } = await measureTime(
             () =>
-                this.storageClient.isEnabled || this.cacheService?.isEnabled
+                this.resultsStorageClient.isEnabled ||
+                this.cacheService?.isEnabled
                     ? this.getResultsPageFromS3(
                           queryUuid,
                           resultsFileName,
@@ -680,7 +688,7 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Results file name not found for query');
             }
 
-            return this.storageClient.getDowloadStream(resultsFileName);
+            return this.resultsStorageClient.getDownloadStream(resultsFileName);
         }
 
         throw new Error('Invalid query status');
@@ -736,7 +744,7 @@ export class AsyncQueryService extends ProjectService {
                     ? SchedulerFormat.XLSX
                     : SchedulerFormat.CSV,
             values: onlyRaw ? 'raw' : 'formatted',
-            storage: this.s3Client.isEnabled() ? 's3' : 'local',
+            storage: this.exportsStorageClient.isEnabled() ? 's3' : 'local',
         };
         this.analytics.trackAccount(account, {
             event: 'download_results.started',
@@ -817,6 +825,7 @@ export class AsyncQueryService extends ProjectService {
         | ApiDownloadAsyncQueryResultsAsXlsx
     > {
         assertIsAccountWithOrg(account);
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -912,7 +921,7 @@ export class AsyncQueryService extends ProjectService {
                         fields,
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
-                        storageClient: this.storageClient,
+                        storageClient: this.resultsStorageClient,
                         pivotDetails:
                             AsyncQueryService.getPivotDetailsFromQueryHistory(
                                 queryHistory,
@@ -952,7 +961,8 @@ export class AsyncQueryService extends ProjectService {
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
-                        storageClient: this.storageClient,
+                        resultsStorageClient: this.resultsStorageClient,
+                        exportsStorageClient: this.exportsStorageClient,
                         lightdashConfig: this.lightdashConfig,
                         pivotDetails:
                             AsyncQueryService.getPivotDetailsFromQueryHistory(
@@ -973,7 +983,10 @@ export class AsyncQueryService extends ProjectService {
                 return ExcelService.downloadAsyncExcelDirectly(
                     resultsFileName,
                     resultFields,
-                    this.storageClient,
+                    {
+                        resultsStorageClient: this.resultsStorageClient,
+                        exportsStorageClient: this.exportsStorageClient,
+                    },
                     {
                         onlyRaw,
                         showTableNames,
@@ -1043,8 +1056,15 @@ export class AsyncQueryService extends ProjectService {
             hiddenFields,
         });
 
-        // Transform and upload the results
-        return this.storageClient.transformResultsIntoNewFile(
+        // Determine file type based on file extension
+        const fileExtension = formattedFileName.toLowerCase().split('.').pop();
+        const fileType =
+            fileExtension === 'xlsx'
+                ? DownloadFileType.XLSX
+                : DownloadFileType.CSV;
+
+        // Transform and export the results from results bucket to exports bucket
+        return transformAndExportResults(
             resultsFileName,
             formattedFileName,
             async (readStream, writeStream) => {
@@ -1064,7 +1084,16 @@ export class AsyncQueryService extends ProjectService {
                     truncated,
                 };
             },
-            attachmentDownloadName,
+            {
+                resultsStorageClient: this.resultsStorageClient,
+                exportsStorageClient: this.s3Client,
+            },
+            {
+                fileType,
+                attachmentDownloadName: attachmentDownloadName
+                    ? `${attachmentDownloadName}.${fileExtension}`
+                    : undefined,
+            },
         );
     }
 
@@ -1072,7 +1101,9 @@ export class AsyncQueryService extends ProjectService {
         resultsFileName: string,
     ): Promise<ApiDownloadAsyncQueryResults> {
         return {
-            fileUrl: await this.storageClient.getFileUrl(resultsFileName),
+            fileUrl: await this.resultsStorageClient.getFileUrl(
+                resultsFileName,
+            ),
         };
     }
 
@@ -1347,8 +1378,8 @@ export class AsyncQueryService extends ProjectService {
 
             // Create upload stream for storing results
             // If S3 is not configured, we don't write to S3
-            stream = this.storageClient.isEnabled
-                ? this.storageClient.createUploadStream(
+            stream = this.resultsStorageClient.isEnabled
+                ? this.resultsStorageClient.createUploadStream(
                       S3ResultsFileStorageClient.sanitizeFileExtension(
                           fileName,
                       ),
@@ -2773,6 +2804,7 @@ export class AsyncQueryService extends ProjectService {
             intrinsicUserAttributes,
             userAttributes,
             warehouseConnection.warehouseClient,
+            { noWrap: true },
         );
 
         // Then replace parameters in SQL before running column discovery query

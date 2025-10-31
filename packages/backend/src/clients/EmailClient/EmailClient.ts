@@ -13,11 +13,21 @@ import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
-import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
+import SMTPConnection, {
+    AuthenticationType,
+} from 'nodemailer/lib/smtp-connection';
 import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+
+const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
+
+function isNodemailerSmtpError(
+    error: unknown,
+): error is SMTPConnection.SMTPError {
+    return error instanceof Error;
+}
 
 // Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
 export const SMTP_CONNECTION_CONFIG = {
@@ -168,11 +178,11 @@ export default class EmailClient {
                 } catch (error) {
                     const isLastAttempt = attempt === maxRetries;
                     const isRetryableError =
-                        error instanceof Error &&
-                        (error.message.includes('ECONNRESET') ||
-                            error.message.includes('ETIMEDOUT') ||
-                            error.message.includes('ENOTFOUND') ||
-                            error.message.includes('Connection timeout'));
+                        isNodemailerSmtpError(error) &&
+                        ((error.code &&
+                            RETRYABLE_ERROR_CODES.includes(error.code)) ||
+                            // It can be either `Connection timeout` or `Timeout`
+                            error.message.toLowerCase().includes('timeout'));
 
                     if (isLastAttempt || !isRetryableError) {
                         const isFileError =
@@ -192,8 +202,8 @@ export default class EmailClient {
                     // On the last retry attempt, try recreating the transporter to handle stale connections
                     if (
                         attempt === maxRetries - 1 &&
-                        error instanceof Error &&
-                        error.message.includes('ECONNRESET')
+                        isNodemailerSmtpError(error) &&
+                        error.code === 'ECONNRESET'
                     ) {
                         Logger.warn(
                             'Recreating email transporter due to connection reset',

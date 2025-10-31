@@ -206,6 +206,11 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'mock_model_name',
                     temperature: 0.2,
                     responsesApi: false,
+                    reasoning: {
+                        enabled: false,
+                        reasoningSummary: 'auto',
+                        reasoningEffort: 'medium',
+                    },
                 },
             },
         },
@@ -264,6 +269,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     experimentalExplorerImprovements: false,
+    experimentalVirtualizedSideBar: false,
     dashboardComments: {
         enabled: true,
     },

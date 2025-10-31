@@ -1,9 +1,13 @@
 import {
     DimensionType,
     FieldType,
+    getItemId,
     MetricType,
+    type AdditionalMetric,
     type CompiledTable,
 } from '@lightdash/common';
+import type { NodeMap } from '../Tree/types';
+import { getNodeMapFromItemsMap } from '../Tree/utils';
 import { flattenTreeForVirtualization } from './flattenTree';
 import { TreeSection, type FlattenTreeOptions } from './types';
 
@@ -102,6 +106,58 @@ const mockTableWithGroups: CompiledTable = {
     },
 };
 
+/**
+ * Helper function to create sectionNodeMaps for tests
+ */
+function createSectionNodeMaps(
+    tables: CompiledTable[],
+    additionalMetrics: AdditionalMetric[] = [],
+): Map<string, NodeMap> {
+    const maps = new Map<string, NodeMap>();
+
+    tables.forEach((table) => {
+        const tableName = table.name;
+
+        // Dimensions section
+        const dimensionsMap = Object.fromEntries(
+            Object.values(table.dimensions).map((d) => [getItemId(d), d]),
+        );
+        if (Object.keys(dimensionsMap).length > 0) {
+            maps.set(
+                `${tableName}-dimensions`,
+                getNodeMapFromItemsMap(dimensionsMap, table.groupDetails),
+            );
+        }
+
+        // Metrics section
+        const metricsMap = Object.fromEntries(
+            Object.values(table.metrics).map((m) => [getItemId(m), m]),
+        );
+        if (Object.keys(metricsMap).length > 0) {
+            maps.set(
+                `${tableName}-metrics`,
+                getNodeMapFromItemsMap(metricsMap, table.groupDetails),
+            );
+        }
+
+        // Custom metrics section
+        const customMetricsForTable = additionalMetrics.filter(
+            (metric) => metric.table === tableName,
+        );
+        if (customMetricsForTable.length > 0) {
+            const customMetricsMap = Object.fromEntries(
+                customMetricsForTable.map((m) => [getItemId(m), m]),
+            );
+            maps.set(
+                `${tableName}-custom-metrics`,
+                getNodeMapFromItemsMap(customMetricsMap, table.groupDetails),
+            );
+        }
+    });
+
+    return maps;
+}
+
 describe('flattenTreeForVirtualization', () => {
     const baseOptions: FlattenTreeOptions = {
         tables: [mockTable],
@@ -117,6 +173,7 @@ describe('flattenTreeForVirtualization', () => {
         missingCustomDimensions: [],
         missingFieldIds: [],
         activeFields: new Set(),
+        sectionNodeMaps: createSectionNodeMaps([mockTable]),
     };
 
     it('should flatten a simple table with dimensions and metrics', () => {
@@ -185,6 +242,7 @@ describe('flattenTreeForVirtualization', () => {
         const options: FlattenTreeOptions = {
             ...baseOptions,
             tables: [mockTableWithGroups],
+            sectionNodeMaps: createSectionNodeMaps([mockTableWithGroups]),
         };
 
         const { items: result, sectionContexts } =
@@ -210,6 +268,7 @@ describe('flattenTreeForVirtualization', () => {
             ...baseOptions,
             tables: [mockTableWithGroups],
             expandedGroups: new Set([groupKey]),
+            sectionNodeMaps: createSectionNodeMaps([mockTableWithGroups]),
         };
 
         const { items: result, sectionContexts } =
@@ -245,9 +304,10 @@ describe('flattenTreeForVirtualization', () => {
     });
 
     it('should hide tables with no search results', () => {
+        const tables = [mockTable, { ...mockTable, name: 'customers' }];
         const options: FlattenTreeOptions = {
             ...baseOptions,
-            tables: [mockTable, { ...mockTable, name: 'customers' }],
+            tables,
             showMultipleTables: true,
             searchQuery: 'status',
             isSearching: true,
@@ -255,6 +315,7 @@ describe('flattenTreeForVirtualization', () => {
                 orders: ['orders_status'],
                 customers: [], // No results
             },
+            sectionNodeMaps: createSectionNodeMaps(tables),
         };
 
         const { items: result } = flattenTreeForVirtualization(options);
@@ -304,6 +365,7 @@ describe('flattenTreeForVirtualization', () => {
         const options: FlattenTreeOptions = {
             ...baseOptions,
             tables: [tableWithoutDimensions],
+            sectionNodeMaps: createSectionNodeMaps([tableWithoutDimensions]),
         };
 
         const { items: result } = flattenTreeForVirtualization(options);
@@ -316,18 +378,23 @@ describe('flattenTreeForVirtualization', () => {
     });
 
     it('should include custom metrics section when additionalMetrics exist', () => {
+        const additionalMetrics = [
+            {
+                table: 'orders',
+                name: 'custom_metric',
+                label: 'Custom Metric',
+                sql: 'COUNT(*)',
+                type: MetricType.COUNT,
+                baseDimensionName: undefined,
+            },
+        ];
         const options: FlattenTreeOptions = {
             ...baseOptions,
-            additionalMetrics: [
-                {
-                    table: 'orders',
-                    name: 'custom_metric',
-                    label: 'Custom Metric',
-                    sql: 'COUNT(*)',
-                    type: MetricType.COUNT,
-                    baseDimensionName: undefined,
-                },
-            ],
+            additionalMetrics,
+            sectionNodeMaps: createSectionNodeMaps(
+                [mockTable],
+                additionalMetrics,
+            ),
         };
 
         const { items: result, sectionContexts } =

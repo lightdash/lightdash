@@ -7,7 +7,7 @@ import type {
     Metric,
     OrderFieldsByStrategy,
 } from '@lightdash/common';
-import type { Node, NodeItem } from '../Tree/types';
+import type { Node, NodeItem, NodeMap } from '../Tree/types';
 
 export enum TreeSection {
     Dimensions = 'dimensions',
@@ -92,6 +92,7 @@ export interface SectionContext {
     tableName: string;
     sectionType: TreeSection;
     itemsMap: Record<string, NodeItem>;
+    nodeMap: NodeMap; // Pre-computed node hierarchy
     missingCustomMetrics?: AdditionalMetric[];
     missingCustomDimensions?: CustomDimension[];
     itemsAlerts?: {
@@ -118,9 +119,6 @@ export interface TreeNodeItem extends BaseFlattenedItem {
         isExpanded?: boolean; // Only for group nodes
         sectionKey: string; // Reference to SectionContext in the contexts map
         depth: number; // Nesting level for indentation (0 = root level)
-        parentId: string | null; // Parent item ID (null for root level)
-        childIds: string[]; // Immediate children IDs (empty for leaf nodes)
-        ancestorPath: string[]; // [root...parent] IDs for O(1) ancestry checks
     };
 }
 
@@ -146,7 +144,6 @@ export type FlattenedItem =
 export interface FlattenedTreeData {
     items: FlattenedItem[];
     sectionContexts: Map<string, SectionContext>;
-    itemsById: Map<string, FlattenedItem>; // Global O(1) lookup map
 }
 
 // Options for flattening the tree
@@ -177,6 +174,9 @@ export interface FlattenTreeOptions {
     // Git integration
     isGithubIntegrationEnabled?: boolean;
     gitIntegration?: GitIntegrationConfiguration;
+
+    // Pre-computed node maps (key: `${tableName}-${sectionType}`)
+    sectionNodeMaps: Map<string, NodeMap>;
 }
 
 // Section info for organizing nodes

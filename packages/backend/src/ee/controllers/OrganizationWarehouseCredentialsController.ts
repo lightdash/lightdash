@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiOrganizationWarehouseCredentialsListResponse,
     ApiOrganizationWarehouseCredentialsResponse,
+    ApiOrganizationWarehouseCredentialsSummaryListResponse,
     ApiSuccessEmpty,
     CreateOrganizationWarehouseCredentials,
     UpdateOrganizationWarehouseCredentials,
@@ -15,6 +16,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -37,14 +39,30 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
      * Get all warehouse credentials for the current organization
      * @summary List warehouse credentials
      * @param req express request
+     * @param summary If true, returns only summaries (name, type) accessible to all members. If false/undefined, returns full credentials requiring manage permission.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get()
     @OperationId('ListOrganizationWarehouseCredentials')
     async getAll(
         @Request() req: express.Request,
-    ): Promise<ApiOrganizationWarehouseCredentialsListResponse> {
+        @Query() summary?: boolean,
+    ): Promise<
+        | ApiOrganizationWarehouseCredentialsListResponse
+        | ApiOrganizationWarehouseCredentialsSummaryListResponse
+    > {
         this.setStatus(200);
+
+        if (summary) {
+            return {
+                status: 'ok',
+                results:
+                    await this.getOrganizationWarehouseCredentialsService().getAllSummaries(
+                        req.account!,
+                    ),
+            };
+        }
+
         return {
             status: 'ok',
             results:

@@ -7,7 +7,7 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import fs from 'fs';
-import { PassThrough, Readable, Writable } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
@@ -115,7 +115,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         return { write, close, writeStream: passThrough };
     }
 
-    async getDowloadStream(
+    async getDownloadStream(
         cacheKey: string,
         fileExtension = 'jsonl',
     ): Promise<Readable> {
@@ -160,64 +160,6 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         );
 
         return url;
-    }
-
-    async transformResultsIntoNewFile(
-        sourceResultsFileWithoutExtension: string,
-        sinkFileName: string,
-        streamProcessor: (
-            readStream: Readable,
-            writeStream: Writable,
-        ) => Promise<{ truncated: boolean }>,
-        attachmentDownloadName?: string,
-    ): Promise<{ fileUrl: string; truncated: boolean }> {
-        // File format configuration map
-        const formatConfig = new Map([
-            ['csv', { contentType: 'text/csv', extension: 'csv' }],
-            [
-                'xlsx',
-                {
-                    contentType:
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    extension: 'xlsx',
-                },
-            ],
-            ['jsonl', { contentType: 'application/jsonl', extension: 'jsonl' }],
-        ]);
-
-        // Determine file format from extension
-        const fileExtension =
-            sinkFileName.toLowerCase().split('.').pop() || 'jsonl';
-        const config =
-            formatConfig.get(fileExtension) || formatConfig.get('jsonl')!;
-
-        // Create upload stream
-        const { writeStream, close } = this.createUploadStream(
-            sinkFileName,
-            {
-                contentType: config.contentType,
-            },
-            attachmentDownloadName
-                ? `${attachmentDownloadName}.${config.extension}`
-                : undefined,
-        );
-
-        // Get the results stream
-        const resultsStream = await this.getDowloadStream(
-            sourceResultsFileWithoutExtension,
-        );
-
-        // Process the stream
-        const { truncated } = await streamProcessor(resultsStream, writeStream);
-
-        await close();
-
-        const url = await this.getFileUrl(sinkFileName, config.extension);
-
-        return {
-            fileUrl: url,
-            truncated,
-        };
     }
 
     /**

@@ -1,6 +1,7 @@
 import {
     type CreateEmbedJwt,
     type DashboardFilterInteractivityOptions,
+    type ParameterInteractivityOptions,
 } from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
@@ -63,6 +64,8 @@ export type OssEmbed = {
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;
+    chartUuids: string[];
+    allowAllCharts: boolean;
     createdAt: string;
     user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
 };
@@ -86,6 +89,8 @@ export type DashboardAccess = {
     filtering?: DashboardFilterInteractivityOptions;
     /** User-specific access controls */
     controls?: UserAccessControls;
+    /** Dashboard parameter interactivity options */
+    parameters?: ParameterInteractivityOptions;
 };
 
 export type AccountHelpers = {

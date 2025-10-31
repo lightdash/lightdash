@@ -91,10 +91,10 @@ const MantineModal: React.FC<MantineModalProps> = ({
 
                 <Modal.Body
                     p={0}
-                    sx={() => ({
+                    sx={{
                         overflow: 'auto',
-                        maxHeight: 'calc(80vh - 130px)',
-                    })}
+                        maxHeight: 'calc(80vh - 80px)',
+                    }}
                     {...modalBodyProps}
                 >
                     <Stack

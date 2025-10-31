@@ -18,6 +18,22 @@ export const aiCopilotConfigSchema = z
                     baseUrl: z.string().optional(),
                     temperature: z.number().min(0).max(2).default(0.2),
                     responsesApi: z.boolean().default(false),
+                    reasoning: z
+                        .object({
+                            enabled: z.boolean().default(false),
+                            reasoningSummary: z
+                                .enum(['auto', 'detailed'])
+                                .default('auto'),
+                            reasoningEffort: z
+                                .enum(['minimal', 'low', 'medium', 'high'])
+                                .default('medium'),
+                        })
+                        .optional()
+                        .default({
+                            enabled: false,
+                            reasoningSummary: 'auto',
+                            reasoningEffort: 'low',
+                        }),
                 })
                 .optional(),
             azure: z

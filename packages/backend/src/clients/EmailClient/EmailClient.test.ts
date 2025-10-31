@@ -1,4 +1,5 @@
 import * as nodemailer from 'nodemailer';
+import type SMTPConnection from 'nodemailer/lib/smtp-connection';
 import EmailClient from './EmailClient';
 import {
     expectedTransporterArgs,
@@ -18,6 +19,19 @@ jest.mock('nodemailer', () => ({
         use: jest.fn(),
     })),
 }));
+
+// Mock the SMTPError interface to allow for code property
+class MockNodeMailerSmtpError
+    extends Error
+    implements SMTPConnection.SMTPError
+{
+    code: string | undefined;
+
+    constructor(message: string, { code }: { code: string | undefined }) {
+        super(message);
+        this.code = code;
+    }
+}
 
 describe('EmailClient', () => {
     beforeEach(() => {
@@ -71,7 +85,11 @@ describe('EmailClient', () => {
         test('should retry email sending on ECONNRESET error', async () => {
             const mockSendMail = jest
                 .fn()
-                .mockRejectedValueOnce(new Error('read ECONNRESET'))
+                .mockRejectedValueOnce(
+                    new MockNodeMailerSmtpError('read ECONNRESET', {
+                        code: 'ECONNRESET',
+                    }),
+                )
                 .mockResolvedValueOnce({ messageId: 'test-message-id' });
 
             (nodemailer.createTransport as jest.Mock).mockReturnValue({
@@ -116,9 +134,11 @@ describe('EmailClient', () => {
         });
 
         test('should retry up to 3 times with retryable error and recreate transporter on last retry', async () => {
-            const mockSendMail = jest
-                .fn()
-                .mockRejectedValue(new Error('read ECONNRESET'));
+            const mockSendMail = jest.fn().mockRejectedValue(
+                new MockNodeMailerSmtpError('read ECONNRESET', {
+                    code: 'ECONNRESET',
+                }),
+            );
 
             const mockClose = jest.fn();
             const mockCreateTransport = nodemailer.createTransport as jest.Mock;

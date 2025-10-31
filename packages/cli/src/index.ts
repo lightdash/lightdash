@@ -186,6 +186,12 @@ ${styles.bold('Examples:')}
         'Login using OAuth2 flow (opens browser for authentication)',
         false,
     )
+    .option(
+        '--project <project uuid>',
+        'Select a project by UUID after login',
+        parseProjectArgument,
+        undefined,
+    )
     .option('--verbose', undefined, false)
     .action(login);
 
@@ -432,6 +438,10 @@ program
         'Skip copying content from the source project',
         false,
     )
+    .option(
+        '--organization-credentials <name>',
+        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+    )
     .action(previewHandler);
 
 program
@@ -667,6 +677,10 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
+    )
+    .option(
+        '--organization-credentials <name>',
+        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .action(deployHandler);
 

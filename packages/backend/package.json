@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2108.1",
+    "version": "0.2125.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -154,7 +154,7 @@
     },
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
-        "generate-api-dev": "chokidar './src/controllers/**/*.ts' -c 'pnpm run generate-api'",
+        "generate-api-dev": "chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api'",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
         "build": "tsc --build tsconfig.json",
         "build-sourcemaps": "tsc --build tsconfig.sentry.json",

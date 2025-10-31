@@ -212,29 +212,22 @@ export const Td = styled.td<{
     $hasUrls: boolean;
 }>`
     max-width: 300px;
-    white-space: nowrap;
+    white-space: pre;
     overflow: hidden;
     text-overflow: ellipsis;
     box-sizing: border-box;
     height: ${ROW_HEIGHT_PX}px;
 
-    ${({ $isLargeText, $isSelected, $isMinimal, $hasNewlines }) =>
+    ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
             ? `
                 min-width: 300px;
-                white-space: ${
-                    $isSelected || $isMinimal
-                        ? $hasNewlines
-                            ? 'pre-line'
-                            : 'normal'
-                        : 'nowrap'
-                };
+                white-space: ${$isSelected || $isMinimal ? 'pre-wrap' : 'pre'};
                 :hover {
-                    white-space: ${$hasNewlines ? 'pre-line' : 'normal'};
+                    white-space: pre-wrap;
                 }
             `
             : ''}
-
     ${CellStyles}
 
     ${({ $hasUrls }) =>

@@ -1,5 +1,6 @@
 import {
     isFilterInteractivityEnabled,
+    isParameterInteractivityEnabled,
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
@@ -8,6 +9,7 @@ import { type FC } from 'react';
 import { DateZoom } from '../../../../../features/dateZoom';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
+import EmbedDashboardParameters from './EmbedDashboardParameters';
 
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
@@ -17,6 +19,7 @@ type Props = {
 const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
     const hasHeader =
         dashboard.canDateZoom ||
+        isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
     // If no header, and exportPagePdf is enabled, show the Export button on the top right corner
@@ -30,9 +33,10 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
         );
     }
 
-    const isFilteringEnabled =
+    const shouldShowFilters =
         dashboard.dashboardFiltersInteractivity &&
-        isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
+        isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity) &&
+        !dashboard.dashboardFiltersInteractivity.hidden;
     return (
         <Flex
             justify="flex-end"
@@ -43,7 +47,10 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
             gap="sm"
             style={{ flexGrow: 1 }}
         >
-            {isFilteringEnabled && <EmbedDashboardFilters />}
+            {shouldShowFilters && <EmbedDashboardFilters />}
+            {isParameterInteractivityEnabled(
+                dashboard.parameterInteractivity,
+            ) && <EmbedDashboardParameters />}
             {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
 
             {dashboard.canExportPagePdf && (

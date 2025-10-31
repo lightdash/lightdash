@@ -30,7 +30,12 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { SnowflakeDefaultValues } from './defaultValues';
-import { getSsoLabel, PASSWORD_LABEL, PRIVATE_KEY_LABEL } from './util';
+import {
+    EXTERNAL_BROWSER_LABEL,
+    getSsoLabel,
+    PASSWORD_LABEL,
+    PRIVATE_KEY_LABEL,
+} from './util';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -138,7 +143,8 @@ const SnowflakeForm: FC<{
 
     const [temporaryFile, setTemporaryFile] = useState<File>();
 
-    const authOptions = isSsoEnabled
+    // Build base authentication options
+    const baseAuthOptions = isSsoEnabled
         ? [
               {
                   value: SnowflakeAuthenticationType.SSO,
@@ -163,6 +169,18 @@ const SnowflakeForm: FC<{
                   label: PASSWORD_LABEL,
               },
           ];
+
+    // Only show EXTERNAL_BROWSER if it's already selected (edit mode only)
+    const authOptions =
+        savedAuthType === SnowflakeAuthenticationType.EXTERNAL_BROWSER
+            ? [
+                  ...baseAuthOptions,
+                  {
+                      value: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                      label: EXTERNAL_BROWSER_LABEL,
+                  },
+              ]
+            : baseAuthOptions;
 
     return (
         <>
@@ -285,30 +303,36 @@ const SnowflakeForm: FC<{
                         </Group>
 
                         {authenticationType !==
-                            SnowflakeAuthenticationType.SSO && (
-                            <>
-                                <TextInput
-                                    name="warehouse.user"
-                                    label="User"
-                                    description="This is the database user name."
-                                    required={requireSecrets}
-                                    {...form.getInputProps('warehouse.user')}
-                                    placeholder={
-                                        disabled || !requireSecrets
-                                            ? '**************'
-                                            : undefined
-                                    }
-                                    disabled={disabled}
-                                />
-                                <TextInput
-                                    name="warehouse.role"
-                                    label="Role"
-                                    description="This is the role to assume when running queries as the specified user."
-                                    {...form.getInputProps('warehouse.role')}
-                                    disabled={disabled}
-                                />
-                            </>
-                        )}
+                            SnowflakeAuthenticationType.SSO &&
+                            authenticationType !==
+                                SnowflakeAuthenticationType.EXTERNAL_BROWSER && (
+                                <>
+                                    <TextInput
+                                        name="warehouse.user"
+                                        label="User"
+                                        description="This is the database user name."
+                                        required={requireSecrets}
+                                        {...form.getInputProps(
+                                            'warehouse.user',
+                                        )}
+                                        placeholder={
+                                            disabled || !requireSecrets
+                                                ? '**************'
+                                                : undefined
+                                        }
+                                        disabled={disabled}
+                                    />
+                                    <TextInput
+                                        name="warehouse.role"
+                                        label="Role"
+                                        description="This is the role to assume when running queries as the specified user."
+                                        {...form.getInputProps(
+                                            'warehouse.role',
+                                        )}
+                                        disabled={disabled}
+                                    />
+                                </>
+                            )}
 
                         {authenticationType ===
                         SnowflakeAuthenticationType.PRIVATE_KEY ? (
@@ -399,6 +423,13 @@ const SnowflakeForm: FC<{
                                     openLoginPopup={openLoginPopup}
                                 />
                             )
+                        ) : authenticationType ===
+                          SnowflakeAuthenticationType.EXTERNAL_BROWSER ? (
+                            <Text size="sm" c="dimmed">
+                                External browser authentication is configured.
+                                Authentication will occur through your default
+                                browser when connecting to Snowflake.
+                            </Text>
                         ) : (
                             <>
                                 <PasswordInput

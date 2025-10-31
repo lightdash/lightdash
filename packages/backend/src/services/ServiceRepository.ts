@@ -32,6 +32,7 @@ import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
+import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
@@ -99,6 +100,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
+    projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -595,17 +597,18 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     downloadAuditModel: this.models.getDownloadAuditModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
-                    storageClient: this.clients.getResultsFileStorageClient(),
+                    resultsStorageClient:
+                        this.clients.getResultsFileStorageClient(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         this.models.getOrganizationWarehouseCredentialsModel(),
-                    projectCompileLogModel:
-                        this.models.getProjectCompileLogModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                     permissionsService: this.getPermissionsService(),
+                    projectCompileLogModel:
+                        this.models.getProjectCompileLogModel(),
                 }),
         );
     }
@@ -1036,6 +1039,17 @@ export class ServiceRepository
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getProjectCompileLogService(): ProjectCompileLogService {
+        return this.getService(
+            'projectCompileLogService',
+            () =>
+                new ProjectCompileLogService({
+                    projectCompileLogModel:
+                        this.models.getProjectCompileLogModel(),
                 }),
         );
     }

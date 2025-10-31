@@ -4,7 +4,7 @@ import {
     type ResourceViewItemType,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
+import { Paper, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
@@ -76,7 +76,7 @@ const SpaceSelector = ({
     );
 
     return (
-        <Stack h="600px">
+        <Stack>
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
@@ -96,12 +96,7 @@ const SpaceSelector = ({
                 placeholder="Search spaces"
             />
 
-            <Paper
-                component={ScrollArea}
-                w="100%"
-                sx={{ flexGrow: 1 }}
-                withBorder
-            >
+            <Paper w="100%" h={400} style={{ overflow: 'auto' }} withBorder>
                 <Tree
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}

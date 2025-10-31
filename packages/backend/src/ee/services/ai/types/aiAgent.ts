@@ -16,6 +16,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
+    StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     TrackEventFn,
@@ -49,6 +50,12 @@ export type AiAgentArgs = AnyAiModel & {
 export type PerformanceMetrics = {
     measureGenerateResponseTime: (durationMs: number) => void;
     measureStreamResponseTime: (durationMs: number) => void;
+    measureStreamFirstChunk: (durationMs: number) => void;
+    measureTTFT: (
+        durationMs: number,
+        model: string,
+        mode: 'stream' | 'generate',
+    ) => void;
 };
 
 export type AiAgentDependencies = {
@@ -67,6 +74,7 @@ export type AiAgentDependencies = {
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
+    storeReasoning: StoreReasoningFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;

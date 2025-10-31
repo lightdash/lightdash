@@ -22,3 +22,10 @@
     background-color: var(--mantine-color-gray-0);
     color: inherit;
 }
+
+.comboboxHeader {
+    border-radius: 0;
+    border-top-left-radius: var(--mantine-radius-sm);
+    border-top-right-radius: var(--mantine-radius-sm);
+    overflow: hidden;
+}

@@ -24,6 +24,8 @@ const EmbedDashboardsForm: FC<{
         onSave({
             dashboardUuids: values.dashboardUuids,
             allowAllDashboards: values.allowAllDashboards,
+            chartUuids: [],
+            allowAllCharts: false,
         });
     });
 

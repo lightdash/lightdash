@@ -76,6 +76,7 @@ const formSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -145,13 +146,13 @@ export const AiAgentFormSetup = ({
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
 
-    const agentV2FeatureFlagQuery = useFeatureFlag(
-        CommercialFeatureFlags.AgentV2,
+    const agentReasoningFeatureFlagQuery = useFeatureFlag(
+        CommercialFeatureFlags.AgentReasoning,
     );
 
-    const isAgentV2Enabled =
-        agentV2FeatureFlagQuery.isSuccess &&
-        agentV2FeatureFlagQuery.data.enabled;
+    const isAgentReasoningEnabled =
+        agentReasoningFeatureFlagQuery.isSuccess &&
+        agentReasoningFeatureFlagQuery.data.enabled;
 
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
@@ -425,16 +426,16 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
-                            {isAgentV2Enabled && (
+                            {isAgentReasoningEnabled && (
                                 <Switch
                                     variant="subtle"
                                     label={
                                         <Group gap="xs">
                                             <Text fz="sm" fw={500}>
-                                                Enable Agent V2
+                                                Enable Reasoning
                                             </Text>
                                             <Tooltip
-                                                label="Agent V2 provides enhanced charting capabilities including pie charts, scatter plots, and funnel visualizations for more diverse data representation."
+                                                label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
                                                 withArrow
                                                 withinPortal
                                                 multiline
@@ -462,19 +463,16 @@ export const AiAgentFormSetup = ({
                                     }
                                     description={
                                         <>
-                                            Enables more charting options
-                                            including pie, scatter, and funnel
-                                            charts for richer data
-                                            visualization.{' '}
+                                            Displays the agent's reasoning
+                                            process while generating responses,
+                                            helping you understand how it thinks
+                                            through problems and reaches
+                                            conclusions.
                                         </>
                                     }
-                                    checked={form.values.version === 2}
-                                    onChange={(event) => {
-                                        form.setFieldValue(
-                                            'version',
-                                            event.currentTarget.checked ? 2 : 1,
-                                        );
-                                    }}
+                                    {...form.getInputProps('enableReasoning', {
+                                        type: 'checkbox',
+                                    })}
                                 />
                             )}
                         </Stack>

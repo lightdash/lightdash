@@ -129,6 +129,8 @@ const EmbedDashboard: FC<{
     const activeTab = useDashboardContext((c) => c.activeTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 
     const { embedToken, mode } = useEmbed();
     const navigate = useNavigate();
@@ -176,16 +178,12 @@ const EmbedDashboard: FC<{
         return dashboard.tabs.sort((a, b) => a.order - b.order);
     }, [dashboard?.tabs]);
 
-    // Set active tab to first tab if no active tab is set and no tab in URL
+    // Ensure dashboard tabs are set in context
     useEffect(() => {
-        if (
-            sortedTabs.length > 0 &&
-            !activeTab &&
-            !pathname.includes('/tabs/')
-        ) {
-            setActiveTab(sortedTabs[0]);
+        if (!dashboardTabs.length && sortedTabs.length) {
+            setDashboardTabs(sortedTabs);
         }
-    }, [sortedTabs, activeTab, pathname, setActiveTab]);
+    }, [sortedTabs, dashboardTabs, setDashboardTabs]);
 
     // Filter tiles by active tab
     const filteredTiles = useMemo(() => {

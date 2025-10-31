@@ -10,14 +10,19 @@ export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
     secret: string;
 };
 
-// tsoa can't differentiate betwen CreateEmbed and CreatedEmbedJwt so we opt for a more unique name
+// tsoa can't differentiate between CreateEmbed and CreatedEmbedJwt so we opt for a more unique name
+// At least one of dashboardUuids or chartUuids must be provided
 export type CreateEmbedRequestBody = {
-    dashboardUuids: string[];
+    dashboardUuids?: string[];
+    chartUuids?: string[];
 };
 
 export type UpdateEmbed = {
     dashboardUuids: string[];
     allowAllDashboards: boolean;
+    // TODO: Make these required in Settings UI PR
+    chartUuids?: string[];
+    allowAllCharts?: boolean;
 };
 
 export enum FilterInteractivityValues {
@@ -36,15 +41,25 @@ export const DashboardFilterInteractivityOptionsSchema = z.object({
     enabled: z.union([z.boolean(), FilterInteractivityValuesSchema]),
     // Nullish because we have python clients that serialize None to null
     allowedFilters: z.array(z.string()).nullish(),
+    hidden: z.boolean().optional(),
 });
 
 export type DashboardFilterInteractivityOptions = z.infer<
     typeof DashboardFilterInteractivityOptionsSchema
 >;
 
+export const ParameterInteractivityOptionsSchema = z.object({
+    enabled: z.boolean(),
+});
+
+export type ParameterInteractivityOptions = z.infer<
+    typeof ParameterInteractivityOptionsSchema
+>;
+
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
+    parameterInteractivity: ParameterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
@@ -99,6 +114,11 @@ type CommonEmbedJwtContent = {
     dashboardFiltersInteractivity?: {
         enabled: FilterInteractivityValues | boolean;
         allowedFilters?: string[] | null;
+        // Should the filters be rendered hidden or visible in the UI
+        hidden?: boolean;
+    };
+    parameterInteractivity?: {
+        enabled: boolean;
     };
     canExportCsv?: boolean;
     canExportImages?: boolean;
@@ -182,4 +202,10 @@ export function isFilterInteractivityEnabled(
                 `Unknown FilterInteractivityValue ${filterInteractivityValue}`,
             );
     }
+}
+
+export function isParameterInteractivityEnabled(
+    parameterInteractivityOptions?: ParameterInteractivityOptions,
+): boolean {
+    return parameterInteractivityOptions?.enabled ?? false;
 }

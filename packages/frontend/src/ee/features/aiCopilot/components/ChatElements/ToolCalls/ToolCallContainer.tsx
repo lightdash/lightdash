@@ -9,6 +9,7 @@ type ToolCallContainerProps = {
     defaultOpened?: boolean;
     title: string;
     isStreaming?: boolean;
+    enableIconAnimation?: boolean;
     icon?: (props: TablerIconsProps) => JSX.Element;
 };
 
@@ -17,6 +18,7 @@ export const ToolCallContainer: FC<ToolCallContainerProps> = ({
     defaultOpened = true,
     title,
     isStreaming = false,
+    enableIconAnimation = true,
     icon = IconSparkles,
 }) => {
     return (
@@ -24,7 +26,11 @@ export const ToolCallContainer: FC<ToolCallContainerProps> = ({
             defaultOpened={defaultOpened}
             variant="dashed"
             icon={icon}
-            iconClassName={isStreaming ? classes.streamingIcon : undefined}
+            iconClassName={
+                isStreaming && enableIconAnimation
+                    ? classes.streamingIcon
+                    : undefined
+            }
             title={
                 isStreaming ? (
                     <Box component="span" className={classes.streamingTitle}>

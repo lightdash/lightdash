@@ -7,12 +7,18 @@ type ToolCall = {
     toolArgs: unknown;
 };
 
+type Reasoning = {
+    reasoningId: string;
+    parts: string[];
+};
+
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
     isStreaming: boolean;
     toolCalls: ToolCall[];
+    reasoning: Reasoning[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -30,6 +36,7 @@ const initialThread: Omit<
     content: '',
     isStreaming: true,
     toolCalls: [],
+    reasoning: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -144,6 +151,44 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.improveContextNotification = undefined;
             }
         },
+        addReasoning: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                reasoningId: string;
+                text: string;
+            }>,
+        ) => {
+            const { threadUuid, reasoningId, text } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                const existingIndex = streamingThread.reasoning.findIndex(
+                    (r: Reasoning) => r.reasoningId === reasoningId,
+                );
+                if (existingIndex !== -1) {
+                    const existing = streamingThread.reasoning[existingIndex];
+
+                    // Find which part this text is continuing
+                    const matchingPartIndex = existing.parts.findIndex((part) =>
+                        text.startsWith(part),
+                    );
+
+                    if (matchingPartIndex !== -1) {
+                        // Update the matching part with longer text
+                        existing.parts[matchingPartIndex] = text;
+                    } else {
+                        // No match found - new part
+                        existing.parts.push(text);
+                    }
+                } else {
+                    // New reasoning
+                    streamingThread.reasoning.push({
+                        reasoningId,
+                        parts: [text],
+                    });
+                }
+            }
+        },
     },
 });
 
@@ -153,6 +198,7 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
+    addReasoning,
     setImproveContextNotification,
     clearImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

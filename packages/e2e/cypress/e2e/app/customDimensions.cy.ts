@@ -113,7 +113,7 @@ describe('Custom dimensions', () => {
 
         // Check results
         cy.contains('payment_credit_card');
-        cy.contains('1,452.16');
+        cy.contains('1,452');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results

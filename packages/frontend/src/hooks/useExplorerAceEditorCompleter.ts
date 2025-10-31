@@ -10,7 +10,13 @@ import {
     getItemId,
     type Metric,
 } from '@lightdash/common';
-import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
+import {
+    type Dispatch,
+    type SetStateAction,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import {
     selectActiveFields,
     selectAdditionalMetrics,
@@ -89,82 +95,87 @@ export const useTableCalculationAceEditorCompleter = (): {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
-    const explore = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
-    useEffect(() => {
-        if (aceEditor && explore.data) {
-            const activeExplore = explore.data;
-            const customMetrics = (additionalMetrics || []).reduce<Metric[]>(
-                (acc, additionalMetric) => {
-                    const table = explore.data.tables[additionalMetric.table];
-                    if (table) {
-                        const metric = convertAdditionalMetric({
-                            additionalMetric,
-                            table,
-                        });
-                        return [...acc, metric];
-                    }
-                    return acc;
-                },
-                [],
-            );
-            const fields = Object.values(activeExplore.tables).reduce<
-                Ace.Completion[]
-            >(
-                (acc, table) => [
-                    ...acc,
-                    ...mapFieldsToCompletions(
-                        [
-                            ...Object.values(table.metrics),
-                            ...customMetrics.filter(
-                                (customMetric) =>
-                                    customMetric.table === table.name,
-                            ),
-                        ].filter((field) => activeFields.has(getItemId(field))),
-                        'Metric',
-                    ),
-                    ...mapFieldsToCompletions(
-                        Object.values(table.dimensions).filter((field) =>
-                            activeFields.has(getItemId(field)),
+    const customMetrics = useMemo(() => {
+        if (!exploreData || !additionalMetrics) return [];
+        return additionalMetrics.reduce<Metric[]>((acc, additionalMetric) => {
+            const table = exploreData.tables[additionalMetric.table];
+            if (table) {
+                const metric = convertAdditionalMetric({
+                    additionalMetric,
+                    table,
+                });
+                return [...acc, metric];
+            }
+            return acc;
+        }, []);
+    }, [exploreData, additionalMetrics]);
+
+    const allCompletions = useMemo(() => {
+        if (!exploreData) return [];
+
+        const fields = Object.values(exploreData.tables).reduce<
+            Ace.Completion[]
+        >(
+            (acc, table) => [
+                ...acc,
+                ...mapFieldsToCompletions(
+                    [
+                        ...Object.values(table.metrics),
+                        ...customMetrics.filter(
+                            (customMetric) => customMetric.table === table.name,
                         ),
-                        'Dimension',
+                    ].filter((field) => activeFields.has(getItemId(field))),
+                    'Metric',
+                ),
+                ...mapFieldsToCompletions(
+                    Object.values(table.dimensions).filter((field) =>
+                        activeFields.has(getItemId(field)),
                     ),
-                ],
-                [],
-            );
+                    'Dimension',
+                ),
+            ],
+            [],
+        );
 
-            // Add custom dimensions to completions (filtered to active ones)
-            const activeCustomDimensions = (customDimensions || []).filter(
-                (customDim) => activeFields.has(customDim.id),
-            );
-            const customDimensionCompletions = mapCustomDimensionsToCompletions(
-                activeCustomDimensions,
-            );
+        // Add custom dimensions to completions (filtered to active ones)
+        const activeCustomDimensions = (customDimensions || []).filter(
+            (customDim) => activeFields.has(customDim.id),
+        );
+        const customDimensionCompletions = mapCustomDimensionsToCompletions(
+            activeCustomDimensions,
+        );
 
-            // Doesn't need to be filtered to active -- table calcs don't exist when not active
-            const tableCalculationCompletions =
-                mapTableCalculationsToCompletions(tableCalculations);
+        // Doesn't need to be filtered to active -- table calcs don't exist when not active
+        const tableCalculationCompletions =
+            mapTableCalculationsToCompletions(tableCalculations);
 
-            const allCompletions = [
-                ...fields,
-                ...tableCalculationCompletions,
-                ...customDimensionCompletions,
-            ];
+        return [
+            ...fields,
+            ...tableCalculationCompletions,
+            ...customDimensionCompletions,
+        ];
+    }, [
+        exploreData,
+        customMetrics,
+        activeFields,
+        customDimensions,
+        tableCalculations,
+    ]);
 
+    useEffect(() => {
+        if (aceEditor && allCompletions.length > 0) {
             langTools.setCompleters([createCompleter(allCompletions)]);
         }
         return () => {
             langTools.setCompleters([]);
         };
-    }, [
-        aceEditor,
-        explore,
-        activeFields,
-        additionalMetrics,
-        customDimensions,
-        tableCalculations,
-    ]);
+    }, [aceEditor, allCompletions]);
 
     return {
         setAceEditor,
@@ -175,12 +186,15 @@ export const useCustomDimensionsAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
     const tableName = useExplorerSelector(selectTableName);
-    const explore = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
     useEffect(() => {
-        if (aceEditor && explore.data) {
-            const activeExplore = explore.data;
+        if (aceEditor && exploreData) {
+            const activeExplore = exploreData;
             const fields = mapFieldsToCompletions(
                 getDimensions(activeExplore),
                 'Dimension',
@@ -190,7 +204,7 @@ export const useCustomDimensionsAceEditorCompleter = (): {
         return () => {
             langTools.setCompleters([]);
         };
-    }, [aceEditor, explore]);
+    }, [aceEditor, exploreData]);
 
     return {
         setAceEditor,

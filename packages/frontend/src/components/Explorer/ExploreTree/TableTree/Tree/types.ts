@@ -7,6 +7,7 @@ import {
     type Metric,
     type OrderFieldsByStrategy,
 } from '@lightdash/common';
+import type { TreeSection } from '../Virtualization/types';
 
 export type Node = {
     key: string;
@@ -43,10 +44,16 @@ export type TreeProviderProps = {
     gitIntegration?: GitIntegrationConfiguration;
     onItemClick: (key: string, item: NodeItem) => void;
     searchResults: string[];
+    tableName: string; // Table name for building group keys
+    treeSectionType: TreeSection; // Section type for building group keys
+    expandedGroups: Set<string>;
+    onToggleGroup: (groupKey: string) => void;
 };
 
 export type TableTreeContext = TreeProviderProps & {
     nodeMap: NodeMap;
     isSearching: boolean;
     searchResults: string[];
+    isVirtualized?: boolean; // Flag to prevent group nodes from rendering children inline
+    depth?: number; // Nesting depth for indentation in virtualized mode
 };

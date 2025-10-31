@@ -40,6 +40,11 @@ import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
+import {
+    flattenTreeForVirtualization,
+    getNodeMapsForVirtualization,
+} from './TableTree/Virtualization/flattenTree';
+import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList';
 
 type ExploreTreeProps = {
     explore: Explore;
@@ -73,9 +78,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     >({});
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const isSearching = useMemo(() => {
-        const trimmedSearch = search.trim();
+        const trimmedSearch = debouncedSearch.trim();
         return !!trimmedSearch && trimmedSearch !== '';
-    }, [search]);
+    }, [debouncedSearch]);
     const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
     const savedScrollTopRef = useRef<number>(0);
     const previousActiveFieldsRef = useRef(activeFields);
@@ -83,6 +88,19 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const { data: experimentalExplorerImprovements } = useFeatureFlag(
         FeatureFlags.ExperimentalExplorerImprovements,
     );
+
+    const { data: experimentalVirtualizedSideBar } = useFeatureFlag(
+        FeatureFlags.ExperimentalVirtualizedSideBar,
+    );
+
+    // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
+    const sectionNodeMaps = useMemo(() => {
+        return getNodeMapsForVirtualization(
+            explore,
+            additionalMetrics,
+            customDimensions,
+        );
+    }, [explore, additionalMetrics, customDimensions]);
 
     const handleSearchChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,6 +133,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
     useEffect(() => {
         startTransition(() => {
+            if (!isSearching) return;
             setSearchResultsMap(
                 Object.values(explore.tables).reduce<Record<string, string[]>>(
                     (acc, table) => {
@@ -124,7 +143,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 ),
             );
         });
-    }, [explore, searchResults]);
+    }, [explore, isSearching, searchResults]);
 
     const tableTrees = useMemo(() => {
         return Object.values(explore.tables)
@@ -142,6 +161,42 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                     ) && !table.hidden,
             );
     }, [explore, isSearching, searchResultsMap]);
+
+    // Manage table expansion state
+    const [expandedTables, setExpandedTables] = useState<Set<string>>(() => {
+        // Initialize with first table expanded
+        const firstTable = tableTrees[0];
+        return firstTable ? new Set([firstTable.name]) : new Set();
+    });
+
+    // Manage group expansion state
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const toggleTable = useCallback((tableName: string) => {
+        setExpandedTables((prev) => {
+            const next = new Set(prev);
+            if (next.has(tableName)) {
+                next.delete(tableName);
+            } else {
+                next.add(tableName);
+            }
+            return next;
+        });
+    }, []);
+
+    const toggleGroup = useCallback((groupKey: string) => {
+        setExpandedGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupKey)) {
+                next.delete(groupKey);
+            } else {
+                next.add(groupKey);
+            }
+            return next;
+        });
+    }, []);
 
     /**
      * Preserve scroll position when fields are selected/deselected
@@ -175,12 +230,13 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const tableTreeComponents = useMemo(
         () =>
             tableTrees.length > 0 ? (
-                tableTrees.map((table, index) => (
+                tableTrees.map((table) => (
                     <TableTree
                         key={table.name}
-                        isOpenByDefault={index === 0}
+                        isExpanded={expandedTables.has(table.name)}
+                        onToggle={() => toggleTable(table.name)}
                         searchQuery={debouncedSearch}
-                        showTableLabel={tableTrees.length > 1}
+                        showTableLabel={Object.keys(explore.tables).length > 1}
                         table={table}
                         additionalMetrics={additionalMetrics}
                         onSelectedNodeChange={onSelectedFieldChange}
@@ -188,8 +244,10 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         missingCustomMetrics={missingCustomMetrics}
                         missingCustomDimensions={missingCustomDimensions}
                         missingFieldIds={missingFieldIds}
-                        searchResults={searchResultsMap[table.name]}
+                        searchResults={searchResultsMap[table.name] ?? []}
                         isSearching={isSearching}
+                        expandedGroups={expandedGroups}
+                        onToggleGroup={toggleGroup}
                     />
                 ))
             ) : (
@@ -201,6 +259,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             additionalMetrics,
             customDimensions,
             debouncedSearch,
+            expandedGroups,
+            expandedTables,
+            explore.tables,
             isSearching,
             missingCustomDimensions,
             missingCustomMetrics,
@@ -208,8 +269,49 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             onSelectedFieldChange,
             searchResultsMap,
             tableTrees,
+            toggleGroup,
+            toggleTable,
         ],
     );
+    // Prepare virtualized tree data when experimental improvements are enabled
+    const virtualizedTreeData = useMemo(() => {
+        if (!experimentalVirtualizedSideBar?.enabled) {
+            return null;
+        }
+
+        return flattenTreeForVirtualization({
+            tables: tableTrees,
+            showMultipleTables: Object.keys(explore.tables).length > 1,
+            expandedTables,
+            expandedGroups,
+            searchQuery: debouncedSearch,
+            searchResultsMap,
+            isSearching,
+            additionalMetrics,
+            customDimensions: customDimensions ?? [],
+            missingCustomMetrics,
+            missingCustomDimensions,
+            missingFieldIds,
+            activeFields,
+            sectionNodeMaps,
+        });
+    }, [
+        activeFields,
+        additionalMetrics,
+        customDimensions,
+        debouncedSearch,
+        expandedGroups,
+        expandedTables,
+        experimentalVirtualizedSideBar?.enabled,
+        explore.tables,
+        isSearching,
+        missingCustomDimensions,
+        missingCustomMetrics,
+        missingFieldIds,
+        searchResultsMap,
+        sectionNodeMaps,
+        tableTrees,
+    ]);
 
     return (
         <>
@@ -233,15 +335,24 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            <ScrollArea
-                variant="primary"
-                className="only-vertical"
-                offsetScrollbars
-                scrollbarSize={8}
-                viewportRef={scrollAreaViewportRef}
-            >
-                {tableTreeComponents}
-            </ScrollArea>
+            {experimentalVirtualizedSideBar?.enabled && virtualizedTreeData ? (
+                <VirtualizedTreeList
+                    data={virtualizedTreeData}
+                    onToggleTable={toggleTable}
+                    onToggleGroup={toggleGroup}
+                    onSelectedFieldChange={onSelectedFieldChange}
+                />
+            ) : (
+                <ScrollArea
+                    variant="primary"
+                    className="only-vertical"
+                    offsetScrollbars
+                    scrollbarSize={8}
+                    viewportRef={scrollAreaViewportRef}
+                >
+                    {tableTreeComponents}
+                </ScrollArea>
+            )}
         </>
     );
 };

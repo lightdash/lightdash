@@ -16,6 +16,7 @@ import {
     assertUnreachable,
     BigqueryAuthenticationType,
     CacheMetadata,
+    calculateCompilationReport,
     type CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     ChartSourceType,
@@ -333,6 +334,8 @@ export class ProjectService extends BaseService {
 
     projectParametersModel: ProjectParametersModel;
 
+    projectCompileLogModel: ProjectCompileLogModel;
+
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
     constructor({
@@ -363,6 +366,7 @@ export class ProjectService extends BaseService {
         userModel,
         featureFlagModel,
         projectParametersModel,
+        projectCompileLogModel,
         organizationWarehouseCredentialsModel,
     }: ProjectServiceArguments) {
         super();
@@ -394,6 +398,7 @@ export class ProjectService extends BaseService {
         this.userModel = userModel;
         this.featureFlagModel = featureFlagModel;
         this.projectParametersModel = projectParametersModel;
+        this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
     }
@@ -745,24 +750,35 @@ export class ProjectService extends BaseService {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(args: T, userUuid: string): Promise<T> {
+    >(args: T, userUuid: string, organizationUuid: string): Promise<T> {
         // If using organization credentials, load them from the organization table
         const organizationWarehouseCredentialsUuid =
-            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
-                ? args.organizationWarehouseCredentialsUuid ||
-                  args.warehouseConnection.organizationWarehouseCredentialsUuid
-                : undefined;
+            args.organizationWarehouseCredentialsUuid ||
+            (args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
+                ? args.warehouseConnection.organizationWarehouseCredentialsUuid
+                : undefined);
 
         if (organizationWarehouseCredentialsUuid) {
             this.logger.debug(
                 `Resolving organization warehouse credentials with uuid ${organizationWarehouseCredentialsUuid}`,
             );
 
-            const { credentials: orgCredentials } =
-                await this.organizationWarehouseCredentialsModel.getByUuid(
+            const orgCredentialData =
+                await this.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
                     organizationWarehouseCredentialsUuid,
-                    true, // withSensitiveData
                 );
+
+            // Security check: Verify the credentials belong to the user's organization
+            if (orgCredentialData.organizationUuid !== organizationUuid) {
+                this.logger.warn(
+                    `User attempted to use organization credentials from different organization. User org: ${organizationUuid}, Credentials org: ${orgCredentialData.organizationUuid}`,
+                );
+                throw new ForbiddenError(
+                    'You do not have permission to use these organization warehouse credentials',
+                );
+            }
+
+            const { credentials: orgCredentials } = orgCredentialData;
 
             if (orgCredentials.type !== WarehouseTypes.SNOWFLAKE) {
                 throw new UnexpectedServerError(
@@ -1061,6 +1077,9 @@ export class ProjectService extends BaseService {
         userUuid: string,
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project',
+        jobUuid?: string | null,
+        requestMethod?: string | null,
     ) {
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
@@ -1085,6 +1104,26 @@ export class ProjectService extends BaseService {
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
         );
+
+        const compilationReport = calculateCompilationReport({ explores });
+        const project = await this.projectModel.get(projectUuid);
+
+        await this.projectCompileLogModel.insert({
+            projectUuid,
+            jobUuid: jobUuid ?? null,
+            userUuid,
+            organizationUuid,
+            compilationSource,
+            dbtConnectionType: project.dbtConnection.type,
+            requestMethod: requestMethod ?? null,
+            warehouseType: project.warehouseConnection?.type ?? null,
+            report: compilationReport,
+        });
+
+        this.logger.info(
+            `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
+        );
+
         return this.schedulerClient.indexCatalog({
             projectUuid,
             userUuid,
@@ -1169,6 +1208,7 @@ export class ProjectService extends BaseService {
                 ? await this._resolveWarehouseClientCredentials(
                       newProjectData,
                       user.userUuid,
+                      user.organizationUuid,
                   )
                 : newProjectData;
 
@@ -1343,6 +1383,7 @@ export class ProjectService extends BaseService {
             const createProject = await this._resolveWarehouseClientCredentials(
                 data,
                 user.userUuid,
+                user.organizationUuid,
             );
 
             await this.jobModel.update(jobUuid, {
@@ -1418,6 +1459,9 @@ export class ProjectService extends BaseService {
                         user.userUuid,
                         newProjectUuid,
                         explores,
+                        'create_project',
+                        jobUuid,
+                        method,
                     );
                     return newProjectUuid;
                 },
@@ -1479,10 +1523,14 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // TODO: Do not hardcode CLI information here
         await this.saveExploresToCacheAndIndexCatalog(
             user.userUuid,
             projectUuid,
             explores,
+            'cli_deploy',
+            null,
+            'cli',
         );
 
         await this.schedulerClient.generateValidation({
@@ -1583,6 +1631,7 @@ export class ProjectService extends BaseService {
         const createProject = await this._resolveWarehouseClientCredentials(
             data,
             user.userUuid,
+            savedProject.organizationUuid,
         );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
@@ -1713,6 +1762,9 @@ export class ProjectService extends BaseService {
                                 user.userUuid,
                                 projectUuid,
                                 explores,
+                                'refresh_dbt',
+                                job.jobUuid,
+                                method,
                             );
                         } finally {
                             await adapter.destroy();
@@ -3976,6 +4028,9 @@ export class ProjectService extends BaseService {
                             user.userUuid,
                             projectUuid,
                             explores,
+                            'refresh_dbt',
+                            job.jobUuid,
+                            requestMethod,
                         );
                     },
                 );
@@ -6549,6 +6604,9 @@ export class ProjectService extends BaseService {
             user.userUuid,
             projectToSetExplores,
             [...convertedExplores, ...exploreErrors],
+            'refresh_dbt',
+            null,
+            'api',
         );
 
         Logger.info(`Schedule validation:`, {

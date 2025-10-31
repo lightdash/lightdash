@@ -2,9 +2,18 @@ import {
     getItemId,
     isAdditionalMetric,
     isCustomDimension,
+    OrderFieldsByStrategy,
+    type AdditionalMetric,
     type CompiledTable,
+    type CustomDimension,
+    type Explore,
 } from '@lightdash/common';
-import { isGroupNode, type Node } from '../Tree/types';
+import { sortNodes } from '../Tree/sortNodes';
+import {
+    isGroupNode,
+    type NodeMap,
+    type Node as TreeNode,
+} from '../Tree/types';
 import { getNodeMapFromItemsMap } from '../Tree/utils';
 import {
     buildGroupKey,
@@ -27,7 +36,7 @@ import {
  * Recursively flatten a node and its children
  */
 function flattenNodeRecursive(
-    node: Node,
+    node: TreeNode,
     sectionKey: string,
     sectionType: TreeSection,
     tableName: string,
@@ -35,8 +44,6 @@ function flattenNodeRecursive(
     searchResults: string[],
     isSearching: boolean,
     depth: number = 0,
-    parentId: string | null = null,
-    ancestorPath: string[] = [],
 ): TreeNodeItem[] {
     const items: TreeNodeItem[] = [];
 
@@ -65,41 +72,12 @@ function flattenNodeRecursive(
             return items;
         }
 
-        // Generate hierarchical ID
+        // Add the group node itself
         const groupKey = buildGroupKey(tableName, sectionType, node.key);
-        const id = parentId ? `${parentId}-child-${node.key}` : groupKey;
         const isExpanded = expandedGroups.has(groupKey) || isSearching;
 
-        // Collect child IDs
-        const childIds: string[] = [];
-
-        // Add children if expanded and collect their IDs
-        let childItems: TreeNodeItem[] = [];
-        if (isExpanded) {
-            Object.values(groupNode.children).forEach((child) => {
-                const childItemsForThisChild = flattenNodeRecursive(
-                    child,
-                    sectionKey,
-                    sectionType,
-                    tableName,
-                    expandedGroups,
-                    searchResults,
-                    isSearching,
-                    depth + 1,
-                    id,
-                    [...ancestorPath, id],
-                );
-                // First item is always the child node itself
-                if (childItemsForThisChild.length > 0) {
-                    childIds.push(childItemsForThisChild[0].id);
-                }
-                childItems.push(...childItemsForThisChild);
-            });
-        }
-
-        // Add the group node itself
         items.push({
-            id,
+            id: groupKey,
             type: 'tree-node',
             estimatedHeight: ITEM_HEIGHTS.TREE_GROUP_NODE,
             data: {
@@ -108,22 +86,30 @@ function flattenNodeRecursive(
                 isExpanded,
                 sectionKey,
                 depth,
-                parentId,
-                childIds,
-                ancestorPath,
             },
         });
 
-        // Add all collected children
-        items.push(...childItems);
+        // Add children if expanded
+        if (isExpanded) {
+            Object.values(groupNode.children).forEach((child) => {
+                items.push(
+                    ...flattenNodeRecursive(
+                        child,
+                        sectionKey,
+                        sectionType,
+                        tableName,
+                        expandedGroups,
+                        searchResults,
+                        isSearching,
+                        depth + 1,
+                    ),
+                );
+            });
+        }
     } else {
-        // Single node - generate hierarchical ID
-        const id = parentId
-            ? `${parentId}-child-${node.key}`
-            : `${tableName}-${sectionType}-node-${node.key}`;
-
+        // Single node
         items.push({
-            id,
+            id: `${tableName}-${sectionType}-node-${node.key}`,
             type: 'tree-node',
             estimatedHeight: ITEM_HEIGHTS.TREE_SINGLE_NODE,
             data: {
@@ -131,9 +117,6 @@ function flattenNodeRecursive(
                 isGroup: false,
                 sectionKey,
                 depth,
-                parentId,
-                childIds: [],
-                ancestorPath,
             },
         });
     }
@@ -153,12 +136,22 @@ function flattenSection(
     options: FlattenTreeOptions,
     sectionContexts: Map<string, SectionContext>,
 ): TreeNodeItem[] {
+    // Use pre-computed nodeMap from options instead of computing it here
+    const nodeMapKey = `${tableName}-${sectionInfo.type}`;
+    const nodeMap = options.sectionNodeMaps.get(nodeMapKey);
+
+    // If no nodeMap found (shouldn't happen), return empty array
+    if (!nodeMap) {
+        return [];
+    }
+
     // Create section context and store it
     const sectionKey = buildSectionKey(tableName, sectionInfo.type);
     const sectionContext: SectionContext = {
         tableName,
         sectionType: sectionInfo.type,
         itemsMap: sectionInfo.itemsMap,
+        nodeMap, // Store the pre-computed nodeMap
         missingCustomMetrics:
             sectionInfo.type === TreeSection.CustomMetrics &&
             sectionInfo.missingItems
@@ -178,15 +171,16 @@ function flattenSection(
     };
     sectionContexts.set(sectionKey, sectionContext);
 
-    const nodeMap = getNodeMapFromItemsMap(
-        sectionInfo.itemsMap,
-        // Get group details from table if available
-        options.tables.find((t) => t.name === tableName)?.groupDetails,
-    );
-
     const items: TreeNodeItem[] = [];
 
-    Object.values(nodeMap).forEach((node) => {
+    // Sort nodes using the same logic as non-virtualized tree
+    const orderStrategy =
+        sectionInfo.orderFieldsBy ?? OrderFieldsByStrategy.LABEL;
+    const sortedNodes = Object.values(nodeMap).sort(
+        sortNodes(orderStrategy, sectionInfo.itemsMap),
+    );
+
+    sortedNodes.forEach((node) => {
         items.push(
             ...flattenNodeRecursive(
                 node,
@@ -510,13 +504,71 @@ export function flattenTreeForVirtualization(
         items.push(...flattenTable(table, options, sectionContexts));
     });
 
-    // Build global lookup map for O(1) access
-    const itemsById = new Map<string, FlattenedItem>();
-    items.forEach((item) => itemsById.set(item.id, item));
-
     return {
         items,
         sectionContexts,
-        itemsById,
     };
+}
+
+export function getNodeMapsForVirtualization(
+    explore: Explore,
+    additionalMetrics: AdditionalMetric[],
+    customDimensions: CustomDimension[],
+) {
+    const maps = new Map<string, NodeMap>();
+
+    Object.values(explore.tables).forEach((table) => {
+        const tableName = table.name;
+
+        // Dimensions section
+        const dimensionsMap = Object.fromEntries(
+            Object.values(table.dimensions).map((d) => [getItemId(d), d]),
+        );
+        if (Object.keys(dimensionsMap).length > 0) {
+            maps.set(
+                `${tableName}-dimensions`,
+                getNodeMapFromItemsMap(dimensionsMap, table.groupDetails),
+            );
+        }
+
+        // Metrics section
+        const metricsMap = Object.fromEntries(
+            Object.values(table.metrics).map((m) => [getItemId(m), m]),
+        );
+        if (Object.keys(metricsMap).length > 0) {
+            maps.set(
+                `${tableName}-metrics`,
+                getNodeMapFromItemsMap(metricsMap, table.groupDetails),
+            );
+        }
+
+        // Custom metrics section
+        const customMetricsForTable = additionalMetrics.filter(
+            (metric) => metric.table === tableName,
+        );
+        if (customMetricsForTable.length > 0) {
+            const customMetricsMap = Object.fromEntries(
+                customMetricsForTable.map((m) => [getItemId(m), m]),
+            );
+            maps.set(
+                `${tableName}-custom-metrics`,
+                getNodeMapFromItemsMap(customMetricsMap, table.groupDetails),
+            );
+        }
+
+        // Custom dimensions section
+        const customDimensionsForTable =
+            customDimensions?.filter((dim) => dim.table === tableName) || [];
+        if (customDimensionsForTable.length > 0) {
+            const customDimensionsMap = Object.fromEntries(
+                customDimensionsForTable.map((d) => [getItemId(d), d]),
+            );
+            maps.set(
+                `${tableName}-custom-dimensions`,
+                getNodeMapFromItemsMap(customDimensionsMap, table.groupDetails),
+            );
+        }
+    });
+
+    return maps;
 }

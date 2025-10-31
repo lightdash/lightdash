@@ -39,3 +39,16 @@ export type ApiOrganizationWarehouseCredentialsListResponse = {
     status: 'ok';
     results: OrganizationWarehouseCredentials[];
 };
+
+export type OrganizationWarehouseCredentialsSummary = Pick<
+    OrganizationWarehouseCredentials,
+    | 'organizationWarehouseCredentialsUuid'
+    | 'name'
+    | 'description'
+    | 'warehouseType'
+>;
+
+export type ApiOrganizationWarehouseCredentialsSummaryListResponse = {
+    status: 'ok';
+    results: OrganizationWarehouseCredentialsSummary[];
+};

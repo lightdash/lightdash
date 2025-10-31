@@ -67,6 +67,7 @@ export const baseAgentSchema = z.object({
     userAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -88,6 +89,7 @@ export type AiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -107,6 +109,7 @@ export type AiAgentSummary = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -137,6 +140,7 @@ export type AiAgentMessageAssistantArtifact = Pick<
 
 export type AiAgentMessageAssistant = {
     role: 'assistant';
+    status: 'idle' | 'pending' | 'error';
     uuid: string;
     threadUuid: string;
 
@@ -150,6 +154,7 @@ export type AiAgentMessageAssistant = {
 
     toolCalls: AiAgentToolCall[];
     toolResults: AiAgentToolResult[];
+    reasoning: AiAgentReasoning[];
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
@@ -200,6 +205,7 @@ export type ApiCreateAiAgent = Pick<
     | 'userAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
+    | 'enableReasoning'
     | 'version'
 >;
 
@@ -216,6 +222,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'userAccess'
         | 'enableDataAccess'
         | 'enableSelfImprovement'
+        | 'enableReasoning'
         | 'version'
     >
 > & {
@@ -343,6 +350,14 @@ export type AiAgentToolResult = {
           metadata: AgentToolOutput['metadata'];
       }
 );
+
+export type AiAgentReasoning = {
+    uuid: string;
+    promptUuid: string;
+    reasoningId: string;
+    text: string;
+    createdAt: Date;
+};
 
 export type AiAgentExploreAccessSummary = {
     exploreName: string;

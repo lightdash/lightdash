@@ -163,10 +163,10 @@ export const toolRunQueryArgsSchema = createToolSchema({
 })
     .extend({
         ...visualizationMetadataSchema.shape,
-        queryConfig: queryConfigSchema,
-        chartConfig: chartConfigSchema,
         customMetrics: customMetricsSchema,
         tableCalculations: tableCalcsSchema,
+        queryConfig: queryConfigSchema,
+        chartConfig: chartConfigSchema,
         filters: filtersSchemaV2.nullable(),
     })
     .build();

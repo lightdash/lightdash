@@ -6,6 +6,7 @@ import {
     type DashboardFilterInteractivityOptions,
     type EmbedUrl,
     type IntrinsicUserAttributes,
+    type ParameterInteractivityOptions,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -63,6 +64,7 @@ type FormValues = {
         value: string;
     }>;
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
+    parameterInteractivity: ParameterInteractivityOptions;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     externalId?: string;
@@ -93,6 +95,9 @@ const EmbedUrlForm: FC<{
             email: user?.email,
             dashboardFiltersInteractivity: {
                 enabled: FilterInteractivityValues.none,
+            },
+            parameterInteractivity: {
+                enabled: false,
             },
             canExportCsv: false,
             canExportImages: false,
@@ -130,6 +135,7 @@ const EmbedUrlForm: FC<{
                               }
                             : {}),
                     },
+                    parameterInteractivity: values.parameterInteractivity,
                     canExportCsv: values.canExportCsv,
                     canExportImages: values.canExportImages,
                     isPreview,
@@ -290,6 +296,16 @@ const EmbedUrlForm: FC<{
                     />
                 </Input.Wrapper>
 
+                <Switch
+                    checked={form.values.parameterInteractivity.enabled}
+                    onChange={(event) =>
+                        form.setFieldValue('parameterInteractivity', {
+                            enabled: event.currentTarget.checked,
+                        })
+                    }
+                    labelPosition="left"
+                    label={`Allow users to change parameters`}
+                />
                 <Switch
                     {...form.getInputProps(`canExportCsv`)}
                     labelPosition="left"

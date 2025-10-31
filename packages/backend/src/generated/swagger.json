@@ -1222,6 +1222,9 @@
                     },
                     "dashboardFiltersInteractivity": {
                         "properties": {
+                            "hidden": {
+                                "type": "boolean"
+                            },
                             "allowedFilters": {
                                 "items": {
                                     "type": "string"
@@ -2029,6 +2032,9 @@
                                     },
                                     "dashboardFiltersInteractivity": {
                                         "properties": {
+                                            "hidden": {
+                                                "type": "boolean"
+                                            },
                                             "allowedFilters": {
                                                 "items": {
                                                     "type": "string"
@@ -5933,7 +5939,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6005,6 +6011,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -6025,13 +6034,14 @@
                     "userAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -6089,7 +6099,7 @@
             "ApiUpdateUserAgentPreferences": {
                 "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6161,6 +6171,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -6181,13 +6194,14 @@
                     "userAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -6217,7 +6231,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6273,6 +6287,9 @@
                         "type": "boolean"
                     },
                     "enableSelfImprovement": {
+                        "type": "boolean"
+                    },
+                    "enableReasoning": {
                         "type": "boolean"
                     },
                     "version": {
@@ -6291,15 +6308,16 @@
                     "userAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -6357,6 +6375,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -6368,7 +6389,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version__"
                     },
                     {
                         "properties": {
@@ -6583,7 +6604,6 @@
                     "generateTableVizConfig",
                     "generateTimeSeriesVizConfig",
                     "generateDashboard",
-                    "generateDashboardV2",
                     "findContent",
                     "findExplores",
                     "findFields",
@@ -6728,6 +6748,19 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
                                             }
                                         ]
                                     },
@@ -6741,6 +6774,34 @@
                         ]
                     }
                 ]
+            },
+            "AiAgentReasoning": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "reasoningId": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "text",
+                    "reasoningId",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
             },
             "Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_": {
                 "properties": {
@@ -6794,6 +6855,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "reasoning": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReasoning"
+                        },
+                        "type": "array"
+                    },
                     "toolResults": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentToolResult"
@@ -6833,6 +6900,7 @@
                 "required": [
                     "artifacts",
                     "savedQueryUuid",
+                    "reasoning",
                     "toolResults",
                     "toolCalls",
                     "humanScore",
@@ -8331,6 +8399,51 @@
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/OrganizationWarehouseCredentials"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_OrganizationWarehouseCredentials.organizationWarehouseCredentialsUuid-or-name-or-description-or-warehouseType_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "organizationWarehouseCredentialsUuid",
+                    "warehouseType"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OrganizationWarehouseCredentialsSummary": {
+                "$ref": "#/components/schemas/Pick_OrganizationWarehouseCredentials.organizationWarehouseCredentialsUuid-or-name-or-description-or-warehouseType_"
+            },
+            "ApiOrganizationWarehouseCredentialsSummaryListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationWarehouseCredentialsSummary"
                         },
                         "type": "array"
                     },
@@ -16247,6 +16360,338 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "CompilationSource": {
+                "type": "string",
+                "enum": ["cli_deploy", "refresh_dbt", "create_project"]
+            },
+            "Partial_Explore_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "baseTable": {
+                        "type": "string"
+                    },
+                    "joinedTables": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledExploreJoin"
+                        },
+                        "type": "array"
+                    },
+                    "tables": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CompiledTable"
+                        },
+                        "type": "object"
+                    },
+                    "unfilteredTables": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CompiledTable"
+                        },
+                        "type": "object"
+                    },
+                    "targetDatabase": {
+                        "$ref": "#/components/schemas/SupportedDbtAdapter"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "databricksCompute": {
+                        "type": "string"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
+                    "sqlPath": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "Pick_Explore.name-or-label-or-groupLabel_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "label"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "InlineErrorType": {
+                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
+            "ExploreError": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_Explore_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_Explore.name-or-label-or-groupLabel_"
+                    },
+                    {
+                        "properties": {
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/InlineError"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["errors"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "CompilationHistoryReport": {
+                "properties": {
+                    "baseTableNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "exploresWithErrors": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExploreError"
+                        },
+                        "type": "array"
+                    },
+                    "dimensionsCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "metricsCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorExploresCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "successfulExploresCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalExploresCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "baseTableNames",
+                    "exploresWithErrors",
+                    "dimensionsCount",
+                    "metricsCount",
+                    "errorExploresCount",
+                    "successfulExploresCount",
+                    "totalExploresCount"
+                ],
+                "type": "object"
+            },
+            "ProjectCompileLog": {
+                "properties": {
+                    "report": {
+                        "$ref": "#/components/schemas/CompilationHistoryReport"
+                    },
+                    "warehouseType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestMethod": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dbtConnectionType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "compilationSource": {
+                        "$ref": "#/components/schemas/CompilationSource"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "userName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jobUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "projectCompileLogId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "report",
+                    "warehouseType",
+                    "requestMethod",
+                    "dbtConnectionType",
+                    "compilationSource",
+                    "createdAt",
+                    "organizationUuid",
+                    "userName",
+                    "userUuid",
+                    "jobUuid",
+                    "projectUuid",
+                    "projectCompileLogId"
+                ],
+                "type": "object"
+            },
+            "ApiProjectCompileLogsResults": {
+                "properties": {
+                    "pagination": {
+                        "properties": {
+                            "totalResults": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "totalPageCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "pageSize": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "page": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "totalResults",
+                            "totalPageCount",
+                            "pageSize",
+                            "page"
+                        ],
+                        "type": "object"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectCompileLog"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiProjectCompileLogsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiProjectCompileLogsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProjectCompileLogResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "log": {
+                                "$ref": "#/components/schemas/ProjectCompileLog"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ResourceViewItemType.DASHBOARD": {
                 "enum": ["dashboard"],
                 "type": "string"
@@ -18145,22 +18590,6 @@
                 "required": ["databaseName", "schemaName"],
                 "type": "object"
             },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
-            },
             "Pick_ExploreError.SummaryExploreErrorFields_": {
                 "properties": {
                     "name": {
@@ -18292,19 +18721,6 @@
                     "groupLabel": {
                         "type": "string"
                     },
-                    "aiHint": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
                     "baseTable": {
                         "type": "string"
                     },
@@ -18332,6 +18748,19 @@
                     },
                     "sqlPath": {
                         "type": "string"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -20999,7 +21428,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2104.5",
+        "version": "0.2118.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -21050,7 +21479,14 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsListResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApiOrganizationWarehouseCredentialsSummaryListResponse"
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -21070,7 +21506,17 @@
                 "summary": "List warehouse credentials",
                 "tags": ["Organization Warehouse Credentials"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "description": "If true, returns only summaries (name, type) accessible to all members. If false/undefined, returns full credentials requiring manage permission.",
+                        "in": "query",
+                        "name": "summary",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
             },
             "post": {
                 "operationId": "CreateOrganizationWarehouseCredentials",
@@ -28128,6 +28574,160 @@
                     {
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/compile-logs": {
+            "get": {
+                "operationId": "getProjectCompileLogs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectCompileLogsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get compilation logs for a project",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "number of items per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "number of page",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "column to sort by",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["created_at", "compilation_source"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    },
+                    {
+                        "description": "filter by triggered user UUIDs (comma-separated)",
+                        "in": "query",
+                        "name": "triggeredByUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by source (\"cli_deploy\", \"refresh_dbt\")",
+                        "in": "query",
+                        "name": "source",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "cli_deploy",
+                                "refresh_dbt",
+                                "create_project"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid}": {
+            "get": {
+                "operationId": "getProjectCompileLogByJob",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectCompileLogResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get compilation log by job UUID",
+                "summary": "Get compilation log for a specific job",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the job",
+                        "in": "path",
+                        "name": "jobUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

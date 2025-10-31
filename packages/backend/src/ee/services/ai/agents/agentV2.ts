@@ -399,7 +399,9 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}`,
         );
 
-        dependencies.perf.measureGenerateResponseTime(Date.now() - startTime);
+        const totalTime = Date.now() - startTime;
+        dependencies.perf.measureGenerateResponseTime(totalTime);
+        dependencies.perf.measureTTFT(totalTime, modelName, 'generate');
 
         return result.text;
     } catch (error) {
@@ -433,6 +435,8 @@ export const streamAgentResponse = async ({
     const tools = getAgentTools(args, dependencies);
 
     const startTime = Date.now();
+    let firstChunkTime: number | null = null;
+    let firstTextTime: number | null = null;
     const modelName =
         typeof args.model === 'string' ? args.model : args.model.modelId;
 
@@ -450,8 +454,19 @@ export const streamAgentResponse = async ({
             messages,
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
+                // Track time to first chunk (any type) - only once
+                if (firstChunkTime === null) {
+                    firstChunkTime = Date.now();
+                    const ttfc = firstChunkTime - startTime;
+                    logger(
+                        'First Chunk',
+                        `Time to first chunk (${event.chunk.type}): ${ttfc}ms`,
+                    );
+                    dependencies.perf.measureStreamFirstChunk(ttfc);
+                }
+
                 switch (event.chunk.type) {
-                    case 'tool-call': {
+                    case 'tool-call':
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -491,8 +506,8 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    }
-                    case 'tool-result': {
+
+                    case 'tool-result':
                         logger(
                             'Chunk Tool Result',
                             `Storing tool result for Prompt UUID ${
@@ -523,14 +538,22 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    }
-                    case 'text-delta': {
-                        logger(
-                            'Chunk Text Delta',
-                            `Received text chunk: ${event.chunk.text}`,
-                        );
+                    case 'text-delta':
+                        // Track time to first text token (TTFT) - only once
+                        if (firstTextTime === null) {
+                            firstTextTime = Date.now();
+                            const ttft = firstTextTime - startTime;
+                            logger(
+                                'Chunk Text Delta',
+                                `Time to first text token (TTFT): ${ttft}ms`,
+                            );
+                            dependencies.perf.measureTTFT(
+                                ttft,
+                                modelName,
+                                'stream',
+                            );
+                        }
                         break;
-                    }
                     case 'raw':
                     case 'reasoning-delta':
                     case 'source':
@@ -542,7 +565,50 @@ export const streamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onFinish: ({ text, usage, steps }) => {
+            onStepFinish: (step) => {
+                const reasoningsToStore = step.reasoning
+                    .map((reasoning) => {
+                        if (
+                            reasoning.text &&
+                            reasoning.text.length > 0 &&
+                            'providerMetadata' in reasoning &&
+                            typeof reasoning.providerMetadata === 'object' &&
+                            reasoning.providerMetadata !== null &&
+                            'openai' in reasoning.providerMetadata &&
+                            typeof reasoning.providerMetadata.openai ===
+                                'object' &&
+                            reasoning.providerMetadata.openai !== null &&
+                            'itemId' in reasoning.providerMetadata.openai &&
+                            typeof reasoning.providerMetadata.openai.itemId ===
+                                'string'
+                        ) {
+                            return {
+                                reasoningId:
+                                    reasoning.providerMetadata.openai.itemId,
+                                text: reasoning.text,
+                            };
+                        }
+                        return null;
+                    })
+                    .filter((r) => r !== null);
+
+                if (reasoningsToStore.length > 0) {
+                    logger(
+                        'On Step Finish',
+                        `Storing ${reasoningsToStore.length} reasoning parts for Prompt UUID ${args.promptUuid}`,
+                    );
+                    void dependencies
+                        .storeReasoning(args.promptUuid, reasoningsToStore)
+                        .catch((error) => {
+                            Logger.error(
+                                'On Step Finish',
+                                `Failed to store reasoning: ${error}`,
+                            );
+                            Sentry.captureException(error);
+                        });
+                }
+            },
+            onFinish: ({ usage, steps, reasoning }) => {
                 logger(
                     'On Finish',
                     'Stream finished. Updating prompt with response.',
@@ -580,7 +646,9 @@ export const streamAgentResponse = async ({
                 });
                 logger(
                     'On Finish',
-                    `Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
+                    `Usage: ${JSON.stringify(usage)}, step length: ${
+                        steps.length
+                    }, reasoning length: ${reasoning.length}`,
                 );
 
                 dependencies.perf.measureStreamResponseTime(
@@ -604,6 +672,7 @@ export const streamAgentResponse = async ({
                 args,
             ),
         });
+
         logger('Stream Agent Response', 'Returning stream result.');
         return result;
     } catch (error) {

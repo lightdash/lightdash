@@ -35,6 +35,7 @@ import {
 } from '../../hooks/useRefreshServer';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import MantineIcon from '../common/MantineIcon';
+import ProjectCompileLog from './ProjectCompileLog';
 
 dayjs.extend(duration);
 dayjs.extend(utc);
@@ -151,6 +152,8 @@ const JobDetailsDrawer: FC = () => {
     }
 
     const hasSteps = !!activeJob?.steps.length;
+    const isJobDone = activeJob.jobStatus === JobStatusType.DONE;
+
     return (
         <Drawer
             trapFocus
@@ -308,6 +311,12 @@ const JobDetailsDrawer: FC = () => {
                         </Stack>
                     </Group>
                 ))}
+                {isJobDone && activeJob.projectUuid && (
+                    <ProjectCompileLog
+                        projectUuid={activeJob.projectUuid}
+                        jobUuid={activeJob.jobUuid}
+                    />
+                )}
             </Stack>
         </Drawer>
     );

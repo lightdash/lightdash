@@ -95,6 +95,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
         columnProperties?: ColumnProperties;
+        isMinimal: boolean;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -107,6 +108,7 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     showSubtotals = false,
     columnProperties = {},
+    isMinimal = false,
     ...tableProps
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -419,9 +421,16 @@ const PivotTable: FC<PivotTableProps> = ({
                         {/* shows empty cell if row numbers are visible */}
                         {hideRowNumbers ? null : headerRowIndex <
                           data.headerValues.length - 1 ? (
-                            <Table.Cell withMinimalWidth />
+                            <Table.Cell
+                                isMinimal={isMinimal}
+                                withMinimalWidth
+                            />
                         ) : (
-                            <Table.CellHead withMinimalWidth withBoldFont>
+                            <Table.CellHead
+                                isMinimal={isMinimal}
+                                withMinimalWidth
+                                withBoldFont
+                            >
                                 #
                             </Table.CellHead>
                         )}
@@ -440,12 +449,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        isMinimal={isMinimal}
                                         withMinimalWidth
                                     />
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         withAlignRight={isHeaderTitle}
+                                        isMinimal={isMinimal}
                                         withMinimalWidth
                                         withBoldFont
                                         withTooltip={
@@ -474,6 +485,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    isMinimal={isMinimal}
                                     withBoldFont={isLabel}
                                     withTooltip={description}
                                     colSpan={
@@ -495,6 +507,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                       totalLabel ? (
                                           <Table.CellHead
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              isMinimal={isMinimal}
                                               withBoldFont
                                               withMinimalWidth
                                           >
@@ -507,6 +520,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                       ) : (
                                           <Table.Cell
                                               key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              isMinimal={isMinimal}
                                               withMinimalWidth
                                           />
                                       ),
@@ -640,6 +654,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}`}
+                                        isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         withColor={conditionalFormatting?.color}
                                         withBoldFont={meta?.type === 'label'}
@@ -775,6 +790,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     totalLabel ? (
                                         <Table.CellHead
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            isMinimal={isMinimal}
                                             withAlignRight
                                             withBoldFont
                                         >
@@ -787,6 +803,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ) : (
                                         <Table.Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            isMinimal={isMinimal}
                                         />
                                     ),
                             )}
@@ -805,6 +822,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <Table.CellHead
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                         withAlignRight
+                                        isMinimal={isMinimal}
                                         withBoldFont
                                         withInteractions
                                         withValue={value.formatted}
@@ -830,6 +848,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                        isMinimal={isMinimal}
                                     />
                                 );
                             })}
@@ -838,6 +857,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ? data.rowTotalFields?.[0].map((_, index) => (
                                       <Table.Cell
                                           key={`footer-empty-${totalRowIndex}-${index}`}
+                                          isMinimal={isMinimal}
                                       />
                                   ))
                                 : null}

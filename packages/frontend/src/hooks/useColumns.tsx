@@ -159,7 +159,6 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 };
 
 export const useColumns = (): TableColumn[] => {
-    // Use Redux for state that's available
     const tableName = useExplorerSelector(selectTableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -167,12 +166,10 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
-    // Get state from new query hook
     const { activeFields, query } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
 
-    // Get parameters from Redux
     const parameters = useExplorerSelector(selectParameters);
 
     const { data: exploreData } = useExplore(tableName, {
@@ -181,29 +178,52 @@ export const useColumns = (): TableColumn[] => {
 
     const { embedToken } = useEmbed();
 
-    const itemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (!exploreData) return;
+    const hasNoActiveFields = activeFields.size === 0;
 
-        const baseItemsMap = getItemMap(
+    // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
+    // This prevents full recalculation when only metricOverrides change
+    const baseItemsMap = useMemo<ItemsMap | undefined>(() => {
+        if (!exploreData || hasNoActiveFields) return;
+
+        const baseFields = getItemMap(
             exploreData,
             additionalMetrics,
             tableCalculations,
             customDimensions,
         );
 
-        const mergedMap = {
-            ...baseItemsMap,
+        return {
+            ...baseFields,
             ...(resultsFields || {}),
         };
+    }, [
+        hasNoActiveFields,
+        resultsFields,
+        exploreData,
+        additionalMetrics,
+        tableCalculations,
+        customDimensions,
+    ]);
 
+    // Apply metric overrides as a separate layer
+    const itemsMap = useMemo<ItemsMap | undefined>(() => {
+        if (!baseItemsMap) return;
+
+        // If no overrides, return base map directly
+        if (!metricOverrides || Object.keys(metricOverrides).length === 0) {
+            return baseItemsMap;
+        }
+
+        // Only apply overrides to items that have them
         return Object.fromEntries(
-            Object.entries(mergedMap).map(([key, value]) => {
+            Object.entries(baseItemsMap).map(([key, value]) => {
                 const isFromResults = resultsFields && key in resultsFields;
                 if (isFromResults) {
                     return [key, value];
                 }
 
-                if (!metricOverrides?.[key]) return [key, value];
+                if (!metricOverrides[key]) return [key, value];
+
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
                     'round',
@@ -217,46 +237,36 @@ export const useColumns = (): TableColumn[] => {
                 ];
             }),
         );
-    }, [
-        resultsFields,
-        exploreData,
-        additionalMetrics,
-        tableCalculations,
-        customDimensions,
-        metricOverrides,
-    ]);
+    }, [baseItemsMap, metricOverrides, resultsFields]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        if (itemsMap) {
-            return Array.from(activeFields).reduce<{
-                activeItemsMap: ItemsMap;
-                invalidActiveItems: string[];
-            }>(
-                (acc, key) => {
-                    const item = itemsMap?.[key];
-                    return item
-                        ? {
-                              ...acc,
-                              activeItemsMap: {
-                                  ...acc.activeItemsMap,
-                                  [key]: item,
-                              },
-                          }
-                        : {
-                              ...acc,
-                              invalidActiveItems: [
-                                  ...acc.invalidActiveItems,
-                                  key,
-                              ],
-                          };
-                },
-                { activeItemsMap: {}, invalidActiveItems: [] },
-            );
+        if (!itemsMap) {
+            return { activeItemsMap: {}, invalidActiveItems: [] };
         }
-        return { activeItemsMap: {}, invalidActiveItems: [] };
+
+        const result: {
+            activeItemsMap: ItemsMap;
+            invalidActiveItems: string[];
+        } = {
+            activeItemsMap: {},
+            invalidActiveItems: [],
+        };
+
+        // Filter itemsMap to only include active fields
+        // This is more efficient than spreading objects in a reduce
+        for (const key of activeFields) {
+            const item = itemsMap[key];
+            if (item) {
+                result.activeItemsMap[key] = item;
+            } else {
+                result.invalidActiveItems.push(key);
+            }
+        }
+
+        return result;
     }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
@@ -271,6 +281,10 @@ export const useColumns = (): TableColumn[] => {
     });
 
     return useMemo(() => {
+        if (hasNoActiveFields) {
+            return [];
+        }
+
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
         >((acc, [fieldId, item]) => {
@@ -395,5 +409,12 @@ export const useColumns = (): TableColumn[] => {
             [],
         );
         return [...validColumns, ...invalidColumns];
-    }, [activeItemsMap, invalidActiveItems, sorts, totals, exploreData]);
+    }, [
+        hasNoActiveFields,
+        activeItemsMap,
+        invalidActiveItems,
+        sorts,
+        totals,
+        exploreData,
+    ]);
 };
