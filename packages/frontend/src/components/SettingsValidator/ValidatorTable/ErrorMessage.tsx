@@ -1,4 +1,5 @@
 import {
+    DashboardFilterValidationErrorType,
     friendlyName,
     isChartValidationError,
     isDashboardValidationError,
@@ -36,21 +37,50 @@ const ErrorMessageByType: FC<{
     }
 
     if (isDashboardValidationError(validationError)) {
-        return (
-            <Text>
-                {validationError.fieldName ? (
-                    <>
-                        <CustomMark>{validationError.fieldName}</CustomMark> no
-                        longer exists
-                    </>
-                ) : (
-                    <>
-                        <CustomMark>{validationError.chartName}</CustomMark> is
-                        broken
-                    </>
-                )}
-            </Text>
-        );
+        // Handle dashboard filter errors with typed error types
+        if (validationError.dashboardFilterErrorType) {
+            switch (validationError.dashboardFilterErrorType) {
+                case DashboardFilterValidationErrorType.TableNotUsedByAnyChart:
+                    return (
+                        <Text>
+                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
+                            references table{' '}
+                            <CustomMark>{validationError.tableName}</CustomMark>{' '}
+                            which is not used by any chart on this dashboard
+                        </Text>
+                    );
+                case DashboardFilterValidationErrorType.FieldDoesNotExist:
+                    return (
+                        <Text>
+                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
+                            no longer exists
+                        </Text>
+                    );
+                case DashboardFilterValidationErrorType.TableDoesNotExist:
+                    return (
+                        <Text>
+                            Table{' '}
+                            <CustomMark>{validationError.tableName}</CustomMark>{' '}
+                            no longer exists
+                        </Text>
+                    );
+                default:
+                    return <Text>{validationError.error}</Text>;
+            }
+        }
+
+        // Handle broken chart errors
+        if (validationError.chartName) {
+            return (
+                <Text>
+                    <CustomMark>{validationError.chartName}</CustomMark> is
+                    broken
+                </Text>
+            );
+        }
+
+        // Fallback for unexpected cases
+        return <Text>{validationError.error}</Text>;
     }
 
     if (isTableValidationError(validationError) && validationError) {

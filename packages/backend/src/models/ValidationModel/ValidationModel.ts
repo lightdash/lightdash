@@ -1,6 +1,7 @@
 import {
     ChartKind,
     CreateValidation,
+    DashboardFilterValidationErrorType,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
@@ -102,6 +103,45 @@ export class ValidationModel {
         await this.database(ValidationTableName)
             .where('validation_id', validationId)
             .delete();
+    }
+
+    private static parseDashboardFilterError(error: string): {
+        tableName?: string;
+        dashboardFilterErrorType?: DashboardFilterValidationErrorType;
+    } {
+        // Parse "Filter error: the field 'X' references table 'Y' which is not used by any chart on this dashboard"
+        const tableNotUsedMatch = error.match(
+            /references table '([^']+)' which is not used by any chart on this dashboard/,
+        );
+        if (tableNotUsedMatch) {
+            return {
+                tableName: tableNotUsedMatch[1],
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.TableNotUsedByAnyChart,
+            };
+        }
+
+        // Parse "Filter error: the field 'X' no longer exists"
+        if (error.includes('no longer exists')) {
+            return {
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldDoesNotExist,
+            };
+        }
+
+        // Parse "Table 'X' no longer exists" (future case)
+        const tableNotExistMatch = error.match(
+            /Table '([^']+)' no longer exists/,
+        );
+        if (tableNotExistMatch) {
+            return {
+                tableName: tableNotExistMatch[1],
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.TableDoesNotExist,
+            };
+        }
+
+        return {};
     }
 
     async get(
@@ -275,27 +315,35 @@ export class ValidationModel {
             ]);
 
         const dashboardValidationErrors: ValidationErrorDashboardResponse[] =
-            dashboardValidationErrorsRows.map((validationError) => ({
-                createdAt: validationError.created_at,
-                dashboardUuid: validationError.dashboard_uuid!,
-                dashboardViews: validationError.views_count,
-                projectUuid: validationError.project_uuid,
-                error: validationError.error,
-                name:
-                    validationError.name ||
-                    validationError.model_name ||
-                    'Dashboard does not exist',
-                lastUpdatedBy: validationError.first_name
-                    ? `${validationError.first_name} ${validationError.last_name}`
-                    : undefined,
-                lastUpdatedAt: validationError.last_updated_at,
-                validationId: validationError.validation_id,
-                spaceUuid: validationError.space_uuid,
-                errorType: validationError.error_type,
-                fieldName: validationError.field_name ?? undefined,
-                chartName: validationError.chart_name ?? undefined,
-                source: ValidationSourceType.Dashboard,
-            }));
+            dashboardValidationErrorsRows.map((validationError) => {
+                const parsedError = ValidationModel.parseDashboardFilterError(
+                    validationError.error,
+                );
+                return {
+                    createdAt: validationError.created_at,
+                    dashboardUuid: validationError.dashboard_uuid!,
+                    dashboardViews: validationError.views_count,
+                    projectUuid: validationError.project_uuid,
+                    error: validationError.error,
+                    name:
+                        validationError.name ||
+                        validationError.model_name ||
+                        'Dashboard does not exist',
+                    lastUpdatedBy: validationError.first_name
+                        ? `${validationError.first_name} ${validationError.last_name}`
+                        : undefined,
+                    lastUpdatedAt: validationError.last_updated_at,
+                    validationId: validationError.validation_id,
+                    spaceUuid: validationError.space_uuid,
+                    errorType: validationError.error_type,
+                    fieldName: validationError.field_name ?? undefined,
+                    chartName: validationError.chart_name ?? undefined,
+                    source: ValidationSourceType.Dashboard,
+                    tableName: parsedError.tableName,
+                    dashboardFilterErrorType:
+                        parsedError.dashboardFilterErrorType,
+                };
+            });
 
         const tableValidationErrorsRows: DbValidationTable[] =
             await this.database(ValidationTableName)
