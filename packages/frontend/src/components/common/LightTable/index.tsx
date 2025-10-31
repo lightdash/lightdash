@@ -452,8 +452,6 @@ const BaseCell = (
                                 maw={400}
                                 multiline
                                 label={withTooltip}
-                                openDelay={500}
-                                variant="xs"
                             >
                                 <Text span>{children}</Text>
                             </Tooltip>

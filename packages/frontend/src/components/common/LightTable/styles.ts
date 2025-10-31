@@ -15,14 +15,9 @@ export const useTableStyles = createStyles((theme) => {
             borderCollapse: 'initial',
             borderSpacing: 0,
 
-            borderRadius: '4px',
-            border: `1px solid ${borderColor}`,
-            overflow: 'hidden',
-
             margin: 0,
             padding: 0,
 
-            /* All cells have right and bottom borders (inner borders only) */
             'th, td': {
                 transitionDuration: '200ms',
                 transitionProperty: 'box-shadow, background-color',
@@ -36,83 +31,16 @@ export const useTableStyles = createStyles((theme) => {
                 },
             },
 
-            /* First row cells: no top border (table border provides it) */
             '> *:first-child > *:first-child > *': {
-                boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
+                boxShadow: `inset 0 1px 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
             },
 
-            /* First row, first cell: no top or left border (table border provides them) */
             '> *:first-child > *:first-child > *:first-child': {
-                boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
+                boxShadow: `inset 1px 1px 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
             },
 
-            /* First row, last cell: no top or right border (table border provides them) */
-            '> *:first-child > *:first-child > *:last-child': {
-                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
-                '&:hover': {
-                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
-                },
-            },
-
-            /* First column cells: no left border (container provides it) */
             '> * > tr > *:first-child': {
-                boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
-            },
-
-            /* Last column cells: no right border (container provides it) */
-            '> * > tr > *:last-child': {
-                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
-                '&:hover': {
-                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
-                },
-            },
-
-            /* Body last row cells: no bottom border (container provides it) */
-            '> tbody:last-child > *:last-child > *': {
-                boxShadow: `inset -1px 0 0 0 ${borderColor}`,
-                '&:hover': {
-                    boxShadow: `inset -1px 0 0 0 ${borderColor} !important`,
-                },
-            },
-
-            /* Body last row, last cell: no right or bottom border */
-            '> tbody:last-child > *:last-child > *:last-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
-            },
-
-            /* Body last row, first cell: no left or bottom border */
-            '> tbody:last-child > *:last-child > *:first-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
-            },
-
-            /* Footer last row cells: no bottom border (container provides it) */
-            '> tfoot:last-child > *:last-child > *': {
-                boxShadow: `inset -1px 0 0 0 ${borderColor}`,
-                '&:hover': {
-                    boxShadow: `inset -1px 0 0 0 ${borderColor} !important`,
-                },
-            },
-
-            /* Footer last row, last cell: no right or bottom border */
-            '> tfoot:last-child > *:last-child > *:last-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
-            },
-
-            /* Footer last row, first cell: no left or bottom border */
-            '> tfoot:last-child > *:last-child > *:first-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
+                boxShadow: `inset 1px 0 0 0 ${borderColor}, inset -1px -1px 0 0 ${borderColor}`,
             },
         },
     };

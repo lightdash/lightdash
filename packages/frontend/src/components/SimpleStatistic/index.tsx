@@ -6,17 +6,12 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineTheme,
     type TextProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
-import {
-    forwardRef,
-    useMemo,
-    type FC,
-    type HTMLAttributes,
-    type ReactNode,
-} from 'react';
+import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
@@ -26,7 +21,6 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
-import styles from './SimpleStatistic.module.css';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
@@ -41,10 +35,10 @@ const BOX_MIN_HEIGHT = 25;
 const BOX_MAX_HEIGHT = 1000;
 
 const VALUE_SIZE_MIN = 24;
-const VALUE_SIZE_MAX = 96;
+const VALUE_SIZE_MAX = 64;
 
 const LABEL_SIZE_MIN = 14;
-const LABEL_SIZE_MAX = 40;
+const LABEL_SIZE_MAX = 32;
 
 const COMPARISON_VALUE_SIZE_MIN = 12;
 const COMPARISON_VALUE_SIZE_MAX = 22;
@@ -71,53 +65,25 @@ const calculateFontSize = (
     return fontSize;
 };
 
-const BigNumberText: FC<
-    TextProps & { children: ReactNode; isHeading?: boolean }
-> = forwardRef<
-    HTMLDivElement,
-    TextProps & { children: ReactNode; isHeading?: boolean }
->(({ children, isHeading = false, ...textProps }, ref) => {
-    return (
-        <Text
-            ref={ref}
-            c="gray.9"
-            ta="center"
-            fw={500}
-            {...textProps}
-            style={{
-                transition: 'font-size 0.1s ease-in-out',
-                ...(isHeading && {
-                    letterSpacing: '-0.02em',
-                    lineHeight: 1,
-                }),
-                ...textProps.style,
-            }}
-        >
-            {children}
-        </Text>
-    );
-});
-
-const getTrendPillClass = (
-    comparisonDiff: ComparisonDiffTypes,
-    flipColors?: boolean,
-): string => {
-    const variantClass = (() => {
-        switch (comparisonDiff) {
-            case ComparisonDiffTypes.POSITIVE:
-                return flipColors ? styles.trendPillDown : styles.trendPillUp;
-            case ComparisonDiffTypes.NEGATIVE:
-                return flipColors ? styles.trendPillUp : styles.trendPillDown;
-            case ComparisonDiffTypes.NAN:
-            case ComparisonDiffTypes.UNDEFINED:
-            case ComparisonDiffTypes.NONE:
-            default:
-                return styles.trendPillNeutral;
-        }
-    })();
-
-    return `${styles.trendPill} ${variantClass}`;
-};
+const BigNumberText: FC<TextProps> = forwardRef<HTMLDivElement, TextProps>(
+    ({ children, ...textProps }, ref) => {
+        return (
+            <Text
+                ref={ref}
+                c="dark.4"
+                align="center"
+                fw={500}
+                {...textProps}
+                style={{
+                    transition: 'font-size 0.1s ease-in-out',
+                    ...textProps.style,
+                }}
+            >
+                {children}
+            </Text>
+        );
+    },
+);
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -125,6 +91,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     isDashboard = false,
     ...wrapperProps
 }) => {
+    const theme = useMantineTheme();
     const ability = useAbilityContext();
     const { embedToken } = useEmbed();
 
@@ -142,14 +109,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             BOX_MAX_WIDTH,
         );
 
-        // Smarter height calculation: subtract tile header height when not hidden
-        // This ensures font size calculation uses actual available content area
-        const availableHeight =
-            (observerElementSize?.height || 0) -
-            (isDashboard && !isTitleHidden ? TILE_HEADER_HEIGHT : 0);
-
         const boundHeight = clamp(
-            availableHeight,
+            observerElementSize?.height || 0,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
         );
@@ -180,7 +141,31 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             labelFontSize: labelSize,
             comparisonFontSize: comparisonValueSize,
         };
-    }, [observerElementSize, isDashboard, isTitleHidden]);
+    }, [observerElementSize]);
+
+    const comparisonValueColor = useMemo(() => {
+        if (!isBigNumber) return undefined;
+
+        const { comparisonDiff, flipColors } = visualizationConfig.chartConfig;
+
+        switch (comparisonDiff) {
+            case ComparisonDiffTypes.NAN:
+            case ComparisonDiffTypes.UNDEFINED:
+                return theme.colors.gray[5];
+            case ComparisonDiffTypes.POSITIVE:
+                return flipColors ? theme.colors.red[7] : theme.colors.green[8];
+            case ComparisonDiffTypes.NEGATIVE:
+                return flipColors ? theme.colors.green[8] : theme.colors.red[7];
+            case ComparisonDiffTypes.NONE:
+                return 'inherit';
+        }
+    }, [
+        isBigNumber,
+        theme.colors.gray,
+        theme.colors.green,
+        theme.colors.red,
+        visualizationConfig.chartConfig,
+    ]);
 
     if (!isBigNumber) return null;
 
@@ -209,33 +194,22 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             w="100%"
             h="100%"
             component={Stack}
-            dir="column"
-            justify="center"
-            align="center"
-            gap={0}
+            spacing={0}
+            pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => {
                 setRef(elem);
             }}
             {...wrapperProps}
-            styles={{
-                root: {
-                    // TODO: remove this once Inter is the default font
-                    fontFamily:
-                        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                },
-            }}
         >
-            <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+            <Flex style={{ flexShrink: 1 }}>
                 {shouldHideContextMenu ? (
-                    <BigNumberText fz={valueFontSize} fw={600} isHeading>
+                    <BigNumberText fz={valueFontSize}>
                         {bigNumber}
                     </BigNumberText>
                 ) : (
                     <BigNumberContextMenu>
                         <BigNumberText
                             fz={valueFontSize}
-                            fw={600}
-                            isHeading
                             style={{ cursor: 'pointer' }}
                         >
                             {bigNumber}
@@ -245,77 +219,52 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             </Flex>
 
             {showBigNumberLabel ? (
-                <Flex
-                    style={{ flexShrink: 1 }}
-                    justify="center"
-                    align="center"
-                    mt={valueFontSize * 0.15}
-                >
-                    <Text
-                        fz={labelFontSize}
-                        c="gray.6"
-                        fw={500}
-                        ta="center"
-                        style={{
-                            transition: 'font-size 0.1s ease-in-out',
-                            lineHeight: '120%',
-                        }}
-                    >
+                <Flex style={{ flexShrink: 1 }}>
+                    <BigNumberText fz={labelFontSize}>
                         {bigNumberLabel || defaultLabel}
-                    </Text>
+                    </BigNumberText>
                 </Flex>
             ) : null}
 
             {showComparison ? (
                 <Flex
                     justify="center"
-                    align="center"
                     display="inline-flex"
                     wrap="wrap"
                     style={{ flexShrink: 1 }}
-                    mt={
-                        showBigNumberLabel
-                            ? labelFontSize * 0.85
-                            : valueFontSize * 0.15
-                    }
-                    gap="xs"
+                    mt={labelFontSize / 2}
                 >
                     <Tooltip withinPortal label={comparisonTooltip}>
-                        <Group
-                            className={getTrendPillClass(
-                                comparisonDiff,
-                                visualizationConfig.chartConfig.flipColors,
-                            )}
-                            fz={13}
-                        >
-                            {comparisonValue}
+                        <Group spacing="two" mr={comparisonLabel ? 'xs' : '0'}>
+                            <BigNumberText
+                                span
+                                fz={comparisonFontSize}
+                                c={comparisonValueColor}
+                            >
+                                {comparisonValue}
+                            </BigNumberText>
 
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
                                     display="inline"
-                                    size={14}
-                                    stroke={2}
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
                             ) : comparisonDiff ===
                               ComparisonDiffTypes.NEGATIVE ? (
                                 <MantineIcon
                                     icon={IconArrowDownRight}
                                     display="inline"
-                                    size={14}
-                                    stroke={2}
+                                    color={comparisonValueColor}
+                                    size={comparisonFontSize}
                                 />
                             ) : null}
                         </Group>
                     </Tooltip>
 
                     {comparisonLabel ? (
-                        <BigNumberText
-                            span
-                            fz={comparisonFontSize}
-                            c="gray.6"
-                            fw={400}
-                        >
+                        <BigNumberText span fz={comparisonFontSize} c="gray.6">
                             {comparisonLabel}
                         </BigNumberText>
                     ) : null}
