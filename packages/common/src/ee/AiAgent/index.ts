@@ -140,6 +140,7 @@ export type AiAgentMessageAssistantArtifact = Pick<
 
 export type AiAgentMessageAssistant = {
     role: 'assistant';
+    status: 'idle' | 'pending' | 'error';
     uuid: string;
     threadUuid: string;
 

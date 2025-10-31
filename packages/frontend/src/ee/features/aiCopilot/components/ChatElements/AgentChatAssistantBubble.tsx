@@ -73,15 +73,16 @@ const AssistantBubbleContent: FC<{
     const { streamMessage } = useAiAgentThreadStreamMutation();
     const mdStyle = useMdEditorStyle();
 
+    const isPending = message.status === 'pending';
     const hasStreamingError =
         streamingState?.error && streamingState?.messageUuid === message.uuid;
-    const hasNoResponse = !isStreaming && !message.message;
+    const hasNoResponse = !isStreaming && !message.message && !isPending;
     const shouldShowRetry = hasStreamingError || hasNoResponse;
 
     const messageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : message.message ?? 'No response...';
+            : message.message ?? '';
 
     const handleRetry = useCallback(() => {
         void streamMessage({
@@ -107,6 +108,10 @@ const AssistantBubbleContent: FC<{
     const proposeChangeToolResult = message.toolResults.find(
         (result) => result.toolName === 'proposeChange',
     );
+
+    const toolCalls = isStreaming
+        ? streamingState?.toolCalls ?? []
+        : message.toolCalls;
 
     return (
         <>
@@ -171,26 +176,16 @@ const AssistantBubbleContent: FC<{
             {!isStreaming && message.reasoning.length > 0 && (
                 <AiReasoning reasoning={message.reasoning} type="persisted" />
             )}
-            {isStreaming && (
+            {toolCalls.length > 0 ? (
                 <AiChartToolCalls
-                    toolCalls={streamingState?.toolCalls}
-                    type="streaming"
+                    toolCalls={toolCalls}
+                    type={isStreaming || isPending ? 'streaming' : 'persisted'}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
                     promptUuid={message.uuid}
                 />
-            )}
-            {!isStreaming && message.toolCalls.length > 0 && (
-                <AiChartToolCalls
-                    toolCalls={message.toolCalls}
-                    type="persisted"
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                />
-            )}
+            ) : null}
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
                     rehypeRewrite={rehypeRemoveHeaderLinks}
@@ -301,7 +296,9 @@ const AssistantBubbleContent: FC<{
                     }}
                 />
             ) : null}
-            {isStreaming ? <Loader type="dots" color="gray" /> : null}
+            {isStreaming || isPending ? (
+                <Loader type="dots" color="gray" />
+            ) : null}
             {proposeChangeToolCall && (
                 <AiProposeChangeToolCall
                     change={proposeChangeToolCall.change}
@@ -380,10 +377,11 @@ export const AssistantBubble: FC<Props> = memo(
             });
         }, [hasRating, updateFeedbackMutation, message.uuid]);
 
-        const isLoading = useAiAgentThreadMessageStreaming(
-            message.threadUuid,
-            message.uuid,
-        );
+        const isLoading =
+            useAiAgentThreadMessageStreaming(
+                message.threadUuid,
+                message.uuid,
+            ) || message.status === 'pending';
 
         return (
             <Stack
@@ -451,95 +449,94 @@ export const AssistantBubble: FC<Props> = memo(
                               ))}
                     </Stack>
                 )}
-                <Group gap={0}>
-                    <CopyButton value={message.message ?? ''}>
-                        {({ copied, copy }) => (
+                {isLoading ? null : (
+                    <Group gap={0}>
+                        <CopyButton value={message.message ?? ''}>
+                            {({ copied, copy }) => (
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label="copy"
+                                    onClick={copy}
+                                >
+                                    <MantineIcon
+                                        icon={copied ? IconCheck : IconCopy}
+                                    />
+                                </ActionIcon>
+                            )}
+                        </CopyButton>
+
+                        {(!hasRating || upVoted) && (
                             <ActionIcon
                                 variant="subtle"
                                 color="gray"
-                                aria-label="copy"
-                                onClick={copy}
-                                style={{
-                                    display: isLoading ? 'none' : 'block',
-                                }}
+                                aria-label="upvote"
+                                onClick={handleUpvote}
                             >
-                                <MantineIcon
-                                    icon={copied ? IconCheck : IconCopy}
-                                />
+                                <Tooltip
+                                    label="Feedback sent"
+                                    position="top"
+                                    withinPortal
+                                    withArrow
+                                    // Hack to only render tooltip (on hover) when `hasRating` is false
+                                    opened={hasRating ? undefined : false}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            upVoted
+                                                ? IconThumbUpFilled
+                                                : IconThumbUp
+                                        }
+                                    />
+                                </Tooltip>
                             </ActionIcon>
                         )}
-                    </CopyButton>
 
-                    {(!hasRating || upVoted) && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="upvote"
-                            onClick={handleUpvote}
-                            display={isLoading ? 'none' : 'block'}
-                        >
-                            <Tooltip
-                                label="Feedback sent"
-                                position="top"
-                                withinPortal
-                                withArrow
-                                // Hack to only render tooltip (on hover) when `hasRating` is false
-                                opened={hasRating ? undefined : false}
+                        {(!hasRating || downVoted) && (
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                aria-label="downvote"
+                                onClick={handleDownvote}
                             >
                                 <MantineIcon
                                     icon={
-                                        upVoted
-                                            ? IconThumbUpFilled
-                                            : IconThumbUp
+                                        downVoted
+                                            ? IconThumbDownFilled
+                                            : IconThumbDown
                                     }
                                 />
+                            </ActionIcon>
+                        )}
+
+                        {showAddToEvalsButton && onAddToEvals && (
+                            <Tooltip label="Add this response to evals">
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    aria-label="Add to evaluation set"
+                                    onClick={() => onAddToEvals(message.uuid)}
+                                >
+                                    <MantineIcon
+                                        icon={IconTestPipe}
+                                        color="gray"
+                                    />
+                                </ActionIcon>
                             </Tooltip>
-                        </ActionIcon>
-                    )}
+                        )}
 
-                    {(!hasRating || downVoted) && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="downvote"
-                            onClick={handleDownvote}
-                            display={isLoading ? 'none' : 'block'}
-                        >
-                            <MantineIcon
-                                icon={
-                                    downVoted
-                                        ? IconThumbDownFilled
-                                        : IconThumbDown
-                                }
-                            />
-                        </ActionIcon>
-                    )}
-
-                    {showAddToEvalsButton && onAddToEvals && (
-                        <Tooltip label="Add this response to evals">
+                        {isArtifactAvailable && (
                             <ActionIcon
                                 variant="subtle"
                                 color="gray"
-                                aria-label="Add to evaluation set"
-                                onClick={() => onAddToEvals(message.uuid)}
-                                display={isLoading ? 'none' : 'block'}
+                                aria-label="Debug information"
+                                onClick={openDrawer}
                             >
-                                <MantineIcon icon={IconTestPipe} color="gray" />
+                                <MantineIcon icon={IconBug} color="gray" />
                             </ActionIcon>
-                        </Tooltip>
-                    )}
-
-                    {isArtifactAvailable && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Debug information"
-                            onClick={openDrawer}
-                        >
-                            <MantineIcon icon={IconBug} color="gray" />
-                        </ActionIcon>
-                    )}
-                </Group>
+                        )}
+                    </Group>
+                )}
 
                 <AgentChatDebugDrawer
                     agentUuid={agentUuid}
