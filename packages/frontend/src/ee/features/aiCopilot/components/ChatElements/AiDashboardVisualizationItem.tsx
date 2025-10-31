@@ -1,5 +1,6 @@
 import {
     type AiAgentChartTypeOption,
+    type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
     type ToolTableVizArgs,
@@ -22,12 +23,15 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
     getAiAgentDashboardChartVizQueryKey,
     useAiAgentDashboardChartVizQuery,
 } from '../../hooks/useProjectAiAgents';
+import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
+import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
@@ -36,6 +40,7 @@ type Props = {
     threadUuid: string;
     artifactUuid: string;
     versionUuid: string;
+    message: AiAgentMessageAssistant;
     index: number;
 };
 
@@ -47,6 +52,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         threadUuid: _threadUuid,
         artifactUuid,
         versionUuid,
+        message,
         index,
     }) => {
         const queryClient = useQueryClient();
@@ -64,6 +70,13 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             projectUuid,
             queryExecutionHandle.data?.query?.queryUuid,
         );
+
+        const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+            tableName:
+                queryExecutionHandle.data?.query.metricQuery?.exploreName,
+            projectUuid,
+            metricQuery: queryExecutionHandle.data?.query.metricQuery,
+        });
 
         const isQueryLoading =
             queryExecutionHandle.isLoading || queryResults.isFetchingRows;
@@ -133,7 +146,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             ],
         );
 
-        const VisualizationHeader = () => (
+        const VisualizationHeaderSimple = () => (
             <Stack gap="two" flex={1}>
                 <Title order={4} size="h6">
                     {visualization.title}
@@ -146,10 +159,38 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             </Stack>
         );
 
+        const VisualizationHeaderWithButton = () => (
+            <Group gap="md" align="start" justify="space-between">
+                <Stack gap="two" flex={1}>
+                    <Title order={4} size="h6">
+                        {visualization.title}
+                    </Title>
+                    {visualization.description && (
+                        <Text c="dimmed" size="11px" fw={400}>
+                            {visualization.description}
+                        </Text>
+                    )}
+                </Stack>
+                <Group gap="sm">
+                    <ViewSqlButton sql={compiledSql?.query} />
+                    <AiChartQuickOptions
+                        projectUuid={projectUuid}
+                        saveChartOptions={{
+                            name: visualization.title,
+                            description: visualization.description ?? null,
+                            linkToMessage: false,
+                        }}
+                        message={message}
+                        compiledSql={compiledSql?.query}
+                    />
+                </Group>
+            </Group>
+        );
+
         if (isQueryLoading) {
             return (
                 <Stack gap="sm">
-                    <VisualizationHeader />
+                    <VisualizationHeaderSimple />
 
                     {/* Loading State */}
                     <Paper p="md" bg="gray.0">
@@ -169,7 +210,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         if (queryError || !queryExecutionHandle.data) {
             return (
                 <Stack gap="sm">
-                    <VisualizationHeader />
+                    <VisualizationHeaderSimple />
                     {/* Error State */}
                     <Paper p="md" bg="gray.0">
                         <Center h={100}>
@@ -221,14 +262,13 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
 
         return (
             <Stack gap="sm">
-                <VisualizationHeader />
-
                 {/* Actual Visualization */}
                 <Box mih={300}>
                     <AiVisualizationRenderer
                         results={queryResults}
                         queryExecutionHandle={queryExecutionHandle}
                         chartConfig={visualization}
+                        headerContent={<VisualizationHeaderWithButton />}
                         onDashboardChartTypeChange={
                             handleDashboardChartTypeChange
                         }
