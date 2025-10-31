@@ -129,6 +129,41 @@ export const testCases: TestCase[] = [
         expectedToolOutcome:
             'It should have used the findContent tool with search query related to "revenue"',
     },
+    // Custom metrics
+    {
+        prompt: 'Give me an average amount per payment method',
+        expectedAnswer: [
+            `Response contains average amount for each payment method`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response created a custom metric for average amount`,
+            `The custom metric is used as a metric in the query and chart configs`,
+        ].join('\n'),
+    },
+    {
+        prompt: 'Give me an average amount per payment method, sorted ascending, filter out averages less than 5',
+        expectedAnswer:
+            'Response contains average amount for each payment method',
+        expectedToolOutcome: [
+            `The response created a custom metric for average amount`,
+            `The custom metric is used as a metric in the query and chart configs`,
+            `The custom metric is sorted ascending`,
+            `The custom metric is filtered out averages less than 5`,
+        ].join('\n'),
+    },
+    {
+        prompt: "what's the total order shipping cost by month, how does it change MoM?",
+        expectedAnswer: [
+            `Response contains total order shipping cost by month and MoM change`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response created:`,
+            `- a custom metric for total order shipping cost`,
+            `- a table calculation for MoM change, referencing the above mentioned custom metric`,
+            `Both the custom metric and table calculation are used in the chart config`,
+            `Date dimension is used for sorting and x-axis`,
+        ].join('\n'),
+    },
 ];
 
 type Context = {

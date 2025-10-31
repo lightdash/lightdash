@@ -75,8 +75,8 @@ IMPORTANT: If the user requests metrics that don't exist (like "average customer
 When using custom metrics:
 1. Create the metric in customMetrics array with just the metric name (e.g., "avg_customer_age")
 2. Reference it in metrics array using the format "table_metricname" (e.g., "customers_avg_customer_age")
-3. Reference it in sorts array using the format "table_metricname" (e.g., "customers_avg_customer_age")
-4. DO NOT use the raw metric name in metrics or sorts arrays
+3. Reference it anywhere else you use fieldIds (sorts, filters, chartConfig.yAxisMetrics) using the same "table_metricname" format
+4. DO NOT use the raw metric name in metrics, sorts, filters, or chart configuration
 
 For example:
 - "Show me average customer age sorted descending" →
