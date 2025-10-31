@@ -1,126 +1,13 @@
 import {
-    DimensionType,
-    FieldType,
     MetricType,
-    SupportedDbtAdapter,
     type AdditionalMetric,
     type CustomMetricBase,
-    type Explore,
     type TableCalcsSchema,
     type TableCalculation,
 } from '@lightdash/common';
 
+import { mockUsersOrdersExplore } from './validationExplore.mock';
 import { validateSelectedFieldsExistence } from './validators';
-
-const mockExplore: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: 'test_explore',
-    label: 'Test Explore',
-    tags: [],
-    spotlight: {
-        visibility: 'show',
-        categories: [],
-    },
-    baseTable: 'users',
-    joinedTables: [
-        {
-            table: 'orders',
-            sqlOn: '${users.user_id} = ${orders.user_id}',
-            compiledSqlOn: '(users.user_id) = (orders.user_id)',
-            type: undefined,
-        },
-    ],
-    tables: {
-        users: {
-            name: 'users',
-            label: 'Users',
-            database: 'test_db',
-            schema: 'public',
-            sqlTable: 'users',
-            sqlWhere: undefined,
-            uncompiledSqlWhere: undefined,
-            dimensions: {
-                user_id: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.NUMBER,
-                    name: 'user_id',
-                    label: 'User ID',
-                    table: 'users',
-                    tableLabel: 'Users',
-                    sql: '${TABLE}.user_id',
-                    hidden: false,
-                    source: undefined,
-                    compiledSql: 'users.user_id',
-                    tablesReferences: ['users'],
-                },
-                user_name: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    name: 'user_name',
-                    label: 'User Name',
-                    table: 'users',
-                    tableLabel: 'Users',
-                    sql: '${TABLE}.user_name',
-                    hidden: false,
-                    source: undefined,
-                    compiledSql: 'users.user_name',
-                    tablesReferences: ['users'],
-                },
-            },
-            metrics: {
-                total_users: {
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.COUNT,
-                    name: 'total_users',
-                    label: 'Total Users',
-                    table: 'users',
-                    tableLabel: 'Users',
-                    sql: 'COUNT(*)',
-                    hidden: false,
-                    source: undefined,
-                    compiledSql: 'COUNT(*)',
-                    tablesReferences: ['users'],
-                },
-            },
-            lineageGraph: {},
-            source: undefined,
-            groupLabel: undefined,
-        },
-        orders: {
-            name: 'orders',
-            label: 'Orders',
-            database: 'test_db',
-            schema: 'public',
-            sqlTable: 'orders',
-            sqlWhere: undefined,
-            uncompiledSqlWhere: undefined,
-            dimensions: {
-                order_id: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.NUMBER,
-                    name: 'order_id',
-                    label: 'Order ID',
-                    table: 'orders',
-                    tableLabel: 'Orders',
-                    sql: '${TABLE}.order_id',
-                    hidden: false,
-                    source: undefined,
-                    compiledSql: 'orders.order_id',
-                    tablesReferences: ['orders'],
-                },
-            },
-            metrics: {},
-            lineageGraph: {},
-            source: undefined,
-            groupLabel: undefined,
-        },
-    },
-    groupLabel: undefined,
-    warehouse: undefined,
-    sqlPath: undefined,
-    ymlPath: undefined,
-    databricksCompute: undefined,
-};
 
 describe('validateSelectedFieldsExistence', () => {
     describe('when selected fields are valid', () => {
@@ -132,11 +19,14 @@ describe('validateSelectedFieldsExistence', () => {
             ];
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, selectedFieldIds),
+                validateSelectedFieldsExistence(
+                    mockUsersOrdersExplore,
+                    selectedFieldIds,
+                ),
             ).not.toThrow();
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, []),
+                validateSelectedFieldsExistence(mockUsersOrdersExplore, []),
             ).not.toThrow();
         });
 
@@ -144,7 +34,10 @@ describe('validateSelectedFieldsExistence', () => {
             const selectedFieldIds = ['users_user_id', 'orders_order_id'];
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, selectedFieldIds),
+                validateSelectedFieldsExistence(
+                    mockUsersOrdersExplore,
+                    selectedFieldIds,
+                ),
             ).not.toThrow();
         });
 
@@ -177,7 +70,7 @@ describe('validateSelectedFieldsExistence', () => {
 
             expect(() =>
                 validateSelectedFieldsExistence(
-                    mockExplore,
+                    mockUsersOrdersExplore,
                     selectedFieldIds,
                     customMetrics,
                     tableCalculations,
@@ -201,7 +94,7 @@ describe('validateSelectedFieldsExistence', () => {
 
             expect(() =>
                 validateSelectedFieldsExistence(
-                    mockExplore,
+                    mockUsersOrdersExplore,
                     customMetricSelectedFieldIds,
                     customMetrics,
                 ),
@@ -217,7 +110,7 @@ describe('validateSelectedFieldsExistence', () => {
 
             expect(() =>
                 validateSelectedFieldsExistence(
-                    mockExplore,
+                    mockUsersOrdersExplore,
                     aiAdditionalMetricSelectedFieldIds,
                     [aiAdditionalMetric],
                 ),
@@ -239,7 +132,7 @@ describe('validateSelectedFieldsExistence', () => {
 
             expect(() =>
                 validateSelectedFieldsExistence(
-                    mockExplore,
+                    mockUsersOrdersExplore,
                     tableCalcSchemaSelectedFieldIds,
                     null,
                     tableCalcSchema,
@@ -258,7 +151,7 @@ describe('validateSelectedFieldsExistence', () => {
 
             expect(() =>
                 validateSelectedFieldsExistence(
-                    mockExplore,
+                    mockUsersOrdersExplore,
                     tableCalculationSelectedFieldIds,
                     null,
                     tableCalculations,
@@ -276,17 +169,26 @@ describe('validateSelectedFieldsExistence', () => {
             ];
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, selectedFieldIds),
+                validateSelectedFieldsExistence(
+                    mockUsersOrdersExplore,
+                    selectedFieldIds,
+                ),
             ).toThrow(
                 /The following fields are neither in the explore nor in the custom metrics/,
             );
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, selectedFieldIds),
+                validateSelectedFieldsExistence(
+                    mockUsersOrdersExplore,
+                    selectedFieldIds,
+                ),
             ).toThrow(/non_existent_field/);
 
             expect(() =>
-                validateSelectedFieldsExistence(mockExplore, selectedFieldIds),
+                validateSelectedFieldsExistence(
+                    mockUsersOrdersExplore,
+                    selectedFieldIds,
+                ),
             ).toThrow(/another_missing_field/);
         });
     });
