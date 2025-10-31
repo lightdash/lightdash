@@ -19,6 +19,7 @@ import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
+export * from './aiEvalAssessment';
 export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
@@ -456,7 +457,7 @@ export type AiAgentEvaluationRunResult = {
     resultUuid: string;
     evalPromptUuid: string | null;
     threadUuid: string | null;
-    status: 'pending' | 'running' | 'completed' | 'failed';
+    status: 'pending' | 'running' | 'completed' | 'assessing' | 'failed';
     errorMessage: string | null;
     completedAt: Date | null;
     createdAt: Date;
