@@ -2,6 +2,7 @@ import {
     AiResultType,
     toolImproveContextArgsSchema,
     ToolNameSchema,
+    toolRunQueryOutputSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
@@ -26,6 +27,7 @@ export interface AiAgentThreadStreamOptions {
     messageUuid: string;
     onFinish?: () => void;
     onError?: (error: string) => void;
+    refetchThread?: () => void;
 }
 
 const getAgentThreadReadableStream = async (
@@ -66,6 +68,7 @@ export function useAiAgentThreadStreamMutation() {
             messageUuid,
             onFinish,
             onError,
+            refetchThread,
         }: AiAgentThreadStreamOptions) => {
             const abortController = new AbortController();
             setAbortController(threadUuid, abortController);
@@ -125,7 +128,31 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-searchFieldValues':
                             case 'tool-runQuery':
                             case 'tool-generateDashboard':
-                                if (part.state !== 'input-available') break;
+                                if (part.state !== 'input-available') {
+                                    if (
+                                        !(
+                                            part.type === 'tool-runQuery' &&
+                                            part.state === 'output-available'
+                                        )
+                                    ) {
+                                        break;
+                                    }
+
+                                    const output =
+                                        toolRunQueryOutputSchema.safeParse(
+                                            part.output,
+                                        );
+
+                                    if (
+                                        output.success &&
+                                        output.data.metadata.status ===
+                                            'success'
+                                    ) {
+                                        void refetchThread?.();
+                                    }
+
+                                    break;
+                                }
 
                                 const toolNameUnsafe = part.type.split('-')[1];
 

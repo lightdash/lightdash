@@ -536,6 +536,16 @@ export const useCreateAgentThreadMutation = (
                             thread.uuid,
                         ],
                     }),
+                refetchThread: () =>
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            thread.uuid,
+                        ],
+                    }),
             });
 
             void navigate(
@@ -671,6 +681,16 @@ export const useCreateAgentThreadMessageMutation = (
                         'threads',
                         threadUuid,
                     ]),
+                refetchThread: () =>
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            threadUuid,
+                        ],
+                    }),
             });
         },
         onError: ({ error }) => {

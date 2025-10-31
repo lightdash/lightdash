@@ -1393,7 +1393,7 @@ export class AiAgentModel {
     static getThreadMessageStatus(
         row: Pick<DbAiPrompt, 'responded_at' | 'response' | 'created_at'>,
     ): 'idle' | 'pending' | 'error' {
-        if (row.responded_at == null && row.response == null) {
+        if (row.responded_at == null || row.response == null) {
             // if the message was created more than 5 minutes ago, return error
             if (moment(row.created_at).add(5, 'minutes').isBefore(moment())) {
                 return 'error';
