@@ -25,6 +25,8 @@ export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardUuid: string | undefined; // NOTE: can be undefined if private content
     chartName?: string;
     fieldName?: string;
+    tableName?: string; // For dashboard filter errors referencing specific tables
+    dashboardFilterErrorType?: DashboardFilterValidationErrorType;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
     dashboardViews: number;
@@ -100,6 +102,12 @@ export enum ValidationErrorType {
     Model = 'model',
     Dimension = 'dimension',
     CustomMetric = 'custom metric',
+}
+
+export enum DashboardFilterValidationErrorType {
+    FieldDoesNotExist = 'field_does_not_exist',
+    TableNotUsedByAnyChart = 'table_not_used_by_any_chart',
+    TableDoesNotExist = 'table_does_not_exist',
 }
 
 export enum ValidationSourceType {
