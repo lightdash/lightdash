@@ -15,6 +15,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -460,6 +461,7 @@ export type AiAgentEvaluationRunResult = {
     errorMessage: string | null;
     completedAt: Date | null;
     createdAt: Date;
+    assessment: AiEvalRunResultAssessment | null;
 };
 
 /**

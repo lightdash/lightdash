@@ -7,8 +7,8 @@ import {
     ContextRelevancyResponse,
     FactualityResponse,
     LlmJudgeResult,
-} from './utils/llmAsAJudge';
-import { ToolJudgeResult } from './utils/llmAsJudgeForTools';
+} from '../../utils/llmAsAJudge';
+import { ToolJudgeResult } from '../../utils/llmAsJudgeForTools';
 
 interface EvalResult {
     testCase: string;
@@ -272,15 +272,15 @@ export default class EvalHtmlReporter implements Reporter {
             font-size: 18px;
             margin-right: 6px;
         }
-        .pass { 
+        .pass {
             color: #28a745;
             font-weight: 600;
         }
-        .fail { 
+        .fail {
             color: #dc3545;
             font-weight: 600;
         }
-        .skip { 
+        .skip {
             color: #ffc107;
             font-weight: 600;
         }
@@ -336,7 +336,7 @@ export default class EvalHtmlReporter implements Reporter {
         function toggleExpand(testId) {
             const expandRow = document.getElementById('expand-' + testId);
             const toggleBtn = document.getElementById('toggle-' + testId);
-            
+
             if (expandRow.style.display === 'none' || expandRow.style.display === '') {
                 expandRow.style.display = 'table-row';
                 toggleBtn.textContent = '▼';
@@ -353,7 +353,7 @@ export default class EvalHtmlReporter implements Reporter {
         <div class="date">${formattedDate}</div>
         <div class="model-info">Agent: ${agentProvider} / ${agentModel}</div>
     </div>
-    
+
     <div class="summary">
         <div class="summary-item pass">
             <h3>Passed</h3>
@@ -687,7 +687,7 @@ export default class EvalHtmlReporter implements Reporter {
                         <div><strong>Score:</strong> ${(
                             (jsonResult.score ?? 0) * 100
                         ).toFixed(1)}%</div>
-                        
+
                     `;
                         break;
                     case 'contextRelevancy':
