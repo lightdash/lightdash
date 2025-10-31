@@ -1,3 +1,17 @@
+# [0.2125.0](https://github.com/lightdash/lightdash/compare/0.2124.7...0.2125.0) (2025-10-31)
+
+
+### Bug Fixes
+
+* add field name extraction for custom metrics ([#17774](https://github.com/lightdash/lightdash/issues/17774)) ([16fe2e6](https://github.com/lightdash/lightdash/commit/16fe2e6d6a2248939e4b683ef5dce779471af156)), closes [#17757](https://github.com/lightdash/lightdash/issues/17757)
+* handle client disconnects in AI agent streaming ([#17728](https://github.com/lightdash/lightdash/issues/17728)) ([35994b1](https://github.com/lightdash/lightdash/commit/35994b13f9ea52e3a3cdc210800285817f8429c8)), closes [#17686](https://github.com/lightdash/lightdash/issues/17686)
+* Improve system prompt for custom metriccs and add evals ([#17775](https://github.com/lightdash/lightdash/issues/17775)) ([749f53f](https://github.com/lightdash/lightdash/commit/749f53f204e8e05beccf283a84944f720bf41a1f))
+
+
+### Features
+
+* show artifact in thread as soon as it's created ([#17748](https://github.com/lightdash/lightdash/issues/17748)) ([44210a6](https://github.com/lightdash/lightdash/commit/44210a66ea484299ea6743e91b0b91cbaa3a014a))
+
 ## [0.2124.7](https://github.com/lightdash/lightdash/compare/0.2124.6...0.2124.7) (2025-10-31)
 
 
