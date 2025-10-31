@@ -128,6 +128,14 @@ export const useExplorerInitialization = ({
                 }
             }
 
+            stateToUse.cachedChartConfigs = {
+                [stateToUse.unsavedChartVersion.chartConfig.type]: {
+                    chartConfig:
+                        stateToUse.unsavedChartVersion.chartConfig.config,
+                    pivotConfig: stateToUse.unsavedChartVersion.pivotConfig,
+                },
+            };
+
             dispatch(explorerActions.reset(stateToUse));
             hasInitialized.current = true;
         }

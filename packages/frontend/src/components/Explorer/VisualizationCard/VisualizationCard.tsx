@@ -95,10 +95,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const handleSetChartType = useCallback(
         (chartType: ChartType) => {
-            // Note: cachedConfigs will need to be managed elsewhere (e.g., component state)
-            dispatch(
-                explorerActions.setChartType({ chartType, cachedConfigs: {} }),
-            );
+            dispatch(explorerActions.setChartType({ chartType }));
         },
         [dispatch],
     );
@@ -108,7 +105,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             dispatch(
                 explorerActions.setChartConfig({
                     chartConfig,
-                    cachedConfigs: {},
                 }),
             );
         },
