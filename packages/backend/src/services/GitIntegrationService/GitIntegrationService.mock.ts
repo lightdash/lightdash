@@ -98,6 +98,7 @@ models:
               label: New metric
               description: description
               type: average
+              format: '#,##0'
   - name: table_b
     description: >-
       # Description This table has basic information

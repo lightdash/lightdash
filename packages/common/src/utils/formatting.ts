@@ -34,7 +34,7 @@ import {
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
-import { getItemType } from './item';
+import { getItemType, isNumericItem } from './item';
 
 dayjs.extend(timezone);
 
@@ -186,8 +186,17 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const round = format?.round;
 
     if (round === undefined) {
-        // When round is not defined, keep up to 3 decimal places
-        return hasCurrency ? currencyOptions : {};
+        // If the format is a currency format, set the currency options and keep default decimal places
+        if (hasCurrency) {
+            return currencyOptions;
+        }
+
+        // If the format is a number format, set the maximum fraction digits to 0
+        if (format?.type === CustomFormatType.NUMBER) {
+            return { maximumFractionDigits: 0 };
+        }
+
+        return {};
     }
 
     if (round < 0) {
@@ -353,8 +362,8 @@ export function getCustomFormat(
         ...('round' in item && { round: item.round }),
     };
 
-    // Only get custom format from legacy if there are any legacy format options
-    if (Object.keys(legacyFormat).length > 0) {
+    // Only get custom format from legacy if there are any legacy format options or if the item is numeric
+    if (Object.keys(legacyFormat).length > 0 || isNumericItem(item)) {
         return getCustomFormatFromLegacy(legacyFormat);
     }
 
@@ -602,7 +611,7 @@ const customFormatConversionFnMap: Record<
                 ? mockCurrencyValue.split('.')[1].length
                 : 0;
         } else if (format.type === CustomFormatType.NUMBER) {
-            round = 3; // Note: I believe this was a bug in the old implementation, but we'll keep it for now
+            round = 0;
         }
         if (round > 0) {
             return `${formatExpression}.${'0'.repeat(round)}`;

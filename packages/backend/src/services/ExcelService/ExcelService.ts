@@ -336,7 +336,7 @@ export class ExcelService {
             };
 
             // Apply number formatting at column level if available
-            if (formatExpression) {
+            if (formatExpression && !onlyRaw) {
                 column.style = { numFmt: formatExpression };
             }
 
