@@ -24,6 +24,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertUnreachable,
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
@@ -41,6 +42,7 @@ import {
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
+    QueryHistoryStatus,
     SlackPrompt,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
@@ -126,6 +128,7 @@ import {
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
+    RunSavedChartQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -140,6 +143,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
 } from './ai/utils/getSlackBlocks';
+import { pollAsyncQueryResults } from './ai/utils/pollAsyncQueryResults';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
@@ -2316,6 +2320,77 @@ export class AiAgentService {
                 },
             );
 
+        const runSavedChartQuery: RunSavedChartQueryFn = (args) =>
+            wrapSentryTransaction(
+                'AiAgent.runSavedChartQuery',
+                {
+                    chartUuid: args.chartUuid,
+                    versionUuid: args.versionUuid,
+                },
+                async () => {
+                    const account = fromSession(user);
+
+                    // Initiate async query
+                    const { queryUuid, fields } =
+                        await this.asyncQueryService.executeAsyncSavedChartQuery(
+                            {
+                                account,
+                                projectUuid,
+                                chartUuid: args.chartUuid,
+                                versionUuid: args.versionUuid,
+                                context: QueryExecutionContext.AI,
+                                invalidateCache: false,
+                                limit: args.limit,
+                            },
+                        );
+
+                    // Poll for results
+                    const results = await pollAsyncQueryResults(
+                        (uuid) =>
+                            this.asyncQueryService.getAsyncQueryResults({
+                                account,
+                                projectUuid,
+                                queryUuid: uuid,
+                            }),
+                        queryUuid,
+                    );
+
+                    const { status } = results;
+
+                    switch (status) {
+                        case QueryHistoryStatus.ERROR:
+                            throw new Error(
+                                results.error ??
+                                    'Unknown error executing query.',
+                            );
+                        case QueryHistoryStatus.CANCELLED:
+                        case QueryHistoryStatus.PENDING:
+                            throw new Error(
+                                'Something went wrong while executing the query. Please try again.',
+                            );
+                        case QueryHistoryStatus.READY:
+                            return {
+                                rows: results.rows.map((row) =>
+                                    Object.fromEntries(
+                                        Object.entries(row).map(
+                                            ([key, value]) => [
+                                                key,
+                                                value.value.raw,
+                                            ],
+                                        ),
+                                    ),
+                                ),
+                                fields,
+                            };
+                        default:
+                            return assertUnreachable(
+                                status,
+                                'Unknown query status',
+                            );
+                    }
+                },
+            );
+
         return {
             listExplores,
             findContent,
@@ -2327,6 +2402,7 @@ export class AiAgentService {
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
+            runSavedChartQuery,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -2412,6 +2488,7 @@ export class AiAgentService {
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
+            runSavedChartQuery,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -2462,6 +2539,7 @@ export class AiAgentService {
             findExplores,
             getExplore,
             runMiniMetricQuery,
+            runSavedChartQuery,
             getPrompt,
             sendFile,
             storeToolCall,

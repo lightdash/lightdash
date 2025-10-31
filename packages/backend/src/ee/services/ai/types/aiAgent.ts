@@ -14,6 +14,7 @@ import {
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
+    RunSavedChartQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -68,6 +69,7 @@ export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
+    runSavedChartQuery: RunSavedChartQueryFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     updatePrompt: UpdatePromptFn;

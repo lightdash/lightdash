@@ -14,6 +14,7 @@ export const followUpToolsText: FollowUpToolsText = {
     [AiResultType.DASHBOARD_V2_RESULT]: 'Generate a Dashboard (v2)',
     [AiResultType.IMPROVE_CONTEXT]: 'Improve Context',
     [AiResultType.PROPOSE_CHANGE]: 'Propose a Change',
+    [AiResultType.RUN_SAVED_CHART_QUERY]: 'Run Saved Chart Query',
 };
 
 export enum LegacyFollowUpTools {
