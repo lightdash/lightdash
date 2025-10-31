@@ -792,8 +792,8 @@ const getPivotSeries = ({
                 ...(series.color &&
                     getValueLabelStyle(
                         theme,
-                        series.color,
                         series.label.position,
+                        series.type,
                     )),
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
@@ -899,8 +899,7 @@ const getSimpleSeries = ({
         label: {
             ...series.label,
             // Apply value label styling for all series types
-            ...(series.color &&
-                getValueLabelStyle(theme, series.color, series.label.position)),
+            ...getValueLabelStyle(theme, series.label.position, series.type),
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
                     formatter: (value: any) => {
@@ -2031,15 +2030,27 @@ const useEchartsCartesianConfig = (
         );
 
         const seriesWithValidStack = series.map<EChartSeries>((serie) => {
+            const computedColor = getSeriesColor(serie);
             const baseConfig = {
                 ...serie,
-                color: getSeriesColor(serie),
+                color: computedColor,
                 stack: getValidStack(serie),
+                // Ensure label styles are applied after color is known
+                ...(serie.label?.show && {
+                    label: {
+                        ...serie.label,
+                        ...getValueLabelStyle(
+                            theme,
+                            serie.label.position,
+                            serie.type,
+                        ),
+                    },
+                }),
                 // Apply reference line styling
                 ...(serie.markLine && {
                     markLine: {
                         ...serie.markLine,
-                        ...getReferenceLineStyle(theme, serie.color),
+                        ...getReferenceLineStyle(theme, computedColor),
                     },
                 }),
             };
