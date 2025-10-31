@@ -24,13 +24,20 @@ export const getValidChartConfig = (
     const fromAction =
         chartConfig?.type === chartType ? chartConfig.config : undefined;
 
-    const fromCache = cachedConfigs?.[chartType];
+    const fromCache = cachedConfigs?.[chartType]?.chartConfig;
     const fromDefault = DEFAULTS[chartType]();
 
     const source = fromAction ?? fromCache ?? fromDefault;
     const config = clone(source);
 
     return { type: chartType, config } as ChartConfig;
+};
+
+export const getCachedPivotConfig = (
+    chartType: ChartType,
+    cachedConfigs?: Partial<ConfigCacheMap>,
+): { columns: string[] } | undefined => {
+    return cachedConfigs?.[chartType]?.pivotConfig;
 };
 
 // Clean the config to remove runtime-only properties like isFilteredOut

@@ -130,6 +130,7 @@ const VisualizationProvider: FC<
         useSqlPivotResults?.enabled
             ? unsavedMetricQuery ?? lastValidResultsData?.metricQuery
             : lastValidResultsData?.metricQuery,
+        onPivotDimensionsChange,
     );
 
     const setChartType = useCallback(
@@ -208,10 +209,6 @@ const VisualizationProvider: FC<
         if (!resultsData) return;
         setLastValidResultsData(resultsData);
     }, [resultsData]);
-
-    useEffect(() => {
-        onPivotDimensionsChange?.(validPivotDimensions);
-    }, [validPivotDimensions, onPivotDimensionsChange]);
 
     /**
      * Gets a shared color for a given group name.
