@@ -3,6 +3,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     convertToAiHints,
+    Explore,
     getItemId,
     toolFindExploresArgsSchemaV2,
     toolFindExploresOutputSchema,
@@ -10,7 +11,6 @@ import {
 import { tool } from 'ai';
 import type {
     FindExploresFn,
-    ListExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -22,7 +22,10 @@ type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
-    listExplores: ListExploresFn;
+};
+
+type ExperimentalContext = {
+    availableExplores: Explore[];
 };
 
 function getCatalogChartUsage(
@@ -180,19 +183,18 @@ export const getFindExplores = ({
     findExplores,
     updateProgress,
     fieldSearchSize,
-    listExplores,
 }: Dependencies) =>
     tool({
         description: toolFindExploresArgsSchemaV2.description,
         inputSchema: toolFindExploresArgsSchemaV2,
         outputSchema: toolFindExploresOutputSchema,
-        execute: async (args) => {
+        execute: async (args, { experimental_context: context }) => {
             try {
                 await updateProgress(
                     `🔍 Searching explore: \`${args.exploreName}\`...`,
                 );
 
-                const availableExplores = await listExplores();
+                const { availableExplores } = context as ExperimentalContext;
                 validateExploreNameExists(availableExplores, args.exploreName);
 
                 const { explore, catalogFields } = await findExplores({

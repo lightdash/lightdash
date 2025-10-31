@@ -50,6 +50,16 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
                     temperature: z.number().min(0).max(2).default(0.2),
+                    reasoning: z
+                        .object({
+                            enabled: z.boolean().default(false),
+                            budgetTokens: z.number().default(10000),
+                        })
+                        .optional()
+                        .default({
+                            enabled: false,
+                            budgetTokens: 10000,
+                        }),
                 })
                 .optional(),
             openrouter: z

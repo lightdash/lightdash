@@ -1,4 +1,4 @@
-import { AgentToolOutput, assertUnreachable } from '@lightdash/common';
+import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateObject,
@@ -148,7 +148,6 @@ const getAgentTools = (
         fieldSearchSize: args.findExploresFieldSearchSize,
         findExplores: dependencies.findExplores,
         updateProgress: dependencies.updateProgress,
-        listExplores: dependencies.listExplores,
     });
 
     const findFields = getFindFields({
@@ -251,14 +250,9 @@ const getAgentTools = (
     return tools;
 };
 
-const getAgentMessages = async (
-    args: AiAgentArgs,
-    dependencies: AiAgentDependencies,
-) => {
+const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
-
-    const availableExplores = await dependencies.listExplores();
 
     const messages = [
         getSystemPrompt({
@@ -314,7 +308,8 @@ export const generateAgentResponse = async ({
         'Generate Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const messages = await getAgentMessages(args, dependencies);
+    const availableExplores = await dependencies.listExplores();
+    const messages = getAgentMessages(args, availableExplores);
     const tools = getAgentTools(args, dependencies);
 
     const startTime = Date.now();
@@ -332,6 +327,7 @@ export const generateAgentResponse = async ({
             model: args.model,
             tools,
             messages,
+            experimental_context: { availableExplores },
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onStepFinish: async (step) => {
                 for (const toolCall of step.toolCalls) {
@@ -474,7 +470,8 @@ export const streamAgentResponse = async ({
         'Stream Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const messages = await getAgentMessages(args, dependencies);
+    const availableExplores = await dependencies.listExplores();
+    const messages = getAgentMessages(args, availableExplores);
     const tools = getAgentTools(args, dependencies);
 
     const startTime = Date.now();
@@ -495,6 +492,7 @@ export const streamAgentResponse = async ({
             model: args.model,
             tools,
             messages,
+            experimental_context: { availableExplores },
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
                 // Track time to first chunk (any type) - only once

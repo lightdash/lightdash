@@ -31,7 +31,7 @@ export const getModel = (
             if (!anthropicConfig) {
                 throw new ParameterError('Anthropic configuration is required');
             }
-            return getAnthropicModel(anthropicConfig);
+            return getAnthropicModel(anthropicConfig, options);
         }
         case 'openrouter': {
             const openrouterConfig = config.providers.openrouter;
