@@ -1,3 +1,10 @@
+## [0.2124.4](https://github.com/lightdash/lightdash/compare/0.2124.3...0.2124.4) (2025-10-31)
+
+
+### Bug Fixes
+
+* retry mechanism for sending emails ([#17747](https://github.com/lightdash/lightdash/issues/17747)) ([d486ca1](https://github.com/lightdash/lightdash/commit/d486ca1176b320f592398bde4d12a2e26e4017ea))
+
 ## [0.2124.3](https://github.com/lightdash/lightdash/compare/0.2124.2...0.2124.3) (2025-10-30)
 
 
