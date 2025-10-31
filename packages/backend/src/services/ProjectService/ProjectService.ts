@@ -884,6 +884,33 @@ export class ProjectService extends BaseService {
             };
         }
 
+        if (
+            args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            args.warehouseConnection.authenticationType === 'oauth' &&
+            !organizationWarehouseCredentialsUuid
+        ) {
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.DATABRICKS,
+            );
+            // Validate refresh token and generate new access token
+            this.logger.debug(
+                `Refreshing databricks warehouse credentials from user uuid: ${userUuid}`,
+            );
+            const credentials = await this.refreshCredentials(
+                { ...args.warehouseConnection, refreshToken },
+                userUuid,
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    ...credentials,
+                    refreshToken, // Store refresh token from user so we can generate new access tokens later
+                },
+            };
+        }
+
         return args;
     }
 
@@ -1892,6 +1919,20 @@ export class ProjectService extends BaseService {
                 `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
             );
             const accessToken = await UserService.generateSnowflakeAccessToken(
+                project.warehouseConnection.refreshToken,
+            );
+            project.warehouseConnection.token = accessToken;
+        }
+
+        if (
+            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            project.warehouseConnection.authenticationType === 'oauth' &&
+            project.warehouseConnection.refreshToken
+        ) {
+            this.logger.debug(
+                `Refreshing databricks warehouse credentials from refresh token on buildAdapter`,
+            );
+            const accessToken = await UserService.generateDatabricksAccessToken(
                 project.warehouseConnection.refreshToken,
             );
             project.warehouseConnection.token = accessToken;

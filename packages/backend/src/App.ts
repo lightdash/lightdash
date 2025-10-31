@@ -75,6 +75,7 @@ import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
@@ -754,6 +755,10 @@ export default class App {
         if (snowflakePassportStrategy) {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (databricksPassportStrategy) {
+            passport.use('databricks', databricksPassportStrategy);
+            refresh.use('databricks', databricksPassportStrategy);
         }
         if (slackPassportStrategy) {
             passport.use('slack', slackPassportStrategy);

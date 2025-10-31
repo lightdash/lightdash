@@ -11,6 +11,7 @@ import {
 } from './clients/ClientRepository';
 import { LightdashConfig } from './config/parseConfig';
 import { googlePassportStrategy } from './controllers/authentication';
+import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -165,6 +166,9 @@ export default class SchedulerApp {
         }
         if (snowflakePassportStrategy) {
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (databricksPassportStrategy) {
+            refresh.use('databricks', databricksPassportStrategy);
         }
 
         this.prometheusMetrics.start();
