@@ -1,3 +1,11 @@
+## [0.2124.6](https://github.com/lightdash/lightdash/compare/0.2124.5...0.2124.6) (2025-10-31)
+
+
+### Bug Fixes
+
+* clicking on metrics becomes slow because of expensive useColumns recalculation ([#17779](https://github.com/lightdash/lightdash/issues/17779)) ([73c84f1](https://github.com/lightdash/lightdash/commit/73c84f1de5c011c187412ebad38bd664607d4017))
+* excel formatting with formatting expressions ([#17766](https://github.com/lightdash/lightdash/issues/17766)) ([322a0d5](https://github.com/lightdash/lightdash/commit/322a0d51e04dc0068ee66937696127e16c1fd5c6))
+
 ## [0.2124.5](https://github.com/lightdash/lightdash/compare/0.2124.4...0.2124.5) (2025-10-31)
 
 
