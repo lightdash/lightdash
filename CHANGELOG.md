@@ -1,3 +1,10 @@
+## [0.2125.1](https://github.com/lightdash/lightdash/compare/0.2125.0...0.2125.1) (2025-10-31)
+
+
+### Bug Fixes
+
+* improve tree indentation and sticky headers in explorer ([#17786](https://github.com/lightdash/lightdash/issues/17786)) ([ac8322d](https://github.com/lightdash/lightdash/commit/ac8322d1d4f01ed9b6b1a77f9a974a221ab0926b))
+
 # [0.2125.0](https://github.com/lightdash/lightdash/compare/0.2124.7...0.2125.0) (2025-10-31)
 
 
