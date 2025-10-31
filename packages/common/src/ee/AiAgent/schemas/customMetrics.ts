@@ -1,47 +1,66 @@
 import { z } from 'zod';
 import { MetricType } from '../../../types/field';
 
-export const customMetricBaseSchema = z.object({
-    name: z
-        .string()
-        .describe(
-            'Unique metric name using snake_case (e.g., "avg_customer_age", "total_revenue")',
+const extractFieldNameFromFieldId = (
+    table: string,
+    baseDimensionName: string,
+): string => {
+    const prefix = `${table}_`;
+    if (!baseDimensionName.startsWith(prefix)) {
+        return baseDimensionName;
+    }
+    return baseDimensionName.slice(prefix.length);
+};
+
+export const customMetricBaseSchema = z
+    .object({
+        name: z
+            .string()
+            .describe(
+                'Unique metric name using snake_case (e.g., "avg_customer_age", "total_revenue")',
+            ),
+        label: z
+            .string()
+            .describe(
+                'Human-readable label for the metric (e.g., "Average Customer Age", "Total Revenue")',
+            ),
+        description: z
+            .string()
+            .describe(
+                'Brief explanation of what the metric represents, how it is calculated, and why it matters. Example: "Calculates the total revenue by summing all transaction amounts in the sales table."',
+            ),
+        baseDimensionName: z
+            .string()
+            .describe(
+                'Name of the base dimension/column this metric calculates from',
+            ),
+        table: z
+            .string()
+            .describe(
+                'Table name where the base column exists. Match with available dimensions in the explore.',
+            ),
+        type: z
+            .enum([
+                MetricType.AVERAGE,
+                MetricType.COUNT,
+                MetricType.COUNT_DISTINCT,
+                MetricType.MAX,
+                MetricType.MIN,
+                MetricType.SUM,
+                MetricType.PERCENTILE,
+                MetricType.MEDIAN,
+            ])
+            .describe(
+                `Choose based on the user's request. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If the base dimension type is NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If the base dimension type is BOOLEAN, use COUNT_DISTINCT, COUNT.`,
+            ),
+    })
+    .transform((data) => ({
+        ...data,
+        baseDimensionName: extractFieldNameFromFieldId(
+            data.table,
+            data.baseDimensionName,
         ),
-    label: z
-        .string()
-        .describe(
-            'Human-readable label for the metric (e.g., "Average Customer Age", "Total Revenue")',
-        ),
-    description: z
-        .string()
-        .describe(
-            'Brief explanation of what the metric represents, how it is calculated, and why it matters. Example: "Calculates the total revenue by summing all transaction amounts in the sales table."',
-        ),
-    baseDimensionName: z
-        .string()
-        .describe(
-            'Name of the base dimension/column this metric calculates from',
-        ),
-    table: z
-        .string()
-        .describe(
-            'Table name where the base column exists. Match with available dimensions in the explore.',
-        ),
-    type: z
-        .enum([
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.MAX,
-            MetricType.MIN,
-            MetricType.SUM,
-            MetricType.PERCENTILE,
-            MetricType.MEDIAN,
-        ])
-        .describe(
-            `Choose based on the user's request. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If the base dimension type is NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If the base dimension type is BOOLEAN, use COUNT_DISTINCT, COUNT.`,
-        ),
-});
+    }));
 
 export type CustomMetricBase = z.infer<typeof customMetricBaseSchema>;
 
