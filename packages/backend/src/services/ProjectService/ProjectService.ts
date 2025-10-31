@@ -5,6 +5,7 @@ import {
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
+    AnonymousAccount,
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
@@ -2930,6 +2931,7 @@ export class ProjectService extends BaseService {
                         await this.projectModel.getSummary(projectUuid);
 
                     if (
+                        account.isJwtUser() ||
                         account.user.ability.cannot(
                             'view',
                             subject('Project', {
@@ -4106,7 +4108,11 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+        const isChartJwt =
+            account.isJwtUser() &&
+            (account as AnonymousAccount).access.contentType === 'chart';
         if (
+            isChartJwt ||
             account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
@@ -4209,7 +4215,12 @@ export class ProjectService extends BaseService {
                 const project = organizationUuid
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
+                const isChartJwt =
+                    account.isJwtUser() &&
+                    (account as AnonymousAccount).access.contentType ===
+                        'chart';
                 if (
+                    isChartJwt ||
                     account.user.ability.cannot(
                         'view',
                         subject('Project', {
@@ -4509,7 +4520,11 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+        const isChartJwt =
+            account.isJwtUser() &&
+            (account as AnonymousAccount).access.contentType === 'chart';
         if (
+            isChartJwt ||
             account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),

@@ -1,12 +1,13 @@
 import { type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
-import { type CreateEmbedJwt } from '../ee';
+import { isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { OssEmbed } from '../types/auth';
 import type { MemberAbility } from './types';
 
 type EmbeddedAbilityBuilderPayload = {
     embedUser: CreateEmbedJwt;
-    dashboardUuid: string;
+    contentUuid: string;
+    contentType: 'dashboard' | 'chart';
     embed: OssEmbed;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
     externalId: string;
@@ -18,19 +19,24 @@ type EmbeddedAbilityBuilder = (
 
 const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    dashboardUuid,
+    contentUuid,
+    contentType,
     embed,
     externalId,
     builder,
 }) => {
     const { organization } = embed;
     const { can } = builder;
+
     can('view', 'Dashboard', {
-        dashboardUuid,
+        dashboardUuid: contentUuid,
         organizationUuid: organization.organizationUuid,
     });
 
-    if (embedUser.content.canDateZoom) {
+    if (
+        embedUser.content.type === 'dashboard' &&
+        embedUser.content.canDateZoom
+    ) {
         can('view', 'Dashboard', {
             dateZoom: true,
             organizationUuid: organization.organizationUuid,
@@ -48,12 +54,43 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    return { embedUser, dashboardUuid, embed, builder, externalId };
+    return { embedUser, contentUuid, contentType, embed, builder, externalId };
+};
+
+const chartAbilities: EmbeddedAbilityBuilder = ({
+    embedUser,
+    contentUuid,
+    contentType,
+    embed,
+    externalId,
+    builder,
+}) => {
+    const { organization } = embed;
+    const { can } = builder;
+
+    can('view', 'SavedChart', {
+        access: {
+            $elemMatch: {
+                chartUuid: contentUuid,
+            },
+        },
+        isPrivate: false,
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    return { embedUser, contentUuid, contentType, embed, builder, externalId };
 };
 
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    dashboardUuid,
+    contentUuid,
+    contentType,
     embed,
     externalId,
     builder,
@@ -62,26 +99,33 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { organization } = embed;
     const { can } = builder;
 
-    if (content.canExplore || content.canViewUnderlyingData) {
+    const canExplore = 'canExplore' in content ? content.canExplore : undefined;
+    const canViewUnderlyingData =
+        'canViewUnderlyingData' in content
+            ? content.canViewUnderlyingData
+            : undefined;
+
+    if (canExplore || canViewUnderlyingData) {
         can('view', 'UnderlyingData', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
         });
     }
 
-    if (content.canExplore) {
+    if (canExplore) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
         });
     }
 
-    return { embedUser, dashboardUuid, embed, externalId, builder };
+    return { embedUser, contentUuid, contentType, embed, externalId, builder };
 };
 
 const exportAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    dashboardUuid,
+    contentUuid,
+    contentType,
     embed,
     externalId,
     builder,
@@ -90,48 +134,73 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     const { organization } = embed;
     const { can } = builder;
 
+    const subjectType: 'Dashboard' | 'SavedChart' =
+        contentType === 'dashboard' ? 'Dashboard' : 'SavedChart';
+
+    // Common abilities for both dashboard and chart
+    if (content.canExportImages) {
+        can('export', subjectType, {
+            organizationUuid: organization.organizationUuid,
+            type: 'images',
+        });
+    }
+
     if (content.canExportCsv) {
-        can('export', 'Dashboard', {
+        can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
         });
-
         can('view', 'JobStatus', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
             createdByUserUuid: externalId,
         });
     }
-
-    if (content.canExportPagePdf) {
-        can('export', 'Dashboard', {
-            organizationUuid: organization.organizationUuid,
-            type: 'pdf',
-        });
+    // Dashboard specific abilities
+    if (isDashboardContent(content)) {
+        if (content.canExportPagePdf) {
+            can('export', 'Dashboard', {
+                organizationUuid: organization.organizationUuid,
+                type: 'pdf',
+            });
+        }
     }
 
-    if (content.canExportImages) {
-        can('export', 'Dashboard', {
-            organizationUuid: organization.organizationUuid,
-            type: 'images',
-        });
-    }
-
-    return { embedUser, dashboardUuid, embed, externalId, builder };
+    return { embedUser, contentUuid, contentType, embed, externalId, builder };
 };
 
-const applyAbilities = flow(
+const dashboardTypeAbilities = [
     dashboardAbilities,
     exportAbilities,
     exploreAbilities,
-);
+];
+
+const chartTypeAbilities = [chartAbilities, exportAbilities, exploreAbilities];
 
 export function applyEmbeddedAbility(
     embedUser: CreateEmbedJwt,
-    dashboardUuid: string,
+    contentUuid: string | undefined,
+    contentType: 'dashboard' | 'chart',
     embed: OssEmbed,
     externalId: string,
     builder: AbilityBuilder<MemberAbility>,
 ) {
-    applyAbilities({ embedUser, dashboardUuid, embed, externalId, builder });
+    if (!contentUuid) {
+        throw new Error('Content UUID is required');
+    }
+
+    const abilities =
+        contentType === 'dashboard'
+            ? dashboardTypeAbilities
+            : chartTypeAbilities;
+    const applyAbilities = flow(abilities);
+
+    applyAbilities({
+        embedUser,
+        contentUuid,
+        contentType,
+        embed,
+        externalId,
+        builder,
+    });
 }
