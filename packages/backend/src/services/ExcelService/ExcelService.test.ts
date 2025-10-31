@@ -217,7 +217,7 @@ describe('ExcelService', () => {
             expect(result[0]).toBe(1234.56);
             // Number with percentage format should be converted to actual number
             expect(result[1]).toBe(0.1234);
-            // Number without explicit format should still be converted to number (gets default format)
+            // Number without explicit format should still be converted to number
             expect(result[2]).toBe(999.99);
             expect(typeof result[2]).toBe('number');
             // String should remain as string
@@ -687,13 +687,22 @@ describe('ExcelService', () => {
             expect(formatExpression).toBe('0.00%');
         });
 
-        it('should return default format for fields without explicit format', () => {
+        it('should return default format for number fields without explicit format', () => {
             // Test that getFormatExpression returns default format for number fields without explicit format
             const noFormatField = mockItemMapWithFormats.number_without_format;
             const formatExpression = getFormatExpression(noFormatField);
 
             // Should return a default number format for fields without explicit format
-            expect(formatExpression).toBe('#,##0.000');
+            expect(formatExpression).toBe('#,##0');
+        });
+
+        it('should NOT return default format for date fields without explicit format', () => {
+            // Test that getFormatExpression returns default format for date fields without explicit format
+            const dateField = mockItemMapWithFormats.date_column;
+            const formatExpression = getFormatExpression(dateField);
+
+            // Should return a default date format for fields without explicit format
+            expect(formatExpression).toBeUndefined();
         });
 
         it('should handle all Lightdash format expressions correctly', () => {
