@@ -1,3 +1,10 @@
+## [0.2124.7](https://github.com/lightdash/lightdash/compare/0.2124.6...0.2124.7) (2025-10-31)
+
+
+### Bug Fixes
+
+* **revert:** bundle of 4 commits (b5110e1e..20f058bb) in one commit ([#17780](https://github.com/lightdash/lightdash/issues/17780)) ([da1f243](https://github.com/lightdash/lightdash/commit/da1f243b90776b5876deae8f647a1846d8a2a4f7))
+
 ## [0.2124.6](https://github.com/lightdash/lightdash/compare/0.2124.5...0.2124.6) (2025-10-31)
 
 
