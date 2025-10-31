@@ -38,11 +38,28 @@ import {
     type ExplorerReduceState,
     type ExplorerSection,
 } from '../../../providers/Explorer/types';
-import { getValidChartConfig } from '../../../providers/Explorer/utils';
+import {
+    getCachedPivotConfig,
+    getValidChartConfig,
+} from '../../../providers/Explorer/utils';
 
 import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
+
+// Type-safe helper to save config to cache
+// Ensures that chartType and config match up correctly
+function saveConfigToCache<T extends ChartType>(
+    cache: Partial<ConfigCacheMap>,
+    chartType: T,
+    config: ConfigCacheMap[T]['chartConfig'],
+    pivotConfig?: { columns: string[] },
+): void {
+    cache[chartType] = {
+        chartConfig: config,
+        pivotConfig,
+    } as ConfigCacheMap[T];
+}
 
 const initialState: ExplorerSliceState = defaultState;
 
@@ -379,18 +396,31 @@ const explorerSlice = createSlice({
             action: PayloadAction<{ chartType: ChartType }>,
         ) => {
             const before = state.unsavedChartVersion.chartConfig;
+            const beforePivotConfig = state.unsavedChartVersion.pivotConfig;
 
-            // save the current config to the cache
-            state.cachedChartConfigs[before.type] = current(
-                before.config,
-            ) as any;
+            // save the current config and pivotConfig to the cache
+            saveConfigToCache(
+                state.cachedChartConfigs,
+                before.type,
+                current(before.config),
+                beforePivotConfig
+                    ? (current(beforePivotConfig) as { columns: string[] })
+                    : undefined,
+            );
 
             // take a plain snapshot of the cache to avoid passing drafts
             const plainCache = current(
                 state.cachedChartConfigs,
             ) as Partial<ConfigCacheMap>;
 
+            // restore the chartConfig
             state.unsavedChartVersion.chartConfig = getValidChartConfig(
+                action.payload.chartType,
+                plainCache,
+            );
+
+            // restore the pivotConfig
+            state.unsavedChartVersion.pivotConfig = getCachedPivotConfig(
                 action.payload.chartType,
                 plainCache,
             );

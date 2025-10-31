@@ -129,8 +129,11 @@ export const useExplorerInitialization = ({
             }
 
             stateToUse.cachedChartConfigs = {
-                [stateToUse.unsavedChartVersion.chartConfig.type]:
-                    stateToUse.unsavedChartVersion.chartConfig.config,
+                [stateToUse.unsavedChartVersion.chartConfig.type]: {
+                    chartConfig:
+                        stateToUse.unsavedChartVersion.chartConfig.config,
+                    pivotConfig: stateToUse.unsavedChartVersion.pivotConfig,
+                },
             };
 
             dispatch(explorerActions.reset(stateToUse));
