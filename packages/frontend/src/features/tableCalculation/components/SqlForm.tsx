@@ -6,7 +6,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -60,26 +60,33 @@ export const SqlForm: FC<Props> = ({
 
     const { setAceEditor } = useTableCalculationAceEditorCompleter();
 
-    const handleEditorLoad = (editor: any) => {
-        setAceEditor(editor);
-        editor.commands.addCommand({
-            name: 'executeCmdEnter',
-            bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' },
-            exec: () => {
-                if (onCmdEnter) {
-                    onCmdEnter();
-                }
-            },
-        });
-        if (focusOnRender) {
-            // set timeout throws the focus to the end of the event loop (after the render)
-            // without it the focus would be set before the editor is fully rendered (and not work)
-            setTimeout(() => {
-                editor.focus(); // focus the editor
-                editor.navigateFileEnd(); // navigate to the end of the content
-            }, 0);
-        }
-    };
+    const handleEditorLoad = useCallback(
+        (editor: any) => {
+            setAceEditor(editor);
+            editor.commands.addCommand({
+                name: 'executeCmdEnter',
+                bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' },
+                exec: () => {
+                    if (onCmdEnter) {
+                        onCmdEnter();
+                    }
+                },
+            });
+            if (focusOnRender) {
+                // set timeout throws the focus to the end of the event loop (after the render)
+                // without it the focus would be set before the editor is fully rendered (and not work)
+                setTimeout(() => {
+                    editor.focus(); // focus the editor
+                    editor.navigateFileEnd(); // navigate to the end of the content
+                }, 0);
+            }
+        },
+        [setAceEditor, onCmdEnter, focusOnRender],
+    );
+
+    const handleToggleSoftWrap = useCallback(() => {
+        setSoftWrapEnabled(!isSoftWrapEnabled);
+    }, [isSoftWrapEnabled, setSoftWrapEnabled]);
 
     return (
         <>
@@ -106,9 +113,7 @@ export const SqlForm: FC<Props> = ({
                 />
                 <SqlEditorActions
                     isSoftWrapEnabled={isSoftWrapEnabled}
-                    onToggleSoftWrap={() =>
-                        setSoftWrapEnabled(!isSoftWrapEnabled)
-                    }
+                    onToggleSoftWrap={handleToggleSoftWrap}
                     clipboardContent={form.values.sql}
                 />
             </ScrollArea>
