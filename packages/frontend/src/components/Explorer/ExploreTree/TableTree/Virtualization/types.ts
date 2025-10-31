@@ -73,6 +73,7 @@ export interface SectionHeaderItem extends BaseFlattenedItem {
         treeSection: TreeSection;
         label: string;
         color: string; // Mantine color like 'blue.9', 'yellow.9'
+        depth?: number; // Depth for indentation when table headers are present
     };
 }
 

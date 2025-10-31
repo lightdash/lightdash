@@ -1,5 +1,5 @@
 import { Group, Text } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import type { SectionHeaderItem } from './types';
 
 interface VirtualSectionHeaderProps {
@@ -12,10 +12,15 @@ interface VirtualSectionHeaderProps {
 const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     item,
 }) => {
-    const { label, color } = item.data;
+    const { label, color, depth } = item.data;
+
+    // Apply indentation based on depth (matches tree node padding formula)
+    const pl = useMemo(() => {
+        return `${12 + (depth ?? 0) * 20}px`;
+    }, [depth]);
 
     return (
-        <Group mt="sm" mb="xs">
+        <Group mt="sm" mb="xs" pl={pl}>
             <Text fw={600} c={color}>
                 {label}
             </Text>

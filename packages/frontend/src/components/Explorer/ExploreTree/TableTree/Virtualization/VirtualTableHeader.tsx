@@ -61,7 +61,9 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
                 backgroundColor: 'white',
                 zIndex: 1,
             }}
-        />
+        >
+            {[]}
+        </NavLink>
     );
 };
 
