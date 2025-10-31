@@ -103,6 +103,7 @@ const usePieChartConfig: PieChartConfigFn = (
     colorPalette,
     tableCalculationsMetadata,
 ) => {
+    const hasExistingConfig = !!pieChartConfig;
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
     );
@@ -111,7 +112,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
     const [valueLabel, setValueLabel] = useState(
-        pieChartConfig?.valueLabel ?? 'hidden',
+        pieChartConfig?.valueLabel ??
+            (hasExistingConfig ? 'hidden' : 'outside'),
     );
 
     const [showValue, setShowValue] = useState(
@@ -149,7 +151,7 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const [showLegend, setShowLegend] = useState(
-        pieChartConfig?.showLegend ?? true,
+        pieChartConfig?.showLegend ?? (hasExistingConfig ? true : false),
     );
 
     const [legendPosition, setLegendPosition] = useState(
