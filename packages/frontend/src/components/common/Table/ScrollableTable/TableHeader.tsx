@@ -119,6 +119,8 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                 >
                                                     <Tooltip
                                                         withinPortal
+                                                        variant="xs"
+                                                        openDelay={500}
                                                         maw={400}
                                                         multiline
                                                         label={tooltipLabel}
