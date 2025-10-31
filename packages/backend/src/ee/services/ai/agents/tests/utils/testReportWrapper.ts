@@ -1,7 +1,7 @@
 import { TestContext } from 'vitest';
 import { DbAiAgentToolCall } from '../../../../../database/entities/ai';
-import { LlmJudgeResult } from './llmAsAJudge';
-import { ToolJudgeResult } from './llmAsJudgeForTools';
+import { LlmJudgeResult } from '../../../utils/llmAsAJudge';
+import { ToolJudgeResult } from '../../../utils/llmAsJudgeForTools';
 import { setTaskMeta } from './taskMeta';
 
 interface TestReportData {

@@ -9,9 +9,9 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { getModel } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
+import { llmAsAJudge } from '../../utils/llmAsAJudge';
+import { llmAsJudgeForTools } from '../../utils/llmAsJudgeForTools';
 import { testCases } from './testCases';
-import { llmAsAJudge } from './utils/llmAsAJudge';
-import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
 import { promptAndGetToolCalls } from './utils/testHelpers';
 import { createTestReport } from './utils/testReportWrapper';
 
