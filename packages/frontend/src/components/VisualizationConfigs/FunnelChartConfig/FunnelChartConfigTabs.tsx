@@ -85,11 +85,11 @@ export const ConfigTabs: FC = memo(() => {
                                         data={[
                                             {
                                                 value: FunnelChartDataInput.COLUMN,
-                                                label: 'rows',
+                                                label: 'Rows',
                                             },
                                             {
                                                 value: FunnelChartDataInput.ROW,
-                                                label: 'columns',
+                                                label: 'Columns',
                                             },
                                         ]}
                                         onChange={(value) =>
