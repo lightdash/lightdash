@@ -22,6 +22,7 @@ import {
     explorerActions,
     selectMetricQuery,
     selectTableName,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -33,7 +34,6 @@ import {
     ExplorerSection,
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
@@ -71,7 +71,8 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     if (!projectUuid) {
         return { pathname: '', search: '' };
     }
-    const newParams = new URLSearchParams();
+    // Preserve existing search params (like fromSpace, fromDashboard, etc)
+    const newParams = new URLSearchParams(window.location.search);
 
     let stringifiedChart = JSON.stringify(createSavedChart);
     const stringifiedChartSize = stringifiedChart.length;
@@ -168,16 +169,9 @@ export const useExplorerRoute = () => {
         tableId: string | undefined;
     }>();
 
-    const reduxDispatch = useExplorerDispatch();
-    const setTableNameContext = useExplorerContext(
-        (context) => context.actions.setTableName,
-    );
-    const clearExplore = useExplorerContext(
-        (context) => context.actions.clearExplore,
-    );
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
+    const dispatch = useExplorerDispatch();
+
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
 
@@ -188,10 +182,7 @@ export const useExplorerRoute = () => {
             void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
-                    {
-                        ...mergedUnsavedChartVersion,
-                        metricQuery,
-                    },
+                    unsavedChartVersion,
                 ),
                 { replace: true },
             );
@@ -201,19 +192,18 @@ export const useExplorerRoute = () => {
         navigate,
         pathParams.projectUuid,
         pathParams.tableId,
-        mergedUnsavedChartVersion,
+        unsavedChartVersion,
         tableName,
     ]);
 
     useEffect(() => {
         if (!pathParams.tableId) {
-            reduxDispatch(explorerActions.reset(defaultState));
-            reduxDispatch(explorerActions.resetQueryExecution());
-            clearExplore();
+            dispatch(explorerActions.reset(defaultState));
+            dispatch(explorerActions.resetQueryExecution());
         } else {
-            setTableNameContext(pathParams.tableId);
+            dispatch(explorerActions.setTableName(pathParams.tableId));
         }
-    }, [pathParams.tableId, reduxDispatch, setTableNameContext, clearExplore]);
+    }, [pathParams.tableId, dispatch]);
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {

@@ -10,10 +10,24 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Suspense, lazy, useState, useTransition, type FC } from 'react';
+import {
+    Suspense,
+    lazy,
+    useCallback,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    explorerActions,
+    selectTableName,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import useSearchParams from '../../../hooks/useSearchParams';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { defaultState } from '../../../providers/Explorer/defaultState';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     activeTableName: string;
@@ -31,14 +45,24 @@ export const EditVirtualViewModal: FC<Props> = ({
 }) => {
     const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
     const [isPending, startTransition] = useTransition();
+    const dispatch = useExplorerDispatch();
+    const navigate = useNavigate();
+    const tableName = useExplorerSelector(selectTableName);
 
     const [modalStep, setModalStep] = useState<
         'unsavedChanges' | 'editVirtualView' | undefined
     >(hasUnsavedChanges ? 'unsavedChanges' : 'editVirtualView');
 
-    const clearQuery = useExplorerContext(
-        (context) => context.actions.clearQuery,
-    );
+    const handleClearQuery = useCallback(() => {
+        dispatch(
+            explorerActions.clearQuery({
+                defaultState,
+                tableName,
+            }),
+        );
+        // Clear state in URL params
+        void navigate({ search: '' }, { replace: true });
+    }, [dispatch, tableName, navigate]);
 
     const handleClose = () => {
         if (modalStep === 'editVirtualView') {
@@ -90,7 +114,7 @@ export const EditVirtualViewModal: FC<Props> = ({
                             color="red"
                             onClick={() => {
                                 startTransition(() => {
-                                    clearQuery();
+                                    handleClearQuery();
                                     setModalStep('editVirtualView');
                                 });
                             }}

@@ -9,7 +9,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, useTransition } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -24,6 +24,7 @@ import ExploreNavLink from './ExploreNavLink';
 
 const BasePanel = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const projectUuid = useProjectUuid();
     const [search, setSearch] = useState<string>('');
     const [, startTransition] = useTransition();
@@ -96,16 +97,24 @@ const BasePanel = () => {
                                     query={search}
                                     onClick={() => {
                                         startTransition(() => {
-                                            void navigate(
-                                                `/projects/${projectUuid}/tables/${explore.name}`,
-                                            );
+                                            void navigate({
+                                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                                                search: location.search,
+                                            });
                                         });
                                     }}
                                 />
                             ))}
                     </ExploreGroup>
                 )),
-        [exploreGroupMap, navigate, projectUuid, search, startTransition],
+        [
+            exploreGroupMap,
+            navigate,
+            projectUuid,
+            search,
+            startTransition,
+            location.search,
+        ],
     );
 
     const ungroupedExploreLinks = useMemo(
@@ -119,9 +128,10 @@ const BasePanel = () => {
                         query={search}
                         onClick={() => {
                             startTransition(() => {
-                                void navigate(
-                                    `/projects/${projectUuid}/tables/${explore.name}`,
-                                );
+                                void navigate({
+                                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                                    search: location.search,
+                                });
                             });
                         }}
                     />
@@ -132,6 +142,7 @@ const BasePanel = () => {
             projectUuid,
             search,
             startTransition,
+            location.search,
         ],
     );
 
@@ -146,9 +157,10 @@ const BasePanel = () => {
                         query={search}
                         onClick={() => {
                             startTransition(() => {
-                                void navigate(
-                                    `/projects/${projectUuid}/tables/${explore.name}`,
-                                );
+                                void navigate({
+                                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                                    search: location.search,
+                                });
                             });
                         }}
                     />
@@ -159,6 +171,7 @@ const BasePanel = () => {
             projectUuid,
             search,
             startTransition,
+            location.search,
         ],
     );
 

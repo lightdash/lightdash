@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { FeatureFlags } from '@lightdash/common';
 import { useHotkeys } from '@mantine/hooks';
@@ -10,8 +10,11 @@ import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
+    explorerActions,
     explorerStore,
     selectTableName,
+    useExplorerDispatch,
+    useExplorerInitialization,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
@@ -24,13 +27,29 @@ import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
 import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
-import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 const ExplorerWithUrlParams = memo(() => {
+    // Get health config for default limit
+    const { health } = useApp();
+
+    // Get URL state for initialization
+    const explorerUrlState = useExplorerUrlState();
+
+    // Initialize Redux store with URL state and default limit
+    useExplorerInitialization({
+        initialState: explorerUrlState,
+        isEditMode: true,
+        defaultLimit: health.data?.query.defaultLimit,
+    });
+
+    // Sync URL params to Redux
+    useExplorerRoute();
+
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
-    useExplorerRoute();
+
+    const dispatch = useExplorerDispatch();
+    const navigate = useNavigate();
 
     // Pre-load the feature flag to avoid trying to render old side bar while it is fetching it in ExploreTree
     useFeatureFlag(FeatureFlags.ExperimentalVirtualizedSideBar);
@@ -39,10 +58,18 @@ const ExplorerWithUrlParams = memo(() => {
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
 
-    const clearQuery = useExplorerContext(
-        (context) => context.actions.clearQuery,
-    );
-    useHotkeys([['mod + alt + k', clearQuery]]);
+    const handleClearQuery = useCallback(() => {
+        dispatch(
+            explorerActions.clearQuery({
+                defaultState,
+                tableName: tableId,
+            }),
+        );
+        // Clear state in URL params
+        void navigate({ search: '' }, { replace: true });
+    }, [dispatch, tableId, navigate]);
+
+    useHotkeys([['mod + alt + k', handleClearQuery]]);
 
     return (
         <Page
@@ -59,10 +86,12 @@ const ExplorerWithUrlParams = memo(() => {
 });
 
 const ExplorerPage = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, tableId } = useParams<{
+        projectUuid: string;
+        tableId?: string;
+    }>();
 
-    const explorerUrlState = useExplorerUrlState();
-    const { user, health } = useApp();
+    const { user } = useApp();
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
@@ -84,18 +113,11 @@ const ExplorerPage = memo(() => {
     }
 
     return (
-        <Provider store={explorerStore}>
-            <ExplorerProvider
-                isEditMode={true}
-                initialState={
-                    explorerUrlState
-                        ? { ...explorerUrlState, isEditMode: true }
-                        : { ...defaultState, isEditMode: true }
-                }
-                defaultLimit={health.data?.query.defaultLimit}
-            >
-                <ExplorerWithUrlParams />
-            </ExplorerProvider>
+        <Provider
+            store={explorerStore}
+            key={`explorer-${projectUuid}-${tableId || 'none'}`}
+        >
+            <ExplorerWithUrlParams />
         </Provider>
     );
 });

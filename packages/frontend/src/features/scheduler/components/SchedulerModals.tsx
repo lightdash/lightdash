@@ -1,7 +1,11 @@
 import { type ItemsMap } from '@lightdash/common';
 import React, { type FC } from 'react';
+import {
+    selectParameterDefinitions,
+    selectParameters,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
@@ -66,13 +70,9 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 
-    // Extract parameter data from explorer context
-    const currentParameterValues = useExplorerContext(
-        (c) => c.state.unsavedChartVersion.parameters || {},
-    );
-    const availableParameters = useExplorerContext(
-        (c) => c.state.parameterDefinitions,
-    );
+    // Extract parameter data from Redux
+    const currentParameterValues = useExplorerSelector(selectParameters);
+    const availableParameters = useExplorerSelector(selectParameterDefinitions);
 
     return (
         <SchedulerModal

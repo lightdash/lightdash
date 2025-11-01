@@ -3,7 +3,6 @@ import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import {
     explorerActions,
-    selectFilters,
     selectIsEditMode,
     selectIsMinimal,
     selectMetricQuery,
@@ -14,11 +13,11 @@ import {
     selectTableName,
     selectUnpivotedQueryArgs,
     selectUnpivotedQueryUuidHistory,
+    selectUnsavedChartVersion,
     selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
@@ -42,7 +41,6 @@ export const useExplorerQueryManager = () => {
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const filters = useExplorerSelector(selectFilters);
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -70,21 +68,14 @@ export const useExplorerQueryManager = () => {
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
-    // Get merged version with chartConfig and pivotConfig from Context
-    // This includes both Redux fields and Context-only fields (chartConfig, pivotConfig)
-    const mergedUnsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const chartConfigForQuery = useMemo(
         () => ({
-            chartConfig: mergedUnsavedChartVersion.chartConfig,
-            pivotConfig: mergedUnsavedChartVersion.pivotConfig,
+            chartConfig: unsavedChartVersion.chartConfig,
+            pivotConfig: unsavedChartVersion.pivotConfig,
         }),
-        [
-            mergedUnsavedChartVersion.chartConfig,
-            mergedUnsavedChartVersion.pivotConfig,
-        ],
+        [unsavedChartVersion.chartConfig, unsavedChartVersion.pivotConfig],
     );
 
     // Get explore data and pivot configuration
@@ -94,15 +85,6 @@ export const useExplorerQueryManager = () => {
     });
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
-    );
-
-    // Compute the complete metric query (including Redux filters)
-    const computedMetricQuery = useMemo(
-        () => ({
-            ...metricQuery,
-            filters,
-        }),
-        [metricQuery, filters],
     );
 
     // Compute active fields and query validity
@@ -172,7 +154,7 @@ export const useExplorerQueryManager = () => {
             projectUuid,
             explore,
             useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
-            computedMetricQuery,
+            computedMetricQuery: metricQuery,
             parameters,
             isEditMode,
             viewModeQueryArgs,
@@ -190,7 +172,7 @@ export const useExplorerQueryManager = () => {
         projectUuid,
         explore,
         useSqlPivotResults?.enabled,
-        computedMetricQuery,
+        metricQuery,
         parameters,
         isEditMode,
         viewModeQueryArgs,
@@ -232,7 +214,7 @@ export const useExplorerQueryManager = () => {
         tableName,
         projectUuid,
         explore,
-        computedMetricQuery,
+        computedMetricQuery: metricQuery,
         parameters,
 
         // Query execution
