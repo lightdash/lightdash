@@ -37,9 +37,15 @@ type PromptRowProps = {
     result: AiAgentEvaluationRunResult;
     index: number;
     onViewThread: (result: AiAgentEvaluationRunResult) => void;
+    selected?: boolean;
 };
 
-const PromptRow: FC<PromptRowProps> = ({ result, index, onViewThread }) => {
+const PromptRow: FC<PromptRowProps> = ({
+    result,
+    index,
+    onViewThread,
+    selected,
+}) => {
     const statusStyle = statusConfig[result.status];
     const promptText = result.prompt || `Prompt ${index + 1}`;
     const isEvalRunning = isRunning(result.status);
@@ -58,6 +64,7 @@ const PromptRow: FC<PromptRowProps> = ({ result, index, onViewThread }) => {
                 cursor: isClickable ? 'pointer' : 'default',
             }}
             onClick={handleRowClick}
+            {...(selected ? { bg: 'gray.2' } : {})}
         >
             <Table.Td>
                 <Text size="sm" fw={500} c="dimmed">
@@ -108,7 +115,8 @@ export const EvalRunDetails: FC<Props> = ({
     runUuid,
 }) => {
     const navigate = useNavigate();
-    const { setSelectedThreadUuid } = useEvalSectionContext();
+    const { setSelectedThreadUuid, selectedThreadUuid } =
+        useEvalSectionContext();
 
     const { data: runData, isLoading } = useAiAgentEvaluationRunResults(
         projectUuid,
@@ -272,6 +280,9 @@ export const EvalRunDetails: FC<Props> = ({
                                     result={result}
                                     index={index}
                                     onViewThread={handleViewThread}
+                                    selected={
+                                        result.threadUuid === selectedThreadUuid
+                                    }
                                 />
                             ))}
                         </Table.Tbody>
