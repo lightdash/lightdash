@@ -7892,6 +7892,10 @@
             },
             "AiAgentEvaluationRunResult": {
                 "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "assessment": {
                         "allOf": [
                             {
@@ -7936,6 +7940,7 @@
                     }
                 },
                 "required": [
+                    "prompt",
                     "assessment",
                     "createdAt",
                     "completedAt",

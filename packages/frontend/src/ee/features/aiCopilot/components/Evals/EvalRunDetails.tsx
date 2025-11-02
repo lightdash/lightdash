@@ -24,7 +24,6 @@ import {
     useEvaluationRunPolling,
 } from '../../hooks/useAiAgentEvaluations';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { getAssessmentConfig, isRunning, statusConfig } from './utils';
 
 type Props = {
@@ -35,54 +34,24 @@ type Props = {
 };
 
 type PromptRowProps = {
-    projectUuid: string;
-    agentUuid: string;
     result: AiAgentEvaluationRunResult;
     index: number;
     onViewThread: (result: AiAgentEvaluationRunResult) => void;
 };
 
-const PromptRow: FC<PromptRowProps> = ({
-    projectUuid,
-    agentUuid,
-    result,
-    index,
-    onViewThread,
-}) => {
+const PromptRow: FC<PromptRowProps> = ({ result, index, onViewThread }) => {
     const statusStyle = statusConfig[result.status];
-    // Fetch the thread to get the actual prompt text
-    const { data: thread } = useAiAgentThread(
-        projectUuid,
-        agentUuid,
-        result.threadUuid,
-        {
-            enabled: !!result.threadUuid,
-        },
-    );
-
-    // Get the latest user message from the thread
-    const promptText = useMemo(() => {
-        if (!thread?.messages) return `Prompt ${index + 1}`;
-
-        // Find the last user message in the thread
-        const userMessages = thread.messages.filter(
-            (msg) => msg.role === 'user',
-        );
-        const lastUserMessage = userMessages[userMessages.length - 1];
-
-        return lastUserMessage?.message || `Prompt ${index + 1}`;
-    }, [thread?.messages, index]);
-
+    const promptText = result.prompt || `Prompt ${index + 1}`;
     const isEvalRunning = isRunning(result.status);
+    const isClickable = !isEvalRunning && result.threadUuid;
+    const assessmentConfig = getAssessmentConfig(result.assessment?.passed);
 
     const handleRowClick = () => {
-        if (!isEvalRunning && result.threadUuid) {
+        if (isClickable) {
             onViewThread(result);
         }
     };
 
-    const isClickable = !isEvalRunning && result.threadUuid;
-    const assessmentConfig = getAssessmentConfig(result.assessment?.passed);
     return (
         <Table.Tr
             style={{
@@ -300,8 +269,6 @@ export const EvalRunDetails: FC<Props> = ({
                             {runData.results.map((result, index) => (
                                 <PromptRow
                                     key={result.resultUuid}
-                                    projectUuid={projectUuid}
-                                    agentUuid={agentUuid}
                                     result={result}
                                     index={index}
                                     onViewThread={handleViewThread}
