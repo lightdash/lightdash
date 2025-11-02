@@ -448,6 +448,8 @@ export type AiAgentEvaluationRunSummary = {
     status: 'pending' | 'running' | 'completed' | 'failed';
     completedAt: Date | null;
     createdAt: Date;
+    passedAssessments: number;
+    failedAssessments: number;
 };
 
 export type AiAgentEvaluationRun = AiAgentEvaluationRunSummary & {

@@ -2,6 +2,7 @@ import type { AiAgentEvaluationRunSummary } from '@lightdash/common';
 import {
     Badge,
     Box,
+    Group,
     Loader,
     Paper,
     Stack,
@@ -10,7 +11,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { IconClock } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCircleDotted,
+    IconClock,
+    IconX,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -19,13 +25,7 @@ import {
     useAiAgentEvaluationRuns,
     useEvaluationRunPolling,
 } from '../../hooks/useAiAgentEvaluations';
-
-const statusColors = {
-    pending: 'gray',
-    running: 'yellow',
-    completed: 'green',
-    failed: 'red',
-} as const;
+import { isRunning, statusConfig } from './utils';
 
 type Props = {
     projectUuid: string;
@@ -69,7 +69,7 @@ const EvalRunRow: FC<RunRowProps> = ({
     const completedAt = run.completedAt
         ? dayjs(run.completedAt).format('DD/MM/YYYY HH:mm:ss')
         : '-';
-
+    const evalStatus = statusConfig[run.status];
     return (
         <Table.Tr
             key={run.runUuid}
@@ -85,13 +85,45 @@ const EvalRunRow: FC<RunRowProps> = ({
             </Table.Td>
             <Table.Td>
                 <Badge
-                    color={statusColors[run.status]}
-                    variant="light"
+                    color={evalStatus.color}
+                    variant="dot"
                     size="sm"
                     radius="sm"
+                    c="gray.7"
+                    style={{ border: 'none' }}
                 >
-                    {run.status}
+                    {evalStatus.label}
                 </Badge>
+            </Table.Td>
+            <Table.Td>
+                {isRunning(run.status) ? (
+                    <Tooltip label="Running">
+                        <Loader size={12} color="gray" />
+                    </Tooltip>
+                ) : !run.passedAssessments && !run.failedAssessments ? (
+                    <Tooltip label="No assessments available">
+                        <MantineIcon icon={IconCircleDotted} color="gray.6" />
+                    </Tooltip>
+                ) : (
+                    <Group gap="sm">
+                        {run.passedAssessments > 0 && (
+                            <Group gap={2}>
+                                <MantineIcon icon={IconCheck} color="green.8" />
+                                <Text fz="xs" c="green.8" fw={500}>
+                                    {run.passedAssessments}
+                                </Text>
+                            </Group>
+                        )}
+                        {run.failedAssessments > 0 && (
+                            <Group gap={2}>
+                                <MantineIcon icon={IconX} color="red.8" />
+                                <Text fz="xs" c="red.8" fw={500}>
+                                    {run.failedAssessments}
+                                </Text>
+                            </Group>
+                        )}
+                    </Group>
+                )}
             </Table.Td>
             <Table.Td>
                 <Tooltip
@@ -175,7 +207,8 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>Run ID</Table.Th>
-                                    <Table.Th>Status</Table.Th>
+                                    <Table.Th>Run Status</Table.Th>
+                                    <Table.Th>Assessment</Table.Th>
                                     <Table.Th>Created</Table.Th>
                                     <Table.Th>Duration</Table.Th>
                                 </Table.Tr>

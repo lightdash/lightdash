@@ -7535,6 +7535,14 @@
             },
             "AiAgentEvaluationRunSummary": {
                 "properties": {
+                    "failedAssessments": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "passedAssessments": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7556,6 +7564,8 @@
                     }
                 },
                 "required": [
+                    "failedAssessments",
+                    "passedAssessments",
                     "createdAt",
                     "completedAt",
                     "status",

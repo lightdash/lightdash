@@ -2938,6 +2938,8 @@ export class AiAgentModel {
             status: runRecord.status,
             completedAt: runRecord.completed_at,
             createdAt: runRecord.created_at,
+            passedAssessments: 0,
+            failedAssessments: 0,
         };
     }
 
@@ -3073,28 +3075,85 @@ export class AiAgentModel {
         };
     }
 
+    private buildAssessmentCountsSubquery() {
+        return this.database(AiEvalRunResultAssessmentTableName)
+            .select(
+                `${AiEvalRunResultTableName}.ai_eval_run_uuid`,
+                this.database.raw(
+                    `COUNT(CASE WHEN ${AiEvalRunResultAssessmentTableName}.passed = true THEN 1 END) as passed_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN ${AiEvalRunResultAssessmentTableName}.passed = false THEN 1 END) as failed_count`,
+                ),
+            )
+            .innerJoin(
+                AiEvalRunResultTableName,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+            )
+            .groupBy(`${AiEvalRunResultTableName}.ai_eval_run_uuid`)
+            .as('assessments_agg');
+    }
+
+    private static mapRunWithAssessmentCounts(
+        row: DbAiEvalRun & {
+            passed_assessments: string | number;
+            failed_assessments: string | number;
+        },
+    ): AiAgentEvaluationRunSummary {
+        return {
+            runUuid: row.ai_eval_run_uuid,
+            evalUuid: row.ai_eval_uuid,
+            status: row.status,
+            completedAt: row.completed_at,
+            createdAt: row.created_at,
+            passedAssessments: Number(row.passed_assessments),
+            failedAssessments: Number(row.failed_assessments),
+        };
+    }
+
     async getEvalRuns(
         evalUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<{ runs: AiAgentEvaluationRunSummary[] }>> {
+        const assessmentsSubquery = this.buildAssessmentCountsSubquery();
+
         const query = this.database(AiEvalRunTableName)
-            .select<DbAiEvalRun[]>('*')
-            .where('ai_eval_uuid', evalUuid)
-            .orderBy('created_at', 'desc');
+            .select<
+                Array<
+                    DbAiEvalRun & {
+                        passed_assessments: string | number;
+                        failed_assessments: string | number;
+                    }
+                >
+            >(
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                `${AiEvalRunTableName}.ai_eval_uuid`,
+                `${AiEvalRunTableName}.status`,
+                `${AiEvalRunTableName}.completed_at`,
+                `${AiEvalRunTableName}.created_at`,
+                this.database.raw(
+                    `COALESCE(assessments_agg.passed_count, 0) as passed_assessments`,
+                ),
+                this.database.raw(
+                    `COALESCE(assessments_agg.failed_count, 0) as failed_assessments`,
+                ),
+            )
+            .leftJoin(
+                assessmentsSubquery,
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                'assessments_agg.ai_eval_run_uuid',
+            )
+            .where(`${AiEvalRunTableName}.ai_eval_uuid`, evalUuid)
+            .orderBy(`${AiEvalRunTableName}.created_at`, 'desc');
 
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,
         );
 
-        const runs: AiAgentEvaluationRunSummary[] = data.map(
-            (run: DbAiEvalRun) => ({
-                runUuid: run.ai_eval_run_uuid,
-                evalUuid: run.ai_eval_uuid,
-                status: run.status,
-                completedAt: run.completed_at,
-                createdAt: run.created_at,
-            }),
+        const runs: AiAgentEvaluationRunSummary[] = data.map((row) =>
+            AiAgentModel.mapRunWithAssessmentCounts(row),
         );
 
         return {
@@ -3108,8 +3167,33 @@ export class AiAgentModel {
     async getEvalRunWithResults(
         runUuid: string,
     ): Promise<AiAgentEvaluationRun> {
+        const assessmentsSubquery = this.buildAssessmentCountsSubquery();
+
         const run = await this.database(AiEvalRunTableName)
-            .where('ai_eval_run_uuid', runUuid)
+            .select<
+                DbAiEvalRun & {
+                    passed_assessments: string | number;
+                    failed_assessments: string | number;
+                }
+            >(
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                `${AiEvalRunTableName}.ai_eval_uuid`,
+                `${AiEvalRunTableName}.status`,
+                `${AiEvalRunTableName}.completed_at`,
+                `${AiEvalRunTableName}.created_at`,
+                this.database.raw(
+                    `COALESCE(assessments_agg.passed_count, 0) as passed_assessments`,
+                ),
+                this.database.raw(
+                    `COALESCE(assessments_agg.failed_count, 0) as failed_assessments`,
+                ),
+            )
+            .leftJoin(
+                assessmentsSubquery,
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                'assessments_agg.ai_eval_run_uuid',
+            )
+            .where(`${AiEvalRunTableName}.ai_eval_run_uuid`, runUuid)
             .first();
 
         if (!run)
@@ -3171,11 +3255,7 @@ export class AiAgentModel {
             .orderBy(`${AiEvalRunResultTableName}.created_at`, 'asc');
 
         return {
-            runUuid: run.ai_eval_run_uuid,
-            evalUuid: run.ai_eval_uuid,
-            status: run.status,
-            completedAt: run.completed_at,
-            createdAt: run.created_at,
+            ...AiAgentModel.mapRunWithAssessmentCounts(run),
             results: results.map((result) => ({
                 resultUuid: result.ai_eval_run_result_uuid,
                 evalPromptUuid: result.ai_eval_prompt_uuid,
