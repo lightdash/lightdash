@@ -697,7 +697,7 @@ export const buildCartesianTooltipFormatter =
             })
             .join('');
 
-        // custom HTML template only in dataset mode
+        // custom HTML template
         let tooltipHtml = tooltipHtmlTemplate ?? '';
         if (tooltipHtml) {
             tooltipHtml = sanitizeHtml(tooltipHtml);
