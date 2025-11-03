@@ -1,3 +1,10 @@
+## [0.2126.3](https://github.com/lightdash/lightdash/compare/0.2126.2...0.2126.3) (2025-11-03)
+
+
+### Bug Fixes
+
+* filter out orphaned chart and dashboard validations ([#17783](https://github.com/lightdash/lightdash/issues/17783)) ([200628b](https://github.com/lightdash/lightdash/commit/200628b1359c37a9f34613e44a1f8b028aacc875))
+
 ## [0.2126.2](https://github.com/lightdash/lightdash/compare/0.2126.1...0.2126.2) (2025-11-03)
 
 
