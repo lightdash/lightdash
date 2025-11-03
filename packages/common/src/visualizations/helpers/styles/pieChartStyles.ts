@@ -1,5 +1,4 @@
-import { type MantineTheme } from '@mantine/core';
-import { isColorDark } from './colorUtils';
+import { GRAY_3, GRAY_6, GRAY_7, WHITE } from './themeColors';
 
 /**
  * Get pie slice styling
@@ -9,7 +8,7 @@ export const getPieSliceStyle = (isDonut: boolean) =>
         ? {
               itemStyle: {
                   borderRadius: 4,
-                  borderColor: '#fff',
+                  borderColor: WHITE,
                   borderWidth: 2,
               },
           }
@@ -18,19 +17,19 @@ export const getPieSliceStyle = (isDonut: boolean) =>
 /**
  * Get external label styling for pie charts
  */
-export const getPieExternalLabelStyle = (theme: MantineTheme) => ({
+export const getPieExternalLabelStyle = () => ({
     fontSize: 12,
     lineHeight: 18,
     // Rich text styles for different parts of the label
     rich: {
         name: {
-            color: theme.colors.gray[6],
+            color: GRAY_6,
             fontWeight: 500,
             fontSize: 12,
             lineHeight: 18,
         },
         value: {
-            color: theme.colors.gray[7],
+            color: GRAY_7,
             fontWeight: 600,
             fontSize: 12,
             lineHeight: 18,
@@ -41,20 +40,16 @@ export const getPieExternalLabelStyle = (theme: MantineTheme) => ({
 /**
  * Get label line (connector) styling for pie chart external labels
  */
-export const getPieLabelLineStyle = (theme: MantineTheme) => ({
+export const getPieLabelLineStyle = () => ({
     lineStyle: {
-        color: theme.colors.gray[3],
+        color: GRAY_3,
     },
 });
 
 /**
  * Get internal label styling for pie charts (labels inside slices)
  */
-export const getPieInternalLabelStyle = (
-    theme: MantineTheme,
-    color: string,
-) => ({
-    color: isColorDark(color) ? '#FFFFFF' : theme.colors.gray[7],
+export const getPieInternalLabelStyle = () => ({
     fontWeight: 500,
     fontSize: 12,
 });

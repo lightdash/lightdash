@@ -1,10 +1,10 @@
-import { type MantineTheme } from '@mantine/core';
+import { AXIS_TITLE_COLOR, GRAY_4, GRAY_7, WHITE } from './themeColors';
 
 /**
  * Get axis label styling (for values like "Jan", "Feb", "Mar")
  */
-export const getAxisLabelStyle = (theme: MantineTheme) => ({
-    color: theme.colors.gray[7],
+export const getAxisLabelStyle = () => ({
+    color: GRAY_7,
     fontWeight: '500',
     fontSize: 11.5,
 });
@@ -13,7 +13,7 @@ export const getAxisLabelStyle = (theme: MantineTheme) => ({
  * Get axis title styling (for titles like "Month", "Amount")
  */
 export const getAxisTitleStyle = () => ({
-    color: '#747B83',
+    color: AXIS_TITLE_COLOR,
     fontWeight: '500',
     fontSize: 12,
 });
@@ -21,10 +21,10 @@ export const getAxisTitleStyle = () => ({
 /**
  * Get axis line styling (the main axis line)
  */
-export const getAxisLineStyle = (theme: MantineTheme) => ({
+export const getAxisLineStyle = () => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[4],
+        color: GRAY_4,
         type: 'solid' as const,
     },
 });
@@ -32,10 +32,10 @@ export const getAxisLineStyle = (theme: MantineTheme) => ({
 /**
  * Get tick line styling (small marks on axis)
  */
-export const getAxisTickStyle = (theme: MantineTheme) => ({
+export const getAxisTickStyle = () => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[4],
+        color: GRAY_4,
         type: 'solid' as const,
     },
 });
@@ -43,13 +43,13 @@ export const getAxisTickStyle = (theme: MantineTheme) => ({
 /**
  * Get axis pointer styling (for highlighting when hovering over series)
  */
-export const getAxisPointerStyle = (theme: MantineTheme) => ({
+export const getAxisPointerStyle = () => ({
     type: 'shadow' as const,
     label: {
         show: true,
         fontWeight: 500,
         fontSize: 11,
-        color: '#FFFFFF',
-        backgroundColor: theme.colors.gray[7],
+        color: WHITE,
+        backgroundColor: GRAY_7,
     },
 });

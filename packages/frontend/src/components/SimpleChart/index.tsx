@@ -1,12 +1,14 @@
-import { type PivotReference } from '@lightdash/common';
+import {
+    getFormattedValue,
+    isLineSeriesOption,
+    type PivotReference,
+} from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import { isLineSeriesOption } from '../../hooks/echarts/utils/tooltipFormatter';
-import { getFormattedValue } from '../../hooks/echarts/utils/valueFormatter';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 

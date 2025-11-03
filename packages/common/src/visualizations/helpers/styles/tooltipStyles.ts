@@ -1,11 +1,10 @@
-import { type MantineTheme } from '@mantine/core';
-import type { CSSProperties } from 'react';
+import { GRAY_0, GRAY_1, GRAY_3, GRAY_7, WHITE } from './themeColors';
 
 /**
  * Helper to convert style object to CSS string
  * We need this because ECharts doesn't support style objects directly
  */
-const stylesToString = (styles: CSSProperties) =>
+const stylesToString = (styles: Record<string, unknown>) =>
     Object.entries(styles)
         .map(([key, value]) => {
             // Convert camelCase to kebab-case
@@ -17,14 +16,14 @@ const stylesToString = (styles: CSSProperties) =>
 /**
  * Get base tooltip styling
  */
-export const getTooltipStyle = (theme: MantineTheme) => ({
+export const getTooltipStyle = () => ({
     padding: 8,
-    borderColor: theme.colors.gray[3],
+    borderColor: GRAY_3,
     borderWidth: 1,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: WHITE,
     textStyle: {
-        color: theme.colors.gray[7],
+        color: GRAY_7,
         fontSize: 12,
     },
     extraCssText:
@@ -34,15 +33,12 @@ export const getTooltipStyle = (theme: MantineTheme) => ({
 /**
  * Format a tooltip value with pill styling (e.g. "100% - $100")
  */
-export const formatTooltipValue = (
-    value: string,
-    theme: MantineTheme,
-): string => {
+export const formatTooltipValue = (value: string): string => {
     const styles = stylesToString({
         display: 'inline-block',
-        backgroundColor: theme.colors.gray[0],
-        border: `1px solid ${theme.colors.gray[1]}`,
-        color: theme.colors.gray[7],
+        backgroundColor: GRAY_0,
+        border: `1px solid ${GRAY_1}`,
+        color: GRAY_7,
         padding: '2px 8px',
         borderRadius: '6px',
         fontWeight: 600,
@@ -54,12 +50,9 @@ export const formatTooltipValue = (
 /**
  * Format tooltip header (e.g. "Total Sales")
  */
-export const formatTooltipHeader = (
-    header: string,
-    theme: MantineTheme,
-): string => {
+export const formatTooltipHeader = (header: string): string => {
     const styles = stylesToString({
-        color: theme.colors.gray[7],
+        color: GRAY_7,
         fontWeight: 500,
         fontSize: '13px',
         paddingBottom: '8px',
@@ -70,10 +63,10 @@ export const formatTooltipHeader = (
 /**
  * Get tooltip divider
  */
-export const getTooltipDivider = (theme: MantineTheme): string => {
+export const getTooltipDivider = (): string => {
     const styles = stylesToString({
         height: '1px',
-        backgroundColor: theme.colors.gray[1],
+        backgroundColor: GRAY_1,
         marginBottom: '4px',
     });
     return `<div style="${styles}"></div>`;
@@ -98,12 +91,9 @@ export const formatColorIndicator = (color: string): string => {
  * Format a simple text label for tooltip (e.g. series name or category)
  * Color: gray.7, Font size: 11px
  */
-export const formatTooltipLabel = (
-    text: string,
-    theme: MantineTheme,
-): string => {
+export const formatTooltipLabel = (text: string): string => {
     const styles = stylesToString({
-        color: theme.colors.gray[7],
+        color: GRAY_7,
         fontSize: '11px',
     });
     return `<span style="${styles}">${text}</span>`;
@@ -139,13 +129,11 @@ export const formatTooltipRow = (
  * @param colorIndicator - HTML string for color indicator (from formatColorIndicator)
  * @param seriesName - Series name text
  * @param valuePill - HTML string for formatted value pill (from formatTooltipValue)
- * @param theme - Mantine theme for colors
  */
 export const formatCartesianTooltipRow = (
     colorIndicator: string,
     seriesName: string,
     valuePill: string,
-    theme: MantineTheme,
 ): string => {
     const rowStyles = stylesToString({
         display: 'flex',
@@ -154,7 +142,7 @@ export const formatCartesianTooltipRow = (
         marginBottom: '2px',
     });
     const seriesNameStyles = stylesToString({
-        color: theme.colors.gray[7],
+        color: GRAY_7,
         flex: '1',
         fontSize: '12px',
     });

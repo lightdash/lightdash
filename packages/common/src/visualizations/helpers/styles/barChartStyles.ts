@@ -1,6 +1,10 @@
-import { CartesianSeriesType, type ResultRow } from '@lightdash/common';
-import { type MantineTheme } from '@mantine/core';
-import { type EChartSeries } from '../useEchartsCartesianConfig';
+/* eslint-disable no-plusplus */
+/* eslint-disable no-continue */
+import { type AnyType } from '../../../types/any';
+import { type RawResultRow, type ResultRow } from '../../../types/results';
+import { CartesianSeriesType } from '../../../types/savedCharts';
+import { type EChartSeries, type SqlRunnerEChartSeries } from '../../types';
+import { GRAY_9 } from './themeColors';
 
 /**
  * Calculate dynamic border radius based on estimated bar width
@@ -65,8 +69,8 @@ export const getBarStyle = () => ({
  * Get bar total label styling (values above/beside stacked bars)
  * This is specifically for stack totals, not individual bar labels
  */
-export const getBarTotalLabelStyle = (theme: MantineTheme) => ({
-    color: theme.colors.gray[9],
+export const getBarTotalLabelStyle = () => ({
+    color: GRAY_9,
     fontWeight: '500',
     fontSize: 11,
 });
@@ -79,7 +83,7 @@ export const getBarTotalLabelStyle = (theme: MantineTheme) => ({
  * @returns The index of the axis
  */
 export const getIndexFromEncode = (
-    enc: EChartSeries['encode'],
+    enc: EChartSeries['encode'] | SqlRunnerEChartSeries['encode'],
     dimNames: string[] | undefined,
     which: 'x' | 'y',
 ): number | undefined => {
@@ -96,6 +100,143 @@ export const getIndexFromEncode = (
 type LegendValues = { [name: string]: boolean } | undefined;
 
 /**
+ * Apply rounded corners to stacked bars for SQL Runner (flat data format)
+ * SQL Runner data is flat: { field: value } instead of { field: { value: { raw: value } } }
+ */
+export const applyRoundedCornersToSqlRunnerStackData = (
+    series: SqlRunnerEChartSeries[],
+    rows: RawResultRow[],
+    {
+        radius = 4,
+        isHorizontal = false,
+        legendSelected,
+    }: {
+        radius?: number;
+        isHorizontal?: boolean;
+        legendSelected?: { [name: string]: boolean } | undefined;
+    } = {},
+): SqlRunnerEChartSeries[] => {
+    const out = series.map((s) => ({ ...s }));
+    const indexMap = new Map<SqlRunnerEChartSeries, number>();
+    series.forEach((s, i) => indexMap.set(s, i));
+
+    const isVisible = (s: SqlRunnerEChartSeries) => {
+        if (!legendSelected) return true;
+        const name =
+            s.name || (Array.isArray(s.dimensions) ? s.dimensions[1] : '');
+        if (!name) return true;
+        return legendSelected[name] ?? true;
+    };
+
+    const getDimNames = (s: SqlRunnerEChartSeries) =>
+        (s.dimensions || []).filter(Boolean) as string[];
+
+    const getHashFromEncode = (s: SqlRunnerEChartSeries, which: 'x' | 'y') =>
+        (s.encode?.[which] as string | undefined) || undefined;
+
+    // Only stacked BAR series
+    const stacks: Record<string, SqlRunnerEChartSeries[]> = {};
+    series.forEach((s) => {
+        if (s.type === 'bar' && s.stack) {
+            (stacks[s.stack] ||= []).push(s);
+        }
+    });
+
+    Object.values(stacks).forEach((group) => {
+        if (!group.length) return;
+
+        const topPosAt: number[] = rows.map(() => -1);
+        const topNegAt: number[] = rows.map(() => -1);
+
+        // Determine which series sits at the visible end for each category index
+        for (let i = group.length - 1; i >= 0; i--) {
+            const s = group[i];
+            if (!isVisible(s)) continue;
+
+            const valHash = isHorizontal
+                ? getHashFromEncode(s, 'x')
+                : getHashFromEncode(s, 'y');
+            for (let r = 0; r < rows.length; r++) {
+                // SQL Runner uses flat format: row[field] directly
+                const raw = valHash ? rows[r]?.[valHash] : undefined;
+                let v: number | null = null;
+                if (typeof raw === 'number') {
+                    v = raw;
+                } else if (Number.isFinite(Number(raw))) {
+                    v = Number(raw);
+                }
+                if (v == null || v === 0) continue;
+                if (v > 0 && topPosAt[r] === -1) topPosAt[r] = i;
+                if (v < 0 && topNegAt[r] === -1) topNegAt[r] = i;
+            }
+        }
+
+        // Build data with tuple indices aligned to encode+dimensions
+        group.forEach((s, gi) => {
+            const outIdx = indexMap.get(s);
+            if (outIdx === undefined) return;
+
+            const dimNames = getDimNames(s);
+            const xIdx = getIndexFromEncode(s.encode, dimNames, 'x') ?? 0;
+            const yIdx = getIndexFromEncode(s.encode, dimNames, 'y') ?? 1;
+
+            const xHash = getHashFromEncode(s, 'x');
+            const yHash = getHashFromEncode(s, 'y');
+
+            const data = rows.map((row, r) => {
+                const catHash = isHorizontal ? yHash : xHash;
+                const valHash = isHorizontal ? xHash : yHash;
+
+                // SQL Runner uses flat format
+                const cat = catHash ? row[catHash] : undefined;
+                const raw = valHash ? row[valHash] : undefined;
+                let v: number | null = null;
+                if (typeof raw === 'number') {
+                    v = raw;
+                } else if (Number.isFinite(Number(raw))) {
+                    v = Number(raw);
+                }
+
+                const value: AnyType[] = [];
+                if (isHorizontal) {
+                    value[xIdx] = v;
+                    value[yIdx] = cat;
+                } else {
+                    value[xIdx] = cat;
+                    value[yIdx] = v;
+                }
+
+                if (v == null) return { value };
+
+                const isTopPos = v > 0 && topPosAt[r] === gi;
+                const isTopNeg = v < 0 && topNegAt[r] === gi;
+                if (!isTopPos && !isTopNeg) return { value };
+
+                let borderRadius: number | number[] = 0;
+                if (isHorizontal) {
+                    borderRadius = isTopPos
+                        ? [0, radius, radius, 0]
+                        : [radius, 0, 0, radius];
+                } else {
+                    borderRadius = isTopPos
+                        ? [radius, radius, 0, 0]
+                        : [0, 0, radius, radius];
+                }
+
+                return {
+                    value,
+                    itemStyle: { ...(s.itemStyle || {}), borderRadius },
+                };
+            });
+
+            out[outIdx] = { ...out[outIdx], data };
+        });
+    });
+
+    return out;
+};
+
+/**
  * Apply rounded corners to the visible end-segments of stacked bar series.
  * Ref: https://github.com/apache/echarts/issues/12319#issuecomment-1341387601
  *
@@ -108,7 +249,7 @@ type LegendValues = { [name: string]: boolean } | undefined;
  *   per category "wins" without extra allocations.
  *
  * @param series ECharts series produced for a cartesian chart
- * @param rows Result rows aligned with the chart categories
+ * @param rows Result rows aligned with the chart categories (Explorer format with nested values)
  * @param options.radius Corner radius in px (default: 4)
  * @param options.isHorizontal Whether the chart is horizontal (flipAxes)
  * @param options.legendSelected Map of legend selection states used to ignore hidden series
@@ -174,12 +315,12 @@ export const applyRoundedCornersToStackData = (
                 const raw = valHash
                     ? rows[r]?.[valHash]?.value?.raw
                     : undefined;
-                const v =
-                    typeof raw === 'number'
-                        ? raw
-                        : Number.isFinite(Number(raw))
-                        ? Number(raw)
-                        : null;
+                let v: number | null = null;
+                if (typeof raw === 'number') {
+                    v = raw;
+                } else if (Number.isFinite(Number(raw))) {
+                    v = Number(raw);
+                }
                 if (v == null || v === 0) continue;
                 // Track the index of the series that is at the top of the stack for each category
                 if (v > 0 && topPosAt[r] === -1) topPosAt[r] = i;
@@ -205,15 +346,15 @@ export const applyRoundedCornersToStackData = (
 
                 const cat = catHash ? row[catHash]?.value?.raw : undefined;
                 const raw = valHash ? row[valHash]?.value?.raw : undefined;
-                const v =
-                    typeof raw === 'number'
-                        ? raw
-                        : Number.isFinite(Number(raw))
-                        ? Number(raw)
-                        : null;
+                let v: number | null = null;
+                if (typeof raw === 'number') {
+                    v = raw;
+                } else if (Number.isFinite(Number(raw))) {
+                    v = Number(raw);
+                }
 
                 // Place values at the correct tuple indices
-                const value: any[] = [];
+                const value: AnyType[] = [];
                 if (isHorizontal) {
                     value[xIdx] = v;
                     value[yIdx] = cat;
@@ -228,13 +369,16 @@ export const applyRoundedCornersToStackData = (
                 const isTopNeg = v < 0 && topNegAt[r] === gi;
                 if (!isTopPos && !isTopNeg) return { value };
 
-                const borderRadius = isHorizontal
-                    ? isTopPos
+                let borderRadius: number | number[] = 0;
+                if (isHorizontal) {
+                    borderRadius = isTopPos
                         ? [0, radius, radius, 0] // round right side for +X
-                        : [radius, 0, 0, radius] // round left side for -X
-                    : isTopPos
-                    ? [radius, radius, 0, 0] // round top for +Y
-                    : [0, 0, radius, radius]; // round bottom for -Y
+                        : [radius, 0, 0, radius]; // round left side for -X
+                } else {
+                    borderRadius = isTopPos
+                        ? [radius, radius, 0, 0] // round top for +Y
+                        : [0, 0, radius, radius]; // round bottom for -Y
+                }
 
                 return {
                     value,

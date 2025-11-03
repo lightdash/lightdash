@@ -1,18 +1,36 @@
 import {
     applyCustomFormat,
+    applyRoundedCornersToStackData,
     assertUnreachable,
+    buildCartesianTooltipFormatter,
+    calculateDynamicBorderRadius,
     CartesianSeriesType,
     DimensionType,
     formatItemValue,
     formatValueWithExpression,
     friendlyName,
     getCartesianAxisFormatterConfig as getAxisFormatterConfig,
+    getAxisLabelStyle,
+    getAxisLineStyle,
     getAxisName,
+    getAxisPointerStyle,
+    getAxisTickStyle,
+    getAxisTitleStyle,
+    getBarBorderRadius,
+    getBarChartGridStyle,
+    getBarStyle,
+    getBarTotalLabelStyle,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
+    getFormattedValue,
+    getIndexFromEncode,
     getItemLabelWithoutTableName,
     getItemType,
+    getLineChartGridStyle,
+    getReferenceLineStyle,
     getResultValueArray,
+    getTooltipStyle,
+    getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
     isCompleteLayout,
@@ -29,9 +47,11 @@ import {
     TableCalculationType,
     TimeFrames,
     transformToPercentageStacking,
+    valueFormatter,
     XAxisSortType,
     type CartesianChart,
     type CustomDimension,
+    type EChartSeries,
     type Field,
     type Item,
     type ItemsMap,
@@ -42,6 +62,7 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
+import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import { useMantineTheme, type MantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import {
@@ -65,32 +86,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import {
-    getAxisLabelStyle,
-    getAxisLineStyle,
-    getAxisPointerStyle,
-    getAxisTickStyle,
-    getAxisTitleStyle,
-} from './styles/axisStyles';
-import {
-    applyRoundedCornersToStackData,
-    calculateDynamicBorderRadius,
-    getBarBorderRadius,
-    getBarStyle,
-    getBarTotalLabelStyle,
-    getIndexFromEncode,
-} from './styles/barChartStyles';
-import {
-    getBarChartGridStyle,
-    getLineChartGridStyle,
-} from './styles/gridStyles';
-import { getLegendStyle } from './styles/legendStyles';
-import { getReferenceLineStyle } from './styles/referenceLineStyles';
-import { getTooltipStyle } from './styles/tooltipStyles';
-import { getValueLabelStyle } from './styles/valueLabelStyles';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
-import { buildCartesianTooltipFormatter } from './utils/tooltipFormatter';
-import { getFormattedValue, valueFormatter } from './utils/valueFormatter';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -313,55 +309,6 @@ export const getAxisDefaultMaxValue = ({
 
 const maybeGetAxisDefaultMaxValue = (allowFunction: boolean) =>
     allowFunction ? getAxisDefaultMaxValue : undefined;
-
-export type EChartSeries = {
-    type: Series['type'];
-    connectNulls: boolean;
-    stack?: string;
-    stackLabel?: {
-        show?: boolean;
-    };
-    name?: string;
-    color?: string;
-    yAxisIndex?: number;
-    xAxisIndex?: number;
-    encode?: {
-        x: string;
-        y: string;
-        tooltip: string[];
-        seriesName: string;
-        yRef?: PivotReference;
-        xRef?: PivotReference;
-    };
-    dimensions?: Array<{ name: string; displayName: string }>;
-    emphasis?: {
-        focus?: string;
-    };
-    areaStyle?: any;
-    pivotReference?: PivotReference;
-    label?: {
-        show?: boolean;
-        fontSize?: number;
-        fontWeight?: string;
-        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
-        formatter?: (param: { data: Record<string, unknown> }) => string;
-    };
-    labelLayout?: {
-        hideOverlap?: boolean;
-    };
-    tooltip?: {
-        show?: boolean;
-        valueFormatter?: (value: unknown) => string;
-    };
-    data?: unknown[];
-    showSymbol?: boolean;
-    symbolSize?: number;
-    markLine?: Record<string, unknown>;
-    itemStyle?: {
-        borderRadius?: number | number[];
-        color?: string;
-    };
-};
 
 const convertPivotValuesColumnsIntoMap = (
     valuesColumns?: PivotValuesColumn[],
@@ -711,7 +658,6 @@ const getPivotSeries = ({
     flipAxes,
     cartesianChart,
     pivotValuesColumnsMap,
-    theme,
 }: GetPivotSeriesArg): EChartSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -771,11 +717,7 @@ const getPivotSeries = ({
             label: {
                 ...series.label,
                 ...(series.color &&
-                    getValueLabelStyle(
-                        theme,
-                        series.label.position,
-                        series.type,
-                    )),
+                    getValueLabelStyle(series.label.position, series.type)),
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
                         formatter: (param: any) => {
@@ -839,7 +781,6 @@ const getSimpleSeries = ({
     xFieldHash,
     itemsMap,
     pivotValuesColumnsMap,
-    theme,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -877,7 +818,7 @@ const getSimpleSeries = ({
         label: {
             ...series.label,
             // Apply value label styling for all series types
-            ...getValueLabelStyle(theme, series.label.position, series.type),
+            ...getValueLabelStyle(series.label.position, series.type),
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
                     formatter: (value: any) => {
@@ -911,7 +852,7 @@ const getSimpleSeries = ({
     ...(series.markLine && {
         markLine: {
             ...series.markLine,
-            ...getReferenceLineStyle(theme, series.color),
+            ...getReferenceLineStyle(series.color),
         },
     }),
 });
@@ -1127,7 +1068,6 @@ const getEchartAxes = ({
     series,
     resultsData,
     minsAndMaxes,
-    theme,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1194,8 +1134,8 @@ const getEchartAxes = ({
 
     const hasBarChart = series.some((s) => s.type === CartesianSeriesType.BAR);
     const gridStyle = hasBarChart
-        ? getBarChartGridStyle(theme)
-        : getLineChartGridStyle(theme);
+        ? getBarChartGridStyle()
+        : getLineChartGridStyle();
 
     // There is no Top x axis when no flipped
     const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
@@ -1324,7 +1264,7 @@ const getEchartAxes = ({
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(theme),
+                      ...getAxisLabelStyle(),
                       ...bottomAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1343,7 +1283,7 @@ const getEchartAxes = ({
         showXAxis && topAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(theme),
+                      ...getAxisLabelStyle(),
                       ...topAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1361,7 +1301,7 @@ const getEchartAxes = ({
         showYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(theme),
+                      ...getAxisLabelStyle(),
                       ...leftAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1379,7 +1319,7 @@ const getEchartAxes = ({
         showYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(theme),
+                      ...getAxisLabelStyle(),
                       ...rightAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1547,8 +1487,8 @@ const getEchartAxes = ({
                     : showGridX
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(theme),
-                axisTick: getAxisTickStyle(theme),
+                axisLine: getAxisLineStyle(),
+                axisTick: getAxisTickStyle(),
                 // Override formatter for 100% stacking with flipped axes
                 ...(shouldStack100 &&
                     validCartesianConfig.layout.flipAxes &&
@@ -1600,8 +1540,8 @@ const getEchartAxes = ({
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(theme),
-                axisTick: getAxisTickStyle(theme),
+                axisLine: getAxisLineStyle(),
+                axisTick: getAxisTickStyle(),
                 ...topAxisExtraConfig,
             },
         ],
@@ -1651,8 +1591,8 @@ const getEchartAxes = ({
                     : showGridY
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(theme),
-                axisTick: getAxisTickStyle(theme),
+                axisLine: getAxisLineStyle(),
+                axisTick: getAxisTickStyle(),
                 inverse: !!yAxisConfiguration?.[0].inverse,
                 ...leftAxisExtraConfig,
             },
@@ -1700,8 +1640,8 @@ const getEchartAxes = ({
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(theme),
-                axisTick: getAxisTickStyle(theme),
+                axisLine: getAxisLineStyle(),
+                axisTick: getAxisTickStyle(),
                 ...rightAxisExtraConfig,
             },
         ],
@@ -1781,7 +1721,6 @@ const getStackTotalSeries = (
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
-    theme: MantineTheme,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
@@ -1794,7 +1733,7 @@ const getStackTotalSeries = (
                 connectNulls: true,
                 stack: stack,
                 label: {
-                    ...getBarTotalLabelStyle(theme),
+                    ...getBarTotalLabelStyle(),
                     show: series[0].stackLabel?.show,
                     formatter: (param) => {
                         const stackTotal = param.data[2];
@@ -1992,18 +1931,14 @@ const useEchartsCartesianConfig = (
                 ...(serie.label?.show && {
                     label: {
                         ...serie.label,
-                        ...getValueLabelStyle(
-                            theme,
-                            serie.label.position,
-                            serie.type,
-                        ),
+                        ...getValueLabelStyle(serie.label.position, serie.type),
                     },
                 }),
                 // Apply reference line styling
                 ...(serie.markLine && {
                     markLine: {
                         ...serie.markLine,
-                        ...getReferenceLineStyle(theme, computedColor),
+                        ...getReferenceLineStyle(computedColor),
                     },
                 }),
             };
@@ -2062,7 +1997,6 @@ const useEchartsCartesianConfig = (
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
-                theme,
             ),
         ];
     }, [
@@ -2073,7 +2007,6 @@ const useEchartsCartesianConfig = (
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
-        theme,
     ]);
     const sortedResults = useMemo(() => {
         const results =
@@ -2298,11 +2231,11 @@ const useEchartsCartesianConfig = (
             confine: true,
             trigger: 'axis',
             enterable: true,
-            ...getTooltipStyle(theme),
+            ...getTooltipStyle(),
             extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle(theme).extraCssText
+                getTooltipStyle().extraCssText
             }`,
-            axisPointer: getAxisPointerStyle(theme),
+            axisPointer: getAxisPointerStyle(),
             formatter: buildCartesianTooltipFormatter({
                 itemsMap,
                 stackValue: validCartesianConfig?.layout?.stack,
@@ -2310,7 +2243,6 @@ const useEchartsCartesianConfig = (
                 xFieldId: validCartesianConfig?.layout?.xField,
                 originalValues,
                 series,
-                theme,
                 tooltipHtmlTemplate: tooltipConfig,
                 pivotValuesColumnsMap,
             }),
@@ -2324,7 +2256,6 @@ const useEchartsCartesianConfig = (
             pivotValuesColumnsMap,
             originalValues,
             series,
-            theme,
         ],
     );
 
@@ -2428,7 +2359,6 @@ const useEchartsCartesianConfig = (
         );
 
         const legendStyle = getLegendStyle(
-            theme,
             hasOnlyLineCharts ? 'line' : 'square',
         );
 
@@ -2442,7 +2372,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfigLegend,
         series,
-        theme,
     ]);
 
     const eChartsOptions = useMemo(() => {

@@ -1,13 +1,10 @@
-import { type MantineTheme } from '@mantine/core';
+import { GRAY_7, GRAY_8, GRAY_9, WHITE } from './themeColors';
 
 /**
  * Get reference line styling
  */
-export const getReferenceLineStyle = (
-    theme: MantineTheme,
-    lineColor?: string,
-) => {
-    const defaultLineColor = lineColor || '#212529';
+export const getReferenceLineStyle = (lineColor?: string) => {
+    const defaultLineColor = lineColor || GRAY_9;
 
     return {
         emphasis: {
@@ -27,13 +24,13 @@ export const getReferenceLineStyle = (
                 // Simple truncation - ECharts doesn't handle wrapping well for mark line labels
                 const maxChars = 15;
                 return text.length > maxChars
-                    ? text.substring(0, maxChars) + '...'
+                    ? `${text.substring(0, maxChars)}...`
                     : text;
             },
-            backgroundColor: theme.colors.gray[7],
-            color: '#FFFFFF',
+            backgroundColor: GRAY_7,
+            color: WHITE,
             borderWidth: 1,
-            borderColor: theme.colors.gray[8],
+            borderColor: GRAY_8,
             padding: [2, 4],
             borderRadius: 4,
             fontSize: 11,
