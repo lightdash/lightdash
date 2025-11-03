@@ -1,3 +1,10 @@
+## [0.2131.2](https://github.com/lightdash/lightdash/compare/0.2131.1...0.2131.2) (2025-11-03)
+
+
+### Bug Fixes
+
+* explore from here should run query on load regardless of auto fetch settings ([#17809](https://github.com/lightdash/lightdash/issues/17809)) ([ecdef0e](https://github.com/lightdash/lightdash/commit/ecdef0e8f33f57e989eeb65643135066e3aa337b))
+
 ## [0.2131.1](https://github.com/lightdash/lightdash/compare/0.2131.0...0.2131.1) (2025-11-03)
 
 
