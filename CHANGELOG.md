@@ -1,3 +1,15 @@
+# [0.2129.0](https://github.com/lightdash/lightdash/compare/0.2128.1...0.2129.0) (2025-11-03)
+
+
+### Bug Fixes
+
+* prevent duplicate tool output handling in AI agent streaming ([#17808](https://github.com/lightdash/lightdash/issues/17808)) ([c1d7619](https://github.com/lightdash/lightdash/commit/c1d761948d7a07a8387e1b2f506ca04c81242fde))
+
+
+### Features
+
+* **redux:** finish redux migration ([#17560](https://github.com/lightdash/lightdash/issues/17560)) ([9580704](https://github.com/lightdash/lightdash/commit/9580704c5da28c1cd3be9d359297dacdfe79ce99))
+
 ## [0.2128.1](https://github.com/lightdash/lightdash/compare/0.2128.0...0.2128.1) (2025-11-03)
 
 
