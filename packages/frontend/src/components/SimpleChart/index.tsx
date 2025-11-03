@@ -165,8 +165,22 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                     // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
                                     // on `useEchartsCartesianConfig` to generate the tooltip
                                     if (eChartsOptions.tooltip.formatter) {
-                                        // When using data array approach with primitives (regular stacked)
-                                        // param.value is a number/string and param.name contains category
+                                        // When using tuple mode (array values) for stacked bars
+                                        // param.value is an array like ["Dr. Wilson", 3]
+                                        // param.name contains the category header
+                                        if (Array.isArray(param.value)) {
+                                            return (
+                                                eChartsOptions.tooltip
+                                                    .formatter as any
+                                            )([
+                                                {
+                                                    ...param,
+                                                    axisValueLabel: param.name,
+                                                },
+                                            ]);
+                                        }
+
+                                        // When using primitive values (non-object)
                                         if (
                                             typeof param.value !== 'object' ||
                                             param.value === null
@@ -174,11 +188,16 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                             return (
                                                 eChartsOptions.tooltip
                                                     .formatter as any
-                                            )([param]);
+                                            )([
+                                                {
+                                                    ...param,
+                                                    axisValueLabel: param.name,
+                                                },
+                                            ]);
                                         }
 
-                                        // When using data array approach with full row objects (100% stacked)
-                                        // or dataset approach, param.value is an object with dimension keys
+                                        // When using dataset mode with object values (100% stacked)
+                                        // param.value is an object with dimension keys
                                         const dim =
                                             param.encode?.x?.[0] !== undefined
                                                 ? param.dimensionNames[
