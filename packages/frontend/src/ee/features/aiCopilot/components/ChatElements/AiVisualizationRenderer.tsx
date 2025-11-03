@@ -8,6 +8,7 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
     type ChartConfig,
+    type EChartsSeries,
     type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
@@ -24,9 +25,8 @@ import VisualizationProvider from '../../../../../components/LightdashVisualizat
 import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
-import { type EchartSeriesClickEvent } from '../../../../../components/SimpleChart';
+import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
@@ -66,8 +66,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const tableName = metricQuery?.exploreName;
     const { data: explore } = useExplore(tableName);
     const [echartsClickEvent, setEchartsClickEvent] =
-        useState<EchartSeriesClickEvent | null>(null);
-    const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
+        useState<EchartsSeriesClickEvent | null>(null);
+    const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
 
     // Initialize from cached data if available
     const [selectedChartType, setSelectedChartType] =
@@ -187,11 +187,11 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 }
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={(
-                    e: EchartSeriesClickEvent,
-                    series: EChartSeries[],
+                    e: EchartsSeriesClickEvent,
+                    series: EChartsSeries[],
                 ) => {
                     setEchartsClickEvent(e);
-                    setEchartSeries(series);
+                    setEchartsSeries(series);
                 }}
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
@@ -228,11 +228,11 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         {chartConfigFromAiAgentVizConfig.echartsConfig.type ===
                             ChartType.CARTESIAN && (
                             <SeriesContextMenu
-                                echartSeriesClickEvent={
+                                echartsSeriesClickEvent={
                                     echartsClickEvent ?? undefined
                                 }
                                 dimensions={metricQuery.dimensions}
-                                series={echartSeries}
+                                series={echartsSeries}
                                 explore={explore}
                             />
                         )}

@@ -1,5 +1,15 @@
 import {
+    formatColorIndicator,
     formatItemValue,
+    formatTooltipLabel,
+    formatTooltipRow,
+    formatTooltipValue,
+    getLegendStyle,
+    getPieExternalLabelStyle,
+    getPieInternalLabelStyle,
+    getPieLabelLineStyle,
+    getPieSliceStyle,
+    getTooltipStyle,
     PieChartLegendLabelMaxLengthDefault,
     PieChartTooltipLabelMaxLength,
     type ResultRow,
@@ -89,10 +99,29 @@ const useEchartsPieConfig = (
                         show: valueLabel !== 'hidden',
                         position:
                             valueLabel === 'outside' ? 'outside' : 'inside',
+                        ...(valueLabel === 'outside'
+                            ? getPieExternalLabelStyle()
+                            : getPieInternalLabelStyle()),
                         formatter: (params) => {
-                            return valueLabel !== 'hidden' &&
-                                showValue &&
-                                showPercentage
+                            const isOutside = valueLabel === 'outside';
+
+                            if (valueLabel === 'hidden') return '';
+
+                            // For outside labels, use rich text formatting
+                            if (isOutside) {
+                                if (showValue && showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}% - ${meta.value.formatted}}`;
+                                } else if (showValue) {
+                                    return `{name|${params.name}}\n{value|${meta.value.formatted}}`;
+                                } else if (showPercentage) {
+                                    return `{name|${params.name}}\n{value|${params.percent}%}`;
+                                } else {
+                                    return `{name|${params.name}}`;
+                                }
+                            }
+
+                            // For inside labels, use plain formatting (no rich text)
+                            return showValue && showPercentage
                                 ? `${params.percent}% - ${meta.value.formatted}`
                                 : showValue
                                 ? `${meta.value.formatted}`
@@ -101,6 +130,7 @@ const useEchartsPieConfig = (
                                 : `${params.name}`;
                         },
                     },
+                    labelLine: getPieLabelLineStyle(),
                     meta,
                 };
 
@@ -137,9 +167,11 @@ const useEchartsPieConfig = (
                         ? ['50%', '52%']
                         : ['50%', '50%']
                     : ['50%', '50%'],
+            ...getPieSliceStyle(!!isDonut),
             tooltip: {
                 trigger: 'item',
-                formatter: ({ marker, name, value, percent }) => {
+                formatter: (params) => {
+                    const { color, name, value, percent } = params;
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
@@ -153,7 +185,14 @@ const useEchartsPieConfig = (
                               )}...`
                             : name;
 
-                    return `${marker} <b>${truncatedName}</b><br />${percent}% - ${formattedValue}`;
+                    const colorIndicator = formatColorIndicator(
+                        color as string,
+                    );
+                    const label = formatTooltipLabel(truncatedName);
+                    const valueWithPercent = `${percent}% - ${formattedValue}`;
+                    const valuePill = formatTooltipValue(valueWithPercent);
+
+                    return formatTooltipRow(colorIndicator, label, valuePill);
                 },
             },
         };
@@ -176,7 +215,8 @@ const useEchartsPieConfig = (
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
-                formatter: (name) => {
+                ...getLegendStyle('square'),
+                formatter: (name: string) => {
                     return name.length >
                         (legendMaxItemLength ??
                             PieChartLegendLabelMaxLengthDefault)
@@ -203,18 +243,19 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
+                ...getTooltipStyle(),
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),
         };
     }, [
+        chartConfig,
+        pieSeriesOption,
+        theme?.other?.chartFont,
         legendDoubleClickTooltip,
         selectedLegends,
-        chartConfig,
         isInDashboard,
         minimal,
-        pieSeriesOption,
-        theme,
     ]);
 
     if (!itemsMap) return;

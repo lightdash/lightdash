@@ -1,0 +1,55 @@
+import { AXIS_TITLE_COLOR, GRAY_4, GRAY_7, WHITE } from './themeColors';
+
+/**
+ * Get axis label styling (for values like "Jan", "Feb", "Mar")
+ */
+export const getAxisLabelStyle = () => ({
+    color: GRAY_7,
+    fontWeight: '500',
+    fontSize: 11.5,
+});
+
+/**
+ * Get axis title styling (for titles like "Month", "Amount")
+ */
+export const getAxisTitleStyle = () => ({
+    color: AXIS_TITLE_COLOR,
+    fontWeight: '500',
+    fontSize: 12,
+});
+
+/**
+ * Get axis line styling (the main axis line)
+ */
+export const getAxisLineStyle = () => ({
+    show: true,
+    lineStyle: {
+        color: GRAY_4,
+        type: 'solid' as const,
+    },
+});
+
+/**
+ * Get tick line styling (small marks on axis)
+ */
+export const getAxisTickStyle = () => ({
+    show: true,
+    lineStyle: {
+        color: GRAY_4,
+        type: 'solid' as const,
+    },
+});
+
+/**
+ * Get axis pointer styling (for highlighting when hovering over series)
+ */
+export const getAxisPointerStyle = () => ({
+    type: 'shadow' as const,
+    label: {
+        show: true,
+        fontWeight: 500,
+        fontSize: 11,
+        color: WHITE,
+        backgroundColor: GRAY_7,
+    },
+});

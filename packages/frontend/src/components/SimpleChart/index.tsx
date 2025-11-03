@@ -1,17 +1,18 @@
-import { type PivotReference } from '@lightdash/common';
+import {
+    getFormattedValue,
+    isLineSeriesOption,
+    type PivotReference,
+} from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
-import useEchartsCartesianConfig, {
-    getFormattedValue,
-    isLineSeriesOption,
-} from '../../hooks/echarts/useEchartsCartesianConfig';
+import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
-type EchartBaseClickEvent = {
+type EchartsBaseClickEvent = {
     // The component name clicked,
     // component type, could be 'series'、'markLine'、'markPoint'、'timeLine', etc..
     componentType: string;
@@ -39,7 +40,7 @@ type EchartBaseClickEvent = {
     pivotReference?: PivotReference;
 };
 
-export type EchartSeriesClickEvent = EchartBaseClickEvent & {
+export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     componentType: 'series';
     data: Record<string, any>;
     seriesIndex: number;
@@ -47,7 +48,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     pivotReference?: PivotReference;
 };
 
-type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
+type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
 
 export const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -69,8 +70,9 @@ export const LoadingChart = () => (
     </div>
 );
 
-const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
-    e.componentType === 'series';
+const isSeriesClickEvent = (
+    e: EchartsClickEvent,
+): e is EchartsSeriesClickEvent => e.componentType === 'series';
 
 type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
@@ -106,7 +108,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     });
 
     const onChartContextMenu = useCallback(
-        (e: EchartClickEvent) => {
+        (e: EchartsClickEvent) => {
             if (onSeriesContextMenu) {
                 if (e.event.event.defaultPrevented) {
                     return;
@@ -163,6 +165,39 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                     // so we need to generate it here (and wrap it in an array) and then reuse the formatter used
                                     // on `useEchartsCartesianConfig` to generate the tooltip
                                     if (eChartsOptions.tooltip.formatter) {
+                                        // When using tuple mode (array values) for stacked bars
+                                        // param.value is an array like ["Dr. Wilson", 3]
+                                        // param.name contains the category header
+                                        if (Array.isArray(param.value)) {
+                                            return (
+                                                eChartsOptions.tooltip
+                                                    .formatter as any
+                                            )([
+                                                {
+                                                    ...param,
+                                                    axisValueLabel: param.name,
+                                                },
+                                            ]);
+                                        }
+
+                                        // When using primitive values (non-object)
+                                        if (
+                                            typeof param.value !== 'object' ||
+                                            param.value === null
+                                        ) {
+                                            return (
+                                                eChartsOptions.tooltip
+                                                    .formatter as any
+                                            )([
+                                                {
+                                                    ...param,
+                                                    axisValueLabel: param.name,
+                                                },
+                                            ]);
+                                        }
+
+                                        // When using dataset mode with object values (100% stacked)
+                                        // param.value is an object with dimension keys
                                         const dim =
                                             param.encode?.x?.[0] !== undefined
                                                 ? param.dimensionNames[

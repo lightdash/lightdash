@@ -2,6 +2,7 @@ import {
     formatItemValue,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
+    getLegendStyle,
     type Metric,
     type ResultRow,
     type ResultValue,
@@ -178,6 +179,7 @@ const useEchartsFunnelConfig = (
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
+                ...getLegendStyle('square'),
                 ...(legendPosition === FunnelChartLegendPosition.VERTICAL
                     ? {
                           left: 'left',

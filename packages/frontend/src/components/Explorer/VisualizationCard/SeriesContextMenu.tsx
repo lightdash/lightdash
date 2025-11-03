@@ -3,6 +3,7 @@ import {
     getItemMap,
     hasCustomBinDimension,
     type ApiExploreResults,
+    type EChartsSeries,
 } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
@@ -16,7 +17,6 @@ import {
     type FC,
 } from 'react';
 import { useParams } from 'react-router';
-import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -26,15 +26,15 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
-import { type EchartSeriesClickEvent } from '../../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import MantineIcon from '../../common/MantineIcon';
 
 export const SeriesContextMenu: FC<{
-    echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
+    echartsSeriesClickEvent: EchartsSeriesClickEvent | undefined;
     dimensions: string[] | undefined;
-    series: EChartSeries[] | undefined;
+    series: EChartsSeries[] | undefined;
     explore: ApiExploreResults | undefined;
-}> = memo(({ echartSeriesClickEvent, dimensions, series, explore }) => {
+}> = memo(({ echartsSeriesClickEvent, dimensions, series, explore }) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
@@ -54,8 +54,8 @@ export const SeriesContextMenu: FC<{
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     useEffect(() => {
-        if (echartSeriesClickEvent !== undefined) {
-            const e: EchartSeriesClickEvent = echartSeriesClickEvent;
+        if (echartsSeriesClickEvent !== undefined) {
+            const e: EchartsSeriesClickEvent = echartsSeriesClickEvent;
 
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
@@ -63,10 +63,10 @@ export const SeriesContextMenu: FC<{
                 top: e.event.event.pageY,
             });
         }
-    }, [echartSeriesClickEvent]);
+    }, [echartsSeriesClickEvent]);
 
     const underlyingData = useMemo(() => {
-        if (explore !== undefined && echartSeriesClickEvent !== undefined) {
+        if (explore !== undefined && echartsSeriesClickEvent !== undefined) {
             const allItemsMap = getItemMap(
                 explore,
                 metricQuery?.additionalMetrics,
@@ -74,12 +74,12 @@ export const SeriesContextMenu: FC<{
             );
 
             return getDataFromChartClick(
-                echartSeriesClickEvent,
+                echartsSeriesClickEvent,
                 allItemsMap,
                 series || [],
             );
         }
-    }, [echartSeriesClickEvent, explore, metricQuery, series]);
+    }, [echartsSeriesClickEvent, explore, metricQuery, series]);
 
     const handleCopyToClipboard = useCallback(() => {
         if (underlyingData === undefined) return;
