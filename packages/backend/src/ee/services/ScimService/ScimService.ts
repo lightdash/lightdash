@@ -11,7 +11,9 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationProject,
     ParameterError,
+    ProjectType,
     Role,
     ScimError,
     ScimGroup,
@@ -42,6 +44,7 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
@@ -58,6 +61,7 @@ type ScimServiceArguments = {
     serviceAccountModel: ServiceAccountModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     rolesModel: RolesModel;
+    projectModel: ProjectModel;
 };
 
 export class ScimService extends BaseService {
@@ -79,6 +83,8 @@ export class ScimService extends BaseService {
 
     private readonly rolesModel: RolesModel;
 
+    private readonly projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -89,6 +95,7 @@ export class ScimService extends BaseService {
         serviceAccountModel,
         commercialFeatureFlagModel,
         rolesModel,
+        projectModel,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -100,6 +107,7 @@ export class ScimService extends BaseService {
         this.serviceAccountModel = serviceAccountModel;
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
         this.rolesModel = rolesModel;
+        this.projectModel = projectModel;
     }
 
     private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -1377,13 +1385,18 @@ export class ScimService extends BaseService {
     private convertLightdashRoleToScimRole(
         role: Role,
         type: ScimRoleType,
+        project?: { projectUuid: string; name: string },
     ): ScimRole {
-        const id = role.roleUuid;
+        const id = project
+            ? `${project.projectUuid}:${role.roleUuid}`
+            : role.roleUuid;
+        const display = project ? `${project.name} - ${role.name}` : role.name;
+
         return {
             schemas: [ScimSchemaType.ROLE],
             id,
             value: id,
-            display: role.name,
+            display,
             type,
             supported: true,
             meta: {
@@ -1413,18 +1426,70 @@ export class ScimService extends BaseService {
             const parsedFilter = filter ? parse(filter) : null;
             this.logger.debug('SCIM: Parsed role filter', { parsedFilter });
 
+            const allScimRoles: ScimRole[] = [];
+
+            // Get system roles
             const systemRoles = getSystemRoles();
 
-            // Convert org roles to SCIM format
-            const scimRoles = systemRoles.map((role) =>
-                this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
+            // Get custom roles for organization
+            const customRoles =
+                await this.rolesModel.getRolesByOrganizationUuid(
+                    organizationUuid,
+                    'user',
+                );
+
+            // Get all projects for the organization, ignoring preview projects
+            const allProjects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const nonPreviewProjects = allProjects.filter(
+                (project) => project.type !== ProjectType.PREVIEW,
             );
 
+            // Add organization-level system roles
+            systemRoles.forEach((role) => {
+                allScimRoles.push(
+                    this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
+                );
+            });
+
+            // For each project, add system roles and custom roles
+            nonPreviewProjects.forEach((project) => {
+                // Add project-level system roles
+                systemRoles.forEach((role) => {
+                    allScimRoles.push(
+                        this.convertLightdashRoleToScimRole(
+                            role,
+                            ScimRoleType.PROJECT,
+                            {
+                                projectUuid: project.projectUuid,
+                                name: project.name,
+                            },
+                        ),
+                    );
+                });
+
+                // Add project-level custom roles
+                customRoles.forEach((role) => {
+                    allScimRoles.push(
+                        this.convertLightdashRoleToScimRole(
+                            role,
+                            ScimRoleType.PROJECT_CUSTOM,
+                            {
+                                projectUuid: project.projectUuid,
+                                name: project.name,
+                            },
+                        ),
+                    );
+                });
+            });
+
             // Apply filter if specified
-            let filteredRoles = scimRoles;
+            let filteredRoles = allScimRoles;
             if (parsedFilter?.op === 'eq') {
                 const { attrPath, compValue } = parsedFilter;
-                filteredRoles = scimRoles.filter((role) => {
+                filteredRoles = allScimRoles.filter((role) => {
                     switch (attrPath) {
                         case 'value':
                             return role.value === compValue;
@@ -1441,6 +1506,9 @@ export class ScimService extends BaseService {
             this.logger.debug('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
+                projectsCount: nonPreviewProjects.length,
+                systemRolesCount: systemRoles.length,
+                customRolesCount: customRoles.length,
             });
 
             return {
