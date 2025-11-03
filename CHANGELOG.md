@@ -1,3 +1,10 @@
+## [0.2131.1](https://github.com/lightdash/lightdash/compare/0.2131.0...0.2131.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* store unsaved configs by type ([#17710](https://github.com/lightdash/lightdash/issues/17710)) ([1810d4e](https://github.com/lightdash/lightdash/commit/1810d4ecb5bc974aa1f3dcf66dc975a391e4b118))
+
 # [0.2131.0](https://github.com/lightdash/lightdash/compare/0.2130.0...0.2131.0) (2025-11-03)
 
 
