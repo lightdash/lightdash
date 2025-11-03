@@ -1,5 +1,4 @@
-import { type Series } from '@lightdash/common';
-import { type EChartSeries } from '../echarts/useEchartsCartesianConfig';
+import { type EChartsSeries, type Series } from '@lightdash/common';
 import { type SeriesLike } from './types';
 
 /**
@@ -8,18 +7,18 @@ import { type SeriesLike } from './types';
 
 export const isGroupedSeries = (series: SeriesLike) => {
     return (
-        (series as EChartSeries)?.pivotReference?.pivotValues != null ||
+        (series as EChartsSeries)?.pivotReference?.pivotValues != null ||
         (series as Series)?.encode.yRef.pivotValues != null
     );
 };
 
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
-        (series as EChartSeries).pivotReference?.field ??
+        (series as EChartsSeries).pivotReference?.field ??
         (series as Series).encode.yRef?.field;
 
     const pivotValues = (
-        (series as EChartSeries)?.pivotReference?.pivotValues ??
+        (series as EChartsSeries)?.pivotReference?.pivotValues ??
         (series as Series)?.encode.yRef.pivotValues ??
         []
     ).map(({ value }) => `${value}`);

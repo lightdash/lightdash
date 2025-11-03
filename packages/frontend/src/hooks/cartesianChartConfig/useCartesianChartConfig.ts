@@ -838,15 +838,26 @@ const useCartesianChartConfig = ({
                     newYFields = [availableDimensions[1]];
                 }
 
-                // don't fallback pivot dimensions if we are using sql pivot results
-                // also don't override existing pivot dimensions if they're already set
+                // Only add pivot dimensions when:
+                // 1. We have a suggestion (newPivotFields is non-empty)
+                // 2. Not using sql pivot results
+                // 3. No existing pivot is set
+                // 4. We have itemsMap (fields are loaded)
                 if (
+                    newPivotFields.length > 0 &&
                     itemsMap !== undefined &&
                     !useSqlPivotResults?.enabled &&
                     !pivotKeys
                 ) {
                     setPivotDimensions(newPivotFields);
                 }
+
+                // Don't update if we don't have a valid configuration
+                // This prevents infinite loops when insufficient fields are selected
+                if (!newXField || newYFields.length === 0) {
+                    return prev;
+                }
+
                 return {
                     ...prev,
                     xField: newXField,

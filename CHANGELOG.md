@@ -1,3 +1,31 @@
+## [0.2131.2](https://github.com/lightdash/lightdash/compare/0.2131.1...0.2131.2) (2025-11-03)
+
+
+### Bug Fixes
+
+* explore from here should run query on load regardless of auto fetch settings ([#17809](https://github.com/lightdash/lightdash/issues/17809)) ([ecdef0e](https://github.com/lightdash/lightdash/commit/ecdef0e8f33f57e989eeb65643135066e3aa337b))
+
+## [0.2131.1](https://github.com/lightdash/lightdash/compare/0.2131.0...0.2131.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* store unsaved configs by type ([#17710](https://github.com/lightdash/lightdash/issues/17710)) ([1810d4e](https://github.com/lightdash/lightdash/commit/1810d4ecb5bc974aa1f3dcf66dc975a391e4b118))
+
+# [0.2131.0](https://github.com/lightdash/lightdash/compare/0.2130.0...0.2131.0) (2025-11-03)
+
+
+### Features
+
+* add custom dim button, tooltips and paddings ([#17803](https://github.com/lightdash/lightdash/issues/17803)) ([affa2a1](https://github.com/lightdash/lightdash/commit/affa2a18ae21495bb4c6a837deedff0cdb425618))
+
+# [0.2130.0](https://github.com/lightdash/lightdash/compare/0.2129.1...0.2130.0) (2025-11-03)
+
+
+### Features
+
+* re-apply echarts & table styles revamp ([#17796](https://github.com/lightdash/lightdash/issues/17796)) ([247b5b6](https://github.com/lightdash/lightdash/commit/247b5b6c5c002f16c89509c4034eba21d0192c0b))
+
 ## [0.2129.1](https://github.com/lightdash/lightdash/compare/0.2129.0...0.2129.1) (2025-11-03)
 
 

@@ -3,17 +3,17 @@ import {
     getItemId,
     hashFieldReference,
     isDimension,
+    type EChartsSeries,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
-import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
-import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { type UnderlyingDataConfig } from './types';
 
 export const getDataFromChartClick = (
-    e: EchartSeriesClickEvent,
+    e: EchartsSeriesClickEvent,
     itemsMap: ItemsMap,
-    series: EChartSeries[],
+    series: EChartsSeries[],
 ): UnderlyingDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {

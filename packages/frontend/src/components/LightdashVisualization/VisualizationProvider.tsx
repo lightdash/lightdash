@@ -6,6 +6,7 @@ import {
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
+    type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -26,7 +27,6 @@ import {
     type RefObject,
 } from 'react';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import {
@@ -39,7 +39,7 @@ import {
 } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
-import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
@@ -64,8 +64,8 @@ export type VisualizationProviderProps = {
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
-        e: EchartSeriesClickEvent,
-        series: EChartSeries[],
+        e: EchartsSeriesClickEvent,
+        series: EChartsSeries[],
     ) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
@@ -130,6 +130,7 @@ const VisualizationProvider: FC<
         useSqlPivotResults?.enabled
             ? unsavedMetricQuery ?? lastValidResultsData?.metricQuery
             : lastValidResultsData?.metricQuery,
+        onPivotDimensionsChange,
     );
 
     const setChartType = useCallback(
@@ -209,10 +210,6 @@ const VisualizationProvider: FC<
         setLastValidResultsData(resultsData);
     }, [resultsData]);
 
-    useEffect(() => {
-        onPivotDimensionsChange?.(validPivotDimensions);
-    }, [validPivotDimensions, onPivotDimensionsChange]);
-
     /**
      * Gets a shared color for a given group name.
      * Used in pie charts
@@ -261,7 +258,7 @@ const VisualizationProvider: FC<
             if ('pivotReference' in seriesLike && seriesLike.pivotReference) {
                 pivot = seriesLike.pivotReference.pivotValues?.[0];
             } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
-                pivot = seriesLike.encode.yRef.pivotValues?.[0];
+                pivot = seriesLike.encode.yRef?.pivotValues?.[0];
             }
             if (itemsMap && pivot) {
                 const { field, value } = pivot;

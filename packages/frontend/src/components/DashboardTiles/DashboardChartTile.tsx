@@ -23,6 +23,7 @@ import {
     type ApiError,
     type Dashboard,
     type DashboardFilterRule,
+    type EChartsSeries,
     type Field,
     type FilterDashboardToRule,
     type DashboardChartTile as IDashboardChartTile,
@@ -84,7 +85,6 @@ import {
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
-import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -113,7 +113,7 @@ import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider'
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
-import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -214,8 +214,8 @@ const ValidDashboardChartTile: FC<{
     isTitleHidden?: boolean;
     project: string;
     onSeriesContextMenu?: (
-        e: EchartSeriesClickEvent,
-        series: EChartSeries[],
+        e: EchartsSeriesClickEvent,
+        series: EChartsSeries[],
     ) => void;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
@@ -313,8 +313,8 @@ const ValidDashboardChartTileMinimal: FC<{
     chart: SavedChart;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
     onSeriesContextMenu?: (
-        e: EchartSeriesClickEvent,
-        series: EChartSeries[],
+        e: EchartsSeriesClickEvent,
+        series: EChartsSeries[],
     ) => void;
     resultsData: InfiniteQueryResults;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
@@ -707,7 +707,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
 
     const onSeriesContextMenu = useCallback(
-        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
+        (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             if (explore === undefined) {
                 return;
             }
@@ -1461,7 +1461,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     const onSeriesContextMenu = useCallback(
-        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
+        (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             if (explore === undefined) {
                 return;
             }

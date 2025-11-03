@@ -1,7 +1,12 @@
+import { type AnyType } from '../../types/any';
 import { DimensionType, TableCalculationType } from '../../types/field';
 import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
-import { ChartKind } from '../../types/savedCharts';
+import {
+    ChartKind,
+    type PivotReference,
+    type Series,
+} from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 
 export enum VizAggregationOptions {
@@ -301,4 +306,93 @@ export type VizTableHeaderSortConfig = {
     [fieldName: string]: {
         direction: SortByDirection | undefined;
     };
+};
+
+export type EChartsSeries = {
+    type: Series['type'];
+    connectNulls: boolean;
+    stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
+    name?: string;
+    color?: string;
+    yAxisIndex?: number;
+    xAxisIndex?: number;
+    encode?: {
+        x: string;
+        y: string;
+        tooltip: string[];
+        seriesName: string;
+        yRef?: PivotReference;
+        xRef?: PivotReference;
+    };
+    dimensions?: Array<{ name: string; displayName: string }>;
+    emphasis?: {
+        focus?: string;
+    };
+    areaStyle?: AnyType;
+    pivotReference?: PivotReference;
+    label?: {
+        show?: boolean;
+        fontSize?: number;
+        fontWeight?: string;
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        formatter?: (param: { data: Record<string, unknown> }) => string;
+    };
+    labelLayout?: {
+        hideOverlap?: boolean;
+    };
+    tooltip?: {
+        show?: boolean;
+        valueFormatter?: (value: unknown) => string;
+    };
+    data?: unknown[];
+    showSymbol?: boolean;
+    symbolSize?: number;
+    markLine?: Record<string, unknown>;
+    itemStyle?: {
+        borderRadius?: number | number[];
+        color?: string;
+    };
+};
+
+/**
+ * SQL Runner specific EChart series type
+ * Extends EChartsSeries but with key differences:
+ * - type can be a string (from user config) not just CartesianSeriesType
+ * - connectNulls is optional
+ * - encode structure is simpler (just x and y, not tooltip/seriesName)
+ * - dimensions is a tuple not an array of objects
+ * - label formatter has different signature
+ * - tooltip valueFormatter is more specific (number not unknown)
+ * - adds barCategoryGap for bar charts
+ * - excludes pivotReference and markLine
+ */
+export type SqlRunnerEChartsSeries = Omit<
+    EChartsSeries,
+    | 'type'
+    | 'connectNulls'
+    | 'encode'
+    | 'dimensions'
+    | 'label'
+    | 'tooltip'
+    | 'pivotReference'
+    | 'markLine'
+> & {
+    type: string;
+    connectNulls?: boolean;
+    encode?: {
+        x: string | undefined;
+        y: string;
+    };
+    dimensions?: [string | undefined, string];
+    label?: {
+        show?: boolean;
+        fontSize?: number;
+        fontWeight?: string;
+        position?: string;
+        formatter?: (params: AnyType) => string;
+    };
+    barCategoryGap?: string;
 };

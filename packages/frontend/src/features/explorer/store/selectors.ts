@@ -236,6 +236,11 @@ export const selectTableCalculationsMetadata = createSelector(
     (explorer) => explorer.metadata?.tableCalculations,
 );
 
+export const selectIsExploreFromHere = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.isExploreFromHere,
+);
+
 // Stable empty Set to prevent unnecessary re-renders
 const EMPTY_ACTIVE_FIELDS_SET: Set<string> = new Set();
 

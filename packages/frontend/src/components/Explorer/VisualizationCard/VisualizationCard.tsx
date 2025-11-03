@@ -7,6 +7,7 @@ import {
     type ApiErrorDetail,
     type ChartConfig,
     type ChartType,
+    type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
@@ -35,7 +36,6 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -49,16 +49,16 @@ import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/cons
 import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
-import { type EchartSeriesClickEvent } from '../../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationWarning from './VisualizationWarning';
 
 export type EchartsClickEvent = {
-    event: EchartSeriesClickEvent;
+    event: EchartsSeriesClickEvent;
     dimensions: string[];
-    series: EChartSeries[];
+    series: EChartsSeries[];
 };
 
 type Props = {
@@ -95,10 +95,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const handleSetChartType = useCallback(
         (chartType: ChartType) => {
-            // Note: cachedConfigs will need to be managed elsewhere (e.g., component state)
-            dispatch(
-                explorerActions.setChartType({ chartType, cachedConfigs: {} }),
-            );
+            dispatch(explorerActions.setChartType({ chartType }));
         },
         [dispatch],
     );
@@ -108,7 +105,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             dispatch(
                 explorerActions.setChartConfig({
                     chartConfig,
-                    cachedConfigs: {},
                 }),
             );
         },
@@ -178,7 +174,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     }, [closeVisualizationConfig, isOpen]);
 
     const onSeriesContextMenu = useCallback(
-        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
+        (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             setEchartsClickEvent({
                 event: e,
                 dimensions: unsavedChartVersion.metricQuery.dimensions,
@@ -348,7 +344,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         data-testid="visualization"
                     />
                     <SeriesContextMenu
-                        echartSeriesClickEvent={echartsClickEvent?.event}
+                        echartsSeriesClickEvent={echartsClickEvent?.event}
                         dimensions={echartsClickEvent?.dimensions}
                         series={echartsClickEvent?.series}
                         explore={explore}

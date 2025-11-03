@@ -101,6 +101,9 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     }
     newParams.set('create_saved_chart_version', stringifiedChart);
 
+    // Always set isExploreFromHere to true when creating the url for shareable links this ensures the query is executed when the url is loaded
+    newParams.set('isExploreFromHere', 'true');
+
     return {
         pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
         search: newParams.toString(),
@@ -216,13 +219,15 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
 
     const [searchParams] = useSearchParams();
     const fromDashboard = searchParams.get('fromDashboard');
+    const isExploreFromHere = useMemo(() => {
+        return searchParams.get('isExploreFromHere') === 'true';
+    }, [searchParams]);
 
     return useMemo(() => {
         if (pathParams.tableId) {
             try {
-                const unsavedChartVersion = parseChartFromExplorerSearchParams(
-                    search,
-                ) || {
+                const parsedChart = parseChartFromExplorerSearchParams(search);
+                const unsavedChartVersion = parsedChart || {
                     tableName: pathParams.tableId,
                     metricQuery: {
                         exploreName: pathParams.tableId,
@@ -247,7 +252,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 return {
                     parameterReferences: [],
                     parameterDefinitions: {},
-                    expandedSections: unsavedChartVersion
+                    cachedChartConfigs: {},
+                    expandedSections: parsedChart
                         ? [
                               ExplorerSection.VISUALIZATION,
                               ExplorerSection.RESULTS,
@@ -273,6 +279,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     },
                     parameters: {},
                     fromDashboard: fromDashboard ?? undefined,
+                    isExploreFromHere: isExploreFromHere,
                     queryExecution: defaultQueryExecution,
                 };
             } catch (e: any) {
@@ -283,7 +290,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 });
             }
         }
-    }, [pathParams, search, showToastError, fromDashboard]);
+    }, [pathParams, search, showToastError, fromDashboard, isExploreFromHere]);
 };
 
 export const createMetricPreviewUnsavedChartVersion = (
