@@ -1,3 +1,10 @@
+# [0.2128.0](https://github.com/lightdash/lightdash/compare/0.2127.0...0.2128.0) (2025-11-03)
+
+
+### Features
+
+* add parameter-based conditional formatting for metrics ([#17691](https://github.com/lightdash/lightdash/issues/17691)) ([2663fab](https://github.com/lightdash/lightdash/commit/2663fab09afc89445a7361fb6c231abd98f7fa88))
+
 # [0.2127.0](https://github.com/lightdash/lightdash/compare/0.2126.3...0.2127.0) (2025-11-03)
 
 
