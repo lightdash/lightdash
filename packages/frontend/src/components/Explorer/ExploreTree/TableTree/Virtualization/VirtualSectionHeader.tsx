@@ -1,6 +1,16 @@
-import { Group, Text } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
-import type { SectionHeaderItem } from './types';
+import { subject } from '@casl/ability';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
+import { memo, useCallback, useMemo, type FC } from 'react';
+import { useParams } from 'react-router';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../../../features/explorer/store';
+import useApp from '../../../../../providers/App/useApp';
+import DocumentationHelpButton from '../../../../DocumentationHelpButton';
+import MantineIcon from '../../../../common/MantineIcon';
+import { TreeSection, type SectionHeaderItem } from './types';
 
 interface VirtualSectionHeaderProps {
     item: SectionHeaderItem;
@@ -12,18 +22,73 @@ interface VirtualSectionHeaderProps {
 const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     item,
 }) => {
-    const { label, color, depth } = item.data;
+    const { label, color, depth, tableName, treeSection, helpButton } =
+        item.data;
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+    const dispatch = useExplorerDispatch();
 
-    // Apply indentation based on depth (matches tree node padding formula)
+    const canManageCustomSql = user.data?.ability?.can(
+        'manage',
+        subject('CustomSql', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const handleAddCustomDimension = useCallback(() => {
+        dispatch(
+            explorerActions.toggleCustomDimensionModal({
+                isEditing: false,
+                table: tableName,
+                item: undefined,
+            }),
+        );
+    }, [dispatch, tableName]);
+
+    // Section headers use simplified padding: depth * 20
+    // (no base 12px like tree nodes)
     const pl = useMemo(() => {
-        return `${12 + (depth ?? 0) * 20}px`;
+        return depth ? `${depth * 20}px` : undefined;
     }, [depth]);
 
+    const showAddButton =
+        treeSection === TreeSection.Dimensions && canManageCustomSql;
+
     return (
-        <Group mt="sm" mb="xs" pl={pl}>
+        <Group mt="sm" mb="xs" pl={pl} pr="sm" position="apart">
             <Text fw={600} c={color}>
                 {label}
             </Text>
+
+            {showAddButton && (
+                <Tooltip
+                    label="Add a custom dimension with SQL"
+                    variant="xs"
+                    position="bottom"
+                >
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        compact
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={handleAddCustomDimension}
+                        data-testid="VirtualSectionHeader/AddCustomDimensionButton"
+                    >
+                        Add
+                    </Button>
+                </Tooltip>
+            )}
+
+            {helpButton && (
+                <DocumentationHelpButton
+                    href={helpButton.href}
+                    tooltipProps={{
+                        label: helpButton.tooltipText,
+                        multiline: true,
+                    }}
+                />
+            )}
         </Group>
     );
 };
