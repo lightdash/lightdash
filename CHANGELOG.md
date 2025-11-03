@@ -1,3 +1,10 @@
+# [0.2130.0](https://github.com/lightdash/lightdash/compare/0.2129.1...0.2130.0) (2025-11-03)
+
+
+### Features
+
+* re-apply echarts & table styles revamp ([#17796](https://github.com/lightdash/lightdash/issues/17796)) ([247b5b6](https://github.com/lightdash/lightdash/commit/247b5b6c5c002f16c89509c4034eba21d0192c0b))
+
 ## [0.2129.1](https://github.com/lightdash/lightdash/compare/0.2129.0...0.2129.1) (2025-11-03)
 
 
