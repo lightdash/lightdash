@@ -2,6 +2,8 @@
  * Utilities for evaluating conditional expressions in format strings with parameters
  */
 
+import { LightdashParameters } from '../compiler/parameters';
+
 /**
  * Strips the ld.parameters. prefix from a parameter name if present
  * Examples:
@@ -9,14 +11,11 @@
  *   - "currency" -> "currency"
  */
 function stripParameterPrefix(paramName: string): string {
-    const ldPrefix = 'ld.parameters.';
-    const lightdashPrefix = 'lightdash.parameters.';
-
-    if (paramName.startsWith(ldPrefix)) {
-        return paramName.substring(ldPrefix.length);
+    if (paramName.startsWith(LightdashParameters.PREFIX_SHORT)) {
+        return paramName.substring(LightdashParameters.PREFIX_SHORT.length);
     }
-    if (paramName.startsWith(lightdashPrefix)) {
-        return paramName.substring(lightdashPrefix.length);
+    if (paramName.startsWith(LightdashParameters.PREFIX)) {
+        return paramName.substring(LightdashParameters.PREFIX.length);
     }
     return paramName;
 }

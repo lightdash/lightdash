@@ -14,6 +14,11 @@ export const parameterRegex =
 const parameterReferencePattern =
     /(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
 
+export enum LightdashParameters {
+    PREFIX = 'lightdash.parameters',
+    PREFIX_SHORT = 'ld.parameters',
+}
+
 /**
  * Extracts parameter references from SQL strings or format strings
  * @param sql - The SQL or format string to extract parameter references from
