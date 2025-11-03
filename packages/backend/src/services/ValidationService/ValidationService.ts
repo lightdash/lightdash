@@ -945,7 +945,30 @@ export class ValidationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const validations = await this.validationModel.get(projectUuid, jobId);
+        const allValidations = await this.validationModel.get(
+            projectUuid,
+            jobId,
+        );
+
+        // Filter out orphaned validations (content was deleted)
+        const validations = allValidations.filter((validation) => {
+            // Keep table validations (they don't reference charts/dashboards)
+            if (
+                !isDashboardValidationError(validation) &&
+                !isChartValidationError(validation)
+            ) {
+                return true;
+            }
+
+            // Filter out chart/dashboard validations where content no longer exists
+            const hasChartUuid =
+                isChartValidationError(validation) && validation.chartUuid;
+            const hasDashboardUuid =
+                isDashboardValidationError(validation) &&
+                validation.dashboardUuid;
+
+            return hasChartUuid || hasDashboardUuid;
+        });
 
         if (fromSettings) {
             const contentIds = validations.map(
