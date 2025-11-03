@@ -214,13 +214,10 @@ export const compileTableCalculationFromTemplate = (
             return `RANK() OVER (ORDER BY ${quotedFieldId} ASC)`;
 
         case TableCalculationTemplateType.RUNNING_TOTAL: {
+            // Running totals should always accumulate in ascending order for consistent
+            // cumulative behavior, regardless of how the table is sorted for display
             const orderByArgumentsSql = (sortFields || [])
-                .map(
-                    (sort) =>
-                        `${quoteChar}${sort.fieldId}${quoteChar} ${
-                            sort.descending ? 'DESC' : 'ASC'
-                        }`,
-                )
+                .map((sort) => `${quoteChar}${sort.fieldId}${quoteChar} ASC`)
                 .join(', ');
             const orderByClauseSql =
                 orderByArgumentsSql && `ORDER BY ${orderByArgumentsSql} `; // trailing space intentional

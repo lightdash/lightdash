@@ -249,9 +249,16 @@ export function compilePostCalculationMetric({
     const finalOrderByClause = orderByClause ?? `ORDER BY (SELECT NULL)`;
 
     if (type === MetricType.RUNNING_TOTAL) {
+        // For RUNNING_TOTAL, convert all DESC to ASC to ensure running totals
+        // always accumulate in ascending order regardless of table sort direction
+        const runningTotalOrderByClause = finalOrderByClause.replaceAll(
+            'DESC',
+            'ASC',
+        );
+
         return `SUM(${sql}) OVER (${
             partitionByClause ?? ' '
-        }${finalOrderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+        }${runningTotalOrderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
     }
 
     if (type === MetricType.PERCENT_OF_PREVIOUS) {

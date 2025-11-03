@@ -510,7 +510,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
             );
 
             expect(result).toBe(
-                'SUM("table_revenue") OVER (ORDER BY "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+                'SUM("table_revenue") OVER (ORDER BY "table_date" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
             );
         });
 
@@ -531,7 +531,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
             );
 
             expect(result).toBe(
-                'SUM("table_revenue") OVER (ORDER BY "table_year" ASC, "table_month" ASC, "table_day" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+                'SUM("table_revenue") OVER (ORDER BY "table_year" ASC, "table_month" ASC, "table_day" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
             );
         });
 
@@ -568,7 +568,7 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
             );
 
             expect(result).toBe(
-                'SUM("table_sales") OVER (ORDER BY "table_region" ASC, "table_date" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+                'SUM("table_sales") OVER (ORDER BY "table_region" ASC, "table_date" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
             );
         });
     });

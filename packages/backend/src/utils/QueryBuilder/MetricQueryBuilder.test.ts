@@ -1090,7 +1090,7 @@ GROUP BY 1,2
 postcalculation_metrics AS (
 SELECT
   *,
-  SUM(metrics."table1_metric1") OVER (PARTITION BY "table1_category"ORDER BY "table1_metric1" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS "table1_running_total_metric"
+  SUM(metrics."table1_metric1") OVER (PARTITION BY "table1_category"ORDER BY "table1_metric1" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS "table1_running_total_metric"
 FROM metrics
 )
 SELECT
