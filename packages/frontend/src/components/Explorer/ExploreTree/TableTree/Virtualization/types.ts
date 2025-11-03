@@ -65,6 +65,12 @@ export interface TableHeaderItem extends BaseFlattenedItem {
     };
 }
 
+// Help button configuration for section headers
+export interface SectionHelpButton {
+    href: string;
+    tooltipText: string; // Plain text for the tooltip
+}
+
 // Section header item (Dimensions, Metrics, etc.)
 export interface SectionHeaderItem extends BaseFlattenedItem {
     type: 'section-header';
@@ -74,6 +80,7 @@ export interface SectionHeaderItem extends BaseFlattenedItem {
         label: string;
         color: string; // Mantine color like 'blue.9', 'yellow.9'
         depth?: number; // Depth for indentation when table headers are present
+        helpButton?: SectionHelpButton;
     };
 }
 
