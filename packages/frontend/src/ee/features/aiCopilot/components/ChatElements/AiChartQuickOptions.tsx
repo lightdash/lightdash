@@ -29,6 +29,7 @@ type Props = {
     saveChartOptions?: {
         name: string | null;
         description: string | null;
+        linkToMessage: boolean;
     };
     message: AiAgentMessageAssistant;
     compiledSql?: string;
@@ -36,7 +37,7 @@ type Props = {
 
 export const AiChartQuickOptions = ({
     projectUuid,
-    saveChartOptions = { name: '', description: '' },
+    saveChartOptions = { name: '', description: '', linkToMessage: true },
     message,
     compiledSql,
 }: Props) => {
@@ -63,6 +64,10 @@ export const AiChartQuickOptions = ({
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
     const onSaveChart = (savedData: SavedChart) => {
+        if (!saveChartOptions.linkToMessage) {
+            close();
+            return;
+        }
         void savePromptQuery({ savedQueryUuid: savedData.uuid });
         if (
             user?.data?.userUuid &&
