@@ -12,10 +12,8 @@ import {
     useExplorerInitialization,
 } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
-import { useFeatureFlag } from '../../../../../hooks/useFeatureFlagEnabled';
-import { defaultQueryExecution } from '../../../../../providers/Explorer/defaultState';
-import ExplorerProvider from '../../../../../providers/Explorer/ExplorerProvider';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
+import { useFeatureFlag } from '../../../../../hooks/useFeatureFlagEnabled';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
