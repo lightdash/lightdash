@@ -1,12 +1,11 @@
-import {
-    formatItemValue,
-    type ItemsMap,
-    type ParametersValuesMap,
-    type PivotValuesColumn,
-} from '@lightdash/common';
+import { type AnyType } from '../../types/any';
+import { type ItemsMap } from '../../types/field';
+import { type ParametersValuesMap } from '../../types/parameters';
+import { formatItemValue } from '../../utils/formatting';
+import { type PivotValuesColumn } from '../types';
 
 export const getFormattedValue = (
-    value: any,
+    value: AnyType,
     key: string,
     itemsMap: ItemsMap,
     convertToUTC: boolean = true,
@@ -25,8 +24,8 @@ export const valueFormatter =
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
         parameters?: ParametersValuesMap,
     ) =>
-    (rawValue: any) => {
-        return getFormattedValue(
+    (rawValue: AnyType) =>
+        getFormattedValue(
             rawValue,
             yFieldId,
             itemsMap,
@@ -34,4 +33,3 @@ export const valueFormatter =
             pivotValuesColumnsMap,
             parameters,
         );
-    };

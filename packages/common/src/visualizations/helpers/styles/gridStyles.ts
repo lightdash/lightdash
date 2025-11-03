@@ -1,12 +1,12 @@
-import { type MantineTheme } from '@mantine/core';
+import { GRAY_1, GRAY_2 } from './themeColors';
 
 /**
  * Get grid line styling for line charts
  */
-export const getLineChartGridStyle = (theme: MantineTheme) => ({
+export const getLineChartGridStyle = () => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[1],
+        color: GRAY_1,
         type: 'solid' as const,
     },
 });
@@ -14,10 +14,10 @@ export const getLineChartGridStyle = (theme: MantineTheme) => ({
 /**
  * Get grid line styling for bar charts
  */
-export const getBarChartGridStyle = (theme: MantineTheme) => ({
+export const getBarChartGridStyle = () => ({
     show: true,
     lineStyle: {
-        color: theme.colors.gray[2],
+        color: GRAY_2,
         type: [3, 3] as const, // [dash length, gap length]
     },
 });

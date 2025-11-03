@@ -1,5 +1,15 @@
 import {
+    formatColorIndicator,
     formatItemValue,
+    formatTooltipLabel,
+    formatTooltipRow,
+    formatTooltipValue,
+    getLegendStyle,
+    getPieExternalLabelStyle,
+    getPieInternalLabelStyle,
+    getPieLabelLineStyle,
+    getPieSliceStyle,
+    getTooltipStyle,
     PieChartLegendLabelMaxLengthDefault,
     PieChartTooltipLabelMaxLength,
     type ResultRow,
@@ -10,20 +20,6 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { getLegendStyle } from './styles/legendStyles';
-import {
-    getPieExternalLabelStyle,
-    getPieInternalLabelStyle,
-    getPieLabelLineStyle,
-    getPieSliceStyle,
-} from './styles/pieChartStyles';
-import {
-    formatColorIndicator,
-    formatTooltipLabel,
-    formatTooltipRow,
-    formatTooltipValue,
-    getTooltipStyle,
-} from './styles/tooltipStyles';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -104,8 +100,8 @@ const useEchartsPieConfig = (
                         position:
                             valueLabel === 'outside' ? 'outside' : 'inside',
                         ...(valueLabel === 'outside'
-                            ? getPieExternalLabelStyle(theme)
-                            : getPieInternalLabelStyle(theme, itemColor)),
+                            ? getPieExternalLabelStyle()
+                            : getPieInternalLabelStyle()),
                         formatter: (params) => {
                             const isOutside = valueLabel === 'outside';
 
@@ -134,13 +130,13 @@ const useEchartsPieConfig = (
                                 : `${params.name}`;
                         },
                     },
-                    labelLine: getPieLabelLineStyle(theme),
+                    labelLine: getPieLabelLineStyle(),
                     meta,
                 };
 
                 return config;
             });
-    }, [chartConfig, getGroupColor, theme]);
+    }, [chartConfig, getGroupColor]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
@@ -192,18 +188,15 @@ const useEchartsPieConfig = (
                     const colorIndicator = formatColorIndicator(
                         color as string,
                     );
-                    const label = formatTooltipLabel(truncatedName, theme);
+                    const label = formatTooltipLabel(truncatedName);
                     const valueWithPercent = `${percent}% - ${formattedValue}`;
-                    const valuePill = formatTooltipValue(
-                        valueWithPercent,
-                        theme,
-                    );
+                    const valuePill = formatTooltipValue(valueWithPercent);
 
                     return formatTooltipRow(colorIndicator, label, valuePill);
                 },
             },
         };
-    }, [chartConfig, seriesData, theme]);
+    }, [chartConfig, seriesData]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
@@ -222,8 +215,8 @@ const useEchartsPieConfig = (
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
-                ...getLegendStyle(theme, 'square'),
-                formatter: (name) => {
+                ...getLegendStyle('square'),
+                formatter: (name: string) => {
                     return name.length >
                         (legendMaxItemLength ??
                             PieChartLegendLabelMaxLengthDefault)
@@ -250,19 +243,19 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
-                ...getTooltipStyle(theme),
+                ...getTooltipStyle(),
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),
         };
     }, [
+        chartConfig,
+        pieSeriesOption,
+        theme?.other?.chartFont,
         legendDoubleClickTooltip,
         selectedLegends,
-        chartConfig,
         isInDashboard,
         minimal,
-        pieSeriesOption,
-        theme,
     ]);
 
     if (!itemsMap) return;

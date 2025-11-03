@@ -1,30 +1,22 @@
 import {
-    createStack100TooltipFormatter,
-    type EChartSeries,
-    formatItemValue,
-    hashFieldReference,
-    isField,
-    isTableCalculation,
-    type ItemsMap,
-    type ParametersValuesMap,
-    type PivotValuesColumn,
-    StackType,
-    type TooltipParam,
-} from '@lightdash/common';
-import { type MantineTheme } from '@mantine/core';
-import DOMPurify from 'dompurify';
-import {
     type DefaultLabelFormatterCallbackParams,
     type LineSeriesOption,
     type TooltipComponentFormatterCallback,
 } from 'echarts';
+import { toNumber } from 'lodash';
+import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
+import { type ParametersValuesMap } from '../../types/parameters';
+import { hashFieldReference } from '../../types/savedCharts';
+import { formatItemValue } from '../../utils/formatting';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { type EChartSeries, type PivotValuesColumn, StackType } from '../types';
 import {
     formatCartesianTooltipRow,
     formatColorIndicator,
     formatTooltipHeader,
     formatTooltipValue,
     getTooltipDivider,
-} from '../styles/tooltipStyles';
+} from './styles/tooltipStyles';
 import { getFormattedValue } from './valueFormatter';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -61,12 +53,12 @@ const getTooltipCtx = (
             ? 'dataset'
             : 'tuple';
 
-    const mode: TooltipCtx['mode'] =
-        stackValue === StackType.PERCENT
-            ? 'stack100'
-            : stackValue
-            ? 'stackRegular'
-            : 'plain';
+    let mode: TooltipCtx['mode'] = 'plain';
+    if (stackValue === StackType.PERCENT) {
+        mode = 'stack100';
+    } else if (stackValue) {
+        mode = 'stackRegular';
+    }
 
     return { flipAxes: !!flipAxes, mode, dataMode };
 };
@@ -102,7 +94,38 @@ const getRawVal = (
  */
 const getHeader = (
     params: (TooltipFormatterParams | TooltipFormatterParams)[],
-): string => params[0]?.axisValueLabel ?? params[0]?.name ?? '';
+): string => {
+    // First try the standard axisValueLabel or name
+    const standardHeader = params[0]?.axisValueLabel ?? params[0]?.name;
+    if (standardHeader) return standardHeader;
+
+    // For tuple mode (stacked bars) with time axis, extract x-value from data array
+    const firstParam = params[0];
+    if (firstParam?.value && Array.isArray(firstParam.value)) {
+        // In tuple mode, first element is typically the x-axis value
+        const xValue = firstParam.value[0];
+        if (xValue !== undefined && xValue !== null) {
+            // Format date strings nicely
+            if (
+                typeof xValue === 'string' &&
+                xValue.match(/^\d{4}-\d{2}-\d{2}/)
+            ) {
+                try {
+                    return new Date(xValue).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                    });
+                } catch {
+                    return String(xValue);
+                }
+            }
+            return String(xValue);
+        }
+    }
+
+    return '';
+};
 
 const extractColor = (marker: unknown): string => {
     const s = typeof marker === 'string' ? marker : '';
@@ -158,12 +181,12 @@ const getValueIdxFromEncode = (
 ): number | undefined => {
     const axis: AxisKey = flipAxes ? 'x' : 'y';
     if (!encode) {
+        let result: number | undefined;
         // tuple fallback for regular stacks
-        return ctx.dataMode === 'tuple' && ctx.mode === 'stackRegular'
-            ? flipAxes
-                ? 0
-                : 1
-            : undefined;
+        if (ctx.dataMode === 'tuple' && ctx.mode === 'stackRegular') {
+            result = flipAxes ? 0 : 1;
+        }
+        return result;
     }
     const e = encode[axis];
     if (typeof e === 'number') return e;
@@ -178,32 +201,272 @@ const getValueIdxFromEncode = (
 export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
     typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
-export const buildCartesianTooltipFormatter = ({
-    itemsMap,
-    stackValue,
-    flipAxes,
-    xFieldId,
-    originalValues,
-    series,
-    theme,
-    tooltipHtmlTemplate,
-    pivotValuesColumnsMap,
-    parameters,
-}: {
-    itemsMap?: ItemsMap;
-    stackValue: string | boolean | undefined;
-    flipAxes: boolean | undefined;
-    xFieldId: string | undefined;
-    originalValues?: Map<string, Map<string, number>> | undefined;
-    series?: EChartSeries[];
-    theme: MantineTheme;
-    tooltipHtmlTemplate?: string;
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
-    parameters?: ParametersValuesMap;
-}): TooltipComponentFormatterCallback<
-    TooltipFormatterParams | TooltipFormatterParams[]
-> => {
-    return (params) => {
+/**
+ * Creates a tooltip formatter for 100% stacked charts
+ * This formatter shows both the percentage and the original count value
+ *
+ * @param originalValues - Map of x-axis values to their original y-values
+ * @param getDimensionName - Function to extract the dimension name from a param
+ * @param xAxisField - The x-axis field name to extract the raw x value from param data
+ * @returns A formatter function compatible with ECharts tooltip
+ *
+ * @example
+ * // SQL Runner usage
+ * const formatter = createStack100TooltipFormatter(
+ *     originalValues,
+ *     (param) => {
+ *         const { encode, dimensionNames } = param;
+ *         const yFieldIndex = Array.isArray(encode.y) ? encode.y[0] : encode.y;
+ *         return dimensionNames?.[yFieldIndex];
+ *     },
+ *     xFieldId
+ * );
+ *
+ * @example
+ * // Explorer usage with flip axes
+ * const formatter = createStack100TooltipFormatter(
+ *     originalValues,
+ *     (param) => {
+ *         const { encode, dimensionNames } = param;
+ *         if (!dimensionNames || !encode) return undefined;
+ *         return flipAxes ? dimensionNames[1] : dimensionNames[encode.y?.[0]];
+ *     },
+ *     xFieldId
+ * );
+ */
+export function createStack100TooltipFormatter(
+    originalValues: Map<string, Map<string, number>>,
+    getDimensionName: GetDimensionNameFn,
+    xAxisField: string,
+) {
+    return (params: TooltipParams) => {
+        if (!Array.isArray(params)) return '';
+
+        const header = getHeader(params as TooltipFormatterParams[]);
+
+        const rowsHtml = params
+            .map((param) => {
+                const { seriesName = '', marker = '' } = param;
+                const dimensionName = getDimensionName(param);
+
+                if (!dimensionName) return '';
+
+                // Access value - try both data and value for compatibility
+                // SQL Runner uses 'data', Explorer uses 'value'
+                const valueObject =
+                    param.data ||
+                    (typeof param.value === 'object' &&
+                    !Array.isArray(param.value)
+                        ? param.value
+                        : undefined);
+
+                if (!valueObject || typeof valueObject !== 'object') return '';
+
+                const percentage = valueObject[dimensionName];
+
+                // Get the raw x-axis value from the data for originalValues lookup
+                const rawXValue = String(valueObject[xAxisField] ?? '');
+                const originalValue =
+                    originalValues?.get(rawXValue)?.get(dimensionName) || 0;
+
+                // Format percentage and count
+                const percentageStr =
+                    typeof percentage === 'number' && !Number.isNaN(percentage)
+                        ? `${percentage.toFixed(1)}%`
+                        : '0.0%';
+                const countStr =
+                    typeof originalValue === 'number'
+                        ? originalValue.toLocaleString()
+                        : '0';
+
+                const colorIndicator = formatColorIndicator(
+                    extractColor(marker),
+                );
+                return formatCartesianTooltipRow(
+                    colorIndicator,
+                    seriesName,
+                    formatTooltipValue(`${percentageStr} (${countStr})`),
+                );
+            })
+            .filter(Boolean)
+            .join('');
+
+        const divider = getTooltipDivider();
+
+        return `${formatTooltipHeader(header)}${divider}${rowsHtml}`;
+    };
+}
+
+/**
+ * Transform data for 100% stacked charts
+ *
+ * Converts absolute values to percentages where each stacked group totals 100%.
+ * Also preserves original values for tooltip display.
+ *
+ * @param rows - Array of data rows to transform
+ * @param xAxisField - Field reference for the x-axis (grouping key)
+ * @param yFieldRefs - Array of field references for y-axis values to convert to percentages
+ * @returns Object containing transformed data and original values map
+ */
+export function transformToPercentageStacking<
+    T extends Record<string, unknown>,
+>(
+    rows: T[],
+    xAxisField: string,
+    yFieldRefs: string[],
+): {
+    transformedResults: T[];
+    originalValues: Map<string, Map<string, number>>;
+} {
+    const originalValues = new Map<string, Map<string, number>>();
+    const totals = new Map<string, number>();
+
+    // Calculate totals for each x-axis value
+    rows.forEach((row) => {
+        const xValue = String(row[xAxisField]);
+        let total = 0;
+
+        yFieldRefs.forEach((yField) => {
+            const value = toNumber(row[yField]) || 0;
+            total += value;
+
+            // Store original value
+            if (!originalValues.has(xValue)) {
+                originalValues.set(xValue, new Map());
+            }
+            originalValues.get(xValue)!.set(yField, value);
+        });
+
+        totals.set(xValue, total);
+    });
+
+    // Transform data to percentages
+    const transformedResults = rows.map((row) => {
+        const xValue = String(row[xAxisField]);
+        const total = totals.get(xValue) || 1; // Avoid division by zero
+        const newRow = { ...row };
+
+        yFieldRefs.forEach((yField) => {
+            const value = toNumber(row[yField]) || 0;
+            (newRow as Record<string, unknown>)[yField] = (value / total) * 100;
+        });
+
+        return newRow;
+    });
+
+    return { transformedResults, originalValues };
+}
+
+/**
+ * Build a simplified tooltip formatter for SQL Runner Cartesian charts
+ * This formatter doesn't require itemsMap and works directly with the dataset
+ */
+export const buildSqlRunnerCartesianTooltipFormatter =
+    ({
+        stackValue,
+        flipAxes,
+        xFieldId,
+        originalValues,
+    }: {
+        stackValue: string | boolean | undefined;
+        flipAxes: boolean | undefined;
+        xFieldId: string | undefined;
+        originalValues?: Map<string, Map<string, number>> | undefined;
+    }): TooltipComponentFormatterCallback<
+        TooltipFormatterParams | TooltipFormatterParams[]
+    > =>
+    (params) => {
+        if (!Array.isArray(params)) return '';
+
+        const ctx = getTooltipCtx(params, stackValue, flipAxes);
+
+        // 100% stacks: use special formatter that shows percentage + original values
+        if (ctx.mode === 'stack100' && xFieldId && originalValues) {
+            return createStack100TooltipFormatter(
+                originalValues,
+                (param) => {
+                    const { encode, dimensionNames } = param;
+                    if (!dimensionNames || !encode) return undefined;
+                    if (flipAxes) return dimensionNames[1];
+                    const yIndex = Array.isArray(encode.y)
+                        ? encode.y[0]
+                        : encode.y;
+                    return typeof yIndex === 'number'
+                        ? dimensionNames[yIndex]
+                        : undefined;
+                },
+                xFieldId,
+            )(params as TooltipParam[]);
+        }
+
+        const header = getHeader(params);
+
+        // Build tooltip rows
+        const rowsHtml = params
+            .map((param) => {
+                const { marker, seriesName, dimensionNames, encode } = param;
+
+                const metricAxis: AxisKey = flipAxes ? 'x' : 'y';
+                const dim = getDimFromEncodeAxis(
+                    encode,
+                    dimensionNames,
+                    metricAxis,
+                );
+
+                const valueIdx = getValueIdxFromEncode(encode, ctx, !!flipAxes);
+                const rawVal = getRawVal(param, dim, valueIdx, ctx);
+
+                const valueForFormat = unwrapValue(rawVal);
+                if (valueForFormat === undefined || valueForFormat === null)
+                    return '';
+
+                // Format the value - for SQL Runner, we'll use the raw number
+                const formattedValue =
+                    typeof valueForFormat === 'number'
+                        ? valueForFormat.toLocaleString()
+                        : String(valueForFormat);
+
+                const colorIndicator = formatColorIndicator(
+                    extractColor(marker),
+                );
+                return formatCartesianTooltipRow(
+                    colorIndicator,
+                    seriesName || '',
+                    formatTooltipValue(formattedValue),
+                );
+            })
+            .join('');
+
+        const divider = getTooltipDivider();
+
+        return `${formatTooltipHeader(header)}${divider}${rowsHtml}`;
+    };
+
+export const buildCartesianTooltipFormatter =
+    ({
+        itemsMap,
+        stackValue,
+        flipAxes,
+        xFieldId,
+        originalValues,
+        series,
+        tooltipHtmlTemplate,
+        pivotValuesColumnsMap,
+        parameters,
+    }: {
+        itemsMap?: ItemsMap;
+        stackValue: string | boolean | undefined;
+        flipAxes: boolean | undefined;
+        xFieldId: string | undefined;
+        originalValues?: Map<string, Map<string, number>> | undefined;
+        series?: EChartsSeries[];
+        tooltipHtmlTemplate?: string;
+        pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
+        parameters?: ParametersValuesMap;
+    }): TooltipComponentFormatterCallback<
+        TooltipFormatterParams | TooltipFormatterParams[]
+    > =>
+    (params) => {
         if (!Array.isArray(params) || !itemsMap) return '';
 
         const ctx = getTooltipCtx(params, stackValue, flipAxes);
@@ -280,11 +543,14 @@ export const buildCartesianTooltipFormatter = ({
                     );
 
                 const tooltipEncode = seriesOption?.encode?.tooltip;
-                const tooltipDim = Array.isArray(tooltipEncode)
-                    ? tooltipEncode[0]
-                    : typeof tooltipEncode === 'string'
-                    ? tooltipEncode
-                    : undefined;
+
+                let tooltipDim: string | undefined;
+                if (Array.isArray(tooltipEncode)) {
+                    // eslint-disable-next-line prefer-destructuring
+                    tooltipDim = tooltipEncode[0];
+                } else if (typeof tooltipEncode === 'string') {
+                    tooltipDim = tooltipEncode;
+                }
 
                 const pivotDim =
                     seriesOption?.pivotReference && pivotValuesColumnsMap
@@ -422,8 +688,7 @@ export const buildCartesianTooltipFormatter = ({
                 return formatCartesianTooltipRow(
                     colorIndicator,
                     seriesName || '',
-                    formatTooltipValue(formattedValue, theme),
-                    theme,
+                    formatTooltipValue(formattedValue),
                 );
             })
             .join('');
@@ -431,14 +696,39 @@ export const buildCartesianTooltipFormatter = ({
         // custom HTML template only in dataset mode
         let tooltipHtml = tooltipHtmlTemplate ?? '';
         if (tooltipHtml) {
-            tooltipHtml = DOMPurify.sanitize(tooltipHtml);
-            const firstValue = params[0]?.value;
-            const isDatasetMode =
+            tooltipHtml = sanitizeHtml(tooltipHtml);
+            const firstParam = params[0];
+            const firstValue = firstParam?.value;
+            const fields = tooltipHtml.match(/\${(.*?)}/g);
+
+            if (ctx.dataMode === 'tuple' && Array.isArray(firstValue)) {
+                // Tuple mode (stacked bars): map dimension names to array indices
+                fields?.forEach((field) => {
+                    const ref = field.slice(2, -1);
+                    const dimensionIndex =
+                        firstParam.dimensionNames?.indexOf(ref);
+
+                    if (dimensionIndex !== undefined && dimensionIndex >= 0) {
+                        const val = unwrapValue(firstValue[dimensionIndex]);
+                        const formatted = getFormattedValue(
+                            val,
+                            ref,
+                            itemsMap,
+                            undefined,
+                            pivotValuesColumnsMap,
+                            parameters,
+                        );
+                        tooltipHtml = tooltipHtml.replace(field, formatted);
+                    } else {
+                        tooltipHtml = tooltipHtml.replace(field, '');
+                    }
+                });
+            } else if (
+                ctx.dataMode === 'dataset' &&
                 firstValue &&
-                typeof firstValue === 'object' &&
-                !Array.isArray(firstValue);
-            if (isDatasetMode) {
-                const fields = tooltipHtml.match(/\${(.*?)}/g);
+                typeof firstValue === 'object'
+            ) {
+                // Dataset mode: direct property access
                 fields?.forEach((field) => {
                     const ref = field.slice(2, -1);
                     const val = unwrapValue(
@@ -459,7 +749,7 @@ export const buildCartesianTooltipFormatter = ({
             }
         }
 
-        const divider = getTooltipDivider(theme);
+        const divider = getTooltipDivider();
         const dimensionId = params[0]?.dimensionNames?.[0];
 
         if (dimensionId !== undefined) {
@@ -473,7 +763,6 @@ export const buildCartesianTooltipFormatter = ({
                 );
                 return `${formatTooltipHeader(
                     headerText,
-                    theme,
                 )}${divider}${rowsHtml}`;
             }
             const hasFormat = isField(field)
@@ -490,14 +779,33 @@ export const buildCartesianTooltipFormatter = ({
                 );
                 return `${formatTooltipHeader(
                     headerText,
-                    theme,
                 )}${divider}${tooltipHtml}${rowsHtml}`;
             }
         }
 
         return `${formatTooltipHeader(
             header,
-            theme,
         )}${divider}${tooltipHtml}${rowsHtml}`;
     };
-};
+
+/**
+ * ECharts tooltip parameter types
+ * These represent the structure of params passed to tooltip formatters
+ */
+export interface TooltipParam {
+    seriesName?: string;
+    marker?: string;
+    encode?: {
+        x?: string | number | (string | number)[];
+        y?: string | number | (string | number)[];
+    };
+    dimensionNames?: string[];
+    data?: Record<string, unknown>;
+    value?: Record<string, unknown> | unknown[];
+    axisValue?: string | number;
+    axisValueLabel?: string | number;
+}
+
+type TooltipParams = TooltipParam | TooltipParam[];
+
+type GetDimensionNameFn = (param: TooltipParam) => string | undefined;

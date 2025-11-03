@@ -1,9 +1,22 @@
+import { type DefaultLabelFormatterCallbackParams } from 'echarts';
 import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import { DimensionType } from '../types/field';
 import { type RawResultRow } from '../types/results';
-import { type ChartKind } from '../types/savedCharts';
+import {
+    PieChartTooltipLabelMaxLength,
+    type ChartKind,
+} from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
+import { applyCustomFormat } from '../utils/formatting';
+import { getLegendStyle } from './helpers/styles/legendStyles';
+import {
+    formatColorIndicator,
+    formatTooltipLabel,
+    formatTooltipRow,
+    formatTooltipValue,
+    getTooltipStyle,
+} from './helpers/styles/tooltipStyles';
 import {
     VizAggregationOptions,
     VizIndexType,
@@ -373,9 +386,39 @@ export class PieChartDataModel {
                 left: 'center',
                 top: 'top',
                 align: 'auto',
+                ...getLegendStyle('square'),
             },
             tooltip: {
                 trigger: 'item',
+                ...getTooltipStyle(),
+                formatter: (params: DefaultLabelFormatterCallbackParams) => {
+                    // Safely extract properties from params
+                    const { color, name: nameValue, value, percent } = params;
+
+                    const formattedValue =
+                        typeof value === 'number'
+                            ? applyCustomFormat(value, undefined)
+                            : String(value ?? '');
+
+                    // Truncate long names
+                    const nameStr = String(nameValue ?? '');
+                    const truncatedName =
+                        nameStr.length > PieChartTooltipLabelMaxLength
+                            ? `${nameStr.slice(
+                                  0,
+                                  PieChartTooltipLabelMaxLength,
+                              )}...`
+                            : nameStr;
+
+                    const colorIndicator = formatColorIndicator(
+                        typeof color === 'string' ? color : '#000',
+                    );
+                    const label = formatTooltipLabel(truncatedName);
+                    const valueWithPercent = `${percent}% - ${formattedValue}`;
+                    const valuePill = formatTooltipValue(valueWithPercent);
+
+                    return formatTooltipRow(colorIndicator, label, valuePill);
+                },
             },
             series: [
                 {
@@ -401,6 +444,9 @@ export class PieChartDataModel {
                     }),
                 },
             ],
+            textStyle: {
+                fontFamily: 'Inter, sans-serif',
+            },
         };
 
         return spec;
