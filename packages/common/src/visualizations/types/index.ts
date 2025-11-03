@@ -308,7 +308,7 @@ export type VizTableHeaderSortConfig = {
     };
 };
 
-export type EChartSeries = {
+export type EChartsSeries = {
     type: Series['type'];
     connectNulls: boolean;
     stack?: string;
@@ -359,7 +359,7 @@ export type EChartSeries = {
 
 /**
  * SQL Runner specific EChart series type
- * Extends EChartSeries but with key differences:
+ * Extends EChartsSeries but with key differences:
  * - type can be a string (from user config) not just CartesianSeriesType
  * - connectNulls is optional
  * - encode structure is simpler (just x and y, not tooltip/seriesName)
@@ -369,8 +369,8 @@ export type EChartSeries = {
  * - adds barCategoryGap for bar charts
  * - excludes pivotReference and markLine
  */
-export type SqlRunnerEChartSeries = Omit<
-    EChartSeries,
+export type SqlRunnerEChartsSeries = Omit<
+    EChartsSeries,
     | 'type'
     | 'connectNulls'
     | 'encode'

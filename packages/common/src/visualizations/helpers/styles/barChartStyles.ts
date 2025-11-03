@@ -3,7 +3,7 @@
 import { type AnyType } from '../../../types/any';
 import { type RawResultRow, type ResultRow } from '../../../types/results';
 import { CartesianSeriesType } from '../../../types/savedCharts';
-import { type EChartSeries, type SqlRunnerEChartSeries } from '../../types';
+import { type EChartsSeries, type SqlRunnerEChartsSeries } from '../../types';
 import { GRAY_9 } from './themeColors';
 
 /**
@@ -83,7 +83,7 @@ export const getBarTotalLabelStyle = () => ({
  * @returns The index of the axis
  */
 export const getIndexFromEncode = (
-    enc: EChartSeries['encode'] | SqlRunnerEChartSeries['encode'],
+    enc: EChartsSeries['encode'] | SqlRunnerEChartsSeries['encode'],
     dimNames: string[] | undefined,
     which: 'x' | 'y',
 ): number | undefined => {
@@ -104,7 +104,7 @@ type LegendValues = { [name: string]: boolean } | undefined;
  * SQL Runner data is flat: { field: value } instead of { field: { value: { raw: value } } }
  */
 export const applyRoundedCornersToSqlRunnerStackData = (
-    series: SqlRunnerEChartSeries[],
+    series: SqlRunnerEChartsSeries[],
     rows: RawResultRow[],
     {
         radius = 4,
@@ -115,12 +115,12 @@ export const applyRoundedCornersToSqlRunnerStackData = (
         isHorizontal?: boolean;
         legendSelected?: { [name: string]: boolean } | undefined;
     } = {},
-): SqlRunnerEChartSeries[] => {
+): SqlRunnerEChartsSeries[] => {
     const out = series.map((s) => ({ ...s }));
-    const indexMap = new Map<SqlRunnerEChartSeries, number>();
+    const indexMap = new Map<SqlRunnerEChartsSeries, number>();
     series.forEach((s, i) => indexMap.set(s, i));
 
-    const isVisible = (s: SqlRunnerEChartSeries) => {
+    const isVisible = (s: SqlRunnerEChartsSeries) => {
         if (!legendSelected) return true;
         const name =
             s.name || (Array.isArray(s.dimensions) ? s.dimensions[1] : '');
@@ -128,14 +128,14 @@ export const applyRoundedCornersToSqlRunnerStackData = (
         return legendSelected[name] ?? true;
     };
 
-    const getDimNames = (s: SqlRunnerEChartSeries) =>
+    const getDimNames = (s: SqlRunnerEChartsSeries) =>
         (s.dimensions || []).filter(Boolean) as string[];
 
-    const getHashFromEncode = (s: SqlRunnerEChartSeries, which: 'x' | 'y') =>
+    const getHashFromEncode = (s: SqlRunnerEChartsSeries, which: 'x' | 'y') =>
         (s.encode?.[which] as string | undefined) || undefined;
 
     // Only stacked BAR series
-    const stacks: Record<string, SqlRunnerEChartSeries[]> = {};
+    const stacks: Record<string, SqlRunnerEChartsSeries[]> = {};
     series.forEach((s) => {
         if (s.type === 'bar' && s.stack) {
             (stacks[s.stack] ||= []).push(s);
@@ -257,7 +257,7 @@ export const applyRoundedCornersToSqlRunnerStackData = (
  *
  */
 export const applyRoundedCornersToStackData = (
-    series: EChartSeries[],
+    series: EChartsSeries[],
     rows: ResultRow[],
     {
         radius = 4,
@@ -268,28 +268,28 @@ export const applyRoundedCornersToStackData = (
         isHorizontal?: boolean;
         legendSelected?: LegendValues;
     } = {},
-): EChartSeries[] => {
+): EChartsSeries[] => {
     const out = series.map((s) => ({ ...s }));
-    const indexMap = new Map<EChartSeries, number>();
+    const indexMap = new Map<EChartsSeries, number>();
     series.forEach((s, i) => indexMap.set(s, i));
 
-    const isVisible = (s: EChartSeries) => {
+    const isVisible = (s: EChartsSeries) => {
         if (!legendSelected) return true;
         const name = s.name || s.dimensions?.[1]?.displayName || '';
         if (!name) return true;
         return legendSelected[name] ?? true;
     };
 
-    const getDimNames = (s: EChartSeries) =>
+    const getDimNames = (s: EChartsSeries) =>
         (s.dimensions || [])
             .map((d) => (typeof d === 'string' ? d : d?.name))
             .filter(Boolean) as string[];
 
-    const getHashFromEncode = (s: EChartSeries, which: 'x' | 'y') =>
+    const getHashFromEncode = (s: EChartsSeries, which: 'x' | 'y') =>
         (s.encode?.[which] as string | undefined) || undefined;
 
     // Only stacked BAR series
-    const stacks: Record<string, EChartSeries[]> = {};
+    const stacks: Record<string, EChartsSeries[]> = {};
     series.forEach((s) => {
         if (s.type === CartesianSeriesType.BAR && s.stack) {
             (stacks[s.stack] ||= []).push(s);
