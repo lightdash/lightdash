@@ -166,6 +166,7 @@ export * from './utils/catalogMetricsTree';
 export * from './utils/changeset';
 export * from './utils/charts';
 export * from './utils/colors';
+export * from './utils/conditionalFormatExpressions';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
@@ -686,6 +687,7 @@ export function formatRow(
     row: { [col: string]: AnyType },
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
+    parameters?: Record<string, unknown>,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
@@ -698,7 +700,7 @@ export function formatRow(
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value),
+                formatted: formatItemValue(item, value, false, parameters),
             },
         };
     }
@@ -710,8 +712,11 @@ export function formatRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
+    parameters?: Record<string, unknown>,
 ): ResultRow[] {
-    return rows.map((row) => formatRow(row, itemsMap, pivotValuesColumns));
+    return rows.map((row) =>
+        formatRow(row, itemsMap, pivotValuesColumns, parameters),
+    );
 }
 
 const isObject = (object: AnyType) =>

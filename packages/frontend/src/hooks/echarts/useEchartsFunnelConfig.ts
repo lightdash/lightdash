@@ -30,12 +30,14 @@ const getValueAndPercentage = ({
     field,
     value,
     maxValue,
+    parameters,
 }: {
     field?: TableCalculation | Metric;
     value: any;
     maxValue: number;
+    parameters?: Record<string, unknown>;
 }) => {
-    const formattedValue = formatItemValue(field, value);
+    const formattedValue = formatItemValue(field, value, false, parameters);
 
     const percentOfMax = round((Number(value) / maxValue) * 100, 2);
     return { formattedValue, percentOfMax };
@@ -45,7 +47,7 @@ const useEchartsFunnelConfig = (
     selectedLegends?: Record<string, boolean>,
     isInDashboard?: boolean,
 ) => {
-    const { visualizationConfig, itemsMap, colorPalette } =
+    const { visualizationConfig, itemsMap, colorPalette, parameters } =
         useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -102,6 +104,7 @@ const useEchartsFunnelConfig = (
                             field: selectedField,
                             value,
                             maxValue: chartConfig.maxValue,
+                            parameters,
                         });
 
                     return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent: ${percentOfMax}%`;
@@ -129,6 +132,7 @@ const useEchartsFunnelConfig = (
                             field: selectedField,
                             value,
                             maxValue: chartConfig.maxValue,
+                            parameters,
                         });
 
                     const percentString = labels?.showPercentage
@@ -150,7 +154,7 @@ const useEchartsFunnelConfig = (
                 },
             },
         };
-    }, [chartConfig, colorPalette, seriesData]);
+    }, [chartConfig, colorPalette, seriesData, parameters]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 

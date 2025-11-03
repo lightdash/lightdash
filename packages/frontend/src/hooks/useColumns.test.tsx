@@ -1,8 +1,13 @@
-import { type ResultRow, type ResultValue } from '@lightdash/common';
+import {
+    FieldType,
+    MetricType,
+    type ResultRow,
+    type ResultValue,
+} from '@lightdash/common';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { getFormattedValueCell } from './useColumns';
+import { formatCellContent, getFormattedValueCell } from './useColumns';
 
 /* eslint-disable testing-library/no-container */
 /* eslint-disable testing-library/no-node-access */
@@ -295,5 +300,163 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         );
         // Should have minimum width of 2px for visibility
         expect(barElement?.getAttribute('style')).toContain('min-width: 2px');
+    });
+});
+
+describe('formatCellContent - Parameter-based formatting', () => {
+    test('should format with conditional currency based on parameter - USD', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+        };
+
+        const data = {
+            value: { raw: 2815413.64, formatted: '2,815,413.64' },
+        };
+
+        const parameters = { currency: 'USD' };
+
+        const result = formatCellContent(data, mockItem, parameters);
+        expect(result).toBe('$2,815,413.64');
+    });
+
+    test('should format with conditional currency based on parameter - EUR', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+        };
+
+        const data = {
+            value: { raw: 2815413.64, formatted: '2,815,413.64' },
+        };
+
+        const parameters = { currency: 'EUR' };
+
+        const result = formatCellContent(data, mockItem, parameters);
+        expect(result).toBe('€2,815,413.64');
+    });
+
+    test('should use backend-formatted value when no parameter format is present', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '$0,0.00', // No parameters
+        };
+
+        const data = {
+            value: { raw: 2815413.64, formatted: '$2,815,413.64' },
+        };
+
+        const parameters = { currency: 'USD' };
+
+        const result = formatCellContent(data, mockItem, parameters);
+        // Should use backend-formatted value since format doesn't use parameters
+        expect(result).toBe('$2,815,413.64');
+    });
+
+    test('should use backend-formatted value when parameters are not provided', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+        };
+
+        const data = {
+            value: { raw: 2815413.64, formatted: '$2,815,413.64' },
+        };
+
+        const result = formatCellContent(data, mockItem, undefined);
+        // Should use backend-formatted value when parameters are undefined
+        expect(result).toBe('$2,815,413.64');
+    });
+
+    test('should handle simple parameter substitution', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.parameters.symbol}0,0.00',
+        };
+
+        const data = {
+            value: { raw: 1234.56, formatted: '1,234.56' },
+        };
+
+        const parameters = { symbol: '£' };
+
+        const result = formatCellContent(data, mockItem, parameters);
+        expect(result).toBe('£1,234.56');
+    });
+
+    test('should return hyphen when data is undefined', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+        };
+
+        const result = formatCellContent(undefined, mockItem, {
+            currency: 'USD',
+        });
+        expect(result).toBe('-');
+    });
+
+    test('should work with lightdash.parameters prefix', () => {
+        const mockItem = {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+            sql: 'revenue',
+            tableLabel: 'Orders',
+            hidden: false,
+            format: '${lightdash.parameters.symbol}0,0.00',
+        };
+
+        const data = {
+            value: { raw: 5000.75, formatted: '5,000.75' },
+        };
+
+        expect(formatCellContent(data, mockItem, { symbol: '¥' })).toBe(
+            '¥5,000.75',
+        );
     });
 });

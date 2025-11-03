@@ -19,6 +19,7 @@ import {
     type BigNumber,
     type CompactOrAlias,
     type ItemsMap,
+    type ParametersValuesMap,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -48,6 +49,7 @@ const formatComparisonValue = (
     item: ItemsMap[string] | undefined,
     value: number | string,
     bigNumberComparisonStyle: CompactOrAlias | undefined,
+    parameters?: ParametersValuesMap,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -65,7 +67,12 @@ const formatComparisonValue = (
             })}`;
         case ComparisonFormatTypes.RAW:
             if (item !== undefined && isTableCalculation(item)) {
-                return `${prefix}${formatItemValue(item, value)}`;
+                return `${prefix}${formatItemValue(
+                    item,
+                    value,
+                    false,
+                    parameters,
+                )}`;
             }
 
             const formattedValue = bigNumberComparisonStyle
@@ -77,12 +84,12 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value);
+                : formatItemValue(item, value, false, parameters);
 
             return `${prefix}${formattedValue}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatItemValue(item, value);
+                return formatItemValue(item, value, false, parameters);
             }
             return bigNumberComparisonStyle
                 ? applyCustomFormat(
@@ -93,7 +100,7 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value);
+                : formatItemValue(item, value, false, parameters);
     }
 };
 
@@ -115,6 +122,7 @@ const useBigNumberConfig = (
     resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
+    parameters?: ParametersValuesMap,
 ) => {
     const availableFieldsIds = useMemo(() => {
         const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
@@ -252,7 +260,7 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatItemValue(item, firstRowValueRaw);
+            return formatItemValue(item, firstRowValueRaw, false, parameters);
         } else if (
             item !== undefined &&
             hasValidFormatExpression(item) &&
@@ -290,7 +298,14 @@ const useBigNumberConfig = (
                 }),
             );
         }
-    }, [item, firstRowValueRaw, selectedField, bigNumberStyle, resultsData]);
+    }, [
+        item,
+        firstRowValueRaw,
+        selectedField,
+        bigNumberStyle,
+        resultsData,
+        parameters,
+    ]);
 
     const unformattedValue = useMemo(() => {
         // For backwards compatibility with old table calculations without type
@@ -332,6 +347,7 @@ const useBigNumberConfig = (
                   item,
                   unformattedValue,
                   bigNumberComparisonStyle,
+                  parameters,
               );
     }, [
         comparisonFormat,
@@ -339,6 +355,7 @@ const useBigNumberConfig = (
         item,
         unformattedValue,
         bigNumberComparisonStyle,
+        parameters,
     ]);
 
     const comparisonTooltip = useMemo(() => {

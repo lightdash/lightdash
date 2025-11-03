@@ -7,6 +7,7 @@ import {
     isTextFormat,
     isValidFormat,
 } from 'numfmt';
+import { LightdashParameters } from '../compiler/parameters';
 import {
     CompactConfigMap,
     CustomFormatType,
@@ -31,9 +32,14 @@ import {
     type Item,
     type TableCalculation,
 } from '../types/field';
-import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
+import {
+    hasFormatOptions,
+    isAdditionalMetric,
+    type AdditionalMetric,
+} from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
 
 dayjs.extend(timezone);
@@ -541,6 +547,26 @@ export function applyCustomFormat(
     }
 }
 
+/**
+ * Validates a format string that may contain parameter placeholders.
+ * Strips ${...} placeholders before validation since numfmt doesn't understand them.
+ */
+function isValidFormatWithParameters(formatString: string): boolean {
+    // Check if format contains parameter placeholders
+    const hasPlaceholders = formatString.includes('${');
+
+    if (!hasPlaceholders) {
+        return isValidFormat(formatString);
+    }
+
+    // Strip out ${...} placeholders and validate what remains
+    // This handles formats like: '${ld.parameters.currency=="usd"?"$":""}0,0.00'
+    // After stripping: '0,0.00' which is valid
+    const withoutPlaceholders = formatString.replace(/\$\{[^}]+\}/g, '');
+
+    return isValidFormat(withoutPlaceholders);
+}
+
 export function hasValidFormatExpression<
     T extends
         | Field
@@ -550,11 +576,15 @@ export function hasValidFormatExpression<
         | Dimension,
 >(item: T | undefined): item is T & { format: string } {
     // filter out legacy format that might be valid expressions. eg: usd
+    if (!item || !('format' in item) || !item.format) {
+        return false;
+    }
+
     return (
-        isField(item) &&
-        !!item.format &&
+        (isField(item) || isAdditionalMetric(item)) &&
+        typeof item.format === 'string' &&
         !isFormat(item.format) &&
-        isValidFormat(item.format)
+        isValidFormatWithParameters(item.format)
     );
 }
 
@@ -734,12 +764,50 @@ export function formatItemValue(
         | undefined,
     value: unknown,
     convertToUTC?: boolean,
+    parameters?: Record<string, unknown>,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
         if (hasValidFormatExpression(item)) {
-            return formatValueWithExpression(item.format, value);
+            // Check if format uses parameter placeholders
+            const hasParameterPlaceholders =
+                item.format.includes(
+                    `\${${LightdashParameters.PREFIX_SHORT}`,
+                ) || item.format.includes(`\${${LightdashParameters.PREFIX}`);
+
+            // NEW: Handle parameter-based formats separately
+            if (hasParameterPlaceholders) {
+                // If parameters are provided, evaluate and apply the format
+                if (parameters) {
+                    const formatExpression =
+                        evaluateConditionalFormatExpression(
+                            item.format,
+                            parameters,
+                        );
+                    try {
+                        const result = formatValueWithExpression(
+                            formatExpression,
+                            value,
+                        );
+                        return result;
+                    } catch (error) {
+                        // If evaluation fails, fall back to default formatting
+                        return applyDefaultFormat(value);
+                    }
+                } else {
+                    // No parameters provided but format needs them - use default formatting
+                    return applyDefaultFormat(value);
+                }
+            }
+
+            // EXISTING: Handle non-parameter formats (unchanged behavior)
+            try {
+                const result = formatValueWithExpression(item.format, value);
+                return result;
+            } catch (error) {
+                // Fall through to custom format handling below
+            }
         }
 
         const customFormat = getCustomFormat(item);
