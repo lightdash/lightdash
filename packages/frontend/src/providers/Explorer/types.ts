@@ -1,5 +1,6 @@
 import {
     type AdditionalMetric,
+    type AnyType,
     type BigNumberConfig,
     type CartesianChartConfig,
     type ChartConfig,
@@ -66,14 +67,19 @@ export enum ActionType {
     SET_PARAMETER_REFERENCES,
 }
 
+export type ChartConfigCache<T = AnyType> = {
+    chartConfig: T;
+    pivotConfig?: { columns: string[] };
+};
+
 export type ConfigCacheMap = {
-    [ChartType.PIE]: PieChartConfig['config'];
-    [ChartType.FUNNEL]: FunnelChartConfig['config'];
-    [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
-    [ChartType.TABLE]: TableChartConfig['config'];
-    [ChartType.CARTESIAN]: CartesianChartConfig['config'];
-    [ChartType.TREEMAP]: TreemapChartConfig['config'];
-    [ChartType.CUSTOM]: CustomVisConfig['config'];
+    [ChartType.PIE]: ChartConfigCache<PieChartConfig['config']>;
+    [ChartType.FUNNEL]: ChartConfigCache<FunnelChartConfig['config']>;
+    [ChartType.BIG_NUMBER]: ChartConfigCache<BigNumberConfig['config']>;
+    [ChartType.TABLE]: ChartConfigCache<TableChartConfig['config']>;
+    [ChartType.CARTESIAN]: ChartConfigCache<CartesianChartConfig['config']>;
+    [ChartType.TREEMAP]: ChartConfigCache<TreemapChartConfig['config']>;
+    [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
 };
 
 export type Action =
@@ -205,6 +211,8 @@ export interface ExplorerReduceState {
     isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+
+    cachedChartConfigs: Partial<ConfigCacheMap>;
     /**
      * The parameters that are referenced in the query.
      * If null, this means we can't calculate the missing parameters, so we can't run the query.

@@ -220,9 +220,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
     return useMemo(() => {
         if (pathParams.tableId) {
             try {
-                const unsavedChartVersion = parseChartFromExplorerSearchParams(
-                    search,
-                ) || {
+                const parsedChart = parseChartFromExplorerSearchParams(search);
+                const unsavedChartVersion = parsedChart || {
                     tableName: pathParams.tableId,
                     metricQuery: {
                         exploreName: pathParams.tableId,
@@ -247,7 +246,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 return {
                     parameterReferences: [],
                     parameterDefinitions: {},
-                    expandedSections: unsavedChartVersion
+                    cachedChartConfigs: {},
+                    expandedSections: parsedChart
                         ? [
                               ExplorerSection.VISUALIZATION,
                               ExplorerSection.RESULTS,
