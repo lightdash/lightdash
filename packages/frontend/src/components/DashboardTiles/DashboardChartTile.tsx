@@ -522,7 +522,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const userCanManageChart = ability.can(
         'manage',
-        subject('SavedChart', chart),
+        subject('SavedChart', { ...chart }),
     );
     const userCanViewExplore = ability?.can(
         'view',
@@ -1677,7 +1677,7 @@ export const GenericDashboardChartTile: FC<
         dashboardChartReadyQuery?.chart &&
         user.data?.ability?.can(
             'manage',
-            subject('SavedChart', dashboardChartReadyQuery.chart),
+            subject('SavedChart', { ...dashboardChartReadyQuery.chart }),
         );
 
     if (error !== null) {

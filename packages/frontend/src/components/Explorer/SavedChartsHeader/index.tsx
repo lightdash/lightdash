@@ -42,7 +42,13 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import {
+    explorerActions,
+    selectHasUnsavedChanges,
+    selectIsEditMode,
     selectIsValidQuery,
+    selectSavedChart,
+    selectUnsavedChartVersion,
+    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -69,7 +75,11 @@ import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import {
+    defaultQueryExecution,
+    defaultState,
+} from '../../../providers/Explorer/defaultState';
+import { ExplorerSection } from '../../../providers/Explorer/types';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
@@ -111,26 +121,14 @@ const SavedChartsHeader: FC = () => {
         isLoading: promoteChartDiffLoading,
     } = usePromoteChartDiffMutation();
     const navigate = useNavigate();
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
+    const dispatch = useExplorerDispatch();
 
-    const unsavedChartVersion = useExplorerContext(
-        (context) => context.state.mergedUnsavedChartVersion,
-    );
+    const isEditMode = useExplorerSelector(selectIsEditMode);
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
-    // Get savedChart, comparison function, and isValidQuery from Context
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
-    );
-    const isUnsavedChartChanged = useExplorerContext(
-        (context) => context.actions.isUnsavedChartChanged,
-    );
-    const reset = useExplorerContext((context) => context.actions.reset);
+    const savedChart = useExplorerSelector(selectSavedChart);
 
-    const hasUnsavedChanges = savedChart
-        ? isUnsavedChartChanged(unsavedChartVersion)
-        : false;
+    const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
 
     const { query } = useExplorerQuery();
     const itemsMap = query.data?.fields;
@@ -237,12 +235,18 @@ const SavedChartsHeader: FC = () => {
 
     const userCanManageChart =
         savedChart &&
-        user.data?.ability?.can('manage', subject('SavedChart', savedChart));
+        user.data?.ability?.can(
+            'manage',
+            subject('SavedChart', { ...savedChart }),
+        );
 
     const userCanPromoteChart =
         savedChart &&
         !savedChart?.dashboardUuid &&
-        user.data?.ability?.can('promote', subject('SavedChart', savedChart));
+        user.data?.ability?.can(
+            'promote',
+            subject('SavedChart', { ...savedChart }),
+        );
 
     const userCanManageExplore = user.data?.ability.can(
         'manage',
@@ -274,14 +278,33 @@ const SavedChartsHeader: FC = () => {
         });
     };
 
-    const handleCancelClick = () => {
-        reset();
+    const handleCancelClick = useCallback(() => {
+        // Reset to saved chart state
+        if (savedChart) {
+            const resetState = {
+                isEditMode,
+                parameterReferences: Object.keys(savedChart.parameters ?? {}),
+                parameterDefinitions: {},
+                expandedSections: [ExplorerSection.VISUALIZATION],
+                unsavedChartVersion: {
+                    tableName: savedChart.tableName,
+                    chartConfig: savedChart.chartConfig,
+                    metricQuery: savedChart.metricQuery,
+                    tableConfig: savedChart.tableConfig,
+                    pivotConfig: savedChart.pivotConfig,
+                    parameters: savedChart.parameters,
+                },
+                modals: defaultState.modals,
+                queryExecution: defaultQueryExecution,
+            };
+            dispatch(explorerActions.reset(resetState));
+        }
 
         if (!isFromDashboard)
             void navigate({
                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
             });
-    };
+    }, [dispatch, isEditMode, savedChart, isFromDashboard, navigate]);
 
     const promoteDisabled = !(
         project?.upstreamProjectUuid !== undefined && userCanPromoteChart

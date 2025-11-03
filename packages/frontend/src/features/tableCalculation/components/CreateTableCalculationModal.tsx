@@ -1,7 +1,10 @@
 import { type TableCalculation } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
-import { type FC } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import TableCalculationModal from './TableCalculationModal';
@@ -12,17 +15,19 @@ type Props = ModalProps & {
 };
 
 export const CreateTableCalculationModal: FC<Props> = ({ opened, onClose }) => {
-    const addTableCalculation = useExplorerContext(
-        (context) => context.actions.addTableCalculation,
-    );
+    const dispatch = useExplorerDispatch();
     const { track } = useTracking();
-    const onCreate = (value: TableCalculation) => {
-        addTableCalculation(value);
-        track({
-            name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
+
+    const onCreate = useCallback(
+        (value: TableCalculation) => {
+            dispatch(explorerActions.addTableCalculation(value));
+            track({
+                name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+            onClose();
+        },
+        [dispatch, track, onClose],
+    );
 
     return (
         <TableCalculationModal

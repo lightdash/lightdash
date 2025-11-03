@@ -21,6 +21,7 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectIsVisualizationConfigOpen,
+    selectSavedChart,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -32,7 +33,6 @@ import {
 import { useExplore } from '../../../hooks/useExplore';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -59,13 +59,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
 
-    // Keep reading these from Context for now (will migrate later)
-    const chartUuid = useExplorerContext(
-        (context) => context.state.savedChart?.uuid,
-    );
-    const replaceFields = useExplorerContext(
-        (context) => context.actions.replaceFields,
-    );
+    // Get savedChart from Redux
+    const savedChart = useExplorerSelector(selectSavedChart);
+    const chartUuid = savedChart?.uuid;
 
     const dispatch = useExplorerDispatch();
 
@@ -107,9 +103,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     replaceableFieldsMap,
                 );
             if (fieldsToReplace) {
-                replaceFields({
-                    customMetrics: fieldsToReplace,
-                });
+                dispatch(
+                    explorerActions.replaceFields({
+                        fieldsToReplace: {
+                            customMetrics: fieldsToReplace,
+                        },
+                    }),
+                );
                 track({
                     name: EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED,
                     properties: {
@@ -125,7 +125,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     }, [
         explore,
         additionalMetrics,
-        replaceFields,
+        dispatch,
         track,
         user,
         projectUuid,
