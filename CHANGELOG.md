@@ -1,3 +1,10 @@
+# [0.2131.0](https://github.com/lightdash/lightdash/compare/0.2130.0...0.2131.0) (2025-11-03)
+
+
+### Features
+
+* add custom dim button, tooltips and paddings ([#17803](https://github.com/lightdash/lightdash/issues/17803)) ([affa2a1](https://github.com/lightdash/lightdash/commit/affa2a18ae21495bb4c6a837deedff0cdb425618))
+
 # [0.2130.0](https://github.com/lightdash/lightdash/compare/0.2129.1...0.2130.0) (2025-11-03)
 
 
