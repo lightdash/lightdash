@@ -1,3 +1,10 @@
+# [0.2127.0](https://github.com/lightdash/lightdash/compare/0.2126.3...0.2127.0) (2025-11-03)
+
+
+### Features
+
+* add SQL view and chart options to AI dashboard visualizations ([#17750](https://github.com/lightdash/lightdash/issues/17750)) ([d43de29](https://github.com/lightdash/lightdash/commit/d43de297ae7bf75c8758f7e5f4db0da673d0f427))
+
 ## [0.2126.3](https://github.com/lightdash/lightdash/compare/0.2126.2...0.2126.3) (2025-11-03)
 
 
