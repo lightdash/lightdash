@@ -1,3 +1,10 @@
+## [0.2126.2](https://github.com/lightdash/lightdash/compare/0.2126.1...0.2126.2) (2025-11-03)
+
+
+### Bug Fixes
+
+* move embedding migration to EE ([#17801](https://github.com/lightdash/lightdash/issues/17801)) ([fcff668](https://github.com/lightdash/lightdash/commit/fcff668d8f90bed4efd5ae21a46729dccbceb701))
+
 ## [0.2126.1](https://github.com/lightdash/lightdash/compare/0.2126.0...0.2126.1) (2025-11-03)
 
 
