@@ -242,7 +242,10 @@ export class AiAgentService {
     }
 
     private async getIsCopilotEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
     ) {
         const aiCopilotFlag = await this.featureFlagService.get({
             user,
