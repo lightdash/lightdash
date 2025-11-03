@@ -693,17 +693,41 @@ export const buildCartesianTooltipFormatter =
             })
             .join('');
 
-        // custom HTML template only in dataset mode
+        // custom HTML template
         let tooltipHtml = tooltipHtmlTemplate ?? '';
         if (tooltipHtml) {
             tooltipHtml = sanitizeHtml(tooltipHtml);
-            const firstValue = params[0]?.value;
-            const isDatasetMode =
+            const firstParam = params[0];
+            const firstValue = firstParam?.value;
+            const fields = tooltipHtml.match(/\${(.*?)}/g);
+
+            if (ctx.dataMode === 'tuple' && Array.isArray(firstValue)) {
+                // Tuple mode (stacked bars): map dimension names to array indices
+                fields?.forEach((field) => {
+                    const ref = field.slice(2, -1);
+                    const dimensionIndex =
+                        firstParam.dimensionNames?.indexOf(ref);
+
+                    if (dimensionIndex !== undefined && dimensionIndex >= 0) {
+                        const val = unwrapValue(firstValue[dimensionIndex]);
+                        const formatted = getFormattedValue(
+                            val,
+                            ref,
+                            itemsMap,
+                            undefined,
+                            pivotValuesColumnsMap,
+                        );
+                        tooltipHtml = tooltipHtml.replace(field, formatted);
+                    } else {
+                        tooltipHtml = tooltipHtml.replace(field, '');
+                    }
+                });
+            } else if (
+                ctx.dataMode === 'dataset' &&
                 firstValue &&
-                typeof firstValue === 'object' &&
-                !Array.isArray(firstValue);
-            if (isDatasetMode) {
-                const fields = tooltipHtml.match(/\${(.*?)}/g);
+                typeof firstValue === 'object'
+            ) {
+                // Dataset mode: direct property access
                 fields?.forEach((field) => {
                     const ref = field.slice(2, -1);
                     const val = unwrapValue(
