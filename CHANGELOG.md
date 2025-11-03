@@ -1,3 +1,10 @@
+## [0.2129.1](https://github.com/lightdash/lightdash/compare/0.2129.0...0.2129.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* keep correct pivot dimension when switching charts ([#17756](https://github.com/lightdash/lightdash/issues/17756)) ([fe1509f](https://github.com/lightdash/lightdash/commit/fe1509fa8ba7e89df271bdd04ce0dff5e9459549))
+
 # [0.2129.0](https://github.com/lightdash/lightdash/compare/0.2128.1...0.2129.0) (2025-11-03)
 
 
