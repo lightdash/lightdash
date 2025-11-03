@@ -22,14 +22,16 @@ function stripParameterPrefix(paramName: string): string {
 }
 
 /**
- * Removes surrounding quotes from a string if present
+ * Removes surrounding quotes from a string if present and handles escape sequences
  */
 function removeQuotes(value: string): string {
     if (
         (value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))
     ) {
-        return value.slice(1, -1);
+        const unquoted = value.slice(1, -1);
+        // Process escape sequences: \" -> " and \' -> '
+        return unquoted.replace(/\\"/g, '"').replace(/\\'/g, "'");
     }
     return value;
 }
@@ -87,24 +89,60 @@ function evaluateCondition(
 }
 
 /**
+ * Finds the index of a character outside of quoted strings
+ * Returns -1 if the character is not found outside quotes
+ */
+function findIndexOutsideQuotes(str: string, searchChar: string): number {
+    let inDoubleQuote = false;
+    let inSingleQuote = false;
+    let i = 0;
+
+    while (i < str.length) {
+        const char = str[i];
+
+        // Handle escape sequences - skip the next character
+        if (char === '\\' && (inDoubleQuote || inSingleQuote)) {
+            i += 2; // Skip the backslash and the next character
+        } else {
+            // Track quote state
+            if (char === '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+            } else if (char === "'" && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+            }
+
+            // Check if we found the character outside quotes
+            if (!inDoubleQuote && !inSingleQuote && char === searchChar) {
+                return i;
+            }
+
+            i += 1;
+        }
+    }
+
+    return -1;
+}
+
+/**
  * Evaluates a ternary expression: condition ? trueValue : falseValue
  * Supports == and != operators
+ * Properly handles ? and : characters inside quoted strings
  */
 function evaluateTernaryExpression(
     expression: string,
     parameters: Record<string, unknown>,
 ): string {
-    // Split by ? to get condition and values
-    const [conditionPart, valuesPart] = expression
-        .split('?')
-        .map((s: string) => s.trim());
-
-    if (!valuesPart) {
+    // Find the ? operator outside of quotes
+    const questionIndex = findIndexOutsideQuotes(expression, '?');
+    if (questionIndex === -1) {
         return expression; // Invalid ternary, return as-is
     }
 
-    // Split values by : to get trueValue and falseValue
-    const colonIndex = valuesPart.indexOf(':');
+    const conditionPart = expression.substring(0, questionIndex).trim();
+    const valuesPart = expression.substring(questionIndex + 1);
+
+    // Find the : operator outside of quotes in the values part
+    const colonIndex = findIndexOutsideQuotes(valuesPart, ':');
     if (colonIndex === -1) {
         return expression; // Invalid ternary, return as-is
     }
@@ -139,8 +177,11 @@ export function evaluateConditionalFormatExpression(
         (match: string, expression: string) => {
             const trimmedExpr = expression.trim();
 
-            // Check if it's a ternary expression (contains ? and :)
-            if (trimmedExpr.includes('?') && trimmedExpr.includes(':')) {
+            // Check if it's a ternary expression (contains ? and : outside of quotes)
+            if (
+                findIndexOutsideQuotes(trimmedExpr, '?') !== -1 &&
+                findIndexOutsideQuotes(trimmedExpr, ':') !== -1
+            ) {
                 return evaluateTernaryExpression(trimmedExpr, parameters);
             }
 

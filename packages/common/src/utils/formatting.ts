@@ -768,11 +768,12 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
-        if (hasValidFormatExpression(item)) {
-            // Check if format uses parameter placeholders
-            const hasParameterPlaceholders =
-                item.format.includes('${ld.parameters');
+        // Check if format uses parameter placeholders
+        const hasParameterPlaceholders =
+            hasValidFormatExpression(item) &&
+            item.format.includes('${ld.parameters');
 
+        if (hasValidFormatExpression(item)) {
             // Only apply format expression if parameters are provided when needed
             if (!hasParameterPlaceholders || parameters) {
                 // Evaluate conditional expressions in format string if parameters are provided
@@ -793,7 +794,11 @@ export function formatItemValue(
                     // Fall through to default formatting below
                 }
             }
-            // If format uses parameters but none are provided, fall through to default formatting
+            // If format uses parameters but none are provided, use default formatting
+            // and skip CustomFormat extraction from the format string
+            if (hasParameterPlaceholders && !parameters) {
+                return applyDefaultFormat(value);
+            }
         }
 
         const customFormat = getCustomFormat(item);
