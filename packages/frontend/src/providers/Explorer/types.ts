@@ -258,6 +258,7 @@ export interface ExplorerReduceState {
         unpivotedQueryUuidHistory: string[];
     };
     fromDashboard?: string;
+    isExploreFromHere?: boolean;
     savedChart?: SavedChart;
 }
 
