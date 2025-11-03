@@ -1,7 +1,7 @@
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import {
@@ -41,10 +41,20 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
     const params = useParams();
+    const navigate = useNavigate();
     const projectUuid = projectUuidFromProps || params.projectUuid;
     const location = useLocation();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+
+    // Remove the token from the URL.
+    useEffect(() => {
+        if (mode === 'direct' && location.hash) {
+            void navigate(location.pathname + location.search, {
+                replace: true,
+            });
+        }
+    }, [mode, location, navigate]);
 
     // We sync embed UI changes with the URL just as with the main app.
     // For iframe embeds only, we emit messages to the parent window.
