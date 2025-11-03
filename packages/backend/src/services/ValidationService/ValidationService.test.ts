@@ -20,6 +20,7 @@ import {
     chartForValidationWithJoinedField,
     config,
     dashboardForValidation,
+    dashboardWithDanglingFilters,
     explore,
     exploreError,
     exploreWithJoin,
@@ -372,6 +373,35 @@ describe('validation', () => {
         // Chart uses "additional_explore" as tableName but has same fields as base "table"
         // Should validate without errors because fields are indexed by both baseTable and explore name
         expect(errors.length).toEqual(0);
+    });
+
+    it('Should catch dashboard filters when no charts use that explore (dangling filters)', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [dashboardWithDanglingFilters]);
+
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => []); // No charts
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.length).toEqual(1);
+        expect(errors[0]).toMatchObject({
+            error: "Filter error: the field 'table_dimension' references table 'table' which is not used by any chart on this dashboard",
+            errorType: 'filter',
+            fieldName: 'table_dimension',
+            name: 'Dashboard with dangling filters',
+            source: 'dashboard',
+        });
     });
 });
 
