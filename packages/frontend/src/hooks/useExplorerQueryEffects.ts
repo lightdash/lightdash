@@ -13,6 +13,7 @@ import {
     explorerActions,
     selectFromDashboard,
     selectIsEditMode,
+    selectIsExploreFromHere,
     selectIsResultsExpanded,
     selectSavedChart,
     selectUnsavedChartVersion,
@@ -51,6 +52,7 @@ export const useExplorerQueryEffects = ({
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const fromDashboard = useExplorerSelector(selectFromDashboard);
+    const isExploreFromHere = useExplorerSelector(selectIsExploreFromHere);
 
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
@@ -89,10 +91,8 @@ export const useExplorerQueryEffects = ({
     useEffect(() => {
         if (
             autoFetchEnabled ||
-            ((isSavedChart || fromDashboard) &&
-                !isEditMode &&
-                !query.isFetched) ||
-            (isEditMode && !query.isFetched && (isSavedChart || fromDashboard))
+            ((isSavedChart || fromDashboard || isExploreFromHere) &&
+                !query.isFetched)
         ) {
             runQuery();
         }
@@ -103,6 +103,7 @@ export const useExplorerQueryEffects = ({
         runQuery,
         query.isFetched,
         isEditMode,
+        isExploreFromHere,
     ]);
 
     // Effect 2: Setup unpivoted query args when needed
