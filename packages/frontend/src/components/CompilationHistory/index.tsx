@@ -39,7 +39,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
         <>
             <LoadingOverlay visible={isLoadingProject} />
 
-            <Card>
+            <Card pb="xxl">
                 <Stack gap="md">
                     <Group justify="space-between">
                         <Stack gap={2}>

@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { lazy, memo, Suspense, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -10,6 +11,7 @@ import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { explorerStore } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { defaultQueryExecution } from '../providers/Explorer/defaultState';
@@ -23,6 +25,9 @@ const LazyExplorePanel = lazy(
 const SavedExplorerContent = memo<{ isEditMode: boolean }>(({ isEditMode }) => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
+
+    // Pre-load the feature flag to avoid trying to render old side bar while it is fetching it in ExploreTree
+    useFeatureFlag(FeatureFlags.ExperimentalVirtualizedSideBar);
 
     return (
         <Page

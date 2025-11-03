@@ -8,8 +8,9 @@ interface TestReportData {
     prompts?: string[];
     responses?: string[];
     toolCalls?: string[];
-    llmJudgeResults?: Array<LlmJudgeResult & { passed: boolean }>;
+    llmJudgeResults?: LlmJudgeResult[];
     llmToolJudgeResults?: ToolJudgeResult[];
+    agentInfo?: { provider: string; model: string };
 }
 
 /**
@@ -59,6 +60,14 @@ export async function withTestReport<T>(
                 reportData.llmToolJudgeResults,
             );
         }
+        if (reportData.agentInfo) {
+            setTaskMeta(
+                task.meta,
+                'agentProvider',
+                reportData.agentInfo.provider,
+            );
+            setTaskMeta(task.meta, 'agentModel', reportData.agentInfo.model);
+        }
     }
 }
 
@@ -66,15 +75,15 @@ export async function withTestReport<T>(
  * Helper to build report data incrementally during a test.
  *
  * @example
+ * const { meta } = await llmAsAJudge({ ... });
  * const report = createTestReport({
  *   prompt: promptQueryText,
  *   response,
  *   toolCalls,
- * });
- * report.addLlmJudgeResult({ ...factualityMeta, passed: isFactualityPassing });
+ * }).addLlmJudgeResult(meta);
  *
  * await report.finalize(test, () => {
- *   expect(isFactualityPassing).toBe(true);
+ *   expect(meta.passed).toBe(true);
  * });
  */
 export class TestReportBuilder {
@@ -86,6 +95,7 @@ export class TestReportBuilder {
         response?: string;
         responses?: string[];
         toolCalls?: string[] | DbAiAgentToolCall[];
+        agentInfo?: { provider: string; model: string };
     }) {
         if (config?.prompt) {
             this.data.prompts = [config.prompt];
@@ -106,6 +116,10 @@ export class TestReportBuilder {
                   )
                 : [];
             this.data.toolCalls = toolNames;
+        }
+
+        if (config?.agentInfo) {
+            this.data.agentInfo = config.agentInfo;
         }
     }
 
@@ -143,6 +157,7 @@ export function createTestReport(config?: {
     response?: string;
     responses?: string[];
     toolCalls?: string[] | DbAiAgentToolCall[];
+    agentInfo?: { provider: string; model: string };
 }): TestReportBuilder {
     return new TestReportBuilder(config);
 }

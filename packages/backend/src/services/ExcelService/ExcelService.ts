@@ -6,6 +6,8 @@ import {
     formatRows,
     getErrorMessage,
     getFormatExpression,
+    isField,
+    isNumber,
     ItemsMap,
     MetricQuery,
     PivotConfig,
@@ -18,6 +20,8 @@ import moment from 'moment';
 import os from 'os';
 import path from 'path';
 import { Readable, Writable } from 'stream';
+import { S3Client } from '../../clients/Aws/S3Client';
+import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -62,6 +66,7 @@ export class ExcelService {
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
             const rawValue = row[fieldId];
+
             if (onlyRaw) {
                 return rawValue;
             }
@@ -71,45 +76,33 @@ export class ExcelService {
             }
 
             const item = itemMap[fieldId];
+            const isItemField = isField(item);
 
-            const formatExpression = getFormatExpression(item);
-            if (formatExpression) {
-                // For date/timestamp fields with custom formatting, convert to Date object first
-                if (
-                    item &&
-                    'type' in item &&
-                    (item.type === DimensionType.DATE ||
-                        item.type === DimensionType.TIMESTAMP)
-                ) {
-                    return moment(rawValue).toDate();
-                }
+            // For date/timestamp fields with custom formatting, convert to Date object first
+            if (
+                isItemField &&
+                (item.type === DimensionType.DATE ||
+                    item.type === DimensionType.TIMESTAMP)
+            ) {
+                return moment(rawValue).toDate();
+            }
 
-                // Convert string numbers to actual numbers for Excel formatting
-                const stringValue = String(rawValue);
-                if (
-                    stringValue.trim() !== '' &&
-                    !Number.isNaN(Number(stringValue))
-                ) {
-                    return Number(stringValue);
-                }
+            const stringValue = String(rawValue);
+
+            // If the string value is empty, return the raw value
+            if (stringValue.trim() === '') {
                 return rawValue;
             }
 
-            if (item && 'type' in item) {
-                if (
-                    item.type === DimensionType.TIMESTAMP ||
-                    item.type === DimensionType.DATE
-                ) {
-                    return moment(rawValue).toDate();
-                }
+            // Convert string numbers to actual numbers for Excel formatting
+            // When there is a formatExpression, the formatting is applied at the column level
+            // so we need to convert the raw value to a number
+            if (isNumber(rawValue)) {
+                return Number(stringValue);
             }
 
-            // Use standard Lightdash formatting if not onlyRaw and we have item metadata but no format expression
-            if (item) {
-                return formatItemValue(item, rawValue);
-            }
-
-            return rawValue;
+            // Otherwise, use standard Lightdash formatting as there won't be a format expression
+            return formatItemValue(item, rawValue);
         });
     }
 
@@ -198,7 +191,8 @@ export class ExcelService {
         resultsFileName,
         fields,
         metricQuery,
-        storageClient,
+        resultsStorageClient,
+        exportsStorageClient,
         lightdashConfig,
         options,
         pivotDetails,
@@ -206,7 +200,8 @@ export class ExcelService {
         resultsFileName: string;
         fields: ItemsMap;
         metricQuery: MetricQuery;
-        storageClient: S3ResultsFileStorageClient; // S3ResultsFileStorageClient type
+        resultsStorageClient: S3ResultsFileStorageClient;
+        exportsStorageClient: S3Client;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         options: {
@@ -219,11 +214,12 @@ export class ExcelService {
             attachmentDownloadName?: string;
         };
     }): Promise<{ fileUrl: string; truncated: boolean }> {
-        const { onlyRaw, customLabels, pivotConfig } = options;
+        const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
+            options;
 
         // Load rows from the results file using shared streaming utility
         // For pivot tables, we need to use csvCellsLimit to prevent memory issues
-        const readStream = await storageClient.getDowloadStream(
+        const readStream = await resultsStorageClient.getDownloadStream(
             resultsFileName,
         );
 
@@ -251,8 +247,7 @@ export class ExcelService {
             );
         }
 
-        const fileName =
-            options.attachmentDownloadName || `pivot-${resultsFileName}`;
+        const fileName = attachmentDownloadName || `pivot-${resultsFileName}`;
         const formattedFileName = ExcelService.generateFileId(
             fileName,
             truncated,
@@ -269,8 +264,8 @@ export class ExcelService {
             pivotDetails,
         });
 
-        // Upload the Excel buffer to storage using the storage client pattern
-        return storageClient.transformResultsIntoNewFile(
+        // Upload the Excel buffer to exports bucket using cross-bucket transform
+        return transformAndExportResults(
             resultsFileName,
             formattedFileName,
             async (_, writeStream: Writable) => {
@@ -278,6 +273,16 @@ export class ExcelService {
                 writeStream.write(Buffer.from(excelBuffer));
                 writeStream.end();
                 return { truncated };
+            },
+            {
+                resultsStorageClient,
+                exportsStorageClient,
+            },
+            {
+                fileType: DownloadFileType.XLSX,
+                attachmentDownloadName: attachmentDownloadName
+                    ? `${attachmentDownloadName}.xlsx`
+                    : undefined,
             },
         );
     }
@@ -331,7 +336,7 @@ export class ExcelService {
             };
 
             // Apply number formatting at column level if available
-            if (formatExpression) {
+            if (formatExpression && !onlyRaw) {
                 column.style = { numFmt: formatExpression };
             }
 
@@ -395,7 +400,10 @@ export class ExcelService {
     static async downloadAsyncExcelDirectly(
         resultsFileName: string,
         fields: ItemsMap,
-        storageClient: S3ResultsFileStorageClient,
+        clients: {
+            resultsStorageClient: S3ResultsFileStorageClient;
+            exportsStorageClient: S3Client;
+        },
         options: {
             onlyRaw?: boolean;
             showTableNames?: boolean;
@@ -415,6 +423,8 @@ export class ExcelService {
             attachmentDownloadName,
         } = options;
 
+        const { resultsStorageClient, exportsStorageClient } = clients;
+
         // Process fields and generate headers using shared utility
         const { sortedFieldIds, headers } = processFieldsForExport(fields, {
             showTableNames,
@@ -428,7 +438,7 @@ export class ExcelService {
 
         try {
             // Step 1: Get source stream
-            const resultsStream = await storageClient.getDowloadStream(
+            const resultsStream = await resultsStorageClient.getDownloadStream(
                 resultsFileName,
             );
 
@@ -448,17 +458,14 @@ export class ExcelService {
                 truncated,
             );
 
-            // Step 3: Stream temp file directly to S3 (no memory spike!)
-            const fileUrl = await storageClient.uploadFile(
+            // Step 3: Upload temp file to exports bucket (not results bucket)
+            const fileStream = fs.createReadStream(tempFilePath);
+            const fileUrl = await exportsStorageClient.uploadExcel(
+                fileStream,
                 formattedFileName,
-                tempFilePath,
-                {
-                    contentType:
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    attachmentDownloadName: attachmentDownloadName
-                        ? `${attachmentDownloadName}.xlsx`
-                        : undefined,
-                },
+                attachmentDownloadName
+                    ? `${attachmentDownloadName}.xlsx`
+                    : undefined,
             );
 
             return {

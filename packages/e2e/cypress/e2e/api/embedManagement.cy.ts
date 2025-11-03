@@ -1,4 +1,10 @@
-import { CreateEmbedJwt, DecodedEmbed, SEED_PROJECT } from '@lightdash/common';
+import {
+    CreateEmbedJwt,
+    CreateEmbedRequestBody,
+    DecodedEmbed,
+    SEED_PROJECT,
+    UpdateEmbed,
+} from '@lightdash/common';
 
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
@@ -8,17 +14,16 @@ const getEmbedConfig = (requestOptions?: Partial<Cypress.RequestOptions>) =>
         method: 'GET',
         ...requestOptions,
     });
+
 const replaceEmbedConfig = (
-    dashboardUuids: string[],
+    body: CreateEmbedRequestBody,
     requestOptions?: Partial<Cypress.RequestOptions>,
 ) =>
     cy.request({
         url: `${EMBED_API_PREFIX}/config`,
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
-        body: {
-            dashboardUuids,
-        },
+        body,
         ...requestOptions,
     });
 
@@ -33,8 +38,22 @@ export const updateEmbedConfigDashboards = (
         method: 'PATCH',
         body: {
             dashboardUuids,
+            chartUuids: [],
             allowAllDashboards: false,
+            allowAllCharts: false,
         },
+        ...requestOptions,
+    });
+
+const updateEmbedConfig = (
+    body: UpdateEmbed,
+    requestOptions?: Partial<Cypress.RequestOptions>,
+) =>
+    cy.request({
+        url: `${EMBED_API_PREFIX}/config`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'PATCH',
+        body,
         ...requestOptions,
     });
 
@@ -52,18 +71,55 @@ const getEmbedUrl = (
 
 describe('Embed Management API', () => {
     let embedConfig: DecodedEmbed;
+    let originalConfig: DecodedEmbed;
+    let beforeTestConfig: DecodedEmbed | null;
 
     before(() => {
         cy.login();
-        // Get initial data
+        // Get and save initial data for cleanup
         getEmbedConfig().then((resp) => {
             expect(resp.status).to.eq(200);
             embedConfig = resp.body.results;
+            originalConfig = { ...embedConfig };
         });
     });
 
     beforeEach(() => {
         cy.login();
+        // Save config state before each test for isolation
+        getEmbedConfig().then((resp) => {
+            if (resp.status === 200) {
+                beforeTestConfig = resp.body.results;
+            } else {
+                beforeTestConfig = null;
+            }
+        });
+    });
+
+    afterEach(() => {
+        // Restore config state after each test
+        cy.login();
+        if (beforeTestConfig) {
+            updateEmbedConfig({
+                dashboardUuids: beforeTestConfig.dashboardUuids,
+                allowAllDashboards: beforeTestConfig.allowAllDashboards,
+                chartUuids: beforeTestConfig.chartUuids,
+                allowAllCharts: beforeTestConfig.allowAllCharts,
+            });
+        }
+    });
+
+    after(() => {
+        // Restore original configuration
+        cy.login();
+        if (originalConfig) {
+            updateEmbedConfig({
+                dashboardUuids: originalConfig.dashboardUuids,
+                allowAllDashboards: originalConfig.allowAllDashboards,
+                chartUuids: originalConfig.chartUuids,
+                allowAllCharts: originalConfig.allowAllCharts,
+            });
+        }
     });
 
     it('should get project embed configuration', () => {
@@ -74,17 +130,41 @@ describe('Embed Management API', () => {
         expect(embedConfig.user).to.not.eq(null);
         expect(embedConfig.secret).to.not.eq(null);
         expect(embedConfig.encodedSecret).to.eq(undefined);
+        expect(embedConfig.chartUuids).to.be.an('array');
+        expect(embedConfig.allowAllCharts).to.be.a('boolean');
     });
 
-    it('should replace project embed configuration', () => {
-        replaceEmbedConfig(embedConfig.dashboardUuids).then((updateResp) => {
+    it('should replace project embed configuration with dashboards only', () => {
+        replaceEmbedConfig({
+            dashboardUuids: embedConfig.dashboardUuids,
+        }).then((updateResp) => {
             expect(updateResp.status).to.eq(201);
             // should have new secret
             expect(updateResp.body.results.secret).to.not.eq(
                 embedConfig.secret,
             );
-            expect(updateResp.body.results.dashboardUuids).to.have.members(
+            expect(updateResp.body.results.dashboardUuids).to.include.members(
                 embedConfig.dashboardUuids,
+            );
+            expect(updateResp.body.results.chartUuids).to.be.an('array');
+        });
+    });
+
+    it('should fail to create embed with neither dashboards nor charts', () => {
+        updateEmbedConfig(
+            {
+                dashboardUuids: [],
+                allowAllDashboards: false,
+                chartUuids: [],
+                allowAllCharts: false,
+            },
+            {
+                failOnStatusCode: false,
+            },
+        ).then((resp) => {
+            expect(resp.status).to.eq(400);
+            expect(resp.body.error.message).to.contain(
+                'At least one dashboard or chart must be specified',
             );
         });
     });
@@ -104,7 +184,7 @@ describe('Embed Management API', () => {
                             expect(newConfigResp.status).to.eq(200);
                             expect(
                                 newConfigResp.body.results.dashboardUuids,
-                            ).to.have.members(dashboardsUuids);
+                            ).to.include.members(dashboardsUuids);
                         });
                     },
                 );
@@ -122,6 +202,146 @@ describe('Embed Management API', () => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results.url).to.not.eq(null);
         });
+    });
+
+    it('should create embed with charts only', () => {
+        cy.request(`/api/v2/content?pageSize=999&contentTypes=chart`).then(
+            (resp) => {
+                expect(resp.status).to.eq(200);
+                const chartUuids = resp.body.results.data
+                    .map((c: { uuid: string }) => c.uuid)
+                    .slice(0, 2); // Take first 2 charts
+                expect(chartUuids).to.have.length.greaterThan(0);
+
+                replaceEmbedConfig({
+                    chartUuids,
+                }).then((createResp) => {
+                    expect(createResp.status).to.eq(201);
+                    expect(
+                        createResp.body.results.chartUuids,
+                    ).to.include.members(chartUuids);
+                    expect(createResp.body.results.dashboardUuids).to.be.an(
+                        'array',
+                    );
+                });
+            },
+        );
+    });
+
+    it('should create embed with both dashboards and charts', () => {
+        cy.request(`/api/v2/content?pageSize=999&contentTypes=chart`).then(
+            (chartResp) => {
+                expect(chartResp.status).to.eq(200);
+                const chartUuids = chartResp.body.results.data
+                    .map((c: { uuid: string }) => c.uuid)
+                    .slice(0, 2);
+
+                replaceEmbedConfig({
+                    dashboardUuids: embedConfig.dashboardUuids,
+                    chartUuids,
+                }).then((createResp) => {
+                    expect(createResp.status).to.eq(201);
+                    expect(
+                        createResp.body.results.dashboardUuids,
+                    ).to.include.members(embedConfig.dashboardUuids);
+                    expect(
+                        createResp.body.results.chartUuids,
+                    ).to.include.members(chartUuids);
+                });
+            },
+        );
+    });
+
+    it('should update embed config with unified PATCH /config endpoint', () => {
+        cy.request(`/api/v2/content?pageSize=999&contentTypes=chart`).then(
+            (chartResp) => {
+                expect(chartResp.status).to.eq(200);
+                const chartUuids = chartResp.body.results.data
+                    .map((c: { uuid: string }) => c.uuid)
+                    .slice(0, 3);
+
+                updateEmbedConfig({
+                    dashboardUuids: embedConfig.dashboardUuids,
+                    allowAllDashboards: false,
+                    chartUuids,
+                    allowAllCharts: false,
+                }).then((updateResp) => {
+                    expect(updateResp.status).to.eq(200);
+
+                    // Verify the update
+                    getEmbedConfig().then((newConfigResp) => {
+                        expect(newConfigResp.status).to.eq(200);
+                        expect(
+                            newConfigResp.body.results.dashboardUuids,
+                        ).to.include.members(embedConfig.dashboardUuids);
+                        expect(
+                            newConfigResp.body.results.chartUuids,
+                        ).to.include.members(chartUuids);
+                        expect(
+                            newConfigResp.body.results.allowAllDashboards,
+                        ).to.eq(false);
+                        expect(newConfigResp.body.results.allowAllCharts).to.eq(
+                            false,
+                        );
+                    });
+                });
+            },
+        );
+    });
+
+    it('should update to allow all charts', () => {
+        updateEmbedConfig({
+            dashboardUuids: embedConfig.dashboardUuids,
+            allowAllDashboards: false,
+            chartUuids: [],
+            allowAllCharts: true,
+        }).then((updateResp) => {
+            expect(updateResp.status).to.eq(200);
+
+            getEmbedConfig().then((newConfigResp) => {
+                expect(newConfigResp.status).to.eq(200);
+                expect(newConfigResp.body.results.allowAllCharts).to.eq(true);
+                expect(newConfigResp.body.results.chartUuids).to.be.an('array');
+            });
+        });
+    });
+
+    it('should update charts while keeping existing dashboards', () => {
+        cy.request(`/api/v2/content?pageSize=999&contentTypes=chart`).then(
+            (chartResp) => {
+                expect(chartResp.status).to.eq(200);
+                const newChartUuids = chartResp.body.results.data
+                    .map((c: { uuid: string }) => c.uuid)
+                    .slice(0, 2);
+
+                // First, get current config
+                getEmbedConfig().then((currentConfigResp) => {
+                    const currentDashboards =
+                        currentConfigResp.body.results.dashboardUuids;
+
+                    // Update only charts, keeping dashboards the same
+                    updateEmbedConfig({
+                        dashboardUuids: currentDashboards,
+                        allowAllDashboards: false,
+                        chartUuids: newChartUuids,
+                        allowAllCharts: false,
+                    }).then((updateResp) => {
+                        expect(updateResp.status).to.eq(200);
+
+                        // Verify both dashboards and charts are correct
+                        getEmbedConfig().then((verifyResp) => {
+                            expect(verifyResp.status).to.eq(200);
+                            expect(
+                                verifyResp.body.results.dashboardUuids,
+                            ).to.include.members(currentDashboards);
+                            expect(
+                                verifyResp.body.results.chartUuids,
+                            ).to.include.members(newChartUuids);
+                        });
+                    });
+                });
+            },
+        );
     });
 });
 
@@ -152,16 +372,34 @@ describe('Embed Management API - invalid permissions', () => {
         });
     });
     it('should not replace embed configuration', () => {
-        replaceEmbedConfig(['uuid'], {
+        replaceEmbedConfig(
+            { dashboardUuids: ['uuid'] },
+            {
+                failOnStatusCode: false,
+            },
+        ).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('should not update embed configuration (dashboards endpoint)', () => {
+        updateEmbedConfigDashboards(['uuid'], {
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
         });
     });
-    it('should not update embed configuration', () => {
-        updateEmbedConfigDashboards(['uuid'], {
-            failOnStatusCode: false,
-        }).then((resp) => {
+    it('should not update embed configuration (unified endpoint)', () => {
+        updateEmbedConfig(
+            {
+                dashboardUuids: ['uuid'],
+                allowAllDashboards: false,
+                chartUuids: ['uuid2'],
+                allowAllCharts: false,
+            },
+            {
+                failOnStatusCode: false,
+            },
+        ).then((resp) => {
             expect(resp.status).to.eq(403);
         });
     });

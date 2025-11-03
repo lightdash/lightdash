@@ -1,11 +1,4 @@
-import {
-    Box,
-    Group,
-    Loader,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine-8/core';
+import { Group, Text, Tooltip, useMantineTheme } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconArrowDown,
@@ -118,6 +111,14 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = compileLogs.length;
+
+    // Temporary workaround to resolve a memoization issue with react-mantine-table.
+    // In certain scenarios, the content fails to render properly even when the data is updated.
+    // This issue may be addressed in a future library update.
+    const [tableData, setTableData] = useState<ProjectCompileLog[]>([]);
+    useEffect(() => {
+        setTableData(compileLogs);
+    }, [compileLogs]);
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(
@@ -275,7 +276,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
 
     const table = useMantineReactTable({
         columns,
-        data: compileLogs,
+        data: tableData,
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -291,7 +292,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         manualSorting: true,
         enableRowVirtualization: true,
         enableTopToolbar: true,
-        enableBottomToolbar: true,
+        enableBottomToolbar: false,
         enableRowActions: false,
         renderTopToolbar: () => (
             <CompilationHistoryTopToolbar
@@ -384,25 +385,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             sorting,
         },
         onSortingChange: setSorting,
-        renderBottomToolbar: () => (
-            <Box>
-                <Group gap="xs" px="md" py="xs">
-                    {isFetching ? (
-                        <>
-                            <Loader size={14} c="gray" />{' '}
-                            <Text size="xs" c="dimmed">
-                                Loading...
-                            </Text>
-                        </>
-                    ) : (
-                        <Text size="xs" c="dimmed">
-                            Showing {totalFetched} of {totalDBRowCount} log
-                            {totalDBRowCount === 1 ? '' : 's'}
-                        </Text>
-                    )}
-                </Group>
-            </Box>
-        ),
     });
 
     if (!project) {

@@ -94,6 +94,8 @@ export function buildAccount({
         encodedSecret: 'test-encoded-secret',
         dashboardUuids: ['test-dashboard-uuid'],
         allowAllDashboards: false,
+        chartUuids: [],
+        allowAllCharts: false,
         createdAt: '2021-01-01',
         user: {
             userUuid: 'test-user-uuid',
@@ -109,6 +111,8 @@ export function buildAccount({
             projectUuid: 'test-project-uuid',
             dashboardUuids: ['test-dashboard-uuid'],
             allowAllDashboards: false,
+            chartUuids: [],
+            allowAllCharts: false,
             createdAt: '2024-01-01',
             encodedSecret: 'test-encoded-secret',
             user: {

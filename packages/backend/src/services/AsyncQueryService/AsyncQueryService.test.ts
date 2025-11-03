@@ -172,9 +172,9 @@ const getMockedAsyncQueryService = (
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
-        storageClient: {
+        resultsStorageClient: {
             isEnabled: true, // ! Hack for current tests that only check for results saved in S3
-            getDowloadStream: jest.fn(() => {
+            getDownloadStream: jest.fn(() => {
                 const readable = new Readable({
                     read() {
                         // Push some mock data and end the stream
@@ -1190,9 +1190,10 @@ describe('AsyncQueryService', () => {
             });
 
             // Mock storage client methods
-            const mockStorageClient = service.storageClient as unknown as {
-                createUploadStream: jest.Mock;
-            };
+            const mockStorageClient =
+                service.resultsStorageClient as unknown as {
+                    createUploadStream: jest.Mock;
+                };
             mockStorageClient.createUploadStream = jest.fn(() => ({
                 write: jest.fn(),
                 close: jest.fn(),

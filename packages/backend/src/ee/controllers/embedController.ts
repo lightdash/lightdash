@@ -8,6 +8,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
+    assertSessionAuth,
     CacheMetadata,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
@@ -22,6 +23,7 @@ import {
     FieldValueSearchResult,
     Item,
     MetricQueryResponse,
+    ParametersValuesMap,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
     SortField,
@@ -101,10 +103,11 @@ export class EmbedController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiEmbedConfigResponse> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
             results: await this.getEmbedService().getConfig(
-                req.user!,
+                req.account.user,
                 projectUuid,
             ),
         };
@@ -120,10 +123,11 @@ export class EmbedController extends BaseController {
         @Body() body: CreateEmbedRequestBody,
     ): Promise<ApiEmbedConfigResponse> {
         this.setStatus(201);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
-            results: await this.getEmbedService().saveConfig(
-                req.user!,
+            results: await this.getEmbedService().createConfig(
+                req.account.user,
                 projectUuid,
                 body,
             ),
@@ -134,14 +138,38 @@ export class EmbedController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Patch('/config/dashboards')
     @OperationId('updateEmbeddedDashboards')
+    @Deprecated()
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Body() body: UpdateEmbed,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         await this.getEmbedService().updateDashboards(
-            req.user!,
+            req.account,
+            projectUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/config')
+    @OperationId('updateEmbedConfig')
+    async updateEmbedConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: UpdateEmbed,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        assertSessionAuth(req.account);
+        await this.getEmbedService().updateConfig(
+            req.account,
             projectUuid,
             body,
         );
@@ -161,10 +189,11 @@ export class EmbedController extends BaseController {
         @Body() body: CreateEmbedJwt,
     ): Promise<ApiEmbedUrlResponse> {
         this.setStatus(200);
+        assertSessionAuth(req.account);
         return {
             status: 'ok',
             results: await this.getEmbedService().getEmbedUrl(
-                req.user!,
+                req.account,
                 projectUuid,
                 body,
             ),
@@ -227,6 +256,7 @@ export class EmbedController extends BaseController {
             dashboardFilters?: DashboardFilters;
             dateZoomGranularity?: DateGranularity;
             dashboardSorts?: SortField[];
+            parameters?: ParametersValuesMap;
         },
     ): Promise<ApiEmbedChartAndResultsResponse> {
         this.setStatus(200);
@@ -242,6 +272,7 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.dateZoomGranularity,
                 body.dashboardSorts,
+                body.parameters,
             ),
         };
     }
@@ -262,6 +293,7 @@ export class EmbedController extends BaseController {
             | 'pivotResults'
             | 'invalidateCache'
             | 'dateZoom'
+            | 'parameters'
         >,
     ): Promise<{
         status: 'ok';
@@ -280,6 +312,7 @@ export class EmbedController extends BaseController {
                 dateZoom: body.dateZoom,
                 invalidateCache: body.invalidateCache,
                 dashboardSorts: body.dashboardSorts,
+                parameters: body.parameters,
                 pivotResults: body.pivotResults,
             });
 
@@ -299,6 +332,7 @@ export class EmbedController extends BaseController {
         @Body()
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
+            parameters?: ParametersValuesMap;
             invalidateCache?: boolean;
         },
     ): Promise<ApiCalculateTotalResponse> {
@@ -313,6 +347,7 @@ export class EmbedController extends BaseController {
                 projectUuid,
                 savedChartUuid,
                 body.dashboardFilters,
+                body.parameters,
                 body.invalidateCache,
             ),
         };
@@ -328,6 +363,7 @@ export class EmbedController extends BaseController {
         @Body()
         body: {
             dashboardFilters?: DashboardFilters;
+            parameters?: ParametersValuesMap;
             columnOrder: string[];
             pivotDimensions?: string[];
             invalidateCache?: boolean;
@@ -345,6 +381,7 @@ export class EmbedController extends BaseController {
                     projectUuid,
                     savedChartUuid,
                     body.dashboardFilters,
+                    body.parameters,
                     body.columnOrder,
                     body.pivotDimensions,
                     body.invalidateCache,

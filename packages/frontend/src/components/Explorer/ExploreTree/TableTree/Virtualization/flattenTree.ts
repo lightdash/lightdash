@@ -135,6 +135,7 @@ function flattenSection(
     isSearching: boolean,
     options: FlattenTreeOptions,
     sectionContexts: Map<string, SectionContext>,
+    baseDepth: number = 0,
 ): TreeNodeItem[] {
     // Use pre-computed nodeMap from options instead of computing it here
     const nodeMapKey = `${tableName}-${sectionInfo.type}`;
@@ -190,6 +191,7 @@ function flattenSection(
                 expandedGroups,
                 searchResults,
                 isSearching,
+                baseDepth,
             ),
         );
     });
@@ -210,6 +212,9 @@ function flattenTable(
     const isExpanded =
         options.expandedTables.has(tableName) || options.isSearching;
     const searchResults = options.searchResultsMap[tableName] || [];
+
+    // When showing multiple tables with headers, all content should be indented one level
+    const baseDepth = options.showMultipleTables ? 1 : 0;
 
     // Add table header if showing multiple tables
     if (options.showMultipleTables) {
@@ -241,6 +246,7 @@ function flattenTable(
                 treeSection: TreeSection.Dimensions, // Arbitrary, missing fields aren't tied to a section
                 label: 'Missing fields',
                 color: 'gray.6',
+                depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
 
@@ -284,6 +290,7 @@ function flattenTable(
                 treeSection: TreeSection.Dimensions,
                 label: 'Dimensions',
                 color: 'blue.9',
+                depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
     }
@@ -303,6 +310,7 @@ function flattenTable(
             options.isSearching,
             options,
             sectionContexts,
+            baseDepth,
         );
 
         if (sectionHasResults(dimensionItems) || !options.isSearching) {
@@ -342,6 +350,7 @@ function flattenTable(
                 treeSection: TreeSection.Metrics,
                 label: 'Metrics',
                 color: 'yellow.9',
+                depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
     }
@@ -361,6 +370,7 @@ function flattenTable(
             options.isSearching,
             options,
             sectionContexts,
+            baseDepth,
         );
 
         if (sectionHasResults(metricItems) || !options.isSearching) {
@@ -387,6 +397,7 @@ function flattenTable(
                 treeSection: TreeSection.CustomMetrics,
                 label: 'Custom metrics',
                 color: 'yellow.9',
+                depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
 
@@ -431,6 +442,7 @@ function flattenTable(
             options.isSearching,
             options,
             sectionContexts,
+            baseDepth,
         );
 
         items.push(...customMetricItems);
@@ -455,6 +467,7 @@ function flattenTable(
                 treeSection: TreeSection.CustomDimensions,
                 label: 'Custom dimensions',
                 color: 'blue.9',
+                depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
 
@@ -475,6 +488,7 @@ function flattenTable(
             options.isSearching,
             options,
             sectionContexts,
+            baseDepth,
         );
 
         items.push(...customDimensionItems);

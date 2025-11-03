@@ -107,10 +107,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import {
-    generateAgentResponse as generateAgentResponseV1,
-    streamAgentResponse as streamAgentResponseV1,
-} from './ai/agents/agent';
+import { streamAgentResponse as streamAgentResponseV1 } from './ai/agents/agent';
 import {
     generateAgentResponse as generateAgentResponseV2,
     streamAgentResponse as streamAgentResponseV2,
@@ -2510,23 +2507,21 @@ export class AiAgentService {
         };
 
         // Route to correct agent version based on agentSettings.version
-        const agentVersion = agentSettings.version;
+        // const agentVersion = agentSettings.version;
 
-        if (agentVersion === 1) {
-            return stream
-                ? streamAgentResponseV1({ args, dependencies })
-                : generateAgentResponseV1({ args, dependencies });
-        }
+        // if (agentVersion === 1) {
+        //     return stream
+        //         ? streamAgentResponseV1({ args, dependencies })
+        //         : generateAgentResponseV1({ args, dependencies });
+        // }
 
-        if (agentVersion === 2) {
-            return stream
-                ? streamAgentResponseV2({ args, dependencies })
-                : generateAgentResponseV2({ args, dependencies });
-        }
+        return stream
+            ? streamAgentResponseV2({ args, dependencies })
+            : generateAgentResponseV2({ args, dependencies });
 
-        throw new Error(
-            `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
-        );
+        // throw new Error(
+        //     `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
+        // );
     }
 
     // TODO: user permissions
@@ -3359,6 +3354,21 @@ export class AiAgentService {
                     slackChannelId: event.channel,
                 });
 
+            if (slackSettings?.aiRequireOAuth) {
+                const user = await this.userModel.findSessionUserAndOrgByUuid(
+                    userUuid,
+                    agentConfig.organizationUuid,
+                );
+
+                const hasAccess = await this.checkAgentAccess(
+                    user,
+                    agentConfig,
+                );
+                if (!hasAccess) {
+                    throw new ForbiddenError();
+                }
+            }
+
             name = agentConfig.name;
 
             if (event.thread_ts) {
@@ -3398,6 +3408,14 @@ export class AiAgentService {
                 Logger.debug('Failed to find ai agent:', e);
                 await say({
                     text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${this.lightdashConfig.siteUrl}/ai-agents to configure one.`,
+                    thread_ts: event.ts,
+                });
+                return;
+            }
+
+            if (e instanceof ForbiddenError) {
+                await say({
+                    text: `⚠️ You are not authorized to access this agent. Please contact your administrator to get access.`,
                     thread_ts: event.ts,
                 });
                 return;

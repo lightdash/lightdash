@@ -129,7 +129,7 @@ type Params = {
     prompt: string;
     toolCalls: DbAiAgentToolCall[];
     expectedOutcome: string;
-    model: ReturnType<typeof getOpenaiGptmodel>['model'];
+    judge: ReturnType<typeof getOpenaiGptmodel>['model'];
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
     expectedArgsValidation?: {
         toolName: string;
@@ -271,7 +271,7 @@ export const evaluateToolCallSequence = async (
     prompt: string,
     expectedOutcome: string,
     toolCallsScores: ToolCallsScores,
-    model: ReturnType<typeof getOpenaiGptmodel>['model'],
+    judge: ReturnType<typeof getOpenaiGptmodel>['model'],
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'],
 ): Promise<ToolEvaluationResponse> => {
     const toolCallsDescription = toolCallsScores.scores
@@ -279,7 +279,7 @@ export const evaluateToolCallSequence = async (
         .join('\n\n');
 
     const { object: evaluationResult } = await generateObject({
-        model,
+        model: judge,
         ...defaultAgentOptions,
         ...callOptions,
         schema: toolEvaluationSchema,
@@ -365,7 +365,7 @@ export const llmAsJudgeForTools = async ({
     prompt,
     toolCalls,
     expectedOutcome,
-    model,
+    judge,
     callOptions,
     expectedArgsValidation = [],
 }: Params): Promise<ToolJudgeResult> => {
@@ -378,7 +378,7 @@ export const llmAsJudgeForTools = async ({
         prompt,
         expectedOutcome,
         toolCallsScores,
-        model,
+        judge,
         callOptions,
     );
 

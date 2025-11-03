@@ -151,12 +151,24 @@ describe('Formatting', () => {
         });
 
         describe('when applying round', () => {
-            test('if round is undefined it should keep up to 3 decimal places', () => {
+            test('if round is undefined and custom format is not number format it should keep up to 3 decimal places', () => {
                 expect(applyCustomFormat(5.9)).toEqual('5.9');
                 expect(applyCustomFormat(5.99)).toEqual('5.99');
                 expect(applyCustomFormat(5.999)).toEqual('5.999');
                 expect(applyCustomFormat(5.9999)).toEqual('6');
                 expect(applyCustomFormat(5.99999)).toEqual('6');
+                expect(
+                    applyCustomFormat(5.9, {
+                        type: CustomFormatType.CURRENCY,
+                        currency: Format.USD,
+                    }),
+                ).toEqual('$5.90');
+            });
+
+            test('if round is undefined and format is number it should keep 0 decimal places', () => {
+                expect(
+                    applyCustomFormat(5.9, { type: CustomFormatType.NUMBER }),
+                ).toEqual('6');
             });
 
             test('when round zero it should return the right round', () => {
@@ -444,14 +456,12 @@ describe('Formatting', () => {
             };
 
             test('it should return the right style', () => {
-                expect(applyCustomFormat(5, thousandsConfig)).toEqual('0.005K');
+                expect(applyCustomFormat(5, thousandsConfig)).toEqual('0K');
                 expect(applyCustomFormat(5, millionsConfig)).toEqual('0M');
-                expect(applyCustomFormat(500000, billionsConfig)).toEqual(
-                    '0.001B',
-                );
+                expect(applyCustomFormat(500000, billionsConfig)).toEqual('0B');
                 expect(applyCustomFormat(5, billionsConfig)).toEqual('0B');
                 expect(applyCustomFormat(5000000000, trillionsConfig)).toEqual(
-                    '0.005T',
+                    '0T',
                 );
             });
 
@@ -1234,7 +1244,7 @@ describe('Formatting', () => {
                 applyCustomFormat(12345.56789, {
                     type: CustomFormatType.NUMBER,
                 }),
-            ).toEqual('12,345.568');
+            ).toEqual('12,346');
             expect(
                 applyCustomFormat(12345.1235, {
                     type: CustomFormatType.NUMBER,
@@ -1252,7 +1262,7 @@ describe('Formatting', () => {
                     prefix: 'foo ',
                     suffix: ' bar',
                 }),
-            ).toEqual('foo 12,345.124 bar');
+            ).toEqual('foo 12,345 bar');
         });
 
         test('convert table calculation formats with invalid numbers', () => {

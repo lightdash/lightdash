@@ -216,6 +216,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'OrganizationWarehouseCredentials', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         applyOrganizationMemberStaticAbilities.editor(member, { can });

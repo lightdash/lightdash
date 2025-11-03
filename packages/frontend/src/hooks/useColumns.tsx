@@ -207,29 +207,50 @@ export const useColumns = (): TableColumn[] => {
 
     const hasNoActiveFields = activeFields.size === 0;
 
-    const itemsMap = useMemo<ItemsMap | undefined>(() => {
+    // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
+    // This prevents full recalculation when only metricOverrides change
+    const baseItemsMap = useMemo<ItemsMap | undefined>(() => {
         if (!exploreData || hasNoActiveFields) return;
 
-        const baseItemsMap = getItemMap(
+        const baseFields = getItemMap(
             exploreData,
             additionalMetrics,
             tableCalculations,
             customDimensions,
         );
 
-        const mergedMap = {
-            ...baseItemsMap,
+        return {
+            ...baseFields,
             ...(resultsFields || {}),
         };
+    }, [
+        hasNoActiveFields,
+        resultsFields,
+        exploreData,
+        additionalMetrics,
+        tableCalculations,
+        customDimensions,
+    ]);
 
+    // Apply metric overrides as a separate layer
+    const itemsMap = useMemo<ItemsMap | undefined>(() => {
+        if (!baseItemsMap) return;
+
+        // If no overrides, return base map directly
+        if (!metricOverrides || Object.keys(metricOverrides).length === 0) {
+            return baseItemsMap;
+        }
+
+        // Only apply overrides to items that have them
         return Object.fromEntries(
-            Object.entries(mergedMap).map(([key, value]) => {
+            Object.entries(baseItemsMap).map(([key, value]) => {
                 const isFromResults = resultsFields && key in resultsFields;
                 if (isFromResults) {
                     return [key, value];
                 }
 
-                if (!metricOverrides?.[key]) return [key, value];
+                if (!metricOverrides[key]) return [key, value];
+
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
                     'round',
@@ -243,47 +264,36 @@ export const useColumns = (): TableColumn[] => {
                 ];
             }),
         );
-    }, [
-        hasNoActiveFields,
-        resultsFields,
-        exploreData,
-        additionalMetrics,
-        tableCalculations,
-        customDimensions,
-        metricOverrides,
-    ]);
+    }, [baseItemsMap, metricOverrides, resultsFields]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        if (itemsMap) {
-            return Array.from(activeFields).reduce<{
-                activeItemsMap: ItemsMap;
-                invalidActiveItems: string[];
-            }>(
-                (acc, key) => {
-                    const item = itemsMap?.[key];
-                    return item
-                        ? {
-                              ...acc,
-                              activeItemsMap: {
-                                  ...acc.activeItemsMap,
-                                  [key]: item,
-                              },
-                          }
-                        : {
-                              ...acc,
-                              invalidActiveItems: [
-                                  ...acc.invalidActiveItems,
-                                  key,
-                              ],
-                          };
-                },
-                { activeItemsMap: {}, invalidActiveItems: [] },
-            );
+        if (!itemsMap) {
+            return { activeItemsMap: {}, invalidActiveItems: [] };
         }
-        return { activeItemsMap: {}, invalidActiveItems: [] };
+
+        const result: {
+            activeItemsMap: ItemsMap;
+            invalidActiveItems: string[];
+        } = {
+            activeItemsMap: {},
+            invalidActiveItems: [],
+        };
+
+        // Filter itemsMap to only include active fields
+        // This is more efficient than spreading objects in a reduce
+        for (const key of activeFields) {
+            const item = itemsMap[key];
+            if (item) {
+                result.activeItemsMap[key] = item;
+            } else {
+                result.invalidActiveItems.push(key);
+            }
+        }
+
+        return result;
     }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({

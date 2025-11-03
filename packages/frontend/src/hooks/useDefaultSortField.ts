@@ -17,7 +17,10 @@ const useDefaultSortField = (
         metricQuery: { dimensions, metrics },
         tableConfig: { columnOrder },
     } = savedChart;
-    const { data } = useExplore(tableName);
+    const { data } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
 
     return useMemo(() => {
         if (data) {

@@ -51,6 +51,7 @@ import {
     type AiAgent,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import moment from 'moment';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
@@ -1290,38 +1291,43 @@ export class AiAgentModel {
                 row.ai_prompt_uuid,
             );
 
-            if (row.responded_at != null) {
-                const artifacts = artifactsMap.get(row.ai_prompt_uuid) || [];
+            const artifacts = artifactsMap.get(row.ai_prompt_uuid);
 
-                messages.push({
-                    role: 'assistant',
-                    uuid: row.ai_prompt_uuid,
-                    threadUuid: row.ai_thread_uuid,
-                    message: row.response,
-                    createdAt: row.responded_at.toISOString(),
-                    humanScore: row.human_score,
-                    artifacts: artifacts.length > 0 ? artifacts : null,
-                    toolCalls: toolCalls
-                        .filter(
-                            (
-                                tc,
-                            ): tc is DbAiAgentToolCall & {
-                                tool_name: ToolName;
-                            } => isToolName(tc.tool_name),
-                        )
-                        .map((tc) => ({
-                            uuid: tc.ai_agent_tool_call_uuid,
-                            promptUuid: tc.ai_prompt_uuid,
-                            toolCallId: tc.tool_call_id,
-                            createdAt: tc.created_at,
-                            toolName: tc.tool_name,
-                            toolArgs: tc.tool_args,
-                        })),
-                    toolResults,
-                    reasoning,
-                    savedQueryUuid: row.saved_query_uuid,
-                });
-            }
+            messages.push({
+                role: 'assistant',
+                status: AiAgentModel.getThreadMessageStatus({
+                    responded_at: row.responded_at,
+                    response: row.response,
+                    created_at: row.created_at,
+                }),
+                uuid: row.ai_prompt_uuid,
+                threadUuid: row.ai_thread_uuid,
+                message: row.response,
+                createdAt:
+                    row.responded_at?.toISOString() ??
+                    row.created_at.toISOString(),
+                humanScore: row.human_score,
+                artifacts: artifacts ?? null,
+                toolCalls: toolCalls
+                    .filter(
+                        (
+                            tc,
+                        ): tc is DbAiAgentToolCall & {
+                            tool_name: ToolName;
+                        } => isToolName(tc.tool_name),
+                    )
+                    .map((tc) => ({
+                        uuid: tc.ai_agent_tool_call_uuid,
+                        promptUuid: tc.ai_prompt_uuid,
+                        toolCallId: tc.tool_call_id,
+                        createdAt: tc.created_at,
+                        toolName: tc.tool_name,
+                        toolArgs: tc.tool_args,
+                    })),
+                toolResults,
+                reasoning,
+                savedQueryUuid: row.saved_query_uuid,
+            });
 
             return messages;
         });
@@ -1382,6 +1388,19 @@ export class AiAgentModel {
         }
 
         return artifactsMap;
+    }
+
+    static getThreadMessageStatus(
+        row: Pick<DbAiPrompt, 'responded_at' | 'response' | 'created_at'>,
+    ): 'idle' | 'pending' | 'error' {
+        if (row.responded_at == null || row.response == null) {
+            // if the message was created more than 5 minutes ago, return error
+            if (moment(row.created_at).add(5, 'minutes').isBefore(moment())) {
+                return 'error';
+            }
+            return 'pending';
+        }
+        return 'idle';
     }
 
     async findThreadMessage(
@@ -1550,13 +1569,15 @@ export class AiAgentModel {
                 );
                 return {
                     role: 'assistant',
+                    status: AiAgentModel.getThreadMessageStatus({
+                        responded_at: row.responded_at,
+                        response: row.response,
+                        created_at: row.created_at,
+                    }),
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
-
-                    // TODO: handle null response
                     message: row.response ?? '',
                     createdAt: row.responded_at?.toString() ?? '',
-
                     humanScore: row.human_score,
                     artifacts: artifacts.length > 0 ? artifacts : null,
                     toolCalls: toolCalls

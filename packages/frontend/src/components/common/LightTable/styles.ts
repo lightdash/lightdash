@@ -251,7 +251,7 @@ export const useTableCellStyles = createStyles<
                 height: CELL_HEIGHT,
 
                 textAlign: 'left',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
 
                 fontFamily: theme.other.tableFont ?? "'Inter', sans-serif",
                 fontFeatureSettings: '"tnum"',
@@ -272,10 +272,11 @@ export const useTableCellStyles = createStyles<
                 textOverflow: 'ellipsis',
                 overflow: 'hidden',
                 maxWidth: '300px',
+                whiteSpace: 'pre',
 
                 '&:hover, &[data-is-selected="true"]': {
                     overflow: 'visible',
-                    whiteSpace: 'normal',
+                    whiteSpace: 'pre-wrap',
                     wordWrap: 'break-word',
                     minWidth: '300px',
                 },

@@ -1165,7 +1165,7 @@ export const EXPECTED_PIVOT_DATA_WITH_TOTALS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 1746.77,
-                        formatted: '1,746.77',
+                        formatted: '1,747',
                     },
                 },
             },
@@ -1203,7 +1203,7 @@ export const EXPECTED_PIVOT_DATA_WITH_TOTALS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 1189.6,
-                        formatted: '1,189.6',
+                        formatted: '1,190',
                     },
                 },
             },
@@ -1241,7 +1241,7 @@ export const EXPECTED_PIVOT_DATA_WITH_TOTALS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 117.5,
-                        formatted: '117.5',
+                        formatted: '118',
                     },
                 },
             },
@@ -1527,7 +1527,7 @@ export const EXPECTED_PIVOT_DATA_METRICS_AS_ROWS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 1746.77,
-                        formatted: '1,746.77',
+                        formatted: '1,747',
                     },
                 },
             },
@@ -1571,7 +1571,7 @@ export const EXPECTED_PIVOT_DATA_METRICS_AS_ROWS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 1189.6,
-                        formatted: '1,189.6',
+                        formatted: '1,190',
                     },
                 },
             },
@@ -1615,7 +1615,7 @@ export const EXPECTED_PIVOT_DATA_METRICS_AS_ROWS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 117.5,
-                        formatted: '117.5',
+                        formatted: '118',
                     },
                 },
             },
@@ -2067,13 +2067,13 @@ export const EXPECTED_COMPLEX_PIVOT_DATA: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 52.5,
-                        formatted: '52.5',
+                        formatted: '53',
                     },
                 },
                 'row-total-1': {
                     value: {
                         raw: 52.5,
-                        formatted: '52.5',
+                        formatted: '53',
                     },
                 },
             },
@@ -2364,7 +2364,7 @@ export const EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 52.5,
-                        formatted: '52.5',
+                        formatted: '53',
                     },
                 },
             },
@@ -2422,7 +2422,7 @@ export const EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS: PivotData = {
                 'row-total-0': {
                     value: {
                         raw: 52.5,
-                        formatted: '52.5',
+                        formatted: '53',
                     },
                 },
             },

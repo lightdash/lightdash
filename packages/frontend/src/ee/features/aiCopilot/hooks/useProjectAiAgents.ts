@@ -381,10 +381,10 @@ const createOptimisticMessages = (
         },
         {
             role: 'assistant' as const,
+            status: 'pending' as const,
             uuid: promptUuid,
             threadUuid,
-            // Non-empty message to avoid brief flash of blank message
-            message: ' ',
+            message: '',
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
@@ -536,6 +536,16 @@ export const useCreateAgentThreadMutation = (
                             thread.uuid,
                         ],
                     }),
+                refetchThread: () =>
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            thread.uuid,
+                        ],
+                    }),
             });
 
             void navigate(
@@ -671,6 +681,16 @@ export const useCreateAgentThreadMessageMutation = (
                         'threads',
                         threadUuid,
                     ]),
+                refetchThread: () =>
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            threadUuid,
+                        ],
+                    }),
             });
         },
         onError: ({ error }) => {

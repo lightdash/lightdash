@@ -85,21 +85,9 @@ export class OrganizationWarehouseCredentialsModel {
         );
     }
 
-    async getByUuid(
+    private async _getByUuid(
         uuid: string,
-        withSensitiveData?: false,
-    ): Promise<OrganizationWarehouseCredentials>;
-    async getByUuid(
-        uuid: string,
-        withSensitiveData: true,
-    ): Promise<
-        Omit<OrganizationWarehouseCredentials, 'credentials'> & {
-            credentials: CreateWarehouseCredentials;
-        }
-    >;
-    async getByUuid(
-        uuid: string,
-        withSensitiveData: boolean = false,
+        withSensitiveData: boolean,
     ): Promise<
         | OrganizationWarehouseCredentials
         | (Omit<OrganizationWarehouseCredentials, 'credentials'> & {
@@ -130,6 +118,81 @@ export class OrganizationWarehouseCredentialsModel {
         }
 
         return this.convertToOrganizationWarehouseCredentials(result);
+    }
+
+    async getByUuid(uuid: string): Promise<OrganizationWarehouseCredentials> {
+        return this._getByUuid(uuid, false);
+    }
+
+    async getByUuidWithSensitiveData(uuid: string): Promise<
+        Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+            credentials: CreateWarehouseCredentials;
+        }
+    > {
+        return this._getByUuid(uuid, true) as Promise<
+            Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+                credentials: CreateWarehouseCredentials;
+            }
+        >;
+    }
+
+    private async _getByName(
+        organizationUuid: string,
+        name: string,
+        withSensitiveData: boolean,
+    ): Promise<
+        | OrganizationWarehouseCredentials
+        | (Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+              credentials: CreateWarehouseCredentials;
+          })
+    > {
+        const result = await this.database(
+            OrganizationWarehouseCredentialsTableName,
+        )
+            .where('organization_uuid', organizationUuid)
+            .where('name', name)
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Organization warehouse credentials with name "${name}" not found`,
+            );
+        }
+
+        if (withSensitiveData) {
+            const baseData =
+                this.convertToOrganizationWarehouseCredentials(result);
+            return {
+                ...baseData,
+                credentials: JSON.parse(
+                    this.encryptionUtil.decrypt(result.warehouse_connection),
+                ) as CreateWarehouseCredentials,
+            };
+        }
+
+        return this.convertToOrganizationWarehouseCredentials(result);
+    }
+
+    async getByName(
+        organizationUuid: string,
+        name: string,
+    ): Promise<OrganizationWarehouseCredentials> {
+        return this._getByName(organizationUuid, name, false);
+    }
+
+    async getByNameWithSensitiveData(
+        organizationUuid: string,
+        name: string,
+    ): Promise<
+        Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+            credentials: CreateWarehouseCredentials;
+        }
+    > {
+        return this._getByName(organizationUuid, name, true) as Promise<
+            Omit<OrganizationWarehouseCredentials, 'credentials'> & {
+                credentials: CreateWarehouseCredentials;
+            }
+        >;
     }
 
     async create(

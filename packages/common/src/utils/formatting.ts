@@ -39,7 +39,7 @@ import {
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
-import { getItemType } from './item';
+import { getItemType, isNumericItem } from './item';
 
 dayjs.extend(timezone);
 
@@ -191,8 +191,17 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const round = format?.round;
 
     if (round === undefined) {
-        // When round is not defined, keep up to 3 decimal places
-        return hasCurrency ? currencyOptions : {};
+        // If the format is a currency format, set the currency options and keep default decimal places
+        if (hasCurrency) {
+            return currencyOptions;
+        }
+
+        // If the format is a number format, set the maximum fraction digits to 0
+        if (format?.type === CustomFormatType.NUMBER) {
+            return { maximumFractionDigits: 0 };
+        }
+
+        return {};
     }
 
     if (round < 0) {
@@ -352,12 +361,18 @@ export function getCustomFormat(
         return item.format;
     }
 
-    // This converts legacy format type (which is Format), to CustomFormat
-    return getCustomFormatFromLegacy({
+    const legacyFormat = {
         ...('format' in item && { format: item.format }),
         ...('compact' in item && { compact: item.compact }),
         ...('round' in item && { round: item.round }),
-    });
+    };
+
+    // Only get custom format from legacy if there are any legacy format options or if the item is numeric
+    if (Object.keys(legacyFormat).length > 0 || isNumericItem(item)) {
+        return getCustomFormatFromLegacy(legacyFormat);
+    }
+
+    return undefined;
 }
 
 function applyCompact(
@@ -446,7 +461,9 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         }
 
         // format number
-        return formatWithExpression(expression, Number(sanitizedValue));
+        return valueIsNaN(Number(sanitizedValue))
+            ? `${value}` // Return the raw value as a string if it's not a number
+            : formatWithExpression(expression, Number(sanitizedValue));
     } catch (e) {
         // eslint-disable-next-line no-console
         console.error('Error formatting value with expression', e);
@@ -623,7 +640,7 @@ const customFormatConversionFnMap: Record<
                 ? mockCurrencyValue.split('.')[1].length
                 : 0;
         } else if (format.type === CustomFormatType.NUMBER) {
-            round = 3; // Note: I believe this was a bug in the old implementation, but we'll keep it for now
+            round = 0;
         }
         if (round > 0) {
             return `${formatExpression}.${'0'.repeat(round)}`;
