@@ -1,3 +1,10 @@
+## [0.2128.1](https://github.com/lightdash/lightdash/compare/0.2128.0...0.2128.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* Save chart/Save dashboard button uses stale message data after refetch ([#17753](https://github.com/lightdash/lightdash/issues/17753)) ([ea5314c](https://github.com/lightdash/lightdash/commit/ea5314c6aef1b525157eb268bdd23611a1892555))
+
 # [0.2128.0](https://github.com/lightdash/lightdash/compare/0.2127.0...0.2128.0) (2025-11-03)
 
 
