@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -7,14 +6,7 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Center,
-    Loader,
-    ScrollArea,
-    Text,
-    TextInput,
-} from '@mantine/core';
+import { ActionIcon, Loader, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
@@ -22,7 +14,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
     useTransition,
     type FC,
@@ -36,9 +27,7 @@ import {
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
-import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
 import {
     flattenTreeForVirtualization,
@@ -81,17 +70,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         const trimmedSearch = debouncedSearch.trim();
         return !!trimmedSearch && trimmedSearch !== '';
     }, [debouncedSearch]);
-    const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
-    const savedScrollTopRef = useRef<number>(0);
-    const previousActiveFieldsRef = useRef(activeFields);
-
-    const { data: experimentalExplorerImprovements } = useFeatureFlag(
-        FeatureFlags.ExperimentalExplorerImprovements,
-    );
-
-    const { data: experimentalVirtualizedSideBar } = useFeatureFlag(
-        FeatureFlags.ExperimentalVirtualizedSideBar,
-    );
 
     // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
     const sectionNodeMaps = useMemo(() => {
@@ -198,87 +176,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         });
     }, []);
 
-    /**
-     * Preserve scroll position when fields are selected/deselected
-     *
-     * When a field is selected, it gets pinned to the top of the sidebar list.
-     * Without preservation, this DOM reordering causes the scroll to jump back to the top.
-     */
-
-    // Capture scroll position before activeFields changes
-    if (
-        experimentalExplorerImprovements?.enabled &&
-        previousActiveFieldsRef.current !== activeFields &&
-        scrollAreaViewportRef.current
-    ) {
-        savedScrollTopRef.current = scrollAreaViewportRef.current.scrollTop;
-        previousActiveFieldsRef.current = activeFields;
-    }
-
-    // Restore scroll position after DOM updates
-    useEffect(() => {
-        if (!experimentalExplorerImprovements?.enabled) {
-            return;
-        }
-
-        const viewport = scrollAreaViewportRef.current;
-        if (viewport) {
-            viewport.scrollTop = savedScrollTopRef.current;
-        }
-    }, [activeFields, experimentalExplorerImprovements]);
-
-    const tableTreeComponents = useMemo(
-        () =>
-            tableTrees.length > 0 ? (
-                tableTrees.map((table) => (
-                    <TableTree
-                        key={table.name}
-                        isExpanded={expandedTables.has(table.name)}
-                        onToggle={() => toggleTable(table.name)}
-                        searchQuery={debouncedSearch}
-                        showTableLabel={Object.keys(explore.tables).length > 1}
-                        table={table}
-                        additionalMetrics={additionalMetrics}
-                        onSelectedNodeChange={onSelectedFieldChange}
-                        customDimensions={customDimensions}
-                        missingCustomMetrics={missingCustomMetrics}
-                        missingCustomDimensions={missingCustomDimensions}
-                        missingFieldIds={missingFieldIds}
-                        searchResults={searchResultsMap[table.name] ?? []}
-                        isSearching={isSearching}
-                        expandedGroups={expandedGroups}
-                        onToggleGroup={toggleGroup}
-                    />
-                ))
-            ) : (
-                <Center display={isSearching ? 'none' : 'flex'}>
-                    <Text color="dimmed">No fields found...</Text>
-                </Center>
-            ),
-        [
-            additionalMetrics,
-            customDimensions,
-            debouncedSearch,
-            expandedGroups,
-            expandedTables,
-            explore.tables,
-            isSearching,
-            missingCustomDimensions,
-            missingCustomMetrics,
-            missingFieldIds,
-            onSelectedFieldChange,
-            searchResultsMap,
-            tableTrees,
-            toggleGroup,
-            toggleTable,
-        ],
-    );
-    // Prepare virtualized tree data when experimental improvements are enabled
     const virtualizedTreeData = useMemo(() => {
-        if (!experimentalVirtualizedSideBar?.enabled) {
-            return null;
-        }
-
         return flattenTreeForVirtualization({
             tables: tableTrees,
             showMultipleTables: Object.keys(explore.tables).length > 1,
@@ -302,7 +200,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         debouncedSearch,
         expandedGroups,
         expandedTables,
-        experimentalVirtualizedSideBar?.enabled,
         explore.tables,
         isSearching,
         missingCustomDimensions,
@@ -335,24 +232,12 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 data-testid="ExploreTree/SearchInput"
             />
 
-            {experimentalVirtualizedSideBar?.enabled && virtualizedTreeData ? (
-                <VirtualizedTreeList
-                    data={virtualizedTreeData}
-                    onToggleTable={toggleTable}
-                    onToggleGroup={toggleGroup}
-                    onSelectedFieldChange={onSelectedFieldChange}
-                />
-            ) : (
-                <ScrollArea
-                    variant="primary"
-                    className="only-vertical"
-                    offsetScrollbars
-                    scrollbarSize={8}
-                    viewportRef={scrollAreaViewportRef}
-                >
-                    {tableTreeComponents}
-                </ScrollArea>
-            )}
+            <VirtualizedTreeList
+                data={virtualizedTreeData}
+                onToggleTable={toggleTable}
+                onToggleGroup={toggleGroup}
+                onSelectedFieldChange={onSelectedFieldChange}
+            />
         </>
     );
 };
