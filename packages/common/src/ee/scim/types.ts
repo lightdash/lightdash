@@ -53,6 +53,26 @@ export interface ScimGroupMember {
     display?: string;
 }
 
+export enum ScimRoleType {
+    ORG = 'ORG_SYSTEM',
+    PROJECT = 'PROJECT_SYSTEM',
+    PROJECT_CUSTOM = 'PROJECT_CUSTOM',
+}
+
+export interface ScimRole extends ScimResource {
+    schemas: ScimSchemaType.ROLE[];
+    value: string;
+    display?: string;
+    type?: ScimRoleType;
+    supported: boolean;
+    meta: ScimResource['meta'] & {
+        resourceType: 'Role';
+        created?: Date;
+        lastModified?: Date;
+        location: string;
+    };
+}
+
 export type ScimErrorPayload = {
     /**
      * NOTE: this is taken from the SCIM spec here: https://datatracker.ietf.org/doc/html/rfc7644#section-3.7.3
