@@ -7,6 +7,7 @@ import {
     isTextFormat,
     isValidFormat,
 } from 'numfmt';
+import { LightdashParameters } from '../compiler/parameters';
 import {
     CompactConfigMap,
     CustomFormatType,
@@ -768,36 +769,44 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
-        // Check if format uses parameter placeholders
-        const hasParameterPlaceholders =
-            hasValidFormatExpression(item) &&
-            item.format.includes('${ld.parameters');
-
         if (hasValidFormatExpression(item)) {
-            // Only apply format expression if parameters are provided when needed
-            if (!hasParameterPlaceholders || parameters) {
-                // Evaluate conditional expressions in format string if parameters are provided
-                const formatExpression = parameters
-                    ? evaluateConditionalFormatExpression(
-                          item.format,
-                          parameters,
-                      )
-                    : item.format;
+            // Check if format uses parameter placeholders
+            const hasParameterPlaceholders =
+                item.format.includes(
+                    `\${${LightdashParameters.PREFIX_SHORT}`,
+                ) || item.format.includes(`\${${LightdashParameters.PREFIX}`);
 
-                try {
-                    const result = formatValueWithExpression(
-                        formatExpression,
-                        value,
-                    );
-                    return result;
-                } catch (error) {
-                    // Fall through to default formatting below
+            // NEW: Handle parameter-based formats separately
+            if (hasParameterPlaceholders) {
+                // If parameters are provided, evaluate and apply the format
+                if (parameters) {
+                    const formatExpression =
+                        evaluateConditionalFormatExpression(
+                            item.format,
+                            parameters,
+                        );
+                    try {
+                        const result = formatValueWithExpression(
+                            formatExpression,
+                            value,
+                        );
+                        return result;
+                    } catch (error) {
+                        // If evaluation fails, fall back to default formatting
+                        return applyDefaultFormat(value);
+                    }
+                } else {
+                    // No parameters provided but format needs them - use default formatting
+                    return applyDefaultFormat(value);
                 }
             }
-            // If format uses parameters but none are provided, use default formatting
-            // and skip CustomFormat extraction from the format string
-            if (hasParameterPlaceholders && !parameters) {
-                return applyDefaultFormat(value);
+
+            // EXISTING: Handle non-parameter formats (unchanged behavior)
+            try {
+                const result = formatValueWithExpression(item.format, value);
+                return result;
+            } catch (error) {
+                // Fall through to custom format handling below
             }
         }
 

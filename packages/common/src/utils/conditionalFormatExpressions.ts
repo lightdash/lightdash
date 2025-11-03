@@ -11,11 +11,14 @@ import { LightdashParameters } from '../compiler/parameters';
  *   - "currency" -> "currency"
  */
 function stripParameterPrefix(paramName: string): string {
-    if (paramName.startsWith(LightdashParameters.PREFIX_SHORT)) {
-        return paramName.substring(LightdashParameters.PREFIX_SHORT.length);
+    const shortPrefix = `${LightdashParameters.PREFIX_SHORT}.`;
+    const longPrefix = `${LightdashParameters.PREFIX}.`;
+
+    if (paramName.startsWith(shortPrefix)) {
+        return paramName.substring(shortPrefix.length);
     }
-    if (paramName.startsWith(LightdashParameters.PREFIX)) {
-        return paramName.substring(LightdashParameters.PREFIX.length);
+    if (paramName.startsWith(longPrefix)) {
+        return paramName.substring(longPrefix.length);
     }
     return paramName;
 }
