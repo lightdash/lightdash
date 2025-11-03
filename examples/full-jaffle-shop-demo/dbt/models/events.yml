@@ -4,6 +4,7 @@ models:
     config:
       tags: ['ai']
     meta:
+
       primary_key: event_id
       group_details:
         events:
@@ -94,6 +95,26 @@ models:
                   when ${event_id} < 1000 then 'High'
                   else 'Very high' end
           metrics:
+           
+            with_currency_parameter: 
+              type: sum 
+              format: '${ld.parameters.currency=="usd"?"$":""}${ld.parameters.currency=="eur"?"€":""}${ld.parameters.currency=="gbp"?"£":""}0,0.00'
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.currency} = 'usd' THEN ${event_id} * 1
+                  ELSE ${event_id} * 0.86
+                END
+            with_multiple_parameters: 
+              type: sum 
+              # only shows $ currency
+              format: '${ld.parameters.currency=="usd"?"$":""}0,0${ld.parameters.decimals=="true"?".00":""}'
+            with_decimals_format: 
+              type: sum 
+              format: '0,0${ld.parameters.decimals=="true"?".00":""}'
+            with_mixed_parameter: 
+              type: sum 
+              # Invalid parameter, using the wrong value for decimals
+              format: '${ld.parameters.decimals=="usd"?"$":"-"}0,0.00'
             in_gbp:
               type: sum
               format: 'gbp'

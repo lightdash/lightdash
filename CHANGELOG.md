@@ -1,3 +1,76 @@
+## [0.2129.1](https://github.com/lightdash/lightdash/compare/0.2129.0...0.2129.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* keep correct pivot dimension when switching charts ([#17756](https://github.com/lightdash/lightdash/issues/17756)) ([fe1509f](https://github.com/lightdash/lightdash/commit/fe1509fa8ba7e89df271bdd04ce0dff5e9459549))
+
+# [0.2129.0](https://github.com/lightdash/lightdash/compare/0.2128.1...0.2129.0) (2025-11-03)
+
+
+### Bug Fixes
+
+* prevent duplicate tool output handling in AI agent streaming ([#17808](https://github.com/lightdash/lightdash/issues/17808)) ([c1d7619](https://github.com/lightdash/lightdash/commit/c1d761948d7a07a8387e1b2f506ca04c81242fde))
+
+
+### Features
+
+* **redux:** finish redux migration ([#17560](https://github.com/lightdash/lightdash/issues/17560)) ([9580704](https://github.com/lightdash/lightdash/commit/9580704c5da28c1cd3be9d359297dacdfe79ce99))
+
+## [0.2128.1](https://github.com/lightdash/lightdash/compare/0.2128.0...0.2128.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* Save chart/Save dashboard button uses stale message data after refetch ([#17753](https://github.com/lightdash/lightdash/issues/17753)) ([ea5314c](https://github.com/lightdash/lightdash/commit/ea5314c6aef1b525157eb268bdd23611a1892555))
+
+# [0.2128.0](https://github.com/lightdash/lightdash/compare/0.2127.0...0.2128.0) (2025-11-03)
+
+
+### Features
+
+* add parameter-based conditional formatting for metrics ([#17691](https://github.com/lightdash/lightdash/issues/17691)) ([2663fab](https://github.com/lightdash/lightdash/commit/2663fab09afc89445a7361fb6c231abd98f7fa88))
+
+# [0.2127.0](https://github.com/lightdash/lightdash/compare/0.2126.3...0.2127.0) (2025-11-03)
+
+
+### Features
+
+* add SQL view and chart options to AI dashboard visualizations ([#17750](https://github.com/lightdash/lightdash/issues/17750)) ([d43de29](https://github.com/lightdash/lightdash/commit/d43de297ae7bf75c8758f7e5f4db0da673d0f427))
+
+## [0.2126.3](https://github.com/lightdash/lightdash/compare/0.2126.2...0.2126.3) (2025-11-03)
+
+
+### Bug Fixes
+
+* filter out orphaned chart and dashboard validations ([#17783](https://github.com/lightdash/lightdash/issues/17783)) ([200628b](https://github.com/lightdash/lightdash/commit/200628b1359c37a9f34613e44a1f8b028aacc875))
+
+## [0.2126.2](https://github.com/lightdash/lightdash/compare/0.2126.1...0.2126.2) (2025-11-03)
+
+
+### Bug Fixes
+
+* move embedding migration to EE ([#17801](https://github.com/lightdash/lightdash/issues/17801)) ([fcff668](https://github.com/lightdash/lightdash/commit/fcff668d8f90bed4efd5ae21a46729dccbceb701))
+
+## [0.2126.1](https://github.com/lightdash/lightdash/compare/0.2126.0...0.2126.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* remove jwt from URL hash ([#17652](https://github.com/lightdash/lightdash/issues/17652)) ([788ffd2](https://github.com/lightdash/lightdash/commit/788ffd2157cb25d754b40b89f4f57589e8623e53)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.2126.0](https://github.com/lightdash/lightdash/compare/0.2125.1...0.2126.0) (2025-11-03)
+
+
+### Bug Fixes
+
+* dashboard validation error message types and frontend rendering ([#17785](https://github.com/lightdash/lightdash/issues/17785)) ([7fb3905](https://github.com/lightdash/lightdash/commit/7fb3905f7bb62b8bb40e134062726167f5e8d79b))
+
+
+### Features
+
+* detect dangling dashboard filters for tables not used by any chart ([#17777](https://github.com/lightdash/lightdash/issues/17777)) ([7b6bad9](https://github.com/lightdash/lightdash/commit/7b6bad90f3f2990a86b31b6dacc76072d7bdae4c))
+
 ## [0.2125.1](https://github.com/lightdash/lightdash/compare/0.2125.0...0.2125.1) (2025-10-31)
 
 

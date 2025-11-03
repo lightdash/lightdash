@@ -20,6 +20,7 @@ import {
     chartForValidationWithJoinedField,
     config,
     dashboardForValidation,
+    dashboardWithDanglingFilters,
     explore,
     exploreError,
     exploreWithJoin,
@@ -42,6 +43,7 @@ const projectModel = {
 const validationModel = {
     delete: jest.fn(async () => {}),
     create: jest.fn(async () => {}),
+    get: jest.fn(async () => []),
 };
 const dashboardModel = {
     findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
@@ -372,6 +374,113 @@ describe('validation', () => {
         // Chart uses "additional_explore" as tableName but has same fields as base "table"
         // Should validate without errors because fields are indexed by both baseTable and explore name
         expect(errors.length).toEqual(0);
+    });
+
+    it('Should catch dashboard filters when no charts use that explore (dangling filters)', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [dashboardWithDanglingFilters]);
+
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => []); // No charts
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.length).toEqual(1);
+        expect(errors[0]).toMatchObject({
+            error: "Filter error: the field 'table_dimension' references table 'table' which is not used by any chart on this dashboard",
+            errorType: 'filter',
+            fieldName: 'table_dimension',
+            name: 'Dashboard with dangling filters',
+            source: 'dashboard',
+        });
+    });
+
+    it('Should filter out orphaned chart validations when retrieving', async () => {
+        const mockUser = {
+            userUuid: 'user-uuid',
+            organizationUuid: 'org-uuid',
+            role: 'admin', // Admin role to skip space access checks
+            ability: {
+                cannot: jest.fn(() => false),
+            },
+        } as unknown as Parameters<typeof validationService.get>[0];
+
+        // Mock validations with some orphaned (null UUIDs)
+        (validationModel.get as jest.Mock).mockResolvedValueOnce([
+            {
+                validationId: 1,
+                projectUuid: 'projectUuid',
+                error: 'Chart error',
+                errorType: 'chart',
+                chartUuid: 'chart-1', // Valid
+                source: 'chart',
+            },
+            {
+                validationId: 2,
+                projectUuid: 'projectUuid',
+                error: 'Chart error for deleted',
+                errorType: 'chart',
+                chartUuid: null, // Orphaned - should be filtered out
+                source: 'chart',
+            },
+        ]);
+
+        const results = await validationService.get(mockUser, 'projectUuid');
+
+        // Should only return non-orphaned validations
+        expect(results.length).toEqual(1);
+        expect(results[0]).toMatchObject({
+            chartUuid: 'chart-1',
+        });
+    });
+
+    it('Should filter out orphaned dashboard validations when retrieving', async () => {
+        const mockUser = {
+            userUuid: 'user-uuid',
+            organizationUuid: 'org-uuid',
+            role: 'admin', // Admin role to skip space access checks
+            ability: {
+                cannot: jest.fn(() => false),
+            },
+        } as unknown as Parameters<typeof validationService.get>[0];
+
+        // Mock validations with some orphaned (null UUIDs)
+        (validationModel.get as jest.Mock).mockResolvedValueOnce([
+            {
+                validationId: 1,
+                projectUuid: 'projectUuid',
+                error: 'Dashboard error',
+                errorType: 'dashboard',
+                dashboardUuid: 'dashboard-1', // Valid
+                source: 'dashboard',
+            },
+            {
+                validationId: 2,
+                projectUuid: 'projectUuid',
+                error: 'Dashboard error for deleted',
+                errorType: 'dashboard',
+                dashboardUuid: null, // Orphaned - should be filtered out
+                source: 'dashboard',
+            },
+        ]);
+
+        const results = await validationService.get(mockUser, 'projectUuid');
+
+        // Should only return non-orphaned validations
+        expect(results.length).toEqual(1);
+        expect(results[0]).toMatchObject({
+            dashboardUuid: 'dashboard-1',
+        });
     });
 });
 

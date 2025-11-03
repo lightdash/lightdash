@@ -8,8 +8,11 @@ import {
     Title,
     type ModalProps,
 } from '@mantine/core';
-import { type FC } from 'react';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../features/explorer/store';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 
@@ -21,18 +24,16 @@ export const DeleteTableCalculationModal: FC<Props> = ({
     tableCalculation,
     onClose,
 }) => {
-    const deleteTableCalculation = useExplorerContext(
-        (context) => context.actions.deleteTableCalculation,
-    );
+    const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
-    const onConfirm = () => {
-        deleteTableCalculation(tableCalculation.name);
+    const onConfirm = useCallback(() => {
+        dispatch(explorerActions.deleteTableCalculation(tableCalculation.name));
         track({
             name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
         });
         onClose();
-    };
+    }, [dispatch, tableCalculation.name, track, onClose]);
     return (
         <Modal
             opened

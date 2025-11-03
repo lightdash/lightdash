@@ -321,6 +321,7 @@ const VisualizationProvider: FC<
         getGroupColor,
         getSeriesColor,
         chartConfig,
+        parameters,
     };
 
     switch (chartConfig.type) {
@@ -338,6 +339,7 @@ const VisualizationProvider: FC<
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
                     tableCalculationsMetadata={tableCalculationsMetadata}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -357,6 +359,7 @@ const VisualizationProvider: FC<
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
                     tableCalculationsMetadata={tableCalculationsMetadata}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -376,6 +379,7 @@ const VisualizationProvider: FC<
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
                     tableCalculationsMetadata={tableCalculationsMetadata}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -394,6 +398,7 @@ const VisualizationProvider: FC<
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     tableCalculationsMetadata={tableCalculationsMetadata}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

@@ -269,6 +269,7 @@ const useTableConfig = (
             columnOrder,
             totals: totalCalculations,
             groupedSubtotals,
+            parameters,
         });
     }, [
         columnOrder,
@@ -281,6 +282,7 @@ const useTableConfig = (
         getFieldLabelOverride,
         totalCalculations,
         groupedSubtotals,
+        parameters,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{

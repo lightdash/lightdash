@@ -6,28 +6,62 @@ import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
 
+// Regex for SQL parameter replacement - requires full ${} syntax
 export const parameterRegex =
     /\$\{(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)\}/g;
 
+// Regex for extracting parameter references - works with format strings and ternary expressions
+const parameterReferencePattern =
+    /(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
+
+export enum LightdashParameters {
+    PREFIX = 'lightdash.parameters',
+    PREFIX_SHORT = 'ld.parameters',
+}
+
 /**
- * Extracts parameter references from SQL strings
- * @param sql - The SQL string to extract parameter references from
- * @returns An array of unique parameter names referenced in the SQL
+ * Extracts parameter references from SQL strings or format strings
+ * @param sql - The SQL or format string to extract parameter references from
+ * @returns An array of unique parameter names referenced in the string
  */
-export const getParameterReferences = (sql: string): string[] => {
-    const matches = sql.match(parameterRegex);
+export const getParameterReferences = (
+    sql: string,
+    regex = parameterRegex,
+): string[] => {
+    const matches = sql.match(regex);
 
     if (!matches) {
         return [];
     }
 
     // Extract parameter names using the regex capture group and remove duplicates
-    const parameterNames = matches.map((match) =>
-        match.replace(parameterRegex, '$1'),
-    );
+    const parameterNames = matches.map((match) => match.replace(regex, '$1'));
 
     // Return unique parameter names
     return [...new Set(parameterNames)];
+};
+
+/**
+ * Extracts and combines parameter references from both SQL and format strings
+ * @param compiledSql - The compiled SQL to extract parameters from
+ * @param format - Optional format string to extract parameters from
+ * @returns An array of unique parameter names from both sources
+ */
+export const getParameterReferencesFromSqlAndFormat = (
+    compiledSql: string,
+    format?: string,
+): string[] => {
+    const sqlParameterReferences = getParameterReferences(compiledSql);
+
+    const formatParameterReferences =
+        format && typeof format === 'string'
+            ? getParameterReferences(format, parameterReferencePattern)
+            : [];
+
+    // Combine and deduplicate parameter references from both sources
+    return Array.from(
+        new Set([...sqlParameterReferences, ...formatParameterReferences]),
+    );
 };
 
 export const validateParameterReferences = (

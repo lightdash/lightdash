@@ -91,6 +91,8 @@ export function useAiAgentThreadStreamMutation() {
                     stream: chunkStream,
                 });
 
+                const handledToolOutputIds = new Set<string>();
+
                 for await (const uiMessage of stream) {
                     if (abortController.signal.aborted) return;
 
@@ -138,6 +140,14 @@ export function useAiAgentThreadStreamMutation() {
                                         break;
                                     }
 
+                                    if (
+                                        handledToolOutputIds.has(
+                                            part.toolCallId,
+                                        )
+                                    ) {
+                                        break;
+                                    }
+
                                     const output =
                                         toolRunQueryOutputSchema.safeParse(
                                             part.output,
@@ -148,6 +158,10 @@ export function useAiAgentThreadStreamMutation() {
                                         output.data.metadata.status ===
                                             'success'
                                     ) {
+                                        handledToolOutputIds.add(
+                                            part.toolCallId,
+                                        );
+
                                         void refetchThread?.();
                                     }
 
