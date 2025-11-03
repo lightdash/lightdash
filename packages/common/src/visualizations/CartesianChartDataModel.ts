@@ -29,7 +29,6 @@ import {
     calculateDynamicBorderRadius,
     getBarBorderRadius,
     getBarStyle,
-    getBarTotalLabelStyle,
 } from './helpers/styles/barChartStyles';
 import {
     getBarChartGridStyle,
@@ -592,6 +591,21 @@ export class CartesianChartDataModel {
         const leftYAxisSeriesReferences: string[] = [];
         const rightYAxisSeriesReferences: string[] = [];
 
+        // Calculate dynamic border radius for non-stacked bars
+        const barSeriesCount = transformedData.valuesColumns.filter(
+            (col) =>
+                (display?.series?.[col.pivotColumnName]?.type ??
+                    display?.series?.[col.referenceField]?.type ??
+                    defaultSeriesType) === 'bar',
+        ).length;
+        const nonStackedBorderRadius = !shouldStack
+            ? calculateDynamicBorderRadius(
+                  dataToRender.length,
+                  barSeriesCount,
+                  false, // isStacked
+              )
+            : undefined;
+
         let series: SqlRunnerEChartsSeries[] =
             transformedData.valuesColumns.map((seriesColumn, index) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
@@ -648,7 +662,7 @@ export class CartesianChartDataModel {
                               borderRadius: getBarBorderRadius(
                                   false, // isHorizontal - CartesianChartDataModel doesn't support flipAxes
                                   true, // isStackEnd - always true for non-stacked bars
-                                  4, // radius
+                                  nonStackedBorderRadius,
                               ),
                           }
                         : undefined;
@@ -724,7 +738,7 @@ export class CartesianChartDataModel {
         // Apply rounded corners to stacked bars
         // Skip for 100% stacking to keep data in dataset mode for tooltips
         if (shouldStack && !shouldStack100 && defaultSeriesType === 'bar') {
-            const barSeriesCount = series.filter(
+            const stackedBarSeriesCount = series.filter(
                 (s) => s.type === 'bar',
             ).length;
             const dataPointCount = dataToRender.length;
@@ -733,7 +747,7 @@ export class CartesianChartDataModel {
             // Calculate dynamic border radius based on bar width
             const radius = calculateDynamicBorderRadius(
                 dataPointCount,
-                barSeriesCount,
+                stackedBarSeriesCount,
                 isStacked,
             );
 
@@ -748,38 +762,6 @@ export class CartesianChartDataModel {
                     legendSelected: undefined,
                 },
             );
-
-            // Add stack total labels to the last series in each stack
-            const stackGroups: Record<string, typeof series> = {};
-            series.forEach((s) => {
-                if (s.type === 'bar' && s.stack) {
-                    if (!stackGroups[s.stack]) {
-                        stackGroups[s.stack] = [];
-                    }
-                    stackGroups[s.stack].push(s);
-                }
-            });
-
-            // Apply total label styling to the last series in each stack
-            Object.values(stackGroups).forEach((stackSeries) => {
-                if (stackSeries.length > 0) {
-                    const lastSeriesIndex = series.findIndex(
-                        (s) => s === stackSeries[stackSeries.length - 1],
-                    );
-                    if (lastSeriesIndex !== -1) {
-                        series[lastSeriesIndex] = {
-                            ...series[lastSeriesIndex],
-                            // Add stack total label configuration
-                            label: {
-                                ...getBarTotalLabelStyle(),
-                                show: false, // Can be enabled via display options in the future
-                                formatter: (param) => String(param.data[2]),
-                                position: ValueLabelPositionOptions.TOP,
-                            },
-                        };
-                    }
-                }
-            });
         }
 
         const xAxisType =
