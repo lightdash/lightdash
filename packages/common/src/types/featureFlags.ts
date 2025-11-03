@@ -67,11 +67,6 @@ export enum FeatureFlags {
      * Enable experimental explorer improvements
      */
     ExperimentalExplorerImprovements = 'experimental-explorer-improvements',
-
-    /**
-     * Enable experimental virtualized side bar
-     */
-    ExperimentalVirtualizedSideBar = 'experimental-virtualized-side-bar',
 }
 
 export type FeatureFlag = {

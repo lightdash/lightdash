@@ -40,8 +40,6 @@ export class FeatureFlagModel {
                 this.getExperimentalExplorerImprovements.bind(this),
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
-            [FeatureFlags.ExperimentalVirtualizedSideBar]:
-                this.getExperimentalVirtualizedSideBar.bind(this),
         };
     }
 
@@ -138,32 +136,6 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.ExperimentalExplorerImprovements,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getExperimentalVirtualizedSideBar({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.experimentalVirtualizedSideBar ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ExperimentalVirtualizedSideBar,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,
