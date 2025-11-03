@@ -1,10 +1,10 @@
-import { type AiAgentMessageAssistant } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 export interface ArtifactData {
     artifactUuid: string;
     versionUuid: string;
-    message: AiAgentMessageAssistant;
+    messageUuid: string;
+    threadUuid: string;
     projectUuid: string;
     agentUuid: string;
 }
@@ -26,7 +26,8 @@ export const aiArtifactSlice = createSlice({
             action: PayloadAction<{
                 artifactUuid: string;
                 versionUuid: string;
-                message: AiAgentMessageAssistant;
+                messageUuid: string;
+                threadUuid: string;
                 projectUuid: string;
                 agentUuid: string;
             }>,
@@ -34,14 +35,16 @@ export const aiArtifactSlice = createSlice({
             const {
                 artifactUuid,
                 versionUuid,
-                message,
+                messageUuid,
+                threadUuid,
                 projectUuid,
                 agentUuid,
             } = action.payload;
             state.artifact = {
                 artifactUuid,
                 versionUuid,
-                message,
+                messageUuid,
+                threadUuid,
                 projectUuid,
                 agentUuid,
             };
