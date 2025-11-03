@@ -52,7 +52,7 @@ import {
     XAxisSortType,
     type CartesianChart,
     type CustomDimension,
-    type EChartSeries,
+    type EChartsSeries,
     type Field,
     type Item,
     type ItemsMap,
@@ -335,7 +335,7 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
 const mergeLegendSettings = <T = Record<any, any>>(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
-    series: EChartSeries[],
+    series: EChartsSeries[],
 ) => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
     if (!normalizedConfig) {
@@ -675,7 +675,7 @@ const getPivotSeries = ({
     cartesianChart,
     pivotValuesColumnsMap,
     parameters,
-}: GetPivotSeriesArg): EChartSeries => {
+}: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
             const formattedValue = getFormattedValue(
@@ -892,7 +892,7 @@ const getEchartsSeriesFromPivotedData = (
         | null
         | undefined,
     parameters?: ParametersValuesMap,
-): EChartSeries[] => {
+): EChartsSeries[] => {
     // Use pivotDetails to find the correct column name for each series
     const findMatchingColumnName = (series: Series): string | undefined => {
         if (isPivotReferenceWithValues(series.encode.yRef)) {
@@ -940,7 +940,7 @@ const getEchartsSeriesFromPivotedData = (
 
             return 0;
         })
-        .map<EChartSeries>((series) => {
+        .map<EChartsSeries>((series) => {
             const { flipAxes } = cartesianChart.layout;
             const xFieldHash = hashFieldReference(series.encode.xRef);
 
@@ -992,10 +992,10 @@ const getEchartsSeries = (
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
     parameters?: ParametersValuesMap,
-): EChartSeries[] => {
+): EChartsSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
-        .map<EChartSeries>((series) => {
+        .map<EChartsSeries>((series) => {
             const { flipAxes } = cartesianChart.layout;
             const xFieldHash = hashFieldReference(series.encode.xRef);
             const yFieldHash = hashFieldReference(series.encode.yRef);
@@ -1100,7 +1100,7 @@ const getEchartAxes = ({
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
-    series: EChartSeries[];
+    series: EChartsSeries[];
     resultsData: InfiniteQueryResults | undefined;
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
@@ -1681,7 +1681,7 @@ const getEchartAxes = ({
     };
 };
 
-const getValidStack = (series: EChartSeries | undefined) => {
+const getValidStack = (series: EChartsSeries | undefined) => {
     return series && (series.type === 'bar' || !!series.areaStyle)
         ? series.stack
         : undefined;
@@ -1691,7 +1691,7 @@ type LegendValues = { [name: string]: boolean } | undefined;
 
 const calculateStackTotal = (
     row: ResultRow,
-    series: EChartSeries[],
+    series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ) => {
@@ -1720,7 +1720,7 @@ const calculateStackTotal = (
 // The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
     rows: ResultRow[],
-    series: EChartSeries[],
+    series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ): [unknown, unknown, number][] => {
@@ -1750,18 +1750,18 @@ const getStackTotalRows = (
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 const getStackTotalSeries = (
     rows: ResultRow[],
-    seriesWithStack: EChartSeries[],
+    seriesWithStack: EChartsSeries[],
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
-    return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
+    return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
         (acc, [stack, series]) => {
             if (!stack || !series[0] || !series[0].stackLabel?.show) {
                 return acc;
             }
-            const stackSeries: EChartSeries = {
+            const stackSeries: EChartsSeries = {
                 type: series[0].type,
                 connectNulls: true,
                 stack: stack,
@@ -1955,7 +1955,7 @@ const useEchartsCartesianConfig = (
             isStacked,
         );
 
-        const seriesWithValidStack = series.map<EChartSeries>((serie) => {
+        const seriesWithValidStack = series.map<EChartsSeries>((serie) => {
             const computedColor = getSeriesColor(serie);
             const baseConfig = {
                 ...serie,

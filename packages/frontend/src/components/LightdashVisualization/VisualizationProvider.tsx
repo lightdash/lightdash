@@ -6,6 +6,7 @@ import {
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
+    type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -26,7 +27,6 @@ import {
     type RefObject,
 } from 'react';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import {
@@ -39,7 +39,7 @@ import {
 } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
-import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
@@ -64,8 +64,8 @@ export type VisualizationProviderProps = {
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
-        e: EchartSeriesClickEvent,
-        series: EChartSeries[],
+        e: EchartsSeriesClickEvent,
+        series: EChartsSeries[],
     ) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;

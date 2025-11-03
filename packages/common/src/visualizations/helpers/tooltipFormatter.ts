@@ -9,7 +9,11 @@ import { type ParametersValuesMap } from '../../types/parameters';
 import { hashFieldReference } from '../../types/savedCharts';
 import { formatItemValue } from '../../utils/formatting';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
-import { type EChartSeries, type PivotValuesColumn, StackType } from '../types';
+import {
+    type EChartsSeries,
+    type PivotValuesColumn,
+    StackType,
+} from '../types';
 import {
     formatCartesianTooltipRow,
     formatColorIndicator,
@@ -150,7 +154,7 @@ type AxisKey = 'x' | 'y';
 const getDimFromEncodeAxis = (
     encode:
         | TooltipFormatterParams['encode']
-        | EChartSeries['encode']
+        | EChartsSeries['encode']
         | undefined,
     dimensionNames?: string[],
     axis: AxisKey = 'y',
@@ -174,7 +178,7 @@ const getDimFromEncodeAxis = (
 const getValueIdxFromEncode = (
     encode:
         | TooltipFormatterParams['encode']
-        | EChartSeries['encode']
+        | EChartsSeries['encode']
         | undefined,
     ctx: TooltipCtx,
     flipAxes?: boolean,

@@ -51,7 +51,7 @@ import {
     type AxisSide,
     type PivotChartData,
     type PivotChartLayout,
-    type SqlRunnerEChartSeries,
+    type SqlRunnerEChartsSeries,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
@@ -592,8 +592,8 @@ export class CartesianChartDataModel {
         const leftYAxisSeriesReferences: string[] = [];
         const rightYAxisSeriesReferences: string[] = [];
 
-        let series: SqlRunnerEChartSeries[] = transformedData.valuesColumns.map(
-            (seriesColumn, index) => {
+        let series: SqlRunnerEChartsSeries[] =
+            transformedData.valuesColumns.map((seriesColumn, index) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
 
                 // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
@@ -719,8 +719,7 @@ export class CartesianChartDataModel {
                     // Apply border radius for non-stacked bars
                     ...(itemStyle ? { itemStyle } : {}),
                 };
-            },
-        );
+            });
 
         // Apply rounded corners to stacked bars
         // Skip for 100% stacking to keep data in dataset mode for tooltips

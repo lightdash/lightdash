@@ -12,7 +12,7 @@ import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoub
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
-type EchartBaseClickEvent = {
+type EchartsBaseClickEvent = {
     // The component name clicked,
     // component type, could be 'series'、'markLine'、'markPoint'、'timeLine', etc..
     componentType: string;
@@ -40,7 +40,7 @@ type EchartBaseClickEvent = {
     pivotReference?: PivotReference;
 };
 
-export type EchartSeriesClickEvent = EchartBaseClickEvent & {
+export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     componentType: 'series';
     data: Record<string, any>;
     seriesIndex: number;
@@ -48,7 +48,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     pivotReference?: PivotReference;
 };
 
-type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
+type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
 
 export const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -70,8 +70,9 @@ export const LoadingChart = () => (
     </div>
 );
 
-const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
-    e.componentType === 'series';
+const isSeriesClickEvent = (
+    e: EchartsClickEvent,
+): e is EchartsSeriesClickEvent => e.componentType === 'series';
 
 type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
@@ -107,7 +108,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     });
 
     const onChartContextMenu = useCallback(
-        (e: EchartClickEvent) => {
+        (e: EchartsClickEvent) => {
             if (onSeriesContextMenu) {
                 if (e.event.event.defaultPrevented) {
                     return;
