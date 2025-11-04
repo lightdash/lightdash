@@ -1,3 +1,10 @@
+## [0.2135.1](https://github.com/lightdash/lightdash/compare/0.2135.0...0.2135.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* use job keys instead of manually deleting duplicate jobs ([#17278](https://github.com/lightdash/lightdash/issues/17278)) ([c926b56](https://github.com/lightdash/lightdash/commit/c926b563b3c305cdac7976e0ade9591bccdfec0e))
+
 # [0.2135.0](https://github.com/lightdash/lightdash/compare/0.2134.2...0.2135.0) (2025-11-04)
 
 
