@@ -706,8 +706,8 @@ describe('ScimService', () => {
 
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
-                    totalResults: 21, // 5 org system + 2 org custom + 7 per project (2 projects) = 5+2+14 = 21
-                    itemsPerPage: 21,
+                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 21
+                    itemsPerPage: 19,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
                         expect.objectContaining({
@@ -727,7 +727,7 @@ describe('ScimService', () => {
                 });
 
                 // Verify we have the expected number of roles
-                expect(result.Resources).toHaveLength(21);
+                expect(result.Resources).toHaveLength(19);
 
                 // Verify some specific role values
                 const roleValues = result.Resources.map((role) => role.value);

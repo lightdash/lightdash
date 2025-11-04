@@ -1411,6 +1411,71 @@ export class ScimService extends BaseService {
         };
     }
 
+    private async getAllRoles(organizationUuid: string) {
+        const allScimRoles: ScimRole[] = [];
+
+        // Get system roles
+        const systemRoles = getSystemRoles();
+
+        // Get custom roles for organization
+        const customRoles = await this.rolesModel.getRolesByOrganizationUuid(
+            organizationUuid,
+            'user',
+        );
+
+        // Get all projects for the organization, ignoring preview projects
+        const allProjects = await this.projectModel.getAllByOrganizationUuid(
+            organizationUuid,
+        );
+        const nonPreviewProjects = allProjects.filter(
+            (project) => project.type !== ProjectType.PREVIEW,
+        );
+
+        // Add organization-level system roles
+        systemRoles.forEach((role) => {
+            allScimRoles.push(
+                this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
+            );
+        });
+
+        // For each project, add system roles and custom roles
+        nonPreviewProjects.forEach((project) => {
+            // Add project-level system roles
+            systemRoles.forEach((role) => {
+                allScimRoles.push(
+                    this.convertLightdashRoleToScimRole(
+                        role,
+                        ScimRoleType.PROJECT,
+                        {
+                            projectUuid: project.projectUuid,
+                            name: project.name,
+                        },
+                    ),
+                );
+            });
+
+            // Add project-level custom roles
+            customRoles.forEach((role) => {
+                allScimRoles.push(
+                    this.convertLightdashRoleToScimRole(
+                        role,
+                        ScimRoleType.PROJECT_CUSTOM,
+                        {
+                            projectUuid: project.projectUuid,
+                            name: project.name,
+                        },
+                    ),
+                );
+            });
+        });
+        return {
+            allScimRoles,
+            projectsCount: nonPreviewProjects.length,
+            systemRolesCount: systemRoles.length,
+            customRolesCount: customRoles.length,
+        };
+    }
+
     async listRoles({
         organizationUuid,
         filter,
@@ -1426,64 +1491,12 @@ export class ScimService extends BaseService {
             const parsedFilter = filter ? parse(filter) : null;
             this.logger.debug('SCIM: Parsed role filter', { parsedFilter });
 
-            const allScimRoles: ScimRole[] = [];
-
-            // Get system roles
-            const systemRoles = getSystemRoles();
-
-            // Get custom roles for organization
-            const customRoles =
-                await this.rolesModel.getRolesByOrganizationUuid(
-                    organizationUuid,
-                    'user',
-                );
-
-            // Get all projects for the organization, ignoring preview projects
-            const allProjects =
-                await this.projectModel.getAllByOrganizationUuid(
-                    organizationUuid,
-                );
-            const nonPreviewProjects = allProjects.filter(
-                (project) => project.type !== ProjectType.PREVIEW,
-            );
-
-            // Add organization-level system roles
-            systemRoles.forEach((role) => {
-                allScimRoles.push(
-                    this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
-                );
-            });
-
-            // For each project, add system roles and custom roles
-            nonPreviewProjects.forEach((project) => {
-                // Add project-level system roles
-                systemRoles.forEach((role) => {
-                    allScimRoles.push(
-                        this.convertLightdashRoleToScimRole(
-                            role,
-                            ScimRoleType.PROJECT,
-                            {
-                                projectUuid: project.projectUuid,
-                                name: project.name,
-                            },
-                        ),
-                    );
-                });
-
-                // Add project-level custom roles
-                customRoles.forEach((role) => {
-                    allScimRoles.push(
-                        this.convertLightdashRoleToScimRole(
-                            role,
-                            ScimRoleType.PROJECT_CUSTOM,
-                            {
-                                projectUuid: project.projectUuid,
-                                name: project.name,
-                            },
-                        ),
-                    );
-                });
-            });
+            const {
+                allScimRoles,
+                projectsCount,
+                systemRolesCount,
+                customRolesCount,
+            } = await this.getAllRoles(organizationUuid);
 
             // Apply filter if specified
             let filteredRoles = allScimRoles;
@@ -1506,9 +1519,9 @@ export class ScimService extends BaseService {
             this.logger.debug('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
-                projectsCount: nonPreviewProjects.length,
-                systemRolesCount: systemRoles.length,
-                customRolesCount: customRoles.length,
+                projectsCount,
+                systemRolesCount,
+                customRolesCount,
             });
 
             return {
@@ -1532,15 +1545,41 @@ export class ScimService extends BaseService {
     }
 
     async getRole(organizationUuid: string, roleId: string): Promise<ScimRole> {
-        const roles = await this.listRoles({ organizationUuid });
-        const role = roles.Resources.find((r) => r.id === roleId);
-        if (!role) {
-            throw new ScimError({
-                detail: `Role with ID ${roleId} not found`,
-                status: 404,
+        try {
+            this.logger.debug('SCIM: Getting role', {
+                roleId,
+                organizationUuid,
             });
+            const { allScimRoles } = await this.getAllRoles(organizationUuid);
+            const role = allScimRoles.find((r) => r.id === roleId);
+            if (!role) {
+                throw new ScimError({
+                    detail: `Role with ID ${roleId} not found`,
+                    status: 404,
+                    scimType: 'noTarget',
+                });
+            }
+            this.logger.debug('SCIM: Successfully retrieved role', {
+                organizationUuid,
+                roleId,
+                roleName: role.display,
+                type: role.type,
+            });
+            return role;
+        } catch (error) {
+            this.logger.error(
+                `Failed to retrieve SCIM role: ${getErrorMessage(error)}`,
+            );
+            const scimError =
+                error instanceof ScimError
+                    ? error
+                    : new ScimError({
+                          detail: getErrorMessage(error),
+                          status: ScimService.getErrorStatus(error) ?? 404,
+                      });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
-        return role;
     }
 
     static getServiceProviderConfig(): ScimServiceProviderConfig {
