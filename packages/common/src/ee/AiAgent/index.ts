@@ -414,11 +414,13 @@ export type AiAgentEvaluationPrompt = {
     | {
           type: 'string';
           prompt: string;
+          expectedResponse: string | null;
       }
     | {
           type: 'thread';
           promptUuid: string;
           threadUuid: string;
+          expectedResponse: string | null;
       }
 );
 
@@ -470,15 +472,35 @@ export type AiAgentEvaluationRunResult = {
 
 /**
  * Represents a prompt for evaluation that can be either:
- * - A string containing the prompt text directly
+ * - An object with a prompt string for new prompts
  * - An object referencing an existing prompt and thread by their UUIDs
  */
 export type CreateEvaluationPrompt =
-    | string
+    | { prompt: string; expectedResponse: string | null }
     | {
           promptUuid: string;
           threadUuid: string;
+          expectedResponse: string | null;
       };
+
+/**
+ * Type guard to check if a CreateEvaluationPrompt is a string prompt
+ */
+export const isStringPrompt = (
+    prompt: CreateEvaluationPrompt,
+): prompt is { prompt: string; expectedResponse: string | null } =>
+    'prompt' in prompt;
+
+/**
+ * Type guard to check if a CreateEvaluationPrompt is a thread reference
+ */
+export const isThreadPrompt = (
+    prompt: CreateEvaluationPrompt,
+): prompt is {
+    promptUuid: string;
+    threadUuid: string;
+    expectedResponse: string | null;
+} => 'promptUuid' in prompt && 'threadUuid' in prompt;
 
 export type ApiCreateEvaluationRequest = {
     title: string;

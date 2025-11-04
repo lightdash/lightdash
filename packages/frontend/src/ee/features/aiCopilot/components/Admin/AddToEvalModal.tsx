@@ -71,6 +71,7 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
         const promptData = {
             promptUuid,
             threadUuid,
+            expectedResponse: null,
         };
 
         try {

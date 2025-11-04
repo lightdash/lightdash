@@ -37,6 +37,7 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    isThreadPrompt,
     isToolName,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -2709,25 +2710,22 @@ export class AiAgentModel {
                 })
                 .returning('*');
 
-            // Create prompts - handle both string and object format
             const promptInserts = data.prompts.map((promptData) => {
-                if (typeof promptData === 'string') {
-                    // Legacy string format
+                if (isThreadPrompt(promptData)) {
                     return {
                         ai_eval_uuid: evalRecord.ai_eval_uuid,
-                        prompt: promptData,
-                        ai_prompt_uuid: null,
-                        ai_thread_uuid: null,
-                        expected_response: null,
+                        prompt: null,
+                        ai_prompt_uuid: promptData.promptUuid,
+                        ai_thread_uuid: promptData.threadUuid,
+                        expected_response: promptData.expectedResponse,
                     };
                 }
-                // New object format with referenced prompt/thread
                 return {
                     ai_eval_uuid: evalRecord.ai_eval_uuid,
-                    prompt: null,
-                    ai_prompt_uuid: promptData.promptUuid,
-                    ai_thread_uuid: promptData.threadUuid,
-                    expected_response: null,
+                    prompt: promptData.prompt,
+                    ai_prompt_uuid: null,
+                    ai_thread_uuid: null,
+                    expected_response: promptData.expectedResponse,
                 };
             });
 
@@ -2749,11 +2747,13 @@ export class AiAgentModel {
                         ? {
                               type: 'string' as const,
                               prompt: p.prompt,
+                              expectedResponse: p.expected_response,
                           }
                         : {
                               type: 'thread' as const,
                               promptUuid: p.ai_prompt_uuid!,
                               threadUuid: p.ai_thread_uuid!,
+                              expectedResponse: p.expected_response,
                           }),
                 })),
             };
@@ -2802,11 +2802,13 @@ export class AiAgentModel {
                     ? {
                           type: 'string' as const,
                           prompt: p.prompt,
+                          expectedResponse: p.expected_response,
                       }
                     : {
                           type: 'thread' as const,
                           promptUuid: p.ai_prompt_uuid!,
                           threadUuid: p.ai_thread_uuid!,
+                          expectedResponse: p.expected_response,
                       }),
             })),
         };
@@ -2854,26 +2856,23 @@ export class AiAgentModel {
                     .where('ai_eval_uuid', evalUuid)
                     .delete();
 
-                // Insert new prompts - handle both string and object format
                 if (data.prompts.length > 0) {
                     const promptRecords = data.prompts.map((promptData) => {
-                        if (typeof promptData === 'string') {
-                            // Legacy string format
+                        if (isThreadPrompt(promptData)) {
                             return {
                                 ai_eval_uuid: evalUuid,
-                                prompt: promptData,
-                                ai_prompt_uuid: null,
-                                ai_thread_uuid: null,
-                                expected_response: null,
+                                prompt: null,
+                                ai_prompt_uuid: promptData.promptUuid,
+                                ai_thread_uuid: promptData.threadUuid,
+                                expected_response: promptData.expectedResponse,
                             };
                         }
-                        // New object format with referenced prompt/thread
                         return {
                             ai_eval_uuid: evalUuid,
-                            prompt: null,
-                            ai_prompt_uuid: promptData.promptUuid,
-                            ai_thread_uuid: promptData.threadUuid,
-                            expected_response: null,
+                            prompt: promptData.prompt,
+                            ai_prompt_uuid: null,
+                            ai_thread_uuid: null,
+                            expected_response: promptData.expectedResponse,
                         };
                     });
                     await trx(AiEvalPromptTableName).insert(promptRecords);
@@ -2896,21 +2895,21 @@ export class AiAgentModel {
             });
 
             const promptRecords = data.prompts.map((promptData) => {
-                if (typeof promptData === 'string') {
+                if (isThreadPrompt(promptData)) {
                     return {
                         ai_eval_uuid: evalUuid,
-                        prompt: promptData,
-                        ai_prompt_uuid: null,
-                        ai_thread_uuid: null,
-                        expected_response: null,
+                        prompt: null,
+                        ai_prompt_uuid: promptData.promptUuid,
+                        ai_thread_uuid: promptData.threadUuid,
+                        expected_response: promptData.expectedResponse,
                     };
                 }
                 return {
                     ai_eval_uuid: evalUuid,
-                    prompt: null,
-                    ai_prompt_uuid: promptData.promptUuid,
-                    ai_thread_uuid: promptData.threadUuid,
-                    expected_response: null,
+                    prompt: promptData.prompt,
+                    ai_prompt_uuid: null,
+                    ai_thread_uuid: null,
+                    expected_response: promptData.expectedResponse,
                 };
             });
             await trx(AiEvalPromptTableName).insert(promptRecords);
