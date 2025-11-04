@@ -1635,7 +1635,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.MCP_ENABLED === 'true',
         },
         customRoles: {
-            enabled: true,
+            enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         experimentalExplorerImprovements:
