@@ -60,6 +60,14 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
+                roles: [
+                    {
+                        value: OrganizationMemberRole.ADMIN,
+                        display: OrganizationMemberRole.ADMIN,
+                        type: 'organization',
+                        primary: true,
+                    },
+                ],
                 [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
                     role: OrganizationMemberRole.ADMIN,
                 },
@@ -115,6 +123,7 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
+                roles: undefined,
                 meta: {
                     resourceType: 'User',
                     created: testUser.createdAt,
@@ -706,7 +715,7 @@ describe('ScimService', () => {
 
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
-                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 21
+                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 19
                     itemsPerPage: 19,
                     startIndex: 1,
                     Resources: expect.arrayContaining([

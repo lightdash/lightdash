@@ -11,7 +11,6 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberRole,
-    OrganizationProject,
     ParameterError,
     ProjectType,
     Role,
@@ -170,6 +169,16 @@ export class ScimService extends BaseService {
                     primary: true,
                 },
             ],
+            roles: user.role
+                ? [
+                      {
+                          value: user.role,
+                          display: user.role,
+                          type: ScimRoleType.ORG,
+                          primary: true,
+                      },
+                  ]
+                : undefined,
             meta: {
                 resourceType: 'User',
                 created: createdAt,
@@ -1725,6 +1734,68 @@ export class ScimService extends BaseService {
                         multiValued: false,
                         description:
                             'A Boolean value indicating the primary email address',
+                        required: false,
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'none',
+                    },
+                ],
+            },
+            roles: {
+                name: 'roles',
+                type: 'complex',
+                multiValued: true,
+                description:
+                    "A list of roles for the User that collectively represent who the User is, e.g., 'Student', 'Faculty'.",
+                required: false,
+                caseExact: false,
+                mutability: 'readWrite',
+                returned: 'default',
+                uniqueness: 'none',
+                subAttributes: [
+                    {
+                        name: 'value',
+                        type: 'string',
+                        multiValued: false,
+                        description: 'The value of a role.',
+                        required: true,
+                        caseExact: true,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'none',
+                    },
+                    {
+                        name: 'display',
+                        type: 'string',
+                        multiValued: false,
+                        description:
+                            'A human-readable name, primarily used for display purposes. READ-ONLY.',
+                        required: false,
+                        caseExact: false,
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'none',
+                    },
+                    {
+                        name: 'type',
+                        type: 'string',
+                        multiValued: false,
+                        description:
+                            "A label indicating the attribute's function.",
+                        required: false,
+                        caseExact: false,
+                        canonicalValues: [],
+                        mutability: 'readWrite',
+                        returned: 'default',
+                        uniqueness: 'none',
+                    },
+                    {
+                        name: 'primary',
+                        type: 'boolean',
+                        multiValued: false,
+                        description:
+                            "A Boolean value indicating the 'primary' or preferred attribute value for this attribute. The primary attribute value 'true' MUST appear no more than once.",
                         required: false,
                         caseExact: false,
                         mutability: 'readWrite',
