@@ -7823,8 +7823,73 @@
             "ApiAiAgentEvaluationRunSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array___"
             },
+            "AssessmentType": {
+                "type": "string",
+                "enum": ["human", "llm"]
+            },
+            "AiEvalRunResultAssessment": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "assessedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "llmJudgeModel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "llmJudgeProvider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "assessedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "passed": {
+                        "type": "boolean"
+                    },
+                    "assessmentType": {
+                        "$ref": "#/components/schemas/AssessmentType"
+                    },
+                    "runResultUuid": {
+                        "type": "string"
+                    },
+                    "assessmentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "assessedAt",
+                    "llmJudgeModel",
+                    "llmJudgeProvider",
+                    "assessedByUserUuid",
+                    "reason",
+                    "passed",
+                    "assessmentType",
+                    "runResultUuid",
+                    "assessmentUuid"
+                ],
+                "type": "object"
+            },
             "AiAgentEvaluationRunResult": {
                 "properties": {
+                    "assessment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiEvalRunResultAssessment"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7840,7 +7905,13 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["pending", "running", "completed", "failed"]
+                        "enum": [
+                            "pending",
+                            "running",
+                            "completed",
+                            "assessing",
+                            "failed"
+                        ]
                     },
                     "threadUuid": {
                         "type": "string",
@@ -7855,6 +7926,7 @@
                     }
                 },
                 "required": [
+                    "assessment",
                     "createdAt",
                     "completedAt",
                     "errorMessage",

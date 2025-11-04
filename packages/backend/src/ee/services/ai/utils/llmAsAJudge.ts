@@ -2,8 +2,8 @@ import { assertUnreachable } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
-import { getOpenaiGptmodel } from '../../../models/openai-gpt';
-import { defaultAgentOptions } from '../../agent';
+import { defaultAgentOptions } from '../agents/agent';
+import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 export const factualityScores = {
     A: 0.4,

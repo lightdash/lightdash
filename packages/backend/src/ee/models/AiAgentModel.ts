@@ -3002,7 +3002,39 @@ export class AiAgentModel {
         resultUuid: string,
     ): Promise<AiAgentEvaluationRunResult> {
         const result = await this.database(AiEvalRunResultTableName)
-            .where('ai_eval_run_result_uuid', resultUuid)
+            .leftJoin(
+                AiEvalRunResultAssessmentTableName,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+            )
+            .where(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                resultUuid,
+            )
+            .select<
+                DbAiEvalRunResult & {
+                    assessment_uuid: string | null;
+                    assessment_type: 'human' | 'llm' | null;
+                    passed: boolean | null;
+                    reason: string | null;
+                    assessed_by_user_uuid: string | null;
+                    llm_judge_provider: string | null;
+                    llm_judge_model: string | null;
+                    assessed_at: Date | null;
+                    assessment_created_at: Date | null;
+                }
+            >(
+                `${AiEvalRunResultTableName}.*`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_assessment_uuid as assessment_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.assessment_type`,
+                `${AiEvalRunResultAssessmentTableName}.passed`,
+                `${AiEvalRunResultAssessmentTableName}.reason`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_by_user_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_provider`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_model`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_at`,
+                `${AiEvalRunResultAssessmentTableName}.created_at as assessment_created_at`,
+            )
             .first();
 
         if (!result) {
@@ -3019,6 +3051,25 @@ export class AiAgentModel {
             errorMessage: result.error_message,
             completedAt: result.completed_at,
             createdAt: result.created_at,
+            assessment:
+                result.assessment_uuid &&
+                result.assessment_type &&
+                result.passed !== null &&
+                result.assessed_at &&
+                result.assessment_created_at
+                    ? {
+                          assessmentUuid: result.assessment_uuid,
+                          runResultUuid: result.ai_eval_run_result_uuid,
+                          assessmentType: result.assessment_type,
+                          passed: result.passed,
+                          reason: result.reason,
+                          assessedByUserUuid: result.assessed_by_user_uuid,
+                          llmJudgeProvider: result.llm_judge_provider,
+                          llmJudgeModel: result.llm_judge_model,
+                          assessedAt: result.assessed_at,
+                          createdAt: result.assessment_created_at,
+                      }
+                    : null,
         };
     }
 
@@ -3072,6 +3123,11 @@ export class AiAgentModel {
                 `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
                 `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
             )
+            .leftJoin(
+                AiEvalRunResultAssessmentTableName,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+            )
             .where(`${AiEvalRunResultTableName}.ai_eval_run_uuid`, runUuid)
             .select<
                 (Pick<
@@ -3083,7 +3139,17 @@ export class AiAgentModel {
                     | 'status'
                     | 'ai_thread_uuid'
                 > &
-                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'>)[]
+                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'> & {
+                        assessment_uuid: string | null;
+                        assessment_type: 'human' | 'llm' | null;
+                        passed: boolean | null;
+                        reason: string | null;
+                        assessed_by_user_uuid: string | null;
+                        llm_judge_provider: string | null;
+                        llm_judge_model: string | null;
+                        assessed_at: Date | null;
+                        assessment_created_at: Date | null;
+                    })[]
             >(
                 `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
                 `${AiEvalRunResultTableName}.error_message`,
@@ -3092,6 +3158,15 @@ export class AiAgentModel {
                 `${AiEvalRunResultTableName}.status`,
                 `${AiEvalRunResultTableName}.ai_thread_uuid`,
                 `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_assessment_uuid as assessment_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.assessment_type`,
+                `${AiEvalRunResultAssessmentTableName}.passed`,
+                `${AiEvalRunResultAssessmentTableName}.reason`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_by_user_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_provider`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_model`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_at`,
+                `${AiEvalRunResultAssessmentTableName}.created_at as assessment_created_at`,
             )
             .orderBy(`${AiEvalRunResultTableName}.created_at`, 'asc');
 
@@ -3109,6 +3184,25 @@ export class AiAgentModel {
                 errorMessage: result.error_message,
                 completedAt: result.completed_at,
                 createdAt: result.created_at,
+                assessment:
+                    result.assessment_uuid &&
+                    result.assessment_type &&
+                    result.passed !== null &&
+                    result.assessed_at &&
+                    result.assessment_created_at
+                        ? {
+                              assessmentUuid: result.assessment_uuid,
+                              runResultUuid: result.ai_eval_run_result_uuid,
+                              assessmentType: result.assessment_type,
+                              passed: result.passed,
+                              reason: result.reason,
+                              assessedByUserUuid: result.assessed_by_user_uuid,
+                              llmJudgeProvider: result.llm_judge_provider,
+                              llmJudgeModel: result.llm_judge_model,
+                              assessedAt: result.assessed_at,
+                              createdAt: result.assessment_created_at,
+                          }
+                        : null,
             })),
         };
     }
@@ -3168,6 +3262,99 @@ export class AiAgentModel {
             llmJudgeModel: assessment.llm_judge_model,
             assessedAt: assessment.assessed_at,
             createdAt: assessment.created_at,
+        };
+    }
+
+    async getEvalResultDataForAssessment(resultUuid: string): Promise<{
+        query: string;
+        response: string;
+        expectedAnswer: string | null;
+        artifact: {
+            artifactType: 'chart' | 'dashboard';
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+            title: string | null;
+            description: string | null;
+        } | null;
+    }> {
+        const result = await this.database(AiEvalRunResultTableName)
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptTableName,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                `${AiPromptTableName}.ai_thread_uuid`,
+            )
+            .leftJoin(
+                AiArtifactVersionsTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                resultUuid,
+            )
+            .orderBy(`${AiPromptTableName}.created_at`, 'asc')
+            .select<{
+                prompt: string | null;
+                response: string | null;
+                expected_response: string | null;
+                artifact_type: 'chart' | 'dashboard' | null;
+                chart_config: Record<string, unknown> | null;
+                dashboard_config: Record<string, unknown> | null;
+                title: string | null;
+                description: string | null;
+            }>(
+                `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.response`,
+                `${AiEvalPromptTableName}.expected_response`,
+                `${AiArtifactsTableName}.artifact_type`,
+                `${AiArtifactVersionsTableName}.chart_config`,
+                `${AiArtifactVersionsTableName}.dashboard_config`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
+            )
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Evaluation run result not found for uuid: ${resultUuid}`,
+            );
+        }
+
+        if (!result.prompt) {
+            throw new NotFoundError(
+                `Query is missing for result: ${resultUuid}`,
+            );
+        }
+
+        if (!result.response) {
+            throw new NotFoundError(
+                `Response is missing for result: ${resultUuid}`,
+            );
+        }
+
+        return {
+            query: result.prompt,
+            response: result.response,
+            expectedAnswer: result.expected_response,
+            artifact: result.artifact_type
+                ? {
+                      artifactType: result.artifact_type,
+                      chartConfig: result.chart_config,
+                      dashboardConfig: result.dashboard_config,
+                      title: result.title,
+                      description: result.description,
+                  }
+                : null,
         };
     }
 

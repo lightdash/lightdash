@@ -7355,11 +7355,79 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AssessmentType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['human'] },
+                { dataType: 'enum', enums: ['llm'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiEvalRunResultAssessment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                createdAt: { dataType: 'datetime', required: true },
+                assessedAt: { dataType: 'datetime', required: true },
+                llmJudgeModel: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                llmJudgeProvider: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                assessedByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                passed: { dataType: 'boolean', required: true },
+                assessmentType: { ref: 'AssessmentType', required: true },
+                runResultUuid: { dataType: 'string', required: true },
+                assessmentUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentEvaluationRunResult: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                assessment: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiEvalRunResultAssessment' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdAt: { dataType: 'datetime', required: true },
                 completedAt: {
                     dataType: 'union',
@@ -7383,6 +7451,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['pending'] },
                         { dataType: 'enum', enums: ['running'] },
                         { dataType: 'enum', enums: ['completed'] },
+                        { dataType: 'enum', enums: ['assessing'] },
                         { dataType: 'enum', enums: ['failed'] },
                     ],
                     required: true,

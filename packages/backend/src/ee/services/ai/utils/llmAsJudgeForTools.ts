@@ -20,9 +20,9 @@ import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
-import { DbAiAgentToolCall } from '../../../../../database/entities/ai';
-import { getOpenaiGptmodel } from '../../../models/openai-gpt';
-import { defaultAgentOptions } from '../../agent';
+import { DbAiAgentToolCall } from '../../../database/entities/ai';
+import { defaultAgentOptions } from '../agents/agent';
+import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
