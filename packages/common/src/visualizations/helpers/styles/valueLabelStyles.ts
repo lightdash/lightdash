@@ -28,7 +28,7 @@ export const getValueLabelStyle = (
         return {
             ...base,
             textBorderColor: WHITE,
-            textBorderWidth: 2,
+            textBorderWidth: 1.5,
             textBorderType: 'solid',
         };
     }
