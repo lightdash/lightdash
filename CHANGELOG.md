@@ -1,3 +1,10 @@
+## [0.2131.4](https://github.com/lightdash/lightdash/compare/0.2131.3...0.2131.4) (2025-11-04)
+
+
+### Bug Fixes
+
+* do not break early on trino query ([#17815](https://github.com/lightdash/lightdash/issues/17815)) ([ed16a5b](https://github.com/lightdash/lightdash/commit/ed16a5bf021d3f255b8e224d399f45533c19d6c9)), closes [#17721](https://github.com/lightdash/lightdash/issues/17721)
+
 ## [0.2131.3](https://github.com/lightdash/lightdash/compare/0.2131.2...0.2131.3) (2025-11-04)
 
 
