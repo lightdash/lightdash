@@ -1,6 +1,7 @@
 import {
     LightdashUser,
     OrganizationMemberRole,
+    ScimRoleType,
     ScimSchemaType,
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
@@ -64,7 +65,7 @@ describe('ScimService', () => {
                     {
                         value: OrganizationMemberRole.ADMIN,
                         display: OrganizationMemberRole.ADMIN,
-                        type: 'organization',
+                        type: ScimRoleType.ORG,
                         primary: true,
                     },
                 ],
