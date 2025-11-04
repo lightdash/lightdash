@@ -2,6 +2,7 @@ import {
     Button,
     Card,
     Loader,
+    Modal,
     MultiSelect,
     Pill,
     ScrollArea,
@@ -217,6 +218,17 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     radius: 'md',
                 },
+            }),
+            Modal: Modal.extend({
+                styles: () => ({
+                    header: {
+                        borderBottom: `1px solid var(--mantine-color-gray-4)`,
+                        paddingBottom: 'var(--mantine-spacing-sm)',
+                    },
+                    body: {
+                        paddingTop: 'var(--mantine-spacing-sm)',
+                    },
+                }),
             }),
             ...overrides?.components,
         },

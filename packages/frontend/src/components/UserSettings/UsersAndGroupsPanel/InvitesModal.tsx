@@ -7,13 +7,14 @@ import {
     Button,
     Group,
     Modal,
+    Paper,
     Select,
     TextInput,
     Title,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import useApp from '../../../providers/App/useApp';
@@ -66,7 +67,9 @@ const InvitesModal: FC<{
             onClose={onClose}
             title={
                 <Group gap="xs">
-                    <MantineIcon size="lg" icon={IconUser} />
+                    <Paper p="xxs" withBorder>
+                        <MantineIcon icon={IconUser} />
+                    </Paper>
                     <Title order={4}>Add user</Title>
                 </Group>
             }

@@ -9,14 +9,15 @@ import {
     Loader,
     Modal,
     MultiSelect,
+    Paper,
     Stack,
     TextInput,
     Title,
     type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
-import React, { useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import {
     useGroupCreateMutation,
     useGroupUpdateMutation,
@@ -87,8 +88,10 @@ const CreateGroupModal: FC<
             opened={opened}
             onClose={onClose}
             title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconUsersGroup} />
+                <Group gap="xs">
+                    <Paper p="xxs" withBorder>
+                        <MantineIcon size="lg" icon={IconUsersGroup} />
+                    </Paper>
                     <Title order={4}>
                         {isEditing
                             ? `Editing ${groupToEdit?.name}`
@@ -119,13 +122,14 @@ const CreateGroupModal: FC<
                         {...form.getInputProps('name')}
                     />
                     <MultiSelect
-                        withinPortal
+                        comboboxProps={{
+                            withinPortal: true,
+                            position: 'bottom',
+                        }}
                         searchable
-                        clearSearchOnChange
-                        clearSearchOnBlur
                         label="Group members"
                         placeholder="Add users to this group"
-                        nothingFound="No users found"
+                        nothingFoundMessage="No users found"
                         rightSection={isLoadingUsers && <Loader size="sm" />}
                         data={users}
                         value={
@@ -138,19 +142,12 @@ const CreateGroupModal: FC<
                                 })),
                             });
                         }}
-                        styles={{
-                            values: {
-                                maxHeight: 200,
-                                overflow: 'auto',
-                            },
-                        }}
-                        dropdownPosition="top"
                     />
 
                     <Button
                         disabled={isLoading || !form.isDirty()}
                         type="submit"
-                        sx={{ alignSelf: 'end' }}
+                        style={{ alignSelf: 'end' }}
                     >
                         {isEditing ? 'Save' : 'Create group'}
                     </Button>
