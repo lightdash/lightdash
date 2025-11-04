@@ -6,7 +6,8 @@ import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
 export async function generateEmbedding(
     text: string,
     config: LightdashConfig,
-): Promise<number[] | null> {
+    metadata: Record<string, string> = {},
+): Promise<number[]> {
     const openaiConfig = config.ai.copilot?.providers?.openai;
     if (!openaiConfig) {
         throw new ParameterError(
@@ -18,6 +19,13 @@ export async function generateEmbedding(
     const { embedding } = await embed({
         model,
         value: text.trim(),
+        experimental_telemetry: {
+            functionId: 'generateEmbedding',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
     });
 
     return embedding;

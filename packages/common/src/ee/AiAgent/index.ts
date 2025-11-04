@@ -160,6 +160,7 @@ export type AiAgentMessageAssistant = {
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
+    referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -393,6 +394,8 @@ export type AiArtifact = {
         | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
+    verifiedByUserUuid: string | null;
+    verifiedAt: Date | null;
 };
 
 export type AiArtifactTSOACompat = Omit<
