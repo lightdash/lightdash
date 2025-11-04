@@ -294,6 +294,8 @@ import {
 import {
     AiEvalPromptTable,
     AiEvalPromptTableName,
+    AiEvalRunResultAssessmentTable,
+    AiEvalRunResultAssessmentTableName,
     AiEvalRunResultTable,
     AiEvalRunResultTableName,
     AiEvalRunTable,
@@ -423,6 +425,7 @@ declare module 'knex/types/tables' {
         [AiEvalPromptTableName]: AiEvalPromptTable;
         [AiEvalRunTableName]: AiEvalRunTable;
         [AiEvalRunResultTableName]: AiEvalRunResultTable;
+        [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
         [ChangesetsTableName]: ChangesetsTable;
         [ChangesTableName]: ChangesTable;
     }
