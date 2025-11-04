@@ -481,8 +481,7 @@ export class UserModel {
             .delete();
     }
 
-    private async getUserProjectRoles(
-        userId: number,
+    async getUserProjectRoles(
         userUuid: string,
     ): Promise<
         Pick<
@@ -496,8 +495,9 @@ export class UserModel {
                 'project_memberships.project_id',
                 'projects.project_id',
             )
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select('*')
-            .where('user_id', userId);
+            .where('users.user_uuid', userUuid);
 
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
@@ -578,7 +578,7 @@ export class UserModel {
         const [hasAuthentication, projectRoles, groupProjectRoles] =
             await Promise.all([
                 this.hasAuthentication(user.user_uuid),
-                this.getUserProjectRoles(user.user_id, user.user_uuid),
+                this.getUserProjectRoles(user.user_uuid),
                 this.getUserGroupProjectRoles(
                     user.user_id,
                     user.organization_id,
