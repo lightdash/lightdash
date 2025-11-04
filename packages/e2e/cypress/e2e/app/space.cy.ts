@@ -40,7 +40,9 @@ describe('Space', () => {
         cy.get('[data-testid="Space/AddButton"]').click();
         cy.contains('Create new chart').click();
         cy.contains(/^Orders$/).click();
+        cy.scrollTreeToItem('Total order amount');
         cy.contains('Total order amount').click();
+        cy.scrollTreeToItem('Status');
         cy.contains('Status').click();
         cy.contains('Save chart').click();
         cy.contains('Chart name');
