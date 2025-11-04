@@ -1,8 +1,12 @@
 import {
+    formatColorIndicator,
     formatItemValue,
+    formatTooltipRow,
+    formatTooltipValue,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
     getLegendStyle,
+    getTooltipStyle,
     type Metric,
     type ResultRow,
     type ResultValue,
@@ -86,6 +90,7 @@ const useEchartsFunnelConfig = (
 
         return {
             type: 'funnel',
+            gap: 3,
             data: seriesData.map(({ name, value, meta }) => {
                 return {
                     name: labelOverrides?.[name] ?? name,
@@ -99,7 +104,7 @@ const useEchartsFunnelConfig = (
             color: colorPalette,
             tooltip: {
                 trigger: 'item',
-                formatter: ({ marker, name, value }) => {
+                formatter: ({ color, name, value }) => {
                     const { formattedValue, percentOfMax } =
                         getValueAndPercentage({
                             field: selectedField,
@@ -108,7 +113,14 @@ const useEchartsFunnelConfig = (
                             parameters,
                         });
 
-                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent: ${percentOfMax}%`;
+                    const colorIndicator = formatColorIndicator(
+                        typeof color === 'string' ? color : '',
+                    );
+                    const valuePill = formatTooltipValue(
+                        `${percentOfMax}% - ${formattedValue}`,
+                    );
+
+                    return formatTooltipRow(colorIndicator, name, valuePill);
                 },
             },
             top:
@@ -150,50 +162,65 @@ const useEchartsFunnelConfig = (
                 },
             },
             emphasis: {
-                label: {
-                    fontSize: 18,
-                },
+                disabled: true,
             },
         };
     }, [chartConfig, colorPalette, seriesData, parameters]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
-    const eChartsOptions: EChartsOption | undefined = useMemo(() => {
-        if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
+    const legendConfigWithTooltip = useMemo(() => {
+        if (!chartConfig) return undefined;
 
         const {
             validConfig: { showLegend, legendPosition },
         } = chartConfig;
 
+        const legendStyle = getLegendStyle('square');
+
+        const legendConfig = {
+            show: showLegend,
+            orient: legendPosition,
+            type: 'scroll' as const,
+            ...(legendPosition === FunnelChartLegendPosition.VERTICAL
+                ? {
+                      left: 'left' as const,
+                      top: 'middle' as const,
+                      align: 'left' as const,
+                  }
+                : {
+                      left: 'center' as const,
+                      top: 'top' as const,
+                      align: 'auto' as const,
+                  }),
+            selected: selectedLegends,
+        };
+
         return {
+            ...legendConfig,
+            ...legendStyle,
+            tooltip: legendDoubleClickTooltip,
+        };
+    }, [chartConfig, legendDoubleClickTooltip, selectedLegends]);
+
+    const eChartsOptions: EChartsOption | undefined = useMemo(() => {
+        if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
+
+        const baseOptions = {
             textStyle: {
                 fontFamily: theme?.other.chartFont as string | undefined,
             },
             tooltip: {
-                trigger: 'item',
+                ...getTooltipStyle(),
+                trigger: 'item' as const,
             },
             series: [funnelSeriesOptions],
             animation: !isInDashboard,
-            legend: {
-                show: showLegend,
-                orient: legendPosition,
-                type: 'scroll',
-                ...getLegendStyle('square'),
-                ...(legendPosition === FunnelChartLegendPosition.VERTICAL
-                    ? {
-                          left: 'left',
-                          top: 'middle',
-                          align: 'left',
-                      }
-                    : {
-                          left: 'center',
-                          top: 'top',
-                          align: 'auto',
-                      }),
-                selected: selectedLegends,
-                tooltip: legendDoubleClickTooltip,
-            },
+        };
+
+        return {
+            ...baseOptions,
+            legend: legendConfigWithTooltip,
         };
     }, [
         chartConfig,
@@ -201,8 +228,7 @@ const useEchartsFunnelConfig = (
         seriesData,
         isInDashboard,
         theme,
-        legendDoubleClickTooltip,
-        selectedLegends,
+        legendConfigWithTooltip,
     ]);
 
     if (!itemsMap) return;
