@@ -3036,6 +3036,7 @@ export class AiAgentModel {
                     assessed_at: Date | null;
                     assessment_created_at: Date | null;
                     prompt: string | null;
+                    expected_response: string | null;
                 }
             >(
                 `${AiEvalRunResultTableName}.*`,
@@ -3051,6 +3052,7 @@ export class AiAgentModel {
                 this.database.raw(
                     `COALESCE(${AiEvalPromptTableName}.prompt, first_prompts.first_prompt) as prompt`,
                 ),
+                `${AiEvalPromptTableName}.expected_response`,
             )
             .first();
 
@@ -3069,6 +3071,7 @@ export class AiAgentModel {
             completedAt: result.completed_at,
             createdAt: result.created_at,
             prompt: result.prompt,
+            expectedResponse: result.expected_response,
             assessment:
                 result.assessment_uuid &&
                 result.assessment_type &&
@@ -3262,6 +3265,7 @@ export class AiAgentModel {
                 > &
                     Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'> & {
                         prompt: string | null;
+                        expected_response: string | null;
                         assessment_uuid: string | null;
                         assessment_type: 'human' | 'llm' | null;
                         passed: boolean | null;
@@ -3283,6 +3287,7 @@ export class AiAgentModel {
                 this.database.raw(
                     `COALESCE(${AiEvalPromptTableName}.prompt, first_prompts.first_prompt) as prompt`,
                 ),
+                `${AiEvalPromptTableName}.expected_response`,
                 `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_assessment_uuid as assessment_uuid`,
                 `${AiEvalRunResultAssessmentTableName}.assessment_type`,
                 `${AiEvalRunResultAssessmentTableName}.passed`,
@@ -3308,6 +3313,7 @@ export class AiAgentModel {
                 completedAt: result.completed_at,
                 createdAt: result.created_at,
                 prompt: result.prompt,
+                expectedResponse: result.expected_response,
                 assessment:
                     result.assessment_uuid &&
                     result.assessment_type &&

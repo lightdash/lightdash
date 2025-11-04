@@ -1,4 +1,12 @@
-import { Badge, Box, Divider, Group, Loader, Text } from '@mantine-8/core';
+import {
+    Badge,
+    Box,
+    Divider,
+    Group,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import { IconCheck, IconClipboardList, IconX } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -27,10 +35,13 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
         evalUuid,
         runUuid,
     );
-    const assessment = useMemo(() => {
-        if (!data?.results || !threadUuid) return null;
+    const { assessment, expectedResponse } = useMemo(() => {
+        if (!data?.results) return { assessment: null, expectedResponse: null };
         const result = data.results.find((r) => r.threadUuid === threadUuid);
-        return result?.assessment ?? null;
+        return {
+            assessment: result?.assessment ?? null,
+            expectedResponse: result?.expectedResponse ?? null,
+        };
     }, [data?.results, threadUuid]);
 
     if (isLoading)
@@ -87,6 +98,20 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                         >
                             {assessment.reason}
                         </Text>
+                    )}
+                    {expectedResponse && (
+                        <Stack gap={2} mt="sm">
+                            <Text size="xs" fw={600} c="dimmed">
+                                Expected Response
+                            </Text>
+                            <Text
+                                size="xs"
+                                style={{ whiteSpace: 'pre-wrap' }}
+                                fs="italic"
+                            >
+                                {expectedResponse}
+                            </Text>
+                        </Stack>
                     )}
                 </ToolCallPaper>
             </Box>

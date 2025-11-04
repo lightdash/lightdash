@@ -468,6 +468,7 @@ export type AiAgentEvaluationRunResult = {
     createdAt: Date;
     assessment: AiEvalRunResultAssessment | null;
     prompt: string | null;
+    expectedResponse: string | null;
 };
 
 /**
