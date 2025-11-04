@@ -1,3 +1,15 @@
+# [0.2138.0](https://github.com/lightdash/lightdash/compare/0.2137.0...0.2138.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* don't refetch query on results and custom metrics dialogue toggles ([#17825](https://github.com/lightdash/lightdash/issues/17825)) ([6a6a02a](https://github.com/lightdash/lightdash/commit/6a6a02a62e2effcc8f762e8f39f92bac7fa8b014))
+
+
+### Features
+
+* add roles attribute to SCIM User schema ([#17822](https://github.com/lightdash/lightdash/issues/17822)) ([80e60d6](https://github.com/lightdash/lightdash/commit/80e60d6d3cf51da93d475b176705d6087b4c7b12))
+
 # [0.2137.0](https://github.com/lightdash/lightdash/compare/0.2136.0...0.2137.0) (2025-11-04)
 
 
