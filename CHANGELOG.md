@@ -1,3 +1,10 @@
+## [0.2135.2](https://github.com/lightdash/lightdash/compare/0.2135.1...0.2135.2) (2025-11-04)
+
+
+### Bug Fixes
+
+* use correct table reference and add search operators in MCP service ([#17834](https://github.com/lightdash/lightdash/issues/17834)) ([f2bdd40](https://github.com/lightdash/lightdash/commit/f2bdd4031da5c3ae51d9b8b5ffbe2b5b687f3296))
+
 ## [0.2135.1](https://github.com/lightdash/lightdash/compare/0.2135.0...0.2135.1) (2025-11-04)
 
 
