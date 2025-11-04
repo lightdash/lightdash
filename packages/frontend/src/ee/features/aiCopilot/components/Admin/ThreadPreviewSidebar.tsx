@@ -21,6 +21,7 @@ import {
 } from '../../store/hooks';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { EvalAssessmentDisplay } from '../Evals/EvalAssessmentDisplay';
 
 type ThreadPreviewSidebarProps = {
     projectUuid: string;
@@ -30,6 +31,8 @@ type ThreadPreviewSidebarProps = {
     onClose: () => void;
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
+    evalUuid?: string;
+    runUuid?: string;
 };
 
 export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
@@ -40,6 +43,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     onClose,
     renderArtifactsInline = false,
     showAddToEvalsButton = false,
+    evalUuid,
+    runUuid,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const aiArtifact = useAiAgentStoreSelector(
@@ -109,6 +114,16 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             </Group>
 
             <Divider />
+
+            {evalUuid && runUuid && (
+                <EvalAssessmentDisplay
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    evalUuid={evalUuid}
+                    runUuid={runUuid}
+                    threadUuid={threadUuid}
+                />
+            )}
 
             {threadData && (
                 <>
