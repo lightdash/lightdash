@@ -60,24 +60,6 @@ export type FindFieldFn = (
     pagination: Pagination | undefined;
 }>;
 
-export type FindDashboardsFn = (
-    args: KnexPaginateArgs & {
-        dashboardSearchQuery: ToolFindDashboardsArgs['dashboardSearchQueries'][number];
-    },
-) => Promise<{
-    dashboards: DashboardSearchResult[];
-    pagination: Pagination | undefined;
-}>;
-
-export type FindChartsFn = (
-    args: KnexPaginateArgs & {
-        chartSearchQuery: ToolFindChartsArgs['chartSearchQueries'][number];
-    },
-) => Promise<{
-    charts: AllChartsSearchResult[];
-    pagination: Pagination | undefined;
-}>;
-
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
 }) => Promise<{

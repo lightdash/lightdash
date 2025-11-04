@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
@@ -59,7 +58,6 @@ import {
     ModelMessage,
     ToolCallPart,
     ToolModelMessage,
-    ToolResultPart,
     UserModelMessage,
 } from 'ai';
 import _ from 'lodash';
@@ -116,9 +114,7 @@ import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     CreateChangeFn,
-    FindChartsFn,
     FindContentFn,
-    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -2157,63 +2153,6 @@ export class AiAgentService {
             );
         };
 
-        const findDashboards: FindDashboardsFn = async (args) =>
-            wrapSentryTransaction('AiAgent.findDashboards', args, async () => {
-                const searchResults = await this.searchModel.searchDashboards(
-                    projectUuid,
-                    args.dashboardSearchQuery.label,
-                    undefined,
-                    'OR',
-                );
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        searchResults,
-                    );
-
-                const totalResults = filteredResults.length;
-                const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-                return {
-                    dashboards: filteredResults,
-                    pagination: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                        totalPageCount,
-                        totalResults,
-                    },
-                };
-            });
-
-        const findCharts: FindChartsFn = (args) =>
-            wrapSentryTransaction('AiAgent.findCharts', args, async () => {
-                const allCharts = await this.searchModel.searchAllCharts(
-                    projectUuid,
-                    args.chartSearchQuery.label,
-                    'OR',
-                );
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        allCharts,
-                    );
-
-                const totalResults = filteredResults.length;
-                const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-                return {
-                    charts: filteredResults,
-                    pagination: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                        totalPageCount,
-                        totalResults,
-                    },
-                };
-            });
-
         const findContent: FindContentFn = async (args) =>
             wrapSentryTransaction('AiAgent.findContent', args, async () => {
                 const dashboardSearchResults =
@@ -2319,8 +2258,6 @@ export class AiAgentService {
         return {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -2397,8 +2334,6 @@ export class AiAgentService {
         const {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -2449,8 +2384,6 @@ export class AiAgentService {
         const dependencies: AiAgentDependencies = {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
