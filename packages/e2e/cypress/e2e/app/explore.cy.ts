@@ -11,12 +11,15 @@ describe('Explore', () => {
 
         cy.findByText('Orders').click();
         cy.findByText('Dimensions').should('exist');
+        cy.scrollTreeToItem('Order Customer');
         cy.findByText('Order Customer').click();
 
         // ! Tests run with auto-fetch enabled, so a query runs after each change in the explorer (e.g. clicking a field)
         // ! This means that right after clicking a field the default sort is applied
         // ! Since we check attempt to set the order to "First name" we need to click on a different field first, otherwise the sort for first name is applied and the test fails
+        cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
 
         // open column menu
@@ -48,8 +51,11 @@ describe('Explore', () => {
 
         cy.findByText('Orders').click();
         cy.findByText('Dimensions');
+        cy.scrollTreeToItem('Order Customer');
         cy.findByText('Order Customer').click();
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
+        cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
 
         cy.findByTestId('Chart-card-expand').click();
@@ -68,9 +74,14 @@ describe('Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         cy.findByText('Edit chart').parent().click();
-        cy.wait(200);
-        cy.findByText('Configure').click();
-        cy.findByText('Bar chart').click(); // Change chart type
+        cy.wait(500); // Wait for edit mode to fully load
+        cy.findByText('Configure', { timeout: 10000 })
+            .should('be.visible')
+            .click();
+        cy.wait(300); // Wait for configure panel to open
+        cy.findByText('Bar chart', { timeout: 10000 })
+            .should('be.visible')
+            .click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
 
         // cy.findByText('Save changes').parent().should('not.be.disabled');
@@ -85,8 +96,11 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
+        cy.scrollTreeToItem('Order Customer');
         cy.findByText('Order Customer').click();
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
+        cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
 
         // check that selected fields are in the table headers
@@ -144,15 +158,28 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields
+        cy.scrollTreeToItem('Order Customer');
         cy.findByText('Order Customer').click();
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
+        cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
 
         // add table calculation
         cy.get('button').contains('Table calculation').click();
+
+        // Wait for the modal to fully render and stabilize
+        cy.wait(300);
+
+        // Focus the input explicitly and wait for it to be ready
         cy.findByTestId('table-calculation-name-input')
+            .should('be.visible')
+            .should('not.be.disabled')
+            .focus()
             .clear()
-            .type('TC')
+            .wait(100) // Small wait after clear
+            .type('TC', { delay: 50 }) // Slower typing to avoid race conditions
+            .should('have.value', 'TC') // Verify it was typed correctly
             .blur();
         // Ensure focus moves to ace editor before typing - Firefox needs explicit focus
         cy.wait(100); // Small wait for Firefox focus handling
@@ -207,8 +234,11 @@ describe('Explore', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         cy.findByTestId('page-spinner').should('not.exist');
 
+        cy.scrollTreeToItem('Order Customer');
         cy.findByText('Order Customer').click();
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
+        cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
 
         // run query
@@ -233,8 +263,11 @@ describe('Explore', () => {
 
             cy.findByText('Orders').click();
             cy.findByText('Dimensions');
+            cy.scrollTreeToItem('Order Customer');
             cy.findByText('Order Customer').click();
+            cy.scrollTreeToItem('First name');
             cy.findByText('First name').click();
+            cy.scrollTreeToItem('Unique order count');
             cy.findByText('Unique order count').click();
 
             // run query
@@ -309,8 +342,11 @@ describe('Explore', () => {
                     );
 
                     // choose table and select fields
+                    cy.scrollTreeToItem('Order Customer');
                     cy.findByText('Order Customer').click();
+                    cy.scrollTreeToItem('First name');
                     cy.findByText('First name').click();
+                    cy.scrollTreeToItem('Unique order count');
                     cy.findByText('Unique order count').click();
 
                     // run query
@@ -351,8 +387,11 @@ describe('Explore', () => {
                     );
 
                     // choose table and select fields
+                    cy.scrollTreeToItem('Order Customer');
                     cy.findByText('Order Customer').click();
+                    cy.scrollTreeToItem('First name');
                     cy.findByText('First name').click();
+                    cy.scrollTreeToItem('Unique order count');
                     cy.findByText('Unique order count').click();
 
                     // run query
@@ -394,6 +433,7 @@ describe('Explore', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         cy.findByText('Orders').click();
+        cy.scrollTreeToItem('Is completed');
         cy.findByText('Is completed').click();
 
         // open SQL
@@ -419,6 +459,7 @@ describe('Explore', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         cy.findByText('Orders').click();
+        cy.scrollTreeToItem('Is completed');
         cy.findByText('Is completed').click();
 
         // run query
@@ -453,6 +494,7 @@ describe('Explore', () => {
             .type('First name');
 
         // Select some fields to query
+        cy.scrollTreeToItem('First name');
         cy.findByText('First name').click();
 
         // Run the query
@@ -482,8 +524,13 @@ describe('Explore', () => {
         // Wait for the explore page to load
         cy.findByText('Dimensions').should('exist');
 
+        // Scroll to the Dimensions section header (which has the Add Custom Dimension button)
+        cy.scrollTreeToItem('Dimensions');
+
         // Click the Add Custom Dimension button
-        cy.findByTestId('TableTreeSections/AddCustomDimensionButton').click();
+        cy.findByTestId(
+            'VirtualSectionHeader/AddCustomDimensionButton',
+        ).click();
 
         cy.findByTestId('CustomSqlDimensionModal/LabelInput').type(
             'A custom dimension',
