@@ -238,6 +238,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     return (
         <ErrorBoundary>
             <VisualizationProvider
+                key={savedChart?.uuid}
                 chartConfig={unsavedChartVersion.chartConfig}
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
