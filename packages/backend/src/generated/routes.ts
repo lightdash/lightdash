@@ -250,6 +250,22 @@ const models: TsoaRoute.Models = {
         enums: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimRoleType: {
+        dataType: 'refEnum',
+        enums: ['ORG_SYSTEM', 'PROJECT_SYSTEM', 'PROJECT_CUSTOM'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ScimUserRole: {
+        dataType: 'refObject',
+        properties: {
+            value: { dataType: 'string', required: true },
+            display: { dataType: 'string' },
+            type: { ref: 'ScimRoleType' },
+            primary: { dataType: 'boolean' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LightdashScimExtension: {
         dataType: 'refObject',
         properties: {
@@ -295,6 +311,10 @@ const models: TsoaRoute.Models = {
                         value: { dataType: 'string', required: true },
                     },
                 },
+            },
+            roles: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'ScimUserRole' },
             },
             'urn:lightdash:params:scim:schemas:extension:2.0:User': {
                 ref: 'LightdashScimExtension',
@@ -433,6 +453,19 @@ const models: TsoaRoute.Models = {
                                         required: true,
                                     },
                                 },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                roles: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refObject',
+                                ref: 'ScimUserRole',
                             },
                         },
                         { dataType: 'undefined' },
@@ -861,11 +894,6 @@ const models: TsoaRoute.Models = {
     'ScimSchemaType.ROLE': {
         dataType: 'refEnum',
         enums: ['urn:ietf:params:scim:schemas:extension:2.0:Role'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ScimRoleType: {
-        dataType: 'refEnum',
-        enums: ['ORG_SYSTEM', 'PROJECT_SYSTEM', 'PROJECT_CUSTOM'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ScimRole: {

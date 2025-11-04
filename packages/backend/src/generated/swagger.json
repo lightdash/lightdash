@@ -143,6 +143,29 @@
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
             },
+            "ScimRoleType": {
+                "enum": ["ORG_SYSTEM", "PROJECT_SYSTEM", "PROJECT_CUSTOM"],
+                "type": "string"
+            },
+            "ScimUserRole": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "display": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ScimRoleType"
+                    },
+                    "primary": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["value"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "LightdashScimExtension": {
                 "properties": {
                     "role": {
@@ -214,6 +237,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimUserRole"
                         },
                         "type": "array"
                     },
@@ -343,6 +372,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimUserRole"
                         },
                         "type": "array"
                     },
@@ -854,10 +889,6 @@
             },
             "ScimSchemaType.ROLE": {
                 "enum": ["urn:ietf:params:scim:schemas:extension:2.0:Role"],
-                "type": "string"
-            },
-            "ScimRoleType": {
-                "enum": ["ORG_SYSTEM", "PROJECT_SYSTEM", "PROJECT_CUSTOM"],
                 "type": "string"
             },
             "ScimRole": {
