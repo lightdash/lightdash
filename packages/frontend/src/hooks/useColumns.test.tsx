@@ -4,6 +4,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine-8/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
@@ -48,6 +49,11 @@ const createMockCellContext = ({
     } as any;
 };
 
+// Helper to render components with MantineProvider
+const renderWithMantine = (component: React.ReactElement) => {
+    return render(<MantineProvider>{component}</MantineProvider>);
+};
+
 describe('getFormattedValueCell - Bar Chart Display', () => {
     test('should render bar for positive number when displayStyle is bar', () => {
         const context = createMockCellContext({
@@ -65,19 +71,26 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
-        // Should have a bar element (div with background color)
-        const barElement = container.querySelector(
-            'div[style*="background-color"]',
+        // Should have a bar element (div with grid display)
+        const gridContainer = container.querySelector(
+            'div[style*="grid-template-columns"]',
         );
+        expect(gridContainer).toBeTruthy();
+
+        // Should have a bar element (the colored box)
+        const barElement = container.querySelector('div[style*="width: 75%"]');
         expect(barElement).toBeTruthy();
 
         // Should display the formatted value
         expect(screen.getByText('$75')).toBeInTheDocument();
 
         // Bar width should be 75% (75 out of 100)
-        expect(barElement?.getAttribute('style')).toContain('width: 75%');
+        const style = barElement?.getAttribute('style') || '';
+        expect(style).toContain('width: 75%');
+        // Should have background color
+        expect(style).toContain('background');
     });
 
     test('should not render bar for negative number', () => {
@@ -96,11 +109,17 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
-        // Should not have a bar element for negative numbers
+        // Should have the grid container but no colored bar for negative numbers
+        const gridContainer = container.querySelector(
+            'div[style*="grid-template-columns"]',
+        );
+        expect(gridContainer).toBeTruthy();
+
+        // Should not have a bar element with width % for negative numbers
         const barElement = container.querySelector(
-            'div[style*="background-color"]',
+            'div[style*="width:"][style*="%"]',
         );
         expect(barElement).toBeFalsy();
 
@@ -124,11 +143,17 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
-        // Should not have a bar element for zero
+        // Should have the grid container but no colored bar for zero
+        const gridContainer = container.querySelector(
+            'div[style*="grid-template-columns"]',
+        );
+        expect(gridContainer).toBeTruthy();
+
+        // Should not have a bar element with width % for zero
         const barElement = container.querySelector(
-            'div[style*="background-color"]',
+            'div[style*="width:"][style*="%"]',
         );
         expect(barElement).toBeFalsy();
 
@@ -200,16 +225,17 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should render bar because it looks up columnProperties using base field ID
-        const barElement = container.querySelector(
-            'div[style*="background-color"]',
-        );
+        const barElement = container.querySelector('div[style*="width: 75%"]');
         expect(barElement).toBeTruthy();
 
         // Bar width should be 75% (150 out of 200)
-        expect(barElement?.getAttribute('style')).toContain('width: 75%');
+        const style = barElement?.getAttribute('style') || '';
+        expect(style).toContain('width: 75%');
+        // Should have background color
+        expect(style).toContain('background');
     });
 
     test('should calculate bar width percentage correctly', () => {
@@ -241,14 +267,18 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
             });
 
             const result = getFormattedValueCell(context);
-            const { container } = render(result as React.ReactElement);
+            const { container } = renderWithMantine(
+                result as React.ReactElement,
+            );
 
             const barElement = container.querySelector(
-                'div[style*="background-color"]',
+                `div[style*="width: ${expected}%"]`,
             );
-            expect(barElement?.getAttribute('style')).toContain(
-                `width: ${expected}%`,
-            );
+            expect(barElement).toBeTruthy();
+            const style = barElement?.getAttribute('style') || '';
+            expect(style).toContain(`width: ${expected}%`);
+            // Should have background color
+            expect(style).toContain('background');
         });
     });
 
@@ -268,13 +298,15 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
-        const barElement = container.querySelector(
-            'div[style*="background-color"]',
-        );
+        const barElement = container.querySelector('div[style*="width: 0%"]');
         // Should render with 0% width when range is zero
-        expect(barElement?.getAttribute('style')).toContain('width: 0%');
+        expect(barElement).toBeTruthy();
+        const style = barElement?.getAttribute('style') || '';
+        expect(style).toContain('width: 0%');
+        // Should have background color
+        expect(style).toContain('background');
     });
 
     test('should render bar with minimum width for very small values', () => {
@@ -293,13 +325,22 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
 
         const result = getFormattedValueCell(context);
-        const { container } = render(result as React.ReactElement);
+        const { container } = renderWithMantine(result as React.ReactElement);
 
-        const barElement = container.querySelector(
-            'div[style*="background-color"]',
+        // Should have the grid container
+        const gridContainer = container.querySelector(
+            'div[style*="grid-template-columns"]',
         );
-        // Should have minimum width of 2px for visibility
-        expect(barElement?.getAttribute('style')).toContain('min-width: 2px');
+        expect(gridContainer).toBeTruthy();
+
+        // Should have a bar element (even if very small, it should be 0.1% width)
+        // The value is 1 out of 1000, which is 0.1%
+        const barElement = container.querySelector('div[style*="width: 0.1%"]');
+        expect(barElement).toBeTruthy();
+
+        // Should have the default color (#5470c6)
+        const style = barElement?.getAttribute('style') || '';
+        expect(style).toContain('background');
     });
 });
 

@@ -47,7 +47,7 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
-import { renderBarChartDisplay } from './barChartDisplay';
+import { TableCellBar } from './TableCellBar';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
@@ -144,12 +144,9 @@ const formatBarDisplayCell = (
     const min = minMax?.min ?? 0;
     const max = minMax?.max ?? 100;
 
-    return renderBarChartDisplay({
-        value,
-        formatted,
-        min,
-        max,
-    });
+    return (
+        <TableCellBar value={value} formatted={formatted} min={min} max={max} />
+    );
 };
 
 export const getFormattedValueCell = (

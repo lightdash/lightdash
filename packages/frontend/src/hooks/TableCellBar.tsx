@@ -1,9 +1,6 @@
-/**
- * Renders a bar chart display for positive numeric values in table cells.
- */
-import { type ReactElement } from 'react';
+import { Box, Text } from '@mantine-8/core';
 
-type BarChartDisplayProps = {
+type TableCellBarProps = {
     value: number;
     formatted: string;
     min: number;
@@ -11,13 +8,13 @@ type BarChartDisplayProps = {
     color?: string;
 };
 
-export const renderBarChartDisplay = ({
+export const TableCellBar = ({
     value,
     formatted,
     min,
     max,
     color = '#5470c6',
-}: BarChartDisplayProps): ReactElement => {
+}: TableCellBarProps) => {
     // Calculate bar width percentage
     const range = max - min;
     const percentage =
@@ -29,25 +26,30 @@ export const renderBarChartDisplay = ({
     const showBar = value > 0;
 
     return (
-        <div
+        <Box
             style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '4px',
             }}
         >
             {showBar && (
-                <div
+                <Box
+                    h="20px"
+                    w={`${percentage}%`}
+                    bg={color}
+                    maw="100%"
+                    // Always show visible bar for positive values
+                    miw="2px"
                     style={{
-                        width: `${percentage}%`,
-                        minWidth: '2px', // Always show visible bar for positive values
-                        height: '20px',
-                        backgroundColor: color,
                         borderRadius: '2px',
                     }}
                 />
             )}
-            <span style={{ whiteSpace: 'nowrap' }}>{formatted}</span>
-        </div>
+            <Text span style={{ whiteSpace: 'nowrap' }} fz="xs">
+                {formatted}
+            </Text>
+        </Box>
     );
 };
