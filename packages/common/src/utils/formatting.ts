@@ -192,17 +192,8 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const round = format?.round;
 
     if (round === undefined) {
-        // If the format is a currency format, set the currency options and keep default decimal places
-        if (hasCurrency) {
-            return currencyOptions;
-        }
-
-        // If the format is a number format, set the maximum fraction digits to 0
-        if (format?.type === CustomFormatType.NUMBER) {
-            return { maximumFractionDigits: 0 };
-        }
-
-        return {};
+        // When round is not defined, keep up to 3 decimal places
+        return hasCurrency ? currencyOptions : {};
     }
 
     if (round < 0) {
@@ -625,7 +616,7 @@ const customFormatConversionFnMap: Record<
         return formatExpression;
     },
     round: (formatExpression, format) => {
-        let round = 2;
+        let round: number | null = 2;
         if (format.round !== undefined) {
             round = format.round;
         } else if (
@@ -641,8 +632,14 @@ const customFormatConversionFnMap: Record<
                 ? mockCurrencyValue.split('.')[1].length
                 : 0;
         } else if (format.type === CustomFormatType.NUMBER) {
-            round = 0;
+            round = null;
         }
+
+        if (round === null) {
+            // Formatting with null round means we want to show up to 3 decimal places
+            return `${formatExpression}.###`;
+        }
+
         if (round > 0) {
             return `${formatExpression}.${'0'.repeat(round)}`;
         }
