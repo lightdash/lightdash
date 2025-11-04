@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { lazy, memo, Suspense, useEffect } from 'react';
+import { lazy, memo, Suspense, useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
@@ -9,7 +9,7 @@ import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
-    explorerStore,
+    createExplorerStore,
     useExplorerInitialization,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
@@ -78,6 +78,10 @@ const SavedExplorer = () => {
         id: savedQueryUuid,
     });
 
+    // Create a fresh store instance per chart to prevent state leaking between charts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
+
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
         // so we can show the banner + the user can navigate back to the dashboard easily
@@ -101,7 +105,7 @@ const SavedExplorer = () => {
     }
 
     return (
-        <Provider store={explorerStore} key={`saved-${savedQueryUuid}-${mode}`}>
+        <Provider store={store} key={`saved-${savedQueryUuid}-${mode}`}>
             <SavedExplorerContent
                 isEditMode={isEditMode}
                 defaultLimit={health.data?.query.defaultLimit}
