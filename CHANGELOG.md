@@ -1,3 +1,10 @@
+## [0.2131.3](https://github.com/lightdash/lightdash/compare/0.2131.2...0.2131.3) (2025-11-04)
+
+
+### Bug Fixes
+
+* add organization name to user type in feature flag service ([#17805](https://github.com/lightdash/lightdash/issues/17805)) ([3995bea](https://github.com/lightdash/lightdash/commit/3995beaff14f6d105dccee4837b45eec774f019a))
+
 ## [0.2131.2](https://github.com/lightdash/lightdash/compare/0.2131.1...0.2131.2) (2025-11-03)
 
 
