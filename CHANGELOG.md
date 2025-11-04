@@ -1,3 +1,10 @@
+## [0.2134.2](https://github.com/lightdash/lightdash/compare/0.2134.1...0.2134.2) (2025-11-04)
+
+
+### Bug Fixes
+
+* key viz provider off of chart ID ([#17831](https://github.com/lightdash/lightdash/issues/17831)) ([c64639f](https://github.com/lightdash/lightdash/commit/c64639f1be6d1e241603e279e383bc2dd63a1687))
+
 ## [0.2134.1](https://github.com/lightdash/lightdash/compare/0.2134.0...0.2134.1) (2025-11-04)
 
 
