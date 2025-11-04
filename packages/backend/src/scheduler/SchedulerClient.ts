@@ -205,6 +205,15 @@ export class SchedulerClient {
                     baggageHeader,
                     sentryMessageId: messageId,
                 };
+
+                // Generate job key for scheduled delivery jobs to enable efficient lookup
+                // by the indexed 'key' column instead of scanning JSON payload
+                // We only define keys when there is a schedulerUuid, if it is undefined it means it was a manual run of the task (send now)
+                const { schedulerUuid } = payload;
+                const jobKey = schedulerUuid
+                    ? `scheduler:${schedulerUuid}:${scheduledAt.getTime()}`
+                    : undefined;
+
                 const { id } = await graphileClient.addJob(
                     identifier,
                     payloadWithSentryHeaders,
@@ -212,6 +221,9 @@ export class SchedulerClient {
                         runAt: scheduledAt,
                         maxAttempts,
                         priority,
+                        // JobKeyMode is by default (replace) which means that if the job already exists it will be replaced if having the same key, which is what we want here - https://worker.graphile.org/docs/job-key
+                        // Having this we can remove the duplicate jobs deletion logic
+                        ...(jobKey && { jobKey }),
                     },
                 );
 
@@ -224,10 +236,12 @@ export class SchedulerClient {
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
         const graphileClient = await this.graphileUtils;
 
+        // Use the indexed 'key' column for efficient lookup instead of scanning JSON payload
+        // Pattern: 'scheduler:{uuid}:%' matches all jobs for this scheduler
         const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
-                "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' = $1",
-                [schedulerUuid],
+                'select id, run_at from graphile_worker.jobs where key like $1',
+                [`scheduler:${schedulerUuid}:%`],
             ),
         );
         return scheduledJobs.rows.map((r) => ({
@@ -473,27 +487,6 @@ export class SchedulerClient {
         return { target, jobId: id };
     }
 
-    private async deleteOverlappingScheduledJobs(
-        schedulerUuid: string,
-        dates: Date[],
-    ) {
-        // Delete any existing scheduled jobs for this scheduler that overlap with the dates we're about to create
-        // This prevents duplicates if the generateDailyJobs task runs multiple times or retries
-        const existingJobs = await this.getScheduledJobs(schedulerUuid);
-        const datesToCreate = new Set(dates.map((d) => d.toISOString()));
-        const jobsToDelete = existingJobs.filter((job) =>
-            datesToCreate.has(new Date(job.date).toISOString()),
-        );
-
-        if (jobsToDelete.length > 0) {
-            Logger.info(
-                `Removing ${jobsToDelete.length} existing scheduled jobs for scheduler ${schedulerUuid} to prevent duplicates`,
-            );
-            const graphileClient = await this.graphileUtils;
-            await graphileClient.completeJobs(jobsToDelete.map((j) => j.id));
-        }
-    }
-
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -514,11 +507,6 @@ export class SchedulerClient {
         );
 
         try {
-            await this.deleteOverlappingScheduledJobs(
-                scheduler.schedulerUuid,
-                dates,
-            );
-
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
                     date,
