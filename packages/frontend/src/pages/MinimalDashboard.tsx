@@ -152,17 +152,27 @@ const MinimalDashboard: FC = () => {
         };
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, gridProps.cols]);
 
-    const filteredDashboardTiles = useMemo(() => {
-        return (
+    const filteredAndSortedDashboardTiles = useMemo(() => {
+        const filteredTiles =
             dashboard?.tiles.filter((tile) =>
                 // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
                 schedulerTabsSelected
                     ? schedulerTabsSelected.includes(tile.tabUuid)
                     : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
                       !activeTab || activeTab.uuid === tile.tabUuid,
-            ) ?? []
-        );
-    }, [dashboard?.tiles, schedulerTabsSelected, activeTab]);
+            ) ?? [];
+
+        // Sort tiles by their tab order
+        return filteredTiles.sort((a, b) => {
+            const tabAIndex = sortedTabs.findIndex(
+                (tab) => tab.uuid === a.tabUuid,
+            );
+            const tabBIndex = sortedTabs.findIndex(
+                (tab) => tab.uuid === b.tabUuid,
+            );
+            return tabAIndex - tabBIndex;
+        });
+    }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
 
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <>{dashboardError.error.message}</>;
@@ -211,7 +221,7 @@ const MinimalDashboard: FC = () => {
                 />
             ) : (
                 <ResponsiveGridLayout {...gridProps} layouts={layouts}>
-                    {filteredDashboardTiles.map((tile) => (
+                    {filteredAndSortedDashboardTiles.map((tile) => (
                         <div key={tile.uuid}>
                             {tile.type === DashboardTileTypes.SAVED_CHART ? (
                                 <ChartTile
