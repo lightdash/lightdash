@@ -139,6 +139,9 @@ const useEchartsFunnelConfig = (
                     labels?.position !== FunnelChartLabelPosition.INSIDE
                         ? 'black'
                         : undefined,
+                fontFamily: 'Inter',
+                textBorderWidth: 0,
+                textShadowBlur: 0,
                 formatter: ({ name, value }) => {
                     const { formattedValue, percentOfMax } =
                         getValueAndPercentage({
@@ -158,7 +161,24 @@ const useEchartsFunnelConfig = (
                         .filter(Boolean)
                         .join(' - ')}`;
 
-                    return `${name}${numbersString}`;
+                    if (numbersString) {
+                        return `{name|${name}}{value|${numbersString}}`;
+                    }
+                    return `{name|${name}}`;
+                },
+                rich: {
+                    name: {
+                        fontFamily: 'Inter',
+                        fontWeight: 400,
+                        textBorderWidth: 0,
+                        textShadowBlur: 0,
+                    },
+                    value: {
+                        fontFamily: 'Inter',
+                        fontWeight: 500,
+                        textBorderWidth: 0,
+                        textShadowBlur: 0,
+                    },
                 },
             },
             emphasis: {
