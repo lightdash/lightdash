@@ -1,3 +1,12 @@
+# [0.2134.0](https://github.com/lightdash/lightdash/compare/0.2133.0...0.2134.0) (2025-11-04)
+
+
+### Features
+
+* add expected response to evals ([#17820](https://github.com/lightdash/lightdash/issues/17820)) ([df935f2](https://github.com/lightdash/lightdash/commit/df935f241e362b04e31da2a7655e43dd82f640c2))
+* add missing row indicator when previewing a thread  ([#17793](https://github.com/lightdash/lightdash/issues/17793)) ([7356f8f](https://github.com/lightdash/lightdash/commit/7356f8f352a46c073ad32509434e903abd3e8d3c))
+* display evaluation reason in thread preview sidebar ([#17794](https://github.com/lightdash/lightdash/issues/17794)) ([e58a9ff](https://github.com/lightdash/lightdash/commit/e58a9ffae20d4d3ceabaae76eab4713e11e82ad8))
+
 # [0.2133.0](https://github.com/lightdash/lightdash/compare/0.2132.0...0.2133.0) (2025-11-04)
 
 
