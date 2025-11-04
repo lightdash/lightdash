@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import {
-    explorerStore,
+    createExplorerStore,
     selectSavedChart,
     useExplorerInitialization,
     useExplorerSelector,
@@ -97,6 +97,10 @@ const MinimalSavedExplorer: FC = () => {
         id: savedQueryUuid,
     });
 
+    // Create a fresh store instance per chart to prevent state leaking between charts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
+
     if (isInitialLoading || !data) {
         return null;
     }
@@ -106,7 +110,7 @@ const MinimalSavedExplorer: FC = () => {
     }
 
     return (
-        <Provider store={explorerStore} key={`minimal-${savedQueryUuid}`}>
+        <Provider store={store} key={`minimal-${savedQueryUuid}`}>
             <MantineProvider inherit theme={themeOverride}>
                 <MinimalExplorerContent />
             </MantineProvider>
