@@ -1,3 +1,10 @@
+## [0.2134.1](https://github.com/lightdash/lightdash/compare/0.2134.0...0.2134.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* display tiles respecting tab order ([#17826](https://github.com/lightdash/lightdash/issues/17826)) ([6396e40](https://github.com/lightdash/lightdash/commit/6396e4011d32d67a9f0e471f3ec0fc6f5c67a495))
+
 # [0.2134.0](https://github.com/lightdash/lightdash/compare/0.2133.0...0.2134.0) (2025-11-04)
 
 
