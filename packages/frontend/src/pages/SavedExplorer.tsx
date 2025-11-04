@@ -8,8 +8,10 @@ import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
+    buildInitialExplorerState,
     createExplorerStore,
-    useExplorerInitialization,
+    explorerActions,
+    useExplorerDispatch,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -21,23 +23,23 @@ const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
 );
 
-const SavedExplorerContent = memo<{
-    isEditMode: boolean;
-    defaultLimit?: number;
-}>(({ isEditMode, defaultLimit }) => {
+const SavedExplorerContent = memo(() => {
     const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
     const { data } = useSavedQuery({ id: savedQueryUuid });
+    const dispatch = useExplorerDispatch();
 
-    // Initialize Redux store
-    useExplorerInitialization({
-        savedChart: data,
-        isEditMode,
-        expandedSections: [ExplorerSection.VISUALIZATION],
-        defaultLimit,
-    });
+    // Update savedChart in Redux when data loads (store is already initialized with it)
+    useEffect(() => {
+        if (data) {
+            dispatch(explorerActions.setSavedChart(data));
+        }
+    }, [data, dispatch]);
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
+
+    const { mode } = useParams<{ mode?: string }>();
+    const isEditMode = data ? mode === 'edit' : false;
 
     return (
         <Page
@@ -73,10 +75,6 @@ const SavedExplorer = () => {
         id: savedQueryUuid,
     });
 
-    // Create a fresh store instance per chart to prevent state leaking between charts
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
-
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
         // so we can show the banner + the user can navigate back to the dashboard easily
@@ -88,7 +86,29 @@ const SavedExplorer = () => {
         }
     }, [data, setDashboardChartInfo]);
 
-    if (isInitialLoading) {
+    // Track whether data has loaded (changes once from false -> true)
+    const hasData = !!data;
+
+    // Create a fresh store instance per chart with initial state
+    // This prevents state leaking between charts and eliminates async hydration
+    // Store recreates when switching between view/edit mode or when data first becomes available
+    // After initial load, data updates (like after save) are handled by setSavedChart action in SavedExplorerContent
+    const store = useMemo(() => {
+        if (!data) return createExplorerStore(); // Return empty store while loading
+
+        const initialState = buildInitialExplorerState({
+            savedChart: data,
+            isEditMode,
+            expandedSections: [ExplorerSection.VISUALIZATION],
+            defaultLimit: health.data?.query.defaultLimit,
+        });
+
+        return createExplorerStore({ explorer: initialState });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasData, isEditMode, health.data?.query.defaultLimit]); // Track existence of data, not data itself
+
+    // Early returns after all hooks
+    if (isInitialLoading || !data) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />
@@ -101,10 +121,7 @@ const SavedExplorer = () => {
 
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}-${mode}`}>
-            <SavedExplorerContent
-                isEditMode={isEditMode}
-                defaultLimit={health.data?.query.defaultLimit}
-            />
+            <SavedExplorerContent />
         </Provider>
     );
 };

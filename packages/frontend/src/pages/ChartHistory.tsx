@@ -21,7 +21,7 @@ import {
     IconHistory,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState } from '../components/common/EmptyState';
@@ -32,8 +32,8 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import {
-    explorerStore,
-    useExplorerInitialization,
+    buildInitialExplorerState,
+    createExplorerStore,
 } from '../features/explorer/store';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
@@ -46,6 +46,13 @@ import { Can } from '../providers/Ability';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
+const ChartHistoryContent = memo(() => {
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
+
+    return <Explorer hideHeader={true} />;
+});
+
 const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
     ({ selectedVersionUuid }) => {
         const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
@@ -54,30 +61,42 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
             selectedVersionUuid,
         );
 
-        // Initialize Redux with the chart version data
-        useExplorerInitialization({
-            initialState: chartVersionQuery.data
-                ? {
-                      parameterReferences: [],
-                      parameterDefinitions: {},
-                      expandedSections: [ExplorerSection.VISUALIZATION],
-                      unsavedChartVersion: chartVersionQuery.data.chart,
-                      modals: {
-                          format: { isOpen: false },
-                          additionalMetric: { isOpen: false },
-                          customDimension: { isOpen: false },
-                          writeBack: { isOpen: false },
-                          itemDetail: { isOpen: false },
-                      },
-                  }
-                : undefined,
-            savedChart: chartVersionQuery.data?.chart,
-        });
+        // Create store with chart version data
+        // Only create once - parent uses key={selectedVersionUuid} to remount when switching versions
+        const store = useMemo(() => {
+            if (!chartVersionQuery.data) {
+                return createExplorerStore(); // Return empty store while loading
+            }
 
-        // Run the query effects hook - orchestrates all query effects
-        useExplorerQueryEffects();
+            const initialState = buildInitialExplorerState({
+                initialState: {
+                    parameterReferences: [],
+                    parameterDefinitions: {},
+                    expandedSections: [ExplorerSection.VISUALIZATION],
+                    unsavedChartVersion: chartVersionQuery.data.chart,
+                    modals: {
+                        format: { isOpen: false },
+                        additionalMetric: { isOpen: false },
+                        customDimension: { isOpen: false },
+                        writeBack: { isOpen: false },
+                        itemDetail: { isOpen: false },
+                    },
+                },
+                savedChart: chartVersionQuery.data.chart,
+            });
 
-        return <Explorer hideHeader={true} />;
+            return createExplorerStore({ explorer: initialState });
+        }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when selectedVersionUuid changes
+
+        if (!chartVersionQuery.data) {
+            return null;
+        }
+
+        return (
+            <Provider store={store}>
+                <ChartHistoryContent />
+            </Provider>
+        );
     },
 );
 
@@ -279,11 +298,10 @@ const ChartHistory = () => {
                 />
             )}
             {selectedVersionUuid && (
-                <Provider store={explorerStore} key={selectedVersionUuid}>
-                    <ChartHistoryExplorer
-                        selectedVersionUuid={selectedVersionUuid}
-                    />
-                </Provider>
+                <ChartHistoryExplorer
+                    key={selectedVersionUuid}
+                    selectedVersionUuid={selectedVersionUuid}
+                />
             )}
 
             <Modal

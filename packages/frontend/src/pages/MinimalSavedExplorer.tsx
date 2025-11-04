@@ -6,9 +6,9 @@ import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import {
+    buildInitialExplorerState,
     createExplorerStore,
     selectSavedChart,
-    useExplorerInitialization,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
@@ -26,15 +26,7 @@ const themeOverride: MantineThemeOverride = {
 };
 
 const MinimalExplorerContent = memo(() => {
-    const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
-    const { data } = useSavedQuery({ id: savedQueryUuid });
-
-    // Initialize Redux store
-    useExplorerInitialization({
-        savedChart: data,
-        minimal: true,
-        expandedSections: [ExplorerSection.VISUALIZATION],
-    });
+    // Store is pre-initialized with savedChart data, no need to hydrate
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
@@ -107,9 +99,20 @@ const MinimalSavedExplorer: FC = () => {
         id: savedQueryUuid,
     });
 
-    // Create a fresh store instance per chart to prevent state leaking between charts
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
+    // Create a fresh store instance per chart with initial state
+    // This prevents state leaking between charts and eliminates async hydration
+    // Only create once - parent uses key={savedQueryUuid} to remount when navigating between charts
+    const store = useMemo(() => {
+        if (!data) return createExplorerStore(); // Return empty store while loading
+
+        const initialState = buildInitialExplorerState({
+            savedChart: data,
+            minimal: true,
+            expandedSections: [ExplorerSection.VISUALIZATION],
+        });
+
+        return createExplorerStore({ explorer: initialState });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when savedQueryUuid changes
 
     if (isInitialLoading || !data) {
         return null;
