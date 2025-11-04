@@ -706,8 +706,8 @@ describe('ScimService', () => {
 
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
-                    totalResults: 5, // viewer, interactive_viewer, editor, developer, admin
-                    itemsPerPage: 5,
+                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 21
+                    itemsPerPage: 19,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
                         expect.objectContaining({
@@ -726,14 +726,28 @@ describe('ScimService', () => {
                     ]),
                 });
 
-                // Verify we have the expected number of system roles
-                expect(result.Resources).toHaveLength(5);
+                // Verify we have the expected number of roles
+                expect(result.Resources).toHaveLength(19);
 
                 // Verify some specific role values
                 const roleValues = result.Resources.map((role) => role.value);
-                expect(roleValues).toContain('admin');
-                expect(roleValues).toContain('viewer');
-                expect(roleValues).toContain('editor');
+                expect(roleValues).toContain('admin'); // org-level system role
+                expect(roleValues).toContain('viewer'); // org-level system role
+                expect(roleValues).toContain('editor'); // org-level system role
+                expect(roleValues).toContain('project-1-uuid:admin'); // project-level system role
+                expect(roleValues).toContain(
+                    'project-1-uuid:custom-role-1-uuid',
+                ); // project-level custom role
+                expect(roleValues).toContain('project-2-uuid:admin'); // project-level system role
+                expect(roleValues).toContain(
+                    'project-2-uuid:custom-role-2-uuid',
+                ); // project-level custom role
+
+                // Verify we don't have preview project roles
+                const previewRoles = roleValues.filter((value) =>
+                    value.includes('preview-project-uuid'),
+                );
+                expect(previewRoles).toHaveLength(0);
             });
         });
 
@@ -757,6 +771,30 @@ describe('ScimService', () => {
                         lastModified: undefined, // System roles don't have modification dates
                         location: expect.stringContaining(
                             '/api/v1/scim/v2/Roles/admin',
+                        ),
+                    },
+                });
+            });
+
+            test('should return a specific project-level role by composite ID', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'project-1-uuid:admin';
+
+                const result = await service.getRole(organizationUuid, roleId);
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.ROLE],
+                    id: 'project-1-uuid:admin',
+                    value: 'project-1-uuid:admin',
+                    display: 'Analytics Project - admin',
+                    type: expect.any(String),
+                    supported: true,
+                    meta: {
+                        resourceType: 'Role',
+                        created: undefined, // System roles don't have creation dates
+                        lastModified: undefined, // System roles don't have modification dates
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/Roles/project-1-uuid:admin',
                         ),
                     },
                 });
