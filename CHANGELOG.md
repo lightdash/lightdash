@@ -1,3 +1,12 @@
+# [0.2133.0](https://github.com/lightdash/lightdash/compare/0.2132.0...0.2133.0) (2025-11-04)
+
+
+### Features
+
+* add ai eval run assessment table ([#17781](https://github.com/lightdash/lightdash/issues/17781)) ([f1aee88](https://github.com/lightdash/lightdash/commit/f1aee88e395bc0bce09f64dbcace8141b3c25f22))
+* automatically assess eval results ([#17787](https://github.com/lightdash/lightdash/issues/17787)) ([3fb1ccc](https://github.com/lightdash/lightdash/commit/3fb1ccc62c1ad86a8257162615a9a0e2b627a85f))
+* display llm eval assessments in ui ([#17791](https://github.com/lightdash/lightdash/issues/17791)) ([8d5ad1e](https://github.com/lightdash/lightdash/commit/8d5ad1e3b23cbf67984e2564094713bf7e1ef573))
+
 # [0.2132.0](https://github.com/lightdash/lightdash/compare/0.2131.4...0.2132.0) (2025-11-04)
 
 
