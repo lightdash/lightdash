@@ -1,3 +1,10 @@
+# [0.2135.0](https://github.com/lightdash/lightdash/compare/0.2134.2...0.2135.0) (2025-11-04)
+
+
+### Features
+
+* add support for between operator in default_filters ([#17819](https://github.com/lightdash/lightdash/issues/17819)) ([e67a5f9](https://github.com/lightdash/lightdash/commit/e67a5f9fafd3239411dab67ee3a064d972366e3b))
+
 ## [0.2134.2](https://github.com/lightdash/lightdash/compare/0.2134.1...0.2134.2) (2025-11-04)
 
 
