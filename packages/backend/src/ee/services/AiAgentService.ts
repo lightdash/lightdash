@@ -3768,11 +3768,6 @@ export class AiAgentService {
     ) {
         await this.getAgent(user, agentUuid, projectUuid);
 
-        const evalData = await this.aiAgentModel.getEval({
-            agentUuid,
-            evalUuid,
-        });
-
         return this.aiAgentModel.getEvalRuns(evalUuid, paginateArgs);
     }
 

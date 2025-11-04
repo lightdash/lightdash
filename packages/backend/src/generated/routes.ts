@@ -7073,6 +7073,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                failedAssessments: { dataType: 'double', required: true },
+                passedAssessments: { dataType: 'double', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 completedAt: {
                     dataType: 'union',

@@ -14,13 +14,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import {
-    IconCheck,
-    IconClock,
-    IconPlayerPlay,
-    IconTarget,
-    IconX,
-} from '@tabler/icons-react';
+import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -31,6 +25,7 @@ import {
 } from '../../hooks/useAiAgentEvaluations';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import { getAssessmentConfig, isRunning, statusConfig } from './utils';
 
 type Props = {
     projectUuid: string;
@@ -38,21 +33,6 @@ type Props = {
     evalUuid: string;
     runUuid: string;
 };
-
-type StatusConfig = {
-    icon: typeof IconCheck;
-    color: string;
-};
-
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-    completed: { icon: IconCheck, color: 'green' },
-    failed: { icon: IconX, color: 'red' },
-    running: { icon: IconPlayerPlay, color: 'yellow' },
-    pending: { icon: IconClock, color: 'gray' },
-};
-
-const getStatusConfig = (status: string): StatusConfig =>
-    STATUS_CONFIG[status] || STATUS_CONFIG.pending;
 
 type PromptRowProps = {
     projectUuid: string;
@@ -69,8 +49,7 @@ const PromptRow: FC<PromptRowProps> = ({
     index,
     onViewThread,
 }) => {
-    const statusConfig = getStatusConfig(result.status);
-
+    const statusStyle = statusConfig[result.status];
     // Fetch the thread to get the actual prompt text
     const { data: thread } = useAiAgentThread(
         projectUuid,
@@ -94,19 +73,16 @@ const PromptRow: FC<PromptRowProps> = ({
         return lastUserMessage?.message || `Prompt ${index + 1}`;
     }, [thread?.messages, index]);
 
+    const isEvalRunning = isRunning(result.status);
+
     const handleRowClick = () => {
-        if (
-            (result.status === 'completed' || result.status === 'failed') &&
-            result.threadUuid
-        ) {
+        if (!isEvalRunning && result.threadUuid) {
             onViewThread(result);
         }
     };
 
-    const isClickable =
-        (result.status === 'completed' || result.status === 'failed') &&
-        result.threadUuid;
-
+    const isClickable = !isEvalRunning && result.threadUuid;
+    const assessmentConfig = getAssessmentConfig(result.assessment?.passed);
     return (
         <Table.Tr
             style={{
@@ -114,7 +90,7 @@ const PromptRow: FC<PromptRowProps> = ({
             }}
             onClick={handleRowClick}
         >
-            <Table.Td style={{ width: 50 }}>
+            <Table.Td>
                 <Text size="sm" fw={500} c="dimmed">
                     {index + 1}
                 </Text>
@@ -124,23 +100,33 @@ const PromptRow: FC<PromptRowProps> = ({
                     {promptText}
                 </Text>
             </Table.Td>
-            <Table.Td style={{ width: 120 }}>
+            <Table.Td>
                 <Tooltip
                     label={result.errorMessage}
                     disabled={result.status !== 'failed'}
                 >
-                    <Badge
-                        variant="light"
-                        radius="sm"
-                        color={statusConfig.color}
-                        p="xxs"
-                    >
+                    <Text c={statusStyle.color}>
                         <MantineIcon
-                            icon={statusConfig.icon}
-                            color={statusConfig.color}
+                            icon={isEvalRunning ? IconPoint : IconPointFilled}
                         />
-                    </Badge>
+                    </Text>
                 </Tooltip>
+            </Table.Td>
+
+            <Table.Td>
+                {isEvalRunning ? (
+                    <Badge w={68} variant="white" color="gray">
+                        {result.status === 'assessing' ? (
+                            <Loader size={12} color="gray" />
+                        ) : (
+                            <>...</>
+                        )}
+                    </Badge>
+                ) : (
+                    <Badge color={assessmentConfig.color} variant="white">
+                        {assessmentConfig.label}
+                    </Badge>
+                )}
             </Table.Td>
         </Table.Tr>
     );
@@ -241,6 +227,7 @@ export const EvalRunDetails: FC<Props> = ({
         )
         .format('mm[m]ss[s]');
 
+    const evalStatus = statusConfig[runData.status];
     return (
         <Stack gap="sm" pr="sm">
             <Paper>
@@ -261,50 +248,39 @@ export const EvalRunDetails: FC<Props> = ({
                     </Group>
 
                     <Group>
-                        {runData.status === 'completed' ||
-                            (runData.status === 'failed' && (
-                                <Tooltip
-                                    label={
-                                        <Text size="xs" c="dimmed">
-                                            Started{' '}
-                                            {new Date(
-                                                runData.createdAt,
-                                            ).toLocaleString()}
-                                            {runData.completedAt && (
-                                                <>
-                                                    {' '}
-                                                    • Completed{' '}
-                                                    {new Date(
-                                                        runData.completedAt,
-                                                    ).toLocaleString()}
-                                                </>
-                                            )}
-                                        </Text>
-                                    }
-                                >
-                                    <Text size="xs" c="dimmed">
-                                        Duration: {runDuration}
+                        {!isRunning(runData.status) && (
+                            <Tooltip
+                                label={
+                                    <Text size="xs">
+                                        Started{' '}
+                                        {new Date(
+                                            runData.createdAt,
+                                        ).toLocaleString()}
+                                        {runData.completedAt && (
+                                            <>
+                                                {' '}
+                                                • Completed{' '}
+                                                {new Date(
+                                                    runData.completedAt,
+                                                ).toLocaleString()}
+                                            </>
+                                        )}
                                     </Text>
-                                </Tooltip>
-                            ))}
+                                }
+                            >
+                                <Text size="xs" c="dimmed">
+                                    Duration: {runDuration}
+                                </Text>
+                            </Tooltip>
+                        )}
                         <Badge
-                            variant="light"
-                            color={getStatusConfig(runData.status).color}
+                            color={evalStatus.color}
+                            variant="dot"
+                            size="lg"
                             radius="sm"
-                            leftSection={
-                                runData.status === 'pending' ||
-                                runData.status === 'running' ? (
-                                    <Loader size="12px" color="gray" />
-                                ) : (
-                                    <MantineIcon
-                                        icon={
-                                            getStatusConfig(runData.status).icon
-                                        }
-                                    />
-                                )
-                            }
+                            c="gray.7"
                         >
-                            {runData.status}
+                            {evalStatus.label}
                         </Badge>
                     </Group>
                 </Group>
@@ -314,9 +290,10 @@ export const EvalRunDetails: FC<Props> = ({
                     <Table highlightOnHover>
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>#</Table.Th>
+                                <Table.Th miw={30}>#</Table.Th>
                                 <Table.Th>Prompt</Table.Th>
-                                <Table.Th>Status</Table.Th>
+                                <Table.Th miw={115}>Eval Status</Table.Th>
+                                <Table.Th miw={120}>Assessment</Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
@@ -332,8 +309,9 @@ export const EvalRunDetails: FC<Props> = ({
                             ))}
                         </Table.Tbody>
                     </Table>
+                    <Divider />
 
-                    <Group justify="flex-end" pr="sm" pb="sm">
+                    <Group justify="flex-end" pr="sm" py="sm">
                         {summaryStats && (
                             <Text size="xs" fw={500} fs="italic" c="dimmed">
                                 {summaryStats.completed + summaryStats.failed} /{' '}
