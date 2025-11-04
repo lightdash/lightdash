@@ -1,3 +1,15 @@
+# [0.2137.0](https://github.com/lightdash/lightdash/compare/0.2136.0...0.2137.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* recreate store for each explore instance ([#17832](https://github.com/lightdash/lightdash/issues/17832)) ([c109474](https://github.com/lightdash/lightdash/commit/c10947417ec3c47b80fa916574cdede320e2727e))
+
+
+### Features
+
+* display expected response in evals assessment ([#17835](https://github.com/lightdash/lightdash/issues/17835)) ([9d81fc3](https://github.com/lightdash/lightdash/commit/9d81fc373fdd918418570b5e09c10eec5f0be3c9)), closes [/github.com/lightdash/lightdash/pull/17820#issuecomment-3485326700](https://github.com//github.com/lightdash/lightdash/pull/17820/issues/issuecomment-3485326700)
+
 # [0.2136.0](https://github.com/lightdash/lightdash/compare/0.2135.2...0.2136.0) (2025-11-04)
 
 
