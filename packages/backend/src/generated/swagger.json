@@ -143,6 +143,29 @@
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
             },
+            "ScimRoleType": {
+                "enum": ["ORG_SYSTEM", "PROJECT_SYSTEM", "PROJECT_CUSTOM"],
+                "type": "string"
+            },
+            "ScimUserRole": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "display": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ScimRoleType"
+                    },
+                    "primary": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["value"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "LightdashScimExtension": {
                 "properties": {
                     "role": {
@@ -214,6 +237,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimUserRole"
                         },
                         "type": "array"
                     },
@@ -343,6 +372,12 @@
                             },
                             "required": ["value"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimUserRole"
                         },
                         "type": "array"
                     },
@@ -852,6 +887,123 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ScimSchemaType.ROLE": {
+                "enum": ["urn:ietf:params:scim:schemas:extension:2.0:Role"],
+                "type": "string"
+            },
+            "ScimRole": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimSchemaType.ROLE"
+                        },
+                        "type": "array"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "meta": {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "version": {
+                                        "type": "string"
+                                    },
+                                    "location": {
+                                        "type": "string"
+                                    },
+                                    "lastModified": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "created": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "resourceType": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "location": {
+                                        "type": "string"
+                                    },
+                                    "lastModified": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "created": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "resourceType": {
+                                        "type": "string",
+                                        "enum": ["Role"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["location", "resourceType"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "value": {
+                        "type": "string"
+                    },
+                    "display": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ScimRoleType"
+                    },
+                    "supported": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["schemas", "id", "value", "supported", "meta"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ScimListResponse_ScimRole_": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimSchemaType.LIST_RESPONSE"
+                        },
+                        "type": "array"
+                    },
+                    "totalResults": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "itemsPerPage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Resources": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRole"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "schemas",
+                    "totalResults",
+                    "itemsPerPage",
+                    "startIndex",
+                    "Resources"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "Pick_ServiceAccount.expiresAt-or-description_": {
                 "properties": {
                     "expiresAt": {
@@ -1093,6 +1245,15 @@
                     "allowAllDashboards": {
                         "type": "boolean"
                     },
+                    "chartUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowAllCharts": {
+                        "type": "boolean"
+                    },
                     "createdAt": {
                         "type": "string"
                     },
@@ -1105,6 +1266,8 @@
                     "organization",
                     "dashboardUuids",
                     "allowAllDashboards",
+                    "chartUuids",
+                    "allowAllCharts",
                     "createdAt",
                     "user"
                 ],
@@ -1148,6 +1311,12 @@
             },
             "CreateEmbedRequestBody": {
                 "properties": {
+                    "chartUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "dashboardUuids": {
                         "items": {
                             "type": "string"
@@ -1155,11 +1324,19 @@
                         "type": "array"
                     }
                 },
-                "required": ["dashboardUuids"],
                 "type": "object"
             },
             "UpdateEmbed": {
                 "properties": {
+                    "allowAllCharts": {
+                        "type": "boolean"
+                    },
+                    "chartUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "allowAllDashboards": {
                         "type": "boolean"
                     },
@@ -1220,8 +1397,14 @@
                     "canExportCsv": {
                         "type": "boolean"
                     },
-                    "canChangeParameters": {
-                        "type": "boolean"
+                    "parameterInteractivity": {
+                        "properties": {
+                            "enabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["enabled"],
+                        "type": "object"
                     },
                     "dashboardFiltersInteractivity": {
                         "properties": {
@@ -6884,6 +7067,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "status": {
+                        "type": "string",
+                        "enum": ["idle", "pending", "error"]
+                    },
                     "role": {
                         "type": "string",
                         "enum": ["assistant"],
@@ -6901,6 +7088,7 @@
                     "message",
                     "threadUuid",
                     "uuid",
+                    "status",
                     "role"
                 ],
                 "type": "object"
@@ -7341,10 +7529,24 @@
             "CreateEvaluationPrompt": {
                 "anyOf": [
                     {
-                        "type": "string"
+                        "properties": {
+                            "expectedResponse": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "prompt": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["expectedResponse", "prompt"],
+                        "type": "object"
                     },
                     {
                         "properties": {
+                            "expectedResponse": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "threadUuid": {
                                 "type": "string"
                             },
@@ -7352,11 +7554,15 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["threadUuid", "promptUuid"],
+                        "required": [
+                            "expectedResponse",
+                            "threadUuid",
+                            "promptUuid"
+                        ],
                         "type": "object"
                     }
                 ],
-                "description": "Represents a prompt for evaluation that can be either:\n- A string containing the prompt text directly\n- An object referencing an existing prompt and thread by their UUIDs"
+                "description": "Represents a prompt for evaluation that can be either:\n- An object with a prompt string for new prompts\n- An object referencing an existing prompt and thread by their UUIDs"
             },
             "ApiCreateEvaluationRequest": {
                 "properties": {
@@ -7378,6 +7584,14 @@
             },
             "AiAgentEvaluationRunSummary": {
                 "properties": {
+                    "failedAssessments": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "passedAssessments": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7399,6 +7613,8 @@
                     }
                 },
                 "required": [
+                    "failedAssessments",
+                    "passedAssessments",
                     "createdAt",
                     "completedAt",
                     "status",
@@ -7501,6 +7717,10 @@
                         "anyOf": [
                             {
                                 "properties": {
+                                    "expectedResponse": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
                                     "prompt": {
                                         "type": "string"
                                     },
@@ -7510,11 +7730,19 @@
                                         "nullable": false
                                     }
                                 },
-                                "required": ["prompt", "type"],
+                                "required": [
+                                    "expectedResponse",
+                                    "prompt",
+                                    "type"
+                                ],
                                 "type": "object"
                             },
                             {
                                 "properties": {
+                                    "expectedResponse": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
                                     "threadUuid": {
                                         "type": "string"
                                     },
@@ -7528,6 +7756,7 @@
                                     }
                                 },
                                 "required": [
+                                    "expectedResponse",
                                     "threadUuid",
                                     "promptUuid",
                                     "type"
@@ -7666,8 +7895,81 @@
             "ApiAiAgentEvaluationRunSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array___"
             },
+            "AssessmentType": {
+                "type": "string",
+                "enum": ["human", "llm"]
+            },
+            "AiEvalRunResultAssessment": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "assessedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "llmJudgeModel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "llmJudgeProvider": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "assessedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "passed": {
+                        "type": "boolean"
+                    },
+                    "assessmentType": {
+                        "$ref": "#/components/schemas/AssessmentType"
+                    },
+                    "runResultUuid": {
+                        "type": "string"
+                    },
+                    "assessmentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "assessedAt",
+                    "llmJudgeModel",
+                    "llmJudgeProvider",
+                    "assessedByUserUuid",
+                    "reason",
+                    "passed",
+                    "assessmentType",
+                    "runResultUuid",
+                    "assessmentUuid"
+                ],
+                "type": "object"
+            },
             "AiAgentEvaluationRunResult": {
                 "properties": {
+                    "expectedResponse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "assessment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiEvalRunResultAssessment"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -7683,7 +7985,13 @@
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["pending", "running", "completed", "failed"]
+                        "enum": [
+                            "pending",
+                            "running",
+                            "completed",
+                            "assessing",
+                            "failed"
+                        ]
                     },
                     "threadUuid": {
                         "type": "string",
@@ -7698,6 +8006,9 @@
                     }
                 },
                 "required": [
+                    "expectedResponse",
+                    "prompt",
+                    "assessment",
                     "createdAt",
                     "completedAt",
                     "errorMessage",
@@ -15781,22 +16092,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -16135,22 +16446,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -21435,7 +21746,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2121.0",
+        "version": "0.2134.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

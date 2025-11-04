@@ -61,7 +61,10 @@ export class FeatureFlagModel {
     }
 
     static async getPosthogFeatureFlag(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
         featureFlagId: FeatureFlags,
     ): Promise<FeatureFlag> {
         const enabled = await isFeatureFlagEnabled(featureFlagId, {

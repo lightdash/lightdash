@@ -42,7 +42,6 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     }>();
     const { selectedThreadUuid, isSidebarOpen, clearThread } =
         useEvalSectionContext();
-
     // Fetch evaluation data if we're on an eval detail page
     const { data: evaluation } = useAiAgentEvaluation(
         projectUuid!,
@@ -265,6 +264,8 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
                                     renderArtifactsInline
+                                    evalUuid={evalUuid}
+                                    runUuid={runUuid}
                                 />
                             )}
                     </Panel>

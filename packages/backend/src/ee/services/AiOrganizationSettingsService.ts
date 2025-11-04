@@ -4,6 +4,7 @@ import {
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     ForbiddenError,
+    LightdashUser,
     UpdateAiOrganizationSettings,
     type SessionUser,
 } from '@lightdash/common';
@@ -51,11 +52,13 @@ export class AiOrganizationSettingsService {
     }
 
     private async getIsCopilotEnabled(
-        organizationUuid: string,
-        userUuid: string,
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
     ): Promise<boolean> {
         const isCopilotEnabled = await this.commercialFeatureFlagModel.get({
-            user: { organizationUuid, userUuid },
+            user,
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
         return isCopilotEnabled.enabled;
@@ -95,10 +98,7 @@ export class AiOrganizationSettingsService {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        const isCopilotEnabled = await this.getIsCopilotEnabled(
-            user.organizationUuid,
-            user.userUuid,
-        );
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
 
         // Check if organization qualifies for trial
         const isTrialEligible = await this.isEligibleForTrial(

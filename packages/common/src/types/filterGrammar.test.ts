@@ -177,6 +177,66 @@ describe('Parse grammar', () => {
         expect(() => parser.parse('< -3.-14')).toThrow();
     });
 
+    it('Between operator', async () => {
+        expect(parser.parse('between 1 and 100')).toEqual({
+            type: 'inBetween',
+            values: [1, 100],
+            is: true,
+        });
+        expect(parser.parse('BETWEEN 0 AND 3600')).toEqual({
+            type: 'inBetween',
+            values: [0, 3600],
+            is: true,
+        });
+        expect(parser.parse('between -10 and 10')).toEqual({
+            type: 'inBetween',
+            values: [-10, 10],
+            is: true,
+        });
+        expect(parser.parse('between 0.5 and 99.9')).toEqual({
+            type: 'inBetween',
+            values: [0.5, 99.9],
+            is: true,
+        });
+    });
+
+    it('Between operator with dates', async () => {
+        expect(parser.parse('between 2024-01-01 and 2024-12-31')).toEqual({
+            type: 'inBetween',
+            values: ['2024-01-01', '2024-12-31'],
+            is: true,
+        });
+        expect(parser.parse('BETWEEN 2023-06-15 AND 2024-06-15')).toEqual({
+            type: 'inBetween',
+            values: ['2023-06-15', '2024-06-15'],
+            is: true,
+        });
+        expect(parser.parse('between "2024-01-01" and "2024-12-31"')).toEqual({
+            type: 'inBetween',
+            values: ['2024-01-01', '2024-12-31'],
+            is: true,
+        });
+    });
+
+    it('Between operator with timestamps', async () => {
+        expect(
+            parser.parse('between 2024-01-01T00:00:00 and 2024-12-31T23:59:59'),
+        ).toEqual({
+            type: 'inBetween',
+            values: ['2024-01-01T00:00:00', '2024-12-31T23:59:59'],
+            is: true,
+        });
+        expect(
+            parser.parse(
+                'between 2024-01-01T00:00:00Z and 2024-12-31T23:59:59Z',
+            ),
+        ).toEqual({
+            type: 'inBetween',
+            values: ['2024-01-01T00:00:00Z', '2024-12-31T23:59:59Z'],
+            is: true,
+        });
+    });
+
     it('Numerical operator < grammar with spaces', async () => {
         const expected = { type: '<', values: [25] };
 
@@ -375,6 +435,53 @@ describe('Parse metric filters', () => {
                     fieldRef: 'name',
                 },
                 values: [14],
+            },
+        ]);
+    });
+
+    it('Should parse between operator with two values', () => {
+        const filters = [{ length_of_session: 'between 1 and 3600' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_BETWEEN,
+                target: {
+                    fieldRef: 'length_of_session',
+                },
+                values: [1, 3600],
+            },
+        ]);
+    });
+
+    it('Should parse between operator with date values', () => {
+        const filters = [{ order_date: 'between 2024-01-01 and 2024-12-31' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_BETWEEN,
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: ['2024-01-01', '2024-12-31'],
+            },
+        ]);
+    });
+
+    it('Should parse between operator with timestamp values', () => {
+        const filters = [
+            {
+                created_at:
+                    'between 2024-01-01T00:00:00Z and 2024-12-31T23:59:59Z',
+            },
+        ];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_BETWEEN,
+                target: {
+                    fieldRef: 'created_at',
+                },
+                values: ['2024-01-01T00:00:00Z', '2024-12-31T23:59:59Z'],
             },
         ]);
     });
@@ -649,6 +756,52 @@ describe('Parse required filters', () => {
                     fieldRef: 'name',
                 },
                 values: ['javi'],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should parse between operator in default filters', async () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [
+                        { length_of_session: 'between 1 and 3600' },
+                    ],
+                    requiredFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_BETWEEN,
+                target: {
+                    fieldRef: 'length_of_session',
+                },
+                values: [1, 3600],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should parse between operator with dates in default filters', async () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [
+                        { order_date: 'between 2024-01-01 and 2024-12-31' },
+                    ],
+                    requiredFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_BETWEEN,
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: ['2024-01-01', '2024-12-31'],
                 required: false,
             },
         ]);

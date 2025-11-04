@@ -687,13 +687,13 @@ describe('ExcelService', () => {
             expect(formatExpression).toBe('0.00%');
         });
 
-        it('should return default format for number fields without explicit format', () => {
+        it('should return default format for number fields without explicit format which keeps up to 3 decimal places', () => {
             // Test that getFormatExpression returns default format for number fields without explicit format
             const noFormatField = mockItemMapWithFormats.number_without_format;
             const formatExpression = getFormatExpression(noFormatField);
 
             // Should return a default number format for fields without explicit format
-            expect(formatExpression).toBe('#,##0');
+            expect(formatExpression).toBe('#,##0.###');
         });
 
         it('should NOT return default format for date fields without explicit format', () => {

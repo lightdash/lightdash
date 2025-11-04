@@ -1,3 +1,115 @@
+## [0.2138.1](https://github.com/lightdash/lightdash/compare/0.2138.0...0.2138.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* default number formatting to keep up to 3 decimal places ([#17837](https://github.com/lightdash/lightdash/issues/17837)) ([37a4c49](https://github.com/lightdash/lightdash/commit/37a4c49c4e151548802f24b2883e069a0993f2c7))
+
+# [0.2138.0](https://github.com/lightdash/lightdash/compare/0.2137.0...0.2138.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* don't refetch query on results and custom metrics dialogue toggles ([#17825](https://github.com/lightdash/lightdash/issues/17825)) ([6a6a02a](https://github.com/lightdash/lightdash/commit/6a6a02a62e2effcc8f762e8f39f92bac7fa8b014))
+
+
+### Features
+
+* add roles attribute to SCIM User schema ([#17822](https://github.com/lightdash/lightdash/issues/17822)) ([80e60d6](https://github.com/lightdash/lightdash/commit/80e60d6d3cf51da93d475b176705d6087b4c7b12))
+
+# [0.2137.0](https://github.com/lightdash/lightdash/compare/0.2136.0...0.2137.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* recreate store for each explore instance ([#17832](https://github.com/lightdash/lightdash/issues/17832)) ([c109474](https://github.com/lightdash/lightdash/commit/c10947417ec3c47b80fa916574cdede320e2727e))
+
+
+### Features
+
+* display expected response in evals assessment ([#17835](https://github.com/lightdash/lightdash/issues/17835)) ([9d81fc3](https://github.com/lightdash/lightdash/commit/9d81fc373fdd918418570b5e09c10eec5f0be3c9)), closes [/github.com/lightdash/lightdash/pull/17820#issuecomment-3485326700](https://github.com//github.com/lightdash/lightdash/pull/17820/issues/issuecomment-3485326700)
+
+# [0.2136.0](https://github.com/lightdash/lightdash/compare/0.2135.2...0.2136.0) (2025-11-04)
+
+
+### Features
+
+* add project-level roles to SCIM API ([#17812](https://github.com/lightdash/lightdash/issues/17812)) ([ab2c118](https://github.com/lightdash/lightdash/commit/ab2c118970b64088090c442359d98da8c3f7c29c))
+
+## [0.2135.2](https://github.com/lightdash/lightdash/compare/0.2135.1...0.2135.2) (2025-11-04)
+
+
+### Bug Fixes
+
+* use correct table reference and add search operators in MCP service ([#17834](https://github.com/lightdash/lightdash/issues/17834)) ([f2bdd40](https://github.com/lightdash/lightdash/commit/f2bdd4031da5c3ae51d9b8b5ffbe2b5b687f3296))
+
+## [0.2135.1](https://github.com/lightdash/lightdash/compare/0.2135.0...0.2135.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* use job keys instead of manually deleting duplicate jobs ([#17278](https://github.com/lightdash/lightdash/issues/17278)) ([c926b56](https://github.com/lightdash/lightdash/commit/c926b563b3c305cdac7976e0ade9591bccdfec0e))
+
+# [0.2135.0](https://github.com/lightdash/lightdash/compare/0.2134.2...0.2135.0) (2025-11-04)
+
+
+### Features
+
+* add support for between operator in default_filters ([#17819](https://github.com/lightdash/lightdash/issues/17819)) ([e67a5f9](https://github.com/lightdash/lightdash/commit/e67a5f9fafd3239411dab67ee3a064d972366e3b))
+
+## [0.2134.2](https://github.com/lightdash/lightdash/compare/0.2134.1...0.2134.2) (2025-11-04)
+
+
+### Bug Fixes
+
+* key viz provider off of chart ID ([#17831](https://github.com/lightdash/lightdash/issues/17831)) ([c64639f](https://github.com/lightdash/lightdash/commit/c64639f1be6d1e241603e279e383bc2dd63a1687))
+
+## [0.2134.1](https://github.com/lightdash/lightdash/compare/0.2134.0...0.2134.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* display tiles respecting tab order ([#17826](https://github.com/lightdash/lightdash/issues/17826)) ([6396e40](https://github.com/lightdash/lightdash/commit/6396e4011d32d67a9f0e471f3ec0fc6f5c67a495))
+
+# [0.2134.0](https://github.com/lightdash/lightdash/compare/0.2133.0...0.2134.0) (2025-11-04)
+
+
+### Features
+
+* add expected response to evals ([#17820](https://github.com/lightdash/lightdash/issues/17820)) ([df935f2](https://github.com/lightdash/lightdash/commit/df935f241e362b04e31da2a7655e43dd82f640c2))
+* add missing row indicator when previewing a thread  ([#17793](https://github.com/lightdash/lightdash/issues/17793)) ([7356f8f](https://github.com/lightdash/lightdash/commit/7356f8f352a46c073ad32509434e903abd3e8d3c))
+* display evaluation reason in thread preview sidebar ([#17794](https://github.com/lightdash/lightdash/issues/17794)) ([e58a9ff](https://github.com/lightdash/lightdash/commit/e58a9ffae20d4d3ceabaae76eab4713e11e82ad8))
+
+# [0.2133.0](https://github.com/lightdash/lightdash/compare/0.2132.0...0.2133.0) (2025-11-04)
+
+
+### Features
+
+* add ai eval run assessment table ([#17781](https://github.com/lightdash/lightdash/issues/17781)) ([f1aee88](https://github.com/lightdash/lightdash/commit/f1aee88e395bc0bce09f64dbcace8141b3c25f22))
+* automatically assess eval results ([#17787](https://github.com/lightdash/lightdash/issues/17787)) ([3fb1ccc](https://github.com/lightdash/lightdash/commit/3fb1ccc62c1ad86a8257162615a9a0e2b627a85f))
+* display llm eval assessments in ui ([#17791](https://github.com/lightdash/lightdash/issues/17791)) ([8d5ad1e](https://github.com/lightdash/lightdash/commit/8d5ad1e3b23cbf67984e2564094713bf7e1ef573))
+
+# [0.2132.0](https://github.com/lightdash/lightdash/compare/0.2131.4...0.2132.0) (2025-11-04)
+
+
+### Features
+
+* add SCIM role controller and endpoints ([#17806](https://github.com/lightdash/lightdash/issues/17806)) ([25ee079](https://github.com/lightdash/lightdash/commit/25ee0794c13734f999e7e55f37287c6d518ccde2))
+
+## [0.2131.4](https://github.com/lightdash/lightdash/compare/0.2131.3...0.2131.4) (2025-11-04)
+
+
+### Bug Fixes
+
+* do not break early on trino query ([#17815](https://github.com/lightdash/lightdash/issues/17815)) ([ed16a5b](https://github.com/lightdash/lightdash/commit/ed16a5bf021d3f255b8e224d399f45533c19d6c9)), closes [#17721](https://github.com/lightdash/lightdash/issues/17721)
+
+## [0.2131.3](https://github.com/lightdash/lightdash/compare/0.2131.2...0.2131.3) (2025-11-04)
+
+
+### Bug Fixes
+
+* add organization name to user type in feature flag service ([#17805](https://github.com/lightdash/lightdash/issues/17805)) ([3995bea](https://github.com/lightdash/lightdash/commit/3995beaff14f6d105dccee4837b45eec774f019a))
+
 ## [0.2131.2](https://github.com/lightdash/lightdash/compare/0.2131.1...0.2131.2) (2025-11-03)
 
 

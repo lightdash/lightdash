@@ -1,6 +1,7 @@
 import {
     LightdashUser,
     OrganizationMemberRole,
+    ScimRoleType,
     ScimSchemaType,
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
@@ -60,6 +61,14 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
+                roles: [
+                    {
+                        value: OrganizationMemberRole.ADMIN,
+                        display: OrganizationMemberRole.ADMIN,
+                        type: ScimRoleType.ORG,
+                        primary: true,
+                    },
+                ],
                 [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
                     role: OrganizationMemberRole.ADMIN,
                 },
@@ -115,6 +124,7 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
+                roles: undefined,
                 meta: {
                     resourceType: 'User',
                     created: testUser.createdAt,
@@ -542,13 +552,14 @@ describe('ScimService', () => {
                 expect(schemasResponse.schemas).toEqual([
                     ScimSchemaType.LIST_RESPONSE,
                 ]);
-                expect(schemasResponse.totalResults).toBe(5);
-                expect(schemasResponse.itemsPerPage).toBe(5);
+                expect(schemasResponse.totalResults).toBe(6);
+                expect(schemasResponse.itemsPerPage).toBe(6);
                 expect(schemasResponse.startIndex).toBe(1);
-                expect(schemasResponse.Resources).toHaveLength(5);
+                expect(schemasResponse.Resources).toHaveLength(6);
                 expect(schemasResponse.Resources.map((s) => s.id)).toEqual([
                     ScimSchemaType.USER,
                     ScimSchemaType.GROUP,
+                    ScimSchemaType.ROLE,
                     ScimSchemaType.LIGHTDASH_USER_EXTENSION,
                     ScimSchemaType.SERVICE_PROVIDER_CONFIG,
                     ScimSchemaType.RESOURCE_TYPE,
@@ -642,10 +653,10 @@ describe('ScimService', () => {
                 expect(resourceTypesResponse.schemas).toEqual([
                     ScimSchemaType.LIST_RESPONSE,
                 ]);
-                expect(resourceTypesResponse.totalResults).toBe(2);
-                expect(resourceTypesResponse.itemsPerPage).toBe(2);
+                expect(resourceTypesResponse.totalResults).toBe(3);
+                expect(resourceTypesResponse.itemsPerPage).toBe(3);
                 expect(resourceTypesResponse.startIndex).toBe(1);
-                expect(resourceTypesResponse.Resources).toHaveLength(2);
+                expect(resourceTypesResponse.Resources).toHaveLength(3);
 
                 // Test User resource type
                 const userResourceType = resourceTypesResponse.Resources.find(
@@ -690,6 +701,122 @@ describe('ScimService', () => {
                         ),
                     },
                 });
+            });
+        });
+    });
+
+    describe('Roles', () => {
+        describe('listRoles', () => {
+            test('should return system roles', async () => {
+                const organizationUuid = 'test-org-uuid';
+
+                const result = await service.listRoles({
+                    organizationUuid,
+                });
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.LIST_RESPONSE],
+                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 19
+                    itemsPerPage: 19,
+                    startIndex: 1,
+                    Resources: expect.arrayContaining([
+                        expect.objectContaining({
+                            schemas: [ScimSchemaType.ROLE],
+                            value: expect.any(String),
+                            display: expect.any(String),
+                            type: expect.any(String),
+                            supported: true,
+                            meta: expect.objectContaining({
+                                resourceType: 'Role',
+                                location: expect.stringContaining(
+                                    '/api/v1/scim/v2/Roles/',
+                                ),
+                            }),
+                        }),
+                    ]),
+                });
+
+                // Verify we have the expected number of roles
+                expect(result.Resources).toHaveLength(19);
+
+                // Verify some specific role values
+                const roleValues = result.Resources.map((role) => role.value);
+                expect(roleValues).toContain('admin'); // org-level system role
+                expect(roleValues).toContain('viewer'); // org-level system role
+                expect(roleValues).toContain('editor'); // org-level system role
+                expect(roleValues).toContain('project-1-uuid:admin'); // project-level system role
+                expect(roleValues).toContain(
+                    'project-1-uuid:custom-role-1-uuid',
+                ); // project-level custom role
+                expect(roleValues).toContain('project-2-uuid:admin'); // project-level system role
+                expect(roleValues).toContain(
+                    'project-2-uuid:custom-role-2-uuid',
+                ); // project-level custom role
+
+                // Verify we don't have preview project roles
+                const previewRoles = roleValues.filter((value) =>
+                    value.includes('preview-project-uuid'),
+                );
+                expect(previewRoles).toHaveLength(0);
+            });
+        });
+
+        describe('getRole', () => {
+            test('should return a specific role by ID', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'admin';
+
+                const result = await service.getRole(organizationUuid, roleId);
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.ROLE],
+                    id: 'admin',
+                    value: 'admin',
+                    display: 'admin',
+                    type: expect.any(String),
+                    supported: true,
+                    meta: {
+                        resourceType: 'Role',
+                        created: undefined, // System roles don't have creation dates
+                        lastModified: undefined, // System roles don't have modification dates
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/Roles/admin',
+                        ),
+                    },
+                });
+            });
+
+            test('should return a specific project-level role by composite ID', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'project-1-uuid:admin';
+
+                const result = await service.getRole(organizationUuid, roleId);
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.ROLE],
+                    id: 'project-1-uuid:admin',
+                    value: 'project-1-uuid:admin',
+                    display: 'Analytics Project - admin',
+                    type: expect.any(String),
+                    supported: true,
+                    meta: {
+                        resourceType: 'Role',
+                        created: undefined, // System roles don't have creation dates
+                        lastModified: undefined, // System roles don't have modification dates
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/Roles/project-1-uuid:admin',
+                        ),
+                    },
+                });
+            });
+
+            test('should throw error for non-existent role', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'non-existent-role';
+
+                await expect(
+                    service.getRole(organizationUuid, roleId),
+                ).rejects.toThrow('Role with ID non-existent-role not found');
             });
         });
     });

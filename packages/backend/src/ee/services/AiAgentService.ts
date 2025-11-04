@@ -140,6 +140,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
 } from './ai/utils/getSlackBlocks';
+import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
@@ -242,7 +243,10 @@ export class AiAgentService {
     }
 
     private async getIsCopilotEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
     ) {
         const aiCopilotFlag = await this.featureFlagService.get({
             user,
@@ -3764,11 +3768,6 @@ export class AiAgentService {
     ) {
         await this.getAgent(user, agentUuid, projectUuid);
 
-        const evalData = await this.aiAgentModel.getEval({
-            agentUuid,
-            evalUuid,
-        });
-
         return this.aiAgentModel.getEvalRuns(evalUuid, paginateArgs);
     }
 
@@ -3911,9 +3910,14 @@ export class AiAgentService {
                 threadUuid,
             });
 
-            // Mark as completed
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
-                status: 'completed',
+                status: `assessing`,
+            });
+            await this.assessResult(result.resultUuid);
+
+            // Mark as completed with assessment status
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: `completed`,
                 completedAt: new Date(),
             });
 
@@ -3922,7 +3926,6 @@ export class AiAgentService {
                 evalRunUuid,
             );
         } catch (error) {
-            // Update result as failed
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
                 status: 'failed',
                 errorMessage:
@@ -3937,6 +3940,97 @@ export class AiAgentService {
 
             throw error;
         }
+    }
+
+    /**
+     * Assess the correctness of an evaluation result based on factuality and context relevancy scores.
+     * TODO: Consider adding explores information for extra context relevancy assessment
+     * @param resultUuid
+     * @returns boolean - Indicates whether the result is correct or not.
+     */
+    async assessResult(resultUuid: string): Promise<boolean> {
+        Logger.info(`Assessing result ${resultUuid}`);
+        const { query, response, expectedAnswer, artifact } =
+            await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+
+        // TODO: Implement judge configuration in the future!
+        // reusing existing configuration for now
+        const { model: judge, callOptions } = getModel(
+            this.lightdashConfig.ai.copilot,
+        );
+
+        const artifactContext: string[] = artifact
+            ? [
+                  `Artifact type: ${artifact.artifactType}`,
+                  artifact.chartConfig
+                      ? `Chart config: ${JSON.stringify(artifact.chartConfig)}`
+                      : '',
+                  artifact.dashboardConfig
+                      ? `Dashboard config: ${JSON.stringify(
+                            artifact.dashboardConfig,
+                        )}`
+                      : '',
+              ].filter(Boolean)
+            : [];
+
+        const factualityScore = expectedAnswer
+            ? await llmAsAJudge({
+                  query,
+                  response,
+                  expectedAnswer,
+                  judge,
+                  callOptions,
+                  scorerType: 'factuality',
+              })
+            : null;
+
+        const contextRelevancyScore = artifact
+            ? await llmAsAJudge({
+                  query,
+                  response,
+                  context: artifactContext,
+                  judge,
+                  callOptions,
+                  scorerType: 'contextRelevancy',
+              })
+            : null;
+
+        const reasoning = [];
+        let passed = true;
+        if (factualityScore) {
+            reasoning.push(
+                ...[
+                    `Factuality score passed: ${factualityScore.meta.passed}`,
+                    `Factuality rationale: ${factualityScore.result.rationale}`,
+                ],
+            );
+            passed = passed && factualityScore.meta.passed;
+        }
+
+        if (contextRelevancyScore) {
+            reasoning.push(
+                ...[
+                    `Context relevancy score passed: ${contextRelevancyScore.meta.passed}`,
+                    `Context relevancy reason: ${contextRelevancyScore.result.reason}`,
+                ],
+            );
+            passed = passed && contextRelevancyScore.meta.passed;
+        }
+
+        if (reasoning.length === 0) {
+            reasoning.push('Not enough information to assess this result');
+            passed = false;
+        }
+
+        await this.aiAgentModel.createLlmAssessment({
+            runResultUuid: resultUuid,
+            passed,
+            reason: reasoning.join('\n'),
+            llmJudgeProvider: judge.provider,
+            llmJudgeModel: judge.modelId,
+        });
+
+        return passed;
     }
 
     async getArtifact(

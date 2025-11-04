@@ -22,6 +22,7 @@ import {
     AiAgentUser,
     AiAgentUserPreferences,
     AiArtifact,
+    AiEvalRunResultAssessment,
     AiResultType,
     AiThread,
     AiWebAppPrompt,
@@ -31,10 +32,12 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     assertUnreachable,
+    CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    isThreadPrompt,
     isToolName,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -95,6 +98,7 @@ import {
 } from '../database/entities/aiArtifacts';
 import {
     AiEvalPromptTableName,
+    AiEvalRunResultAssessmentTableName,
     AiEvalRunResultTableName,
     AiEvalRunTableName,
     AiEvalTableName,
@@ -102,6 +106,7 @@ import {
     DbAiEvalPrompt,
     DbAiEvalRun,
     DbAiEvalRunResult,
+    DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 
 type Dependencies = {
@@ -2705,23 +2710,22 @@ export class AiAgentModel {
                 })
                 .returning('*');
 
-            // Create prompts - handle both string and object format
             const promptInserts = data.prompts.map((promptData) => {
-                if (typeof promptData === 'string') {
-                    // Legacy string format
+                if (isThreadPrompt(promptData)) {
                     return {
                         ai_eval_uuid: evalRecord.ai_eval_uuid,
-                        prompt: promptData,
-                        ai_prompt_uuid: null,
-                        ai_thread_uuid: null,
+                        prompt: null,
+                        ai_prompt_uuid: promptData.promptUuid,
+                        ai_thread_uuid: promptData.threadUuid,
+                        expected_response: promptData.expectedResponse,
                     };
                 }
-                // New object format with referenced prompt/thread
                 return {
                     ai_eval_uuid: evalRecord.ai_eval_uuid,
-                    prompt: null,
-                    ai_prompt_uuid: promptData.promptUuid,
-                    ai_thread_uuid: promptData.threadUuid,
+                    prompt: promptData.prompt,
+                    ai_prompt_uuid: null,
+                    ai_thread_uuid: null,
+                    expected_response: promptData.expectedResponse,
                 };
             });
 
@@ -2743,11 +2747,13 @@ export class AiAgentModel {
                         ? {
                               type: 'string' as const,
                               prompt: p.prompt,
+                              expectedResponse: p.expected_response,
                           }
                         : {
                               type: 'thread' as const,
                               promptUuid: p.ai_prompt_uuid!,
                               threadUuid: p.ai_thread_uuid!,
+                              expectedResponse: p.expected_response,
                           }),
                 })),
             };
@@ -2796,11 +2802,13 @@ export class AiAgentModel {
                     ? {
                           type: 'string' as const,
                           prompt: p.prompt,
+                          expectedResponse: p.expected_response,
                       }
                     : {
                           type: 'thread' as const,
                           promptUuid: p.ai_prompt_uuid!,
                           threadUuid: p.ai_thread_uuid!,
+                          expectedResponse: p.expected_response,
                       }),
             })),
         };
@@ -2848,24 +2856,23 @@ export class AiAgentModel {
                     .where('ai_eval_uuid', evalUuid)
                     .delete();
 
-                // Insert new prompts - handle both string and object format
                 if (data.prompts.length > 0) {
                     const promptRecords = data.prompts.map((promptData) => {
-                        if (typeof promptData === 'string') {
-                            // Legacy string format
+                        if (isThreadPrompt(promptData)) {
                             return {
                                 ai_eval_uuid: evalUuid,
-                                prompt: promptData,
-                                ai_prompt_uuid: null,
-                                ai_thread_uuid: null,
+                                prompt: null,
+                                ai_prompt_uuid: promptData.promptUuid,
+                                ai_thread_uuid: promptData.threadUuid,
+                                expected_response: promptData.expectedResponse,
                             };
                         }
-                        // New object format with referenced prompt/thread
                         return {
                             ai_eval_uuid: evalUuid,
-                            prompt: null,
-                            ai_prompt_uuid: promptData.promptUuid,
-                            ai_thread_uuid: promptData.threadUuid,
+                            prompt: promptData.prompt,
+                            ai_prompt_uuid: null,
+                            ai_thread_uuid: null,
+                            expected_response: promptData.expectedResponse,
                         };
                     });
                     await trx(AiEvalPromptTableName).insert(promptRecords);
@@ -2888,19 +2895,21 @@ export class AiAgentModel {
             });
 
             const promptRecords = data.prompts.map((promptData) => {
-                if (typeof promptData === 'string') {
+                if (isThreadPrompt(promptData)) {
                     return {
                         ai_eval_uuid: evalUuid,
-                        prompt: promptData,
-                        ai_prompt_uuid: null,
-                        ai_thread_uuid: null,
+                        prompt: null,
+                        ai_prompt_uuid: promptData.promptUuid,
+                        ai_thread_uuid: promptData.threadUuid,
+                        expected_response: promptData.expectedResponse,
                     };
                 }
                 return {
                     ai_eval_uuid: evalUuid,
-                    prompt: null,
-                    ai_prompt_uuid: promptData.promptUuid,
-                    ai_thread_uuid: promptData.threadUuid,
+                    prompt: promptData.prompt,
+                    ai_prompt_uuid: null,
+                    ai_thread_uuid: null,
+                    expected_response: promptData.expectedResponse,
                 };
             });
             await trx(AiEvalPromptTableName).insert(promptRecords);
@@ -2928,6 +2937,8 @@ export class AiAgentModel {
             status: runRecord.status,
             completedAt: runRecord.completed_at,
             createdAt: runRecord.created_at,
+            passedAssessments: 0,
+            failedAssessments: 0,
         };
     }
 
@@ -2991,8 +3002,58 @@ export class AiAgentModel {
     async getEvalRunResult(
         resultUuid: string,
     ): Promise<AiAgentEvaluationRunResult> {
+        const firstThreadPromptSubquery = this.buildFirstThreadPromptSubquery();
+
         const result = await this.database(AiEvalRunResultTableName)
-            .where('ai_eval_run_result_uuid', resultUuid)
+            .leftJoin(
+                AiEvalRunResultAssessmentTableName,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+            )
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .leftJoin(
+                firstThreadPromptSubquery,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                'first_prompts.ai_thread_uuid',
+            )
+            .where(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                resultUuid,
+            )
+            .select<
+                DbAiEvalRunResult & {
+                    assessment_uuid: string | null;
+                    assessment_type: 'human' | 'llm' | null;
+                    passed: boolean | null;
+                    reason: string | null;
+                    assessed_by_user_uuid: string | null;
+                    llm_judge_provider: string | null;
+                    llm_judge_model: string | null;
+                    assessed_at: Date | null;
+                    assessment_created_at: Date | null;
+                    prompt: string | null;
+                    expected_response: string | null;
+                }
+            >(
+                `${AiEvalRunResultTableName}.*`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_assessment_uuid as assessment_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.assessment_type`,
+                `${AiEvalRunResultAssessmentTableName}.passed`,
+                `${AiEvalRunResultAssessmentTableName}.reason`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_by_user_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_provider`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_model`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_at`,
+                `${AiEvalRunResultAssessmentTableName}.created_at as assessment_created_at`,
+                this.database.raw(
+                    `COALESCE(${AiEvalPromptTableName}.prompt, first_prompts.first_prompt) as prompt`,
+                ),
+                `${AiEvalPromptTableName}.expected_response`,
+            )
             .first();
 
         if (!result) {
@@ -3009,6 +3070,78 @@ export class AiAgentModel {
             errorMessage: result.error_message,
             completedAt: result.completed_at,
             createdAt: result.created_at,
+            prompt: result.prompt,
+            expectedResponse: result.expected_response,
+            assessment:
+                result.assessment_uuid &&
+                result.assessment_type &&
+                result.passed !== null &&
+                result.assessed_at &&
+                result.assessment_created_at
+                    ? {
+                          assessmentUuid: result.assessment_uuid,
+                          runResultUuid: result.ai_eval_run_result_uuid,
+                          assessmentType: result.assessment_type,
+                          passed: result.passed,
+                          reason: result.reason,
+                          assessedByUserUuid: result.assessed_by_user_uuid,
+                          llmJudgeProvider: result.llm_judge_provider,
+                          llmJudgeModel: result.llm_judge_model,
+                          assessedAt: result.assessed_at,
+                          createdAt: result.assessment_created_at,
+                      }
+                    : null,
+        };
+    }
+
+    private buildFirstThreadPromptSubquery() {
+        return this.database
+            .from(
+                this.database(AiPromptTableName)
+                    .select('ai_thread_uuid', 'prompt', 'created_at')
+                    .as('ordered_prompts'),
+            )
+            .distinctOn('ai_thread_uuid')
+            .select('ai_thread_uuid', 'prompt as first_prompt')
+            .orderBy('ai_thread_uuid')
+            .orderBy('created_at', 'asc')
+            .as('first_prompts');
+    }
+
+    private buildAssessmentCountsSubquery() {
+        return this.database(AiEvalRunResultAssessmentTableName)
+            .select(
+                `${AiEvalRunResultTableName}.ai_eval_run_uuid`,
+                this.database.raw(
+                    `COUNT(CASE WHEN ${AiEvalRunResultAssessmentTableName}.passed = true THEN 1 END) as passed_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN ${AiEvalRunResultAssessmentTableName}.passed = false THEN 1 END) as failed_count`,
+                ),
+            )
+            .innerJoin(
+                AiEvalRunResultTableName,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+            )
+            .groupBy(`${AiEvalRunResultTableName}.ai_eval_run_uuid`)
+            .as('assessments_agg');
+    }
+
+    private static mapRunWithAssessmentCounts(
+        row: DbAiEvalRun & {
+            passed_assessments: string | number;
+            failed_assessments: string | number;
+        },
+    ): AiAgentEvaluationRunSummary {
+        return {
+            runUuid: row.ai_eval_run_uuid,
+            evalUuid: row.ai_eval_uuid,
+            status: row.status,
+            completedAt: row.completed_at,
+            createdAt: row.created_at,
+            passedAssessments: Number(row.passed_assessments),
+            failedAssessments: Number(row.failed_assessments),
         };
     }
 
@@ -3016,24 +3149,44 @@ export class AiAgentModel {
         evalUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<{ runs: AiAgentEvaluationRunSummary[] }>> {
+        const assessmentsSubquery = this.buildAssessmentCountsSubquery();
+
         const query = this.database(AiEvalRunTableName)
-            .select<DbAiEvalRun[]>('*')
-            .where('ai_eval_uuid', evalUuid)
-            .orderBy('created_at', 'desc');
+            .select<
+                Array<
+                    DbAiEvalRun & {
+                        passed_assessments: string | number;
+                        failed_assessments: string | number;
+                    }
+                >
+            >(
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                `${AiEvalRunTableName}.ai_eval_uuid`,
+                `${AiEvalRunTableName}.status`,
+                `${AiEvalRunTableName}.completed_at`,
+                `${AiEvalRunTableName}.created_at`,
+                this.database.raw(
+                    `COALESCE(assessments_agg.passed_count, 0) as passed_assessments`,
+                ),
+                this.database.raw(
+                    `COALESCE(assessments_agg.failed_count, 0) as failed_assessments`,
+                ),
+            )
+            .leftJoin(
+                assessmentsSubquery,
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                'assessments_agg.ai_eval_run_uuid',
+            )
+            .where(`${AiEvalRunTableName}.ai_eval_uuid`, evalUuid)
+            .orderBy(`${AiEvalRunTableName}.created_at`, 'desc');
 
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,
         );
 
-        const runs: AiAgentEvaluationRunSummary[] = data.map(
-            (run: DbAiEvalRun) => ({
-                runUuid: run.ai_eval_run_uuid,
-                evalUuid: run.ai_eval_uuid,
-                status: run.status,
-                completedAt: run.completed_at,
-                createdAt: run.created_at,
-            }),
+        const runs: AiAgentEvaluationRunSummary[] = data.map((row) =>
+            AiAgentModel.mapRunWithAssessmentCounts(row),
         );
 
         return {
@@ -3047,8 +3200,33 @@ export class AiAgentModel {
     async getEvalRunWithResults(
         runUuid: string,
     ): Promise<AiAgentEvaluationRun> {
+        const assessmentsSubquery = this.buildAssessmentCountsSubquery();
+
         const run = await this.database(AiEvalRunTableName)
-            .where('ai_eval_run_uuid', runUuid)
+            .select<
+                DbAiEvalRun & {
+                    passed_assessments: string | number;
+                    failed_assessments: string | number;
+                }
+            >(
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                `${AiEvalRunTableName}.ai_eval_uuid`,
+                `${AiEvalRunTableName}.status`,
+                `${AiEvalRunTableName}.completed_at`,
+                `${AiEvalRunTableName}.created_at`,
+                this.database.raw(
+                    `COALESCE(assessments_agg.passed_count, 0) as passed_assessments`,
+                ),
+                this.database.raw(
+                    `COALESCE(assessments_agg.failed_count, 0) as failed_assessments`,
+                ),
+            )
+            .leftJoin(
+                assessmentsSubquery,
+                `${AiEvalRunTableName}.ai_eval_run_uuid`,
+                'assessments_agg.ai_eval_run_uuid',
+            )
+            .where(`${AiEvalRunTableName}.ai_eval_run_uuid`, runUuid)
             .first();
 
         if (!run)
@@ -3056,11 +3234,23 @@ export class AiAgentModel {
                 `Evaluation run not found for uuid: ${runUuid}`,
             );
 
-        const results = await this.database(AiEvalRunResultTableName)
+        const firstThreadPromptSubquery = this.buildFirstThreadPromptSubquery();
+
+        const resultsQuery = this.database(AiEvalRunResultTableName)
             .leftJoin(
                 AiEvalPromptTableName,
                 `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
                 `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .leftJoin(
+                AiEvalRunResultAssessmentTableName,
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_uuid`,
+            )
+            .leftJoin(
+                firstThreadPromptSubquery,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                'first_prompts.ai_thread_uuid',
             )
             .where(`${AiEvalRunResultTableName}.ai_eval_run_uuid`, runUuid)
             .select<
@@ -3073,7 +3263,19 @@ export class AiAgentModel {
                     | 'status'
                     | 'ai_thread_uuid'
                 > &
-                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'>)[]
+                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'> & {
+                        prompt: string | null;
+                        expected_response: string | null;
+                        assessment_uuid: string | null;
+                        assessment_type: 'human' | 'llm' | null;
+                        passed: boolean | null;
+                        reason: string | null;
+                        assessed_by_user_uuid: string | null;
+                        llm_judge_provider: string | null;
+                        llm_judge_model: string | null;
+                        assessed_at: Date | null;
+                        assessment_created_at: Date | null;
+                    })[]
             >(
                 `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
                 `${AiEvalRunResultTableName}.error_message`,
@@ -3082,15 +3284,26 @@ export class AiAgentModel {
                 `${AiEvalRunResultTableName}.status`,
                 `${AiEvalRunResultTableName}.ai_thread_uuid`,
                 `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+                this.database.raw(
+                    `COALESCE(${AiEvalPromptTableName}.prompt, first_prompts.first_prompt) as prompt`,
+                ),
+                `${AiEvalPromptTableName}.expected_response`,
+                `${AiEvalRunResultAssessmentTableName}.ai_eval_run_result_assessment_uuid as assessment_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.assessment_type`,
+                `${AiEvalRunResultAssessmentTableName}.passed`,
+                `${AiEvalRunResultAssessmentTableName}.reason`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_by_user_uuid`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_provider`,
+                `${AiEvalRunResultAssessmentTableName}.llm_judge_model`,
+                `${AiEvalRunResultAssessmentTableName}.assessed_at`,
+                `${AiEvalRunResultAssessmentTableName}.created_at as assessment_created_at`,
             )
             .orderBy(`${AiEvalRunResultTableName}.created_at`, 'asc');
 
+        const results = await resultsQuery;
+
         return {
-            runUuid: run.ai_eval_run_uuid,
-            evalUuid: run.ai_eval_uuid,
-            status: run.status,
-            completedAt: run.completed_at,
-            createdAt: run.created_at,
+            ...AiAgentModel.mapRunWithAssessmentCounts(run),
             results: results.map((result) => ({
                 resultUuid: result.ai_eval_run_result_uuid,
                 evalPromptUuid: result.ai_eval_prompt_uuid,
@@ -3099,6 +3312,27 @@ export class AiAgentModel {
                 errorMessage: result.error_message,
                 completedAt: result.completed_at,
                 createdAt: result.created_at,
+                prompt: result.prompt,
+                expectedResponse: result.expected_response,
+                assessment:
+                    result.assessment_uuid &&
+                    result.assessment_type &&
+                    result.passed !== null &&
+                    result.assessed_at &&
+                    result.assessment_created_at
+                        ? {
+                              assessmentUuid: result.assessment_uuid,
+                              runResultUuid: result.ai_eval_run_result_uuid,
+                              assessmentType: result.assessment_type,
+                              passed: result.passed,
+                              reason: result.reason,
+                              assessedByUserUuid: result.assessed_by_user_uuid,
+                              llmJudgeProvider: result.llm_judge_provider,
+                              llmJudgeModel: result.llm_judge_model,
+                              assessedAt: result.assessed_at,
+                              createdAt: result.assessment_created_at,
+                          }
+                        : null,
             })),
         };
     }
@@ -3124,6 +3358,134 @@ export class AiAgentModel {
                     });
             }
         });
+    }
+
+    async createLlmAssessment(
+        data: CreateLlmAssessment,
+    ): Promise<AiEvalRunResultAssessment> {
+        const [assessment] = await this.database(
+            AiEvalRunResultAssessmentTableName,
+        )
+            .insert({
+                ai_eval_run_result_uuid: data.runResultUuid,
+                assessment_type: 'llm',
+                passed: data.passed,
+                reason: data.reason,
+                assessed_by_user_uuid: null,
+                llm_judge_provider: data.llmJudgeProvider,
+                llm_judge_model: data.llmJudgeModel,
+            })
+            .returning('*');
+
+        if (!assessment) {
+            throw new Error('Failed to create LLM assessment');
+        }
+
+        return {
+            assessmentUuid: assessment.ai_eval_run_result_assessment_uuid,
+            runResultUuid: assessment.ai_eval_run_result_uuid,
+            assessmentType: assessment.assessment_type,
+            passed: assessment.passed,
+            reason: assessment.reason,
+            assessedByUserUuid: assessment.assessed_by_user_uuid,
+            llmJudgeProvider: assessment.llm_judge_provider,
+            llmJudgeModel: assessment.llm_judge_model,
+            assessedAt: assessment.assessed_at,
+            createdAt: assessment.created_at,
+        };
+    }
+
+    async getEvalResultDataForAssessment(resultUuid: string): Promise<{
+        query: string;
+        response: string;
+        expectedAnswer: string | null;
+        artifact: {
+            artifactType: 'chart' | 'dashboard';
+            chartConfig: Record<string, unknown> | null;
+            dashboardConfig: Record<string, unknown> | null;
+            title: string | null;
+            description: string | null;
+        } | null;
+    }> {
+        const result = await this.database(AiEvalRunResultTableName)
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptTableName,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                `${AiPromptTableName}.ai_thread_uuid`,
+            )
+            .leftJoin(
+                AiArtifactVersionsTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                resultUuid,
+            )
+            .orderBy(`${AiPromptTableName}.created_at`, 'asc')
+            .select<{
+                prompt: string | null;
+                response: string | null;
+                expected_response: string | null;
+                artifact_type: 'chart' | 'dashboard' | null;
+                chart_config: Record<string, unknown> | null;
+                dashboard_config: Record<string, unknown> | null;
+                title: string | null;
+                description: string | null;
+            }>(
+                `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.response`,
+                `${AiEvalPromptTableName}.expected_response`,
+                `${AiArtifactsTableName}.artifact_type`,
+                `${AiArtifactVersionsTableName}.chart_config`,
+                `${AiArtifactVersionsTableName}.dashboard_config`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
+            )
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Evaluation run result not found for uuid: ${resultUuid}`,
+            );
+        }
+
+        if (!result.prompt) {
+            throw new NotFoundError(
+                `Query is missing for result: ${resultUuid}`,
+            );
+        }
+
+        if (!result.response) {
+            throw new NotFoundError(
+                `Response is missing for result: ${resultUuid}`,
+            );
+        }
+
+        return {
+            query: result.prompt,
+            response: result.response,
+            expectedAnswer: result.expected_response,
+            artifact: result.artifact_type
+                ? {
+                      artifactType: result.artifact_type,
+                      chartConfig: result.chart_config,
+                      dashboardConfig: result.dashboard_config,
+                      title: result.title,
+                      description: result.description,
+                  }
+                : null,
+        };
     }
 
     private async cloneThreadArtifacts({

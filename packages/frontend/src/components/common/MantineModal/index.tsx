@@ -19,6 +19,7 @@ const modalSizes = {
     sm: 380,
     lg: 480,
     xl: 600,
+    full: '100%',
 } as const;
 
 export type MantineModalProps = {

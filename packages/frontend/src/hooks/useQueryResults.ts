@@ -224,6 +224,9 @@ export const useGetReadyQueryResults = (
             useSqlPivotResults,
         ],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
         queryFn: ({ signal }) => {
             return executeAsyncQuery(
                 data

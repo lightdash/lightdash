@@ -20,6 +20,13 @@ export interface LightdashScimExtension {
     role?: string;
 }
 
+export interface ScimUserRole {
+    value: string;
+    display?: string;
+    type?: ScimRoleType;
+    primary?: boolean;
+}
+
 export interface ScimUser extends ScimResource {
     schemas: string[];
     userName: string;
@@ -32,6 +39,7 @@ export interface ScimUser extends ScimResource {
         value: string;
         primary?: boolean;
     }[];
+    roles?: ScimUserRole[];
     [ScimSchemaType.LIGHTDASH_USER_EXTENSION]?: LightdashScimExtension;
 }
 
@@ -51,6 +59,26 @@ export interface ScimGroup extends ScimResource {
 export interface ScimGroupMember {
     value: string;
     display?: string;
+}
+
+export enum ScimRoleType {
+    ORG = 'ORG_SYSTEM',
+    PROJECT = 'PROJECT_SYSTEM',
+    PROJECT_CUSTOM = 'PROJECT_CUSTOM',
+}
+
+export interface ScimRole extends ScimResource {
+    schemas: ScimSchemaType.ROLE[];
+    value: string;
+    display?: string;
+    type?: ScimRoleType;
+    supported: boolean;
+    meta: ScimResource['meta'] & {
+        resourceType: 'Role';
+        created?: Date;
+        lastModified?: Date;
+        location: string;
+    };
 }
 
 export type ScimErrorPayload = {

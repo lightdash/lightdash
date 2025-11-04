@@ -15,10 +15,12 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
+export * from './aiEvalAssessment';
 export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
@@ -412,11 +414,13 @@ export type AiAgentEvaluationPrompt = {
     | {
           type: 'string';
           prompt: string;
+          expectedResponse: string | null;
       }
     | {
           type: 'thread';
           promptUuid: string;
           threadUuid: string;
+          expectedResponse: string | null;
       }
 );
 
@@ -446,6 +450,8 @@ export type AiAgentEvaluationRunSummary = {
     status: 'pending' | 'running' | 'completed' | 'failed';
     completedAt: Date | null;
     createdAt: Date;
+    passedAssessments: number;
+    failedAssessments: number;
 };
 
 export type AiAgentEvaluationRun = AiAgentEvaluationRunSummary & {
@@ -456,23 +462,46 @@ export type AiAgentEvaluationRunResult = {
     resultUuid: string;
     evalPromptUuid: string | null;
     threadUuid: string | null;
-    status: 'pending' | 'running' | 'completed' | 'failed';
+    status: 'pending' | 'running' | 'completed' | 'assessing' | 'failed';
     errorMessage: string | null;
     completedAt: Date | null;
     createdAt: Date;
+    assessment: AiEvalRunResultAssessment | null;
+    prompt: string | null;
+    expectedResponse: string | null;
 };
 
 /**
  * Represents a prompt for evaluation that can be either:
- * - A string containing the prompt text directly
+ * - An object with a prompt string for new prompts
  * - An object referencing an existing prompt and thread by their UUIDs
  */
 export type CreateEvaluationPrompt =
-    | string
+    | { prompt: string; expectedResponse: string | null }
     | {
           promptUuid: string;
           threadUuid: string;
+          expectedResponse: string | null;
       };
+
+/**
+ * Type guard to check if a CreateEvaluationPrompt is a string prompt
+ */
+export const isStringPrompt = (
+    prompt: CreateEvaluationPrompt,
+): prompt is { prompt: string; expectedResponse: string | null } =>
+    'prompt' in prompt;
+
+/**
+ * Type guard to check if a CreateEvaluationPrompt is a thread reference
+ */
+export const isThreadPrompt = (
+    prompt: CreateEvaluationPrompt,
+): prompt is {
+    promptUuid: string;
+    threadUuid: string;
+    expectedResponse: string | null;
+} => 'promptUuid' in prompt && 'threadUuid' in prompt;
 
 export type ApiCreateEvaluationRequest = {
     title: string;
