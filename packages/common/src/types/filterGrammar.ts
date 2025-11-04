@@ -32,8 +32,23 @@ EMPTY_STRING = '' {
   }
 
 EXPRESSION
-= NUMERICAL / DATE_RESTRICTION / LIST / TERM
+= BETWEEN_DATE / BETWEEN_NUMERICAL / NUMERICAL / DATE_RESTRICTION / LIST / TERM
 
+BETWEEN_DATE = SPACE_SYMBOL* ("between"i / "BETWEEN") SPACE_SYMBOL+ min:DATE_STRING SPACE_SYMBOL+ ("and"i / "AND") SPACE_SYMBOL+ max:DATE_STRING {
+    return {
+        type: '${FilterOperator.IN_BETWEEN}',
+        values: [min, max],
+        is: true
+    }
+   }
+
+BETWEEN_NUMERICAL = SPACE_SYMBOL* ("between"i / "BETWEEN") SPACE_SYMBOL+ min:NUMBER SPACE_SYMBOL+ ("and"i / "AND") SPACE_SYMBOL+ max:NUMBER {
+    return {
+        type: '${FilterOperator.IN_BETWEEN}',
+        values: [min, max],
+        is: true
+    }
+   }
 
 NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:NUMBER {
     return {
@@ -43,6 +58,20 @@ NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:NUMBER {
    }
 
 OPERATOR = '>=' / '<=' / '>' / '<'
+
+DATE_STRING
+  = quotation_mark date:ISO_DATE quotation_mark { return date }
+  / ISO_DATE
+
+ISO_DATE
+  = year:YEAR "-" month:MONTH "-" day:DAY time:("T" TIME "Z"?)? {
+      return text();
+    }
+
+YEAR = [0-9][0-9][0-9][0-9]
+MONTH = ("0" [1-9]) / ("1" [0-2])
+DAY = ("0" [1-9]) / ([1-2] [0-9]) / ("3" [0-1])
+TIME = [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)?
 
 DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMBER SPACE_SYMBOL* interval:DATE_INTERVAL {
     return {
@@ -216,6 +245,10 @@ export const parseOperator = (
             return FilterOperator.IN_THE_PAST;
         case FilterOperator.IN_THE_NEXT:
             return FilterOperator.IN_THE_NEXT;
+        case FilterOperator.IN_BETWEEN:
+            return isTrue
+                ? FilterOperator.IN_BETWEEN
+                : FilterOperator.NOT_IN_BETWEEN;
         case 'null':
         case 'NULL':
             return isTrue ? FilterOperator.NULL : FilterOperator.NOT_NULL;
