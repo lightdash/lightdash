@@ -889,7 +889,7 @@ export class McpService extends BaseService {
                     catalogSearch: {
                         type: CatalogType.Field,
                         yamlTags: tagsFromContext || undefined,
-                        tables: [args.exploreName],
+                        tables: [explore.baseTable],
                     },
                     userAttributes,
                     context: CatalogSearchContext.MCP,
@@ -910,6 +910,8 @@ export class McpService extends BaseService {
                             ...sharedArgs.catalogSearch,
                             filter: CatalogFilter.Dimensions,
                         },
+                        fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
                     });
 
                 const { data: metrics } =
@@ -919,6 +921,8 @@ export class McpService extends BaseService {
                             ...sharedArgs.catalogSearch,
                             filter: CatalogFilter.Metrics,
                         },
+                        fullTextSearchOperator: 'OR',
+                        filteredExplore: explore,
                     });
 
                 return {
@@ -999,6 +1003,7 @@ export class McpService extends BaseService {
                             pageSize: args.pageSize,
                         },
                         userAttributes,
+                        fullTextSearchOperator: 'OR',
                         filteredExplore: explore,
                     });
 
