@@ -1,3 +1,10 @@
+# [0.2136.0](https://github.com/lightdash/lightdash/compare/0.2135.2...0.2136.0) (2025-11-04)
+
+
+### Features
+
+* add project-level roles to SCIM API ([#17812](https://github.com/lightdash/lightdash/issues/17812)) ([ab2c118](https://github.com/lightdash/lightdash/commit/ab2c118970b64088090c442359d98da8c3f7c29c))
+
 ## [0.2135.2](https://github.com/lightdash/lightdash/compare/0.2135.1...0.2135.2) (2025-11-04)
 
 
