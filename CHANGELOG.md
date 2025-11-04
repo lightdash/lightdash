@@ -1,3 +1,10 @@
+# [0.2132.0](https://github.com/lightdash/lightdash/compare/0.2131.4...0.2132.0) (2025-11-04)
+
+
+### Features
+
+* add SCIM role controller and endpoints ([#17806](https://github.com/lightdash/lightdash/issues/17806)) ([25ee079](https://github.com/lightdash/lightdash/commit/25ee0794c13734f999e7e55f37287c6d518ccde2))
+
 ## [0.2131.4](https://github.com/lightdash/lightdash/compare/0.2131.3...0.2131.4) (2025-11-04)
 
 
