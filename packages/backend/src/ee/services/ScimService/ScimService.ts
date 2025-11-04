@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
-    CommercialFeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    getSystemRoles,
     GroupWithMembers,
     isOrganizationMemberRole,
     isValidEmailAddress,
@@ -12,10 +12,13 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
+    Role,
     ScimError,
     ScimGroup,
     ScimListResponse,
     ScimResourceType,
+    ScimRole,
+    ScimRoleType,
     ScimSchema,
     ScimSchemaAttribute,
     ScimSchemaType,
@@ -42,10 +45,6 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
-import {
-    ScimAccessTokenAuthenticationEvent,
-    ScimAccessTokenEvent,
-} from '../../analytics';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
@@ -1375,6 +1374,107 @@ export class ScimService extends BaseService {
         }
     }
 
+    private convertLightdashRoleToScimRole(
+        role: Role,
+        type: ScimRoleType,
+    ): ScimRole {
+        const id = role.roleUuid;
+        return {
+            schemas: [ScimSchemaType.ROLE],
+            id,
+            value: id,
+            display: role.name,
+            type,
+            supported: true,
+            meta: {
+                resourceType: 'Role',
+                created: role.createdAt || undefined,
+                lastModified: role.updatedAt || undefined,
+                location: new URL(
+                    `/api/v1/scim/v2/Roles/${id}`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
+            },
+        };
+    }
+
+    async listRoles({
+        organizationUuid,
+        filter,
+    }: {
+        organizationUuid: string;
+        filter?: string;
+    }): Promise<ScimListResponse<ScimRole>> {
+        this.logger.debug('SCIM: Listing roles', {
+            organizationUuid,
+            filter,
+        });
+        try {
+            const parsedFilter = filter ? parse(filter) : null;
+            this.logger.debug('SCIM: Parsed role filter', { parsedFilter });
+
+            const systemRoles = getSystemRoles();
+
+            // Convert org roles to SCIM format
+            const scimRoles = systemRoles.map((role) =>
+                this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
+            );
+
+            // Apply filter if specified
+            let filteredRoles = scimRoles;
+            if (parsedFilter?.op === 'eq') {
+                const { attrPath, compValue } = parsedFilter;
+                filteredRoles = scimRoles.filter((role) => {
+                    switch (attrPath) {
+                        case 'value':
+                            return role.value === compValue;
+                        case 'display':
+                            return role.display === compValue;
+                        case 'type':
+                            return role.type === compValue;
+                        default:
+                            return true;
+                    }
+                });
+            }
+
+            this.logger.debug('SCIM: Successfully listed roles', {
+                organizationUuid,
+                totalResults: filteredRoles.length,
+            });
+
+            return {
+                schemas: [ScimSchemaType.LIST_RESPONSE],
+                totalResults: filteredRoles.length,
+                itemsPerPage: filteredRoles.length,
+                startIndex: 1,
+                Resources: filteredRoles,
+            };
+        } catch (error) {
+            this.logger.error(
+                `Failed to list SCIM roles: ${getErrorMessage(error)}`,
+            );
+            const scimError = new ScimError({
+                detail: getErrorMessage(error),
+                status: ScimService.getErrorStatus(error) ?? 500,
+            });
+            Sentry.captureException(scimError);
+            throw scimError;
+        }
+    }
+
+    async getRole(organizationUuid: string, roleId: string): Promise<ScimRole> {
+        const roles = await this.listRoles({ organizationUuid });
+        const role = roles.Resources.find((r) => r.id === roleId);
+        if (!role) {
+            throw new ScimError({
+                detail: `Role with ID ${roleId} not found`,
+                status: 404,
+            });
+        }
+        return role;
+    }
+
     static getServiceProviderConfig(): ScimServiceProviderConfig {
         return {
             schemas: [ScimSchemaType.SERVICE_PROVIDER_CONFIG],
@@ -2027,9 +2127,63 @@ export class ScimService extends BaseService {
             ],
         };
 
+        const roleSchema: ScimSchema = {
+            schemas: [ScimSchemaType.SCHEMA],
+            id: ScimSchemaType.ROLE,
+            name: 'Role',
+            description: 'Role Schema',
+            attributes: [
+                {
+                    name: 'value',
+                    type: 'string',
+                    multiValued: false,
+                    description: 'The value of the role',
+                    required: true,
+                    caseExact: false,
+                    mutability: 'readOnly',
+                    returned: 'default',
+                    uniqueness: 'none',
+                },
+                {
+                    name: 'display',
+                    type: 'string',
+                    multiValued: false,
+                    description: 'Human-readable name for the role',
+                    required: false,
+                    caseExact: false,
+                    mutability: 'readOnly',
+                    returned: 'default',
+                    uniqueness: 'none',
+                },
+                {
+                    name: 'type',
+                    type: 'string',
+                    multiValued: false,
+                    description: 'Label indicating the role function',
+                    required: false,
+                    caseExact: false,
+                    mutability: 'readOnly',
+                    returned: 'default',
+                    uniqueness: 'none',
+                },
+                {
+                    name: 'supported',
+                    type: 'boolean',
+                    multiValued: false,
+                    description: 'Boolean indicating if the role is usable',
+                    required: true,
+                    caseExact: false,
+                    mutability: 'readOnly',
+                    returned: 'default',
+                    uniqueness: 'none',
+                },
+            ],
+        };
+
         const schemas = [
             userSchema,
             groupSchema,
+            roleSchema,
             lightdashUserExtensionSchema,
             serviceProviderConfigSchema,
             resourceTypeSchema,
@@ -2077,6 +2231,18 @@ export class ScimService extends BaseService {
                 meta: {
                     resourceType: 'ResourceType',
                     location: `${baseUrl}/api/v1/scim/v2/ResourceTypes/Group`,
+                },
+            },
+            {
+                schemas: [ScimSchemaType.RESOURCE_TYPE],
+                id: 'Role',
+                name: 'Role',
+                description: 'Role',
+                endpoint: '/Roles',
+                schema: ScimSchemaType.ROLE,
+                meta: {
+                    resourceType: 'ResourceType',
+                    location: `${baseUrl}/api/v1/scim/v2/ResourceTypes/Role`,
                 },
             },
         ];

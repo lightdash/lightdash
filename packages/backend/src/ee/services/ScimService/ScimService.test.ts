@@ -542,13 +542,14 @@ describe('ScimService', () => {
                 expect(schemasResponse.schemas).toEqual([
                     ScimSchemaType.LIST_RESPONSE,
                 ]);
-                expect(schemasResponse.totalResults).toBe(5);
-                expect(schemasResponse.itemsPerPage).toBe(5);
+                expect(schemasResponse.totalResults).toBe(6);
+                expect(schemasResponse.itemsPerPage).toBe(6);
                 expect(schemasResponse.startIndex).toBe(1);
-                expect(schemasResponse.Resources).toHaveLength(5);
+                expect(schemasResponse.Resources).toHaveLength(6);
                 expect(schemasResponse.Resources.map((s) => s.id)).toEqual([
                     ScimSchemaType.USER,
                     ScimSchemaType.GROUP,
+                    ScimSchemaType.ROLE,
                     ScimSchemaType.LIGHTDASH_USER_EXTENSION,
                     ScimSchemaType.SERVICE_PROVIDER_CONFIG,
                     ScimSchemaType.RESOURCE_TYPE,
@@ -642,10 +643,10 @@ describe('ScimService', () => {
                 expect(resourceTypesResponse.schemas).toEqual([
                     ScimSchemaType.LIST_RESPONSE,
                 ]);
-                expect(resourceTypesResponse.totalResults).toBe(2);
-                expect(resourceTypesResponse.itemsPerPage).toBe(2);
+                expect(resourceTypesResponse.totalResults).toBe(3);
+                expect(resourceTypesResponse.itemsPerPage).toBe(3);
                 expect(resourceTypesResponse.startIndex).toBe(1);
-                expect(resourceTypesResponse.Resources).toHaveLength(2);
+                expect(resourceTypesResponse.Resources).toHaveLength(3);
 
                 // Test User resource type
                 const userResourceType = resourceTypesResponse.Resources.find(
@@ -690,6 +691,84 @@ describe('ScimService', () => {
                         ),
                     },
                 });
+            });
+        });
+    });
+
+    describe('Roles', () => {
+        describe('listRoles', () => {
+            test('should return system roles', async () => {
+                const organizationUuid = 'test-org-uuid';
+
+                const result = await service.listRoles({
+                    organizationUuid,
+                });
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.LIST_RESPONSE],
+                    totalResults: 5, // viewer, interactive_viewer, editor, developer, admin
+                    itemsPerPage: 5,
+                    startIndex: 1,
+                    Resources: expect.arrayContaining([
+                        expect.objectContaining({
+                            schemas: [ScimSchemaType.ROLE],
+                            value: expect.any(String),
+                            display: expect.any(String),
+                            type: expect.any(String),
+                            supported: true,
+                            meta: expect.objectContaining({
+                                resourceType: 'Role',
+                                location: expect.stringContaining(
+                                    '/api/v1/scim/v2/Roles/',
+                                ),
+                            }),
+                        }),
+                    ]),
+                });
+
+                // Verify we have the expected number of system roles
+                expect(result.Resources).toHaveLength(5);
+
+                // Verify some specific role values
+                const roleValues = result.Resources.map((role) => role.value);
+                expect(roleValues).toContain('admin');
+                expect(roleValues).toContain('viewer');
+                expect(roleValues).toContain('editor');
+            });
+        });
+
+        describe('getRole', () => {
+            test('should return a specific role by ID', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'admin';
+
+                const result = await service.getRole(organizationUuid, roleId);
+
+                expect(result).toEqual({
+                    schemas: [ScimSchemaType.ROLE],
+                    id: 'admin',
+                    value: 'admin',
+                    display: 'admin',
+                    type: expect.any(String),
+                    supported: true,
+                    meta: {
+                        resourceType: 'Role',
+                        created: undefined, // System roles don't have creation dates
+                        lastModified: undefined, // System roles don't have modification dates
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/Roles/admin',
+                        ),
+                    },
+                });
+            });
+
+            test('should throw error for non-existent role', async () => {
+                const organizationUuid = 'test-org-uuid';
+                const roleId = 'non-existent-role';
+
+                await expect(
+                    service.getRole(organizationUuid, roleId),
+                ).rejects.toThrow('Role with ID non-existent-role not found');
             });
         });
     });

@@ -9,6 +9,7 @@ export enum ScimSchemaType {
     ERROR = 'urn:ietf:params:scim:api:messages:2.0:Error',
     USER = 'urn:ietf:params:scim:schemas:core:2.0:User',
     GROUP = 'urn:ietf:params:scim:schemas:core:2.0:Group',
+    ROLE = 'urn:ietf:params:scim:schemas:extension:2.0:Role',
     LIST_RESPONSE = 'urn:ietf:params:scim:api:messages:2.0:ListResponse',
     SCHEMA = 'urn:ietf:params:scim:schemas:core:2.0:Schema',
     PATCH = 'urn:ietf:params:scim:api:messages:2.0:PatchOp',
