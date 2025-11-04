@@ -1,3 +1,10 @@
+## [0.2138.1](https://github.com/lightdash/lightdash/compare/0.2138.0...0.2138.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* default number formatting to keep up to 3 decimal places ([#17837](https://github.com/lightdash/lightdash/issues/17837)) ([37a4c49](https://github.com/lightdash/lightdash/commit/37a4c49c4e151548802f24b2883e069a0993f2c7))
+
 # [0.2138.0](https://github.com/lightdash/lightdash/compare/0.2137.0...0.2138.0) (2025-11-04)
 
 
