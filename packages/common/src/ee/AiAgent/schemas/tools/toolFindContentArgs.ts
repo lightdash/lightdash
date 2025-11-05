@@ -32,15 +32,13 @@ export const toolFindContentArgsSchema = createToolSchema({
     })
     .build();
 
-export type ToolFindContentArgs = z.infer<typeof toolFindContentArgsSchema>;
-
 export const toolFindContentArgsSchemaTransformed = toolFindContentArgsSchema;
-
-export type ToolFindContentArgsTransformed = ToolFindContentArgs;
 
 export const toolFindContentOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolFindContentArgs = z.infer<typeof toolFindContentArgsSchema>;
+export type ToolFindContentArgsTransformed = ToolFindContentArgs;
 export type ToolFindContentOutput = z.infer<typeof toolFindContentOutputSchema>;

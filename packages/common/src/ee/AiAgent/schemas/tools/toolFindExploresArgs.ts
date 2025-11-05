@@ -41,26 +41,23 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema({
     })
     .build();
 
-export type ToolFindExploresArgsV2 = z.infer<
-    typeof toolFindExploresArgsSchemaV2
->;
-
 export const toolFindExploresArgsSchema = z.discriminatedUnion('type', [
     toolFindExploresArgsSchemaV1,
     toolFindExploresArgsSchemaV2,
 ]);
 
-export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
-
 export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
-
-export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
 
 export const toolFindExploresOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolFindExploresArgsV2 = z.infer<
+    typeof toolFindExploresArgsSchemaV2
+>;
+export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
+export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema
 >;
