@@ -6940,19 +6940,6 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
                                             }
                                         ]
                                     },
@@ -21817,7 +21804,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2144.1",
+        "version": "0.2147.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -22347,6 +22334,26 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "SCIM 2.0 startIndex (1-based). Defaults to 1.",
+                        "in": "query",
+                        "name": "startIndex",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "SCIM 2.0 count (page size). Defaults to 100.",
+                        "in": "query",
+                        "name": "count",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

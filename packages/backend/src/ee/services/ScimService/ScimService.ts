@@ -1714,13 +1714,19 @@ export class ScimService extends BaseService {
 
     async listRoles({
         organizationUuid,
+        startIndex = 1,
+        itemsPerPage = 100,
         filter,
     }: {
         organizationUuid: string;
+        startIndex?: number;
+        itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimRole>> {
         this.logger.debug('SCIM: Listing roles', {
             organizationUuid,
+            startIndex,
+            itemsPerPage,
             filter,
         });
         try {
@@ -1752,9 +1758,20 @@ export class ScimService extends BaseService {
                 });
             }
 
+            // Pagination for roles is done in memory because roles come from multiple sources
+            const { page, pageSize } = ScimService.convertScimToKnexPagination(
+                startIndex,
+                itemsPerPage,
+            );
+            const offset = (page - 1) * pageSize;
+            const pagedRoles = filteredRoles.slice(offset, offset + pageSize);
+
             this.logger.debug('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
+                returnedCount: pagedRoles.length,
+                startIndex,
+                itemsPerPage: pageSize,
                 projectsCount,
                 systemRolesCount,
                 customRolesCount,
@@ -1763,9 +1780,9 @@ export class ScimService extends BaseService {
             return {
                 schemas: [ScimSchemaType.LIST_RESPONSE],
                 totalResults: filteredRoles.length,
-                itemsPerPage: filteredRoles.length,
-                startIndex: 1,
-                Resources: filteredRoles,
+                itemsPerPage: pageSize,
+                startIndex,
+                Resources: pagedRoles,
             };
         } catch (error) {
             this.logger.error(

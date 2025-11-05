@@ -1066,7 +1066,7 @@ describe('ScimService', () => {
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
                     totalResults: 20, // 6 org system + 7 per project (2 projects) = 6+14 = 20
-                    itemsPerPage: 20,
+                    itemsPerPage: 100,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
                         expect.objectContaining({
