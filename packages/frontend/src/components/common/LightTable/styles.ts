@@ -323,7 +323,7 @@ export const useTableCellStyles = createStyles<
                 height: CELL_HEIGHT,
 
                 textAlign: 'left',
-                whiteSpace: 'pre-wrap',
+                whiteSpace: 'pre',
 
                 fontFamily: theme.other.tableFont ?? "'Inter', sans-serif",
                 fontFeatureSettings: '"tnum"',
