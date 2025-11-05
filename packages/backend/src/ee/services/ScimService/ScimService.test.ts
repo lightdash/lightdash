@@ -657,6 +657,130 @@ describe('ScimService', () => {
         });
     });
 
+    describe('validateRolesArray', () => {
+        const validRoleValues = [
+            'admin',
+            'editor',
+            'viewer',
+            'project-1-uuid:admin',
+            'project-1-uuid:viewer',
+            'project-2-uuid:custom-role-uuid',
+        ];
+
+        test('should validate a correct roles array', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).not.toThrow();
+        });
+
+        test('should throw error for empty roles array', () => {
+            expect(() => {
+                ScimService.validateRolesArray([], validRoleValues);
+            }).toThrow(
+                'Roles array must contain at least one role when provided',
+            );
+        });
+
+        test('should throw error for invalid role values', () => {
+            const roles = [
+                {
+                    value: 'invalid-role',
+                    display: 'Invalid Role',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow('Invalid role values: invalid-role');
+        });
+
+        test('should throw error for no organization role', () => {
+            const roles = [
+                {
+                    value: 'project-1-uuid:admin',
+                    display: 'Project 1 - Admin',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array must contain exactly one organization role, found 0',
+            );
+        });
+
+        test('should throw error for multiple organization roles', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'editor',
+                    display: 'Editor',
+                    type: ScimRoleType.ORG,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array must contain exactly one organization role, found 2',
+            );
+        });
+
+        test('should throw error for duplicate project roles', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:admin',
+                    display: 'Project 1 - Admin',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array can only contain one role per project. Duplicate project UUIDs: project-1-uuid',
+            );
+        });
+    });
+
     describe('parseRoleId and generateRoleId integration', () => {
         test('should be able to round-trip organization role', () => {
             const mock = {
