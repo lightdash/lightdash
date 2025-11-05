@@ -1,4 +1,5 @@
 import {
+    calculateBorderRadiusForSlice,
     formatColorIndicator,
     formatItemValue,
     formatTooltipLabel,
@@ -53,6 +54,7 @@ const useEchartsPieConfig = (
             sortedGroupLabels,
             groupFieldIds,
             validConfig: {
+                isDonut,
                 valueLabel: valueLabelDefault,
                 showValue: showValueDefault,
                 showPercentage: showPercentageDefault,
@@ -63,6 +65,9 @@ const useEchartsPieConfig = (
         } = chartConfig;
 
         if (!selectedMetric) return;
+
+        // Calculate total for percentage calculation
+        const total = data.reduce((sum, { value }) => sum + value, 0);
 
         return data
             .sort(
@@ -87,6 +92,12 @@ const useEchartsPieConfig = (
                     groupColorOverrides?.[name] ??
                     getGroupColor(groupPrefix, name);
 
+                // Calculate percentage for this slice
+                const percent = (value / total) * 100;
+
+                const borderRadius = isDonut
+                    ? calculateBorderRadiusForSlice(percent)
+                    : 0;
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
@@ -94,6 +105,7 @@ const useEchartsPieConfig = (
                     value: value,
                     itemStyle: {
                         color: itemColor,
+                        borderRadius,
                     },
                     label: {
                         show: valueLabel !== 'hidden',
