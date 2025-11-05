@@ -6,6 +6,7 @@ import {
     getSystemRoles,
     GroupWithMembers,
     isOrganizationMemberRole,
+    isSystemRole,
     isValidEmailAddress,
     LightdashUser,
     NotFoundError,
@@ -516,10 +517,30 @@ export class ScimService extends BaseService {
             firstName: user.name?.givenName,
             lastName: user.name?.familyName,
             active: user.active,
+            roles: user.roles?.map((role) => role.value),
             hasExtensionData: !!user[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            // Validate roles if provided
+            if (user.roles && user.roles.length > 0) {
+                const { allScimRoles } = await this.getAllRoles(
+                    organizationUuid,
+                );
+                const validRoleValues = allScimRoles.map((role) => role.value);
+
+                const invalidRoles = user.roles
+                    .map((role) => role.value)
+                    .filter(
+                        (roleValue) => !validRoleValues.includes(roleValue),
+                    );
+
+                if (invalidRoles.length > 0) {
+                    throw new ParameterError(
+                        `Invalid role values: ${invalidRoles.join(', ')}`,
+                    );
+                }
+            }
             const emailToUpdate = ScimService.getScimUserEmail(user);
             // get existing user (and make sure user is in the organization)
             const dbUser =
@@ -539,6 +560,38 @@ export class ScimService extends BaseService {
                     isActive: user.active ?? dbUser.isActive,
                 },
             );
+
+            if (user.roles) {
+                await Promise.all(
+                    user.roles.map(async (role) => {
+                        const { roleUuid, projectUuid } =
+                            ScimService.parseRoleId(role.value);
+                        if (projectUuid) {
+                            if (isSystemRole(roleUuid)) {
+                                await this.rolesModel.upsertSystemRoleProjectAccess(
+                                    projectUuid,
+                                    userUuid,
+                                    roleUuid,
+                                );
+                            } else {
+                                await this.rolesModel.upsertCustomRoleProjectAccess(
+                                    projectUuid,
+                                    userUuid,
+                                    roleUuid,
+                                );
+                            }
+                        } else if (isOrganizationMemberRole(roleUuid)) {
+                            await this.organizationMemberProfileModel.updateOrganizationMember(
+                                organizationUuid,
+                                userUuid,
+                                {
+                                    role: roleUuid,
+                                },
+                            );
+                        }
+                    }),
+                );
+            }
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
@@ -1430,6 +1483,27 @@ export class ScimService extends BaseService {
         projectUuid?: string;
     }): string {
         return projectUuid ? `${projectUuid}:${roleUuid}` : roleUuid;
+    }
+
+    static parseRoleId(roleId: string): {
+        roleUuid: string;
+        projectUuid?: string;
+    } {
+        if (!roleId.includes(':')) {
+            return {
+                roleUuid: roleId,
+                projectUuid: undefined,
+            };
+        }
+
+        const colonIndex = roleId.indexOf(':');
+        const projectUuid = roleId.substring(0, colonIndex);
+        const roleUuid = roleId.substring(colonIndex + 1);
+
+        return {
+            roleUuid,
+            projectUuid,
+        };
     }
 
     private convertLightdashRoleToScimRole(

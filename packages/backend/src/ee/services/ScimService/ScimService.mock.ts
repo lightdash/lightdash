@@ -136,6 +136,8 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
         getRolesByOrganizationUuid: jest
             .fn()
             .mockResolvedValue(mockCustomRoles),
+        upsertSystemRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
+        upsertCustomRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
     } as unknown as RolesModel,
     projectModel: {
         getAllByOrganizationUuid: jest.fn().mockResolvedValue(mockProjects),
