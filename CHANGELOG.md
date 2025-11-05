@@ -1,3 +1,20 @@
+# [0.2142.0](https://github.com/lightdash/lightdash/compare/0.2141.1...0.2142.0) (2025-11-05)
+
+
+### Bug Fixes
+
+* fix stack 100% when using already a % number ([#17882](https://github.com/lightdash/lightdash/issues/17882)) ([b90995e](https://github.com/lightdash/lightdash/commit/b90995eb3512aec76a9c16075618d47151b7613d))
+
+
+### Features
+
+* add find_content tool to McpService ([#17855](https://github.com/lightdash/lightdash/issues/17855)) ([f808ace](https://github.com/lightdash/lightdash/commit/f808acec3dc58e3f4af2036e655e3845d67d16b5))
+* add list_explores tool for mcp ([#17878](https://github.com/lightdash/lightdash/issues/17878)) ([fb3e357](https://github.com/lightdash/lightdash/commit/fb3e3572459343c7cb1b56ae99405a65f72b28d4))
+* databricks oauth on CLI ([#17761](https://github.com/lightdash/lightdash/issues/17761)) ([f9205ee](https://github.com/lightdash/lightdash/commit/f9205ee95403b653482bffba3b2c00c242a1528c))
+* pass availableExplores via experimental_context ([#17839](https://github.com/lightdash/lightdash/issues/17839)) ([9ccb505](https://github.com/lightdash/lightdash/commit/9ccb505c0e61d289639de2853f1b208547750cbe))
+* remove type field from mcp tool schemas ([#17877](https://github.com/lightdash/lightdash/issues/17877)) ([f4d72ca](https://github.com/lightdash/lightdash/commit/f4d72cad2a3f6b171b226f0cd82cdd11760bbcf7))
+* validate explore names in AI agent findExplores tool ([#17752](https://github.com/lightdash/lightdash/issues/17752)) ([b92b8b5](https://github.com/lightdash/lightdash/commit/b92b8b58a44d31efe1bf5c527ca9f8bf85562a15))
+
 ## [0.2141.1](https://github.com/lightdash/lightdash/compare/0.2141.0...0.2141.1) (2025-11-05)
 
 
