@@ -1,8 +1,11 @@
 import {
     LightdashUser,
     OrganizationMemberRole,
+    ProjectMemberRole,
+    ScimRole,
     ScimRoleType,
     ScimSchemaType,
+    ScimUserRole,
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
 import { ScimService } from './ScimService';
@@ -39,8 +42,16 @@ describe('ScimService', () => {
                 isSetupComplete: false,
             };
 
-            // Convert the user to a SCIM user
-            const scimUser = convertMethod(testUser);
+            // Convert the user to a SCIM user with mock roles
+            const mockRoles = [
+                {
+                    value: OrganizationMemberRole.ADMIN,
+                    display: OrganizationMemberRole.ADMIN,
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+            ];
+            const scimUser = convertMethod(testUser, mockRoles);
 
             // Verify the entire SCIM user object
             expect(scimUser).toEqual({
@@ -105,8 +116,9 @@ describe('ScimService', () => {
                 isSetupComplete: false,
             };
 
-            // Convert the user to a SCIM user
-            const scimUser = convertMethod(testUser);
+            // Convert the user to a SCIM user with no roles
+            const mockRoles: ScimUserRole[] = [];
+            const scimUser = convertMethod(testUser, mockRoles);
 
             // Verify the entire SCIM user object
             expect(scimUser).toEqual({
@@ -124,7 +136,7 @@ describe('ScimService', () => {
                         primary: true,
                     },
                 ],
-                roles: undefined,
+                roles: [],
                 meta: {
                     resourceType: 'User',
                     created: testUser.createdAt,
