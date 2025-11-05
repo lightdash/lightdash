@@ -159,7 +159,6 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM prod-builder AS build-common
 COPY packages/common/tsconfig*.json packages/common/
 COPY packages/common/src/ packages/common/src/
-#RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline
 RUN pnpm -F @lightdash/common build
 # output: /usr/app/packages/common/dist
 
