@@ -1,3 +1,10 @@
+# [0.2139.0](https://github.com/lightdash/lightdash/compare/0.2138.2...0.2139.0) (2025-11-05)
+
+
+### Features
+
+* databricks oauth ([#17745](https://github.com/lightdash/lightdash/issues/17745)) ([9bfa021](https://github.com/lightdash/lightdash/commit/9bfa0213535657678af662adfe46497254c5f9f0))
+
 ## [0.2138.2](https://github.com/lightdash/lightdash/compare/0.2138.1...0.2138.2) (2025-11-05)
 
 
