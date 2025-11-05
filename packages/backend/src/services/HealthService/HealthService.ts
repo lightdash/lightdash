@@ -152,6 +152,9 @@ export class HealthService extends BaseService {
                         !!this.lightdashConfig.auth.snowflake.clientId &&
                         this.isEnterpriseEnabled(),
                 },
+                databricks: {
+                    enabled: !!this.lightdashConfig.auth.databricks.clientId,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:

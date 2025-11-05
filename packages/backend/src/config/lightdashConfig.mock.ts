@@ -77,6 +77,14 @@ export const lightdashConfigMock: LightdashConfig = {
             clientId: undefined,
             clientSecret: undefined,
         },
+        databricks: {
+            loginPath: '/login/databricks',
+            callbackPath: '/oauth/redirect/databricks',
+            authorizationEndpoint: undefined,
+            tokenEndpoint: undefined,
+            clientId: undefined,
+            clientSecret: undefined,
+        },
     },
     lightdashCloudInstance: 'test-instance',
     k8s: {

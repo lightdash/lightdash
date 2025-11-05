@@ -8,12 +8,14 @@ import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIServi
 import {
     AnyType,
     CreateDatabricksCredentials,
+    DatabricksAuthenticationType,
     DimensionType,
     getErrorMessage,
     Metric,
     MetricType,
     ParseError,
     SupportedDbtAdapter,
+    UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -223,13 +225,40 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         super(credentials, new DatabricksSqlBuilder(credentials.startOfWeek));
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
-        this.connectionOptions = {
-            token: credentials.personalAccessToken,
-            host: credentials.serverHostName,
-            path: credentials.httpPath.startsWith('/')
-                ? credentials.httpPath
-                : `/${credentials.httpPath}`,
-        };
+
+        // Build connection options based on authentication type
+        if (
+            credentials.authenticationType ===
+            DatabricksAuthenticationType.OAUTH
+        ) {
+            if (!credentials.token) {
+                throw new UnexpectedServerError(
+                    'Databricks OAuth access token is required for OAuth authentication',
+                );
+            }
+            this.connectionOptions = {
+                authType: 'access-token',
+                token: credentials.token,
+                host: credentials.serverHostName,
+                path: credentials.httpPath.startsWith('/')
+                    ? credentials.httpPath
+                    : `/${credentials.httpPath}`,
+            };
+        } else {
+            // Default to personal access token authentication
+            if (!credentials.personalAccessToken) {
+                throw new UnexpectedServerError(
+                    'Databricks personal access token is required for token authentication',
+                );
+            }
+            this.connectionOptions = {
+                token: credentials.personalAccessToken,
+                host: credentials.serverHostName,
+                path: credentials.httpPath.startsWith('/')
+                    ? credentials.httpPath
+                    : `/${credentials.httpPath}`,
+            };
+        }
     }
 
     private async getSession() {

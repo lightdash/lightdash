@@ -52,6 +52,9 @@ export const BaseResponse: HealthState = {
         snowflake: {
             enabled: false,
         },
+        databricks: {
+            enabled: false,
+        },
     },
     intercom: {
         apiBase: '',
