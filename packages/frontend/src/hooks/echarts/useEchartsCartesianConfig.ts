@@ -1938,7 +1938,7 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
-        const isHorizontal = validCartesianConfig?.layout.flipAxes;
+        const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
 
         // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
@@ -1953,6 +1953,7 @@ const useEchartsCartesianConfig = (
             rows.length,
             Math.max(1, nonStackedBarCount),
             isStacked,
+            isHorizontal,
         );
 
         const seriesWithValidStack = series.map<EChartsSeries>((serie) => {
@@ -1987,7 +1988,7 @@ const useEchartsCartesianConfig = (
                         getValidStack(serie) === undefined) && {
                         itemStyle: {
                             borderRadius: getBarBorderRadius(
-                                !!isHorizontal,
+                                isHorizontal,
                                 true,
                                 dynamicRadius,
                             ),

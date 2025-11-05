@@ -598,11 +598,13 @@ export class CartesianChartDataModel {
                     display?.series?.[col.referenceField]?.type ??
                     defaultSeriesType) === 'bar',
         ).length;
+        const isHorizontal = false; // CartesianChartDataModel doesn't support flipAxes
         const nonStackedBorderRadius = !shouldStack
             ? calculateDynamicBorderRadius(
                   dataToRender.length,
                   barSeriesCount,
                   false, // isStacked
+                  isHorizontal,
               )
             : undefined;
 
@@ -660,7 +662,7 @@ export class CartesianChartDataModel {
                     seriesType === 'bar' && !shouldStack
                         ? {
                               borderRadius: getBarBorderRadius(
-                                  false, // isHorizontal - CartesianChartDataModel doesn't support flipAxes
+                                  isHorizontal,
                                   true, // isStackEnd - always true for non-stacked bars
                                   nonStackedBorderRadius,
                               ),
@@ -749,6 +751,7 @@ export class CartesianChartDataModel {
                 dataPointCount,
                 stackedBarSeriesCount,
                 isStacked,
+                isHorizontal,
             );
 
             // Apply rounded corners to stack data
@@ -758,7 +761,7 @@ export class CartesianChartDataModel {
                 dataToRender,
                 {
                     radius,
-                    isHorizontal: false, // CartesianChartDataModel doesn't support flipAxes
+                    isHorizontal,
                     legendSelected: undefined,
                 },
             );
