@@ -940,6 +940,7 @@ export class EmbedService extends BaseService {
             account,
             projectUuid,
             chartUuid: chart.uuid,
+            tileUuid,
             dashboardSorts: dashboardSorts ?? [],
             dashboardUuid,
             dashboardFilters: appliedDashboardFilters,

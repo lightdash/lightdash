@@ -39,6 +39,7 @@ import {
     formatRow,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
+    getDashboardFiltersForTileAndTables,
     getDimensions,
     getErrorMessage,
     getFieldsFromMetricQuery,
@@ -2251,6 +2252,7 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
+        tileUuid,
         chartUuid,
         dashboardUuid,
         dashboardFilters,
@@ -2295,20 +2297,12 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const tables = Object.keys(explore.tables);
-        const appliedDashboardFilters: DashboardFilters = {
-            dimensions: getDashboardFilterRulesForTables(
+        const appliedDashboardFilters: DashboardFilters =
+            getDashboardFiltersForTileAndTables(
+                tileUuid,
                 tables,
-                dashboardFilters.dimensions,
-            ),
-            metrics: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.metrics,
-            ),
-            tableCalculations: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.tableCalculations,
-            ),
-        };
+                dashboardFilters,
+            );
 
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
@@ -2364,8 +2358,9 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
-            context,
+            tileUuid,
             chartUuid,
+            context,
             dashboardUuid,
             dashboardFilters,
             dashboardSorts,
