@@ -3,7 +3,6 @@ import { memo, useCallback } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 
-import { FeatureFlags } from '@lightdash/common';
 import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
@@ -23,7 +22,6 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
-import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
 import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
@@ -50,9 +48,6 @@ const ExplorerWithUrlParams = memo(() => {
 
     const dispatch = useExplorerDispatch();
     const navigate = useNavigate();
-
-    // Pre-load the feature flag to avoid trying to render old side bar while it is fetching it in ExploreTree
-    useFeatureFlag(FeatureFlags.ExperimentalVirtualizedSideBar);
 
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
