@@ -1,7 +1,6 @@
 import {
     LightdashUser,
     OrganizationMemberRole,
-    ScimRoleType,
     ScimSchemaType,
     ScimUserRole,
 } from '@lightdash/common';
@@ -45,7 +44,7 @@ describe('ScimService', () => {
                 {
                     value: OrganizationMemberRole.ADMIN,
                     display: OrganizationMemberRole.ADMIN,
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: true,
                 },
             ];
@@ -74,7 +73,7 @@ describe('ScimService', () => {
                     {
                         value: OrganizationMemberRole.ADMIN,
                         display: OrganizationMemberRole.ADMIN,
-                        type: ScimRoleType.ORG,
+                        type: 'Organization',
                         primary: true,
                     },
                 ],
@@ -452,19 +451,19 @@ describe('ScimService', () => {
                     {
                         value: 'project-1-uuid:admin', // Project-level system role
                         display: 'Analytics Project - Admin',
-                        type: ScimRoleType.PROJECT,
+                        type: 'Project - Analytics Project',
                         primary: false,
                     },
                     {
                         value: 'project-2-uuid:custom-role-1-uuid', // Project-level custom role
                         display: 'Marketing Project - Custom Role',
-                        type: ScimRoleType.PROJECT_CUSTOM,
+                        type: 'Project - Analytics Project',
                         primary: false,
                     },
                     {
                         value: OrganizationMemberRole.EDITOR, // Organization-level role
                         display: 'Editor',
-                        type: ScimRoleType.ORG,
+                        type: 'Organization',
                         primary: true,
                     },
                 ],
@@ -533,7 +532,7 @@ describe('ScimService', () => {
                     {
                         value: OrganizationMemberRole.VIEWER,
                         display: 'Viewer',
-                        type: ScimRoleType.ORG,
+                        type: 'Organization',
                         primary: true,
                     },
                 ],
@@ -672,13 +671,13 @@ describe('ScimService', () => {
                 {
                     value: 'admin',
                     display: 'Admin',
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: true,
                 },
                 {
                     value: 'project-1-uuid:viewer',
                     display: 'Project 1 - Viewer',
-                    type: ScimRoleType.PROJECT,
+                    type: 'Project - Project 1',
                     primary: false,
                 },
             ];
@@ -701,7 +700,7 @@ describe('ScimService', () => {
                 {
                     value: 'invalid-role',
                     display: 'Invalid Role',
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: true,
                 },
             ];
@@ -716,7 +715,7 @@ describe('ScimService', () => {
                 {
                     value: 'project-1-uuid:admin',
                     display: 'Project 1 - Admin',
-                    type: ScimRoleType.PROJECT,
+                    type: 'Project - Project 1',
                     primary: false,
                 },
             ];
@@ -733,13 +732,13 @@ describe('ScimService', () => {
                 {
                     value: 'admin',
                     display: 'Admin',
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: true,
                 },
                 {
                     value: 'editor',
                     display: 'Editor',
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: false,
                 },
             ];
@@ -756,19 +755,19 @@ describe('ScimService', () => {
                 {
                     value: 'admin',
                     display: 'Admin',
-                    type: ScimRoleType.ORG,
+                    type: 'Organization',
                     primary: true,
                 },
                 {
                     value: 'project-1-uuid:admin',
                     display: 'Project 1 - Admin',
-                    type: ScimRoleType.PROJECT,
+                    type: 'Project - Project 1',
                     primary: false,
                 },
                 {
                     value: 'project-1-uuid:viewer',
                     display: 'Project 1 - Viewer',
-                    type: ScimRoleType.PROJECT,
+                    type: 'Project - Project 1',
                     primary: false,
                 },
             ];

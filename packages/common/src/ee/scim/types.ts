@@ -23,7 +23,7 @@ export interface LightdashScimExtension {
 export interface ScimUserRole {
     value: string;
     display?: string;
-    type?: ScimRoleType;
+    type?: string;
     primary?: boolean;
 }
 
@@ -61,17 +61,11 @@ export interface ScimGroupMember {
     display?: string;
 }
 
-export enum ScimRoleType {
-    ORG = 'ORG_SYSTEM',
-    PROJECT = 'PROJECT_SYSTEM',
-    PROJECT_CUSTOM = 'PROJECT_CUSTOM',
-}
-
 export interface ScimRole extends ScimResource {
     schemas: ScimSchemaType.ROLE[];
     value: string;
     display?: string;
-    type?: ScimRoleType;
+    type?: string; // A label indicating the role's function level (e.g.: Organization, Project - A, Project - B). Should help clients group roles and validate 1 role per type (aka org/project).
     supported: boolean;
     meta: ScimResource['meta'] & {
         resourceType: 'Role';

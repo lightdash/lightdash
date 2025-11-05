@@ -21,7 +21,6 @@ import {
     ScimListResponse,
     ScimResourceType,
     ScimRole,
-    ScimRoleType,
     ScimSchema,
     ScimSchemaAttribute,
     ScimSchemaType,
@@ -1597,8 +1596,7 @@ export class ScimService extends BaseService {
     }
 
     private convertLightdashRoleToScimRole(
-        role: Role,
-        type: ScimRoleType,
+        role: Pick<Role, 'roleUuid' | 'name' | 'createdAt' | 'updatedAt'>,
         project?: { projectUuid: string; name: string },
     ): ScimRole {
         const id = ScimService.generateRoleId({
@@ -1606,6 +1604,7 @@ export class ScimService extends BaseService {
             projectUuid: project?.projectUuid,
         });
         const display = project ? `${project.name} - ${role.name}` : role.name;
+        const type = project ? `Project - ${project.name}` : 'Organization';
 
         return {
             schemas: [ScimSchemaType.ROLE],
@@ -1648,20 +1647,14 @@ export class ScimService extends BaseService {
 
         // Add organization-level system roles
         Object.values(OrganizationMemberRole).forEach((orgRole) => {
-            allScimRoles.push({
-                schemas: [ScimSchemaType.ROLE],
-                id: orgRole,
-                value: orgRole,
-                display: OrganizationMemberRoleLabels[orgRole],
-                type: ScimRoleType.ORG,
-                supported: true,
-                meta: {
-                    resourceType: 'Role',
-                    created: undefined,
-                    lastModified: undefined,
-                    location: `${this.lightdashConfig.siteUrl}/api/v1/scim/v2/Roles/${orgRole}`,
-                },
-            });
+            allScimRoles.push(
+                this.convertLightdashRoleToScimRole({
+                    roleUuid: orgRole,
+                    name: OrganizationMemberRoleLabels[orgRole],
+                    createdAt: null,
+                    updatedAt: null,
+                }),
+            );
         });
 
         // For each project, add system roles and custom roles
@@ -1669,28 +1662,20 @@ export class ScimService extends BaseService {
             // Add project-level system roles
             systemRoles.forEach((role) => {
                 allScimRoles.push(
-                    this.convertLightdashRoleToScimRole(
-                        role,
-                        ScimRoleType.PROJECT,
-                        {
-                            projectUuid: project.projectUuid,
-                            name: project.name,
-                        },
-                    ),
+                    this.convertLightdashRoleToScimRole(role, {
+                        projectUuid: project.projectUuid,
+                        name: project.name,
+                    }),
                 );
             });
 
             // Add project-level custom roles
             customRoles.forEach((role) => {
                 allScimRoles.push(
-                    this.convertLightdashRoleToScimRole(
-                        role,
-                        ScimRoleType.PROJECT_CUSTOM,
-                        {
-                            projectUuid: project.projectUuid,
-                            name: project.name,
-                        },
-                    ),
+                    this.convertLightdashRoleToScimRole(role, {
+                        projectUuid: project.projectUuid,
+                        name: project.name,
+                    }),
                 );
             });
         });
@@ -1711,12 +1696,12 @@ export class ScimService extends BaseService {
 
             // Add organization role if present
             if (user?.role) {
-                allRoles.push({
-                    value: user.role,
-                    display: OrganizationMemberRoleLabels[user.role],
-                    type: ScimRoleType.ORG,
-                    primary: true,
-                });
+                const scimRole = availableScimRoles.find(
+                    (role) => role.value === user.role,
+                );
+                if (scimRole) {
+                    allRoles.push(scimRole);
+                }
             }
 
             // Get user's project roles
