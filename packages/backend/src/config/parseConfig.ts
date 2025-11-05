@@ -920,7 +920,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
     experimentalExplorerImprovements: boolean;
-    experimentalVirtualizedSideBar: boolean;
     dashboardComments: {
         enabled: boolean;
     };
@@ -1054,6 +1053,15 @@ type AuthSnowflakeConfig = {
     loginPath: string;
 };
 
+type AuthDatabricksConfig = {
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    authorizationEndpoint: string | undefined;
+    tokenEndpoint: string | undefined;
+    callbackPath: string;
+    loginPath: string;
+};
+
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     /**
@@ -1068,6 +1076,7 @@ export type AuthConfig = {
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
+    databricks: AuthDatabricksConfig;
     pat: {
         enabled: boolean;
         allowedOrgRoles: OrganizationMemberRole[];
@@ -1366,6 +1375,15 @@ export const parseConfig = (): LightdashConfig => {
                 loginPath: '/login/snowflake',
                 callbackPath: '/oauth/redirect/snowflake',
             },
+            databricks: {
+                clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,
+                clientSecret: process.env.DATABRICKS_OAUTH_CLIENT_SECRET,
+                authorizationEndpoint:
+                    process.env.DATABRICKS_OAUTH_AUTHORIZATION_ENDPOINT,
+                tokenEndpoint: process.env.DATABRICKS_OAUTH_TOKEN_ENDPOINT,
+                loginPath: '/login/databricks',
+                callbackPath: '/oauth/redirect/databricks',
+            },
             oauthServer: {
                 accessTokenLifetime:
                     getIntegerFromEnvironmentVariable(
@@ -1640,8 +1658,6 @@ export const parseConfig = (): LightdashConfig => {
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
         experimentalExplorerImprovements:
             process.env.EXPERIMENTAL_EXPLORER_IMPROVEMENTS === 'true',
-        experimentalVirtualizedSideBar:
-            process.env.EXPERIMENTAL_VIRTUALIZED_SIDE_BAR === 'true',
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
         },

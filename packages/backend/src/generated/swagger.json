@@ -4200,6 +4200,9 @@
             },
             "ColumnProperties": {
                 "properties": {
+                    "color": {
+                        "type": "string"
+                    },
                     "displayStyle": {
                         "type": "string",
                         "enum": ["text", "bar"]
@@ -6930,8 +6933,34 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8471,6 +8500,10 @@
                 "enum": ["databricks"],
                 "type": "string"
             },
+            "DatabricksAuthenticationType": {
+                "enum": ["personal_access_token", "oauth_m2m"],
+                "type": "string"
+            },
             "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -8478,6 +8511,9 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/DatabricksAuthenticationType"
                     },
                     "database": {
                         "type": "string"
@@ -9145,8 +9181,23 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "oauthClientSecret": {
+                        "type": "string"
+                    },
+                    "oauthClientId": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
                     "personalAccessToken": {
                         "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/DatabricksAuthenticationType"
                     },
                     "httpPath": {
                         "type": "string"
@@ -9164,13 +9215,7 @@
                         "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
                     }
                 },
-                "required": [
-                    "personalAccessToken",
-                    "httpPath",
-                    "serverHostName",
-                    "database",
-                    "type"
-                ],
+                "required": ["httpPath", "serverHostName", "database", "type"],
                 "type": "object"
             },
             "CreateTrinoCredentials": {
@@ -10477,18 +10522,42 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateDatabricksCredentials.type-or-personalAccessToken_": {
+            "Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken-or-token_": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
                     },
                     "personalAccessToken": {
                         "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/DatabricksAuthenticationType"
                     }
                 },
-                "required": ["type", "personalAccessToken"],
+                "required": ["type"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__": {
+                "properties": {
+                    "database": {
+                        "type": "string"
+                    },
+                    "serverHostName": {
+                        "type": "string"
+                    },
+                    "httpPath": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
             },
             "UpsertUserWarehouseCredentials": {
                 "properties": {
@@ -10513,7 +10582,14 @@
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken_"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken-or-token_"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__"
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -10532,6 +10608,7 @@
                     "azuread",
                     "oidc",
                     "snowflake",
+                    "databricks",
                     "slack"
                 ],
                 "type": "string"
@@ -16092,22 +16169,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -16446,22 +16523,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -21746,7 +21823,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2134.0",
+        "version": "0.2139.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -21783,6 +21860,906 @@
                         }
                     }
                 },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/scim/v2/Users": {
+            "get": {
+                "operationId": "GetScimUsers",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimListResponse_ScimUser_"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List SCIM users in the organization",
+                "summary": "List users",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "SCIM filter string (optional). See: https://bookstack.soffid.com/books/scim/page/scim-query-syntax",
+                        "in": "query",
+                        "name": "filter",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "1-based index of the first result to return (optional)",
+                        "in": "query",
+                        "name": "startIndex",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Maximum number of results to return (optional)",
+                        "in": "query",
+                        "name": "count",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "CreateScimUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimUser"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimUser"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a new user",
+                "summary": "Create user",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "User to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimUpsertUser",
+                                "description": "User to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/scim/v2/Users/{userUuid}": {
+            "get": {
+                "operationId": "GetScimUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimUser"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a SCIM user by ID",
+                "summary": "Get user",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Lightdash user UUID - this is used as a unique identifier for SCIM",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "UpdateScimUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimUser"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a user by ID (SCIM PUT)",
+                "summary": "Replace user",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "UUID of the user to update",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Updated user data",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimUpsertUser",
+                                "description": "Updated user data"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "PatchScimUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimUser"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Patch a user by ID (SCIM PATCH)",
+                "summary": "Patch user",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "UUID of the user to patch",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Patch operations to apply",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimPatch",
+                                "description": "Patch operations to apply"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteScimUser",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a user by ID",
+                "summary": "Delete user",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "UUID of the user to delete",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/scim/v2": {
+            "get": {
+                "operationId": "GetScimRoot",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Root SCIM endpoint for validating SCIM configuration",
+                "summary": "Root check",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/scim/v2/ServiceProviderConfig": {
+            "get": {
+                "operationId": "GetScimServiceProviderConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimServiceProviderConfig"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get SCIM service provider configuration",
+                "summary": "Provider config",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/scim/v2/Schemas": {
+            "get": {
+                "operationId": "GetScimSchemas",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimListResponse_ScimSchema_"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get SCIM schemas",
+                "summary": "List schemas",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/scim/v2/Schemas/{schemaId}": {
+            "get": {
+                "operationId": "GetScimSchema",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get individual SCIM schema",
+                "summary": "Get schema",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "schema identifier",
+                        "in": "path",
+                        "name": "schemaId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/scim/v2/ResourceTypes": {
+            "get": {
+                "operationId": "GetScimResourceTypes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimListResponse_ScimResourceType_"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get SCIM resource types",
+                "summary": "List resource types",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/scim/v2/ResourceTypes/{resourceTypeId}": {
+            "get": {
+                "operationId": "GetScimResourceType",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimResourceType"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get individual SCIM resource type",
+                "summary": "Get resource type",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "resource type identifier",
+                        "in": "path",
+                        "name": "resourceTypeId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/scim/v2/Roles": {
+            "get": {
+                "operationId": "GetScimRoles",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimListResponse_ScimRole_"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a list of roles within an organization",
+                "summary": "List roles",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Filter to apply to the role list (optional)",
+                        "in": "query",
+                        "name": "filter",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/scim/v2/Roles/{roleId}": {
+            "get": {
+                "operationId": "GetScimRole",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimRole"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a SCIM role by ID",
+                "summary": "Get role",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Role ID - this is used as a unique identifier for SCIM",
+                        "in": "path",
+                        "name": "roleId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/scim/v2/Groups": {
+            "get": {
+                "operationId": "GetScimGroups",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimListResponse_ScimGroup_"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a list of groups within an organization",
+                "summary": "List groups",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Filter to apply to the group list (optional)",
+                        "in": "query",
+                        "name": "filter",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Index of the first group to return (optional)",
+                        "in": "query",
+                        "name": "startIndex",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Number of groups to return (optional)",
+                        "in": "query",
+                        "name": "count",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "CreateScimGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a new group in the SCIM application",
+                "summary": "Create group",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "Group to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimUpsertGroup",
+                                "description": "Group to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/scim/v2/Groups/{id}": {
+            "get": {
+                "operationId": "GetScimGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a specific group by its SCIM ID",
+                "summary": "Get group",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "SCIM ID of the group to retrieve",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "UpdateScimGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Partially updates a group’s attributes (e.g., add or remove members).",
+                "summary": "Patch group",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "SCIM ID of the group to update",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Update operations to apply to the group",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimPatch",
+                                "description": "Update operations to apply to the group"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "operationId": "ReplaceScimGroup",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimGroup"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a group's attributes completely",
+                "summary": "Replace group",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "SCIM ID of the group to update",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Group to update",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScimUpsertGroup",
+                                "description": "Group to update"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteScimGroup",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScimErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a specific group by its SCIM ID",
+                "summary": "Delete group",
+                "tags": ["SCIM"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "SCIM ID of the group to delete",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/databricks/sso/is-authenticated": {
+            "get": {
+                "operationId": "getDatabricksAccessToken",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check if user is authenticated with Databricks OAuth",
+                "summary": "Check Databricks OAuth authentication",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []

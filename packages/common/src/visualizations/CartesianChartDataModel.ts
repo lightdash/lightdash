@@ -16,7 +16,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
-import { applyCustomFormat } from '../utils/formatting';
+import { applyCustomFormat, formatNumberValue } from '../utils/formatting';
 import {
     getAxisLabelStyle,
     getAxisLineStyle,
@@ -119,7 +119,25 @@ export class CartesianChartDataModel {
 
     // Get the formatter for the value label,
     // which has more complex inputs
-    static getValueFormatter(format: Format | undefined) {
+    static getValueFormatter(
+        format: Format | undefined,
+        isStack100: boolean = false,
+    ) {
+        // For 100% stacked charts, always format as percentage
+        // because all values are already converted to 0-100 range
+        if (isStack100) {
+            return (params: AnyType) => {
+                const value =
+                    params.value[params.dimensionNames[params.encode.y[0]]];
+                return typeof value === 'number'
+                    ? `${formatNumberValue(value, {
+                          type: CustomFormatType.NUMBER,
+                          round: 1,
+                      })}%`
+                    : `${value}%`;
+            };
+        }
+
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
             return (params: AnyType) => {
@@ -598,11 +616,13 @@ export class CartesianChartDataModel {
                     display?.series?.[col.referenceField]?.type ??
                     defaultSeriesType) === 'bar',
         ).length;
+        const isHorizontal = false; // CartesianChartDataModel doesn't support flipAxes
         const nonStackedBorderRadius = !shouldStack
             ? calculateDynamicBorderRadius(
                   dataToRender.length,
                   barSeriesCount,
                   false, // isStacked
+                  isHorizontal,
               )
             : undefined;
 
@@ -660,7 +680,7 @@ export class CartesianChartDataModel {
                     seriesType === 'bar' && !shouldStack
                         ? {
                               borderRadius: getBarBorderRadius(
-                                  false, // isHorizontal - CartesianChartDataModel doesn't support flipAxes
+                                  isHorizontal,
                                   true, // isStackEnd - always true for non-stacked bars
                                   nonStackedBorderRadius,
                               ),
@@ -713,11 +733,14 @@ export class CartesianChartDataModel {
                               show: seriesValueLabelPosition !== 'hidden',
                               position: seriesValueLabelPosition,
                               ...valueLabelStyle,
-                              formatter: seriesFormat
-                                  ? CartesianChartDataModel.getValueFormatter(
-                                        seriesFormat,
-                                    )
-                                  : undefined,
+                              // For stack100, always apply formatter even without seriesFormat
+                              formatter:
+                                  shouldStack100 || seriesFormat
+                                      ? CartesianChartDataModel.getValueFormatter(
+                                            seriesFormat,
+                                            shouldStack100,
+                                        )
+                                      : undefined,
                           }
                         : undefined,
                     labelLayout: {
@@ -749,6 +772,7 @@ export class CartesianChartDataModel {
                 dataPointCount,
                 stackedBarSeriesCount,
                 isStacked,
+                isHorizontal,
             );
 
             // Apply rounded corners to stack data
@@ -758,7 +782,7 @@ export class CartesianChartDataModel {
                 dataToRender,
                 {
                     radius,
-                    isHorizontal: false, // CartesianChartDataModel doesn't support flipAxes
+                    isHorizontal,
                     legendSelected: undefined,
                 },
             );

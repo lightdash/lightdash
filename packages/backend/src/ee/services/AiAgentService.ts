@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
@@ -59,7 +58,6 @@ import {
     ModelMessage,
     ToolCallPart,
     ToolModelMessage,
-    ToolResultPart,
     UserModelMessage,
 } from 'ai';
 import _ from 'lodash';
@@ -107,19 +105,16 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { streamAgentResponse as streamAgentResponseV1 } from './ai/agents/agent';
 import {
-    generateAgentResponse as generateAgentResponseV2,
-    streamAgentResponse as streamAgentResponseV2,
+    generateAgentResponse,
+    streamAgentResponse,
 } from './ai/agents/agentV2';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     CreateChangeFn,
-    FindChartsFn,
     FindContentFn,
-    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -1140,10 +1135,7 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    > {
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
         try {
             const {
                 user: validatedUser,
@@ -2161,63 +2153,6 @@ export class AiAgentService {
             );
         };
 
-        const findDashboards: FindDashboardsFn = async (args) =>
-            wrapSentryTransaction('AiAgent.findDashboards', args, async () => {
-                const searchResults = await this.searchModel.searchDashboards(
-                    projectUuid,
-                    args.dashboardSearchQuery.label,
-                    undefined,
-                    'OR',
-                );
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        searchResults,
-                    );
-
-                const totalResults = filteredResults.length;
-                const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-                return {
-                    dashboards: filteredResults,
-                    pagination: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                        totalPageCount,
-                        totalResults,
-                    },
-                };
-            });
-
-        const findCharts: FindChartsFn = (args) =>
-            wrapSentryTransaction('AiAgent.findCharts', args, async () => {
-                const allCharts = await this.searchModel.searchAllCharts(
-                    projectUuid,
-                    args.chartSearchQuery.label,
-                    'OR',
-                );
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        allCharts,
-                    );
-
-                const totalResults = filteredResults.length;
-                const totalPageCount = Math.ceil(totalResults / args.pageSize);
-
-                return {
-                    charts: filteredResults,
-                    pagination: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                        totalPageCount,
-                        totalResults,
-                    },
-                };
-            });
-
         const findContent: FindContentFn = async (args) =>
             wrapSentryTransaction('AiAgent.findContent', args, async () => {
                 const dashboardSearchResults =
@@ -2323,8 +2258,6 @@ export class AiAgentService {
         return {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -2349,10 +2282,7 @@ export class AiAgentService {
             stream: true;
             canManageAgent: boolean;
         },
-    ): Promise<
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    >;
+    ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: ModelMessage[],
@@ -2390,11 +2320,7 @@ export class AiAgentService {
                         stream: false;
                     }
               ),
-    ): Promise<
-        | string
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    > {
+    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -2408,8 +2334,6 @@ export class AiAgentService {
         const {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -2460,8 +2384,6 @@ export class AiAgentService {
         const dependencies: AiAgentDependencies = {
             listExplores,
             findContent,
-            findCharts,
-            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -2510,22 +2432,9 @@ export class AiAgentService {
             },
         };
 
-        // Route to correct agent version based on agentSettings.version
-        // const agentVersion = agentSettings.version;
-
-        // if (agentVersion === 1) {
-        //     return stream
-        //         ? streamAgentResponseV1({ args, dependencies })
-        //         : generateAgentResponseV1({ args, dependencies });
-        // }
-
         return stream
-            ? streamAgentResponseV2({ args, dependencies })
-            : generateAgentResponseV2({ args, dependencies });
-
-        // throw new Error(
-        //     `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
-        // );
+            ? streamAgentResponse({ args, dependencies })
+            : generateAgentResponse({ args, dependencies });
     }
 
     // TODO: user permissions

@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -22,11 +21,11 @@ import { isScimAuthenticated } from '../authentication';
 import { ScimService } from '../services/ScimService/ScimService';
 
 @Route('/api/v1/scim/v2')
-@Hidden()
 @Tags('SCIM')
 export class ScimRootController extends BaseController {
     /**
      * Root SCIM endpoint for validating SCIM configuration
+     * @summary Root check
      * @param req express request
      */
     @Middlewares([isScimAuthenticated])
@@ -40,6 +39,7 @@ export class ScimRootController extends BaseController {
 
     /**
      * Get SCIM service provider configuration
+     * @summary Provider config
      * @param req express request
      */
     @Get('/ServiceProviderConfig')
@@ -53,6 +53,7 @@ export class ScimRootController extends BaseController {
 
     /**
      * Get SCIM schemas
+     * @summary List schemas
      * @param req express request
      */
     @Get('/Schemas')
@@ -66,6 +67,7 @@ export class ScimRootController extends BaseController {
 
     /**
      * Get individual SCIM schema
+     * @summary Get schema
      * @param req express request
      * @param schemaId schema identifier
      */
@@ -89,6 +91,7 @@ export class ScimRootController extends BaseController {
 
     /**
      * Get SCIM resource types
+     * @summary List resource types
      * @param req express request
      */
     @Get('/ResourceTypes')
@@ -102,6 +105,7 @@ export class ScimRootController extends BaseController {
 
     /**
      * Get individual SCIM resource type
+     * @summary Get resource type
      * @param req express request
      * @param resourceTypeId resource type identifier
      */

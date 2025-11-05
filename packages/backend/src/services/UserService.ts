@@ -10,6 +10,7 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
+    DatabricksAuthenticationType,
     DeactivatedAccountError,
     DeleteOpenIdentity,
     EmailStatusExpiring,
@@ -1598,14 +1599,14 @@ export class UserService extends BaseService {
     }
 
     /**
-     * This method returns an access token for different sso providers, like snowflake or google
+     * This method returns an access token for different sso providers, like snowflake, databricks or google
      * this is used on the gdrive API to get the accessToken for listing files on the user's drive
      * @param user
      * @returns accessToken
      */
     async getAccessToken(
         user: SessionUser,
-        type: 'gdrive' | 'bigquery' | 'snowflake' = 'gdrive',
+        type: 'gdrive' | 'bigquery' | 'snowflake' | 'databricks' = 'gdrive',
     ): Promise<string> {
         if (type === 'snowflake') {
             if (this.lightdashConfig.auth.snowflake.clientId === undefined) {
@@ -1619,6 +1620,22 @@ export class UserService extends BaseService {
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
             const accessToken = await UserService.generateSnowflakeAccessToken(
+                refreshToken,
+            );
+            return accessToken;
+        }
+        if (type === 'databricks') {
+            if (this.lightdashConfig.auth.databricks.clientId === undefined) {
+                // If databricks oauth is not configured, refresh strategy will not be loaded
+                throw new MissingConfigError(
+                    'Databricks client is not configured',
+                );
+            }
+            const refreshToken: string = await this.userModel.getRefreshToken(
+                user.userUuid,
+                OpenIdIdentityIssuerType.DATABRICKS,
+            );
+            const accessToken = await UserService.generateDatabricksAccessToken(
                 refreshToken,
             );
             return accessToken;
@@ -1652,6 +1669,24 @@ export class UserService extends BaseService {
         });
     }
 
+    static async generateDatabricksAccessToken(
+        refreshToken: string,
+    ): Promise<string> {
+        return new Promise((resolve, reject) => {
+            refresh.requestNewAccessToken(
+                'databricks',
+                refreshToken,
+                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                    if (err || !accessToken) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(accessToken);
+                },
+            );
+        });
+    }
+
     async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
@@ -1663,6 +1698,7 @@ export class UserService extends BaseService {
             case OpenIdIdentityIssuerType.AZUREAD:
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
             case OpenIdIdentityIssuerType.SNOWFLAKE:
+            case OpenIdIdentityIssuerType.DATABRICKS:
                 return true;
             case OpenIdIdentityIssuerType.SLACK:
                 return false;
@@ -1731,6 +1767,30 @@ export class UserService extends BaseService {
             },
         };
         await this.createWarehouseCredentials(user, snowflakeCredentials);
+    }
+
+    async createDatabricksWarehouseCredentials(
+        user: SessionUser,
+        refreshToken: string,
+    ) {
+        // Remove old Databricks credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.DATABRICKS,
+        );
+
+        const databricksCredentials: UpsertUserWarehouseCredentials = {
+            name: 'Default',
+            credentials: {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                refreshToken,
+                database: '', // Will be set when connecting to a project
+                serverHostName: '', // Will be set when connecting to a project
+                httpPath: '', // Will be set when connecting to a project
+            },
+        };
+        await this.createWarehouseCredentials(user, databricksCredentials);
     }
 
     async createWarehouseCredentials(
@@ -1809,6 +1869,8 @@ export class UserService extends BaseService {
                 return this.lightdashConfig.auth.oidc.loginPath;
             case OpenIdIdentityIssuerType.SNOWFLAKE:
                 return this.lightdashConfig.auth.snowflake.loginPath;
+            case OpenIdIdentityIssuerType.DATABRICKS:
+                return this.lightdashConfig.auth.databricks.loginPath;
             case OpenIdIdentityIssuerType.SLACK:
                 throw new NotImplementedError('Slack login is not supported');
             default:

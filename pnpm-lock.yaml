@@ -1369,6 +1369,9 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
+      node-fetch:
+        specifier: ^2.7.0
+        version: 2.7.0(encoding@0.1.13)
       pg:
         specifier: ^8.13.1
         version: 8.13.1
@@ -1385,6 +1388,9 @@ importers:
         specifier: 0.2.6
         version: 0.2.6
     devDependencies:
+      '@types/node-fetch':
+        specifier: ^2.6.13
+        version: 2.6.13
       '@types/pg':
         specifier: ^8.11.10
         version: 8.11.10
@@ -20967,7 +20973,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -26232,7 +26238,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -26266,7 +26272,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -33319,7 +33325,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -35715,7 +35721,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -37821,7 +37827,7 @@ snapshots:
 
   zod-from-json-schema@0.0.5:
     dependencies:
-      zod: 3.25.55
+      zod: 3.25.76
 
   zod-from-json-schema@0.5.0:
     dependencies:

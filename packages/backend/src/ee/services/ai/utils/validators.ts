@@ -684,6 +684,27 @@ ${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
     }
 }
 
+/**
+ * Validate that an explore name exists in the list of available explores
+ * @param availableExploreNames - Array of available explore names
+ * @param exploreName - The explore name to validate
+ */
+export function validateExploreNameExists(
+    availableExplores: Explore[],
+    exploreName: string,
+) {
+    if (availableExplores.some((e) => e.name === exploreName)) return;
+
+    const errorMessage = `Invalid explore name: "${exploreName}"
+
+Available explores:
+${availableExplores.map((e) => `- ${e.name}`).join('\n')}`;
+
+    Logger.error(`[AiAgent][Validate Explore Name Exists] ${errorMessage}`);
+
+    throw new Error(errorMessage);
+}
+
 // Numeric metric types that support most table calculations
 const NUMERIC_METRIC_TYPES: MetricType[] = [
     MetricType.NUMBER,

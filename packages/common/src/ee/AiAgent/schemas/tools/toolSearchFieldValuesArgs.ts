@@ -37,10 +37,6 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema({
     })
     .build();
 
-export type ToolSearchFieldValuesArgs = z.infer<
-    typeof toolSearchFieldValuesArgsSchema
->;
-
 export const toolSearchFieldValuesArgsSchemaTransformed =
     toolSearchFieldValuesArgsSchema.transform((data) => ({
         ...data,
@@ -50,15 +46,17 @@ export const toolSearchFieldValuesArgsSchemaTransformed =
         query: data.query ?? '',
     }));
 
-export type ToolSearchFieldValuesArgsTransformed = z.infer<
-    typeof toolSearchFieldValuesArgsSchemaTransformed
->;
-
 export const toolSearchFieldValuesOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolSearchFieldValuesArgs = z.infer<
+    typeof toolSearchFieldValuesArgsSchema
+>;
+export type ToolSearchFieldValuesArgsTransformed = z.infer<
+    typeof toolSearchFieldValuesArgsSchemaTransformed
+>;
 export type ToolSearchFieldValuesOutput = z.infer<
     typeof toolSearchFieldValuesOutputSchema
 >;

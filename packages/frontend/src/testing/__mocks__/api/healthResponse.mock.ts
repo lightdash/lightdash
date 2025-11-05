@@ -77,6 +77,9 @@ export default function mockHealthResponse(
             snowflake: {
                 enabled: false,
             },
+            databricks: {
+                enabled: false,
+            },
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,

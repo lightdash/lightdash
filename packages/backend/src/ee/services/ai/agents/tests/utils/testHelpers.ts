@@ -6,10 +6,11 @@ import {
 } from '../../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../../database/entities/ai';
 
+export type ToolCallWithResult = DbAiAgentToolCall & { result?: unknown };
 export interface PromptAndGetToolCallsResult {
     response: string;
     threadUuid: string;
-    toolCalls: Array<DbAiAgentToolCall & { result?: unknown }>;
+    toolCalls: ToolCallWithResult[];
 }
 
 export const promptAndGetToolCalls = async (
@@ -61,7 +62,8 @@ export const promptAndGetToolCalls = async (
             'ai_agent_tool_result.tool_call_id',
         )
         .where('ai_agent_tool_call.ai_prompt_uuid', messageUuid)
-        .select<Array<DbAiAgentToolCall & { result?: unknown }>>('*');
+        .select<ToolCallWithResult[]>('*')
+        .orderBy('ai_agent_tool_call.created_at', 'asc');
 
     return {
         response,

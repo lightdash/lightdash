@@ -43,6 +43,7 @@ import {
     DashboardBasicDetails,
     type DashboardDAO,
     DashboardFilters,
+    DatabricksAuthenticationType,
     DateZoom,
     DbtExposure,
     DbtExposureType,
@@ -167,7 +168,11 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import { BigqueryWarehouseClient, SshTunnel } from '@lightdash/warehouses';
+import {
+    BigqueryWarehouseClient,
+    exchangeDatabricksOAuthCredentials,
+    SshTunnel,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -734,6 +739,79 @@ export class ProjectService extends BaseService {
                 throw new SnowflakeTokenError(errorMessage);
             }
         }
+
+        if (
+            args.type === WarehouseTypes.DATABRICKS &&
+            args.authenticationType === DatabricksAuthenticationType.OAUTH_M2M
+        ) {
+            try {
+                // Try to use stored OAuth credentials first, then fall back to refresh token
+                if (
+                    args.oauthClientId &&
+                    args.oauthClientSecret &&
+                    !args.refreshToken
+                ) {
+                    this.logger.debug(
+                        `Exchanging Databricks OAuth credentials for access token for user ${userUuid}`,
+                    );
+                    const { accessToken, refreshToken } =
+                        await exchangeDatabricksOAuthCredentials(
+                            args.serverHostName,
+                            args.oauthClientId,
+                            args.oauthClientSecret,
+                        );
+                    return {
+                        ...args,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_M2M,
+                        token: accessToken,
+                        refreshToken,
+                    };
+                }
+
+                let { refreshToken } = args;
+
+                // If no refresh token provided, try to get it from user's OpenID table
+                if (refreshToken === undefined) {
+                    refreshToken = await this.userModel.getRefreshToken(
+                        userUuid,
+                        OpenIdIdentityIssuerType.DATABRICKS,
+                    );
+                }
+
+                // If we still don't have a refresh token, we can't refresh
+                if (!refreshToken) {
+                    throw new Error(
+                        'No refresh token or OAuth credentials available for Databricks OAuth authentication',
+                    );
+                }
+
+                this.logger.debug(
+                    `Refreshing databricks token for user ${userUuid}`,
+                );
+
+                const accessToken =
+                    await UserService.generateDatabricksAccessToken(
+                        refreshToken,
+                    );
+                return {
+                    ...args,
+                    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                    token: accessToken,
+                };
+            } catch (e: unknown) {
+                if (e instanceof LightdashError) {
+                    throw e;
+                }
+                this.logger.error(
+                    `Error refreshing databricks token: ${JSON.stringify(e)}`,
+                );
+                throw new UnexpectedServerError(
+                    'Error refreshing databricks token',
+                );
+            }
+        }
+
         return args;
     }
 
@@ -872,6 +950,34 @@ export class ProjectService extends BaseService {
             );
             const credentials = await this.refreshCredentials(
                 { ...args.warehouseConnection, token: refreshToken },
+                userUuid,
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    ...credentials,
+                    refreshToken, // Store refresh token from user so we can generate new access tokens later
+                },
+            };
+        }
+
+        if (
+            args.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            args.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M &&
+            !organizationWarehouseCredentialsUuid
+        ) {
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.DATABRICKS,
+            );
+            // Validate refresh token and generate new access token
+            this.logger.debug(
+                `Refreshing databricks warehouse credentials from user uuid: ${userUuid}`,
+            );
+            const credentials = await this.refreshCredentials(
+                { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
             return {
@@ -1895,6 +2001,44 @@ export class ProjectService extends BaseService {
                 project.warehouseConnection.refreshToken,
             );
             project.warehouseConnection.token = accessToken;
+        }
+
+        if (
+            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            project.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M
+        ) {
+            // If we have OAuth credentials but no refresh token, exchange them for tokens
+            if (
+                project.warehouseConnection.oauthClientId &&
+                project.warehouseConnection.oauthClientSecret &&
+                !project.warehouseConnection.refreshToken
+            ) {
+                this.logger.debug(
+                    `Exchanging Databricks OAuth credentials for access token on buildAdapter`,
+                );
+                const { accessToken, refreshToken } =
+                    await exchangeDatabricksOAuthCredentials(
+                        project.warehouseConnection.serverHostName,
+                        project.warehouseConnection.oauthClientId,
+                        project.warehouseConnection.oauthClientSecret,
+                    );
+                project.warehouseConnection.token = accessToken;
+                if (refreshToken) {
+                    project.warehouseConnection.refreshToken = refreshToken;
+                    // Note: refresh token will be persisted when project credentials are next saved
+                }
+            } else if (project.warehouseConnection.refreshToken) {
+                // If we have a refresh token, use it to get a fresh access token
+                this.logger.debug(
+                    `Refreshing databricks warehouse credentials from refresh token on buildAdapter`,
+                );
+                const accessToken =
+                    await UserService.generateDatabricksAccessToken(
+                        project.warehouseConnection.refreshToken,
+                    );
+                project.warehouseConnection.token = accessToken;
+            }
         }
 
         const sshTunnel = new SshTunnel(project.warehouseConnection);

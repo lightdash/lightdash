@@ -47,7 +47,7 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
-import { renderBarChartDisplay } from './barChartDisplay';
+import { TableCellBar } from './TableCellBar';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
@@ -112,8 +112,9 @@ const formatBarDisplayCell = (
 ) => {
     const cellValue = info.getValue();
     const columnId = info.column.id;
-
+    const columnProperties = info.table?.options.meta?.columnProperties;
     const minMaxMap = info.table?.options.meta?.minMaxMap;
+    const color = columnProperties?.[columnId]?.color;
 
     // For pivot tables, get the base field ID from the item in meta
     // This is needed because pivoted columns have different IDs than the base field
@@ -144,12 +145,15 @@ const formatBarDisplayCell = (
     const min = minMax?.min ?? 0;
     const max = minMax?.max ?? 100;
 
-    return renderBarChartDisplay({
-        value,
-        formatted,
-        min,
-        max,
-    });
+    return (
+        <TableCellBar
+            value={value}
+            formatted={formatted}
+            min={min}
+            max={max}
+            color={color}
+        />
+    );
 };
 
 export const getFormattedValueCell = (

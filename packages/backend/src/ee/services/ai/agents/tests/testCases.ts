@@ -164,6 +164,41 @@ export const testCases: TestCase[] = [
             `Date dimension is used for sorting and x-axis`,
         ].join('\n'),
     },
+    {
+        name: 'should use explicit date filter for time windows instead of limit+sort',
+        prompt: 'Show me total order amount over the last 12 months, only completed and placed orders',
+        expectedAnswer: [
+            `Response contains total order amount by month`,
+            `explore: orders`,
+            `dimension: order date month`,
+            `metric: total order amount`,
+            `filter: order date from last 12 months and status in (completed, placed)`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response used an explicit date filter with operator "inThePast", value 12, unitOfTime "months" (or equivalent)`,
+            `The response did NOT rely on limit property combined with sort to approximate the time window`,
+            `The response added a dimension filter for status with values ["completed", "placed"]`,
+            `Both filters are combined in the filters object (date AND status)`,
+        ].join('\n'),
+    },
+    {
+        name: 'should combine explicit date filter with dimension filters and custom metrics',
+        prompt: 'Average shipping cost per order by week for standard and express shipping methods over the last year ',
+        expectedAnswer: [
+            `Response contains average shipping cost per order by week`,
+            `explore: orders`,
+            `dimension: order date week, shipping method`,
+            `custom metric: average shipping cost per order`,
+            `filters: order date from last year AND shipping method in (standard, express)`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response created a custom metric for average shipping cost per order`,
+            `The response used explicit date filter with operator "inThePast", value 1, unitOfTime "years" (or equivalent)`,
+            `The response added a dimension filter for shipping method with values ["standard", "express"]`,
+            `Both filters are combined in the filters object (date AND shipping method)`,
+            `The response did NOT use limit+sort to approximate the time window`,
+        ].join('\n'),
+    },
 ];
 
 type Context = {

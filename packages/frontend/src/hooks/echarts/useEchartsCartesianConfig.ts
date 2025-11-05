@@ -5,9 +5,11 @@ import {
     buildCartesianTooltipFormatter,
     calculateDynamicBorderRadius,
     CartesianSeriesType,
+    CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
     formatItemValue,
+    formatNumberValue,
     formatValueWithExpression,
     friendlyName,
     getCartesianAxisFormatterConfig as getAxisFormatterConfig,
@@ -588,6 +590,7 @@ type GetPivotSeriesArg = {
     pivotReference: Required<PivotReference>;
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
     parameters?: ParametersValuesMap;
+    isStack100?: boolean;
 };
 
 const seriesValueFormatter = (
@@ -623,6 +626,19 @@ const seriesValueFormatter = (
         const formatOptions = isMetric(item) ? item.formatOptions : undefined;
         return applyCustomFormat(value, formatOptions || defaultFormatOptions);
     }
+};
+
+/**
+ * Format value for 100% stacked charts
+ * For stack100, values are already percentages (0-100) so we just append %
+ */
+const formatStack100Value = (value: unknown): string => {
+    return typeof value === 'number'
+        ? `${formatNumberValue(value, {
+              type: CustomFormatType.NUMBER,
+              round: 1,
+          })}%`
+        : `${value}%`;
 };
 
 /**
@@ -675,6 +691,7 @@ const getPivotSeries = ({
     cartesianChart,
     pivotValuesColumnsMap,
     parameters,
+    isStack100,
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -747,6 +764,12 @@ const getPivotSeries = ({
                                 yFieldHash,
                                 !!flipAxes,
                             );
+
+                            // For 100% stacked charts, values are already percentages (0-100)
+                            if (isStack100) {
+                                return formatStack100Value(raw);
+                            }
+
                             return seriesValueFormatter(field, raw, parameters);
                         },
                     }),
@@ -791,6 +814,7 @@ type GetSimpleSeriesArg = {
     xFieldHash: string;
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
     parameters?: ParametersValuesMap;
+    isStack100?: boolean;
 };
 
 const getSimpleSeries = ({
@@ -801,6 +825,7 @@ const getSimpleSeries = ({
     itemsMap,
     pivotValuesColumnsMap,
     parameters,
+    isStack100,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -862,6 +887,11 @@ const getSimpleSeries = ({
                             rawValue = v;
                         }
 
+                        // For 100% stacked charts, values are already percentages (0-100)
+                        if (isStack100) {
+                            return formatStack100Value(rawValue);
+                        }
+
                         return seriesValueFormatter(
                             field,
                             rawValue,
@@ -893,6 +923,9 @@ const getEchartsSeriesFromPivotedData = (
         | undefined,
     parameters?: ParametersValuesMap,
 ): EChartsSeries[] => {
+    // Check if 100% stacking is enabled
+    const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
+
     // Use pivotDetails to find the correct column name for each series
     const findMatchingColumnName = (series: Series): string | undefined => {
         if (isPivotReferenceWithValues(series.encode.yRef)) {
@@ -969,6 +1002,7 @@ const getEchartsSeriesFromPivotedData = (
                     yFieldHash,
                     pivotValuesColumnsMap,
                     parameters,
+                    isStack100,
                 });
             }
 
@@ -981,6 +1015,7 @@ const getEchartsSeriesFromPivotedData = (
                 xFieldHash,
                 pivotValuesColumnsMap,
                 parameters,
+                isStack100,
             });
         });
 
@@ -993,6 +1028,9 @@ const getEchartsSeries = (
     pivotKeys: string[] | undefined,
     parameters?: ParametersValuesMap,
 ): EChartsSeries[] => {
+    // Check if 100% stacking is enabled
+    const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
+
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
         .map<EChartsSeries>((series) => {
@@ -1009,6 +1047,7 @@ const getEchartsSeries = (
                     xFieldHash,
                     yFieldHash,
                     parameters,
+                    isStack100,
                 });
             }
 
@@ -1019,6 +1058,7 @@ const getEchartsSeries = (
                 yFieldHash,
                 xFieldHash,
                 parameters,
+                isStack100,
             });
         });
 };
@@ -1938,7 +1978,7 @@ const useEchartsCartesianConfig = (
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
-        const isHorizontal = validCartesianConfig?.layout.flipAxes;
+        const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
 
         // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
@@ -1953,6 +1993,7 @@ const useEchartsCartesianConfig = (
             rows.length,
             Math.max(1, nonStackedBarCount),
             isStacked,
+            isHorizontal,
         );
 
         const seriesWithValidStack = series.map<EChartsSeries>((serie) => {
@@ -1987,7 +2028,7 @@ const useEchartsCartesianConfig = (
                         getValidStack(serie) === undefined) && {
                         itemStyle: {
                             borderRadius: getBarBorderRadius(
-                                !!isHorizontal,
+                                isHorizontal,
                                 true,
                                 dynamicRadius,
                             ),

@@ -3,6 +3,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     convertToAiHints,
+    Explore,
     getItemId,
     toolFindExploresArgsSchemaV2,
     toolFindExploresOutputSchema,
@@ -14,12 +15,17 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { validateExploreNameExists } from '../utils/validators';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
+};
+
+type AgentContext = {
+    availableExplores: Explore[];
 };
 
 function getCatalogChartUsage(
@@ -182,11 +188,14 @@ export const getFindExplores = ({
         description: toolFindExploresArgsSchemaV2.description,
         inputSchema: toolFindExploresArgsSchemaV2,
         outputSchema: toolFindExploresOutputSchema,
-        execute: async (args) => {
+        execute: async (args, { experimental_context: context }) => {
             try {
                 await updateProgress(
                     `🔍 Searching explore: \`${args.exploreName}\`...`,
                 );
+
+                const { availableExplores } = context as AgentContext;
+                validateExploreNameExists(availableExplores, args.exploreName);
 
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,

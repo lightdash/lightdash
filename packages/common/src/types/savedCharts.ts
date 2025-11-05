@@ -155,6 +155,7 @@ export type ColumnProperties = {
     name?: string;
     frozen?: boolean;
     displayStyle?: 'text' | 'bar';
+    color?: string;
 };
 
 export type TableChart = {

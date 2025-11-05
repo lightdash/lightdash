@@ -9,7 +9,9 @@
     ({{ quarter_start_column }} + interval '3' month - interval '1' day)
   {% elif target.type == 'clickhouse' %}
     addDays(addMonths({{ quarter_start_column }}, 3), -1)
+  {% elif target.type == 'databricks' %}
+    DATE_ADD(ADD_MONTHS({{ quarter_start_column }}, 3), -1)
   {% else %}
-    {{ exceptions.raise_compiler_error("Unsupported database type: " ~ target.type) }}
+    {{ exceptions.raise_compiler_error("Unsupported database type \"" ~ target.type ~ "\". Update quarter_end_date.sql macro to handle this warehouse") }}
   {% endif %}
 {% endmacro %}

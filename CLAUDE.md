@@ -152,6 +152,59 @@ pnpm -F backend rollback-last
     -   Import from `@lightdash/common`: `import { assertUnreachable } from '@lightdash/common';`
     -   This provides compile-time safety when new union members are added
 
+## Security Best Practices
+
+### Warehouse Credentials Protection
+
+**CRITICAL**: When adding new credential fields to warehouse configurations, always check if they contain sensitive data that should NOT be exposed via API responses.
+
+**Location**: `packages/common/src/types/projects.ts`
+
+The `sensitiveCredentialsFieldNames` array controls which fields are stripped from API responses:
+
+```typescript
+export const sensitiveCredentialsFieldNames = [
+    'user',
+    'password',
+    'keyfileContents',
+    'personalAccessToken',
+    'privateKey',
+    'privateKeyPass',
+    'sshTunnelPrivateKey',
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
+    'token',
+    'refreshToken',
+    'oauthClientId',
+    'oauthClientSecret',
+    // Add any new sensitive fields here!
+] as const;
+```
+
+**When adding new warehouse authentication methods:**
+
+1. **Identify sensitive fields**: Any field containing passwords, tokens, keys, secrets, or identifiers that could be used for authentication
+2. **Add to sensitiveCredentialsFieldNames**: This ensures the field is stripped via `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>`
+3. **Test API responses**: Verify the sensitive data doesn't appear in GET /api/v1/projects/{uuid} responses
+4. **Examples of sensitive fields**:
+    - OAuth client secrets (equivalent to passwords)
+    - Refresh tokens (can be used to obtain access tokens)
+    - Access tokens (direct authentication)
+    - Private keys, certificates
+    - Database passwords
+    - Personal access tokens
+5. **Examples of potentially sensitive fields** (use judgment):
+    - OAuth client IDs (less sensitive but best practice to hide)
+    - Usernames (often considered PII)
+
+**How it works**:
+
+-   `CreateXxxCredentials` types contain ALL fields including sensitive ones (used for creation/updates)
+-   `XxxCredentials` types are `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>` (used for API responses)
+-   `ProjectModel.get()` filters credentials using this array before returning to API controllers
+-   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed

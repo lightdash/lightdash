@@ -34,10 +34,6 @@ export const toolRunMetricQueryArgsSchema = createToolSchema({
     })
     .build();
 
-export type ToolRunMetricQueryArgs = z.infer<
-    typeof toolRunMetricQueryArgsSchema
->;
-
 export const toolRunMetricQueryArgsSchemaTransformed =
     toolRunMetricQueryArgsSchema.transform((data) => ({
         ...data,
@@ -45,15 +41,17 @@ export const toolRunMetricQueryArgsSchemaTransformed =
         filters: filtersSchemaTransformed.parse(data.filters ?? null),
     }));
 
-export type ToolRunMetricQueryArgsTransformed = z.infer<
-    typeof toolRunMetricQueryArgsSchemaTransformed
->;
-
 export const toolRunMetricQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolRunMetricQueryArgs = z.infer<
+    typeof toolRunMetricQueryArgsSchema
+>;
+export type ToolRunMetricQueryArgsTransformed = z.infer<
+    typeof toolRunMetricQueryArgsSchemaTransformed
+>;
 export type ToolRunMetricQueryOutput = z.infer<
     typeof toolRunMetricQueryOutputSchema
 >;

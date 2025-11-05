@@ -31,15 +31,13 @@ export const toolFindFieldsArgsSchema = createToolSchema({
     .withPagination()
     .build();
 
-export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
-
 export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
-
-export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
 
 export const toolFindFieldsOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
+export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
 export type ToolFindFieldsOutput = z.infer<typeof toolFindFieldsOutputSchema>;

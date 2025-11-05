@@ -1,4 +1,4 @@
-import { ChartType, FeatureFlags, type SavedChart } from '@lightdash/common';
+import { ChartType, type SavedChart } from '@lightdash/common';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -13,7 +13,6 @@ import {
 } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
-import { useFeatureFlag } from '../../../../../hooks/useFeatureFlagEnabled';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
@@ -106,9 +105,6 @@ const EmbedExplore: FC<Props> = ({
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
-
-    // Pre-load the feature flag to avoid trying to render old side bar while it is fetching it in ExploreTree
-    useFeatureFlag(FeatureFlags.ExperimentalVirtualizedSideBar);
 
     if (!projectUuid) {
         return (

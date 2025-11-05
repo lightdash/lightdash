@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    DatabricksAuthenticationType,
     getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -10,7 +11,10 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    exchangeDatabricksOAuthCredentials,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import crypto from 'crypto';
 import execa from 'execa';
 import path from 'path';
@@ -292,6 +296,26 @@ export default async function getWarehouseClient(
         });
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
+
+        // Exchange Databricks OAuth credentials for access token if needed
+        if (
+            credentials.type === WarehouseTypes.DATABRICKS &&
+            credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M &&
+            credentials.oauthClientId &&
+            credentials.oauthClientSecret &&
+            !credentials.token
+        ) {
+            GlobalState.debug(
+                `> Exchanging Databricks OAuth credentials for access token`,
+            );
+            const { accessToken } = await exchangeDatabricksOAuthCredentials(
+                credentials.serverHostName,
+                credentials.oauthClientId,
+                credentials.oauthClientSecret,
+            );
+            credentials.token = accessToken;
+        }
 
         // Check if we should use cached client (e.g., for auth methods requiring user interaction)
         const cacheKey = getWarehouseClientCacheKey(credentials);

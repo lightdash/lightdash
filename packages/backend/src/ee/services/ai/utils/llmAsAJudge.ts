@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
-import { defaultAgentOptions } from '../agents/agent';
+import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 export const factualityScores = {
@@ -30,6 +30,20 @@ export type ContextRelevancyResponse = {
     reason: string;
 };
 
+export type RunQueryEfficiencyResponse = {
+    score: number;
+    runQueryCount: number;
+};
+
+export const calculateRunQueryEfficiencyScore = (
+    runQueryCount: number,
+): number => {
+    if (runQueryCount === 0) {
+        return 1;
+    }
+    return 1 / 2 ** (runQueryCount - 1);
+};
+
 type LlmJudgeResultBase = {
     query: string;
     response: string;
@@ -51,6 +65,10 @@ export type LlmJudgeResult =
           scorerType: 'contextRelevancy';
           context: string[];
           result: ContextRelevancyResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'runQueryEfficiency';
+          result: RunQueryEfficiencyResponse;
       });
 
 type BaseLlmAsJudgeParams = {

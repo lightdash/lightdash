@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.2138.1",
+    "version": "0.2142.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -15,6 +15,7 @@
         "lodash": "^4.17.21",
         "pg": "^8.13.1",
         "pg-cursor": "^2.10.0",
+        "node-fetch": "^2.7.0",
         "snowflake-sdk": "~2.3.1",
         "ssh2": "^1.14.0",
         "trino-client": "0.2.6"
@@ -23,6 +24,7 @@
         "@types/pg": "^8.11.10",
         "@types/pg-cursor": "^2.7.0",
         "@types/ssh2": "^1.11.15",
+        "@types/node-fetch": "^2.6.13",
         "copyfiles": "^2.4.1"
     },
     "description": "Warehouse connectors for Lightdash",

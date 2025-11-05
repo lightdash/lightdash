@@ -105,6 +105,7 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
         <MantineProvider inherit theme={themeOverride}>
             <div
                 ref={parentRef}
+                data-testid="virtualized-tree-scroll-container"
                 style={{
                     height: '100%',
                     overflow: 'auto',

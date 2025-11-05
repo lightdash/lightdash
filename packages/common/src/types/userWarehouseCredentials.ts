@@ -44,7 +44,20 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               CreateBigqueryCredentials,
               'type' | 'keyfileContents' | 'authenticationType'
           >
-        | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
+        | (Pick<
+              CreateDatabricksCredentials,
+              | 'type'
+              | 'personalAccessToken'
+              | 'authenticationType'
+              | 'refreshToken'
+              | 'token'
+          > &
+              Partial<
+                  Pick<
+                      CreateDatabricksCredentials,
+                      'database' | 'serverHostName' | 'httpPath'
+                  >
+              >);
 };
 
 export type UpsertUserWarehouseCredentials = {

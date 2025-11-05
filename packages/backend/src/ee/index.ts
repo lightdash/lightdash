@@ -309,7 +309,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
-                    spaceModel: models.getSpaceModel(),
                     spaceService: repository.getSpaceService(),
                     mcpContextModel: models.getMcpContextModel(),
                     projectModel: models.getProjectModel(),

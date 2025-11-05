@@ -77,6 +77,14 @@ export const lightdashConfigMock: LightdashConfig = {
             clientId: undefined,
             clientSecret: undefined,
         },
+        databricks: {
+            loginPath: '/login/databricks',
+            callbackPath: '/oauth/redirect/databricks',
+            authorizationEndpoint: undefined,
+            tokenEndpoint: undefined,
+            clientId: undefined,
+            clientSecret: undefined,
+        },
     },
     lightdashCloudInstance: 'test-instance',
     k8s: {
@@ -269,7 +277,6 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     experimentalExplorerImprovements: false,
-    experimentalVirtualizedSideBar: false,
     dashboardComments: {
         enabled: true,
     },
