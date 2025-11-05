@@ -104,6 +104,7 @@ const userModelMock = {
         organizationUuid: mockUser.organizationUuid,
     }),
     getUserDetailsByUuid: jest.fn().mockResolvedValue(mockUser),
+    getUserProjectRoles: jest.fn().mockResolvedValue([]),
 } as unknown as UserModel;
 
 // Mock analytics
