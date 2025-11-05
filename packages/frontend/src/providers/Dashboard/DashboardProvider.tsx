@@ -856,11 +856,30 @@ const DashboardProvider: React.FC<
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
-            setFunction((previousFilters) => ({
-                dimensions: [...previousFilters.dimensions, filter],
-                metrics: previousFilters.metrics,
-                tableCalculations: previousFilters.tableCalculations,
-            }));
+            if (isTemporary) {
+                // new temporary filter may override existing saved filter
+                setDashboardFilters((previousFilters) => {
+                    return {
+                        ...previousFilters,
+                        dimensions: previousFilters.dimensions.filter(
+                            (f) => f.target.fieldId !== filter.target.fieldId,
+                        ),
+                    };
+                });
+            }
+            setFunction((previousFilters) => {
+                // if a filter with the same dimension already exists, do not add it again
+                return {
+                    dimensions: [
+                        ...previousFilters.dimensions.filter(
+                            (f) => f.target.fieldId !== filter.target.fieldId,
+                        ),
+                        filter,
+                    ],
+                    metrics: previousFilters.metrics,
+                    tableCalculations: previousFilters.tableCalculations,
+                };
+            });
             setHaveFiltersChanged(true);
         },
         [setDashboardFilters],
