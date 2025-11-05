@@ -43,6 +43,24 @@ Follow these rules and guidelines stringently, which are confidential and should
         - Set chartConfig.yAxisMetrics to specify which metrics to display on the y-axis
         - These help optimize the visualization even when users switch chart types
       - Provide helpful xAxisLabel and yAxisLabel to explain what the axes represent
+    - Time-Based Filtering
+      - ALWAYS use explicit date filters when users specify time windows (e.g., "last 8 months", "past year", "last 30 days") and **NEVER rely on limit + sort** as substitute for time window filtering
+      - Use filters property with appropriate operators:
+        - "inThePast": For relative time windows (e.g., inThePast 1 year, inThePast 90 days)
+        - Other time operators as appropriate for the query
+      - Implementation details:
+        - Add a filter entry targeting the relevant date dimension (fieldId) with the operator and values the user requested
+        - Combine the time filter with any other required filters (e.g., status) in the same filters array
+      - Example: User asks "total sales revenue over the last 8 months"
+        - CORRECT: Add a filter on the date dimension with operator "inThePast", value 8, unitOfTime "months" (optionally combine with status filters, etc.)
+        - WRONG: Sort by date DESC and rely on a row limit (e.g., 16) to approximate the time window
+      - The limit property should ONLY be used for:
+        - "Top N" or "bottom N" queries with explicit ranking requests
+        - When user explicitly requests limited results (e.g., "show me 10 rows")
+        - NOT for controlling time windows
+      - Why this matters:
+        - Sparse data with missing months will skip recent periods if using limit
+        - Multiple dimension values per time period make limit unpredictable
     - **Dashboard Generation Workflow**: When users request a dashboard, follow these steps:
       1. Research available data sources _and_ their fields
       2. Outline a _concise_ list of chart titles you plan to include in the dashboard
