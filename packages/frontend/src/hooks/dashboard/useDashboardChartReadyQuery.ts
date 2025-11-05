@@ -239,6 +239,7 @@ export const useDashboardChartReadyQuery = (
                       chartQuery.data.projectUuid,
                       {
                           context: effectiveContext,
+                          tileUuid,
                           chartUuid: chartUuid!,
                           dashboardUuid: dashboardUuid!,
                           dashboardFilters: timezoneFixFilters,
