@@ -358,20 +358,18 @@ export const AssistantBubble: FC<Props> = memo(
         const hasRating = upVoted || downVoted;
 
         const handleUpvote = useCallback(() => {
-            if (hasRating) return;
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
-                humanScore: 1,
+                humanScore: upVoted ? 0 : 1,
             });
-        }, [hasRating, updateFeedbackMutation, message.uuid]);
+        }, [updateFeedbackMutation, message.uuid, upVoted]);
 
         const handleDownvote = useCallback(() => {
-            if (hasRating) return;
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
-                humanScore: -1,
+                humanScore: downVoted ? 0 : -1,
             });
-        }, [hasRating, updateFeedbackMutation, message.uuid]);
+        }, [updateFeedbackMutation, message.uuid, downVoted]);
 
         const isPending = message.status === 'pending';
         const isLoading =
