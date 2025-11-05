@@ -16,8 +16,6 @@ export const useTableStyles = createStyles((theme) => {
             borderSpacing: 0,
 
             borderRadius: '4px',
-            border: `1px solid ${borderColor}`,
-            overflow: 'hidden',
 
             margin: 0,
             padding: 0,
