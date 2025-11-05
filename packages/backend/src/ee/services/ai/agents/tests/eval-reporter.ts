@@ -7,6 +7,7 @@ import {
     ContextRelevancyResponse,
     FactualityResponse,
     LlmJudgeResult,
+    RunQueryEfficiencyResponse,
 } from '../../utils/llmAsAJudge';
 import { ToolJudgeResult } from '../../utils/llmAsJudgeForTools';
 import { ToolCallWithResult } from './utils/testHelpers';
@@ -445,15 +446,12 @@ export default class EvalHtmlReporter implements Reporter {
                         ${
                             result.toolCalls && result.toolCalls.length > 0
                                 ? `<div style="font-family: monospace; color: #007bff;">${result.toolCalls
-                                      .map((tc) => {
-                                          const toolName =
-                                              typeof tc === 'string'
-                                                  ? tc
-                                                  : tc.tool_name;
-                                          return `<span style="display: inline-block; background: #e7f3ff; padding: 1px 4px; margin: 1px; border-radius: 2px; font-size: 10px;">${EvalHtmlReporter.escapeHtml(
-                                              toolName,
-                                          )}</span>`;
-                                      })
+                                      .map(
+                                          (tc) =>
+                                              `<span style="display: inline-block; background: #e7f3ff; padding: 1px 4px; margin: 1px; border-radius: 2px; font-size: 10px;">${EvalHtmlReporter.escapeHtml(
+                                                  tc.tool_name,
+                                              )}</span>`,
+                                      )
                                       .join('')}</div>`
                                 : '<span style="color: #6c757d; font-size: 10px;">None</span>'
                         }
@@ -549,6 +547,17 @@ export default class EvalHtmlReporter implements Reporter {
                             scoreText = `${(contextResult.score * 100).toFixed(
                                 1,
                             )}%`;
+                            scoreClass = judgeResult.passed ? 'pass' : 'fail';
+                            break;
+                        case 'runQueryEfficiency':
+                            // actual test only fails if the score is less than 0.49
+                            const runQueryResult =
+                                judgeData as RunQueryEfficiencyResponse;
+                            scoreText = `${(runQueryResult.score * 100).toFixed(
+                                1,
+                            )}% (${runQueryResult.runQueryCount} call${
+                                runQueryResult.runQueryCount !== 1 ? 's' : ''
+                            })`;
                             scoreClass = judgeResult.passed ? 'pass' : 'fail';
                             break;
                         default:
@@ -758,6 +767,27 @@ export default class EvalHtmlReporter implements Reporter {
                         <div><strong>Reason:</strong> ${EvalHtmlReporter.escapeHtml(
                             contextResult.reason,
                         )}</div>
+                    `;
+                        break;
+                    case 'runQueryEfficiency':
+                        const runQueryResult =
+                            judgeData as RunQueryEfficiencyResponse;
+                        scoreDetails = `
+                        <div><strong>Score:</strong> ${(
+                            runQueryResult.score * 100
+                        ).toFixed(2)}%</div>
+                        <div><strong>RunQuery Calls:</strong> ${
+                            runQueryResult.runQueryCount
+                        }</div>
+                        <div><strong>Efficiency:</strong> ${(() => {
+                            if (runQueryResult.runQueryCount === 1) {
+                                return 'Optimal (1 call)';
+                            }
+                            if (runQueryResult.runQueryCount === 2) {
+                                return 'Okay (2 calls)';
+                            }
+                            return `Poor (${runQueryResult.runQueryCount} calls)`;
+                        })()}</div>
                     `;
                         break;
                     default:

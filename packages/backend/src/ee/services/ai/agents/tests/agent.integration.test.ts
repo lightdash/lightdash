@@ -9,7 +9,10 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { getModel } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
-import { llmAsAJudge } from '../../utils/llmAsAJudge';
+import {
+    calculateRunQueryEfficiencyScore,
+    llmAsAJudge,
+} from '../../utils/llmAsAJudge';
 import { llmAsJudgeForTools } from '../../utils/llmAsJudgeForTools';
 import { testCases } from './testCases';
 import { promptAndGetToolCalls } from './utils/testHelpers';
@@ -65,7 +68,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 groupAccess: [],
                 userAccess: [],
                 imageUrl: null,
-                enableDataAccess: false,
+                enableDataAccess: true,
                 enableSelfImprovement: false,
                 enableReasoning: false,
                 version: 2,
@@ -131,6 +134,27 @@ describeOrSkip.concurrent('agent integration tests', () => {
                     });
 
                     report.addLlmToolJudgeResult(toolsEvaluation);
+
+                    // RunQuery efficiency evaluation
+                    const runQueryCount = toolCalls.filter(
+                        (tc) => tc.tool_name === 'runQuery',
+                    ).length;
+                    const runQueryEfficiencyScore =
+                        calculateRunQueryEfficiencyScore(runQueryCount);
+
+                    const runQueryEfficiencyResult = {
+                        scorerType: 'runQueryEfficiency' as const,
+                        query: testCase.prompt,
+                        response,
+                        timestamp: new Date().toISOString(),
+                        passed: runQueryEfficiencyScore > 0.49,
+                        result: {
+                            score: runQueryEfficiencyScore,
+                            runQueryCount,
+                        },
+                    };
+
+                    report.addLlmJudgeResult(runQueryEfficiencyResult);
                 }
 
                 // Context relevancy evaluation

@@ -30,6 +30,20 @@ export type ContextRelevancyResponse = {
     reason: string;
 };
 
+export type RunQueryEfficiencyResponse = {
+    score: number;
+    runQueryCount: number;
+};
+
+export const calculateRunQueryEfficiencyScore = (
+    runQueryCount: number,
+): number => {
+    if (runQueryCount === 0) {
+        return 1;
+    }
+    return 1 / 2 ** (runQueryCount - 1);
+};
+
 type LlmJudgeResultBase = {
     query: string;
     response: string;
@@ -51,6 +65,10 @@ export type LlmJudgeResult =
           scorerType: 'contextRelevancy';
           context: string[];
           result: ContextRelevancyResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'runQueryEfficiency';
+          result: RunQueryEfficiencyResponse;
       });
 
 type BaseLlmAsJudgeParams = {
