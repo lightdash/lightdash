@@ -61,6 +61,7 @@ import {
     getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
+    getDashboardFiltersForTile,
     getErrorMessage,
     getFulfilledValues,
     getHiddenFieldsFromVizTableConfig,
@@ -558,7 +559,7 @@ export default class SchedulerTask {
                             }));
                         const csvForChartPromises =
                             chartTileUuidsWithChartUuids.map(
-                                async ({ chartUuid }) => {
+                                async ({ chartUuid, tileUuid }) => {
                                     const chartLimit =
                                         getSchedulerCsvLimit(csvOptions);
                                     const query =
@@ -566,6 +567,7 @@ export default class SchedulerTask {
                                             {
                                                 account,
                                                 projectUuid,
+                                                tileUuid,
                                                 chartUuid,
                                                 invalidateCache: true,
                                                 context:
@@ -2229,7 +2231,7 @@ export default class SchedulerTask {
                 return percentageDecrease > thresholdValue;
 
             default:
-                assertUnreachable(
+                return assertUnreachable(
                     operator,
                     `Unknown threshold alert operator: ${operator}`,
                 );

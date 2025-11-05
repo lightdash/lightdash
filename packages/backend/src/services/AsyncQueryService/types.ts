@@ -70,6 +70,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
+    tileUuid: string;
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];

@@ -55,6 +55,7 @@ export const useDashboardChartDownload = (
                     method: 'POST',
                     body: JSON.stringify({
                         context: QueryExecutionContext.DASHBOARD,
+                        tileUuid,
                         chartUuid,
                         dashboardUuid,
                         dashboardFilters: dashboardFilters || {},
@@ -88,6 +89,7 @@ export const useDashboardChartDownload = (
         [
             projectUuid,
             dashboardUuid,
+            tileUuid,
             chartUuid,
             dashboardFilters,
             dashboardSorts,

@@ -1,5 +1,5 @@
 import {
-    getDashboardFilterRulesForTile,
+    getDashboardFiltersForTile,
     type DashboardFilters,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -12,20 +12,12 @@ const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
     );
 
     return useMemo(
-        () => ({
-            dimensions: getDashboardFilterRulesForTile(tileUuid, [
-                ...dashboardFilters.dimensions,
-                ...(dashboardTemporaryFilters?.dimensions ?? []),
-            ]),
-            metrics: getDashboardFilterRulesForTile(tileUuid, [
-                ...dashboardFilters.metrics,
-                ...(dashboardTemporaryFilters?.metrics ?? []),
-            ]),
-            tableCalculations: getDashboardFilterRulesForTile(tileUuid, [
-                ...dashboardFilters.tableCalculations,
-                ...(dashboardTemporaryFilters?.tableCalculations ?? []),
-            ]),
-        }),
+        () =>
+            getDashboardFiltersForTile(
+                tileUuid,
+                dashboardFilters,
+                dashboardTemporaryFilters,
+            ),
         [tileUuid, dashboardFilters, dashboardTemporaryFilters],
     );
 };

@@ -828,6 +828,25 @@ export const getDashboardFiltersForTileAndTables = (
     ),
 });
 
+export const getDashboardFiltersForTile = (
+    tileUuid: string,
+    dashboardFilters: DashboardFilters,
+    dashboardTemporaryFilters?: DashboardFilters,
+): DashboardFilters => ({
+    dimensions: getDashboardFilterRulesForTile(tileUuid, [
+        ...dashboardFilters.dimensions,
+        ...(dashboardTemporaryFilters?.dimensions ?? []),
+    ]),
+    metrics: getDashboardFilterRulesForTile(tileUuid, [
+        ...dashboardFilters.metrics,
+        ...(dashboardTemporaryFilters?.metrics ?? []),
+    ]),
+    tableCalculations: getDashboardFilterRulesForTile(tileUuid, [
+        ...dashboardFilters.tableCalculations,
+        ...(dashboardTemporaryFilters?.tableCalculations ?? []),
+    ]),
+});
+
 const combineFilterGroups = (
     a: FilterGroup | undefined,
     b: FilterGroup | undefined,

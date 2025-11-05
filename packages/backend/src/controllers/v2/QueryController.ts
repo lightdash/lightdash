@@ -245,6 +245,7 @@ export class QueryController extends BaseController {
                 account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
+                tileUuid: body.tileUuid,
                 chartUuid: body.chartUuid,
                 dashboardUuid: body.dashboardUuid,
                 dashboardFilters: body.dashboardFilters,

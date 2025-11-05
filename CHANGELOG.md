@@ -1,3 +1,17 @@
+## [0.2143.1](https://github.com/lightdash/lightdash/compare/0.2143.0...0.2143.1) (2025-11-05)
+
+
+### Bug Fixes
+
+* scheduled deliveries weren't taking into account the tile targets ([#17893](https://github.com/lightdash/lightdash/issues/17893)) ([b997202](https://github.com/lightdash/lightdash/commit/b99720283617fa9aa88f411c9598419e97ca5610))
+
+# [0.2143.0](https://github.com/lightdash/lightdash/compare/0.2142.0...0.2143.0) (2025-11-05)
+
+
+### Features
+
+* include project roles in SCIM user responses ([#17872](https://github.com/lightdash/lightdash/issues/17872)) ([fcec1de](https://github.com/lightdash/lightdash/commit/fcec1de35340e554eeb26ab68507fd3ff0860b21))
+
 # [0.2142.0](https://github.com/lightdash/lightdash/compare/0.2141.1...0.2142.0) (2025-11-05)
 
 
