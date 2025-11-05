@@ -1528,7 +1528,7 @@ export class ScimService extends BaseService {
 
     private async getUserScimRoles(
         user: Pick<LightdashUser, 'userUuid' | 'role'>,
-        allScimRoles: ScimRole[],
+        availableScimRoles: ScimRole[],
     ): Promise<ScimUserRole[]> {
         try {
             const allRoles: ScimUserRole[] = [];
@@ -1556,7 +1556,7 @@ export class ScimService extends BaseService {
             );
 
             // Filter SCIM roles to only include those the user has and convert to ScimUserRole
-            const projectScimRoles = allScimRoles
+            const projectScimRoles = availableScimRoles
                 .filter((scimRole) => userScimRoleIds.includes(scimRole.id))
                 .map((scimRole) => ({
                     value: scimRole.value,
