@@ -1,3 +1,11 @@
+## [0.2140.2](https://github.com/lightdash/lightdash/compare/0.2140.1...0.2140.2) (2025-11-05)
+
+
+### Bug Fixes
+
+* border radius for pie charts based on segment size ([#17859](https://github.com/lightdash/lightdash/issues/17859)) ([3cf927f](https://github.com/lightdash/lightdash/commit/3cf927f424cf92329ce70c667fdbfbf1167d63d3)), closes [#17754](https://github.com/lightdash/lightdash/issues/17754)
+* border radius rules are not applying to horizontal bars ([#17881](https://github.com/lightdash/lightdash/issues/17881)) ([a047357](https://github.com/lightdash/lightdash/commit/a047357fa1bfb5296023ded7dd0293ba7771e934)), closes [#17765](https://github.com/lightdash/lightdash/issues/17765)
+
 ## [0.2140.1](https://github.com/lightdash/lightdash/compare/0.2140.0...0.2140.1) (2025-11-05)
 
 
