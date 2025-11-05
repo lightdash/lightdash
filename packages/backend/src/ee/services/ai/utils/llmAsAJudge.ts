@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
-import { defaultAgentOptions } from '../agents/agent';
+import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 export const factualityScores = {

@@ -107,10 +107,9 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { streamAgentResponse as streamAgentResponseV1 } from './ai/agents/agent';
 import {
-    generateAgentResponse as generateAgentResponseV2,
-    streamAgentResponse as streamAgentResponseV2,
+    generateAgentResponse,
+    streamAgentResponse,
 } from './ai/agents/agentV2';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
@@ -1140,10 +1139,7 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    > {
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
         try {
             const {
                 user: validatedUser,
@@ -2349,10 +2345,7 @@ export class AiAgentService {
             stream: true;
             canManageAgent: boolean;
         },
-    ): Promise<
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    >;
+    ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: ModelMessage[],
@@ -2390,11 +2383,7 @@ export class AiAgentService {
                         stream: false;
                     }
               ),
-    ): Promise<
-        | string
-        | ReturnType<typeof streamAgentResponseV1>
-        | ReturnType<typeof streamAgentResponseV2>
-    > {
+    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -2510,22 +2499,9 @@ export class AiAgentService {
             },
         };
 
-        // Route to correct agent version based on agentSettings.version
-        // const agentVersion = agentSettings.version;
-
-        // if (agentVersion === 1) {
-        //     return stream
-        //         ? streamAgentResponseV1({ args, dependencies })
-        //         : generateAgentResponseV1({ args, dependencies });
-        // }
-
         return stream
-            ? streamAgentResponseV2({ args, dependencies })
-            : generateAgentResponseV2({ args, dependencies });
-
-        // throw new Error(
-        //     `Unknown agent version: ${agentVersion}. Supported versions: 1, 2`,
-        // );
+            ? streamAgentResponse({ args, dependencies })
+            : generateAgentResponse({ args, dependencies });
     }
 
     // TODO: user permissions
