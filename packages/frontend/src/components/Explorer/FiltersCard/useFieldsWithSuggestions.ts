@@ -53,7 +53,6 @@ export const useFieldsWithSuggestions = ({
                             additionalMetric,
                             table,
                         });
-                        // Direct mutation instead of spread - O(n) instead of O(n²)
                         acc.push(metric);
                     }
                     return acc;
