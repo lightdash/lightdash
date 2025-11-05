@@ -9,6 +9,7 @@ import {
     LlmJudgeResult,
 } from '../../utils/llmAsAJudge';
 import { ToolJudgeResult } from '../../utils/llmAsJudgeForTools';
+import { ToolCallWithResult } from './utils/testHelpers';
 
 interface EvalResult {
     testCase: string;
@@ -24,7 +25,7 @@ interface EvalResult {
         message: string;
         type: string;
     }>;
-    toolCalls?: TaskMeta['toolCalls'];
+    toolCalls?: ToolCallWithResult[];
     llmJudgeResults?: TaskMeta['llmJudgeResults'];
     llmToolJudgeResults?: TaskMeta['llmToolJudgeResults'];
     prompts?: TaskMeta['prompts'];
@@ -402,10 +403,8 @@ export default class EvalHtmlReporter implements Reporter {
                         ${
                             result.error
                                 ? `<div style="margin-top: 4px; font-size: 10px; color: #dc3545;">${EvalHtmlReporter.escapeHtml(
-                                      result.error.substring(0, 50),
-                                  )}${
-                                      result.error.length > 50 ? '...' : ''
-                                  }</div>`
+                                      result.error,
+                                  )}</div>`
                                 : ''
                         }
                     </td>
@@ -446,12 +445,15 @@ export default class EvalHtmlReporter implements Reporter {
                         ${
                             result.toolCalls && result.toolCalls.length > 0
                                 ? `<div style="font-family: monospace; color: #007bff;">${result.toolCalls
-                                      .map(
-                                          (tc) =>
-                                              `<span style="display: inline-block; background: #e7f3ff; padding: 1px 4px; margin: 1px; border-radius: 2px; font-size: 10px;">${EvalHtmlReporter.escapeHtml(
-                                                  tc,
-                                              )}</span>`,
-                                      )
+                                      .map((tc) => {
+                                          const toolName =
+                                              typeof tc === 'string'
+                                                  ? tc
+                                                  : tc.tool_name;
+                                          return `<span style="display: inline-block; background: #e7f3ff; padding: 1px 4px; margin: 1px; border-radius: 2px; font-size: 10px;">${EvalHtmlReporter.escapeHtml(
+                                              toolName,
+                                          )}</span>`;
+                                      })
                                       .join('')}</div>`
                                 : '<span style="color: #6c757d; font-size: 10px;">None</span>'
                         }
@@ -587,9 +589,69 @@ export default class EvalHtmlReporter implements Reporter {
             (!result.llmToolJudgeResults ||
                 result.llmToolJudgeResults.length === 0) &&
             (!result.prompts || result.prompts.length === 0) &&
-            (!result.responses || result.responses.length === 0)
+            (!result.responses || result.responses.length === 0) &&
+            (!result.toolCalls || result.toolCalls.length === 0)
         ) {
             return '';
+        }
+
+        // Generate tool calls section
+        let toolCallsHtml = '';
+        if (result.toolCalls && result.toolCalls.length > 0) {
+            toolCallsHtml = `
+            <div class="llm-judge-item">
+                <div class="llm-judge-header">TOOL CALLS</div>
+                <details style="margin-top: 8px;" open>
+                    <summary style="cursor: pointer; color: #007bff;">View Tool Calls (${
+                        result.toolCalls.length
+                    })</summary>
+                    <div style="margin-top: 8px;">
+                        ${result.toolCalls
+                            .map((tc, idx) => {
+                                const argsJson = JSON.stringify(
+                                    tc.tool_args,
+                                    null,
+                                    2,
+                                );
+                                const resultJson =
+                                    tc.result !== undefined
+                                        ? JSON.stringify(tc.result, null, 2)
+                                        : null;
+                                return `
+                                <details style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">
+                                    <summary style="cursor: pointer; color: #495057; font-weight: 600;">${
+                                        idx + 1
+                                    }. ${EvalHtmlReporter.escapeHtml(
+                                    tc.tool_name,
+                                )}</summary>
+                                    <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+                                        <div style="margin-bottom: 8px;">
+                                            <strong>Arguments:</strong>
+                                            <pre style="margin-top: 4px; padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6; overflow-x: auto; font-size: 11px; max-height: 300px; overflow-y: auto; max-width: 1200px;">${EvalHtmlReporter.escapeHtml(
+                                                argsJson,
+                                            )}</pre>
+                                        </div>
+                                        ${
+                                            resultJson
+                                                ? `
+                                        <div>
+                                            <strong>Result:</strong>
+                                            <pre style="margin-top: 4px; padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6; overflow-x: auto; font-size: 11px; max-height: 300px; overflow-y: auto; max-width: 1200px;">${EvalHtmlReporter.escapeHtml(
+                                                resultJson,
+                                            )}</pre>
+                                        </div>
+                                        `
+                                                : ''
+                                        }
+                                    </div>
+                                </details>
+                            `;
+                            })
+                            .join('')}
+                    </div>
+                </details>
+            </div>
+        `;
         }
 
         // Generate prompts and responses section
@@ -613,9 +675,7 @@ export default class EvalHtmlReporter implements Reporter {
                                 <div style="margin-bottom: 8px;">
                                     <strong>Prompt ${idx + 1}:</strong>
                                     <div style="margin-top: 4px; font-family: monospace; background: white; padding: 8px; border-radius: 4px; border: 1px solid #dee2e6;">
-                                        ${EvalHtmlReporter.escapeHtml(
-                                            prompt.substring(0, 300),
-                                        )}${prompt.length > 300 ? '...' : ''}
+                                        ${EvalHtmlReporter.escapeHtml(prompt)}
                                     </div>
                                 </div>
                             `,
@@ -640,9 +700,7 @@ export default class EvalHtmlReporter implements Reporter {
                                 <div style="margin-bottom: 8px;">
                                     <strong>Response ${idx + 1}:</strong>
                                     <div style="margin-top: 4px; font-family: monospace; background: white; padding: 8px; border-radius: 4px; border: 1px solid #dee2e6;">
-                                        ${EvalHtmlReporter.escapeHtml(
-                                            response.substring(0, 300),
-                                        )}${response.length > 300 ? '...' : ''}
+                                        ${EvalHtmlReporter.escapeHtml(response)}
                                     </div>
                                 </div>
                             `,
@@ -723,17 +781,13 @@ export default class EvalHtmlReporter implements Reporter {
                                 query,
                             )}</div>
                             <div style="margin-top: 4px;"><strong>Response:</strong> ${EvalHtmlReporter.escapeHtml(
-                                response.substring(0, 200),
-                            )}${response.length > 200 ? '...' : ''}</div>
+                                response,
+                            )}</div>
                             ${
                                 expectedAnswer
                                     ? `<div style="margin-top: 4px;"><strong>Expected:</strong> ${EvalHtmlReporter.escapeHtml(
-                                          expectedAnswer.substring(0, 200),
-                                      )}${
-                                          expectedAnswer.length > 200
-                                              ? '...'
-                                              : ''
-                                      }</div>`
+                                          expectedAnswer,
+                                      )}</div>`
                                     : ''
                             }
                             ${
@@ -831,8 +885,11 @@ export default class EvalHtmlReporter implements Reporter {
                                 : ''
                         }
                         ${
-                            toolDetailsHtml && toolDetailsHtml.length > 0
-                                ? `<h4 style="color: #495057; margin-top: 16px;">Tool Evaluation Details</h4>${toolDetailsHtml}`
+                            (toolDetailsHtml && toolDetailsHtml.length > 0) ||
+                            toolCallsHtml
+                                ? `<h4 style="color: #495057; margin-top: 16px;">Tool Evaluation Details</h4>${
+                                      toolCallsHtml || ''
+                                  }${toolDetailsHtml || ''}`
                                 : ''
                         }
                     </div>
@@ -844,7 +901,7 @@ export default class EvalHtmlReporter implements Reporter {
 
 declare module 'vitest' {
     interface TaskMeta {
-        toolCalls: string[];
+        toolCalls: ToolCallWithResult[];
         prompts: string[];
         responses: string[];
         llmJudgeResults: LlmJudgeResult[];

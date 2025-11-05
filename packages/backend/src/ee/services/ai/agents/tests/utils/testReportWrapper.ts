@@ -3,11 +3,12 @@ import { DbAiAgentToolCall } from '../../../../../database/entities/ai';
 import { LlmJudgeResult } from '../../../utils/llmAsAJudge';
 import { ToolJudgeResult } from '../../../utils/llmAsJudgeForTools';
 import { setTaskMeta } from './taskMeta';
+import { ToolCallWithResult } from './testHelpers';
 
 interface TestReportData {
     prompts?: string[];
     responses?: string[];
-    toolCalls?: string[];
+    toolCalls?: ToolCallWithResult[];
     llmJudgeResults?: LlmJudgeResult[];
     llmToolJudgeResults?: ToolJudgeResult[];
     agentInfo?: { provider: string; model: string };
@@ -94,7 +95,7 @@ export class TestReportBuilder {
         prompts?: string[];
         response?: string;
         responses?: string[];
-        toolCalls?: string[] | DbAiAgentToolCall[];
+        toolCalls?: ToolCallWithResult[];
         agentInfo?: { provider: string; model: string };
     }) {
         if (config?.prompt) {
@@ -110,12 +111,7 @@ export class TestReportBuilder {
         }
 
         if (config?.toolCalls) {
-            const toolNames = Array.isArray(config.toolCalls)
-                ? config.toolCalls.map((tc) =>
-                      typeof tc === 'string' ? tc : tc.tool_name,
-                  )
-                : [];
-            this.data.toolCalls = toolNames;
+            this.data.toolCalls = config.toolCalls;
         }
 
         if (config?.agentInfo) {
@@ -156,7 +152,7 @@ export function createTestReport(config?: {
     prompts?: string[];
     response?: string;
     responses?: string[];
-    toolCalls?: string[] | DbAiAgentToolCall[];
+    toolCalls?: ToolCallWithResult[];
     agentInfo?: { provider: string; model: string };
 }): TestReportBuilder {
     return new TestReportBuilder(config);
