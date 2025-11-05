@@ -1,3 +1,10 @@
+## [0.2140.1](https://github.com/lightdash/lightdash/compare/0.2140.0...0.2140.1) (2025-11-05)
+
+
+### Bug Fixes
+
+* scale big number tiles better according to heigh available ([#17867](https://github.com/lightdash/lightdash/issues/17867)) ([398f657](https://github.com/lightdash/lightdash/commit/398f65701ecf57a3384b54cf7881ff592399fc7a))
+
 # [0.2140.0](https://github.com/lightdash/lightdash/compare/0.2139.2...0.2140.0) (2025-11-05)
 
 
