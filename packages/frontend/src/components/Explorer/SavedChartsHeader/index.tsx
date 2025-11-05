@@ -282,6 +282,7 @@ const SavedChartsHeader: FC = () => {
         // Reset to saved chart state
         if (savedChart) {
             const resetState = {
+                savedChart,
                 isEditMode,
                 parameterReferences: Object.keys(savedChart.parameters ?? {}),
                 parameterDefinitions: {},
@@ -389,14 +390,12 @@ const SavedChartsHeader: FC = () => {
                                     </ActionIcon>
                                 )}
                             </Group>
-
                             <ChartUpdateModal
                                 opened={isRenamingChart}
                                 uuid={savedChart.uuid}
                                 onClose={() => setIsRenamingChart(false)}
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
-
                             <Group spacing="xs">
                                 <UpdatedInfo
                                     updatedAt={savedChart.updatedAt}
@@ -417,7 +416,6 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </div>
-
                 {userTimeZonesEnabled &&
                     savedChart?.metricQuery.timezone &&
                     !isEditMode && (
@@ -425,7 +423,6 @@ const SavedChartsHeader: FC = () => {
                             {savedChart?.metricQuery.timezone}
                         </Text>
                     )}
-
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
