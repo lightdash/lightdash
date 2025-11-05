@@ -261,28 +261,28 @@ export class McpService extends BaseService {
                         context as McpProtocolContext,
                     );
 
+                const { user } = (context as McpProtocolContext).authInfo!
+                    .extra;
+                const tagsFromContext = await this.getTagsFromContext(
+                    context as McpProtocolContext,
+                );
+                const availableExplores = await this.getAvailableExplores(
+                    user,
+                    argsWithProject.projectUuid,
+                    tagsFromContext,
+                );
+
                 const findExploresTool = getFindExplores({
                     findExplores,
                     updateProgress: async () => {}, // No-op for MCP context
                     fieldSearchSize: 200,
-                    listExplores: async () => {
-                        const { user } = (context as McpProtocolContext)
-                            .authInfo!.extra;
-                        const tagsFromContext = await this.getTagsFromContext(
-                            context as McpProtocolContext,
-                        );
-                        return this.getAvailableExplores(
-                            user,
-                            argsWithProject.projectUuid,
-                            tagsFromContext,
-                        );
-                    },
                 });
                 const result = await findExploresTool.execute!(
                     argsWithProject,
                     {
                         toolCallId: '',
                         messages: [],
+                        experimental_context: { availableExplores },
                     },
                 );
 
