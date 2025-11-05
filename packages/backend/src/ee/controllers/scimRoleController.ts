@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -21,11 +20,11 @@ import { isScimAuthenticated } from '../authentication';
 import { ScimService } from '../services/ScimService/ScimService';
 
 @Route('/api/v1/scim/v2/Roles')
-@Hidden()
 @Tags('SCIM')
 export class ScimRoleController extends BaseController {
     /**
      * Get a list of roles within an organization
+     * @summary List roles
      * @param req express request
      * @param filter Filter to apply to the role list (optional)
      */
@@ -46,6 +45,7 @@ export class ScimRoleController extends BaseController {
 
     /**
      * Get a SCIM role by ID
+     * @summary Get role
      * @param req express request
      * @param roleId Role ID - this is used as a unique identifier for SCIM
      */

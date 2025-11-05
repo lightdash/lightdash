@@ -8,7 +8,6 @@ import {
     Body,
     Delete,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -28,13 +27,15 @@ import { isScimAuthenticated } from '../authentication';
 import { ScimService } from '../services/ScimService/ScimService';
 
 @Route('/api/v1/scim/v2/Users')
-@Hidden()
 @Tags('SCIM')
 export class ScimUserController extends BaseController {
     /**
-     * Get a list of users within an organization
+     * List SCIM users in the organization
+     * @summary List users
      * @param req express request
-     * @param filter Filter to apply to the user list (optional)
+     * @param filter SCIM filter string (optional). See: https://bookstack.soffid.com/books/scim/page/scim-query-syntax
+     * @param startIndex 1-based index of the first result to return (optional)
+     * @param count Maximum number of results to return (optional)
      */
     @Middlewares([isScimAuthenticated])
     @Get('/')
@@ -59,6 +60,7 @@ export class ScimUserController extends BaseController {
 
     /**
      * Get a SCIM user by ID
+     * @summary Get user
      * @param req express request
      * @param userUuid Lightdash user UUID - this is used as a unique identifier for SCIM
      */
@@ -81,6 +83,7 @@ export class ScimUserController extends BaseController {
 
     /**
      * Create a new user
+     * @summary Create user
      * @param req express request
      * @param body User to create
      */
@@ -105,6 +108,7 @@ export class ScimUserController extends BaseController {
 
     /**
      * Update a user by ID (SCIM PUT)
+     * @summary Replace user
      * @param req express request
      * @param userUuid UUID of the user to update
      * @param body Updated user data
@@ -131,6 +135,7 @@ export class ScimUserController extends BaseController {
 
     /**
      * Patch a user by ID (SCIM PATCH)
+     * @summary Patch user
      * @param req express request
      * @param userUuid UUID of the user to patch
      * @param body Patch operations to apply
@@ -157,6 +162,7 @@ export class ScimUserController extends BaseController {
 
     /**
      * Delete a user by ID
+     * @summary Delete user
      * @param req express request
      * @param userUuid UUID of the user to delete
      */

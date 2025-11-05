@@ -8,7 +8,6 @@ import {
     Body,
     Delete,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -28,7 +27,6 @@ import { isScimAuthenticated } from '../authentication';
 import { ScimService } from '../services/ScimService/ScimService';
 
 @Route('/api/v1/scim/v2/Groups')
-@Hidden()
 @Tags('SCIM')
 export class ScimGroupController extends BaseController {
     // Convenience method to access the SCIM service
@@ -38,6 +36,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Get a list of groups within an organization
+     * @summary List groups
      * @param req express request
      * @param filter Filter to apply to the group list (optional)
      * @param startIndex Index of the first group to return (optional)
@@ -64,6 +63,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Get a specific group by its SCIM ID
+     * @summary Get group
      * @param req express request
      * @param id SCIM ID of the group to retrieve
      */
@@ -82,6 +82,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Create a new group in the SCIM application
+     * @summary Create group
      * @param req express request
      * @param body Group to create
      */
@@ -101,6 +102,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Partially updates a group’s attributes (e.g., add or remove members).
+     * @summary Patch group
      * @param req express request
      * @param id SCIM ID of the group to update
      * @param body Update operations to apply to the group
@@ -125,6 +127,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Update a group's attributes completely
+     * @summary Replace group
      * @param req express request
      * @param id SCIM ID of the group to update
      * @param body Group to update
@@ -146,6 +149,7 @@ export class ScimGroupController extends BaseController {
 
     /**
      * Delete a specific group by its SCIM ID
+     * @summary Delete group
      * @param req express request
      * @param id SCIM ID of the group to delete
      */
