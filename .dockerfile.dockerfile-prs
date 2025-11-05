@@ -12,12 +12,17 @@ flake.nix
 LICENSE
 lightdash.local.session.sql
 
-packages/iframe-test-app
-packages/sdk-next-test-app
-packages/sdk-test-app
+/examples
+!/examples/full-jaffle-shop-demo
 
-scripts
-static
+/packages
+!/packages/backend
+!/packages/common
+!/packages/frontend
+!/packages/warehouses
+
+/scripts
+/static
 
 node_modules
 venv
