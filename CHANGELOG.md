@@ -1,3 +1,10 @@
+## [0.2143.2](https://github.com/lightdash/lightdash/compare/0.2143.1...0.2143.2) (2025-11-05)
+
+
+### Performance Improvements
+
+* optimize array operations to avoid O(n²) complexity ([#17885](https://github.com/lightdash/lightdash/issues/17885)) ([0904fe7](https://github.com/lightdash/lightdash/commit/0904fe701e6950b3772c5611db897234b42663cf))
+
 ## [0.2143.1](https://github.com/lightdash/lightdash/compare/0.2143.0...0.2143.1) (2025-11-05)
 
 
