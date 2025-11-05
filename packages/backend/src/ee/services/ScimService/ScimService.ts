@@ -457,7 +457,7 @@ export class ScimService extends BaseService {
                 organizationUuid,
                 userUuid: dbUser.userUuid,
                 roles: user.roles,
-                currentOrgRole: role, // will skip org role update since we just created it
+                currentOrgRole: role,
             });
 
             // verify user email on create if coming from scim
