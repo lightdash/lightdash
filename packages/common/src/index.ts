@@ -579,7 +579,7 @@ export function getItemMap(
                 additionalMetric,
                 table,
             });
-            return [...acc, metric];
+            acc.push(metric);
         }
         return acc;
     }, []);
@@ -588,13 +588,10 @@ export function getItemMap(
         ...convertedAdditionalMetrics,
         ...tableCalculations,
         ...customDimensions,
-    ].reduce(
-        (acc, item) => ({
-            ...acc,
-            [getItemId(item)]: item,
-        }),
-        {},
-    );
+    ].reduce((acc, item) => {
+        acc[getItemId(item)] = item;
+        return acc;
+    }, {} as ItemsMap);
 }
 
 export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
