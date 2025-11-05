@@ -6601,6 +6601,13 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'AiAgentToolCall' },
                     required: true,
                 },
+                humanFeedback: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 humanScore: {
                     dataType: 'union',
                     subSchemas: [
@@ -25416,6 +25423,13 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                humanFeedback: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 humanScore: { dataType: 'double', required: true },
             },
         },

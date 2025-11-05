@@ -484,13 +484,14 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() messageUuid: string,
-        @Body() body: { humanScore: number },
+        @Body() body: { humanScore: number; humanFeedback?: string | null },
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
             req.user!,
             messageUuid,
             body.humanScore,
+            body.humanFeedback,
         );
         return {
             status: 'ok',
