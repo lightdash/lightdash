@@ -226,11 +226,11 @@ export class McpService extends BaseService {
             {
                 description: toolFindExploresArgsSchemaV2.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindExploresArgsSchemaV2,
+                    toolFindExploresArgsSchemaV2.omit({ type: true }),
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolFindExploresArgsV2;
+                const args = _args as Omit<ToolFindExploresArgsV2, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -266,7 +266,10 @@ export class McpService extends BaseService {
                     fieldSearchSize: 200,
                 });
                 const result = await findExploresTool.execute!(
-                    argsWithProject,
+                    {
+                        type: 'find_explores_v2',
+                        ...argsWithProject,
+                    },
                     {
                         toolCallId: '',
                         messages: [],
@@ -290,11 +293,11 @@ export class McpService extends BaseService {
             {
                 description: toolFindFieldsArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindFieldsArgsSchema,
+                    toolFindFieldsArgsSchema.omit({ type: true }),
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolFindFieldsArgs;
+                const args = _args as Omit<ToolFindFieldsArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -318,10 +321,16 @@ export class McpService extends BaseService {
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
                 });
-                const result = await findFieldsTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                const result = await findFieldsTool.execute!(
+                    {
+                        type: 'find_fields',
+                        ...argsWithProject,
+                    },
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return {
                     content: [
@@ -339,11 +348,11 @@ export class McpService extends BaseService {
             {
                 description: toolFindContentArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindContentArgsSchema,
-                ) as AnyType,
+                    toolFindContentArgsSchema.omit({ type: true }),
+                ),
             },
             async (_args, context) => {
-                const args = _args as ToolFindContentArgs;
+                const args = _args as Omit<ToolFindContentArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -366,10 +375,16 @@ export class McpService extends BaseService {
                     findContent,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                const result = await findContentTool.execute!(
+                    {
+                        type: 'find_content',
+                        ...argsWithProject,
+                    },
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return {
                     content: [
@@ -563,11 +578,11 @@ export class McpService extends BaseService {
             {
                 description: toolRunMetricQueryArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolRunMetricQueryArgsSchema,
+                    toolRunMetricQueryArgsSchema.omit({ type: true }),
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolRunMetricQueryArgs;
+                const args = _args as Omit<ToolRunMetricQueryArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -593,7 +608,10 @@ export class McpService extends BaseService {
                 });
 
                 const result = await runMetricQueryTool.execute!(
-                    argsWithProject,
+                    {
+                        type: 'run_metric_query',
+                        ...argsWithProject,
+                    },
                     {
                         toolCallId: '',
                         messages: [],
@@ -616,11 +634,11 @@ export class McpService extends BaseService {
             {
                 description: toolSearchFieldValuesArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolSearchFieldValuesArgsSchema,
+                    toolSearchFieldValuesArgsSchema.omit({ type: true }),
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolSearchFieldValuesArgs;
+                const args = _args as Omit<ToolSearchFieldValuesArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -643,7 +661,10 @@ export class McpService extends BaseService {
                     searchFieldValues,
                 });
                 const result = await searchFieldValuesTool.execute!(
-                    argsWithProject,
+                    {
+                        type: 'search_field_values',
+                        ...argsWithProject,
+                    },
                     {
                         toolCallId: '',
                         messages: [],
@@ -783,7 +804,9 @@ export class McpService extends BaseService {
     }
 
     async getFindExploresFunction(
-        toolArgs: ToolFindExploresArgsV2 & { projectUuid: string },
+        toolArgs: Omit<ToolFindExploresArgsV2, 'type'> & {
+            projectUuid: string;
+        },
         context: McpProtocolContext,
     ): Promise<FindExploresFn> {
         const { user, account } = context.authInfo!.extra;
@@ -889,7 +912,7 @@ export class McpService extends BaseService {
     }
 
     async getFindFieldsFunction(
-        toolArgs: ToolFindFieldsArgs & { projectUuid: string },
+        toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindFieldFn> {
         const { user, account } = context.authInfo!.extra;
@@ -965,7 +988,7 @@ export class McpService extends BaseService {
     }
 
     async getFindContentFunction(
-        toolArgs: ToolFindContentArgs & { projectUuid: string },
+        toolArgs: Omit<ToolFindContentArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindContentFn> {
         const { user, account } = context.authInfo!.extra;
@@ -1030,7 +1053,7 @@ export class McpService extends BaseService {
     }
 
     async getRunMetricQueryDependencies(
-        toolArgs: ToolRunMetricQueryArgs & {
+        toolArgs: Omit<ToolRunMetricQueryArgs, 'type'> & {
             projectUuid: string;
         },
         context: McpProtocolContext,
@@ -1099,7 +1122,9 @@ export class McpService extends BaseService {
     }
 
     async getSearchFieldValuesFunction(
-        toolArgs: ToolSearchFieldValuesArgs & { projectUuid: string },
+        toolArgs: Omit<ToolSearchFieldValuesArgs, 'type'> & {
+            projectUuid: string;
+        },
         context: McpProtocolContext,
     ): Promise<SearchFieldValuesFn> {
         const { user, account } = context.authInfo!.extra;
