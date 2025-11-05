@@ -1,3 +1,10 @@
+## [0.2139.1](https://github.com/lightdash/lightdash/compare/0.2139.0...0.2139.1) (2025-11-05)
+
+
+### Bug Fixes
+
+* pivot table wrapping values when not expanded ([#17866](https://github.com/lightdash/lightdash/issues/17866)) ([b64b094](https://github.com/lightdash/lightdash/commit/b64b0940c8675e04416bd708a965c748d9cf3894))
+
 # [0.2139.0](https://github.com/lightdash/lightdash/compare/0.2138.2...0.2139.0) (2025-11-05)
 
 
