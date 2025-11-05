@@ -1,8 +1,6 @@
 import {
     LightdashUser,
     OrganizationMemberRole,
-    ProjectMemberRole,
-    ScimRole,
     ScimRoleType,
     ScimSchemaType,
     ScimUserRole,
@@ -728,8 +726,8 @@ describe('ScimService', () => {
 
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
-                    totalResults: 19, // 5 org system + 7 per project (2 projects) = 5+14 = 19
-                    itemsPerPage: 19,
+                    totalResults: 20, // 6 org system + 7 per project (2 projects) = 6+14 = 20
+                    itemsPerPage: 20,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
                         expect.objectContaining({
@@ -749,7 +747,7 @@ describe('ScimService', () => {
                 });
 
                 // Verify we have the expected number of roles
-                expect(result.Resources).toHaveLength(19);
+                expect(result.Resources).toHaveLength(20);
 
                 // Verify some specific role values
                 const roleValues = result.Resources.map((role) => role.value);
@@ -784,7 +782,7 @@ describe('ScimService', () => {
                     schemas: [ScimSchemaType.ROLE],
                     id: 'admin',
                     value: 'admin',
-                    display: 'admin',
+                    display: 'Admin',
                     type: expect.any(String),
                     supported: true,
                     meta: {
@@ -808,7 +806,7 @@ describe('ScimService', () => {
                     schemas: [ScimSchemaType.ROLE],
                     id: 'project-1-uuid:admin',
                     value: 'project-1-uuid:admin',
-                    display: 'Analytics Project - admin',
+                    display: 'Analytics Project - Admin',
                     type: expect.any(String),
                     supported: true,
                     meta: {

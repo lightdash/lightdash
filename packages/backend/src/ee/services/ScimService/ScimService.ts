@@ -11,6 +11,7 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationMemberRoleLabels,
     ParameterError,
     ProjectType,
     Role,
@@ -1482,10 +1483,21 @@ export class ScimService extends BaseService {
         );
 
         // Add organization-level system roles
-        systemRoles.forEach((role) => {
-            allScimRoles.push(
-                this.convertLightdashRoleToScimRole(role, ScimRoleType.ORG),
-            );
+        Object.values(OrganizationMemberRole).forEach((orgRole) => {
+            allScimRoles.push({
+                schemas: [ScimSchemaType.ROLE],
+                id: orgRole,
+                value: orgRole,
+                display: OrganizationMemberRoleLabels[orgRole],
+                type: ScimRoleType.ORG,
+                supported: true,
+                meta: {
+                    resourceType: 'Role',
+                    created: undefined,
+                    lastModified: undefined,
+                    location: `${this.lightdashConfig.siteUrl}/api/v1/scim/v2/Roles/${orgRole}`,
+                },
+            });
         });
 
         // For each project, add system roles and custom roles
@@ -1537,7 +1549,7 @@ export class ScimService extends BaseService {
             if (user?.role) {
                 allRoles.push({
                     value: user.role,
-                    display: user.role,
+                    display: OrganizationMemberRoleLabels[user.role],
                     type: ScimRoleType.ORG,
                     primary: true,
                 });

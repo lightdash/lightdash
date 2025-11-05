@@ -53,7 +53,7 @@ export const useFieldsWithSuggestions = ({
                             additionalMetric,
                             table,
                         });
-                        return [...acc, metric];
+                        acc.push(metric);
                     }
                     return acc;
                 }, []);
@@ -82,7 +82,7 @@ export const useFieldsWithSuggestions = ({
                                     ).results.reduce<string[]>((acc, row) => {
                                         const value = row[getItemId(field)];
                                         if (typeof value === 'string') {
-                                            return [...acc, value];
+                                            acc.push(value);
                                         }
                                         return acc;
                                     }, [])) ||
@@ -94,16 +94,13 @@ export const useFieldsWithSuggestions = ({
                                 ]),
                             ).sort((a, b) => a.localeCompare(b));
                         }
-                        return {
-                            ...sum,
-                            [getItemId(field)]: {
-                                ...field,
-                                suggestions,
-                            },
+                        sum[getItemId(field)] = {
+                            ...field,
+                            suggestions,
                         };
                     }
                     return sum;
-                }, {});
+                }, {} as FieldsWithSuggestions);
             });
         }
     }, [

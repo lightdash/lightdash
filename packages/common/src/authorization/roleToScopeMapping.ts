@@ -1,4 +1,7 @@
-import { ProjectMemberRole } from '../types/projectMemberRole';
+import {
+    ProjectMemberRole,
+    ProjectMemberRoleLabels,
+} from '../types/projectMemberRole';
 import type { RoleWithScopes } from '../types/roles';
 
 /**
@@ -167,8 +170,8 @@ export const getNonEnterpriseScopesForRole = (
 export const getSystemRoles = (): RoleWithScopes[] =>
     ROLE_HIERARCHY.map((role) => ({
         roleUuid: role,
-        name: role,
-        description: role,
+        name: ProjectMemberRoleLabels[role],
+        description: ProjectMemberRoleLabels[role],
         ownerType: 'system',
         scopes: getAllScopesForRole(role),
         organizationUuid: null,
