@@ -345,10 +345,17 @@ const mergeLegendSettings = <T = Record<any, any>>(
         return {
             show: series.length > 1,
             type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
             selected: legendsSelected,
         };
     }
     return {
+        orient: 'horizontal',
+        // After echarts v6, the new default legend is positioned at bottom. We need to keep old behavior in placeholders
+        // so we only define top 0 if there is no 'bottom' configuration.
+        // spreading `normalizedConfig` will overwrite top value if needed
+        top: 'bottom' in normalizedConfig ? undefined : 0,
         ...normalizedConfig,
         selected: legendsSelected,
     };
