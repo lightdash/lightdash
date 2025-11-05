@@ -1,3 +1,11 @@
+## [0.2138.2](https://github.com/lightdash/lightdash/compare/0.2138.1...0.2138.2) (2025-11-05)
+
+
+### Bug Fixes
+
+* improve time-based filtering in AI system prompt, add evals ([#17844](https://github.com/lightdash/lightdash/issues/17844)) ([99ebca7](https://github.com/lightdash/lightdash/commit/99ebca72649c8df1a50fbd6855156f2d7e95d846)), closes [#17799](https://github.com/lightdash/lightdash/issues/17799)
+* update AI agent creation link to include project UUID ([#17864](https://github.com/lightdash/lightdash/issues/17864)) ([c5dc168](https://github.com/lightdash/lightdash/commit/c5dc168e6b9714001f4094502d5cc91454289b33))
+
 ## [0.2138.1](https://github.com/lightdash/lightdash/compare/0.2138.0...0.2138.1) (2025-11-04)
 
 
