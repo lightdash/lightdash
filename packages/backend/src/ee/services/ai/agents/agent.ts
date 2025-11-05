@@ -148,6 +148,7 @@ const getAgentTools = (
         fieldSearchSize: args.findExploresFieldSearchSize,
         findExplores: dependencies.findExplores,
         updateProgress: dependencies.updateProgress,
+        listExplores: dependencies.listExplores,
     });
 
     const findFields = getFindFields({
