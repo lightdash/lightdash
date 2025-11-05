@@ -1,3 +1,11 @@
+## [0.2141.1](https://github.com/lightdash/lightdash/compare/0.2141.0...0.2141.1) (2025-11-05)
+
+
+### Bug Fixes
+
+* cancelling edit chart should keep header ([#17876](https://github.com/lightdash/lightdash/issues/17876)) ([c38e04c](https://github.com/lightdash/lightdash/commit/c38e04cd2bdd2ed610362af50ad029b2ae7d0940))
+* revert "feat: detect dangling dashboard filters for tables not used by any chart ([#17777](https://github.com/lightdash/lightdash/issues/17777))" ([#17886](https://github.com/lightdash/lightdash/issues/17886)) ([861f85a](https://github.com/lightdash/lightdash/commit/861f85acbd4c5d13f978823daa917e2c18780dd2))
+
 # [0.2141.0](https://github.com/lightdash/lightdash/compare/0.2140.2...0.2141.0) (2025-11-05)
 
 
