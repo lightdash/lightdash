@@ -1,3 +1,11 @@
+# [0.2141.0](https://github.com/lightdash/lightdash/compare/0.2140.2...0.2141.0) (2025-11-05)
+
+
+### Features
+
+* add RunQuery efficiency scoring to agent evaluations ([#17875](https://github.com/lightdash/lightdash/issues/17875)) ([17847bf](https://github.com/lightdash/lightdash/commit/17847bfb840e4ab99a7f3cd5bf526f0b5bb2bd6c))
+* store tool calls in the evaluation reports ([#17868](https://github.com/lightdash/lightdash/issues/17868)) ([f443868](https://github.com/lightdash/lightdash/commit/f44386840491099d937d8cffa2a3716cb66894fc))
+
 ## [0.2140.2](https://github.com/lightdash/lightdash/compare/0.2140.1...0.2140.2) (2025-11-05)
 
 
