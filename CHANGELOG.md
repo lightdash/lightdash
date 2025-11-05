@@ -1,3 +1,10 @@
+## [0.2143.3](https://github.com/lightdash/lightdash/compare/0.2143.2...0.2143.3) (2025-11-05)
+
+
+### Bug Fixes
+
+* improve SCIM role display names and update role counts ([#17879](https://github.com/lightdash/lightdash/issues/17879)) ([7497a84](https://github.com/lightdash/lightdash/commit/7497a8442446343e575346db31efc9501373c425))
+
 ## [0.2143.2](https://github.com/lightdash/lightdash/compare/0.2143.1...0.2143.2) (2025-11-05)
 
 
