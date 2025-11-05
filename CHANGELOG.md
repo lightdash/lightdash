@@ -1,3 +1,15 @@
+# [0.2140.0](https://github.com/lightdash/lightdash/compare/0.2139.2...0.2140.0) (2025-11-05)
+
+
+### Bug Fixes
+
+* embedManagement e2e unstable test ([#17869](https://github.com/lightdash/lightdash/issues/17869)) ([83c3e23](https://github.com/lightdash/lightdash/commit/83c3e2351479fb4fd8677f17f3cb07900512e935))
+
+
+### Features
+
+* allow changing table cell bars' color ([#17843](https://github.com/lightdash/lightdash/issues/17843)) ([ec8e8f1](https://github.com/lightdash/lightdash/commit/ec8e8f1f5f0fa1cfe7e08c183923c1f790ac6ad4))
+
 ## [0.2139.2](https://github.com/lightdash/lightdash/compare/0.2139.1...0.2139.2) (2025-11-05)
 
 
