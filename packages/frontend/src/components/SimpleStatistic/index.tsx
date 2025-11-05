@@ -40,14 +40,17 @@ const BOX_MAX_WIDTH = 1000;
 const BOX_MIN_HEIGHT = 25;
 const BOX_MAX_HEIGHT = 1000;
 
-const VALUE_SIZE_MIN = 24;
+const VALUE_SIZE_MIN = 18;
 const VALUE_SIZE_MAX = 128;
 
-const LABEL_SIZE_MIN = 14;
+const LABEL_SIZE_MIN = 10;
 const LABEL_SIZE_MAX = 48;
 
-const COMPARISON_VALUE_SIZE_MIN = 12;
+const COMPARISON_VALUE_SIZE_MIN = 10;
 const COMPARISON_VALUE_SIZE_MAX = 22;
+
+const COMPARISON_PILL_SIZE_MIN = 7.5;
+const COMPARISON_PILL_SIZE_MAX = 16;
 
 const calculateFontSize = (
     fontSizeMin: number,
@@ -135,7 +138,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     const [setRef, observerElementSize] = useResizeObserver();
 
-    const { valueFontSize, labelFontSize, comparisonFontSize } = useMemo(() => {
+    const {
+        valueFontSize,
+        labelFontSize,
+        comparisonFontSize,
+        comparisonPillFontSize,
+        spacingMultiplier,
+        availableHeight,
+        labelLineClamp,
+    } = useMemo(() => {
         const boundWidth = clamp(
             observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
@@ -144,14 +155,23 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
         // Smarter height calculation: subtract tile header height when not hidden
         // This ensures font size calculation uses actual available content area
-        const availableHeight =
+        const availableHeightForFontSizeCalculation =
             (observerElementSize?.height || 0) -
             (isDashboard && !isTitleHidden ? TILE_HEADER_HEIGHT : 0);
 
         const boundHeight = clamp(
-            availableHeight,
+            availableHeightForFontSizeCalculation,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
+        );
+
+        const heightScale =
+            (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
+
+        // Don't scale spacing below 50% for small tiles
+        const spacingMultiplierForFontSizeCalculation = Math.max(
+            0.5,
+            heightScale,
         );
 
         const valueSize = calculateFontSize(
@@ -175,10 +195,29 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             boundHeight,
         );
 
+        const heightScalePill =
+            (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
+
+        const pillScalingFactor = Math.max(0, Math.min(1, heightScalePill));
+
+        const comparisonPillSize = Math.floor(
+            COMPARISON_PILL_SIZE_MIN +
+                (COMPARISON_PILL_SIZE_MAX - COMPARISON_PILL_SIZE_MIN) *
+                    pillScalingFactor,
+        );
+
+        // Use 1 line clamp for small tiles, 2 for larger ones
+        const labelLineClampForFontSizeCalculation =
+            availableHeightForFontSizeCalculation < 120 ? 1 : 2;
+
         return {
             valueFontSize: valueSize,
             labelFontSize: labelSize,
             comparisonFontSize: comparisonValueSize,
+            comparisonPillFontSize: comparisonPillSize,
+            spacingMultiplier: spacingMultiplierForFontSizeCalculation,
+            availableHeight: availableHeightForFontSizeCalculation,
+            labelLineClamp: labelLineClampForFontSizeCalculation,
         };
     }, [observerElementSize, isDashboard, isTitleHidden]);
 
@@ -249,20 +288,30 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     style={{ flexShrink: 1 }}
                     justify="center"
                     align="center"
-                    mt={valueFontSize * 0.15}
+                    mt={valueFontSize * 0.15 * spacingMultiplier}
                 >
-                    <Text
-                        fz={labelFontSize}
-                        c="gray.6"
-                        fw={500}
-                        ta="center"
-                        style={{
-                            transition: 'font-size 0.1s ease-in-out',
-                            lineHeight: '120%',
-                        }}
+                    <Tooltip
+                        withinPortal
+                        label={bigNumberLabel || defaultLabel}
+                        disabled={
+                            !(bigNumberLabel || defaultLabel) ||
+                            (bigNumberLabel || defaultLabel || '').length < 40
+                        }
                     >
-                        {bigNumberLabel || defaultLabel}
-                    </Text>
+                        <Text
+                            fz={labelFontSize}
+                            c="gray.6"
+                            fw={500}
+                            ta="center"
+                            lineClamp={labelLineClamp}
+                            style={{
+                                transition: 'font-size 0.1s ease-in-out',
+                                lineHeight: '120%',
+                            }}
+                        >
+                            {bigNumberLabel || defaultLabel}
+                        </Text>
+                    </Tooltip>
                 </Flex>
             ) : null}
 
@@ -275,8 +324,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     style={{ flexShrink: 1 }}
                     mt={
                         showBigNumberLabel
-                            ? labelFontSize * 0.85
-                            : valueFontSize * 0.15
+                            ? labelFontSize * 0.85 * spacingMultiplier
+                            : valueFontSize * 0.15 * spacingMultiplier
                     }
                     gap="xs"
                 >
@@ -286,15 +335,25 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 comparisonDiff,
                                 visualizationConfig.chartConfig.flipColors,
                             )}
-                            fz={13}
+                            style={{
+                                padding: `${Math.max(
+                                    1,
+                                    comparisonPillFontSize * 0.15,
+                                )}px ${Math.max(
+                                    4,
+                                    comparisonPillFontSize * 0.4,
+                                )}px`,
+                            }}
                         >
-                            {comparisonValue}
+                            <Text fz={comparisonPillFontSize}>
+                                {comparisonValue}
+                            </Text>
 
                             {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                                 <MantineIcon
                                     icon={IconArrowUpRight}
                                     display="inline"
-                                    size={14}
+                                    size={comparisonPillFontSize + 1}
                                     stroke={2}
                                 />
                             ) : comparisonDiff ===
@@ -302,22 +361,29 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 <MantineIcon
                                     icon={IconArrowDownRight}
                                     display="inline"
-                                    size={14}
+                                    size={comparisonPillFontSize + 1}
                                     stroke={2}
                                 />
                             ) : null}
                         </Group>
                     </Tooltip>
 
-                    {comparisonLabel ? (
-                        <BigNumberText
-                            span
-                            fz={comparisonFontSize}
-                            c="gray.6"
-                            fw={400}
+                    {comparisonLabel && availableHeight > 70 ? (
+                        <Tooltip
+                            withinPortal
+                            label={comparisonLabel}
+                            disabled={comparisonLabel.length < 30}
                         >
-                            {comparisonLabel}
-                        </BigNumberText>
+                            <BigNumberText
+                                span
+                                fz={comparisonFontSize}
+                                c="gray.6"
+                                fw={400}
+                                lineClamp={1}
+                            >
+                                {comparisonLabel}
+                            </BigNumberText>
+                        </Tooltip>
                     ) : null}
                 </Flex>
             ) : null}
