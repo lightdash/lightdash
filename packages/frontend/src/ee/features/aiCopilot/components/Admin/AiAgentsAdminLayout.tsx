@@ -30,6 +30,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useHealth from '../../../../../hooks/health/useHealth';
+import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import useApp from '../../../../../providers/App/useApp';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import AiAgentAdminAgentsTable from './AiAgentAdminAgentsTable';
@@ -45,6 +46,7 @@ export const AiAgentsAdminLayout = () => {
     const theme = useMantineTheme();
     const location = useLocation();
     const navigate = useNavigate();
+    const { activeProjectUuid } = useActiveProjectUuid();
     const { data: settings } = useAiOrganizationSettings();
     const activeTab = location.pathname.endsWith('/agents')
         ? 'agents'
@@ -201,7 +203,7 @@ export const AiAgentsAdminLayout = () => {
                         )}
                         {activeTab === 'agents' && (
                             <LinkButton
-                                href="/ai-agents/new"
+                                href={`/projects/${activeProjectUuid}/ai-agents/new`}
                                 leftIcon={IconRobotFace}
                                 variant="default"
                                 radius="md"
