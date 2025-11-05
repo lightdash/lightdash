@@ -1,3 +1,10 @@
+## [0.2139.2](https://github.com/lightdash/lightdash/compare/0.2139.1...0.2139.2) (2025-11-05)
+
+
+### Bug Fixes
+
+* bar display/cell on tables should have accurate width ([#17841](https://github.com/lightdash/lightdash/issues/17841)) ([640b39b](https://github.com/lightdash/lightdash/commit/640b39b2d263ee51035fd60848c9226241bdd5e8))
+
 ## [0.2139.1](https://github.com/lightdash/lightdash/compare/0.2139.0...0.2139.1) (2025-11-05)
 
 
