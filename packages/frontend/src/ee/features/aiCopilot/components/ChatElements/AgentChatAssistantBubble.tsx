@@ -1,321 +1,20 @@
-import {
-    ChartKind,
-    type AiAgentMessageAssistant,
-    type ToolProposeChangeArgs,
-} from '@lightdash/common';
-import {
-    ActionIcon,
-    Alert,
-    Anchor,
-    Button,
-    CopyButton,
-    Group,
-    Loader,
-    Paper,
-    Popover,
-    Stack,
-    Text,
-    Textarea,
-    Tooltip,
-} from '@mantine-8/core';
+import { type AiAgentMessageAssistant } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import {
-    IconArrowRight,
-    IconBug,
-    IconCheck,
-    IconCopy,
-    IconExclamationCircle,
-    IconLayoutDashboard,
-    IconMessageX,
-    IconRefresh,
-    IconTestPipe,
-    IconThumbDown,
-    IconThumbDownFilled,
-    IconThumbUp,
-    IconThumbUpFilled,
-} from '@tabler/icons-react';
-import MDEditor from '@uiw/react-md-editor';
-import { memo, useCallback, useState, type FC } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
-import {
-    mdEditorComponents,
-    rehypeRemoveHeaderLinks,
-    useMdEditorStyle,
-} from '../../../../../utils/markdownUtils';
+import { memo, useCallback, type FC } from 'react';
 import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
-import {
-    useAiAgentThreadMessageStreaming,
-    useAiAgentThreadStreamQuery,
-} from '../../streaming/useAiAgentThreadStreamQuery';
-import styles from './AgentChatAssistantBubble.module.css';
+import { useAiAgentThreadMessageStreaming } from '../../streaming/useAiAgentThreadStreamQuery';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
-import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
-import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
-import { AiReasoning } from './ToolCalls/AiReasoning';
-
-const AssistantBubbleContent: FC<{
-    message: AiAgentMessageAssistant;
-    projectUuid: string;
-    agentUuid: string;
-}> = ({ message, projectUuid, agentUuid }) => {
-    const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
-    const isStreaming = useAiAgentThreadMessageStreaming(
-        message.threadUuid,
-        message.uuid,
-    );
-    const { streamMessage } = useAiAgentThreadStreamMutation();
-    const mdStyle = useMdEditorStyle();
-
-    const isPending = message.status === 'pending';
-    const hasStreamingError =
-        streamingState?.error && streamingState?.messageUuid === message.uuid;
-    const hasNoResponse = !isStreaming && !message.message && !isPending;
-    const shouldShowRetry = hasStreamingError || hasNoResponse;
-
-    const messageContent =
-        isStreaming && streamingState
-            ? streamingState.content
-            : message.message ?? '';
-
-    const handleRetry = useCallback(() => {
-        void streamMessage({
-            projectUuid,
-            agentUuid,
-            threadUuid: message.threadUuid,
-            messageUuid: message.uuid,
-        });
-    }, [
-        streamMessage,
-        agentUuid,
-        message.threadUuid,
-        message.uuid,
-        projectUuid,
-    ]);
-
-    const proposeChangeToolCall = isStreaming
-        ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs)
-        : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
-
-    const proposeChangeToolResult = message.toolResults.find(
-        (result) => result.toolName === 'proposeChange',
-    );
-
-    const toolCalls = isStreaming
-        ? streamingState?.toolCalls ?? []
-        : message.toolCalls;
-
-    return (
-        <>
-            {shouldShowRetry && (
-                <Paper
-                    withBorder
-                    radius="md"
-                    pr="md"
-                    shadow="none"
-                    bg="gray.0"
-                    style={{
-                        borderStyle: 'dashed',
-                    }}
-                >
-                    <Group gap="xs" align="center" justify="space-between">
-                        <Alert
-                            icon={
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="gray"
-                                    size="md"
-                                />
-                            }
-                            color="gray.0"
-                            variant="outline"
-                        >
-                            <Stack gap={4}>
-                                <Text size="sm" fw={500} c="dimmed">
-                                    Something went wrong
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    Failed to generate response. Please try
-                                    again.
-                                </Text>
-                            </Stack>
-                        </Alert>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            color="dark.5"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    size="sm"
-                                    color="gray.7"
-                                />
-                            }
-                            onClick={handleRetry}
-                        >
-                            Try again
-                        </Button>
-                    </Group>
-                </Paper>
-            )}
-
-            {isStreaming && streamingState?.reasoning && (
-                <AiReasoning
-                    reasoning={streamingState.reasoning}
-                    type="streaming"
-                />
-            )}
-            {!isStreaming && message.reasoning.length > 0 && (
-                <AiReasoning reasoning={message.reasoning} type="persisted" />
-            )}
-            {toolCalls.length > 0 ? (
-                <AiChartToolCalls
-                    toolCalls={toolCalls}
-                    type={isStreaming || isPending ? 'streaming' : 'persisted'}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                />
-            ) : null}
-            {messageContent.length > 0 ? (
-                <MDEditor.Markdown
-                    rehypeRewrite={rehypeRemoveHeaderLinks}
-                    source={messageContent}
-                    style={{ ...mdStyle, padding: `0.5rem 0` }}
-                    rehypePlugins={[rehypeAiAgentContentLinks]}
-                    components={{
-                        ...mdEditorComponents,
-                        a: ({ node, children, ...props }) => {
-                            const contentType =
-                                'data-content-type' in props &&
-                                typeof props['data-content-type'] === 'string'
-                                    ? props['data-content-type']
-                                    : undefined;
-                            const chartType =
-                                'data-chart-type' in props &&
-                                typeof props['data-chart-type'] === 'string'
-                                    ? props['data-chart-type']
-                                    : undefined;
-
-                            if (contentType === 'dashboard-link') {
-                                return (
-                                    <Anchor
-                                        {...props}
-                                        target="_blank"
-                                        fz="sm"
-                                        fw={500}
-                                        bg="gray.0"
-                                        c="gray.7"
-                                        td="none"
-                                        classNames={{
-                                            root: styles.contentLink,
-                                        }}
-                                    >
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                            size="md"
-                                            color="green.7"
-                                            fill="green.6"
-                                            fillOpacity={0.2}
-                                            strokeWidth={1.9}
-                                        />
-
-                                        {/* margin is added by md package */}
-                                        <Text fz="sm" fw={500} m={0}>
-                                            {children}
-                                        </Text>
-
-                                        <MantineIcon
-                                            icon={IconArrowRight}
-                                            color="gray.7"
-                                            size="sm"
-                                            strokeWidth={2.0}
-                                        />
-                                    </Anchor>
-                                );
-                            } else if (contentType === 'chart-link') {
-                                const chartTypeKind =
-                                    chartType &&
-                                    Object.values(ChartKind).includes(
-                                        chartType as ChartKind,
-                                    )
-                                        ? (chartType as ChartKind)
-                                        : undefined;
-                                return (
-                                    <Anchor
-                                        {...props}
-                                        target="_blank"
-                                        fz="sm"
-                                        fw={500}
-                                        bg="gray.0"
-                                        c="gray.7"
-                                        td="none"
-                                        classNames={{
-                                            root: styles.contentLink,
-                                        }}
-                                    >
-                                        {chartTypeKind && (
-                                            <MantineIcon
-                                                icon={getChartIcon(
-                                                    chartTypeKind,
-                                                )}
-                                                size="md"
-                                                color="blue.7"
-                                                fill="blue.4"
-                                                fillOpacity={0.2}
-                                                strokeWidth={1.9}
-                                            />
-                                        )}
-
-                                        {/* margin is added by md package */}
-                                        <Text fz="sm" fw={500} m={0}>
-                                            {children}
-                                        </Text>
-
-                                        <MantineIcon
-                                            icon={IconArrowRight}
-                                            color="gray.7"
-                                            size="sm"
-                                            strokeWidth={2.0}
-                                        />
-                                    </Anchor>
-                                );
-                            }
-
-                            return <a {...props}>{children}</a>;
-                        },
-                    }}
-                />
-            ) : null}
-            {isStreaming || isPending ? (
-                <Loader type="dots" color="gray" />
-            ) : null}
-            {proposeChangeToolCall && (
-                <AiProposeChangeToolCall
-                    change={proposeChangeToolCall.change}
-                    entityTableName={proposeChangeToolCall.entityTableName}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                    toolResult={proposeChangeToolResult}
-                />
-            )}
-        </>
-    );
-};
+import { AssistantBubbleActionIcons } from './AssistantBubbleActionIcons';
+import { AssistantBubbleContent } from './AssistantBubbleContent';
+import { AssistantBubbleFeedbackControls } from './AssistantBubbleFeedbackControls';
 
 type Props = {
     message: AiAgentMessageAssistant;
@@ -362,7 +61,6 @@ export const AssistantBubble: FC<Props> = memo(
 
         const [popoverOpened, { open: openPopover, close: closePopover }] =
             useDisclosure(false);
-        const [feedbackText, setFeedbackText] = useState('');
 
         const handleUpvote = useCallback(() => {
             updateFeedbackMutation.mutate({
@@ -386,21 +84,22 @@ export const AssistantBubble: FC<Props> = memo(
             }
         }, [updateFeedbackMutation, message.uuid, downVoted, openPopover]);
 
-        const handleSubmitFeedback = useCallback(() => {
-            if (feedbackText.trim().length !== 0) {
-                updateFeedbackMutation.mutate({
-                    messageUuid: message.uuid,
-                    humanScore: -1,
-                    humanFeedback: feedbackText.trim(),
-                });
-            }
-            closePopover();
-            setFeedbackText('');
-        }, [updateFeedbackMutation, message.uuid, feedbackText, closePopover]);
+        const handleSubmitFeedback = useCallback(
+            (feedbackTextValue: string) => {
+                if (feedbackTextValue.trim().length !== 0) {
+                    updateFeedbackMutation.mutate({
+                        messageUuid: message.uuid,
+                        humanScore: -1,
+                        humanFeedback: feedbackTextValue.trim(),
+                    });
+                }
+                closePopover();
+            },
+            [updateFeedbackMutation, message.uuid, closePopover],
+        );
 
         const handleCancelFeedback = useCallback(() => {
             closePopover();
-            setFeedbackText('');
         }, [closePopover]);
 
         const isPending = message.status === 'pending';
@@ -481,173 +180,29 @@ export const AssistantBubble: FC<Props> = memo(
                               ))}
                     </Stack>
                 )}
-                {!popoverOpened && downVoted && message.humanFeedback && (
-                    <Paper p="xs" mt="xs" radius="md" withBorder>
-                        <Stack gap="xs">
-                            <Group gap="xs">
-                                <MantineIcon
-                                    icon={IconMessageX}
-                                    size={16}
-                                    color="gray.7"
-                                />
-                                <Text size="xs" c="dimmed" fw={600}>
-                                    User feedback
-                                </Text>
-                            </Group>
-                            <Text size="sm" c="dimmed" fw={500}>
-                                {message.humanFeedback}
-                            </Text>
-                        </Stack>
-                    </Paper>
-                )}
-                {isLoading ? null : (
-                    <Group gap={0}>
-                        <CopyButton value={message.message ?? ''}>
-                            {({ copied, copy }) => (
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="copy"
-                                    onClick={copy}
-                                >
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            )}
-                        </CopyButton>
-
-                        {(!hasRating || upVoted) && (
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="upvote"
-                                onClick={handleUpvote}
-                            >
-                                <Tooltip
-                                    label="Feedback sent"
-                                    position="top"
-                                    withinPortal
-                                    withArrow
-                                    // Hack to only render tooltip (on hover) when `hasRating` is false
-                                    opened={hasRating ? undefined : false}
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            upVoted
-                                                ? IconThumbUpFilled
-                                                : IconThumbUp
-                                        }
-                                    />
-                                </Tooltip>
-                            </ActionIcon>
-                        )}
-
-                        {(!hasRating || downVoted) && (
-                            <Popover
-                                width={500}
-                                position="top-start"
-                                trapFocus
-                                opened={popoverOpened}
-                                onChange={() => {
-                                    closePopover();
-                                    setFeedbackText('');
-                                }}
-                                withArrow
-                            >
-                                <Popover.Target>
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        aria-label="downvote"
-                                        onClick={handleDownvote}
-                                    >
-                                        <MantineIcon
-                                            icon={
-                                                downVoted
-                                                    ? IconThumbDownFilled
-                                                    : IconThumbDown
-                                            }
-                                        />
-                                    </ActionIcon>
-                                </Popover.Target>
-                                <Popover.Dropdown>
-                                    <form
-                                        onSubmit={(e) => {
-                                            e.preventDefault();
-                                            handleSubmitFeedback();
-                                        }}
-                                    >
-                                        <Stack gap="xs">
-                                            <Textarea
-                                                autoFocus
-                                                classNames={{
-                                                    input: styles.feedbackInput,
-                                                }}
-                                                placeholder="Tell us what went wrong, feedback will be added to agent context (optional)"
-                                                value={feedbackText}
-                                                onChange={(e) =>
-                                                    setFeedbackText(
-                                                        e.currentTarget.value,
-                                                    )
-                                                }
-                                                minRows={3}
-                                                maxRows={5}
-                                                radius="md"
-                                                resize="vertical"
-                                            />
-                                            <Group gap="xs">
-                                                <Button
-                                                    type="submit"
-                                                    size="xs"
-                                                    color="dark.5"
-                                                >
-                                                    Submit
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    onClick={
-                                                        handleCancelFeedback
-                                                    }
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </Group>
-                                        </Stack>
-                                    </form>
-                                </Popover.Dropdown>
-                            </Popover>
-                        )}
-
-                        {showAddToEvalsButton && onAddToEvals && (
-                            <Tooltip label="Add this response to evals">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="Add to evaluation set"
-                                    onClick={() => onAddToEvals(message.uuid)}
-                                >
-                                    <MantineIcon
-                                        icon={IconTestPipe}
-                                        color="gray"
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-
-                        {isArtifactAvailable && (
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="Debug information"
-                                onClick={openDrawer}
-                            >
-                                <MantineIcon icon={IconBug} color="gray" />
-                            </ActionIcon>
-                        )}
-                    </Group>
+                <AssistantBubbleFeedbackControls
+                    popoverOpened={popoverOpened}
+                    humanFeedback={message.humanFeedback}
+                    humanScore={message.humanScore}
+                />
+                {!isLoading && (
+                    <AssistantBubbleActionIcons
+                        messageContent={message.message ?? ''}
+                        hasRating={hasRating}
+                        upVoted={upVoted}
+                        downVoted={downVoted}
+                        onUpvote={handleUpvote}
+                        onDownvote={handleDownvote}
+                        showAddToEvalsButton={showAddToEvalsButton}
+                        onAddToEvals={onAddToEvals}
+                        messageUuid={message.uuid}
+                        isArtifactAvailable={isArtifactAvailable}
+                        onOpenDebug={openDrawer}
+                        popoverOpened={popoverOpened}
+                        closePopover={closePopover}
+                        handleSubmitFeedback={handleSubmitFeedback}
+                        handleCancelFeedback={handleCancelFeedback}
+                    />
                 )}
 
                 <AgentChatDebugDrawer
