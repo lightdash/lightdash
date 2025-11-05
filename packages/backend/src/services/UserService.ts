@@ -1783,7 +1783,7 @@ export class UserService extends BaseService {
             name: 'Default',
             credentials: {
                 type: WarehouseTypes.DATABRICKS,
-                authenticationType: DatabricksAuthenticationType.OAUTH,
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
                 refreshToken,
                 database: '', // Will be set when connecting to a project
                 serverHostName: '', // Will be set when connecting to a project

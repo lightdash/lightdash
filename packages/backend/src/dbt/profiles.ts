@@ -211,7 +211,10 @@ const credentialsTarget = (
                     http_path: credentials.httpPath,
                 },
                 environment: {
-                    [envVar('token')]: tokenValue,
+                    [envVar('token')]:
+                        credentials.personalAccessToken ||
+                        credentials.token ||
+                        '',
                 },
             };
         }
