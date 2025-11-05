@@ -4,9 +4,7 @@ import { AiModel, AiProvider } from '../models/types';
 import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
-    FindChartsFn,
     FindContentFn,
-    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreCompilerFn,
@@ -61,8 +59,6 @@ export type PerformanceMetrics = {
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     findContent: FindContentFn;
-    findCharts: FindChartsFn;
-    findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
     getExplore: GetExploreFn;
