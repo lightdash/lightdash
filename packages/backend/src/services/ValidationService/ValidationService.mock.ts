@@ -160,34 +160,6 @@ export const dashboardForValidation: {
     chartUuids: ['chartUuid'],
 };
 
-// Dashboard with filters but no charts (dangling filters scenario)
-export const dashboardWithDanglingFilters: {
-    dashboardUuid: string;
-    name: string;
-    filters: DashboardFilters;
-    chartUuids: string[];
-} = {
-    dashboardUuid: 'dashboardWithDanglingFilters',
-    name: 'Dashboard with dangling filters',
-    filters: {
-        dimensions: [
-            {
-                id: 'filter1',
-                target: {
-                    fieldId: 'table_dimension',
-                    tableName: 'table',
-                },
-                operator: FilterOperator.EQUALS,
-                values: ['value1'],
-                label: 'Dimension Filter',
-            },
-        ],
-        metrics: [],
-        tableCalculations: [],
-    },
-    chartUuids: [], // No charts - filters are dangling
-};
-
 export const explore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'valid_explore',
