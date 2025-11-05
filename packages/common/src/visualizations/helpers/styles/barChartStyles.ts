@@ -11,29 +11,30 @@ import { GRAY_9 } from './themeColors';
  * @param dataPointCount - Number of data points (categories) in the chart
  * @param seriesCount - Number of bar series (non-stacked bars in same category)
  * @param isStacked - Whether bars are stacked
+ * @param isHorizontal - Whether the bar chart is horizontal (flipAxes)
  * @returns Appropriate border radius (max 4px, scales down for thin bars)
  */
 export const calculateDynamicBorderRadius = (
     dataPointCount: number,
     seriesCount: number,
     isStacked: boolean,
+    isHorizontal: boolean = false,
 ): number => {
-    // Estimate relative bar width based on number of categories and series
-    // Assumptions: typical chart is ~600px wide, barCategoryGap is 25%
-    const estimatedChartWidth = 600;
+    // Estimate relative bar width/height based on number of categories and series
+    // Assumptions: typical chart is ~600px wide, horizontal charts use ~200px height (1/3), barCategoryGap 25%
+    const estimatedChartSize = isHorizontal ? 200 : 600;
     const barCategoryGap = 0.25;
 
-    // Width available per category
-    const categoryWidth = estimatedChartWidth / dataPointCount;
+    const categorySize = estimatedChartSize / dataPointCount;
 
-    // Width for bars (after gap)
-    const barGroupWidth = categoryWidth * (1 - barCategoryGap);
+    // Size for bars (after gap)
+    const barGroupSize = categorySize * (1 - barCategoryGap);
 
-    // Individual bar width (stacked bars share width, non-stacked split it)
-    const barWidth = isStacked ? barGroupWidth : barGroupWidth / seriesCount;
+    // Individual bar size (stacked bars share size, non-stacked split it)
+    const barSize = isStacked ? barGroupSize : barGroupSize / seriesCount;
 
-    // Calculate radius as percentage of bar width (15%), capped at 4px minimum 2px
-    const dynamicRadius = Math.max(1, Math.min(4, barWidth * 0.15));
+    // Calculate radius as percentage of bar size (15%), capped at 4px minimum 2px
+    const dynamicRadius = Math.max(2, Math.min(4, barSize * 0.15));
 
     return Math.round(dynamicRadius);
 };
