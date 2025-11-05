@@ -122,6 +122,7 @@ declare global {
             ): Chainable<string>;
 
             getMonacoEditorText(): Chainable<string>;
+            scrollTreeToItem(itemText: string): Chainable<Element>;
         }
     }
 }
@@ -767,6 +768,67 @@ Cypress.Commands.add('getMonacoEditorText', () => {
             .replace(/\s+/g, ' ')
             .trim();
         cy.wrap(normalizedText);
+    });
+});
+
+/**
+ * Scrolls the virtualized tree to make a specific item visible.
+ * This is needed because virtualized lists only render items in the viewport,
+ * and standard scrollIntoView() doesn't work with absolute positioning.
+ */
+Cypress.Commands.add('scrollTreeToItem', (itemText: string) => {
+    cy.get('[data-testid="virtualized-tree-scroll-container"]', {
+        timeout: 10000,
+    }).then(($container) => {
+        const container = $container[0];
+        const maxScroll = container.scrollHeight;
+        const viewportHeight = container.clientHeight;
+
+        container.scrollTop = 0;
+
+        const checkAndScroll = (scrollPosition: number): Cypress.Chainable => {
+            container.scrollTop = scrollPosition;
+
+            return cy.wait(200).then(() => {
+                const elements = Array.from(container.querySelectorAll('*'));
+                const found = elements.find((el) => {
+                    const text = el.textContent?.trim() || '';
+                    const childTexts = Array.from(el.children)
+                        .map((child) => child.textContent?.trim() || '')
+                        .join('');
+                    const ownText = text.replace(childTexts, '').trim();
+
+                    return (
+                        text === itemText ||
+                        ownText === itemText ||
+                        (text.includes(itemText) && el.children.length === 0)
+                    );
+                });
+
+                if (found) {
+                    return cy.wrap(found);
+                }
+
+                const nextScroll = scrollPosition + viewportHeight * 0.5;
+
+                if (nextScroll >= maxScroll - viewportHeight) {
+                    container.scrollTop = maxScroll;
+                    return cy
+                        .wait(200)
+                        .then(() =>
+                            cy
+                                .get(
+                                    '[data-testid="virtualized-tree-scroll-container"]',
+                                )
+                                .within(() => cy.findByText(itemText)),
+                        );
+                }
+
+                return checkAndScroll(nextScroll);
+            });
+        };
+
+        return checkAndScroll(0);
     });
 });
 
