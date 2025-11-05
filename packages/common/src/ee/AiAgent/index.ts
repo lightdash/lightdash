@@ -153,6 +153,7 @@ export type AiAgentMessageAssistant = {
     createdAt: string;
 
     humanScore: number | null;
+    humanFeedback?: string | null;
 
     toolCalls: AiAgentToolCall[];
     toolResults: AiAgentToolResult[];

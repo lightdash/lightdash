@@ -15,3 +15,12 @@
         background-color: var(--mantine-color-gray-1) !important;
     }
 }
+
+.feedbackInput {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+
+    --input-bd-focus: var(--mantine-color-gray-7);
+    &:focus {
+        outline: 4px solid var(--mantine-color-gray-2);
+    }
+}

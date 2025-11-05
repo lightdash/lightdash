@@ -76,6 +76,7 @@ export type DbAiPrompt = {
     viz_config_output: object | null;
     filters_output: object | null;
     human_score: number | null;
+    human_feedback: string | null;
     metric_query: object | null;
     saved_query_uuid: string | null;
 };
@@ -93,6 +94,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'viz_config_output'
             | 'filters_output'
             | 'human_score'
+            | 'human_feedback'
             | 'metric_query'
             | 'saved_query_uuid'
         > & {

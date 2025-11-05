@@ -1499,6 +1499,7 @@ export class AiAgentService {
         user: SessionUser,
         messageUuid: string,
         humanScore: number,
+        humanFeedback?: string | null,
     ) {
         this.analytics.track<AiAgentPromptFeedbackEvent>({
             event: 'ai_agent_prompt.feedback',
@@ -1514,6 +1515,7 @@ export class AiAgentService {
         await this.aiAgentModel.updateHumanScore({
             promptUuid: messageUuid,
             humanScore,
+            humanFeedback,
         });
     }
 
@@ -1872,13 +1874,19 @@ export class AiAgentService {
                 }
 
                 if (message.human_score) {
+                    let feedbackContent =
+                        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
+                        message.human_score > 0
+                            ? 'I liked this response'
+                            : 'I did not like this response';
+
+                    if (message.human_feedback) {
+                        feedbackContent += `\nReasoning: ${message.human_feedback}`;
+                    }
+
                     messages.push({
                         role: 'user',
-                        content:
-                            // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
-                            message.human_score > 0
-                                ? 'I liked this response'
-                                : 'I did not like this response',
+                        content: feedbackContent,
                     } satisfies UserModelMessage);
                 }
 
