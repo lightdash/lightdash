@@ -10,6 +10,7 @@ import {
     filterExploreByTags,
     ForbiddenError,
     isExploreError,
+    mcpToolListExploresArgsSchema,
     MissingConfigError,
     NotFoundError,
     OauthAccount,
@@ -57,6 +58,7 @@ import { VERSION } from '../../../version';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
@@ -71,6 +73,7 @@ import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
+    LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
     FIND_CONTENT = 'find_content',
@@ -218,6 +221,71 @@ export class McpService extends BaseService {
                         },
                     ],
                 };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.LIST_EXPLORES,
+            {
+                description: mcpToolListExploresArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpToolListExploresArgsSchema,
+                ) as AnyType,
+            },
+            async (_args, context) => {
+                try {
+                    const { user } = this.getAccount(
+                        context as McpProtocolContext,
+                    );
+
+                    const projectUuid = await this.resolveProjectUuid(
+                        context as McpProtocolContext,
+                    );
+
+                    this.trackToolCall(
+                        context as McpProtocolContext,
+                        McpToolName.LIST_EXPLORES,
+                        projectUuid,
+                    );
+
+                    const tagsFromContext = await this.getTagsFromContext(
+                        context as McpProtocolContext,
+                    );
+
+                    const listExplores = async () =>
+                        this.getAvailableExplores(
+                            user,
+                            projectUuid,
+                            tagsFromContext,
+                        );
+
+                    const mcpListExploresTool = getMcpListExplores({
+                        listExplores,
+                    });
+
+                    const result = await mcpListExploresTool.execute!(
+                        {},
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
+
+                    return {
+                        content: [
+                            {
+                                type: 'text',
+                                text: await McpService.streamToolResult(result),
+                            },
+                        ],
+                    };
+                } catch (error) {
+                    this.logger.error(
+                        '[McpService] Error in LIST_EXPLORES tool',
+                        error,
+                    );
+                    throw error;
+                }
             },
         );
 

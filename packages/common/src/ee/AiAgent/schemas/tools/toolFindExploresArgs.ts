@@ -25,10 +25,6 @@ export const toolFindExploresArgsSchemaV1 = createToolSchema({
     .withPagination()
     .build();
 
-export type ToolFindExploresArgsV1 = z.infer<
-    typeof toolFindExploresArgsSchemaV1
->;
-
 export const toolFindExploresArgsSchemaV2 = createToolSchema({
     type: 'find_explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
@@ -53,6 +49,9 @@ export const toolFindExploresOutputSchema = z.object({
     metadata: baseOutputMetadataSchema,
 });
 
+export type ToolFindExploresArgsV1 = z.infer<
+    typeof toolFindExploresArgsSchemaV1
+>;
 export type ToolFindExploresArgsV2 = z.infer<
     typeof toolFindExploresArgsSchemaV2
 >;
