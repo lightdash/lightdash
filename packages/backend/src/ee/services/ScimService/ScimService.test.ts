@@ -429,6 +429,137 @@ describe('ScimService', () => {
                 },
             );
         });
+
+        test('should update user project roles when roles array is provided', async () => {
+            const { rolesModel } = ScimServiceArgumentsMock;
+
+            // Create a SCIM user with project roles
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: mockUser.email,
+                name: {
+                    givenName: mockUser.firstName,
+                    familyName: mockUser.lastName,
+                },
+                active: mockUser.isActive,
+                emails: [
+                    {
+                        value: mockUser.email,
+                        primary: true,
+                    },
+                ],
+                roles: [
+                    {
+                        value: 'project-1-uuid:admin', // Project-level system role
+                        display: 'Analytics Project - Admin',
+                        type: ScimRoleType.PROJECT,
+                        primary: false,
+                    },
+                    {
+                        value: 'project-2-uuid:custom-role-1-uuid', // Project-level custom role
+                        display: 'Marketing Project - Custom Role',
+                        type: ScimRoleType.PROJECT_CUSTOM,
+                        primary: false,
+                    },
+                    {
+                        value: OrganizationMemberRole.EDITOR, // Organization-level role
+                        display: 'Editor',
+                        type: ScimRoleType.ORG,
+                        primary: true,
+                    },
+                ],
+            };
+
+            // Reset mocks to ensure clean state
+            jest.clearAllMocks();
+
+            // Call updateUser with roles
+            await service.updateUser({
+                user: scimUser,
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            // Verify that system role project access was updated
+            expect(
+                rolesModel.upsertSystemRoleProjectAccess,
+            ).toHaveBeenCalledWith(
+                'project-1-uuid',
+                mockUser.userUuid,
+                'admin',
+            );
+
+            // Verify that custom role project access was updated
+            expect(
+                rolesModel.upsertCustomRoleProjectAccess,
+            ).toHaveBeenCalledWith(
+                'project-2-uuid',
+                mockUser.userUuid,
+                'custom-role-1-uuid',
+            );
+
+            // Verify that organization role was updated
+            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                {
+                    role: OrganizationMemberRole.EDITOR,
+                },
+            );
+        });
+
+        test('should handle organization-only roles in roles array', async () => {
+            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+
+            // Create a SCIM user with only organization roles
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: mockUser.email,
+                name: {
+                    givenName: mockUser.firstName,
+                    familyName: mockUser.lastName,
+                },
+                active: mockUser.isActive,
+                emails: [
+                    {
+                        value: mockUser.email,
+                        primary: true,
+                    },
+                ],
+                roles: [
+                    {
+                        value: OrganizationMemberRole.VIEWER,
+                        display: 'Viewer',
+                        type: ScimRoleType.ORG,
+                        primary: true,
+                    },
+                ],
+            };
+
+            // Reset mocks to ensure clean state
+            jest.clearAllMocks();
+
+            // Call updateUser with organization role
+            await service.updateUser({
+                user: scimUser,
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            // Verify that organization role was updated
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).toHaveBeenCalledWith(
+                mockUser.organizationUuid,
+                mockUser.userUuid,
+                {
+                    role: OrganizationMemberRole.VIEWER,
+                },
+            );
+        });
     });
 
     describe('patchUser', () => {
@@ -470,6 +601,214 @@ describe('ScimService', () => {
                     }),
                 }),
             );
+        });
+    });
+
+    describe('parseRoleId', () => {
+        test('should parse role ID without colon as organization role', () => {
+            const roleId = 'admin';
+            const result = ScimService.parseRoleId(roleId);
+
+            expect(result).toEqual({
+                roleUuid: 'admin',
+                projectUuid: undefined,
+            });
+        });
+
+        test('should parse role ID with colon as project role', () => {
+            const roleId = 'project-uuid-123:viewer';
+            const result = ScimService.parseRoleId(roleId);
+
+            expect(result).toEqual({
+                roleUuid: 'viewer',
+                projectUuid: 'project-uuid-123',
+            });
+        });
+
+        test('should handle custom role UUID with colon', () => {
+            const roleId = 'project-uuid-456:custom-role-uuid-789';
+            const result = ScimService.parseRoleId(roleId);
+
+            expect(result).toEqual({
+                roleUuid: 'custom-role-uuid-789',
+                projectUuid: 'project-uuid-456',
+            });
+        });
+
+        test('should handle empty string as role ID', () => {
+            const roleId = '';
+            const result = ScimService.parseRoleId(roleId);
+
+            expect(result).toEqual({
+                roleUuid: '',
+                projectUuid: undefined,
+            });
+        });
+
+        test('should handle role ID with multiple colons', () => {
+            const roleId = 'project:with:colons:role-id';
+            const result = ScimService.parseRoleId(roleId);
+
+            // Only splits on the first colon, so everything after becomes the roleUuid
+            expect(result).toEqual({
+                roleUuid: 'with:colons:role-id',
+                projectUuid: 'project',
+            });
+        });
+    });
+
+    describe('validateRolesArray', () => {
+        const validRoleValues = [
+            'admin',
+            'editor',
+            'viewer',
+            'project-1-uuid:admin',
+            'project-1-uuid:viewer',
+            'project-2-uuid:custom-role-uuid',
+        ];
+
+        test('should validate a correct roles array', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).not.toThrow();
+        });
+
+        test('should throw error for empty roles array', () => {
+            expect(() => {
+                ScimService.validateRolesArray([], validRoleValues);
+            }).toThrow(
+                'Roles array must contain at least one role when provided',
+            );
+        });
+
+        test('should throw error for invalid role values', () => {
+            const roles = [
+                {
+                    value: 'invalid-role',
+                    display: 'Invalid Role',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow('Invalid role values: invalid-role');
+        });
+
+        test('should throw error for no organization role', () => {
+            const roles = [
+                {
+                    value: 'project-1-uuid:admin',
+                    display: 'Project 1 - Admin',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array must contain exactly one organization role, found 0',
+            );
+        });
+
+        test('should throw error for multiple organization roles', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'editor',
+                    display: 'Editor',
+                    type: ScimRoleType.ORG,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array must contain exactly one organization role, found 2',
+            );
+        });
+
+        test('should throw error for duplicate project roles', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: ScimRoleType.ORG,
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:admin',
+                    display: 'Project 1 - Admin',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+                {
+                    value: 'project-1-uuid:viewer',
+                    display: 'Project 1 - Viewer',
+                    type: ScimRoleType.PROJECT,
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).toThrow(
+                'Roles array can only contain one role per project. Duplicate project UUIDs: project-1-uuid',
+            );
+        });
+    });
+
+    describe('parseRoleId and generateRoleId integration', () => {
+        test('should be able to round-trip organization role', () => {
+            const mock = {
+                roleUuid: 'admin',
+            };
+            const id = ScimService.generateRoleId(mock);
+            expect(id).toBe('admin');
+            expect(ScimService.parseRoleId(id)).toEqual(mock);
+        });
+
+        test('should be able to round-trip project role', () => {
+            const mock = {
+                roleUuid: 'viewer',
+                projectUuid: 'project-uuid-123',
+            };
+            const id = ScimService.generateRoleId(mock);
+            expect(id).toBe('project-uuid-123:viewer');
+            expect(ScimService.parseRoleId(id)).toEqual(mock);
+        });
+
+        test('should be able to round-trip project custom role', () => {
+            const mock = {
+                roleUuid: 'custom-role-uuid-789',
+                projectUuid: 'project-uuid-123',
+            };
+            const id = ScimService.generateRoleId(mock);
+            expect(id).toBe('project-uuid-123:custom-role-uuid-789');
+            expect(ScimService.parseRoleId(id)).toEqual(mock);
         });
     });
 
@@ -727,7 +1066,7 @@ describe('ScimService', () => {
                 expect(result).toEqual({
                     schemas: [ScimSchemaType.LIST_RESPONSE],
                     totalResults: 20, // 6 org system + 7 per project (2 projects) = 6+14 = 20
-                    itemsPerPage: 20,
+                    itemsPerPage: 100,
                     startIndex: 1,
                     Resources: expect.arrayContaining([
                         expect.objectContaining({

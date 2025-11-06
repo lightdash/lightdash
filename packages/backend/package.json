@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2143.3",
+    "version": "0.2149.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -137,7 +137,7 @@
         "pdf-lib": "^1.17.1",
         "pg": "^8.11.3",
         "pg-connection-string": "^2.5.0",
-        "playwright": "^1.44.1",
+        "playwright": "^1.55.1",
         "posthog-node": "^4.2.0",
         "prom-client": "^15.1.2",
         "redoc-express": "^1.0.0",

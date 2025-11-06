@@ -6,6 +6,7 @@ import {
     getSystemRoles,
     GroupWithMembers,
     isOrganizationMemberRole,
+    isSystemRole,
     isValidEmailAddress,
     LightdashUser,
     NotFoundError,
@@ -406,6 +407,13 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            // Validate roles if provided
+            const { allScimRoles } = await this.getAllRoles(organizationUuid);
+            if (user.roles !== undefined) {
+                const validRoleValues = allScimRoles.map((role) => role.value);
+                // Throws error if roles are not valid
+                ScimService.validateRolesArray(user.roles, validRoleValues);
+            }
             const email = ScimService.getScimUserEmail(user);
             const dbUser = await this.userModel.createUser(
                 {
@@ -443,6 +451,15 @@ export class ScimService extends BaseService {
                     role,
                 },
             );
+
+            // Add user roles to all projects
+            await this.upsertUserRoles({
+                organizationUuid,
+                userUuid: dbUser.userUuid,
+                roles: user.roles,
+                currentOrgRole: role,
+            });
+
             // verify user email on create if coming from scim
             await this.emailModel.verifyUserEmailIfExists(
                 dbUser.userUuid,
@@ -467,7 +484,6 @@ export class ScimService extends BaseService {
             });
 
             // Get user project roles
-            const { allScimRoles } = await this.getAllRoles(organizationUuid);
             const userRoles = await this.getUserScimRoles(dbUser, allScimRoles);
 
             // Construct SCIM-compliant response
@@ -516,10 +532,21 @@ export class ScimService extends BaseService {
             firstName: user.name?.givenName,
             lastName: user.name?.familyName,
             active: user.active,
+            roles: user.roles?.map((role) => role.value),
             hasExtensionData: !!user[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            // Validate roles if provided
+            if (user.roles !== undefined) {
+                const { allScimRoles } = await this.getAllRoles(
+                    organizationUuid,
+                );
+                const validRoleValues = allScimRoles.map((role) => role.value);
+
+                // Throws error if roles are not valid
+                ScimService.validateRolesArray(user.roles, validRoleValues);
+            }
             const emailToUpdate = ScimService.getScimUserEmail(user);
             // get existing user (and make sure user is in the organization)
             const dbUser =
@@ -539,6 +566,14 @@ export class ScimService extends BaseService {
                     isActive: user.active ?? dbUser.isActive,
                 },
             );
+
+            // Update user org and project roles
+            await this.upsertUserRoles({
+                organizationUuid,
+                userUuid,
+                roles: user.roles,
+                currentOrgRole: updatedUser.role,
+            });
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
@@ -690,6 +725,57 @@ export class ScimService extends BaseService {
                 detail: 'Failed to update SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+        }
+    }
+
+    /*
+     * Update user organization and project roles
+     */
+    private async upsertUserRoles({
+        organizationUuid,
+        userUuid,
+        roles,
+        currentOrgRole,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        roles: ScimUser['roles'];
+        currentOrgRole: string | undefined;
+    }) {
+        if (roles !== undefined && roles.length > 0) {
+            await Promise.all(
+                roles.map(async (role) => {
+                    const { roleUuid, projectUuid } = ScimService.parseRoleId(
+                        role.value,
+                    );
+                    if (projectUuid) {
+                        if (isSystemRole(roleUuid)) {
+                            await this.rolesModel.upsertSystemRoleProjectAccess(
+                                projectUuid,
+                                userUuid,
+                                roleUuid,
+                            );
+                        } else {
+                            await this.rolesModel.upsertCustomRoleProjectAccess(
+                                projectUuid,
+                                userUuid,
+                                roleUuid,
+                            );
+                        }
+                    } else if (
+                        isOrganizationMemberRole(roleUuid) &&
+                        roleUuid !== currentOrgRole
+                    ) {
+                        await this.organizationMemberProfileModel.updateOrganizationMember(
+                            organizationUuid,
+                            userUuid,
+                            {
+                                role: roleUuid,
+                            },
+                        );
+                    }
+                }),
+            );
         }
     }
 
@@ -1432,6 +1518,84 @@ export class ScimService extends BaseService {
         return projectUuid ? `${projectUuid}:${roleUuid}` : roleUuid;
     }
 
+    static parseRoleId(roleId: string): {
+        roleUuid: string;
+        projectUuid?: string;
+    } {
+        if (!roleId.includes(':')) {
+            return {
+                roleUuid: roleId,
+                projectUuid: undefined,
+            };
+        }
+
+        const colonIndex = roleId.indexOf(':');
+        const projectUuid = roleId.substring(0, colonIndex);
+        const roleUuid = roleId.substring(colonIndex + 1);
+
+        return {
+            roleUuid,
+            projectUuid,
+        };
+    }
+
+    static validateRolesArray(
+        roles: ScimUserRole[],
+        validRoleValues: string[],
+    ): void {
+        // If roles array is provided, it must have at least 1 entry
+        if (roles.length === 0) {
+            throw new ParameterError(
+                'Roles array must contain at least one role when provided',
+            );
+        }
+
+        // Check for invalid role values
+        const invalidRoles = roles
+            .map((role) => role.value)
+            .filter((roleValue) => !validRoleValues.includes(roleValue));
+
+        if (invalidRoles.length > 0) {
+            throw new ParameterError(
+                `Invalid role values: ${invalidRoles.join(', ')}`,
+            );
+        }
+
+        // Parse roles and categorize them
+        const parsedRoles = roles.map((role) => ({
+            ...role,
+            parsed: ScimService.parseRoleId(role.value),
+        }));
+
+        // Check for exactly one organization role
+        const orgRoles = parsedRoles.filter((role) => !role.parsed.projectUuid);
+        if (orgRoles.length !== 1) {
+            throw new ParameterError(
+                `Roles array must contain exactly one organization role, found ${orgRoles.length}`,
+            );
+        }
+
+        // Check for only one role per project UUID
+        const projectRoles = parsedRoles.filter(
+            (role) => role.parsed.projectUuid,
+        );
+        const projectUuids = projectRoles.map(
+            (role) => role.parsed.projectUuid,
+        );
+        const uniqueProjectUuids = new Set(projectUuids);
+
+        if (projectUuids.length !== uniqueProjectUuids.size) {
+            const duplicates = projectUuids.filter(
+                (uuid, index) => projectUuids.indexOf(uuid) !== index,
+            );
+            throw new ParameterError(
+                `Roles array can only contain one role per project. Duplicate project UUIDs: ${[
+                    ...new Set(duplicates),
+                ].join(', ')}`,
+            );
+        }
+    }
+
     private convertLightdashRoleToScimRole(
         role: Role,
         type: ScimRoleType,
@@ -1592,13 +1756,19 @@ export class ScimService extends BaseService {
 
     async listRoles({
         organizationUuid,
+        startIndex = 1,
+        itemsPerPage = 100,
         filter,
     }: {
         organizationUuid: string;
+        startIndex?: number;
+        itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimRole>> {
         this.logger.debug('SCIM: Listing roles', {
             organizationUuid,
+            startIndex,
+            itemsPerPage,
             filter,
         });
         try {
@@ -1630,9 +1800,20 @@ export class ScimService extends BaseService {
                 });
             }
 
+            // Pagination for roles is done in memory because roles come from multiple sources
+            const { page, pageSize } = ScimService.convertScimToKnexPagination(
+                startIndex,
+                itemsPerPage,
+            );
+            const offset = (page - 1) * pageSize;
+            const pagedRoles = filteredRoles.slice(offset, offset + pageSize);
+
             this.logger.debug('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
+                returnedCount: pagedRoles.length,
+                startIndex,
+                itemsPerPage: pageSize,
                 projectsCount,
                 systemRolesCount,
                 customRolesCount,
@@ -1641,9 +1822,9 @@ export class ScimService extends BaseService {
             return {
                 schemas: [ScimSchemaType.LIST_RESPONSE],
                 totalResults: filteredRoles.length,
-                itemsPerPage: filteredRoles.length,
-                startIndex: 1,
-                Resources: filteredRoles,
+                itemsPerPage: pageSize,
+                startIndex,
+                Resources: pagedRoles,
             };
         } catch (error) {
             this.logger.error(

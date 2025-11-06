@@ -212,7 +212,10 @@ jobs:
                   PGPORT: 5432
                   PGUSER: postgres
                   PGPASSWORD: password
-                  PGDATABASE: lightdash
+                  # TODO :: improve database name management
+                  # PGCONNECTIONURI will be suffixed with _test and used for the application database
+                  # PGDATABASE will be used for seeding the test database and warehouse credentials (won't be suffixed)
+                  PGDATABASE: lightdash_test
                   AI_COPILOT_ENABLED: true
                   AI_DEFAULT_PROVIDER: ${{ matrix.ai_provider }}
                   OPENAI_MODEL_NAME: ${{ matrix.ai_provider == 'openai' && matrix.model_name || '' }}

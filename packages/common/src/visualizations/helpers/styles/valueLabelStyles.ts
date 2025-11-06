@@ -3,8 +3,8 @@ import { WHITE } from './themeColors';
 
 /**
  * Get value label styling for any chart series (line, bar, area, scatter, etc.)
- * Inside: White on dark backgrounds, gray.9 on light backgrounds, weight 400
- * Outside: gray.9 text with colored border matching series, weight 500
+ * Inside: White on dark backgrounds, gray.9 on light backgrounds, weight 500
+ * Outside: gray.9 text with colored border matching series, weight 600
  * Size: 11px
  * @param position - Label position relative to data point
  * @param type - Series type
@@ -17,7 +17,7 @@ export const getValueLabelStyle = (
 
     const base = {
         fontSize: 11,
-        fontWeight: '500',
+        fontWeight: isInside ? '400' : '500',
     } as const;
 
     if (
@@ -28,7 +28,7 @@ export const getValueLabelStyle = (
         return {
             ...base,
             textBorderColor: WHITE,
-            textBorderWidth: 2,
+            textBorderWidth: 1.5,
             textBorderType: 'solid',
         };
     }

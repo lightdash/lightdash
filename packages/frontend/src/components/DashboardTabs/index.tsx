@@ -20,6 +20,7 @@ import MantineIcon from '../common/MantineIcon';
 import { LockedDashboardModal } from '../common/modal/LockedDashboardModal';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
+import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import DraggableTab from './Tab';
@@ -98,10 +99,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const setHaveTilesChanged = useDashboardContext(
+        (c) => c.setHaveTilesChanged,
+    );
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
     const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
+    const [isDuplicatingTab, setDuplicatingTab] = useState<boolean>(false);
+    const [tabToDuplicate, setTabToDuplicate] = useState<DashboardTab | null>(
+        null,
+    );
 
     const defaultTab = dashboardTabs?.[0];
     // Context: We don't want to show the "tabs mode" if there is only one tab in state
@@ -206,7 +215,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const handleDeleteTab = (tabUuid: string) => {
         setDashboardTabs((currentTabs) => {
             const newTabs: DashboardTab[] = currentTabs?.filter(
-                (tab) => tab.uuid !== tabUuid,
+                (t) => t.uuid !== tabUuid,
             );
             return newTabs;
         });
@@ -238,6 +247,56 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         if (tilesToDelete) {
             handleBatchDeleteTiles(tilesToDelete);
         }
+    };
+
+    const handleDuplicateTab = (tabUuid: string) => {
+        const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
+        if (tab) {
+            setTabToDuplicate(tab);
+            setDuplicatingTab(true);
+        }
+    };
+
+    const handleConfirmDuplicateTab = (name: string) => {
+        if (tabToDuplicate) {
+            const lastOrd =
+                dashboardTabs.length > 0
+                    ? Math.max(...dashboardTabs.map((t) => t.order ?? 0))
+                    : -1;
+            const newTab = {
+                name: name,
+                uuid: uuid4(),
+                isDefault: false,
+                order: lastOrd + 1,
+            };
+
+            setDashboardTabs((currentTabs) => [...currentTabs, newTab]);
+            handleChangeTab(newTab);
+            setHaveTabsChanged(true);
+
+            // Duplicate tiles from the original tab
+            const tilesToDuplicate = dashboardTiles?.filter(
+                (tile) => tile.tabUuid === tabToDuplicate.uuid,
+            );
+
+            if (tilesToDuplicate && tilesToDuplicate.length > 0) {
+                const duplicatedTiles = tilesToDuplicate.map((tile) => ({
+                    ...tile,
+                    uuid: uuid4(),
+                    tabUuid: newTab.uuid,
+                }));
+
+                // Directly add tiles to the dashboard without using handleAddTiles
+                // to avoid automatic assignment to current active tab
+                setDashboardTiles((currentTiles) => [
+                    ...(currentTiles ?? []),
+                    ...duplicatedTiles,
+                ]);
+                setHaveTilesChanged(true);
+            }
+        }
+        setDuplicatingTab(false);
+        setTabToDuplicate(null);
     };
     const MAGIC_SCROLL_AREA_HEIGHT = 40;
 
@@ -330,6 +389,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             }
                                                             handleDeleteTab={
                                                                 handleDeleteTab
+                                                            }
+                                                            handleDuplicateTab={
+                                                                handleDuplicateTab
                                                             }
                                                             setDeletingTab={
                                                                 setDeletingTab
@@ -448,6 +510,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         handleAddTab(name);
                                     }}
                                 />
+                                {tabToDuplicate && (
+                                    <DuplicateTabModal
+                                        tab={tabToDuplicate}
+                                        onClose={() => {
+                                            setDuplicatingTab(false);
+                                            setTabToDuplicate(null);
+                                        }}
+                                        opened={isDuplicatingTab}
+                                        onConfirm={handleConfirmDuplicateTab}
+                                    />
+                                )}
                                 {activeTab && (
                                     <>
                                         <TabEditModal

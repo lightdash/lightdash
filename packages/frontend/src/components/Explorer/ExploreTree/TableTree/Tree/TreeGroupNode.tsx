@@ -203,7 +203,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
         >
             {/* In virtualized mode, children are rendered as separate items in the flat list */}
             {isNavLinkOpen && !isVirtualized && (
-                <TreeNodes nodeMap={node.children} isNested />
+                <TreeNodes nodeMap={node.children} />
             )}
         </NavLink>
     );

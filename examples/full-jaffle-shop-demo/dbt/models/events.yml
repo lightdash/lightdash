@@ -98,10 +98,10 @@ models:
            
             with_currency_parameter: 
               type: sum 
-              format: '${ld.parameters.currency=="usd"?"$":""}${ld.parameters.currency=="eur"?"€":""}${ld.parameters.currency=="gbp"?"£":""}0,0.00'
+              format: '${lightdash.parameters.currency=="usd"?"$":""}${lightdash.parameters.currency=="eur"?"€":""}${lightdash.parameters.currency=="gbp"?"£":""}0,0.00'
               sql: |
                 CASE 
-                  WHEN ${ld.parameters.currency} = 'usd' THEN ${event_id} * 1
+                  WHEN ${lightdash.parameters.currency} = 'usd' THEN ${event_id} * 1
                   ELSE ${event_id} * 0.86
                 END
             with_multiple_parameters: 

@@ -1,3 +1,97 @@
+# [0.2149.0](https://github.com/lightdash/lightdash/compare/0.2148.0...0.2149.0) (2025-11-06)
+
+
+### Features
+
+* add duplicate tab functionality ([#16198](https://github.com/lightdash/lightdash/issues/16198)) ([6fc094b](https://github.com/lightdash/lightdash/commit/6fc094b1a76326718707969248efac0a299163d3))
+
+# [0.2148.0](https://github.com/lightdash/lightdash/compare/0.2147.1...0.2148.0) (2025-11-06)
+
+
+### Features
+
+* add pagination to SCIM roles API ([#17873](https://github.com/lightdash/lightdash/issues/17873)) ([fde98c2](https://github.com/lightdash/lightdash/commit/fde98c2c1242ff91f96aa643d74dd5e10a2622a2))
+
+## [0.2147.1](https://github.com/lightdash/lightdash/compare/0.2147.0...0.2147.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* add tooltip to dashboard tabs for truncated text ([#16211](https://github.com/lightdash/lightdash/issues/16211)) ([3a9b935](https://github.com/lightdash/lightdash/commit/3a9b93575d3bb7df2f5d6a6ab3df7c5257b76489))
+
+# [0.2147.0](https://github.com/lightdash/lightdash/compare/0.2146.0...0.2147.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* parameter formatting on big value ([#17908](https://github.com/lightdash/lightdash/issues/17908)) ([4ede7b1](https://github.com/lightdash/lightdash/commit/4ede7b1d8c58fd55e3578228a1e988492e28b453))
+* support lightdash.parameter prefix on labels for parameter formatting ([#17910](https://github.com/lightdash/lightdash/issues/17910)) ([868050f](https://github.com/lightdash/lightdash/commit/868050fbc0c7a0290bd134f79916ae6af9620ba1))
+
+
+### Features
+
+* add project role management to SCIM user updates ([#17894](https://github.com/lightdash/lightdash/issues/17894)) ([fcf1160](https://github.com/lightdash/lightdash/commit/fcf1160cc8256d10ff3bfd3ed91360579857d050))
+
+# [0.2146.0](https://github.com/lightdash/lightdash/compare/0.2145.0...0.2146.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* scheduled deliveries with multiple targets are not delivering the email to everyone ([#17917](https://github.com/lightdash/lightdash/issues/17917)) ([28a8ec2](https://github.com/lightdash/lightdash/commit/28a8ec21a51a5b8230b86276174164e5d790739d))
+
+
+### Features
+
+* improve error message when duplicating content from preview ([#17915](https://github.com/lightdash/lightdash/issues/17915)) ([9f6f37b](https://github.com/lightdash/lightdash/commit/9f6f37b9909ed339d1167ad901bd654403707b5e))
+
+# [0.2145.0](https://github.com/lightdash/lightdash/compare/0.2144.4...0.2145.0) (2025-11-06)
+
+
+### Features
+
+* allow toggling feedback ratings in AI chat assistant ([#17890](https://github.com/lightdash/lightdash/issues/17890)) ([aae166a](https://github.com/lightdash/lightdash/commit/aae166ab50fa0e73045e1b4eba415a2fc0ca6c89))
+
+## [0.2144.4](https://github.com/lightdash/lightdash/compare/0.2144.3...0.2144.4) (2025-11-06)
+
+
+### Bug Fixes
+
+* make the CSV export respect Show Table Names option ([#17696](https://github.com/lightdash/lightdash/issues/17696)) ([6ce2a1f](https://github.com/lightdash/lightdash/commit/6ce2a1f16b61aaef948947aa9ac422e29e473229))
+
+## [0.2144.3](https://github.com/lightdash/lightdash/compare/0.2144.2...0.2144.3) (2025-11-06)
+
+
+### Bug Fixes
+
+* column order was duplicaing customSqlDimenions ([#17903](https://github.com/lightdash/lightdash/issues/17903)) ([5f115eb](https://github.com/lightdash/lightdash/commit/5f115eb3e9f5a5a4ff8ccc86752d5951f4aa7761))
+
+## [0.2144.2](https://github.com/lightdash/lightdash/compare/0.2144.1...0.2144.2) (2025-11-06)
+
+
+### Bug Fixes
+
+* set correct overflow on tables with footer ([#17900](https://github.com/lightdash/lightdash/issues/17900)) ([dd98732](https://github.com/lightdash/lightdash/commit/dd98732ac11b1294aa0e2ad89960f39cdc7c242d)), closes [#17901](https://github.com/lightdash/lightdash/issues/17901)
+
+## [0.2144.1](https://github.com/lightdash/lightdash/compare/0.2144.0...0.2144.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* Agent evals runflow ([#17909](https://github.com/lightdash/lightdash/issues/17909)) ([15c1bd0](https://github.com/lightdash/lightdash/commit/15c1bd02abb8f683bace03415ec235cf79c5f7b7))
+
+# [0.2144.0](https://github.com/lightdash/lightdash/compare/0.2143.3...0.2144.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* update value label font weights in chart styling ([#17823](https://github.com/lightdash/lightdash/issues/17823)) ([464f93c](https://github.com/lightdash/lightdash/commit/464f93cc2358056f16e0dda3349774ebf0fc9d65))
+
+
+### Features
+
+* enhance funnel chart styling and tooltip formatting ([#17827](https://github.com/lightdash/lightdash/issues/17827)) ([f43e24c](https://github.com/lightdash/lightdash/commit/f43e24ceb1294f88efb631e3f1b1f01bfd1bd610))
+* improve treemap chart tooltip styling and formatting ([#17830](https://github.com/lightdash/lightdash/issues/17830)) ([2cc9087](https://github.com/lightdash/lightdash/commit/2cc9087ddc94bdcdbd464be19106038f37f8ca15))
+
 ## [0.2143.3](https://github.com/lightdash/lightdash/compare/0.2143.2...0.2143.3) (2025-11-05)
 
 

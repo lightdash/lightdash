@@ -1340,6 +1340,7 @@ export class ProjectService extends BaseService {
         });
 
         let hasContentCopy = false;
+        let contentCopyError: string | undefined;
 
         if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
             try {
@@ -1359,7 +1360,14 @@ export class ProjectService extends BaseService {
                 }
             } catch (e) {
                 Sentry.captureException(e);
-                this.logger.error(`Unable to copy content on preview ${e}`);
+                contentCopyError = e instanceof Error ? e.message : String(e);
+                this.logger.error(
+                    `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                    {
+                        error: contentCopyError,
+                        stack: e instanceof Error ? e.stack : undefined,
+                    },
+                );
             }
         }
 
@@ -1394,6 +1402,7 @@ export class ProjectService extends BaseService {
         return {
             hasContentCopy,
             project,
+            contentCopyError,
         };
     }
 

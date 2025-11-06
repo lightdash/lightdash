@@ -27,6 +27,8 @@ export class ScimRoleController extends BaseController {
      * @summary List roles
      * @param req express request
      * @param filter Filter to apply to the role list (optional)
+     * @param startIndex SCIM 2.0 startIndex (1-based). Defaults to 1.
+     * @param count SCIM 2.0 count (page size). Defaults to 100.
      */
     @Middlewares([isScimAuthenticated])
     @Get('/')
@@ -35,11 +37,15 @@ export class ScimRoleController extends BaseController {
     async getScimRoles(
         @Request() req: express.Request,
         @Query() filter?: string,
+        @Query() startIndex?: number,
+        @Query() count?: number,
     ): Promise<ScimListResponse<ScimRole>> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         return this.getScimService().listRoles({
             organizationUuid,
             filter,
+            startIndex,
+            itemsPerPage: count,
         });
     }
 
