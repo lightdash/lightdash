@@ -654,6 +654,7 @@ export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
 export type ApiCreateProjectResults = {
     project: Project;
     hasContentCopy: boolean;
+    contentCopyError?: string;
 };
 
 export type ProjectSavedChartStatus = boolean;
