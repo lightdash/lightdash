@@ -9,6 +9,8 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    Box,
+    Grid,
     Group,
     NumberInput,
     Stack,
@@ -16,7 +18,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconGripVertical, IconHelpCircle } from '@tabler/icons-react';
+import { IconHelpCircle } from '@tabler/icons-react';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
@@ -25,6 +27,7 @@ import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
+import { GrabIcon } from '../common/GrabIcon';
 import classes from './DndList.module.css';
 
 export const Layout: React.FC = () => {
@@ -71,28 +74,33 @@ export const Layout: React.FC = () => {
                       >
                           {(provided, snapshot) => (
                               <DraggablePortalHandler snapshot={snapshot}>
-                                  <div
+                                  <Group
+                                      noWrap
+                                      spacing="xs"
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
                                       className={`${classes.item} ${
                                           snapshot.isDragging
                                               ? classes.itemDragging
                                               : ''
                                       }`}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      ref={provided.innerRef}
+                                      style={{
+                                          ...provided.draggableProps.style,
+                                      }}
                                   >
-                                      <div className={classes.dragHandle}>
-                                          <IconGripVertical
-                                              size={18}
-                                              stroke={1.5}
+                                      <Box className={classes.dragHandle}>
+                                          <GrabIcon
+                                              dragHandleProps={
+                                                  provided.dragHandleProps
+                                              }
                                           />
-                                      </div>
-                                      <Text>
+                                      </Box>
+                                      <Text size="xs">
                                           {getItemLabelWithoutTableName(
                                               dimension,
                                           )}
                                       </Text>
-                                  </div>
+                                  </Group>
                               </DraggablePortalHandler>
                           )}
                       </Draggable>
@@ -209,7 +217,7 @@ export const Layout: React.FC = () => {
                         />
                     </Group>
                     {useDynamicColors ? (
-                        <Group spacing="xs">
+                        <Stack spacing="xs">
                             <FieldSelect<Metric | TableCalculation>
                                 placeholder="Select metric"
                                 disabled={numericMetrics.length === 0}
@@ -227,41 +235,60 @@ export const Layout: React.FC = () => {
                                 }}
                                 hasGrouping
                             />
-                            <Group spacing="xs">
-                                <Config.Label>Min color</Config.Label>
-                                <ColorSelector
-                                    color={startColor}
-                                    swatches={ECHARTS_DEFAULT_COLORS}
-                                    withAlpha
-                                    onColorChange={onStartColorChange}
-                                />
-                                <Config.Label>Threshold</Config.Label>
-                                <NumberInput
-                                    value={startColorThreshold}
-                                    onChange={setStartColorThreshold}
-                                    hideControls={true}
-                                    precision={2}
-                                    placeholder="Auto (per-level)"
-                                />
-                            </Group>
-                            <Group spacing="xs">
-                                <Config.Label>Max color</Config.Label>
-                                <ColorSelector
-                                    color={endColor}
-                                    swatches={ECHARTS_DEFAULT_COLORS}
-                                    withAlpha
-                                    onColorChange={onEndColorChange}
-                                />
-                                <Config.Label>Threshold</Config.Label>
-                                <NumberInput
-                                    value={endColorThreshold}
-                                    onChange={setEndColorThreshold}
-                                    hideControls={true}
-                                    precision={2}
-                                    placeholder="Auto (per-level)"
-                                />
-                            </Group>
-                        </Group>
+                            <Grid align="center" gutter="xs">
+                                <Grid.Col span={3}>
+                                    <Config.Label>Min color</Config.Label>
+                                </Grid.Col>
+                                <Grid.Col span={1}>
+                                    <ColorSelector
+                                        color={startColor}
+                                        swatches={ECHARTS_DEFAULT_COLORS}
+                                        withAlpha
+                                        onColorChange={onStartColorChange}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={8}>
+                                    <Group spacing="xs" position="right">
+                                        <Config.Label>Threshold</Config.Label>
+                                        <NumberInput
+                                            value={startColorThreshold}
+                                            onChange={setStartColorThreshold}
+                                            hideControls={true}
+                                            precision={2}
+                                            placeholder="Auto (per-level)"
+                                        />
+                                    </Group>
+                                </Grid.Col>
+                                <Grid.Col span={3}>
+                                    <Config.Label>Max color</Config.Label>
+                                </Grid.Col>
+                                <Grid.Col span={1}>
+                                    <ColorSelector
+                                        color={endColor}
+                                        swatches={ECHARTS_DEFAULT_COLORS}
+                                        withAlpha
+                                        onColorChange={onEndColorChange}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={8}>
+                                    <Group
+                                        noWrap
+                                        w="100%"
+                                        spacing="xs"
+                                        position="right"
+                                    >
+                                        <Config.Label>Threshold</Config.Label>
+                                        <NumberInput
+                                            value={endColorThreshold}
+                                            onChange={setEndColorThreshold}
+                                            hideControls={true}
+                                            precision={2}
+                                            placeholder="Auto (per-level)"
+                                        />
+                                    </Group>
+                                </Grid.Col>
+                            </Grid>
+                        </Stack>
                     ) : null}
                 </Config.Section>
             </Config>
