@@ -1,3 +1,10 @@
+# [0.2149.0](https://github.com/lightdash/lightdash/compare/0.2148.0...0.2149.0) (2025-11-06)
+
+
+### Features
+
+* add duplicate tab functionality ([#16198](https://github.com/lightdash/lightdash/issues/16198)) ([6fc094b](https://github.com/lightdash/lightdash/commit/6fc094b1a76326718707969248efac0a299163d3))
+
 # [0.2148.0](https://github.com/lightdash/lightdash/compare/0.2147.1...0.2148.0) (2025-11-06)
 
 
