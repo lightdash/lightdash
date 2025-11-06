@@ -1,3 +1,10 @@
+## [0.2152.2](https://github.com/lightdash/lightdash/compare/0.2152.1...0.2152.2) (2025-11-06)
+
+
+### Bug Fixes
+
+* duplicated keys in deeply nested sidebar ([#17927](https://github.com/lightdash/lightdash/issues/17927)) ([5cf313c](https://github.com/lightdash/lightdash/commit/5cf313c60382f0fde39713adf13aec9af17b8d9c))
+
 ## [0.2152.1](https://github.com/lightdash/lightdash/compare/0.2152.0...0.2152.1) (2025-11-06)
 
 
