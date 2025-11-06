@@ -1,3 +1,10 @@
+# [0.2152.0](https://github.com/lightdash/lightdash/compare/0.2151.0...0.2152.0) (2025-11-06)
+
+
+### Features
+
+* support chart type jwt tokens ([#17615](https://github.com/lightdash/lightdash/issues/17615)) ([d50de3b](https://github.com/lightdash/lightdash/commit/d50de3baf8bb1ecaad6d255876e60651e59f4835))
+
 # [0.2151.0](https://github.com/lightdash/lightdash/compare/0.2150.0...0.2151.0) (2025-11-06)
 
 
