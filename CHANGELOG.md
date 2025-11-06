@@ -1,3 +1,10 @@
+# [0.2145.0](https://github.com/lightdash/lightdash/compare/0.2144.4...0.2145.0) (2025-11-06)
+
+
+### Features
+
+* allow toggling feedback ratings in AI chat assistant ([#17890](https://github.com/lightdash/lightdash/issues/17890)) ([aae166a](https://github.com/lightdash/lightdash/commit/aae166ab50fa0e73045e1b4eba415a2fc0ca6c89))
+
 ## [0.2144.4](https://github.com/lightdash/lightdash/compare/0.2144.3...0.2144.4) (2025-11-06)
 
 
