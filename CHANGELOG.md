@@ -1,3 +1,10 @@
+## [0.2144.4](https://github.com/lightdash/lightdash/compare/0.2144.3...0.2144.4) (2025-11-06)
+
+
+### Bug Fixes
+
+* make the CSV export respect Show Table Names option ([#17696](https://github.com/lightdash/lightdash/issues/17696)) ([6ce2a1f](https://github.com/lightdash/lightdash/commit/6ce2a1f16b61aaef948947aa9ac422e29e473229))
+
 ## [0.2144.3](https://github.com/lightdash/lightdash/compare/0.2144.2...0.2144.3) (2025-11-06)
 
 
