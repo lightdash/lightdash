@@ -59,7 +59,7 @@ export default abstract class WarehouseBaseClient<
         _rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
         throw new NotImplementedError(
-            `Paginated query results are not supported for warehouse type: ${this.getAdapterType()}`,
+            `Native pagination not supported. Please configure S3 Storage to use ${this.getAdapterType()} - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3`,
         );
     }
 
