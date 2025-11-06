@@ -1,4 +1,4 @@
-import { AXIS_TITLE_COLOR, GRAY_4, GRAY_7, WHITE } from './themeColors';
+import { AXIS_TITLE_COLOR, GRAY_4, GRAY_5, GRAY_7, WHITE } from './themeColors';
 
 /**
  * Get axis label styling (for values like "Jan", "Feb", "Mar")
@@ -42,14 +42,35 @@ export const getAxisTickStyle = () => ({
 
 /**
  * Get axis pointer styling (for highlighting when hovering over series)
+ * @param useLinePointer - Whether to use line pointer (for line/area/scatter charts) or shadow pointer (for bar charts)
  */
-export const getAxisPointerStyle = () => ({
-    type: 'shadow' as const,
-    label: {
-        show: true,
-        fontWeight: 500,
-        fontSize: 11,
-        color: WHITE,
-        backgroundColor: GRAY_7,
-    },
-});
+export const getAxisPointerStyle = (useLinePointer: boolean = false) => {
+    if (useLinePointer) {
+        return {
+            type: 'line' as const,
+            lineStyle: {
+                color: GRAY_5,
+                type: [4, 2], // Dashed: 4px dash, 2px gap
+                width: 1,
+            },
+            label: {
+                show: true,
+                fontWeight: 500,
+                fontSize: 11,
+                color: WHITE,
+                backgroundColor: GRAY_7,
+            },
+        };
+    }
+
+    return {
+        type: 'shadow' as const,
+        label: {
+            show: true,
+            fontWeight: 500,
+            fontSize: 11,
+            color: WHITE,
+            backgroundColor: GRAY_7,
+        },
+    };
+};
