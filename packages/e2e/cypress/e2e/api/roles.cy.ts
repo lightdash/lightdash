@@ -306,7 +306,7 @@ describe('Roles API Tests', () => {
                 // Find the editor system role
                 const editorRole = resp.body.results.find(
                     (role: AnyType) =>
-                        role.ownerType === 'system' && role.name === 'editor',
+                        role.ownerType === 'system' && role.name === 'Editor',
                 );
 
                 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -687,7 +687,7 @@ describe('Roles API Tests', () => {
                                     ).to.eq('editor');
                                     expect(
                                         systemAssignResp.body.results.roleName,
-                                    ).to.eq('editor');
+                                    ).to.eq('Editor');
 
                                     // Step 4: Verify the custom role_uuid was removed and system role applied
                                     cy.request({
