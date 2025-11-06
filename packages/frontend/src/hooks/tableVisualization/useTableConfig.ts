@@ -64,9 +64,7 @@ const useTableConfig = (
     >(tableChartConfig?.conditionalFormattings ?? []);
 
     const [showTableNames, setShowTableNames] = useState<boolean>(
-        tableChartConfig?.showTableNames === undefined
-            ? true
-            : tableChartConfig.showTableNames,
+        tableChartConfig?.showTableNames ?? false,
     );
     const [showResultsTotal, setShowResultsTotal] = useState<boolean>(
         tableChartConfig?.showResultsTotal ?? false,
