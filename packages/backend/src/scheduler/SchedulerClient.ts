@@ -38,6 +38,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
+import { createHash } from 'crypto';
 import { WorkerUtils, makeWorkerUtils } from 'graphile-worker';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -209,9 +210,17 @@ export class SchedulerClient {
                 // Generate job key for scheduled delivery jobs to enable efficient lookup
                 // by the indexed 'key' column instead of scanning JSON payload
                 // We only define keys when there is a schedulerUuid, if it is undefined it means it was a manual run of the task (send now)
+                // Include a hash of the payload to differentiate jobs with different configurations (e.g. send email to different users)
                 const { schedulerUuid } = payload;
                 const jobKey = schedulerUuid
-                    ? `scheduler:${schedulerUuid}:${scheduledAt.getTime()}`
+                    ? (() => {
+                          // Hash the payload (excluding Sentry tracing headers) to create a stable key
+                          const payloadForHash = JSON.stringify(payload);
+                          const payloadHash = createHash('sha256')
+                              .update(payloadForHash)
+                              .digest('hex'); // Use full hash to prevent any collision risk
+                          return `scheduler:${schedulerUuid}:${scheduledAt.getTime()}:${payloadHash}`;
+                      })()
                     : undefined;
 
                 const { id } = await graphileClient.addJob(
