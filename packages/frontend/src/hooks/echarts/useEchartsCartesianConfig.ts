@@ -45,6 +45,7 @@ import {
     isMetric,
     isPivotReferenceWithValues,
     isTableCalculation,
+    LightdashParameters,
     MetricType,
     StackType,
     TableCalculationType,
@@ -601,7 +602,8 @@ const seriesValueFormatter = (
     if (hasValidFormatExpression(item)) {
         // Check if format uses parameter placeholders
         const hasParameterPlaceholders =
-            item.format.includes('${ld.parameters');
+            item.format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) ||
+            item.format.includes(`\${${LightdashParameters.PREFIX}`);
 
         // Evaluate conditional expressions if parameters are provided
         const formatExpression =
