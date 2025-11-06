@@ -1,3 +1,16 @@
+# [0.2144.0](https://github.com/lightdash/lightdash/compare/0.2143.3...0.2144.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* update value label font weights in chart styling ([#17823](https://github.com/lightdash/lightdash/issues/17823)) ([464f93c](https://github.com/lightdash/lightdash/commit/464f93cc2358056f16e0dda3349774ebf0fc9d65))
+
+
+### Features
+
+* enhance funnel chart styling and tooltip formatting ([#17827](https://github.com/lightdash/lightdash/issues/17827)) ([f43e24c](https://github.com/lightdash/lightdash/commit/f43e24ceb1294f88efb631e3f1b1f01bfd1bd610))
+* improve treemap chart tooltip styling and formatting ([#17830](https://github.com/lightdash/lightdash/issues/17830)) ([2cc9087](https://github.com/lightdash/lightdash/commit/2cc9087ddc94bdcdbd464be19106038f37f8ca15))
+
 ## [0.2143.3](https://github.com/lightdash/lightdash/compare/0.2143.2...0.2143.3) (2025-11-05)
 
 
