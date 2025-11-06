@@ -1,3 +1,15 @@
+# [0.2146.0](https://github.com/lightdash/lightdash/compare/0.2145.0...0.2146.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* scheduled deliveries with multiple targets are not delivering the email to everyone ([#17917](https://github.com/lightdash/lightdash/issues/17917)) ([28a8ec2](https://github.com/lightdash/lightdash/commit/28a8ec21a51a5b8230b86276174164e5d790739d))
+
+
+### Features
+
+* improve error message when duplicating content from preview ([#17915](https://github.com/lightdash/lightdash/issues/17915)) ([9f6f37b](https://github.com/lightdash/lightdash/commit/9f6f37b9909ed339d1167ad901bd654403707b5e))
+
 # [0.2145.0](https://github.com/lightdash/lightdash/compare/0.2144.4...0.2145.0) (2025-11-06)
 
 
