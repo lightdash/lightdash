@@ -6254,11 +6254,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -6273,11 +6273,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -22218,6 +22218,8 @@ export function RegisterRoutes(app: Router) {
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         filter: { in: 'query', name: 'filter', dataType: 'string' },
+        startIndex: { in: 'query', name: 'startIndex', dataType: 'double' },
+        count: { in: 'query', name: 'count', dataType: 'double' },
     };
     app.get(
         '/api/v1/scim/v2/Roles',
