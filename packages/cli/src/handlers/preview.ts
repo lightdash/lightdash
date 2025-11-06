@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import {
+    ApiProjectResponse,
     CreateProjectTableConfiguration,
     Project,
     ProjectType,
@@ -140,8 +141,50 @@ export const previewHandler = async (
 
     let project: Project | undefined;
     let hasContentCopy = false;
+    let contentCopyError: string | undefined;
 
     const config = await getConfig();
+
+    // Validate upstream project before attempting to copy content
+    let upstreamProjectValid = false;
+    if (config.context?.project && !options.skipCopyContent) {
+        try {
+            GlobalState.debug(
+                `> Validating upstream project: ${config.context.project}`,
+            );
+            const upstreamProject = await lightdashApi<ApiProjectResponse>({
+                method: 'GET',
+                url: `/api/v1/projects/${config.context.project}`,
+                body: undefined,
+            });
+            upstreamProjectValid =
+                upstreamProject.results.projectUuid === config.context.project;
+            if (!upstreamProjectValid) {
+                console.error(
+                    styles.warning(
+                        `\n\nWarning: Cannot access upstream project "${
+                            config.context.projectName || config.context.project
+                        }"\n` +
+                            `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
+                    ),
+                );
+            }
+        } catch (e) {
+            GlobalState.debug(
+                `> Upstream project validation failed: ${
+                    e instanceof Error ? e.message : String(e)
+                }`,
+            );
+            console.error(
+                styles.warning(
+                    `\n\nWarning: Cannot access upstream project "${
+                        config.context.projectName || config.context.project
+                    }"\n` +
+                        `Content will not be copied. Please run 'lightdash config set-project' to set a valid project.\n`,
+                ),
+            );
+        }
+    }
 
     if (!config.context?.project) {
         console.error(
@@ -155,7 +198,7 @@ export const previewHandler = async (
                 `\n\nDeveloper preview will be deployed without any copied content!\n`,
             ),
         );
-    } else {
+    } else if (upstreamProjectValid) {
         console.error(
             `\n${styles.success('✔')}   Copying charts and dashboards from "${
                 config.context?.projectName || 'source project'
@@ -168,12 +211,16 @@ export const previewHandler = async (
             ...options,
             name,
             type: ProjectType.PREVIEW,
-            upstreamProjectUuid: config.context?.project,
-            copyContent: !options.skipCopyContent,
+            upstreamProjectUuid:
+                upstreamProjectValid && config.context?.project
+                    ? config.context.project
+                    : undefined,
+            copyContent: !options.skipCopyContent && upstreamProjectValid,
         });
 
         project = results?.project;
         hasContentCopy = Boolean(results?.hasContentCopy);
+        contentCopyError = results?.contentCopyError;
     } catch (e) {
         GlobalState.debug(`> Unable to create project: ${e}`);
         spinner.fail();
@@ -219,11 +266,10 @@ export const previewHandler = async (
         });
 
         if (!hasContentCopy) {
-            console.error(
-                styles.warning(
-                    `\n\nDeveloper preview deployed without any copied content!\n`,
-                ),
-            );
+            const errorMessage = `\n\nDeveloper preview deployed without any copied content!\n ${
+                contentCopyError ? `Error: ${contentCopyError}\n` : ''
+            }`;
+            console.error(styles.warning(errorMessage));
         }
 
         spinner.succeed(
