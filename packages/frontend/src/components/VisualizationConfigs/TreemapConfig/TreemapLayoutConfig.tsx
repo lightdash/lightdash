@@ -143,18 +143,7 @@ export const Layout: React.FC = () => {
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
                                 >
-                                    {/* <Stack
-                                        spacing="md"
-                                        gap="md"
-                                        // sx={(theme) => ({
-                                        //     padding: theme.spacing.xs,
-                                        //     backgroundColor:
-                                        //         theme.colors.gray['0'],
-                                        //     borderRadius: theme.radius.sm,
-                                        // })}
-                                    > */}
                                     {orderedDimensions}
-                                    {/* </Stack> */}
                                     {provided.placeholder}
                                 </div>
                             )}
@@ -247,26 +236,16 @@ export const Layout: React.FC = () => {
                                 hasGrouping
                             />
                             <Grid align="center" gutter="xs">
-                                <Grid.Col span={4}>
-                                    <Group>
-                                        <Box w={60}>
-                                            <Config.Label>
-                                                Min color
-                                            </Config.Label>
-                                        </Box>
-                                        <Box w={10}>
-                                            <ColorSelector
-                                                color={startColor}
-                                                swatches={
-                                                    ECHARTS_DEFAULT_COLORS
-                                                }
-                                                withAlpha
-                                                onColorChange={
-                                                    onStartColorChange
-                                                }
-                                            />
-                                        </Box>
-                                    </Group>
+                                <Grid.Col span={3}>
+                                    <Config.Label>Min color</Config.Label>
+                                </Grid.Col>
+                                <Grid.Col span={1}>
+                                    <ColorSelector
+                                        color={startColor}
+                                        swatches={ECHARTS_DEFAULT_COLORS}
+                                        withAlpha
+                                        onColorChange={onStartColorChange}
+                                    />
                                 </Grid.Col>
                                 <Grid.Col span={8}>
                                     <Group spacing="xs" position="right">
@@ -280,24 +259,16 @@ export const Layout: React.FC = () => {
                                         />
                                     </Group>
                                 </Grid.Col>
-                                <Grid.Col span={4}>
-                                    <Group>
-                                        <Box w={60}>
-                                            <Config.Label>
-                                                Max color
-                                            </Config.Label>
-                                        </Box>
-                                        <Box w={10}>
-                                            <ColorSelector
-                                                color={endColor}
-                                                swatches={
-                                                    ECHARTS_DEFAULT_COLORS
-                                                }
-                                                withAlpha
-                                                onColorChange={onEndColorChange}
-                                            />
-                                        </Box>
-                                    </Group>
+                                <Grid.Col span={3}>
+                                    <Config.Label>Max color</Config.Label>
+                                </Grid.Col>
+                                <Grid.Col span={1}>
+                                    <ColorSelector
+                                        color={endColor}
+                                        swatches={ECHARTS_DEFAULT_COLORS}
+                                        withAlpha
+                                        onColorChange={onEndColorChange}
+                                    />
                                 </Grid.Col>
                                 <Grid.Col span={8}>
                                     <Group
