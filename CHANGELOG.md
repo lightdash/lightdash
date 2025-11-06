@@ -1,3 +1,10 @@
+## [0.2144.3](https://github.com/lightdash/lightdash/compare/0.2144.2...0.2144.3) (2025-11-06)
+
+
+### Bug Fixes
+
+* column order was duplicaing customSqlDimenions ([#17903](https://github.com/lightdash/lightdash/issues/17903)) ([5f115eb](https://github.com/lightdash/lightdash/commit/5f115eb3e9f5a5a4ff8ccc86752d5951f4aa7761))
+
 ## [0.2144.2](https://github.com/lightdash/lightdash/compare/0.2144.1...0.2144.2) (2025-11-06)
 
 
