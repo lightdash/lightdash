@@ -1,3 +1,16 @@
+# [0.2147.0](https://github.com/lightdash/lightdash/compare/0.2146.0...0.2147.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* parameter formatting on big value ([#17908](https://github.com/lightdash/lightdash/issues/17908)) ([4ede7b1](https://github.com/lightdash/lightdash/commit/4ede7b1d8c58fd55e3578228a1e988492e28b453))
+* support lightdash.parameter prefix on labels for parameter formatting ([#17910](https://github.com/lightdash/lightdash/issues/17910)) ([868050f](https://github.com/lightdash/lightdash/commit/868050fbc0c7a0290bd134f79916ae6af9620ba1))
+
+
+### Features
+
+* add project role management to SCIM user updates ([#17894](https://github.com/lightdash/lightdash/issues/17894)) ([fcf1160](https://github.com/lightdash/lightdash/commit/fcf1160cc8256d10ff3bfd3ed91360579857d050))
+
 # [0.2146.0](https://github.com/lightdash/lightdash/compare/0.2145.0...0.2146.0) (2025-11-06)
 
 
