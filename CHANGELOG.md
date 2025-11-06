@@ -1,3 +1,10 @@
+## [0.2144.1](https://github.com/lightdash/lightdash/compare/0.2144.0...0.2144.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* Agent evals runflow ([#17909](https://github.com/lightdash/lightdash/issues/17909)) ([15c1bd0](https://github.com/lightdash/lightdash/commit/15c1bd02abb8f683bace03415ec235cf79c5f7b7))
+
 # [0.2144.0](https://github.com/lightdash/lightdash/compare/0.2143.3...0.2144.0) (2025-11-06)
 
 
