@@ -56,4 +56,5 @@ export type TableTreeContext = TreeProviderProps & {
     searchResults: string[];
     isVirtualized?: boolean; // Flag to prevent group nodes from rendering children inline
     depth?: number; // Nesting depth for indentation in virtualized mode
+    groupKey?: string; // Pre-computed group key (for virtualized tree with parent paths)
 };

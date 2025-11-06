@@ -3,12 +3,7 @@ import TreeContext from '../Tree/TreeContext';
 import TreeGroupNode from '../Tree/TreeGroupNode';
 import TreeSingleNode from '../Tree/TreeSingleNode';
 import { isGroupNode } from '../Tree/types';
-import {
-    buildGroupKey,
-    TreeSection,
-    type SectionContext,
-    type TreeNodeItem,
-} from './types';
+import { TreeSection, type SectionContext, type TreeNodeItem } from './types';
 
 interface VirtualTreeNodeProps {
     item: TreeNodeItem;
@@ -59,12 +54,8 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
         // This is used by TreeGroupNode to determine chevron rotation
         const expandedGroups = new Set<string>();
         if (isGroup && isExpanded) {
-            const groupKey = buildGroupKey(
-                sectionContext.tableName,
-                sectionContext.sectionType,
-                node.key,
-            );
-            expandedGroups.add(groupKey);
+            // Use item.id which already contains the unique key with parent path
+            expandedGroups.add(item.id);
         }
 
         return {
@@ -99,6 +90,7 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
             onToggleGroup,
             isVirtualized: true, // Flag to prevent inline children rendering
             depth, // Nesting depth for indentation
+            groupKey: isGroup ? item.id : undefined, // Pre-computed unique group key with parent path
         };
     }, [
         sectionContext,
@@ -107,7 +99,7 @@ const VirtualTreeNodeComponent: FC<VirtualTreeNodeProps> = ({
         onToggleGroup,
         isGroup,
         isExpanded,
-        node.key,
+        item.id,
     ]);
 
     if (!sectionContext) {
