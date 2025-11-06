@@ -2,7 +2,13 @@ import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    IconCopy,
+    IconDotsVertical,
+    IconGripVertical,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
@@ -17,6 +23,7 @@ type DraggableTabProps = {
     setEditingTab: Dispatch<SetStateAction<boolean>>;
     setDeletingTab: Dispatch<SetStateAction<boolean>>;
     handleDeleteTab: (tabUuid: string) => void;
+    handleDuplicateTab: (tabUuid: string) => void;
 };
 
 const DraggableTab: FC<DraggableTabProps> = ({
@@ -28,6 +35,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     isActive,
     setEditingTab,
     handleDeleteTab,
+    handleDuplicateTab,
     setDeletingTab,
 }) => {
     const { hovered: isHovered, ref: hoverRef } = useHover();
@@ -61,7 +69,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 isEditMode ? (
                                     <Box {...provided.dragHandleProps} w={'sm'}>
                                         <MantineIcon
-                                            display={isHovered ? 'block' : 'none'}
+                                            display={
+                                                isHovered ? 'block' : 'none'
+                                            }
                                             size="sm"
                                             color="gray.6"
                                             icon={IconGripVertical}
@@ -78,21 +88,36 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         shadow="md"
                                     >
                                         <Menu.Target>
-                                            <ActionIcon variant="subtle" size="xs">
+                                            <ActionIcon
+                                                variant="subtle"
+                                                size="xs"
+                                            >
                                                 <MantineIcon
-                                                    icon={IconPencil}
+                                                    icon={IconDotsVertical}
                                                     display={
-                                                        isHovered ? 'block' : 'none'
+                                                        isHovered
+                                                            ? 'block'
+                                                            : 'none'
                                                     }
                                                 />
                                             </ActionIcon>
                                         </Menu.Target>
                                         <Menu.Dropdown>
                                             <Menu.Item
-                                                onClick={() => setEditingTab(true)}
+                                                onClick={() =>
+                                                    setEditingTab(true)
+                                                }
                                                 icon={<IconPencil size={14} />}
                                             >
                                                 Rename Tab
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                onClick={() =>
+                                                    handleDuplicateTab(tab.uuid)
+                                                }
+                                                icon={<IconCopy size={14} />}
+                                            >
+                                                Duplicate Tab
                                             </Menu.Item>
                                             {sortedTabs.length === 1 ||
                                             !currentTabHasTiles ? (
@@ -100,11 +125,15 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                     onClick={(
                                                         e: React.MouseEvent<HTMLButtonElement>,
                                                     ) => {
-                                                        handleDeleteTab(tab.uuid);
+                                                        handleDeleteTab(
+                                                            tab.uuid,
+                                                        );
                                                         e.stopPropagation();
                                                     }}
                                                     color="red"
-                                                    icon={<IconTrash size={14} />}
+                                                    icon={
+                                                        <IconTrash size={14} />
+                                                    }
                                                 >
                                                     Remove Tab
                                                 </Menu.Item>
@@ -114,7 +143,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         setDeletingTab(true)
                                                     }
                                                     color="red"
-                                                    icon={<IconTrash size={14} />}
+                                                    icon={
+                                                        <IconTrash size={14} />
+                                                    }
                                                 >
                                                     Safely Remove Tab
                                                 </Menu.Item>
