@@ -4,7 +4,6 @@ import {
     CustomFormatType,
     applyCustomFormat,
     formatItemValue,
-    formatValueWithExpression,
     friendlyName,
     getCustomFormatFromLegacy,
     getItemId,
@@ -266,7 +265,7 @@ const useBigNumberConfig = (
             hasValidFormatExpression(item) &&
             !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
         ) {
-            return formatValueWithExpression(item.format, firstRowValueRaw);
+            return formatItemValue(item, firstRowValueRaw, false, parameters);
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case
 
