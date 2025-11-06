@@ -22,6 +22,7 @@ export const getTooltipStyle = () => ({
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: WHITE,
+    appendToBody: true,
     textStyle: {
         color: GRAY_7,
         fontSize: 12,
