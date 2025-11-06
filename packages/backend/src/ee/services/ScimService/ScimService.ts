@@ -407,6 +407,13 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            // Validate roles if provided
+            const { allScimRoles } = await this.getAllRoles(organizationUuid);
+            if (user.roles !== undefined) {
+                const validRoleValues = allScimRoles.map((role) => role.value);
+                // Throws error if roles are not valid
+                ScimService.validateRolesArray(user.roles, validRoleValues);
+            }
             const email = ScimService.getScimUserEmail(user);
             const dbUser = await this.userModel.createUser(
                 {
@@ -444,6 +451,15 @@ export class ScimService extends BaseService {
                     role,
                 },
             );
+
+            // Add user roles to all projects
+            await this.upsertUserRoles({
+                organizationUuid,
+                userUuid: dbUser.userUuid,
+                roles: user.roles,
+                currentOrgRole: role,
+            });
+
             // verify user email on create if coming from scim
             await this.emailModel.verifyUserEmailIfExists(
                 dbUser.userUuid,
@@ -468,7 +484,6 @@ export class ScimService extends BaseService {
             });
 
             // Get user project roles
-            const { allScimRoles } = await this.getAllRoles(organizationUuid);
             const userRoles = await this.getUserScimRoles(dbUser, allScimRoles);
 
             // Construct SCIM-compliant response
@@ -552,37 +567,13 @@ export class ScimService extends BaseService {
                 },
             );
 
-            if (user.roles !== undefined && user.roles.length > 0) {
-                await Promise.all(
-                    user.roles.map(async (role) => {
-                        const { roleUuid, projectUuid } =
-                            ScimService.parseRoleId(role.value);
-                        if (projectUuid) {
-                            if (isSystemRole(roleUuid)) {
-                                await this.rolesModel.upsertSystemRoleProjectAccess(
-                                    projectUuid,
-                                    userUuid,
-                                    roleUuid,
-                                );
-                            } else {
-                                await this.rolesModel.upsertCustomRoleProjectAccess(
-                                    projectUuid,
-                                    userUuid,
-                                    roleUuid,
-                                );
-                            }
-                        } else if (isOrganizationMemberRole(roleUuid)) {
-                            await this.organizationMemberProfileModel.updateOrganizationMember(
-                                organizationUuid,
-                                userUuid,
-                                {
-                                    role: roleUuid,
-                                },
-                            );
-                        }
-                    }),
-                );
-            }
+            // Update user org and project roles
+            await this.upsertUserRoles({
+                organizationUuid,
+                userUuid,
+                roles: user.roles,
+                currentOrgRole: updatedUser.role,
+            });
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
@@ -734,6 +725,57 @@ export class ScimService extends BaseService {
                 detail: 'Failed to update SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+        }
+    }
+
+    /*
+     * Update user organization and project roles
+     */
+    private async upsertUserRoles({
+        organizationUuid,
+        userUuid,
+        roles,
+        currentOrgRole,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        roles: ScimUser['roles'];
+        currentOrgRole: string | undefined;
+    }) {
+        if (roles !== undefined && roles.length > 0) {
+            await Promise.all(
+                roles.map(async (role) => {
+                    const { roleUuid, projectUuid } = ScimService.parseRoleId(
+                        role.value,
+                    );
+                    if (projectUuid) {
+                        if (isSystemRole(roleUuid)) {
+                            await this.rolesModel.upsertSystemRoleProjectAccess(
+                                projectUuid,
+                                userUuid,
+                                roleUuid,
+                            );
+                        } else {
+                            await this.rolesModel.upsertCustomRoleProjectAccess(
+                                projectUuid,
+                                userUuid,
+                                roleUuid,
+                            );
+                        }
+                    } else if (
+                        isOrganizationMemberRole(roleUuid) &&
+                        roleUuid !== currentOrgRole
+                    ) {
+                        await this.organizationMemberProfileModel.updateOrganizationMember(
+                            organizationUuid,
+                            userUuid,
+                            {
+                                role: roleUuid,
+                            },
+                        );
+                    }
+                }),
+            );
         }
     }
 
