@@ -35,7 +35,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     isActive,
     setEditingTab,
     handleDeleteTab,
-                                                 handleDuplicateTab,
+    handleDuplicateTab,
     setDeletingTab,
 }) => {
     const { hovered: isHovered, ref: hoverRef } = useHover();
@@ -69,7 +69,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 isEditMode ? (
                                     <Box {...provided.dragHandleProps} w={'sm'}>
                                         <MantineIcon
-                                            display={isHovered ? 'block' : 'none'}
+                                            display={
+                                                isHovered ? 'block' : 'none'
+                                            }
                                             size="sm"
                                             color="gray.6"
                                             icon={IconGripVertical}
@@ -86,24 +88,33 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         shadow="md"
                                     >
                                         <Menu.Target>
-                                            <ActionIcon variant="subtle" size="xs">
+                                            <ActionIcon
+                                                variant="subtle"
+                                                size="xs"
+                                            >
                                                 <MantineIcon
                                                     icon={IconDotsVertical}
                                                     display={
-                                                        isHovered ? 'block' : 'none'
+                                                        isHovered
+                                                            ? 'block'
+                                                            : 'none'
                                                     }
                                                 />
                                             </ActionIcon>
                                         </Menu.Target>
                                         <Menu.Dropdown>
                                             <Menu.Item
-                                                onClick={() => setEditingTab(true)}
+                                                onClick={() =>
+                                                    setEditingTab(true)
+                                                }
                                                 icon={<IconPencil size={14} />}
                                             >
                                                 Rename Tab
                                             </Menu.Item>
                                             <Menu.Item
-                                                onClick={() => handleDuplicateTab(tab.uuid)}
+                                                onClick={() =>
+                                                    handleDuplicateTab(tab.uuid)
+                                                }
                                                 icon={<IconCopy size={14} />}
                                             >
                                                 Duplicate Tab
@@ -114,11 +125,15 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                     onClick={(
                                                         e: React.MouseEvent<HTMLButtonElement>,
                                                     ) => {
-                                                        handleDeleteTab(tab.uuid);
+                                                        handleDeleteTab(
+                                                            tab.uuid,
+                                                        );
                                                         e.stopPropagation();
                                                     }}
                                                     color="red"
-                                                    icon={<IconTrash size={14} />}
+                                                    icon={
+                                                        <IconTrash size={14} />
+                                                    }
                                                 >
                                                     Remove Tab
                                                 </Menu.Item>
@@ -128,7 +143,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         setDeletingTab(true)
                                                     }
                                                     color="red"
-                                                    icon={<IconTrash size={14} />}
+                                                    icon={
+                                                        <IconTrash size={14} />
+                                                    }
                                                 >
                                                     Safely Remove Tab
                                                 </Menu.Item>
