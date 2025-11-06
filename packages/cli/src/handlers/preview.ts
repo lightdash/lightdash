@@ -288,6 +288,7 @@ export const previewHandler = async (
         const absoluteProjectPath = path.resolve(options.projectDir);
         const context = await getDbtContext({
             projectDir: absoluteProjectPath,
+            targetPath: options.targetPath,
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 

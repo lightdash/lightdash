@@ -315,6 +315,11 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
     .option('--vars <vars>')
     .option('--threads <number>')
     .option('--no-version-check')
@@ -380,6 +385,11 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
     .option('--vars <vars>')
     .option(
         '--defer',
@@ -467,6 +477,11 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
     .option('--vars <vars>')
     .option(
         '--defer',
@@ -630,6 +645,11 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
     .option('--vars <vars>')
     .option('--threads <number>')
     .option('--no-version-check')
@@ -822,6 +842,11 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
     .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option('--skip-existing', 'skip files that already exist', false)

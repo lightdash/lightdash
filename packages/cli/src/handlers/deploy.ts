@@ -133,6 +133,7 @@ const createNewProject = async (
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
+        targetPath: options.targetPath,
     });
     const dbtName = friendlyName(context.projectName);
 
