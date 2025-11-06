@@ -2,8 +2,10 @@ import {
     ScimErrorPayload,
     ScimListResponse,
     ScimRole,
+    ScimSchemaType,
 } from '@lightdash/common';
 import {
+    Example,
     Get,
     Middlewares,
     OperationId,
@@ -34,6 +36,55 @@ export class ScimRoleController extends BaseController {
     @Get('/')
     @OperationId('GetScimRoles')
     @Response<ScimListResponse<ScimRole>>('200', 'Success')
+    @Example<ScimListResponse<ScimRole>>({
+        schemas: [ScimSchemaType.LIST_RESPONSE],
+        totalResults: 3,
+        itemsPerPage: 3,
+        startIndex: 1,
+        Resources: [
+            {
+                schemas: [ScimSchemaType.ROLE],
+                id: 'member',
+                value: 'member',
+                display: 'Member',
+                type: 'Organization',
+                supported: true,
+                meta: {
+                    resourceType: 'Role',
+                    location:
+                        'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/member',
+                },
+            },
+            {
+                schemas: [ScimSchemaType.ROLE],
+                id: '3675b69e-8324-4110-bdca-059031aa8da3:viewer',
+                value: '3675b69e-8324-4110-bdca-059031aa8da3:viewer',
+                display: 'Jaffle shop - Viewer',
+                type: 'Project - Jaffle shop',
+                supported: true,
+                meta: {
+                    resourceType: 'Role',
+                    location:
+                        'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/3675b69e-8324-4110-bdca-059031aa8da3:viewer',
+                },
+            },
+            {
+                schemas: [ScimSchemaType.ROLE],
+                id: '3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d',
+                value: '3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d',
+                display: 'Jaffle shop - test',
+                type: 'Project - Jaffle shop',
+                supported: true,
+                meta: {
+                    resourceType: 'Role',
+                    created: new Date('2025-11-03T17:01:45.447Z'),
+                    lastModified: new Date('2025-11-03T17:01:45.447Z'),
+                    location:
+                        'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d',
+                },
+            },
+        ],
+    })
     async getScimRoles(
         @Request() req: express.Request,
         @Query() filter?: string,
@@ -60,6 +111,19 @@ export class ScimRoleController extends BaseController {
     @OperationId('GetScimRole')
     @Response<ScimRole>('200', 'Success')
     @Response<ScimErrorPayload>('404', 'Not found')
+    @Example<ScimRole>({
+        schemas: [ScimSchemaType.ROLE],
+        id: 'member',
+        value: 'member',
+        display: 'Member',
+        type: 'Organization',
+        supported: true,
+        meta: {
+            resourceType: 'Role',
+            location:
+                'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/member',
+        },
+    })
     async getScimRole(
         @Request() req: express.Request,
         @Path() roleId: string,

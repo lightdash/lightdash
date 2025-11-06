@@ -21918,6 +21918,57 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimListResponse_ScimUser_"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                                            ],
+                                            "totalResults": 1,
+                                            "itemsPerPage": 1,
+                                            "startIndex": 1,
+                                            "Resources": [
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:User"
+                                                    ],
+                                                    "id": "e0dd2003-c291-4e14-b977-7a03b7edc842",
+                                                    "userName": "demo3@lightdash.com",
+                                                    "name": {
+                                                        "givenName": "Viewer",
+                                                        "familyName": "User"
+                                                    },
+                                                    "active": true,
+                                                    "emails": [
+                                                        {
+                                                            "value": "demo3@lightdash.com",
+                                                            "primary": true
+                                                        }
+                                                    ],
+                                                    "roles": [
+                                                        {
+                                                            "value": "viewer",
+                                                            "display": "Viewer",
+                                                            "type": "Organization"
+                                                        },
+                                                        {
+                                                            "value": "3675b69e-8324-4110-bdca-059031aa8da3:editor",
+                                                            "display": "Jaffle shop - Editor",
+                                                            "type": "Project - Jaffle shop",
+                                                            "primary": false
+                                                        }
+                                                    ],
+                                                    "meta": {
+                                                        "resourceType": "User",
+                                                        "created": "2025-11-03T14:22:18.464Z",
+                                                        "lastModified": "2025-11-05T15:04:02.687Z",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Users/e0dd2003-c291-4e14-b977-7a03b7edc842"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22032,6 +22083,47 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimUser"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:core:2.0:User"
+                                            ],
+                                            "id": "e0dd2003-c291-4e14-b977-7a03b7edc842",
+                                            "userName": "demo3@lightdash.com",
+                                            "name": {
+                                                "givenName": "Viewer",
+                                                "familyName": "User"
+                                            },
+                                            "active": true,
+                                            "emails": [
+                                                {
+                                                    "value": "demo3@lightdash.com",
+                                                    "primary": true
+                                                }
+                                            ],
+                                            "roles": [
+                                                {
+                                                    "value": "viewer",
+                                                    "display": "Viewer",
+                                                    "type": "Organization"
+                                                },
+                                                {
+                                                    "value": "3675b69e-8324-4110-bdca-059031aa8da3:editor",
+                                                    "display": "Jaffle shop - Editor",
+                                                    "type": "Project - Jaffle shop",
+                                                    "primary": false
+                                                }
+                                            ],
+                                            "meta": {
+                                                "resourceType": "User",
+                                                "created": "2025-11-03T14:22:18.464Z",
+                                                "lastModified": "2025-11-05T15:04:02.687Z",
+                                                "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Users/e0dd2003-c291-4e14-b977-7a03b7edc842"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22271,6 +22363,74 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimListResponse_ScimSchema_"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                                            ],
+                                            "totalResults": 1,
+                                            "itemsPerPage": 1,
+                                            "startIndex": 1,
+                                            "Resources": [
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:Schema"
+                                                    ],
+                                                    "id": "urn:ietf:params:scim:schemas:extension:2.0:Role",
+                                                    "name": "Role",
+                                                    "description": "Role Schema",
+                                                    "attributes": [
+                                                        {
+                                                            "name": "value",
+                                                            "type": "string",
+                                                            "multiValued": false,
+                                                            "description": "The value of the role",
+                                                            "required": true,
+                                                            "caseExact": false,
+                                                            "mutability": "readOnly",
+                                                            "returned": "default",
+                                                            "uniqueness": "none"
+                                                        },
+                                                        {
+                                                            "name": "display",
+                                                            "type": "string",
+                                                            "multiValued": false,
+                                                            "description": "Human-readable name for the role",
+                                                            "required": false,
+                                                            "caseExact": false,
+                                                            "mutability": "readOnly",
+                                                            "returned": "default",
+                                                            "uniqueness": "none"
+                                                        },
+                                                        {
+                                                            "name": "type",
+                                                            "type": "string",
+                                                            "multiValued": false,
+                                                            "description": "Label indicating the role function",
+                                                            "required": false,
+                                                            "caseExact": false,
+                                                            "mutability": "readOnly",
+                                                            "returned": "default",
+                                                            "uniqueness": "none"
+                                                        },
+                                                        {
+                                                            "name": "supported",
+                                                            "type": "boolean",
+                                                            "multiValued": false,
+                                                            "description": "Boolean indicating if the role is usable",
+                                                            "required": true,
+                                                            "caseExact": false,
+                                                            "mutability": "readOnly",
+                                                            "returned": "default",
+                                                            "uniqueness": "none"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22293,6 +22453,64 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimSchema"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:core:2.0:Schema"
+                                            ],
+                                            "id": "urn:ietf:params:scim:schemas:extension:2.0:Role",
+                                            "name": "Role",
+                                            "description": "Role Schema",
+                                            "attributes": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "string",
+                                                    "multiValued": false,
+                                                    "description": "The value of the role",
+                                                    "required": true,
+                                                    "caseExact": false,
+                                                    "mutability": "readOnly",
+                                                    "returned": "default",
+                                                    "uniqueness": "none"
+                                                },
+                                                {
+                                                    "name": "display",
+                                                    "type": "string",
+                                                    "multiValued": false,
+                                                    "description": "Human-readable name for the role",
+                                                    "required": false,
+                                                    "caseExact": false,
+                                                    "mutability": "readOnly",
+                                                    "returned": "default",
+                                                    "uniqueness": "none"
+                                                },
+                                                {
+                                                    "name": "type",
+                                                    "type": "string",
+                                                    "multiValued": false,
+                                                    "description": "Label indicating the role function",
+                                                    "required": false,
+                                                    "caseExact": false,
+                                                    "mutability": "readOnly",
+                                                    "returned": "default",
+                                                    "uniqueness": "none"
+                                                },
+                                                {
+                                                    "name": "supported",
+                                                    "type": "boolean",
+                                                    "multiValued": false,
+                                                    "description": "Boolean indicating if the role is usable",
+                                                    "required": true,
+                                                    "caseExact": false,
+                                                    "mutability": "readOnly",
+                                                    "returned": "default",
+                                                    "uniqueness": "none"
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22325,6 +22543,68 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimListResponse_ScimResourceType_"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                                            ],
+                                            "totalResults": 3,
+                                            "itemsPerPage": 3,
+                                            "startIndex": 1,
+                                            "Resources": [
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+                                                    ],
+                                                    "id": "User",
+                                                    "name": "User",
+                                                    "description": "User Account",
+                                                    "endpoint": "/Users",
+                                                    "schema": "urn:ietf:params:scim:schemas:core:2.0:User",
+                                                    "schemaExtensions": [
+                                                        {
+                                                            "schema": "urn:lightdash:params:scim:schemas:extension:2.0:User",
+                                                            "required": false
+                                                        }
+                                                    ],
+                                                    "meta": {
+                                                        "resourceType": "ResourceType",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/ResourceTypes/User"
+                                                    }
+                                                },
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+                                                    ],
+                                                    "id": "Group",
+                                                    "name": "Group",
+                                                    "description": "Group",
+                                                    "endpoint": "/Groups",
+                                                    "schema": "urn:ietf:params:scim:schemas:core:2.0:Group",
+                                                    "meta": {
+                                                        "resourceType": "ResourceType",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/ResourceTypes/Group"
+                                                    }
+                                                },
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+                                                    ],
+                                                    "id": "Role",
+                                                    "name": "Role",
+                                                    "description": "Role",
+                                                    "endpoint": "/Roles",
+                                                    "schema": "urn:ietf:params:scim:schemas:extension:2.0:Role",
+                                                    "meta": {
+                                                        "resourceType": "ResourceType",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/ResourceTypes/Role"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22347,6 +22627,30 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimResourceType"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+                                            ],
+                                            "id": "User",
+                                            "name": "User",
+                                            "description": "User Account",
+                                            "endpoint": "/Users",
+                                            "schema": "urn:ietf:params:scim:schemas:core:2.0:User",
+                                            "schemaExtensions": [
+                                                {
+                                                    "schema": "urn:lightdash:params:scim:schemas:extension:2.0:User",
+                                                    "required": false
+                                                }
+                                            ],
+                                            "meta": {
+                                                "resourceType": "ResourceType",
+                                                "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/ResourceTypes/User"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22379,6 +22683,64 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimListResponse_ScimRole_"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                                            ],
+                                            "totalResults": 3,
+                                            "itemsPerPage": 3,
+                                            "startIndex": 1,
+                                            "Resources": [
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:extension:2.0:Role"
+                                                    ],
+                                                    "id": "member",
+                                                    "value": "member",
+                                                    "display": "Member",
+                                                    "type": "Organization",
+                                                    "supported": true,
+                                                    "meta": {
+                                                        "resourceType": "Role",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/member"
+                                                    }
+                                                },
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:extension:2.0:Role"
+                                                    ],
+                                                    "id": "3675b69e-8324-4110-bdca-059031aa8da3:viewer",
+                                                    "value": "3675b69e-8324-4110-bdca-059031aa8da3:viewer",
+                                                    "display": "Jaffle shop - Viewer",
+                                                    "type": "Project - Jaffle shop",
+                                                    "supported": true,
+                                                    "meta": {
+                                                        "resourceType": "Role",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/3675b69e-8324-4110-bdca-059031aa8da3:viewer"
+                                                    }
+                                                },
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:extension:2.0:Role"
+                                                    ],
+                                                    "id": "3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d",
+                                                    "value": "3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d",
+                                                    "display": "Jaffle shop - test",
+                                                    "type": "Project - Jaffle shop",
+                                                    "supported": true,
+                                                    "meta": {
+                                                        "resourceType": "Role",
+                                                        "created": "2025-11-03T17:01:45.447Z",
+                                                        "lastModified": "2025-11-03T17:01:45.447Z",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/3675b69e-8324-4110-bdca-059031aa8da3:da116e0f-2b96-4af4-93b7-b2636a26853d"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22431,6 +22793,24 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimRole"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:extension:2.0:Role"
+                                            ],
+                                            "id": "member",
+                                            "value": "member",
+                                            "display": "Member",
+                                            "type": "Organization",
+                                            "supported": true,
+                                            "meta": {
+                                                "resourceType": "Role",
+                                                "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Roles/member"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22473,6 +22853,39 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimListResponse_ScimGroup_"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                                            ],
+                                            "totalResults": 1,
+                                            "itemsPerPage": 1,
+                                            "startIndex": 1,
+                                            "Resources": [
+                                                {
+                                                    "schemas": [
+                                                        "urn:ietf:params:scim:schemas:core:2.0:Group"
+                                                    ],
+                                                    "id": "1456c265-f375-4d64-bd33-105c84ad9b5d",
+                                                    "displayName": "Org 1 Editor Group",
+                                                    "members": [
+                                                        {
+                                                            "value": "80fb8b59-d6b7-4ed6-b969-9849310f3e53",
+                                                            "display": "demo2@lightdash.com"
+                                                        }
+                                                    ],
+                                                    "meta": {
+                                                        "resourceType": "Group",
+                                                        "created": "2025-11-03T14:22:24.067Z",
+                                                        "lastModified": "2025-11-03T14:22:24.067Z",
+                                                        "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Groups/1456c265-f375-4d64-bd33-105c84ad9b5d"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -22587,6 +23000,29 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ScimGroup"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "schemas": [
+                                                "urn:ietf:params:scim:schemas:core:2.0:Group"
+                                            ],
+                                            "id": "1456c265-f375-4d64-bd33-105c84ad9b5d",
+                                            "displayName": "Org 1 Editor Group",
+                                            "members": [
+                                                {
+                                                    "value": "80fb8b59-d6b7-4ed6-b969-9849310f3e53",
+                                                    "display": "demo2@lightdash.com"
+                                                }
+                                            ],
+                                            "meta": {
+                                                "resourceType": "Group",
+                                                "created": "2025-11-03T14:22:24.067Z",
+                                                "lastModified": "2025-11-03T14:22:24.067Z",
+                                                "location": "https://<tenant>.lightdash.cloud/api/v1/scim/v2/Groups/1456c265-f375-4d64-bd33-105c84ad9b5d"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
