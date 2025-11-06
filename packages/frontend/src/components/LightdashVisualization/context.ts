@@ -18,7 +18,6 @@ import { type VisualizationConfig } from './types';
 
 type VisualizationContext = {
     minimal: boolean;
-    isDashboard: boolean;
     chartRef: RefObject<EChartsReact | null>;
     pivotDimensions: string[] | undefined;
     resultsData:
@@ -48,6 +47,10 @@ type VisualizationContext = {
     chartConfig: ChartConfig;
     apiErrorDetail?: ApiErrorDetail | null;
     parameters?: ParametersValuesMap;
+    // Container dimensions for responsive visualizations
+    containerWidth?: number;
+    containerHeight?: number;
+    isDashboard?: boolean;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

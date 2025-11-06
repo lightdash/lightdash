@@ -1,4 +1,5 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import { memo, useMemo, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -40,6 +41,12 @@ const MinimalExplorerContent = memo(() => {
 
     const { health } = useApp();
 
+    const {
+        ref: measureRef,
+        width: containerWidth,
+        height: containerHeight,
+    } = useElementSize();
+
     // Get query state from hook
     const { query, queryResults } = useExplorerQuery();
 
@@ -74,10 +81,13 @@ const MinimalExplorerContent = memo(() => {
             savedChartUuid={savedChart.uuid}
             colorPalette={savedChart.colorPalette}
             parameters={query.data?.usedParametersValues}
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <Box mih="inherit" h="100%">
                     <LightdashVisualization
+                        ref={measureRef}
                         // get rid of the classNames once you remove analytics providers
                         className="sentry-block ph-no-capture"
                         data-testid="visualization"

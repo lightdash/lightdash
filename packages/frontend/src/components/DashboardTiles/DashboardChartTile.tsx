@@ -45,7 +45,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -236,6 +236,12 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     const {
+        ref: measureRef,
+        width: containerWidth,
+        height: containerHeight,
+    } = useElementSize();
+
+    const {
         executeQueryResponse: { cacheMetadata, metricQuery, fields },
         chart,
     } = dashboardChartReadyQuery;
@@ -278,7 +284,6 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            isDashboard
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultsDataWithQueryData}
@@ -296,8 +301,12 @@ const ValidDashboardChartTile: FC<{
                 dashboardChartReadyQuery.executeQueryResponse
                     .usedParametersValues
             }
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            isDashboard
         >
             <LightdashVisualization
+                ref={measureRef}
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
@@ -330,6 +339,12 @@ const ValidDashboardChartTileMinimal: FC<{
     const { health } = useApp();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+
+    const {
+        ref: measureRef,
+        width: containerWidth,
+        height: containerHeight,
+    } = useElementSize();
 
     const { validPivotDimensions } = usePivotDimensions(
         chart.pivotConfig?.columns,
@@ -371,7 +386,6 @@ const ValidDashboardChartTileMinimal: FC<{
     return (
         <VisualizationProvider
             minimal
-            isDashboard
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultsDataWithQueryData}
@@ -388,8 +402,12 @@ const ValidDashboardChartTileMinimal: FC<{
                 dashboardChartReadyQuery.executeQueryResponse
                     .usedParametersValues
             }
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            isDashboard
         >
             <LightdashVisualization
+                ref={measureRef}
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}

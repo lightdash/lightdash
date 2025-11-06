@@ -52,7 +52,6 @@ import { type useVisualizationContext } from './useVisualizationContext';
 
 export type VisualizationProviderProps = {
     minimal?: boolean;
-    isDashboard?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
     unsavedMetricQuery?: MetricQuery;
@@ -79,13 +78,15 @@ export type VisualizationProviderProps = {
     setEchartsRef?: (ref: RefObject<EChartsReact | null>) => void;
     computedSeries?: Series[];
     apiErrorDetail?: ApiErrorDetail | null;
+    containerWidth?: number;
+    containerHeight?: number;
+    isDashboard?: boolean;
 };
 
 const VisualizationProvider: FC<
     React.PropsWithChildren<VisualizationProviderProps>
 > = ({
     minimal = false,
-    isDashboard = false,
     initialPivotDimensions,
     resultsData,
     isLoading,
@@ -107,6 +108,9 @@ const VisualizationProvider: FC<
     apiErrorDetail,
     parameters,
     unsavedMetricQuery,
+    containerWidth,
+    containerHeight,
+    isDashboard,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -301,7 +305,6 @@ const VisualizationProvider: FC<
         'visualizationConfig'
     > = {
         minimal,
-        isDashboard,
         pivotDimensions: validPivotDimensions,
         chartRef,
         resultsData: lastValidResultsData,
@@ -319,6 +322,9 @@ const VisualizationProvider: FC<
         getSeriesColor,
         chartConfig,
         parameters,
+        containerWidth,
+        containerHeight,
+        isDashboard,
     };
 
     switch (chartConfig.type) {
