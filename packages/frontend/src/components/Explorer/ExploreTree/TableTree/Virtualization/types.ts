@@ -24,8 +24,10 @@ export function buildGroupKey(
     tableName: string,
     sectionType: TreeSection,
     nodeKey: string,
+    parentPath: string = '',
 ): string {
-    return `${tableName}-${sectionType}-group-${nodeKey}`;
+    const pathPrefix = parentPath ? `${parentPath}-` : '';
+    return `${tableName}-${sectionType}-group-${pathPrefix}${nodeKey}`;
 }
 
 /**

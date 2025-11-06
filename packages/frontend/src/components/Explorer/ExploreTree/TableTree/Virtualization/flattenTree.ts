@@ -44,6 +44,7 @@ function flattenNodeRecursive(
     searchResults: string[],
     isSearching: boolean,
     depth: number = 0,
+    parentPath: string = '',
 ): TreeNodeItem[] {
     const items: TreeNodeItem[] = [];
 
@@ -73,7 +74,12 @@ function flattenNodeRecursive(
         }
 
         // Add the group node itself
-        const groupKey = buildGroupKey(tableName, sectionType, node.key);
+        const groupKey = buildGroupKey(
+            tableName,
+            sectionType,
+            node.key,
+            parentPath,
+        );
         const isExpanded = expandedGroups.has(groupKey) || isSearching;
 
         items.push({
@@ -91,6 +97,11 @@ function flattenNodeRecursive(
 
         // Add children if expanded
         if (isExpanded) {
+            // Build the parent path for children: append current node's key
+            const childParentPath = parentPath
+                ? `${parentPath}-${node.key}`
+                : node.key;
+
             Object.values(groupNode.children).forEach((child) => {
                 items.push(
                     ...flattenNodeRecursive(
@@ -102,6 +113,7 @@ function flattenNodeRecursive(
                         searchResults,
                         isSearching,
                         depth + 1,
+                        childParentPath,
                     ),
                 );
             });

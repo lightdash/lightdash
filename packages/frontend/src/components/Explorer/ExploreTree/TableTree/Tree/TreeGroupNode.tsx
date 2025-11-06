@@ -47,10 +47,13 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     const onToggleGroup = useTableTree((ctx) => ctx.onToggleGroup);
     const isVirtualized = useTableTree((ctx) => ctx.isVirtualized);
     const depth = useTableTree((ctx) => ctx.depth);
+    const contextGroupKey = useTableTree((ctx) => ctx.groupKey);
     const [isHover, toggleHover] = useToggle(false);
 
-    // Build unique group key
-    const groupKey = buildGroupKey(tableName, treeSectionType, node.key);
+    // Use pre-computed group key from context (virtualized with parent paths)
+    // or build it (non-virtualized)
+    const groupKey =
+        contextGroupKey ?? buildGroupKey(tableName, treeSectionType, node.key);
     const isOpen = expandedGroups.has(groupKey);
 
     const allChildrenKeys = useMemo(() => getAllChildrenKeys([node]), [node]);
