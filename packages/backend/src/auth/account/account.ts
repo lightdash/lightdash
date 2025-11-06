@@ -76,13 +76,15 @@ export const fromJwt = ({
     decodedToken,
     embed,
     source,
-    dashboardUuid,
+    contentUuid,
+    contentType = 'dashboard',
     userAttributes,
 }: {
     decodedToken: CreateEmbedJwt;
     embed: OssEmbed;
     source: string;
-    dashboardUuid: string;
+    contentUuid?: string;
+    contentType?: 'dashboard' | 'chart';
     userAttributes: UserAccessControls;
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -90,7 +92,8 @@ export const fromJwt = ({
 
     applyEmbeddedAbility(
         decodedToken,
-        dashboardUuid,
+        contentUuid,
+        contentType,
         embed,
         externalId,
         builder,
@@ -106,7 +109,8 @@ export const fromJwt = ({
         organization: embed.organization,
         embed,
         access: {
-            dashboardId: dashboardUuid,
+            contentId: contentUuid,
+            contentType,
             filtering: decodedToken.content.dashboardFiltersInteractivity,
             parameters: decodedToken.content.parameterInteractivity,
             controls: userAttributes,
