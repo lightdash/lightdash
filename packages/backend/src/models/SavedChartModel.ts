@@ -1020,7 +1020,6 @@ export class SavedChartModel {
                     ...fields,
                     ...tableCalculations,
                     ...customBinDimensionsRows,
-                    ...customSqlDimensionsRows,
                 ]
                     .sort((a, b) => a.order - b.order)
                     .map((x) => x.name);
