@@ -1,3 +1,10 @@
+## [0.2152.1](https://github.com/lightdash/lightdash/compare/0.2152.0...0.2152.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* replace ScimRoleType enum with string type for role identification ([#17899](https://github.com/lightdash/lightdash/issues/17899)) ([7a99c63](https://github.com/lightdash/lightdash/commit/7a99c633a9ba2ca2113756d7be9d905c15457f76))
+
 # [0.2152.0](https://github.com/lightdash/lightdash/compare/0.2151.0...0.2152.0) (2025-11-06)
 
 
