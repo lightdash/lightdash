@@ -1,6 +1,6 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -8,6 +8,7 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import {
     buildInitialExplorerState,
     createExplorerStore,
+    explorerActions,
     selectSavedChart,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -26,8 +27,6 @@ const themeOverride: MantineThemeOverride = {
 };
 
 const MinimalExplorerContent = memo(() => {
-    // Store is pre-initialized with savedChart data, no need to hydrate
-
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
 
@@ -99,11 +98,12 @@ const MinimalSavedExplorer: FC = () => {
         id: savedQueryUuid,
     });
 
-    // Create a fresh store instance per chart with initial state
-    // This prevents state leaking between charts and eliminates async hydration
-    // Only create once - parent uses key={savedQueryUuid} to remount when navigating between charts
-    const store = useMemo(() => {
-        if (!data) return createExplorerStore(); // Return empty store while loading
+    // Create store once with useState
+    const [store] = useState(() => createExplorerStore());
+
+    // Reset store state when data changes
+    useEffect(() => {
+        if (!data) return;
 
         const initialState = buildInitialExplorerState({
             savedChart: data,
@@ -111,9 +111,10 @@ const MinimalSavedExplorer: FC = () => {
             expandedSections: [ExplorerSection.VISUALIZATION],
         });
 
-        return createExplorerStore({ explorer: initialState });
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when savedQueryUuid changes
+        store.dispatch(explorerActions.reset(initialState));
+    }, [data, store]);
 
+    // Early return if no data yet
     if (isInitialLoading || !data) {
         return null;
     }

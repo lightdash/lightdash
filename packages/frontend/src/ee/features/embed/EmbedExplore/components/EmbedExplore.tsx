@@ -1,7 +1,7 @@
 import { ChartType, type SavedChart } from '@lightdash/common';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -49,8 +49,9 @@ const EmbedExploreContent: FC<{
     savedChart: SavedChart;
 }> = ({ exploreId, savedChart }) => {
     // Create store with embed-specific state
-    // Only create once - parent uses key={exploreId} to remount when exploring different tables
-    const store = useMemo(() => {
+    // Using useState - store is created once when component mounts
+    // Parent key prop ensures component remounts when exploring different tables
+    const [store] = useState(() => {
         const initialState = buildInitialExplorerState({
             isEditMode: true,
             expandedSections: [
@@ -96,7 +97,7 @@ const EmbedExploreContent: FC<{
         });
 
         return createExplorerStore({ explorer: initialState });
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when exploreId changes
+    });
 
     return (
         <Provider store={store}>

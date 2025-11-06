@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 
@@ -76,7 +76,7 @@ const ExplorerWithUrlParams = memo(() => {
     // Create store once when component mounts with URL state
     // Parent component uses key={tableId} so this unmounts/remounts when navigating between tables
     // After initialization, useExplorerRoute handles syncing URL ↔ Redux
-    const store = useMemo(() => {
+    const [store] = useState(() => {
         const initialState = buildInitialExplorerState({
             initialState: explorerUrlState,
             isEditMode: true,
@@ -84,7 +84,7 @@ const ExplorerWithUrlParams = memo(() => {
         });
 
         return createExplorerStore({ explorer: initialState });
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when tableId changes
+    });
 
     return (
         <Provider store={store}>

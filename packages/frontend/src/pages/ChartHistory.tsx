@@ -21,7 +21,7 @@ import {
     IconHistory,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState } from '../components/common/EmptyState';
@@ -34,6 +34,7 @@ import Explorer from '../components/Explorer';
 import {
     buildInitialExplorerState,
     createExplorerStore,
+    explorerActions,
 } from '../features/explorer/store';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
@@ -61,12 +62,12 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
             selectedVersionUuid,
         );
 
-        // Create store with chart version data
-        // Only create once - parent uses key={selectedVersionUuid} to remount when switching versions
-        const store = useMemo(() => {
-            if (!chartVersionQuery.data) {
-                return createExplorerStore(); // Return empty store while loading
-            }
+        // Create store once with useState
+        const [store] = useState(() => createExplorerStore());
+
+        // Reset store state when chart version data changes
+        useEffect(() => {
+            if (!chartVersionQuery.data) return;
 
             const initialState = buildInitialExplorerState({
                 initialState: {
@@ -85,9 +86,10 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
                 savedChart: chartVersionQuery.data.chart,
             });
 
-            return createExplorerStore({ explorer: initialState });
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only create once, component remounts via key when selectedVersionUuid changes
+            store.dispatch(explorerActions.reset(initialState));
+        }, [chartVersionQuery.data, store]);
 
+        // Early return if no data yet
         if (!chartVersionQuery.data) {
             return null;
         }
