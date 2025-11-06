@@ -14,7 +14,7 @@ const DEFAULT_COLS = 36;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
-const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
+export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
 
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,

@@ -20,7 +20,7 @@ import {
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/constants';
+import { DEFAULT_ROW_HEIGHT } from '../DashboardTabs/gridUtils';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
@@ -37,19 +37,19 @@ interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
 const BOX_MIN_WIDTH = 150;
 const BOX_MAX_WIDTH = 1000;
 
-const BOX_MIN_HEIGHT = 25;
+const BOX_MIN_HEIGHT = DEFAULT_ROW_HEIGHT;
 const BOX_MAX_HEIGHT = 1000;
 
-const VALUE_SIZE_MIN = 18;
+const VALUE_SIZE_MIN = 22;
 const VALUE_SIZE_MAX = 128;
 
-const LABEL_SIZE_MIN = 10;
+const LABEL_SIZE_MIN = 12;
 const LABEL_SIZE_MAX = 48;
 
-const COMPARISON_VALUE_SIZE_MIN = 10;
+const COMPARISON_VALUE_SIZE_MIN = 12;
 const COMPARISON_VALUE_SIZE_MAX = 22;
 
-const COMPARISON_PILL_SIZE_MIN = 7.5;
+const COMPARISON_PILL_SIZE_MIN = 10;
 const COMPARISON_PILL_SIZE_MAX = 16;
 
 const calculateFontSize = (
@@ -66,7 +66,6 @@ const calculateFontSize = (
     const scalingFactor = Math.min(widthScale, heightScale);
 
     // assert : 0 <= scalingFactor <= 1
-
     const fontSize = Math.floor(
         fontSizeMin + (fontSizeMax - fontSizeMin) * scalingFactor,
     );
@@ -91,7 +90,7 @@ const BigNumberText: FC<
                 transition: 'font-size 0.1s ease-in-out',
                 ...(isHeading && {
                     letterSpacing: '-0.02em',
-                    lineHeight: 1,
+                    lineHeight: 0.9,
                 }),
                 ...textProps.style,
             }}
@@ -124,8 +123,6 @@ const getTrendPillClass = (
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
-    isTitleHidden = false,
-    isDashboard = false,
     ...wrapperProps
 }) => {
     const ability = useAbilityContext();
@@ -143,7 +140,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         labelFontSize,
         comparisonFontSize,
         comparisonPillFontSize,
-        spacingMultiplier,
+        spacingMultiplier: _spacingMultiplier,
         availableHeight,
         labelLineClamp,
     } = useMemo(() => {
@@ -153,26 +150,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             BOX_MAX_WIDTH,
         );
 
-        // Smarter height calculation: subtract tile header height when not hidden
-        // This ensures font size calculation uses actual available content area
         const availableHeightForFontSizeCalculation =
-            (observerElementSize?.height || 0) -
-            (isDashboard && !isTitleHidden ? TILE_HEADER_HEIGHT : 0);
+            observerElementSize?.height ?? 0;
 
         const boundHeight = clamp(
             availableHeightForFontSizeCalculation,
             BOX_MIN_HEIGHT,
             BOX_MAX_HEIGHT,
         );
-
         const heightScale =
             (boundHeight - BOX_MIN_HEIGHT) / (BOX_MAX_HEIGHT - BOX_MIN_HEIGHT);
-
-        // Don't scale spacing below 50% for small tiles
-        const spacingMultiplierForFontSizeCalculation = Math.max(
-            0.5,
-            heightScale,
-        );
 
         const valueSize = calculateFontSize(
             VALUE_SIZE_MIN,
@@ -206,6 +193,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     pillScalingFactor,
         );
 
+        const spacingMultiplierForFontSizeCalculation = Math.max(
+            0.5,
+            heightScale,
+        );
+
         // Use 1 line clamp for small tiles, 2 for larger ones
         const labelLineClampForFontSizeCalculation =
             availableHeightForFontSizeCalculation < 120 ? 1 : 2;
@@ -219,7 +211,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             availableHeight: availableHeightForFontSizeCalculation,
             labelLineClamp: labelLineClampForFontSizeCalculation,
         };
-    }, [observerElementSize, isDashboard, isTitleHidden]);
+    }, [observerElementSize]);
 
     if (!isBigNumber) return null;
 
@@ -235,6 +227,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         comparisonDiff,
     } = visualizationConfig.chartConfig;
 
+    // If we are at the minimun value size font without much space, don't add spacing. The line height will account for the spacing needed.
+    const spacingMultiplier =
+        valueFontSize === VALUE_SIZE_MIN && showBigNumberLabel && showComparison
+            ? 0
+            : _spacingMultiplier;
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
@@ -275,7 +272,9 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             fz={valueFontSize}
                             fw={600}
                             isHeading
-                            style={{ cursor: 'pointer' }}
+                            style={{
+                                cursor: 'pointer',
+                            }}
                         >
                             {bigNumber}
                         </BigNumberText>
@@ -345,7 +344,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 )}px`,
                             }}
                         >
-                            <Text fz={comparisonPillFontSize}>
+                            <Text
+                                fz={comparisonPillFontSize}
+                                {...(spacingMultiplier === 0 && { lh: 0 })}
+                            >
                                 {comparisonValue}
                             </Text>
 
