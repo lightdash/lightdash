@@ -19,7 +19,6 @@ interface BuildInitialStateOptions {
 
 /**
  * Build initial Redux state for Explorer
- * This is used to initialize the store with data immediately, avoiding async hydration
  */
 export const buildInitialExplorerState = ({
     savedChart,
@@ -32,7 +31,7 @@ export const buildInitialExplorerState = ({
     let stateToUse: ExplorerReduceState;
 
     if (customInitialState) {
-        // Advanced use case: use custom initial state directly
+        // Use custom initial state
         const baseState = {
             ...defaultState,
             ...customInitialState,

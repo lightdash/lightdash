@@ -3,8 +3,8 @@ import { explorerReducer, type ExplorerSliceState } from './explorerSlice';
 
 export type ExplorerRootState = { explorer: ExplorerSliceState };
 
-// Factory function to create a new store instance with optional preloaded state
-// This prevents state leaking between different explorer instances
+// Factory function to create a new store instance.
+// We create a new store each time the explorer is mounted
 export const createExplorerStore = (
     preloadedState?: Partial<ExplorerRootState>,
 ) =>
@@ -15,13 +15,10 @@ export const createExplorerStore = (
         preloadedState: preloadedState as ExplorerRootState | undefined,
     });
 
-// Keep singleton for backward compatibility (Explorer.tsx uses it)
-export const explorerStore = createExplorerStore();
+type ExplorerStore = ReturnType<typeof createExplorerStore>;
+export type ExplorerStoreState = ReturnType<ExplorerStore['getState']>;
+export type ExplorerStoreDispatch = ExplorerStore['dispatch'];
 
-export type ExplorerStoreState = ReturnType<typeof explorerStore.getState>;
-export type ExplorerStoreDispatch = typeof explorerStore.dispatch;
-
-// Export the actions and selectors for easy access
 export { buildInitialExplorerState } from './buildInitialState';
 export { explorerActions } from './explorerSlice';
 export * from './hooks';
