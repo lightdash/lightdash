@@ -1,3 +1,10 @@
+# [0.2150.0](https://github.com/lightdash/lightdash/compare/0.2149.0...0.2150.0) (2025-11-06)
+
+
+### Features
+
+* add role validation and assignment during SCIM user creation ([#17895](https://github.com/lightdash/lightdash/issues/17895)) ([a4afd16](https://github.com/lightdash/lightdash/commit/a4afd1656ea639636f3a09d392f192e76ee6c575))
+
 # [0.2149.0](https://github.com/lightdash/lightdash/compare/0.2148.0...0.2149.0) (2025-11-06)
 
 
