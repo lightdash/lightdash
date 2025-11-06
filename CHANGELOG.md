@@ -1,3 +1,10 @@
+# [0.2148.0](https://github.com/lightdash/lightdash/compare/0.2147.1...0.2148.0) (2025-11-06)
+
+
+### Features
+
+* add pagination to SCIM roles API ([#17873](https://github.com/lightdash/lightdash/issues/17873)) ([fde98c2](https://github.com/lightdash/lightdash/commit/fde98c2c1242ff91f96aa643d74dd5e10a2622a2))
+
 ## [0.2147.1](https://github.com/lightdash/lightdash/compare/0.2147.0...0.2147.1) (2025-11-06)
 
 
