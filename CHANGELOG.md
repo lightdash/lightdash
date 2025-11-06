@@ -1,3 +1,10 @@
+## [0.2144.2](https://github.com/lightdash/lightdash/compare/0.2144.1...0.2144.2) (2025-11-06)
+
+
+### Bug Fixes
+
+* set correct overflow on tables with footer ([#17900](https://github.com/lightdash/lightdash/issues/17900)) ([dd98732](https://github.com/lightdash/lightdash/commit/dd98732ac11b1294aa0e2ad89960f39cdc7c242d)), closes [#17901](https://github.com/lightdash/lightdash/issues/17901)
+
 ## [0.2144.1](https://github.com/lightdash/lightdash/compare/0.2144.0...0.2144.1) (2025-11-06)
 
 
