@@ -17,6 +17,9 @@ export interface ScimResource {
 }
 
 export interface LightdashScimExtension {
+    /**
+     * @deprecated - use ScimUser['roles'] instead. Learn more at Lightdash SCIM docs.
+     */
     role?: string;
 }
 

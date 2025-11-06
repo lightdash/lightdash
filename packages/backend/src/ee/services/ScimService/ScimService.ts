@@ -566,14 +566,6 @@ export class ScimService extends BaseService {
                 },
             );
 
-            // Update user org and project roles
-            await this.upsertUserRoles({
-                organizationUuid,
-                userUuid,
-                roles: user.roles,
-                currentOrgRole: updatedUser.role,
-            });
-
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
             if (extensionData?.role && extensionData.role !== dbUser.role) {
@@ -596,6 +588,14 @@ export class ScimService extends BaseService {
                     },
                 );
             }
+
+            // Update user org and project roles
+            await this.upsertUserRoles({
+                organizationUuid,
+                userUuid,
+                roles: user.roles,
+                currentOrgRole: updatedUser.role,
+            });
 
             // If setting user to inactive, drop org role to MEMBER and remove project roles
             if (user.active === false) {
