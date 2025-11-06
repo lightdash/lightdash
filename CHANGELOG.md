@@ -1,3 +1,10 @@
+## [0.2147.1](https://github.com/lightdash/lightdash/compare/0.2147.0...0.2147.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* add tooltip to dashboard tabs for truncated text ([#16211](https://github.com/lightdash/lightdash/issues/16211)) ([3a9b935](https://github.com/lightdash/lightdash/commit/3a9b93575d3bb7df2f5d6a6ab3df7c5257b76489))
+
 # [0.2147.0](https://github.com/lightdash/lightdash/compare/0.2146.0...0.2147.0) (2025-11-06)
 
 
