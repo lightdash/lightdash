@@ -18,6 +18,7 @@ export const TableScrollableWrapper = styled.div`
     overflow: auto;
     min-width: 100%;
     border-radius: 4px;
+    border: 1px solid #dcdcdd;
 `;
 
 interface TableContainerProps {
@@ -55,10 +56,6 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     background-color: white;
     width: 100%;
     border-radius: 4px;
-    overflow: hidden;
-
-    /* Outer table border - solid gray border around entire table with border-radius */
-    border: 1px solid #dcdcdd;
 
     th,
     td {

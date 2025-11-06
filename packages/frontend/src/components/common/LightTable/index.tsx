@@ -187,7 +187,11 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 miw="inherit"
                 h="inherit"
                 pos="relative"
-                sx={{ overflow: 'auto' }}
+                sx={{
+                    overflow: 'auto',
+                    border: '1px solid #dcdcdd',
+                    borderRadius: '4px',
+                }}
             >
                 <Box
                     ref={ref}
