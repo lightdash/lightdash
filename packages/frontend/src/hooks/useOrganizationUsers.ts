@@ -92,33 +92,6 @@ export const useOrganizationUsers = (params?: {
     );
 };
 
-export const usePaginatedOrganizationUsers = ({
-    searchInput,
-    includeGroups,
-    paginateArgs,
-}: {
-    searchInput?: string;
-    includeGroups?: number;
-    paginateArgs?: KnexPaginateArgs;
-}) => {
-    const setErrorResponse = useQueryError();
-    return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
-        queryKey: [
-            'organization_users',
-            includeGroups,
-            paginateArgs,
-            searchInput,
-        ],
-        queryFn: () =>
-            getOrganizationUsersQuery({
-                includeGroups,
-                paginateArgs,
-                searchQuery: searchInput,
-            }),
-        onError: (result) => setErrorResponse(result),
-    });
-};
-
 export const useInfiniteOrganizationUsers = (
     {
         searchInput,

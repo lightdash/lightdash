@@ -1,3 +1,36 @@
+## [0.2152.1](https://github.com/lightdash/lightdash/compare/0.2152.0...0.2152.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* replace ScimRoleType enum with string type for role identification ([#17899](https://github.com/lightdash/lightdash/issues/17899)) ([7a99c63](https://github.com/lightdash/lightdash/commit/7a99c633a9ba2ca2113756d7be9d905c15457f76))
+
+# [0.2152.0](https://github.com/lightdash/lightdash/compare/0.2151.0...0.2152.0) (2025-11-06)
+
+
+### Features
+
+* support chart type jwt tokens ([#17615](https://github.com/lightdash/lightdash/issues/17615)) ([d50de3b](https://github.com/lightdash/lightdash/commit/d50de3baf8bb1ecaad6d255876e60651e59f4835))
+
+# [0.2151.0](https://github.com/lightdash/lightdash/compare/0.2150.0...0.2151.0) (2025-11-06)
+
+
+### Bug Fixes
+
+* Display field labels instead of IDs in funnel chart ([#17368](https://github.com/lightdash/lightdash/issues/17368)) ([f4b7c85](https://github.com/lightdash/lightdash/commit/f4b7c85d22c4f9e3166303ee7963426cfde42348))
+
+
+### Features
+
+* use mantine-react-table on users&groups ([#17856](https://github.com/lightdash/lightdash/issues/17856)) ([1cf7171](https://github.com/lightdash/lightdash/commit/1cf717147155abe4d3273688a8edf593f0be0678))
+
+# [0.2150.0](https://github.com/lightdash/lightdash/compare/0.2149.0...0.2150.0) (2025-11-06)
+
+
+### Features
+
+* add role validation and assignment during SCIM user creation ([#17895](https://github.com/lightdash/lightdash/issues/17895)) ([a4afd16](https://github.com/lightdash/lightdash/commit/a4afd1656ea639636f3a09d392f192e76ee6c575))
+
 # [0.2149.0](https://github.com/lightdash/lightdash/compare/0.2148.0...0.2149.0) (2025-11-06)
 
 

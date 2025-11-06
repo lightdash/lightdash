@@ -133,51 +133,24 @@ describe('EmbedService', () => {
                     EmbedServiceArgumentsMock.embedModel.updateConfig,
                 ).toHaveBeenCalledWith(mockProjectUuid, updateWithBothAllowAll);
             });
-        });
 
-        describe('validation errors', () => {
-            test('should throw ParameterError when no dashboards or charts specified', async () => {
-                const invalidUpdate = {
+            test('allows empty ids to disable embedding', async () => {
+                const update = {
                     dashboardUuids: [],
                     allowAllDashboards: false,
                     chartUuids: [],
                     allowAllCharts: false,
                 };
 
-                await expect(
-                    service.updateConfig(
-                        mockAccountWithPermission,
-                        mockProjectUuid,
-                        invalidUpdate,
-                    ),
-                ).rejects.toThrow(ParameterError);
-
-                await expect(
-                    service.updateConfig(
-                        mockAccountWithPermission,
-                        mockProjectUuid,
-                        invalidUpdate,
-                    ),
-                ).rejects.toThrow(
-                    'At least one dashboard or chart must be specified for embedding',
+                await service.updateConfig(
+                    mockAccountWithPermission,
+                    mockProjectUuid,
+                    update,
                 );
-            });
 
-            test('should throw ParameterError when chartUuids is undefined and no dashboards', async () => {
-                const invalidUpdate = {
-                    dashboardUuids: [],
-                    allowAllDashboards: false,
-                    chartUuids: undefined,
-                    allowAllCharts: false,
-                };
-
-                await expect(
-                    service.updateConfig(
-                        mockAccountWithPermission,
-                        mockProjectUuid,
-                        invalidUpdate,
-                    ),
-                ).rejects.toThrow(ParameterError);
+                expect(
+                    EmbedServiceArgumentsMock.embedModel.updateConfig,
+                ).toHaveBeenCalledWith(mockProjectUuid, update);
             });
         });
 

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     AnonymousAccount,
@@ -30,12 +31,15 @@ import {
     getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
+    isChartContent,
     isDashboardChartTileType,
+    isDashboardContent,
     isDashboardSlugContent,
     isDashboardSqlChartTile,
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isJwtUser,
     isParameterInteractivityEnabled,
     LightdashSessionUser,
     MetricQuery,
@@ -241,9 +245,9 @@ export class EmbedService extends BaseService {
             projectUuid,
             encodedSecret,
             user.userUuid,
-            data.dashboardUuids || [],
+            data.dashboardUuids,
             false,
-            data.chartUuids || [],
+            data.chartUuids,
             false,
         );
 
@@ -313,17 +317,6 @@ export class EmbedService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        // Require at least one of dashboardUuids or chartUuids
-        const includesDashboards =
-            allowAllDashboards || dashboardUuids.length > 0;
-        const includesCharts =
-            allowAllCharts || (chartUuids && chartUuids.length > 0);
-        if (!includesDashboards && !includesCharts) {
-            throw new ParameterError(
-                'At least one dashboard or chart must be specified for embedding',
-            );
         }
 
         await this.embedModel.updateConfig(projectUuid, {
@@ -397,7 +390,64 @@ export class EmbedService extends BaseService {
             return dashboard.uuid;
         }
 
-        return decodedToken.content.dashboardUuid;
+        if (isDashboardContent(decodedToken.content)) {
+            return decodedToken.content.dashboardUuid;
+        }
+
+        throw new ParameterError('JWT content is not of type dashboard');
+    }
+
+    /**
+     * Meant to be used for {@link jwtAuthMiddleware} to extract the chart UUID from the JWT content.
+     */
+    async getChartUuidFromJwt(
+        decodedToken: CreateEmbedJwt,
+        projectUuid: string,
+    ) {
+        if (!isChartContent(decodedToken.content)) {
+            throw new ParameterError('JWT content is not of type chart');
+        }
+
+        const { contentId } = decodedToken.content;
+        const chart = await this.savedChartModel.get(contentId);
+
+        if (chart.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                `Chart ${contentId} not found in project ${projectUuid}`,
+            );
+        }
+
+        return chart.uuid;
+    }
+
+    /**
+     * Extract content UUID (dashboard or chart) from JWT based on content type
+     */
+    async getContentUuidFromJwt(
+        decodedToken: CreateEmbedJwt,
+        projectUuid: string,
+    ): Promise<{ contentUuid: string; contentType: 'dashboard' | 'chart' }> {
+        if (decodedToken.content.type === 'dashboard') {
+            const dashboardUuid = await this.getDashboardUuidFromJwt(
+                decodedToken,
+                projectUuid,
+            );
+            return { contentUuid: dashboardUuid, contentType: 'dashboard' };
+        }
+
+        if (decodedToken.content.type === 'chart') {
+            const chartUuid = await this.getChartUuidFromJwt(
+                decodedToken,
+                projectUuid,
+            );
+            return { contentUuid: chartUuid, contentType: 'chart' };
+        }
+
+        throw new ParameterError(
+            `Unknown content type: ${
+                (decodedToken.content as { type: string }).type
+            }`,
+        );
     }
 
     async getDashboard(
@@ -410,7 +460,15 @@ export class EmbedService extends BaseService {
             account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (decodedToken.content.type !== 'dashboard') {
+            throw new ForbiddenError('Not authorized for dashboard content');
+        }
+
+        if (!dashboardUuid) {
+            throw new ParameterError('Dashboard ID is required');
+        }
 
         if (checkPermissions)
             this.checkDashboardPermissions(
@@ -431,6 +489,10 @@ export class EmbedService extends BaseService {
         });
 
         const externalId = account.user.id;
+
+        if (!isDashboardContent(decodedToken.content)) {
+            throw new ParameterError('JWT content is not of type dashboard');
+        }
         const {
             isPreview,
             canExportCsv,
@@ -488,7 +550,14 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
 
@@ -871,7 +940,14 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
         );
@@ -966,7 +1042,14 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
         );
@@ -1093,7 +1176,14 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
         );
@@ -1411,7 +1501,14 @@ export class EmbedService extends BaseService {
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = account.access.dashboardId;
+        const dashboardUuid = account.access.contentId;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
         this.checkDashboardPermissions(
             {
                 dashboardUuids,
@@ -1477,26 +1574,25 @@ export class EmbedService extends BaseService {
             embed.organization.organizationUuid,
             decodedToken,
         );
-        const dashboardUuidPromise = this.getDashboardUuidFromJwt(
+        const contentPromise = this.getContentUuidFromJwt(
             decodedToken,
             projectUuid,
         );
-        const [dashboardUuid, userAttributes] = await Promise.all([
-            dashboardUuidPromise,
+        const [content, userAttributes] = await Promise.all([
+            contentPromise,
             userAttributesPromise,
         ]);
 
-        if (!dashboardUuid) {
-            throw new NotFoundError(
-                'Cannot verify JWT. Dashboard ID not found',
-            );
+        if (!content.contentUuid) {
+            throw new NotFoundError('Cannot verify JWT. Content ID not found');
         }
 
         return fromJwt({
             decodedToken,
             source: encodedJwt,
             embed,
-            dashboardUuid,
+            contentUuid: content.contentUuid,
+            contentType: content.contentType,
             userAttributes,
         });
     }

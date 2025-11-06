@@ -2,11 +2,13 @@ import {
     ScimErrorPayload,
     ScimGroup,
     ScimListResponse,
+    ScimSchemaType,
     ScimUpsertGroup,
 } from '@lightdash/common';
 import {
     Body,
     Delete,
+    Example,
     Get,
     Middlewares,
     OperationId,
@@ -46,6 +48,32 @@ export class ScimGroupController extends BaseController {
     @Get('/')
     @OperationId('GetScimGroups')
     @Response<ScimListResponse<ScimGroup>>('200', 'Success')
+    @Example<ScimListResponse<ScimGroup>>({
+        schemas: [ScimSchemaType.LIST_RESPONSE],
+        totalResults: 1,
+        itemsPerPage: 1,
+        startIndex: 1,
+        Resources: [
+            {
+                schemas: [ScimSchemaType.GROUP],
+                id: '1456c265-f375-4d64-bd33-105c84ad9b5d',
+                displayName: 'Org 1 Editor Group',
+                members: [
+                    {
+                        value: '80fb8b59-d6b7-4ed6-b969-9849310f3e53',
+                        display: 'demo2@lightdash.com',
+                    },
+                ],
+                meta: {
+                    resourceType: 'Group',
+                    created: new Date('2025-11-03T14:22:24.067Z'),
+                    lastModified: new Date('2025-11-03T14:22:24.067Z'),
+                    location:
+                        'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Groups/1456c265-f375-4d64-bd33-105c84ad9b5d',
+                },
+            },
+        ],
+    })
     async getScimGroups(
         @Request() req: express.Request,
         @Query() filter?: string,
@@ -72,6 +100,24 @@ export class ScimGroupController extends BaseController {
     @OperationId('GetScimGroup')
     @Response<ScimGroup>('200', 'Success')
     @Response<ScimErrorPayload>('404', 'Not found')
+    @Example<ScimGroup>({
+        schemas: [ScimSchemaType.GROUP],
+        id: '1456c265-f375-4d64-bd33-105c84ad9b5d',
+        displayName: 'Org 1 Editor Group',
+        members: [
+            {
+                value: '80fb8b59-d6b7-4ed6-b969-9849310f3e53',
+                display: 'demo2@lightdash.com',
+            },
+        ],
+        meta: {
+            resourceType: 'Group',
+            created: new Date('2025-11-03T14:22:24.067Z'),
+            lastModified: new Date('2025-11-03T14:22:24.067Z'),
+            location:
+                'https://<tenant>.lightdash.cloud/api/v1/scim/v2/Groups/1456c265-f375-4d64-bd33-105c84ad9b5d',
+        },
+    })
     async getScimGroup(
         @Request() req: express.Request,
         @Path() id: string,

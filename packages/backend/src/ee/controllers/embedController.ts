@@ -10,6 +10,7 @@ import {
     assertEmbeddedAuth,
     assertSessionAuth,
     CacheMetadata,
+    CommonEmbedJwtContent,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
     Dashboard,
@@ -56,7 +57,7 @@ export type ApiEmbedDashboardResponse = {
     status: 'ok';
     results: Dashboard & {
         // declare type as TSOA doesn't understand zod type InteractivityOptions
-        dashboardFiltersInteractivity?: CreateEmbedJwt['content']['dashboardFiltersInteractivity'];
+        dashboardFiltersInteractivity?: CommonEmbedJwtContent['dashboardFiltersInteractivity'];
         canExportCsv?: boolean;
         canExportImages?: boolean;
     };
