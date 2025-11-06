@@ -8,8 +8,9 @@ import {
     Title,
     type ModalProps,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
+import { z } from 'zod';
 
 type DuplicateTabModalProps = ModalProps & {
     tab: DashboardTab;
@@ -22,10 +23,23 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
     onClose,
     ...modalProps
 }) => {
-    const form = useForm<{ name: string }>();
+    const formSchema = z.object({
+        name: z
+            .string()
+            .trim()
+            .min(1, { message: 'Tab name is required' })
+            .max(255, { message: 'Tab name must be at most 255 characters' }),
+    });
+
+    const form = useForm<{ name: string }>({
+        initialValues: { name: `Copy of ${tab.name}` },
+        validate: zodResolver(formSchema),
+        validateInputOnChange: true,
+        validateInputOnBlur: true,
+    });
 
     const handleConfirm = form.onSubmit(({ name }) => {
-        onConfirm(name);
+        onConfirm(name.trim());
         form.reset();
     });
 
@@ -51,7 +65,6 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
                         label="Tab name"
                         required
                         placeholder={`Copy of ${tab.name}`}
-                        defaultValue={`Copy of ${tab.name}`}
                         data-autofocus
                         {...form.getInputProps('name')}
                     />
@@ -71,4 +84,4 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
     );
 };
 
-export default DuplicateTabModal; 
+export default DuplicateTabModal;
