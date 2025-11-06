@@ -2,7 +2,13 @@ import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import { IconGripVertical, IconDotsVertical, IconPencil, IconTrash, IconCopy } from '@tabler/icons-react';
+import {
+    IconCopy,
+    IconDotsVertical,
+    IconGripVertical,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
