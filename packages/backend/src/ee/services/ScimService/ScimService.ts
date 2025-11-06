@@ -6,6 +6,7 @@ import {
     getSystemRoles,
     GroupWithMembers,
     isOrganizationMemberRole,
+    isSystemRole,
     isValidEmailAddress,
     LightdashUser,
     NotFoundError,
@@ -516,10 +517,21 @@ export class ScimService extends BaseService {
             firstName: user.name?.givenName,
             lastName: user.name?.familyName,
             active: user.active,
+            roles: user.roles?.map((role) => role.value),
             hasExtensionData: !!user[ScimSchemaType.LIGHTDASH_USER_EXTENSION],
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            // Validate roles if provided
+            if (user.roles !== undefined) {
+                const { allScimRoles } = await this.getAllRoles(
+                    organizationUuid,
+                );
+                const validRoleValues = allScimRoles.map((role) => role.value);
+
+                // Throws error if roles are not valid
+                ScimService.validateRolesArray(user.roles, validRoleValues);
+            }
             const emailToUpdate = ScimService.getScimUserEmail(user);
             // get existing user (and make sure user is in the organization)
             const dbUser =
@@ -539,6 +551,38 @@ export class ScimService extends BaseService {
                     isActive: user.active ?? dbUser.isActive,
                 },
             );
+
+            if (user.roles !== undefined && user.roles.length > 0) {
+                await Promise.all(
+                    user.roles.map(async (role) => {
+                        const { roleUuid, projectUuid } =
+                            ScimService.parseRoleId(role.value);
+                        if (projectUuid) {
+                            if (isSystemRole(roleUuid)) {
+                                await this.rolesModel.upsertSystemRoleProjectAccess(
+                                    projectUuid,
+                                    userUuid,
+                                    roleUuid,
+                                );
+                            } else {
+                                await this.rolesModel.upsertCustomRoleProjectAccess(
+                                    projectUuid,
+                                    userUuid,
+                                    roleUuid,
+                                );
+                            }
+                        } else if (isOrganizationMemberRole(roleUuid)) {
+                            await this.organizationMemberProfileModel.updateOrganizationMember(
+                                organizationUuid,
+                                userUuid,
+                                {
+                                    role: roleUuid,
+                                },
+                            );
+                        }
+                    }),
+                );
+            }
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
@@ -1430,6 +1474,84 @@ export class ScimService extends BaseService {
         projectUuid?: string;
     }): string {
         return projectUuid ? `${projectUuid}:${roleUuid}` : roleUuid;
+    }
+
+    static parseRoleId(roleId: string): {
+        roleUuid: string;
+        projectUuid?: string;
+    } {
+        if (!roleId.includes(':')) {
+            return {
+                roleUuid: roleId,
+                projectUuid: undefined,
+            };
+        }
+
+        const colonIndex = roleId.indexOf(':');
+        const projectUuid = roleId.substring(0, colonIndex);
+        const roleUuid = roleId.substring(colonIndex + 1);
+
+        return {
+            roleUuid,
+            projectUuid,
+        };
+    }
+
+    static validateRolesArray(
+        roles: ScimUserRole[],
+        validRoleValues: string[],
+    ): void {
+        // If roles array is provided, it must have at least 1 entry
+        if (roles.length === 0) {
+            throw new ParameterError(
+                'Roles array must contain at least one role when provided',
+            );
+        }
+
+        // Check for invalid role values
+        const invalidRoles = roles
+            .map((role) => role.value)
+            .filter((roleValue) => !validRoleValues.includes(roleValue));
+
+        if (invalidRoles.length > 0) {
+            throw new ParameterError(
+                `Invalid role values: ${invalidRoles.join(', ')}`,
+            );
+        }
+
+        // Parse roles and categorize them
+        const parsedRoles = roles.map((role) => ({
+            ...role,
+            parsed: ScimService.parseRoleId(role.value),
+        }));
+
+        // Check for exactly one organization role
+        const orgRoles = parsedRoles.filter((role) => !role.parsed.projectUuid);
+        if (orgRoles.length !== 1) {
+            throw new ParameterError(
+                `Roles array must contain exactly one organization role, found ${orgRoles.length}`,
+            );
+        }
+
+        // Check for only one role per project UUID
+        const projectRoles = parsedRoles.filter(
+            (role) => role.parsed.projectUuid,
+        );
+        const projectUuids = projectRoles.map(
+            (role) => role.parsed.projectUuid,
+        );
+        const uniqueProjectUuids = new Set(projectUuids);
+
+        if (projectUuids.length !== uniqueProjectUuids.size) {
+            const duplicates = projectUuids.filter(
+                (uuid, index) => projectUuids.indexOf(uuid) !== index,
+            );
+            throw new ParameterError(
+                `Roles array can only contain one role per project. Duplicate project UUIDs: ${[
+                    ...new Set(duplicates),
+                ].join(', ')}`,
+            );
+        }
     }
 
     private convertLightdashRoleToScimRole(
