@@ -1563,7 +1563,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 // Override formatter for 100% stacking with flipped axes
                 ...(shouldStack100 &&
                     validCartesianConfig.layout.flipAxes &&
@@ -1616,7 +1618,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 ...topAxisExtraConfig,
             },
         ],
@@ -1667,7 +1671,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 inverse: !!yAxisConfiguration?.[0].inverse,
                 ...leftAxisExtraConfig,
             },
@@ -1716,7 +1722,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 ...rightAxisExtraConfig,
             },
         ],

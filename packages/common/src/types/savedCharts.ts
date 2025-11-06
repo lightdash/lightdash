@@ -286,6 +286,7 @@ export type CompleteEChartsConfig = {
     xAxis: XAxis[];
     yAxis: Axis[];
     tooltip?: string;
+    showAxisTicks?: boolean;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;

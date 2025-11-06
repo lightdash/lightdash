@@ -31,9 +31,12 @@ export const getAxisLineStyle = () => ({
 
 /**
  * Get tick line styling (small marks on axis)
+ * @param show - Whether to show tick lines. Defaults to true when undefined for backwards compatibility with existing charts, false for new charts
  */
-export const getAxisTickStyle = () => ({
-    show: true,
+export const getAxisTickStyle = (show?: boolean) => ({
+    // For backwards compatibility: undefined means show ticks (existing charts)
+    // false means hide ticks (new charts default to hidden)
+    show: show ?? true,
     lineStyle: {
         color: GRAY_4,
         type: 'solid' as const,
