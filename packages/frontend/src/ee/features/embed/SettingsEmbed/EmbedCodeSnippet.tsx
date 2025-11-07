@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     FilterInteractivityValues,
     getFilterInteractivityValue,
+    isChartContent,
     isDashboardContent,
     isDashboardUuidContent,
     type CreateEmbedJwt,
@@ -19,7 +21,223 @@ enum SnippetLanguage {
     GO = 'go',
 }
 
-const codeTemplates: Record<SnippetLanguage, string> = {
+// Helper functions to convert values to language-specific formats
+const languageUndefined = (language: SnippetLanguage): string => {
+    switch (language) {
+        case SnippetLanguage.NODE:
+            return 'undefined';
+        case SnippetLanguage.PYTHON:
+        case SnippetLanguage.GO:
+            return 'None';
+        default:
+            return assertUnreachable(language, `Unknown language ${language}`);
+    }
+};
+
+const languageBoolean = (
+    language: SnippetLanguage,
+    value?: boolean,
+): string => {
+    if (value === undefined) {
+        return languageUndefined(language);
+    }
+    switch (language) {
+        case SnippetLanguage.NODE:
+        case SnippetLanguage.GO:
+            return value ? 'true' : 'false';
+        case SnippetLanguage.PYTHON:
+            return value ? 'True' : 'False';
+        default:
+            return assertUnreachable(language, `Unknown language ${language}`);
+    }
+};
+
+const languageString = (language: SnippetLanguage, value?: string): string => {
+    if (value === undefined || value === null) {
+        return languageUndefined(language);
+    }
+    return `"${value}"`;
+};
+
+const languageOptionalStringForGo = (
+    language: SnippetLanguage,
+    value?: string,
+): { definition: string; usage: string } => {
+    if (language !== SnippetLanguage.GO) {
+        return { definition: '', usage: languageString(language, value) };
+    }
+
+    if (!value) {
+        return { definition: '', usage: 'nil' };
+    }
+
+    const varName = value.includes('@') ? 'email' : 'externalId';
+    return {
+        definition: `${varName} := "${value}"`,
+        usage: `&${varName}`,
+    };
+};
+
+const languageStringArray = (
+    language: SnippetLanguage,
+    values?: string[] | null,
+): string => {
+    if (!values || values.length === 0) {
+        switch (language) {
+            case SnippetLanguage.NODE:
+            case SnippetLanguage.PYTHON:
+                return '[]';
+            case SnippetLanguage.GO:
+                return '';
+            default:
+                return assertUnreachable(
+                    language,
+                    `Unknown language ${language}`,
+                );
+        }
+    }
+    switch (language) {
+        case SnippetLanguage.NODE:
+        case SnippetLanguage.PYTHON:
+            return JSON.stringify(values);
+        case SnippetLanguage.GO:
+            return `"${values.join('","')}"`;
+        default:
+            return assertUnreachable(language, `Unknown language ${language}`);
+    }
+};
+
+const chartCodeTemplates: Record<SnippetLanguage, string> = {
+    [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '{{projectUuid}}';
+const data = {
+    content: {
+        type: 'chart',
+        projectUuid: projectUuid,
+        contentId: '{{chartUuid}}',
+        canExportCsv: {{canExportCsv}},
+        canExportImages: {{canExportImages}},
+        canViewUnderlyingData: {{canViewUnderlyingData}},
+    },
+    user: {
+        externalId: {{externalId}},
+        email: {{email}}
+    },
+    userAttributes: {{userAttributes}},
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
+const url = \`{{siteUrl}}/embed/\${projectUuid}#\${token}\`;
+`,
+    [SnippetLanguage.PYTHON]: `import datetime
+import jwt # pip install pyjwt
+
+key = "secret" # replace with your secret
+projectUuid = '{{projectUuid}}'
+
+data = {
+    "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1), # replace with your expiration time,
+    "iat": datetime.datetime.now(tz=datetime.timezone.utc),
+    "content": {
+        "type": "chart",
+        "projectUuid": projectUuid,
+        "contentId": "{{chartUuid}}",
+        "canExportCsv": {{canExportCsv}},
+        "canExportImages": {{canExportImages}},
+        "canViewUnderlyingData": {{canViewUnderlyingData}},
+    },
+    "user": {
+        "externalId": {{externalId}},
+        "email": {{email}}
+    },
+    "userAttributes": {{userAttributes}},
+};
+token = jwt.encode(data, key, algorithm="HS256")
+url = f"{{siteUrl}}/embed/{projectUuid}#{token}"
+`,
+    [SnippetLanguage.GO]: `
+package main
+
+import (
+    "fmt"
+    "time"
+
+    jwt "github.com/dgrijalva/jwt-go"
+)
+
+const LIGHTDASH_EMBED_SECRET = "secret" // replace with your secret
+const projectUuid = "{{projectUuid}}"
+
+func main() {
+    {{externalIdDef}}
+    {{emailDef}}
+
+    // Define the custom claims structure
+    type CustomClaims struct {
+        Content struct {
+            Type                  string \`json:"type"\`
+            ProjectUuid           string \`json:"projectUuid"\`
+            ContentId             string \`json:"contentId"\`
+            CanExportCsv          bool \`json:"canExportCsv"\`
+            CanExportImages       bool \`json:"canExportImages"\`
+            CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+        } \`json:"content"\`
+        UserAttributes map[string]string \`json:"userAttributes"\`
+        jwt.StandardClaims
+        User *struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        } \`json:"user,omitempty"\`
+    }
+
+    // Create the claims
+    claims := CustomClaims{
+        Content: struct {
+            Type                  string \`json:"type"\`
+            ProjectUuid           string \`json:"projectUuid"\`
+            ContentId             string \`json:"contentId"\`
+            CanExportCsv          bool \`json:"canExportCsv"\`
+            CanExportImages       bool \`json:"canExportImages"\`
+            CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+        }{
+            Type:                  "chart",
+            ProjectUuid:           projectUuid,
+            ContentId:             "{{chartUuid}}",
+            CanExportCsv:          {{canExportCsv}},
+            CanExportImages:       {{canExportImages}},
+            CanViewUnderlyingData: {{canViewUnderlyingData}},
+        },
+        User: &struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        }{
+            ExternalId: {{externalIdUsage}},
+            Email:      {{emailUsage}},
+        },
+        UserAttributes: map[string]string{{userAttributes}},
+        StandardClaims: jwt.StandardClaims{
+            ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
+        },
+    }
+
+    // Create the token
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+    // Sign the token with the secret
+    signedToken, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
+    if err != nil {
+        panic(err)
+    }
+
+    // Construct the URL
+    url := fmt.Sprintf("{{siteUrl}}/embed/%s#%s", projectUuid, signedToken)
+    fmt.Println("URL:", url)
+
+}
+`,
+};
+
+const dashboardCodeTemplates: Record<SnippetLanguage, string> = {
     [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
 const projectUuid = '{{projectUuid}}';
@@ -35,11 +253,11 @@ const data = {
         parameterInteractivity: {
             enabled: {{canChangeParameters}},
         },
-        canExportCsv: {{canExportCsvEnabled}},
-        canExportImages: {{canExportImagesEnabled}},
+        canExportCsv: {{canExportCsv}},
+        canExportImages: {{canExportImages}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
-        canExplore: {{canExploreEnabled}},
+        canExplore: {{canExplore}},
         canViewUnderlyingData: {{canViewUnderlyingData}},
     },
     user: {
@@ -65,22 +283,22 @@ data = {
         "projectUuid": projectUuid,
         "dashboardUuid": "{{dashboardUuid}}",
         "dashboardFiltersInteractivity": {
-            "enabled": "{{dashboardFiltersInteractivityEnabledPython}}",
-            "allowedFilters": {{dashboardFiltersInteractivityAllowedFiltersPython}},
+            "enabled": "{{dashboardFiltersInteractivityEnabled}}",
+            "allowedFilters": {{dashboardFiltersInteractivityAllowedFilters}},
         },
         "parameterInteractivity": {
-            "enabled": {{canChangeParametersPython}},
+            "enabled": {{canChangeParameters}},
         },
-        "canExportCsv": {{canExportCsvEnabledPython}},
-        "canExportImages": {{canExportImagesEnabledPython}},
-        "canExportPagePdf": {{canExportPagePdfPython}},
-        "canDateZoom": {{canDateZoomPython}},
-        "canExplore": {{canExploreEnabledPython}},
-        "canViewUnderlyingData": {{canViewUnderlyingDataPython}},
+        "canExportCsv": {{canExportCsv}},
+        "canExportImages": {{canExportImages}},
+        "canExportPagePdf": {{canExportPagePdf}},
+        "canDateZoom": {{canDateZoom}},
+        "canExplore": {{canExplore}},
+        "canViewUnderlyingData": {{canViewUnderlyingData}},
     },
     "user": {
-        "externalId": {{externalIdPython}},
-        "email": {{emailPython}}
+        "externalId": {{externalId}},
+        "email": {{email}}
     },
     "userAttributes": {{userAttributes}},
 };
@@ -101,8 +319,8 @@ const LIGHTDASH_EMBED_SECRET = "secret" // replace with your secret
 const projectUuid = "{{projectUuid}}"
 
 func main() {
-    {{externalIdGoDef}}
-    {{emailGoDef}}
+    {{externalIdDef}}
+    {{emailDef}}
 
     // Define the custom claims structure
     type CustomClaims struct {
@@ -160,26 +378,26 @@ func main() {
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
             }{
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
-                AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFiltersGo}}},
+                AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFilters}}},
             },
             ParameterInteractivity: struct {
                 Enabled bool \`json:"enabled"\`
             }{
                 Enabled: {{canChangeParameters}},
             },
-            CanExportCsv: {{canExportCsvEnabled}},
-            CanExportImages: {{canExportImagesEnabled}},
+            CanExportCsv: {{canExportCsv}},
+            CanExportImages: {{canExportImages}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
-            CanExplore: {{canExploreEnabled}},
+            CanExplore: {{canExplore}},
             CanViewUnderlyingData: {{canViewUnderlyingData}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
             Email      *string \`json:"email,omitempty"\`
         }{
-            ExternalId: {{externalIdGo}}, // Or point to a string variable
-            Email:      {{emailGo}},
+            ExternalId: {{externalIdUsage}},
+            Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
         StandardClaims: jwt.StandardClaims{
@@ -216,143 +434,113 @@ const getCodeSnippet = (
         data: CreateEmbedJwt;
     },
 ): string => {
-    if (!isDashboardContent(data.content)) {
-        return `Unsupported embedded content type ${data.content.type} snippet`;
-    }
-    return codeTemplates[language]
+    let codeTemplate = isDashboardContent(data.content)
+        ? dashboardCodeTemplates[language]
+        : chartCodeTemplates[language];
+
+    // Handle Go-specific user field placeholders
+    const externalIdForGo = languageOptionalStringForGo(
+        language,
+        data.user?.externalId,
+    );
+    const emailForGo = languageOptionalStringForGo(language, data.user?.email);
+
+    // Replace common snippet variables for chart and dashboard
+    codeTemplate = codeTemplate
         .replace('{{projectUuid}}', projectUuid)
         .replace('{{siteUrl}}', siteUrl)
         .replace('{{expiresIn}}', data.expiresIn || '1 hour')
-        .replace(
-            '{{dashboardUuid}}',
-            isDashboardUuidContent(data.content)
-                ? data.content.dashboardUuid
-                : '{{your dashboard uuid}}',
-        )
         .replace(
             '{{userAttributes}}',
             JSON.stringify(data.userAttributes || {}),
         )
         .replace(
-            '{{dashboardFiltersInteractivityEnabled}}',
-            data.content.dashboardFiltersInteractivity
-                ? getFilterInteractivityValue(
-                      data.content.dashboardFiltersInteractivity.enabled,
-                  )
-                : FilterInteractivityValues.none,
+            '{{externalId}}',
+            languageString(language, data.user?.externalId),
         )
-        .replace(
-            '{{dashboardFiltersInteractivityAllowedFilters}}',
-            JSON.stringify(
-                data.content.dashboardFiltersInteractivity?.allowedFilters,
-            ),
-        )
-        .replace(
-            '{{dashboardFiltersInteractivityEnabledPython}}',
-            data.content.dashboardFiltersInteractivity
-                ? getFilterInteractivityValue(
-                      data.content.dashboardFiltersInteractivity.enabled,
-                  )
-                : FilterInteractivityValues.none,
-        )
-        .replace(
-            '{{dashboardFiltersInteractivityAllowedFiltersPython}}',
-            JSON.stringify(
-                data.content.dashboardFiltersInteractivity?.allowedFilters,
-            ) || 'None',
-        )
-        .replace(
-            '{{dashboardFiltersInteractivityAllowedFiltersGo}}',
-            data.content.dashboardFiltersInteractivity?.allowedFilters
-                ? `"${data.content.dashboardFiltersInteractivity?.allowedFilters?.join(
-                      '","',
-                  )}"`
-                : 'nil',
-        )
-        .replace(
-            '{{canChangeParameters}}',
-            data.content.parameterInteractivity?.enabled ? 'true' : 'false',
-        )
-        .replace(
-            '{{canChangeParametersPython}}',
-            data.content.parameterInteractivity?.enabled ? 'True' : 'False',
-        )
-        .replace('{{canDateZoom}}', data.content.canDateZoom ? 'true' : 'false')
-        .replace(
-            '{{canExportPagePdf}}',
-            data.content.canExportPagePdf ? 'true' : 'false',
-        )
+        .replace('{{externalIdDef}}', externalIdForGo.definition)
+        .replace('{{externalIdUsage}}', externalIdForGo.usage)
+        .replace('{{email}}', languageString(language, data.user?.email))
+        .replace('{{emailDef}}', emailForGo.definition)
+        .replace('{{emailUsage}}', emailForGo.usage)
         .replace(
             '{{canViewUnderlyingData}}',
-            data.content.canViewUnderlyingData ? 'true' : 'false',
+            languageBoolean(language, data.content.canViewUnderlyingData),
         )
         .replace(
-            '{{canExportCsvEnabled}}',
-            data.content.canExportCsv ? 'true' : 'false',
+            '{{canExportCsv}}',
+            languageBoolean(language, data.content.canExportCsv),
         )
         .replace(
-            '{{canExportCsvEnabledPython}}',
-            data.content.canExportCsv ? 'True' : 'False',
-        )
-        .replace(
-            '{{canDateZoomPython}}',
-            data.content.canDateZoom ? 'True' : 'False',
-        )
-        .replace(
-            '{{canExportPagePdfPython}}',
-            data.content.canExportPagePdf ? 'True' : 'False',
-        )
-        .replace(
-            '{{canViewUnderlyingDataPython}}',
-            data.content.canViewUnderlyingData ? 'True' : 'False',
-        )
-        .replace(
-            '{{canExportImagesEnabled}}',
-            data.content.canExportImages ? 'true' : 'false',
-        )
-        .replace(
-            '{{canExportImagesEnabledPython}}',
-            data.content.canExportImages ? 'True' : 'False',
-        )
-        .replace(
-            '{{externalId}}',
-            data.user?.externalId ? `"${data.user?.externalId}"` : 'undefined',
-        )
-        .replace(
-            '{{externalIdPython}}',
-            data.user?.externalId ? `"${data.user?.externalId}"` : 'None',
-        )
-        .replace(
-            '{{externalIdGoDef}}',
-            data.user?.externalId
-                ? `externalId := "${data.user?.externalId}"`
-                : '',
-        )
-        .replace(
-            '{{externalIdGo}}',
-            data.user?.externalId ? `&externalId` : 'nil',
-        )
-        .replace(
-            '{{email}}',
-            data.user?.email ? `"${data.user?.email}"` : 'undefined',
-        )
-        .replace(
-            '{{emailPython}}',
-            data.user?.email ? `"${data.user?.email}"` : 'None',
-        )
-        .replace(
-            '{{emailGoDef}}',
-            data.user?.email ? `email := "${data.user?.email}"` : '',
-        )
-        .replace('{{emailGo}}', data.user?.email ? `&email` : 'nil')
-        .replace(
-            '{{canExploreEnabled}}',
-            data.content.canExplore ? 'true' : 'false',
-        )
-        .replace(
-            '{{canExploreEnabledPython}}',
-            data.content.canExplore ? 'True' : 'False',
+            '{{canExportImages}}',
+            languageBoolean(language, data.content.canExportImages),
         );
+
+    const contentType = data.content.type;
+    switch (contentType) {
+        case 'dashboard':
+            // Replace dashboard specific variables
+            codeTemplate = codeTemplate
+                .replace(
+                    '{{dashboardUuid}}',
+                    isDashboardUuidContent(data.content)
+                        ? data.content.dashboardUuid
+                        : '{{your dashboard uuid}}',
+                )
+                .replace(
+                    '{{dashboardFiltersInteractivityEnabled}}',
+                    data.content.dashboardFiltersInteractivity
+                        ? getFilterInteractivityValue(
+                              data.content.dashboardFiltersInteractivity
+                                  .enabled,
+                          )
+                        : FilterInteractivityValues.none,
+                )
+                .replace(
+                    '{{dashboardFiltersInteractivityAllowedFilters}}',
+                    languageStringArray(
+                        language,
+                        data.content.dashboardFiltersInteractivity
+                            ?.allowedFilters,
+                    ),
+                )
+                .replace(
+                    '{{canChangeParameters}}',
+                    languageBoolean(
+                        language,
+                        data.content.parameterInteractivity?.enabled,
+                    ),
+                )
+                .replace(
+                    '{{canExportPagePdf}}',
+                    languageBoolean(language, data.content.canExportPagePdf),
+                )
+                .replace(
+                    '{{canDateZoom}}',
+                    languageBoolean(language, data.content.canDateZoom),
+                )
+                .replace(
+                    '{{canExplore}}',
+                    languageBoolean(language, data.content.canExplore),
+                );
+            break;
+        case 'chart':
+            // Replace chart specific variables
+            if (isChartContent(data.content)) {
+                codeTemplate = codeTemplate.replace(
+                    '{{chartUuid}}',
+                    data.content.contentId,
+                );
+            }
+            break;
+        default:
+            assertUnreachable(
+                contentType,
+                `Unsupported embedded content type ${contentType} snippet`,
+            );
+    }
+
+    return codeTemplate;
 };
 
 const EmbedCodeSnippet: FC<{
