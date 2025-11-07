@@ -153,22 +153,30 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
 
     // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
     if (chartData === undefined || !savedSqlUuid) {
+        const errorMessage = !savedSqlUuid
+            ? 'This SQL chart has been deleted.'
+            : chartError?.error?.message || 'Error fetching chart';
+
+        const tileTitle =
+            tile.properties.title ||
+            tile.properties.chartName ||
+            'Deleted SQL chart';
+
         return (
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 isLoading={!!savedSqlUuid && isChartLoading}
-                title={tile.properties.title || tile.properties.chartName || ''}
+                title={tileTitle}
                 {...rest}
             >
-                {!isChartLoading && (
+                {(!savedSqlUuid || !isChartLoading) && (
                     <SuboptimalState
                         icon={IconAlertCircle}
                         title={formatChartErrorMessage(
                             tile.properties.chartName,
-                            chartError?.error?.message ||
-                                'Error fetching chart',
+                            errorMessage,
                         )}
                     />
                 )}
