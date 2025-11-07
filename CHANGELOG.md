@@ -1,3 +1,10 @@
+## [0.2155.2](https://github.com/lightdash/lightdash/compare/0.2155.1...0.2155.2) (2025-11-07)
+
+
+### Bug Fixes
+
+* add error state for deleted charts in a dashboard ([#17951](https://github.com/lightdash/lightdash/issues/17951)) ([aa0a0a4](https://github.com/lightdash/lightdash/commit/aa0a0a45aba24d9f1e7194e8579b592fa4fabb8f))
+
 ## [0.2155.1](https://github.com/lightdash/lightdash/compare/0.2155.0...0.2155.1) (2025-11-07)
 
 
