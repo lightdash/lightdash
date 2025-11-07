@@ -6,14 +6,17 @@ export const useLegendDoubleClickTooltip = () => {
     return {
         tooltip: {
             show: true,
-            borderColor: theme.colors.gray[2],
-            borderWidth: 1,
+            showDelay: 500,
+            backgroundColor: theme.colors.gray[9],
+            borderColor: theme.colors.gray[9],
+            borderWidth: 0,
+            borderRadius: 4,
             textStyle: {
-                color: theme.colors.gray[6],
+                color: theme.white,
                 fontSize: 12,
                 fontWeight: 400,
             },
-            padding: [px(theme.spacing.two), px(theme.spacing.xxs)],
+            padding: [px(theme.spacing.xxs), px(theme.spacing.xs)],
             extraCssText: `box-shadow: ${theme.shadows.subtle};`,
             formatter: () => {
                 return `Click to toggle visibility. Double click to isolate`;
