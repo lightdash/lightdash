@@ -5,6 +5,7 @@ import {
     formatTooltipHeader,
     formatTooltipValue,
     getItemLabelWithoutTableName,
+    getReadableTextColor,
     getTooltipDivider,
     getTooltipStyle,
 } from '@lightdash/common';
@@ -108,7 +109,23 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             },
             label: {
                 show: true,
-                formatter: '{b}',
+                formatter: (params) => {
+                    const { name, color } = params;
+                    // Get adaptive text color based on background
+                    const textColor =
+                        typeof color === 'string'
+                            ? getReadableTextColor(color)
+                            : 'white';
+                    return `{${textColor}|${name}}`;
+                },
+                rich: {
+                    white: {
+                        color: 'white',
+                    },
+                    black: {
+                        color: 'black',
+                    },
+                },
             },
             tooltip: {
                 formatter: (info) => {
