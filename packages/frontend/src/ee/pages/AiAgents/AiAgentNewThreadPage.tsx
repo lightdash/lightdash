@@ -10,20 +10,29 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
-import { useCreateAgentThreadMutation } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import {
+    useCreateAgentThreadMutation,
+    useVerifiedQuestions,
+} from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { type AgentContext } from './AgentPage';
 
-const AiAgentNewThreadPage = () => {
+const AiAgentNewThreadPage: FC = () => {
     const { agentUuid, projectUuid } = useParams();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(agentUuid, projectUuid!);
     const { agent } = useOutletContext<AgentContext>();
+    const { data: verifiedQuestions } = useVerifiedQuestions(
+        projectUuid,
+        agentUuid,
+    );
 
     const onSubmit = (prompt: string) => {
         void createAgentThread({ prompt });
@@ -95,6 +104,14 @@ const AiAgentNewThreadPage = () => {
                             </Group>
                         )}
                     </Stack>
+
+                    {verifiedQuestions && verifiedQuestions.length > 1 && (
+                        <SuggestedQuestions
+                            questions={verifiedQuestions}
+                            onQuestionClick={onSubmit}
+                            isLoading={isCreatingThread}
+                        />
+                    )}
 
                     <AgentChatInput
                         onSubmit={onSubmit}

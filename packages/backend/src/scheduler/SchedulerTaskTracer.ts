@@ -124,7 +124,17 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
-    [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: () => ({}),
+    [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+
+    [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
 
     [SCHEDULER_TASKS.RENAME_RESOURCES]: (payload) => ({
         'organization.uuid': payload.organizationUuid,

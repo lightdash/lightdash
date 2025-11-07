@@ -2,6 +2,7 @@ import {
     AiAgentEvalRunJobPayload,
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
+    GenerateArtifactQuestionJobPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -40,6 +41,22 @@ export class CommercialSchedulerClient extends SchedulerClient {
         const now = new Date();
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION,
+            payload,
+            {
+                runAt: now,
+                maxAttempts: 3,
+            },
+        );
+        return { jobId };
+    }
+
+    async generateArtifactQuestion(
+        payload: GenerateArtifactQuestionJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION,
             payload,
             {
                 runAt: now,

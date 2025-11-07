@@ -1,0 +1,24 @@
+.questionCard {
+    transition: all 0.15s ease;
+    overflow: hidden;
+}
+
+.questionCard:hover {
+    box-shadow: var(--mantine-shadow-sm);
+    border-color: var(--mantine-color-blue-4);
+}
+
+.questionCard:hover .questionButton:not(:disabled) {
+    background-color: var(--mantine-color-gray-0);
+}
+
+.questionButton {
+    width: 100%;
+    height: 100%;
+    padding: var(--mantine-spacing-xs);
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--mantine-radius-md);
+    transition: background-color 0.15s ease;
+    display: block;
+}

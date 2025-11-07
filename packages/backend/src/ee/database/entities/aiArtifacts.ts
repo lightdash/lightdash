@@ -30,6 +30,7 @@ export type DbAiArtifactVersion = {
     dashboard_config: Record<string, unknown> | null;
     verified_by_user_uuid: string | null;
     verified_at: Date | null;
+    verified_question: string | null;
 };
 
 export type AiArtifactVersionsTable = Knex.CompositeTableType<
@@ -48,6 +49,7 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
             | 'dashboard_config'
             | 'verified_by_user_uuid'
             | 'verified_at'
+            | 'verified_question'
         >
     >
 >;
