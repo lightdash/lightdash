@@ -28,6 +28,14 @@ const GridTile: FC<
     useProfiler(`Dashboard-${tile.type}`);
 
     if (props.locked) {
+        // Allow markdown and loom tiles to show even when locked since they are not filterable
+        if (tile.type === DashboardTileTypes.MARKDOWN) {
+            return <MarkdownTile {...props} tile={tile} />;
+        }
+        if (tile.type === DashboardTileTypes.LOOM) {
+            return <LoomTile {...props} tile={tile} />;
+        }
+
         return (
             <Box h="100%">
                 <TileBase isLoading={false} title={''} {...props} />
