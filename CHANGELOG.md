@@ -1,3 +1,10 @@
+## [0.2154.4](https://github.com/lightdash/lightdash/compare/0.2154.3...0.2154.4) (2025-11-07)
+
+
+### Bug Fixes
+
+* get tooltip format field when pivotValuesColumnMap does not exist ([#17944](https://github.com/lightdash/lightdash/issues/17944)) ([a55e130](https://github.com/lightdash/lightdash/commit/a55e13089d4ba790dcd8e84eadf7361c4a96fe61))
+
 ## [0.2154.3](https://github.com/lightdash/lightdash/compare/0.2154.2...0.2154.3) (2025-11-07)
 
 
