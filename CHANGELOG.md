@@ -1,3 +1,11 @@
+# [0.2154.0](https://github.com/lightdash/lightdash/compare/0.2153.0...0.2154.0) (2025-11-07)
+
+
+### Features
+
+* add human feedback text field to AI agent responses ([#17891](https://github.com/lightdash/lightdash/issues/17891)) ([ba956c9](https://github.com/lightdash/lightdash/commit/ba956c986139b31ef0c9c5e8ebc755de5b7a3e00))
+* keep markdown and loom tiles when dashboard is locked ([#17929](https://github.com/lightdash/lightdash/issues/17929)) ([091986b](https://github.com/lightdash/lightdash/commit/091986b2e42e42b051e3bc7438b33c6b9d2acaae))
+
 # [0.2153.0](https://github.com/lightdash/lightdash/compare/0.2152.2...0.2153.0) (2025-11-07)
 
 
