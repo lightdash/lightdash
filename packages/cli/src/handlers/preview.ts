@@ -1,6 +1,5 @@
 import * as core from '@actions/core';
 import {
-    ApiProjectResponse,
     CreateProjectTableConfiguration,
     Project,
     ProjectType,
@@ -142,6 +141,7 @@ export const previewHandler = async (
     let project: Project | undefined;
     let hasContentCopy = false;
     let contentCopyError: string | undefined;
+    let contentCopySkipReason: string | undefined;
 
     const config = await getConfig();
 
@@ -152,14 +152,15 @@ export const previewHandler = async (
             GlobalState.debug(
                 `> Validating upstream project: ${config.context.project}`,
             );
-            const upstreamProject = await lightdashApi<ApiProjectResponse>({
+            const upstreamProject = await lightdashApi<Project>({
                 method: 'GET',
                 url: `/api/v1/projects/${config.context.project}`,
                 body: undefined,
             });
             upstreamProjectValid =
-                upstreamProject.results.projectUuid === config.context.project;
+                upstreamProject.projectUuid === config.context.project;
             if (!upstreamProjectValid) {
+                contentCopySkipReason = `Project UUID mismatch. Expected ${config.context.project} but got ${upstreamProject.projectUuid}`;
                 console.error(
                     styles.warning(
                         `\n\nWarning: Cannot access upstream project "${
@@ -170,10 +171,10 @@ export const previewHandler = async (
                 );
             }
         } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            contentCopySkipReason = `Failed to validate upstream project: ${errorMessage}`;
             GlobalState.debug(
-                `> Upstream project validation failed: ${
-                    e instanceof Error ? e.message : String(e)
-                }`,
+                `> Upstream project validation failed: ${errorMessage}`,
             );
             console.error(
                 styles.warning(
@@ -187,12 +188,14 @@ export const previewHandler = async (
     }
 
     if (!config.context?.project) {
+        contentCopySkipReason = 'No upstream project configured';
         console.error(
             styles.warning(
                 `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
             ),
         );
     } else if (options.skipCopyContent) {
+        contentCopySkipReason = '--skip-copy-content flag was used';
         console.error(
             styles.warning(
                 `\n\nDeveloper preview will be deployed without any copied content!\n`,
@@ -266,9 +269,13 @@ export const previewHandler = async (
         });
 
         if (!hasContentCopy) {
-            const errorMessage = `\n\nDeveloper preview deployed without any copied content!\n ${
-                contentCopyError ? `Error: ${contentCopyError}\n` : ''
-            }`;
+            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
+            if (contentCopyError) {
+                errorMessage += `\nError: ${contentCopyError}`;
+            } else if (contentCopySkipReason) {
+                errorMessage += `\nReason: ${contentCopySkipReason}`;
+            }
+            errorMessage += '\n';
             console.error(styles.warning(errorMessage));
         }
 
