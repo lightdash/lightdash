@@ -1,3 +1,21 @@
+# [0.2155.0](https://github.com/lightdash/lightdash/compare/0.2154.5...0.2155.0) (2025-11-07)
+
+
+### Bug Fixes
+
+* constraint dimension/size for custom charts ([#17924](https://github.com/lightdash/lightdash/issues/17924)) ([a96202f](https://github.com/lightdash/lightdash/commit/a96202f549539fcd00536397bd14ea06e0a0f7b8))
+* fallback to embed dashboard abilities rather than chart ([#17957](https://github.com/lightdash/lightdash/issues/17957)) ([4da6897](https://github.com/lightdash/lightdash/commit/4da689762224558b89aa33fd880655e3fd8f00e5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* improve tooltip positioning and z-index ([#17912](https://github.com/lightdash/lightdash/issues/17912)) ([37a2bc4](https://github.com/lightdash/lightdash/commit/37a2bc40967e61d180efa5c301e1501be33c4991))
+* set default showTableNames to false ([#17919](https://github.com/lightdash/lightdash/issues/17919)) ([9870618](https://github.com/lightdash/lightdash/commit/9870618c63c8c0670dc2351fe144bfae625ddeb0))
+
+
+### Features
+
+* add adaptive text color to treemap chart labels ([#17945](https://github.com/lightdash/lightdash/issues/17945)) ([5449f33](https://github.com/lightdash/lightdash/commit/5449f3327e306eef11f06a932a33468eb8fab0d5))
+* add option to show/hide axis tick lines in charts ([#17921](https://github.com/lightdash/lightdash/issues/17921)) ([d27748f](https://github.com/lightdash/lightdash/commit/d27748fbc0dfffac6a370fc2248b7624d430c5c0))
+* add table name toggle and default hidden titles for BigNumber charts ([#17942](https://github.com/lightdash/lightdash/issues/17942)) ([25db931](https://github.com/lightdash/lightdash/commit/25db931ec5128d35e8862c2e5e7f3c7590d8516b))
+* improve pie chart label formatting and default settings ([#17949](https://github.com/lightdash/lightdash/issues/17949)) ([049069e](https://github.com/lightdash/lightdash/commit/049069ec0b042b1a7d4b7a513c4d8650ba60260b))
+
 ## [0.2154.5](https://github.com/lightdash/lightdash/compare/0.2154.4...0.2154.5) (2025-11-07)
 
 
