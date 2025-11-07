@@ -1,0 +1,17 @@
+.contentLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mantine-spacing-xxs);
+    padding: var(--mantine-spacing-two) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    vertical-align: middle;
+    margin-right: var(--mantine-spacing-two);
+    &:hover {
+        background-color: var(--mantine-color-gray-1) !important;
+    }
+}

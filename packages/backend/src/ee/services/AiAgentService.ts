@@ -1711,6 +1711,21 @@ export class AiAgentService {
             );
         }
 
+        // Only users who can manage the agent can verify artifacts
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only users with manage permissions can verify artifacts',
+            );
+        }
+
         const artifact = await this.aiAgentModel.getArtifact(
             artifactUuid,
             versionUuid,
@@ -1718,26 +1733,6 @@ export class AiAgentService {
         if (!artifact) {
             throw new NotFoundError(
                 `Artifact version not found: ${artifactUuid}/${versionUuid}`,
-            );
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid: artifact.threadUuid,
-        });
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${artifact.threadUuid}`);
-        }
-
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to modify this artifact',
             );
         }
 

@@ -1,12 +1,10 @@
 import {
-    ChartKind,
     type AiAgentMessageAssistant,
     type ToolProposeChangeArgs,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
-    Anchor,
     Button,
     CopyButton,
     Group,
@@ -18,12 +16,10 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
-    IconArrowRight,
     IconBug,
     IconCheck,
     IconCopy,
     IconExclamationCircle,
-    IconLayoutDashboard,
     IconRefresh,
     IconTestPipe,
     IconThumbDown,
@@ -34,7 +30,6 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import {
     mdEditorComponents,
     rehypeRemoveHeaderLinks,
@@ -51,10 +46,10 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
-import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { ContentLink } from './ContentLink';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
@@ -79,10 +74,25 @@ const AssistantBubbleContent: FC<{
     const hasNoResponse = !isStreaming && !message.message && !isPending;
     const shouldShowRetry = hasStreamingError || hasNoResponse;
 
-    const messageContent =
+    const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
             : message.message ?? '';
+
+    const referencedArtifactsMarkdown =
+        !isStreaming &&
+        !isPending &&
+        message.referencedArtifacts &&
+        message.referencedArtifacts.length > 0
+            ? `\n\nReferenced artifacts: ${message.referencedArtifacts
+                  .map(
+                      (artifact) =>
+                          `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
+                  )
+                  .join(', ')}`
+            : '';
+
+    const messageContent = baseMessageContent + referencedArtifactsMarkdown;
 
     const handleRetry = useCallback(() => {
         void streamMessage({
@@ -200,98 +210,18 @@ const AssistantBubbleContent: FC<{
                                 typeof props['data-content-type'] === 'string'
                                     ? props['data-content-type']
                                     : undefined;
-                            const chartType =
-                                'data-chart-type' in props &&
-                                typeof props['data-chart-type'] === 'string'
-                                    ? props['data-chart-type']
-                                    : undefined;
 
-                            if (contentType === 'dashboard-link') {
-                                return (
-                                    <Anchor
-                                        {...props}
-                                        target="_blank"
-                                        fz="sm"
-                                        fw={500}
-                                        bg="gray.0"
-                                        c="gray.7"
-                                        td="none"
-                                        classNames={{
-                                            root: styles.contentLink,
-                                        }}
-                                    >
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                            size="md"
-                                            color="green.7"
-                                            fill="green.6"
-                                            fillOpacity={0.2}
-                                            strokeWidth={1.9}
-                                        />
-
-                                        {/* margin is added by md package */}
-                                        <Text fz="sm" fw={500} m={0}>
-                                            {children}
-                                        </Text>
-
-                                        <MantineIcon
-                                            icon={IconArrowRight}
-                                            color="gray.7"
-                                            size="sm"
-                                            strokeWidth={2.0}
-                                        />
-                                    </Anchor>
-                                );
-                            } else if (contentType === 'chart-link') {
-                                const chartTypeKind =
-                                    chartType &&
-                                    Object.values(ChartKind).includes(
-                                        chartType as ChartKind,
-                                    )
-                                        ? (chartType as ChartKind)
-                                        : undefined;
-                                return (
-                                    <Anchor
-                                        {...props}
-                                        target="_blank"
-                                        fz="sm"
-                                        fw={500}
-                                        bg="gray.0"
-                                        c="gray.7"
-                                        td="none"
-                                        classNames={{
-                                            root: styles.contentLink,
-                                        }}
-                                    >
-                                        {chartTypeKind && (
-                                            <MantineIcon
-                                                icon={getChartIcon(
-                                                    chartTypeKind,
-                                                )}
-                                                size="md"
-                                                color="blue.7"
-                                                fill="blue.4"
-                                                fillOpacity={0.2}
-                                                strokeWidth={1.9}
-                                            />
-                                        )}
-
-                                        {/* margin is added by md package */}
-                                        <Text fz="sm" fw={500} m={0}>
-                                            {children}
-                                        </Text>
-
-                                        <MantineIcon
-                                            icon={IconArrowRight}
-                                            color="gray.7"
-                                            size="sm"
-                                            strokeWidth={2.0}
-                                        />
-                                    </Anchor>
-                                );
-                            }
-
-                            return <a {...props}>{children}</a>;
+                            return (
+                                <ContentLink
+                                    contentType={contentType}
+                                    props={props}
+                                    message={message}
+                                    projectUuid={projectUuid}
+                                    agentUuid={agentUuid}
+                                >
+                                    {children}
+                                </ContentLink>
+                            );
                         },
                     }}
                 />
