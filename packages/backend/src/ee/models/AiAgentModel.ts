@@ -1220,6 +1220,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'human_feedback'
                     | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -1238,6 +1239,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -1322,6 +1324,7 @@ export class AiAgentModel {
                     row.responded_at?.toISOString() ??
                     row.created_at.toISOString(),
                 humanScore: row.human_score,
+                humanFeedback: row.human_feedback,
                 artifacts: artifacts ?? null,
                 referencedArtifacts: referencedArtifacts ?? null,
                 toolCalls: toolCalls
@@ -1699,6 +1702,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'human_feedback'
                     | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -1717,6 +1721,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -1834,6 +1839,7 @@ export class AiAgentModel {
                     message: row.response ?? '',
                     createdAt: row.responded_at?.toString() ?? '',
                     humanScore: row.human_score,
+                    humanFeedback: row.human_feedback,
                     artifacts: artifacts.length > 0 ? artifacts : null,
                     referencedArtifacts,
                     toolCalls: toolCalls
@@ -1990,6 +1996,7 @@ export class AiAgentModel {
                 'viz_config_output',
                 'metric_query',
                 'human_score',
+                'human_feedback',
                 'user_uuid',
             )
             .select({
@@ -2125,10 +2132,13 @@ export class AiAgentModel {
     async updateHumanScore(data: {
         promptUuid: string;
         humanScore: number | null;
+        humanFeedback?: string | null;
     }) {
         await this.database(AiPromptTableName)
             .update({
                 human_score: data.humanScore,
+                human_feedback:
+                    data.humanScore === -1 ? data.humanFeedback ?? null : null,
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,

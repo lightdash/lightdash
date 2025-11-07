@@ -10,8 +10,10 @@ import {
     Group,
     Loader,
     Paper,
+    Popover,
     Stack,
     Text,
+    Textarea,
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
@@ -20,6 +22,7 @@ import {
     IconCheck,
     IconCopy,
     IconExclamationCircle,
+    IconMessageX,
     IconRefresh,
     IconTestPipe,
     IconThumbDown,
@@ -28,7 +31,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     mdEditorComponents,
@@ -46,6 +49,7 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
+import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
@@ -287,6 +291,10 @@ export const AssistantBubble: FC<Props> = memo(
         const downVoted = message.humanScore === -1;
         const hasRating = upVoted || downVoted;
 
+        const [popoverOpened, { open: openPopover, close: closePopover }] =
+            useDisclosure(false);
+        const [feedbackText, setFeedbackText] = useState('');
+
         const handleUpvote = useCallback(() => {
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
@@ -295,11 +303,36 @@ export const AssistantBubble: FC<Props> = memo(
         }, [updateFeedbackMutation, message.uuid, upVoted]);
 
         const handleDownvote = useCallback(() => {
-            updateFeedbackMutation.mutate({
-                messageUuid: message.uuid,
-                humanScore: downVoted ? 0 : -1,
-            });
-        }, [updateFeedbackMutation, message.uuid, downVoted]);
+            if (downVoted) {
+                updateFeedbackMutation.mutate({
+                    messageUuid: message.uuid,
+                    humanScore: 0,
+                });
+            } else {
+                updateFeedbackMutation.mutate({
+                    messageUuid: message.uuid,
+                    humanScore: -1,
+                });
+                openPopover();
+            }
+        }, [updateFeedbackMutation, message.uuid, downVoted, openPopover]);
+
+        const handleSubmitFeedback = useCallback(() => {
+            if (feedbackText.trim().length !== 0) {
+                updateFeedbackMutation.mutate({
+                    messageUuid: message.uuid,
+                    humanScore: -1,
+                    humanFeedback: feedbackText.trim(),
+                });
+            }
+            closePopover();
+            setFeedbackText('');
+        }, [updateFeedbackMutation, message.uuid, feedbackText, closePopover]);
+
+        const handleCancelFeedback = useCallback(() => {
+            closePopover();
+            setFeedbackText('');
+        }, [closePopover]);
 
         const isPending = message.status === 'pending';
         const isLoading =
@@ -379,6 +412,25 @@ export const AssistantBubble: FC<Props> = memo(
                               ))}
                     </Stack>
                 )}
+                {!popoverOpened && downVoted && message.humanFeedback && (
+                    <Paper p="xs" mt="xs" radius="md" withBorder>
+                        <Stack gap="xs">
+                            <Group gap="xs">
+                                <MantineIcon
+                                    icon={IconMessageX}
+                                    size={16}
+                                    color="gray.7"
+                                />
+                                <Text size="xs" c="dimmed" fw={600}>
+                                    User feedback
+                                </Text>
+                            </Group>
+                            <Text size="sm" c="dimmed" fw={500}>
+                                {message.humanFeedback}
+                            </Text>
+                        </Stack>
+                    </Paper>
+                )}
                 {isLoading ? null : (
                     <Group gap={0}>
                         <CopyButton value={message.message ?? ''}>
@@ -423,20 +475,81 @@ export const AssistantBubble: FC<Props> = memo(
                         )}
 
                         {(!hasRating || downVoted) && (
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                aria-label="downvote"
-                                onClick={handleDownvote}
+                            <Popover
+                                width={500}
+                                position="top-start"
+                                trapFocus
+                                opened={popoverOpened}
+                                onChange={() => {
+                                    closePopover();
+                                    setFeedbackText('');
+                                }}
+                                withArrow
                             >
-                                <MantineIcon
-                                    icon={
-                                        downVoted
-                                            ? IconThumbDownFilled
-                                            : IconThumbDown
-                                    }
-                                />
-                            </ActionIcon>
+                                <Popover.Target>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label="downvote"
+                                        onClick={handleDownvote}
+                                    >
+                                        <MantineIcon
+                                            icon={
+                                                downVoted
+                                                    ? IconThumbDownFilled
+                                                    : IconThumbDown
+                                            }
+                                        />
+                                    </ActionIcon>
+                                </Popover.Target>
+                                <Popover.Dropdown>
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            handleSubmitFeedback();
+                                        }}
+                                    >
+                                        <Stack gap="xs">
+                                            <Textarea
+                                                autoFocus
+                                                classNames={{
+                                                    input: styles.feedbackInput,
+                                                }}
+                                                placeholder="Tell us what went wrong, feedback will be added to agent context (optional)"
+                                                value={feedbackText}
+                                                onChange={(e) =>
+                                                    setFeedbackText(
+                                                        e.currentTarget.value,
+                                                    )
+                                                }
+                                                minRows={3}
+                                                maxRows={5}
+                                                radius="md"
+                                                resize="vertical"
+                                            />
+                                            <Group gap="xs">
+                                                <Button
+                                                    type="submit"
+                                                    size="xs"
+                                                    color="dark.5"
+                                                >
+                                                    Submit
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    onClick={
+                                                        handleCancelFeedback
+                                                    }
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </Group>
+                                        </Stack>
+                                    </form>
+                                </Popover.Dropdown>
+                            </Popover>
                         )}
 
                         {showAddToEvalsButton && onAddToEvals && (

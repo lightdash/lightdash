@@ -7108,6 +7108,10 @@
                         },
                         "type": "array"
                     },
+                    "humanFeedback": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "humanScore": {
                         "type": "number",
                         "format": "double",
