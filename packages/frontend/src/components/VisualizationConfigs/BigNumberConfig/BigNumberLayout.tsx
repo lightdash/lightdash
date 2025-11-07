@@ -1,6 +1,11 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Grid, Select, TextInput } from '@mantine/core';
-import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import { ActionIcon, Group, Select, TextInput, Tooltip } from '@mantine/core';
+import {
+    IconEye,
+    IconEyeOff,
+    IconTable,
+    IconTableOff,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -27,6 +32,8 @@ export const Layout: FC = () => {
         getField,
         showBigNumberLabel,
         setShowBigNumberLabel,
+        showTableNamesInLabel,
+        setShowTableNamesInLabel,
     } = visualizationConfig.chartConfig;
 
     const selectedField = getField(selectedFieldId);
@@ -47,63 +54,89 @@ export const Layout: FC = () => {
                     hasGrouping
                 />
 
-                <Grid gutter="xs">
-                    <Grid.Col
-                        span={
-                            showStyle ? 7 : 12 // Mantine's default Grid system is 12 columns
-                        }
-                    >
-                        <TextInput
-                            variant={showBigNumberLabel ? 'default' : 'filled'}
-                            label="Label"
-                            value={bigNumberLabel}
-                            placeholder={defaultLabel}
-                            onChange={(e) =>
-                                setBigNumberLabel(e.currentTarget.value)
+                {showStyle && (
+                    <Select
+                        label="Format"
+                        data={StyleOptions}
+                        value={bigNumberStyle ?? ''}
+                        onChange={(newValue) => {
+                            if (!newValue) {
+                                setBigNumberStyle(undefined);
+                                setBigNumberComparisonStyle(undefined);
+                            } else {
+                                setBigNumberStyle(newValue as CompactOrAlias);
+                                setBigNumberComparisonStyle(
+                                    newValue as CompactOrAlias,
+                                );
                             }
-                            readOnly={!showBigNumberLabel}
-                            rightSection={
+                        }}
+                    />
+                )}
+
+                <TextInput
+                    variant={showBigNumberLabel ? 'default' : 'filled'}
+                    label="Label"
+                    value={bigNumberLabel}
+                    placeholder={defaultLabel}
+                    onChange={(e) => setBigNumberLabel(e.currentTarget.value)}
+                    readOnly={!showBigNumberLabel}
+                    styles={{
+                        rightSection: {
+                            width: '60px',
+                        },
+                    }}
+                    rightSection={
+                        <Group spacing={4} noWrap>
+                            <Tooltip
+                                withinPortal
+                                label={
+                                    bigNumberLabel
+                                        ? 'Clear custom label to toggle table names'
+                                        : showTableNamesInLabel
+                                        ? 'Hide table names in label'
+                                        : 'Show table names in label'
+                                }
+                            >
                                 <ActionIcon
                                     onClick={() => {
-                                        setShowBigNumberLabel(
-                                            !showBigNumberLabel,
-                                        );
+                                        if (!bigNumberLabel) {
+                                            setShowTableNamesInLabel(
+                                                !showTableNamesInLabel,
+                                            );
+                                        }
+                                    }}
+                                    disabled={!!bigNumberLabel}
+                                    style={{
+                                        cursor: bigNumberLabel
+                                            ? 'not-allowed'
+                                            : 'pointer',
                                     }}
                                 >
                                     <MantineIcon
                                         icon={
-                                            showBigNumberLabel
-                                                ? IconEye
-                                                : IconEyeOff
+                                            showTableNamesInLabel
+                                                ? IconTable
+                                                : IconTableOff
                                         }
                                     />
                                 </ActionIcon>
-                            }
-                        />
-                    </Grid.Col>
-                    <Grid.Col span="auto">
-                        {showStyle && (
-                            <Select
-                                label="Format"
-                                data={StyleOptions}
-                                value={bigNumberStyle ?? ''}
-                                onChange={(newValue) => {
-                                    if (!newValue) {
-                                        setBigNumberStyle(undefined);
-                                        setBigNumberComparisonStyle(undefined);
-                                    } else {
-                                        setBigNumberStyle(
-                                            newValue as CompactOrAlias,
-                                        );
-                                        setBigNumberComparisonStyle(
-                                            newValue as CompactOrAlias,
-                                        );
-                                    }
+                            </Tooltip>
+                            <ActionIcon
+                                onClick={() => {
+                                    setShowBigNumberLabel(!showBigNumberLabel);
                                 }}
-                            />
-                        )}
-                    </Grid.Col>
-                </Grid>
+                            >
+                                <MantineIcon
+                                    icon={
+                                        showBigNumberLabel
+                                            ? IconEye
+                                            : IconEyeOff
+                                    }
+                                />
+                            </ActionIcon>
+                        </Group>
+                    }
+                />
             </Config.Section>
         </Config>
     );

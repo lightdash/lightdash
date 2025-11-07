@@ -53,6 +53,7 @@ export type BigNumber = {
     style?: CompactOrAlias;
     selectedField?: string;
     showBigNumberLabel?: boolean;
+    showTableNamesInLabel?: boolean;
     showComparison?: boolean;
     comparisonFormat?: ComparisonFormatTypes;
     flipColors?: boolean;
