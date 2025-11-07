@@ -1,3 +1,13 @@
+# [0.2153.0](https://github.com/lightdash/lightdash/compare/0.2152.2...0.2153.0) (2025-11-07)
+
+
+### Features
+
+* add AI artifact verification and prompt reference tracking ([#17845](https://github.com/lightdash/lightdash/issues/17845)) ([7ef997d](https://github.com/lightdash/lightdash/commit/7ef997d20ef97091f9a22b71fd49fa49289e3f78))
+* add artifact verification to Agent UI ([#17848](https://github.com/lightdash/lightdash/issues/17848)) ([4e5334f](https://github.com/lightdash/lightdash/commit/4e5334feab900b8563925c50cdcf0363c9987756))
+* add embedding generation for Agent artifacts  ([#17846](https://github.com/lightdash/lightdash/issues/17846)) ([2775cc8](https://github.com/lightdash/lightdash/commit/2775cc8f0cc79733f9db1e67b62c65057d3f9459))
+* enrich agent context with relevant artifact examples ([#17847](https://github.com/lightdash/lightdash/issues/17847)) ([c866e2e](https://github.com/lightdash/lightdash/commit/c866e2efce26dbdda0ec823795b52f0248e8c5c7))
+
 ## [0.2152.2](https://github.com/lightdash/lightdash/compare/0.2152.1...0.2152.2) (2025-11-06)
 
 
