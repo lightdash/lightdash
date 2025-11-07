@@ -46,7 +46,6 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     can('view', 'SavedChart', {
         organizationUuid: organization.organizationUuid,
         projectUuid: embed.projectUuid,
-        isPrivate: false,
     });
 
     can('view', 'Project', {
@@ -74,7 +73,6 @@ const chartAbilities: EmbeddedAbilityBuilder = ({
                 chartUuid: contentUuid,
             },
         },
-        isPrivate: false,
         organizationUuid: organization.organizationUuid,
         projectUuid: embed.projectUuid,
     });
