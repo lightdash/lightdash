@@ -656,6 +656,35 @@ export class AiAgentController extends BaseController {
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified',
+    )
+    @OperationId('setArtifactVersionVerified')
+    async setArtifactVersionVerified(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { verified: boolean },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().setArtifactVersionVerified(req.user!, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            verified: body.verified,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/evaluations')
     @OperationId('createEvaluation')

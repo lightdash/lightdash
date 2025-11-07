@@ -1,6 +1,7 @@
 import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
+    type EmbedArtifactVersionJobPayload,
     type SlackPromptJobPayload,
 } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
@@ -29,6 +30,7 @@ import {
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
+    EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -82,11 +84,13 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
+    [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
 }
 
 export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
+    [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
 }
 
 export type SchedulerTaskName =

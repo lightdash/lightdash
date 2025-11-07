@@ -98,6 +98,12 @@ export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     threadUuid: string;
 };
 
+export type EmbedArtifactVersionJobPayload = TraceTaskBase & {
+    artifactVersionUuid: string;
+    title: string | null;
+    description: string | null;
+};
+
 export type CloneThread = {
     sourceThreadUuid: string;
     sourcePromptUuid: string;
