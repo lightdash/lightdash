@@ -157,7 +157,9 @@ function getXAxisSortConfig(
 
 export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
     layout: {},
-    eChartsConfig: {},
+    eChartsConfig: {
+        showAxisTicks: false, // New charts default to hiding tick lines
+    },
 };
 
 const useCartesianChartConfig = ({
@@ -180,7 +182,14 @@ const useCartesianChartConfig = ({
 
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
-    >(initialChartConfig?.eChartsConfig);
+    >(
+        initialChartConfig?.eChartsConfig
+            ? {
+                  ...EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
+                  ...initialChartConfig.eChartsConfig,
+              }
+            : initialChartConfig?.eChartsConfig,
+    );
     const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
@@ -370,6 +379,12 @@ const useCartesianChartConfig = ({
         setDirtyLayout((prev) => ({
             ...prev,
             showYAxis: hide,
+        }));
+    }, []);
+    const setShowAxisTicks = useCallback((show: boolean) => {
+        setDirtyEchartsConfig((prev) => ({
+            ...prev,
+            showAxisTicks: show,
         }));
     }, []);
     const setXAxisSort = useCallback((sort: XAxisSort) => {
@@ -1047,6 +1062,7 @@ const useCartesianChartConfig = ({
         setShowGridY,
         setShowXAxis,
         setShowYAxis,
+        setShowAxisTicks,
         setXAxisSort,
         setXAxisLabelRotation,
         updateSeries,
