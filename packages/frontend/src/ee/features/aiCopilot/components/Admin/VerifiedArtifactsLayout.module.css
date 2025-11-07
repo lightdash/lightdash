@@ -1,0 +1,11 @@
+.resizeHandle {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.resizeHandle:hover {
+    background-color: var(--mantine-color-gray-2) !important;
+}
+
+.resizeHandle[data-resize-handle-state='drag'] {
+    background-color: var(--mantine-color-gray-3) !important;
+}

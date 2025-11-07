@@ -18,6 +18,7 @@ import {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentVerifiedArtifactsResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -165,6 +166,42 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/verified-artifacts')
+    @OperationId('getVerifiedArtifacts')
+    async getVerifiedArtifacts(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+    ): Promise<ApiAiAgentVerifiedArtifactsResponse> {
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page !== undefined || pageSize !== undefined
+                ? {
+                      page: page ?? 1,
+                      pageSize: pageSize ?? 50,
+                  }
+                : {
+                      page: 1,
+                      pageSize: 50,
+                  };
+
+        const result = await this.getAiAgentService().getVerifiedArtifacts(
+            req.user!,
+            projectUuid,
+            agentUuid,
+            paginateArgs,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

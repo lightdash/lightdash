@@ -203,7 +203,7 @@ export const AiChartQuickOptions = ({
                     }
                 >
                     <ActionIcon
-                        size="sm"
+                        size="xs"
                         variant="subtle"
                         color={isVerified ? 'green' : 'gray'}
                         onClick={handleVerifyToggle}
