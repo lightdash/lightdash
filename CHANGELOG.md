@@ -1,3 +1,10 @@
+## [0.2154.1](https://github.com/lightdash/lightdash/compare/0.2154.0...0.2154.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* handle api response on start preview & add more logs ([#17941](https://github.com/lightdash/lightdash/issues/17941)) ([477e520](https://github.com/lightdash/lightdash/commit/477e5207cc404d9bb3a7981cfe4662d9bbef69cf))
+
 # [0.2154.0](https://github.com/lightdash/lightdash/compare/0.2153.0...0.2154.0) (2025-11-07)
 
 
