@@ -1,3 +1,10 @@
+## [0.2154.5](https://github.com/lightdash/lightdash/compare/0.2154.4...0.2154.5) (2025-11-07)
+
+
+### Bug Fixes
+
+* cannot read properties of undefined (reading 'status') ([#17948](https://github.com/lightdash/lightdash/issues/17948)) ([8de7589](https://github.com/lightdash/lightdash/commit/8de758902e4b142ee13f567f542eecc9125dfd52))
+
 ## [0.2154.4](https://github.com/lightdash/lightdash/compare/0.2154.3...0.2154.4) (2025-11-07)
 
 
