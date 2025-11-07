@@ -39,8 +39,8 @@ const DashboardCellContextMenu: FC<
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
 
-    const addDimensionDashboardFilter = useDashboardContext(
-        (c) => c.addDimensionDashboardFilter,
+    const upsertDimensionDashboardFilter = useDashboardContext(
+        (c) => c.upsertDimensionDashboardFilter,
     );
 
     const meta = cell.column.columnDef.meta;
@@ -190,7 +190,7 @@ const DashboardCellContextMenu: FC<
             {filters.length > 0 && (
                 <FilterDashboardTo
                     filters={filters}
-                    onAddFilter={addDimensionDashboardFilter}
+                    onAddFilter={upsertDimensionDashboardFilter}
                 />
             )}
         </>

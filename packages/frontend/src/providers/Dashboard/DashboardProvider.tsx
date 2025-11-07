@@ -851,7 +851,7 @@ const DashboardProvider: React.FC<
         );
     }, [dashboardTiles]);
 
-    const addDimensionDashboardFilter = useCallback(
+    const upsertDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
             const existingSavedFilter = dashboardFilters.dimensions.find(
                 (d) => d.target.fieldId === filter.target.fieldId,
@@ -907,7 +907,7 @@ const DashboardProvider: React.FC<
                     }));
                 }
             } else {
-                setDashboardTemporaryFilters((prev) => ({
+                setDashboardFilters((prev) => ({
                     ...prev,
                     dimensions: [...prev.dimensions, filter],
                 }));
@@ -1159,7 +1159,7 @@ const DashboardProvider: React.FC<
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,
-        addDimensionDashboardFilter,
+        upsertDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
