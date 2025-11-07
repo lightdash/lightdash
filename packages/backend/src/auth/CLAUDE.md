@@ -11,14 +11,13 @@ import { fromSession, fromJwt } from '@lightdash/backend/src/auth/account';
 // For registered users with session authentication
 const sessionAccount = fromSession(sessionUser);
 
-// For anonymous users with JWT authentication (embedded dashboards and charts)
-const jwtAccount = fromJwt({
+// For anonymous users with JWT authentication (embedded dashboards)
+const jwtAccount = fromJwt(
     decodedToken, // Decoded JWT payload
     organization, // Organization details
-    contentUuid, // Content being accessed—either dashboard or chart
-    contentType, // 'dashboard' | 'chart'
+    dashboardUuid, // Dashboard being accessed
     userAttributes, // Optional user attributes for filtering
-});
+);
 ```
 
 For JWT token handling:
@@ -72,13 +71,12 @@ async function handleEmbeddedDashboard(jwtToken: string, encryptedSecret: string
 try {
 const decoded = await decodeLightdashJwt(jwtToken, encryptedSecret);
 
-    const account = fromJwt({
+    const account = fromJwt(
       decoded,
-      organization: { organizationUuid: decoded.organizationUuid, name: 'Org Name' },
-      contentUuid: decoded.dashboardUuid,
-      contentType: 'dashboard',
-      userAttributes: getUserAttributesFromSomewhere(),
-    });
+      { organizationUuid: decoded.organizationUuid, name: 'Org Name' },
+      decoded.dashboardUuid,
+      decoded.userAttributes
+    );
 
     // Account will have restricted access to only the specified dashboard
     return account;

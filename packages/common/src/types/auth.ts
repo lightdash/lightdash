@@ -82,11 +82,9 @@ export type UserAccessControls = {
     intrinsicUserAttributes: IntrinsicUserAttributes;
 };
 
-export type EmbedAccess = {
-    /** The content ID the account has access to (dashboard or chart) */
-    contentId?: string;
-    /** The type of content (dashboard or chart) */
-    contentType?: 'dashboard' | 'chart';
+export type DashboardAccess = {
+    /** The dashboard ID the account has access to */
+    dashboardId: string;
     /** Dashboard filtering options for interactivity */
     filtering?: DashboardFilterInteractivityOptions;
     /** User-specific access controls */
@@ -144,7 +142,7 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     authentication: JwtAuth;
     user: ExternalUser;
     /** The access permissions the account has */
-    access: EmbedAccess;
+    access: DashboardAccess;
     /** The embed configuration associated with the JWT */
     embed: OssEmbed;
 };

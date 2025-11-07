@@ -5,7 +5,6 @@ import {
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
-    AnonymousAccount,
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
@@ -93,7 +92,6 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterRule,
-    isJwtUser,
     isNotNull,
     isUserWithOrg,
     ItemsMap,
@@ -3085,7 +3083,6 @@ export class ProjectService extends BaseService {
                         await this.projectModel.getSummary(projectUuid);
 
                     if (
-                        account.isJwtUser() ||
                         account.user.ability.cannot(
                             'view',
                             subject('Project', {
@@ -4262,9 +4259,7 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-
         if (
-            ProjectService.isChartEmbed(account) ||
             account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
@@ -4367,9 +4362,7 @@ export class ProjectService extends BaseService {
                 const project = organizationUuid
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
-
                 if (
-                    ProjectService.isChartEmbed(account) ||
                     account.user.ability.cannot(
                         'view',
                         subject('Project', {
@@ -4669,9 +4662,7 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-
         if (
-            ProjectService.isChartEmbed(account) ||
             account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
@@ -6886,11 +6877,5 @@ export class ProjectService extends BaseService {
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
-    }
-
-    static isChartEmbed(account: Account) {
-        if (!isJwtUser(account)) return false;
-
-        return account.access.contentType === 'chart';
     }
 }

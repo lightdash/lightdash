@@ -143,10 +143,14 @@ describe('Embed Management API', () => {
             expect(updateResp.body.results.secret).to.not.eq(
                 embedConfig.secret,
             );
+            expect(updateResp.body.results.dashboardUuids).to.include.members(
+                embedConfig.dashboardUuids,
+            );
+            expect(updateResp.body.results.chartUuids).to.be.an('array');
         });
     });
 
-    it('allows empty config to disable embeds for the project', () => {
+    it('should fail to create embed with neither dashboards nor charts', () => {
         updateEmbedConfig(
             {
                 dashboardUuids: [],
@@ -158,7 +162,10 @@ describe('Embed Management API', () => {
                 failOnStatusCode: false,
             },
         ).then((resp) => {
-            expect(resp.status).to.eq(200);
+            expect(resp.status).to.eq(400);
+            expect(resp.body.error.message).to.contain(
+                'At least one dashboard or chart must be specified',
+            );
         });
     });
 
@@ -175,6 +182,9 @@ describe('Embed Management API', () => {
                         expect(updateResp.status).to.eq(200);
                         getEmbedConfig().then((newConfigResp) => {
                             expect(newConfigResp.status).to.eq(200);
+                            expect(
+                                newConfigResp.body.results.dashboardUuids,
+                            ).to.include.members(dashboardsUuids);
                         });
                     },
                 );
@@ -207,6 +217,9 @@ describe('Embed Management API', () => {
                     chartUuids,
                 }).then((createResp) => {
                     expect(createResp.status).to.eq(201);
+                    expect(
+                        createResp.body.results.chartUuids,
+                    ).to.include.members(chartUuids);
                     expect(createResp.body.results.dashboardUuids).to.be.an(
                         'array',
                     );
@@ -228,6 +241,12 @@ describe('Embed Management API', () => {
                     chartUuids,
                 }).then((createResp) => {
                     expect(createResp.status).to.eq(201);
+                    expect(
+                        createResp.body.results.dashboardUuids,
+                    ).to.include.members(embedConfig.dashboardUuids);
+                    expect(
+                        createResp.body.results.chartUuids,
+                    ).to.include.members(chartUuids);
                 });
             },
         );
@@ -252,6 +271,12 @@ describe('Embed Management API', () => {
                     // Verify the update
                     getEmbedConfig().then((newConfigResp) => {
                         expect(newConfigResp.status).to.eq(200);
+                        expect(
+                            newConfigResp.body.results.dashboardUuids,
+                        ).to.include.members(embedConfig.dashboardUuids);
+                        expect(
+                            newConfigResp.body.results.chartUuids,
+                        ).to.include.members(chartUuids);
                         expect(
                             newConfigResp.body.results.allowAllDashboards,
                         ).to.eq(false);
@@ -317,6 +342,12 @@ describe('Embed Management API', () => {
                     // Verify both dashboards and charts are correct
                     getEmbedConfig().then((verifyResp) => {
                         expect(verifyResp.status).to.eq(200);
+                        expect(
+                            verifyResp.body.results.dashboardUuids,
+                        ).to.include.members(currentDashboards);
+                        expect(
+                            verifyResp.body.results.chartUuids,
+                        ).to.include.members(newChartUuids);
                     });
                 });
             });

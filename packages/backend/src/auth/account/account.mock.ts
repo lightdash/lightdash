@@ -122,7 +122,7 @@ export function buildAccount({
             },
         },
         source: 'test-jwt-token',
-        contentUuid: 'test-dashboard-uuid',
+        dashboardUuid: 'test-dashboard-uuid',
         userAttributes: defaultUserAttributes,
     });
 }

@@ -27,6 +27,7 @@ export class PermissionsService extends BaseService {
                 `Dashboard ${dashboardUuid} is not embedded`,
             );
         }
+
         const chartExists =
             await this.dashboardModel.savedChartExistsInDashboard(
                 embed.projectUuid,
@@ -61,7 +62,7 @@ export class PermissionsService extends BaseService {
         savedChartUuid: string,
     ) {
         const { embed } = account;
-        const { contentId, contentType } = account.access;
+        const dashboardUuid = account.access.dashboardId;
 
         if (!embed.projectUuid) {
             throw new ForbiddenError(
@@ -69,21 +70,17 @@ export class PermissionsService extends BaseService {
             );
         }
 
-        if (contentType === 'dashboard' && contentId) {
+        if (dashboardUuid) {
             return this.checkEmbeddedDashboardPermission(
-                contentId,
+                dashboardUuid,
                 savedChartUuid,
                 embed,
             );
         }
 
-        if (contentType === 'chart') {
-            return PermissionsService.checkEmbeddedChartPermissions(
-                savedChartUuid,
-                embed,
-            );
-        }
-
-        throw new ForbiddenError('Invalid access for embed permissions');
+        return PermissionsService.checkEmbeddedChartPermissions(
+            savedChartUuid,
+            embed,
+        );
     }
 }

@@ -1,7 +1,6 @@
 import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
-    isDashboardContent,
     isDashboardUuidContent,
     type CreateEmbedJwt,
 } from '@lightdash/common';
@@ -215,10 +214,7 @@ const getCodeSnippet = (
         siteUrl: string;
         data: CreateEmbedJwt;
     },
-): string => {
-    if (!isDashboardContent(data.content)) {
-        return `Unsupported embedded content type ${data.content.type} snippet`;
-    }
+) => {
     return codeTemplates[language]
         .replace('{{projectUuid}}', projectUuid)
         .replace('{{siteUrl}}', siteUrl)

@@ -779,26 +779,19 @@ export class SavedChartService
         account: Account,
         space: Omit<SpaceSummary, 'userAccess'>,
         savedChart: SavedChartDAO,
-    ): Promise<SpaceShare[]> {
-        let access;
+    ) {
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedPermissions(
                 account,
                 savedChart.uuid,
             );
-            // We pass this access everytime, but we only define the ability
-            // rule for this chart only if the JWT is type: 'chart'.
-            // Dashboards won't have `access` defined in their abilityRules,
-            // so this CASL check will pass for them.
-            // TODO: Get all chartUuids for a given dashboard in the middleware.
-            //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
-            access = [{ chartUuid: savedChart.uuid }];
-        } else {
-            access = await this.spaceModel.getUserSpaceAccess(
-                account.user.id,
-                savedChart.spaceUuid,
-            );
+
+            return [];
         }
+        const access = await this.spaceModel.getUserSpaceAccess(
+            account.user.id,
+            savedChart.spaceUuid,
+        );
 
         if (
             account.user.ability.cannot(
@@ -815,7 +808,7 @@ export class SavedChartService
             );
         }
 
-        return isJwtUser(account) ? [] : (access as SpaceShare[]);
+        return access;
     }
 
     async get(
