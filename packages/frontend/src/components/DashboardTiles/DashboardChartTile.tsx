@@ -72,6 +72,15 @@ import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 
+type ClientSideError = {
+    error: {
+        name: string;
+        message: string;
+    };
+};
+
+type DashboardTileError = ApiError | ClientSideError;
+
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -1677,7 +1686,7 @@ type DashboardChartTileProps = Omit<
 export const GenericDashboardChartTile: FC<
     DashboardChartTileProps & {
         isLoading: boolean;
-        error: ApiError | null;
+        error: DashboardTileError | null;
     }
 > = ({
     minimal = false,
@@ -1706,9 +1715,15 @@ export const GenericDashboardChartTile: FC<
         );
 
     if (error !== null) {
+        // Show custom title if set, otherwise show chart name or fallback to "Deleted Chart"
+        const tileTitle =
+            tile.properties.title ||
+            tile.properties.chartName ||
+            'Deleted chart';
+
         return (
             <TileBase
-                title=""
+                title={tileTitle}
                 isEditMode={isEditMode}
                 tile={tile}
                 extraMenuItems={
@@ -1802,6 +1817,19 @@ export const GenericDashboardChartTile: FC<
 };
 
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+    // Handle orphaned tiles where the chart was deleted but tile remains
+    const orphanedChartError = useMemo((): ClientSideError | null => {
+        if (props.tile.properties.savedChartUuid === null) {
+            return {
+                error: {
+                    name: 'ChartDeleted',
+                    message: 'This chart has been deleted.',
+                },
+            };
+        }
+        return null;
+    }, [props.tile.properties.savedChartUuid]);
+
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid,
@@ -1836,7 +1864,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
-            error={readyQuery.error ?? resultsData.error}
+            error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );
 };
