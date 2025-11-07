@@ -7,7 +7,7 @@ const DEFAULTS: Record<ChartType, () => unknown> = {
     [ChartType.CARTESIAN]: () => ({ ...EMPTY_CARTESIAN_CHART_CONFIG }), // factory to avoid shared refs
     [ChartType.BIG_NUMBER]: () => ({ showTableNamesInLabel: false }),
     [ChartType.TABLE]: () => ({ showTableNames: false }),
-    [ChartType.PIE]: () => ({}),
+    [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),
     [ChartType.TREEMAP]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
