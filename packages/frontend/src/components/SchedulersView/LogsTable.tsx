@@ -16,6 +16,7 @@ import {
     IconChevronUp,
     IconClock,
     IconDots,
+    IconInfoCircle,
     IconSend,
     IconTextCaption,
 } from '@tabler/icons-react';
@@ -399,9 +400,26 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                     } else {
                         // Child row: show task name
                         return (
-                            <Text fz="xs" fw={400} c="gray.7">
-                                {formatTaskName(rowData.log.task)}
-                            </Text>
+                            <Group gap="two">
+                                <Text fz="xs" fw={400} c="gray.7">
+                                    {formatTaskName(rowData.log.task)}
+                                </Text>
+                                {rowData.log.targetType === 'email' && (
+                                    <Tooltip
+                                        variant="xs"
+                                        disabled={
+                                            rowData.log.targetType !== 'email'
+                                        }
+                                        label={rowData.log.target}
+                                    >
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                            size="sm"
+                                        />
+                                    </Tooltip>
+                                )}
+                            </Group>
                         );
                     }
                 },

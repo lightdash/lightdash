@@ -1,3 +1,74 @@
+# [0.2155.0](https://github.com/lightdash/lightdash/compare/0.2154.5...0.2155.0) (2025-11-07)
+
+
+### Bug Fixes
+
+* constraint dimension/size for custom charts ([#17924](https://github.com/lightdash/lightdash/issues/17924)) ([a96202f](https://github.com/lightdash/lightdash/commit/a96202f549539fcd00536397bd14ea06e0a0f7b8))
+* fallback to embed dashboard abilities rather than chart ([#17957](https://github.com/lightdash/lightdash/issues/17957)) ([4da6897](https://github.com/lightdash/lightdash/commit/4da689762224558b89aa33fd880655e3fd8f00e5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* improve tooltip positioning and z-index ([#17912](https://github.com/lightdash/lightdash/issues/17912)) ([37a2bc4](https://github.com/lightdash/lightdash/commit/37a2bc40967e61d180efa5c301e1501be33c4991))
+* set default showTableNames to false ([#17919](https://github.com/lightdash/lightdash/issues/17919)) ([9870618](https://github.com/lightdash/lightdash/commit/9870618c63c8c0670dc2351fe144bfae625ddeb0))
+
+
+### Features
+
+* add adaptive text color to treemap chart labels ([#17945](https://github.com/lightdash/lightdash/issues/17945)) ([5449f33](https://github.com/lightdash/lightdash/commit/5449f3327e306eef11f06a932a33468eb8fab0d5))
+* add option to show/hide axis tick lines in charts ([#17921](https://github.com/lightdash/lightdash/issues/17921)) ([d27748f](https://github.com/lightdash/lightdash/commit/d27748fbc0dfffac6a370fc2248b7624d430c5c0))
+* add table name toggle and default hidden titles for BigNumber charts ([#17942](https://github.com/lightdash/lightdash/issues/17942)) ([25db931](https://github.com/lightdash/lightdash/commit/25db931ec5128d35e8862c2e5e7f3c7590d8516b))
+* improve pie chart label formatting and default settings ([#17949](https://github.com/lightdash/lightdash/issues/17949)) ([049069e](https://github.com/lightdash/lightdash/commit/049069ec0b042b1a7d4b7a513c4d8650ba60260b))
+
+## [0.2154.5](https://github.com/lightdash/lightdash/compare/0.2154.4...0.2154.5) (2025-11-07)
+
+
+### Bug Fixes
+
+* cannot read properties of undefined (reading 'status') ([#17948](https://github.com/lightdash/lightdash/issues/17948)) ([8de7589](https://github.com/lightdash/lightdash/commit/8de758902e4b142ee13f567f542eecc9125dfd52))
+
+## [0.2154.4](https://github.com/lightdash/lightdash/compare/0.2154.3...0.2154.4) (2025-11-07)
+
+
+### Bug Fixes
+
+* get tooltip format field when pivotValuesColumnMap does not exist ([#17944](https://github.com/lightdash/lightdash/issues/17944)) ([a55e130](https://github.com/lightdash/lightdash/commit/a55e13089d4ba790dcd8e84eadf7361c4a96fe61))
+
+## [0.2154.3](https://github.com/lightdash/lightdash/compare/0.2154.2...0.2154.3) (2025-11-07)
+
+
+### Bug Fixes
+
+* reorder SCIM user role updates and deprecate extension role ([#17925](https://github.com/lightdash/lightdash/issues/17925)) ([49f5679](https://github.com/lightdash/lightdash/commit/49f56799ff4c9e149e5d271a25e19f42366bdffc))
+
+## [0.2154.2](https://github.com/lightdash/lightdash/compare/0.2154.1...0.2154.2) (2025-11-07)
+
+
+### Bug Fixes
+
+* getSchedulerLogs not returning all jobs for each job in a job group ([#17932](https://github.com/lightdash/lightdash/issues/17932)) ([5bc3df1](https://github.com/lightdash/lightdash/commit/5bc3df1c7075642e3f16967566a07fb9e8a3756b))
+
+## [0.2154.1](https://github.com/lightdash/lightdash/compare/0.2154.0...0.2154.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* handle api response on start preview & add more logs ([#17941](https://github.com/lightdash/lightdash/issues/17941)) ([477e520](https://github.com/lightdash/lightdash/commit/477e5207cc404d9bb3a7981cfe4662d9bbef69cf))
+
+# [0.2154.0](https://github.com/lightdash/lightdash/compare/0.2153.0...0.2154.0) (2025-11-07)
+
+
+### Features
+
+* add human feedback text field to AI agent responses ([#17891](https://github.com/lightdash/lightdash/issues/17891)) ([ba956c9](https://github.com/lightdash/lightdash/commit/ba956c986139b31ef0c9c5e8ebc755de5b7a3e00))
+* keep markdown and loom tiles when dashboard is locked ([#17929](https://github.com/lightdash/lightdash/issues/17929)) ([091986b](https://github.com/lightdash/lightdash/commit/091986b2e42e42b051e3bc7438b33c6b9d2acaae))
+
+# [0.2153.0](https://github.com/lightdash/lightdash/compare/0.2152.2...0.2153.0) (2025-11-07)
+
+
+### Features
+
+* add AI artifact verification and prompt reference tracking ([#17845](https://github.com/lightdash/lightdash/issues/17845)) ([7ef997d](https://github.com/lightdash/lightdash/commit/7ef997d20ef97091f9a22b71fd49fa49289e3f78))
+* add artifact verification to Agent UI ([#17848](https://github.com/lightdash/lightdash/issues/17848)) ([4e5334f](https://github.com/lightdash/lightdash/commit/4e5334feab900b8563925c50cdcf0363c9987756))
+* add embedding generation for Agent artifacts  ([#17846](https://github.com/lightdash/lightdash/issues/17846)) ([2775cc8](https://github.com/lightdash/lightdash/commit/2775cc8f0cc79733f9db1e67b62c65057d3f9459))
+* enrich agent context with relevant artifact examples ([#17847](https://github.com/lightdash/lightdash/issues/17847)) ([c866e2e](https://github.com/lightdash/lightdash/commit/c866e2efce26dbdda0ec823795b52f0248e8c5c7))
+
 ## [0.2152.2](https://github.com/lightdash/lightdash/compare/0.2152.1...0.2152.2) (2025-11-06)
 
 

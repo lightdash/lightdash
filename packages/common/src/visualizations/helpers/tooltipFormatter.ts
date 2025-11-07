@@ -673,6 +673,8 @@ export const buildCartesianTooltipFormatter =
                     (pivotDim &&
                         pivotValuesColumnsMap?.[pivotDim]?.referenceField) ??
                     yRefField ??
+                    // Fallback to pivotReference.field when pivotValuesColumnsMap is unavailable
+                    seriesOption?.pivotReference?.field ??
                     dim ??
                     pivotDim ??
                     '';

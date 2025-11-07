@@ -11,6 +11,7 @@ import {
     type FieldId,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -152,6 +153,12 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
+    const {
+        ref: measureRef,
+        width: containerWidth,
+        height: containerHeight,
+    } = useElementSize();
+
     useLayoutEffect(() => {
         if (isVisualizationConfigOpen) {
             const target = document.getElementById(VisualizationConfigPortalId);
@@ -257,6 +264,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 tableCalculationsMetadata={tableCalculationsMetadata}
                 parameters={query.data?.usedParametersValues}
+                containerWidth={containerWidth}
+                containerHeight={containerHeight}
+                isDashboard={false}
             >
                 <CollapsableCard
                     title="Chart"
@@ -341,6 +351,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     }
                 >
                     <LightdashVisualization
+                        ref={measureRef}
                         className="sentry-block ph-no-capture"
                         data-testid="visualization"
                     />

@@ -212,6 +212,11 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                             properties: {
                                 savedChartUuid: uuid,
                                 chartName: chart?.name ?? '',
+                                // BigNumber charts default to hidden title for cleaner appearance
+                                hideTitle:
+                                    chart?.chartKind === ChartKind.BIG_NUMBER
+                                        ? true
+                                        : undefined,
                             },
                             tabUuid: undefined,
                             ...defaultTileSize,

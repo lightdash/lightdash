@@ -122,23 +122,24 @@ const useEchartsPieConfig = (
                             // For outside labels, use rich text formatting
                             if (isOutside) {
                                 if (showValue && showPercentage) {
-                                    return `{name|${params.name}}\n{value|${params.percent}% - ${meta.value.formatted}}`;
+                                    return `{name|${params.name}: }{value|${params.percent}% - ${meta.value.formatted}}`;
                                 } else if (showValue) {
-                                    return `{name|${params.name}}\n{value|${meta.value.formatted}}`;
+                                    return `{name|${params.name}: }{value|${meta.value.formatted}}`;
                                 } else if (showPercentage) {
-                                    return `{name|${params.name}}\n{value|${params.percent}%}`;
+                                    return `{name|${params.name}: }{value|${params.percent}%}`;
                                 } else {
                                     return `{name|${params.name}}`;
                                 }
                             }
 
                             // For inside labels, use plain formatting (no rich text)
+                            // Always show name alongside value/percentage
                             return showValue && showPercentage
-                                ? `${params.percent}% - ${meta.value.formatted}`
+                                ? `${params.name}: ${params.percent}% - ${meta.value.formatted}`
                                 : showValue
-                                ? `${meta.value.formatted}`
+                                ? `${params.name}: ${meta.value.formatted}`
                                 : showPercentage
-                                ? `${params.percent}%`
+                                ? `${params.name}: ${params.percent}%`
                                 : `${params.name}`;
                         },
                     },

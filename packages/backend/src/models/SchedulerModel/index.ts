@@ -1008,7 +1008,10 @@ export class SchedulerModel {
         const uniqueLogs = sortedLogs.reduce<SchedulerLog[]>((acc, log) => {
             if (
                 acc.some(
-                    (l) => l.jobGroup === log.jobGroup && l.task === log.task,
+                    (l) =>
+                        l.jobId === log.jobId &&
+                        l.task === log.task &&
+                        l.status === log.status,
                 )
             ) {
                 return acc;

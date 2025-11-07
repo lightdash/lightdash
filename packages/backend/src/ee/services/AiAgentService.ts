@@ -36,6 +36,7 @@ import {
     KnexPaginateArgs,
     LightdashUser,
     NotFoundError,
+    NotImplementedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
@@ -50,6 +51,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
@@ -109,6 +111,7 @@ import {
     generateAgentResponse,
     streamAgentResponse,
 } from './ai/agents/agentV2';
+import { generateEmbedding } from './ai/agents/embeddingGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -235,6 +238,12 @@ export class AiAgentService {
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+    }
+
+    private static getIsVerifiedArtifactsEnabled(
+        agentVersion: number,
+    ): boolean {
+        return agentVersion === 3;
     }
 
     private async getIsCopilotEnabled(
@@ -1056,9 +1065,11 @@ export class AiAgentService {
         {
             agentUuid,
             threadUuid,
+            retrieveRelevantArtifacts = true,
         }: {
             agentUuid: string;
             threadUuid: string;
+            retrieveRelevantArtifacts?: boolean;
         },
     ) {
         if (!user.organizationUuid) {
@@ -1121,6 +1132,14 @@ export class AiAgentService {
 
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             threadMessages,
+            {
+                organizationUuid: user.organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid: agent.uuid,
+                retrieveRelevantArtifacts:
+                    retrieveRelevantArtifacts &&
+                    AiAgentService.getIsVerifiedArtifactsEnabled(agent.version),
+            },
         );
 
         return { user, chatHistoryMessages, prompt };
@@ -1232,6 +1251,7 @@ export class AiAgentService {
                 await this.prepareAgentThreadResponse(user, {
                     agentUuid,
                     threadUuid,
+                    retrieveRelevantArtifacts: false,
                 });
 
             // Get agent settings to use reasoning preference
@@ -1499,6 +1519,7 @@ export class AiAgentService {
         user: SessionUser,
         messageUuid: string,
         humanScore: number,
+        humanFeedback?: string | null,
     ) {
         this.analytics.track<AiAgentPromptFeedbackEvent>({
             event: 'ai_agent_prompt.feedback',
@@ -1514,6 +1535,7 @@ export class AiAgentService {
         await this.aiAgentModel.updateHumanScore({
             promptUuid: messageUuid,
             humanScore,
+            humanFeedback,
         });
     }
 
@@ -1649,6 +1671,131 @@ export class AiAgentService {
         await this.aiAgentModel.updateArtifactVersion(versionUuid, {
             savedDashboardUuid,
         });
+    }
+
+    async setArtifactVersionVerified(
+        user: SessionUser,
+        {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            verified,
+        }: {
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            verified: boolean;
+        },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        if (
+            verified &&
+            !AiAgentService.getIsVerifiedArtifactsEnabled(agent.version)
+        ) {
+            throw new NotImplementedError(
+                'Artifact verification is not enabled for this agent version',
+            );
+        }
+
+        // Only users who can manage the agent can verify artifacts
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only users with manage permissions can verify artifacts',
+            );
+        }
+
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        await this.aiAgentModel.setArtifactVersionVerified(
+            versionUuid,
+            verified,
+            user.userUuid,
+        );
+
+        if (!verified) {
+            return;
+        }
+
+        void this.schedulerClient
+            .embedArtifactVersion({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                userUuid: user.userUuid,
+                artifactVersionUuid: versionUuid,
+                title: artifact.title,
+                description: artifact.description,
+            })
+            .catch((error) => {
+                Logger.error(
+                    'Failed to enqueue embedding job:',
+                    error instanceof Error ? error.message : error,
+                );
+                Sentry.captureException(error);
+            });
+    }
+
+    async embedArtifactVersion(payload: {
+        artifactVersionUuid: string;
+        title: string | null;
+        description: string | null;
+    }): Promise<void> {
+        try {
+            const text = [payload.title, payload.description]
+                .filter(Boolean)
+                .join('\n');
+
+            if (!text.trim()) {
+                return;
+            }
+
+            const embedding = await generateEmbedding(
+                text,
+                this.lightdashConfig,
+                { artifactVersionUuid: payload.artifactVersionUuid },
+            );
+
+            await this.aiAgentModel.updateArtifactEmbedding(
+                payload.artifactVersionUuid,
+                embedding,
+            );
+        } catch (error) {
+            Logger.error(
+                `Failed to embed artifact version ${payload.artifactVersionUuid}`,
+            );
+            Sentry.captureException(error);
+        }
     }
 
     async revertChange(
@@ -1800,21 +1947,136 @@ export class AiAgentService {
         return agentSettings;
     }
 
+    async retrieveRelevantArtifacts({
+        promptUuid,
+        organizationUuid,
+        projectUuid,
+        agentUuid,
+        searchQuery,
+    }: {
+        promptUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        searchQuery: string;
+    }): Promise<
+        {
+            artifactVersionUuid: string;
+            chartConfig: Record<string, unknown>;
+            artifactType: 'chart' | 'dashboard';
+        }[]
+    > {
+        const existingRefs =
+            await this.aiAgentModel.findArtifactReferencesByPromptUuid(
+                promptUuid,
+            );
+
+        if (existingRefs.length > 0) {
+            return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
+        }
+
+        const queryEmbedding = await generateEmbedding(
+            searchQuery,
+            this.lightdashConfig,
+        );
+
+        const verifiedArtifacts =
+            await this.aiAgentModel.searchArtifactsBySimilarity({
+                organizationUuid,
+                projectUuid,
+                agentUuid,
+                queryEmbedding,
+                limit: 3,
+            });
+
+        if (verifiedArtifacts.length > 0) {
+            await this.aiAgentModel.recordArtifactReferences({
+                promptUuid,
+                projectUuid,
+                artifactReferences: verifiedArtifacts.map((a) => ({
+                    artifactVersionUuid: a.artifactVersionUuid,
+                    similarityScore: a.similarity,
+                })),
+            });
+        }
+
+        return verifiedArtifacts;
+    }
+
+    static createRelevantArtifactsMessage(
+        artifacts: {
+            chartConfig: Record<string, unknown>;
+            artifactType: 'chart' | 'dashboard';
+        }[],
+    ): UserModelMessage {
+        const ragContext = artifacts
+            .map(
+                (artifact, index) =>
+                    `\`\`\`json\n${JSON.stringify(
+                        artifact.chartConfig,
+                        null,
+                        2,
+                    )}\`\`\`\n`,
+            )
+            .join('\n\n');
+
+        return {
+            role: 'user',
+            content: `\
+Here are some relevant queries from previous conversations:
+${ragContext}
+Use them as a reference, but do all the due dilligence and follow the instructions outlined above`,
+        } satisfies UserModelMessage;
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
         threadMessages: Awaited<
             ReturnType<typeof AiAgentModel.prototype.getThreadMessages>
         >,
+        options: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            retrieveRelevantArtifacts: boolean;
+        },
     ): Promise<ModelMessage[]> {
         const messagesWithToolCalls = await Promise.all(
-            threadMessages.map(async (message) => {
+            threadMessages.map(async (message, index) => {
                 const messages: ModelMessage[] = [
                     {
                         role: 'user',
                         content: message.prompt,
                     } satisfies UserModelMessage,
                 ];
+
+                // Inject relevant verified artifacts after first user prompt (search or retrieve cached)
+                if (index === 0 && options.retrieveRelevantArtifacts) {
+                    try {
+                        const artifacts = await this.retrieveRelevantArtifacts({
+                            agentUuid: options.agentUuid,
+                            promptUuid: message.ai_prompt_uuid,
+                            organizationUuid: options.organizationUuid,
+                            projectUuid: options.projectUuid,
+                            searchQuery: message.prompt,
+                        });
+
+                        if (artifacts.length > 0) {
+                            messages.push(
+                                AiAgentService.createRelevantArtifactsMessage(
+                                    artifacts,
+                                ),
+                            );
+                        }
+                    } catch (error) {
+                        Logger.error(
+                            `Failed to retrieve relevant artifacts for prompt ${message.ai_prompt_uuid}`,
+                            error,
+                        );
+                        Sentry.captureException(error);
+                    }
+                }
 
                 const toolCallsAndResults =
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
@@ -1872,13 +2134,19 @@ export class AiAgentService {
                 }
 
                 if (message.human_score) {
+                    let feedbackContent =
+                        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
+                        message.human_score > 0
+                            ? 'I liked this response'
+                            : 'I did not like this response';
+
+                    if (message.human_feedback) {
+                        feedbackContent += `\nReasoning: ${message.human_feedback}`;
+                    }
+
                     messages.push({
                         role: 'user',
-                        content:
-                            // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
-                            message.human_score > 0
-                                ? 'I liked this response'
-                                : 'I did not like this response',
+                        content: feedbackContent,
                     } satisfies UserModelMessage);
                 }
 
@@ -2404,8 +2672,13 @@ export class AiAgentService {
                 event: AiAgentResponseStreamed | AiAgentToolCallEvent,
             ) => this.analytics.track(event),
 
-            createOrUpdateArtifact: (data) =>
-                this.aiAgentModel.createOrUpdateArtifact(data),
+            createOrUpdateArtifact: async (data) => {
+                const artifact = await this.aiAgentModel.createOrUpdateArtifact(
+                    data,
+                );
+
+                return artifact;
+            },
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
@@ -2655,7 +2928,16 @@ export class AiAgentService {
         let response: string | undefined;
         try {
             const chatHistoryMessages =
-                await this.getChatHistoryFromThreadMessages(threadMessages);
+                await this.getChatHistoryFromThreadMessages(threadMessages, {
+                    organizationUuid: slackPrompt.organizationUuid,
+                    projectUuid: slackPrompt.projectUuid,
+                    agentUuid: agent?.uuid!,
+                    retrieveRelevantArtifacts:
+                        agent !== undefined &&
+                        AiAgentService.getIsVerifiedArtifactsEnabled(
+                            agent.version,
+                        ),
+                });
 
             response = await this.generateOrStreamAgentResponse(
                 user,

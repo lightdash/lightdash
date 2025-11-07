@@ -1,5 +1,4 @@
 import { Anchor, Text } from '@mantine/core';
-import { useResizeObserver } from '@mantine/hooks';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
@@ -18,10 +17,13 @@ type Props = {
 };
 
 const CustomVisualization: FC<Props> = (props) => {
-    const { isLoading, visualizationConfig, resultsData, isDashboard } =
-        useVisualizationContext();
-
-    const [ref, rect] = useResizeObserver();
+    const {
+        isLoading,
+        visualizationConfig,
+        resultsData,
+        containerWidth,
+        containerHeight,
+    } = useVisualizationContext();
 
     useEffect(() => {
         // Load all the rows
@@ -80,18 +82,18 @@ const CustomVisualization: FC<Props> = (props) => {
                 width: '100%',
                 overflow: 'hidden',
             }}
-            ref={ref}
         >
             <Suspense fallback={<LoadingChart />}>
                 <VegaLite
                     style={{
-                        width: rect.width,
-                        height: rect.height,
+                        width: containerWidth,
+                        height: containerHeight,
                     }}
                     config={{
+                        font: 'Inter, sans-serif',
                         autosize: {
                             type: 'fit',
-                            ...(isDashboard && { resize: true }),
+                            resize: true,
                         },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type

@@ -143,6 +143,7 @@ export const AiChartVisualization: FC<Props> = ({
                             <AiChartQuickOptions
                                 message={message}
                                 projectUuid={projectUuid}
+                                artifactData={artifactData}
                                 saveChartOptions={{
                                     name: queryExecutionHandle.data.metadata
                                         .title,

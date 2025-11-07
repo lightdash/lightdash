@@ -53,6 +53,7 @@ export type BigNumber = {
     style?: CompactOrAlias;
     selectedField?: string;
     showBigNumberLabel?: boolean;
+    showTableNamesInLabel?: boolean;
     showComparison?: boolean;
     comparisonFormat?: ComparisonFormatTypes;
     flipColors?: boolean;
@@ -286,6 +287,7 @@ export type CompleteEChartsConfig = {
     xAxis: XAxis[];
     yAxis: Axis[];
     tooltip?: string;
+    showAxisTicks?: boolean;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;

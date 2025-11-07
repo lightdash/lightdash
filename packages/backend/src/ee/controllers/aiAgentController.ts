@@ -484,13 +484,14 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() messageUuid: string,
-        @Body() body: { humanScore: number },
+        @Body() body: { humanScore: number; humanFeedback?: string | null },
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
             req.user!,
             messageUuid,
             body.humanScore,
+            body.humanFeedback,
         );
         return {
             status: 'ok',
@@ -647,6 +648,35 @@ export class AiAgentController extends BaseController {
             artifactUuid,
             versionUuid,
             savedDashboardUuid: body.savedDashboardUuid,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified',
+    )
+    @OperationId('setArtifactVersionVerified')
+    async setArtifactVersionVerified(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { verified: boolean },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().setArtifactVersionVerified(req.user!, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            verified: body.verified,
         });
 
         return {

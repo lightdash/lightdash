@@ -394,11 +394,13 @@ const createOptimisticMessages = (
             filtersOutput: null,
             metricQuery: null,
             humanScore: null,
+            humanFeedback: null,
             toolCalls: [],
             toolResults: [],
             reasoning: [],
             savedQueryUuid: null,
             artifacts: null,
+            referencedArtifacts: null,
         },
     ];
 };
@@ -715,11 +717,12 @@ const updatePromptFeedback = async (
     threadUuid: string,
     messageUuid: string,
     humanScore: number,
+    humanFeedback?: string | null,
 ) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/feedback`,
         method: 'PATCH',
-        body: JSON.stringify({ humanScore }),
+        body: JSON.stringify({ humanScore, humanFeedback }),
     });
 
 export const useUpdatePromptFeedbackMutation = (
@@ -734,17 +737,22 @@ export const useUpdatePromptFeedbackMutation = (
     return useMutation<
         ApiSuccessEmpty,
         ApiError,
-        { messageUuid: string; humanScore: number }
+        {
+            messageUuid: string;
+            humanScore: number;
+            humanFeedback?: string | null;
+        }
     >({
-        mutationFn: ({ messageUuid, humanScore }) =>
+        mutationFn: ({ messageUuid, humanScore, humanFeedback }) =>
             updatePromptFeedback(
                 projectUuid,
                 agentUuid,
                 threadUuid,
                 messageUuid,
                 humanScore,
+                humanFeedback,
             ),
-        onMutate: ({ messageUuid, humanScore }) => {
+        onMutate: ({ messageUuid, humanScore, humanFeedback }) => {
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid],
                 (
@@ -756,14 +764,24 @@ export const useUpdatePromptFeedbackMutation = (
 
                     return {
                         ...currentData,
-                        messages: currentData.messages.map((message) =>
-                            message.uuid === messageUuid
-                                ? {
-                                      ...message,
-                                      humanScore,
-                                  }
-                                : message,
-                        ),
+                        messages: currentData.messages.map((message) => {
+                            if (message.uuid !== messageUuid) {
+                                return message;
+                            }
+
+                            if (message.role !== 'assistant') {
+                                return message;
+                            }
+
+                            return {
+                                ...message,
+                                humanScore,
+                                humanFeedback:
+                                    humanScore === -1
+                                        ? humanFeedback ?? null
+                                        : null,
+                            };
+                        }),
                     };
                 },
             );

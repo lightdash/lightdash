@@ -1563,7 +1563,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 // Override formatter for 100% stacking with flipped axes
                 ...(shouldStack100 &&
                     validCartesianConfig.layout.flipAxes &&
@@ -1616,7 +1618,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 ...topAxisExtraConfig,
             },
         ],
@@ -1667,7 +1671,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 inverse: !!yAxisConfiguration?.[0].inverse,
                 ...leftAxisExtraConfig,
             },
@@ -1716,7 +1722,9 @@ const getEchartAxes = ({
                     ? gridStyle
                     : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(),
+                axisTick: getAxisTickStyle(
+                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                ),
                 ...rightAxisExtraConfig,
             },
         ],
@@ -2302,17 +2310,25 @@ const useEchartsCartesianConfig = (
         sortedResultsByTotals,
     ]);
 
-    const tooltip = useMemo<TooltipOption>(
-        () => ({
+    const tooltip = useMemo<TooltipOption>(() => {
+        // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
+        const hasLineAreaScatterSeries = series.some(
+            (s) =>
+                s.type === CartesianSeriesType.LINE ||
+                s.type === CartesianSeriesType.AREA ||
+                s.type === CartesianSeriesType.SCATTER,
+        );
+
+        return {
             show: true,
-            confine: true,
             trigger: 'axis',
             enterable: true,
             ...getTooltipStyle(),
+            confine: true,
             extraCssText: `overflow-y: auto; max-height:280px; ${
                 getTooltipStyle().extraCssText
             }`,
-            axisPointer: getAxisPointerStyle(),
+            axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
             formatter: buildCartesianTooltipFormatter({
                 itemsMap,
                 stackValue: validCartesianConfig?.layout?.stack,
@@ -2324,19 +2340,18 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
             }),
-        }),
-        [
-            itemsMap,
-            validCartesianConfig?.layout.flipAxes,
-            validCartesianConfig?.layout?.stack,
-            validCartesianConfig?.layout?.xField,
-            tooltipConfig,
-            pivotValuesColumnsMap,
-            originalValues,
-            parameters,
-            series,
-        ],
-    );
+        };
+    }, [
+        itemsMap,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout?.xField,
+        tooltipConfig,
+        pivotValuesColumnsMap,
+        originalValues,
+        parameters,
+        series,
+    ]);
 
     const currentGrid = useMemo(() => {
         const grid = {

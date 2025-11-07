@@ -1,7 +1,7 @@
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-type ContentType = 'dashboard-link' | 'chart-link';
+type ContentType = 'dashboard-link' | 'chart-link' | 'artifact-link';
 
 interface LinkProcessor {
     fragment: string;
@@ -31,6 +31,26 @@ const LINK_PROCESSORS: LinkProcessor[] = [
 
             if (chartMatch) data['data-chart-uuid'] = chartMatch[1];
             if (typeMatch) data['data-chart-type'] = typeMatch[1];
+
+            return data;
+        },
+    },
+    {
+        fragment: '#artifact-link',
+        contentType: 'artifact-link',
+        cleanUrl: (href) => href.replace(/#artifact-link.*$/, ''),
+        extractData: (href) => {
+            const data: Record<string, string> = {};
+            const artifactUuidMatch = href.match(/#artifact-uuid-([^#]+)/);
+            const versionUuidMatch = href.match(/#version-uuid-([^#]+)/);
+            const artifactTypeMatch = href.match(/#artifact-type-([^#]+)/);
+
+            if (artifactUuidMatch)
+                data['data-artifact-uuid'] = artifactUuidMatch[1];
+            if (versionUuidMatch)
+                data['data-version-uuid'] = versionUuidMatch[1];
+            if (artifactTypeMatch)
+                data['data-artifact-type'] = artifactTypeMatch[1];
 
             return data;
         },

@@ -8,6 +8,7 @@ import {
     getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
+    getItemLabelWithoutTableName,
     hasFormatOptions,
     hasValidFormatExpression,
     isField,
@@ -189,11 +190,21 @@ const useBigNumberConfig = (
         return itemsMap[selectedField];
     }, [itemsMap, selectedField]);
 
+    const [showTableNamesInLabel, setShowTableNamesInLabel] = useState<
+        BigNumber['showTableNamesInLabel'] | undefined
+    >(bigNumberConfigData?.showTableNamesInLabel);
+
     const label = useMemo(() => {
+        // For backwards compatibility: undefined means show table names (existing charts)
+        // false means hide table names (new charts default to hidden)
+        const shouldShowTableName = showTableNamesInLabel ?? true;
+
         return item
-            ? getItemLabel(item)
+            ? shouldShowTableName
+                ? getItemLabel(item)
+                : getItemLabelWithoutTableName(item)
             : selectedField && friendlyName(selectedField);
-    }, [item, selectedField]);
+    }, [item, selectedField, showTableNamesInLabel]);
 
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
@@ -227,6 +238,9 @@ const useBigNumberConfig = (
 
         setBigNumberLabel(bigNumberConfigData?.label);
         setShowBigNumberLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
+        setShowTableNamesInLabel(
+            bigNumberConfigData?.showTableNamesInLabel ?? true,
+        );
 
         setBigNumberStyle(bigNumberConfigData?.style);
         setBigNumberComparisonStyle(bigNumberConfigData?.style);
@@ -383,6 +397,7 @@ const useBigNumberConfig = (
             style: bigNumberStyle,
             selectedField: selectedField,
             showBigNumberLabel,
+            showTableNamesInLabel,
             showComparison,
             comparisonFormat,
             flipColors,
@@ -393,6 +408,7 @@ const useBigNumberConfig = (
         bigNumberStyle,
         selectedField,
         showBigNumberLabel,
+        showTableNamesInLabel,
         showComparison,
         comparisonFormat,
         flipColors,
@@ -426,6 +442,8 @@ const useBigNumberConfig = (
         comparisonTooltip,
         comparisonLabel,
         setComparisonLabel,
+        showTableNamesInLabel,
+        setShowTableNamesInLabel,
     };
 };
 
