@@ -1,3 +1,10 @@
+## [0.2154.2](https://github.com/lightdash/lightdash/compare/0.2154.1...0.2154.2) (2025-11-07)
+
+
+### Bug Fixes
+
+* getSchedulerLogs not returning all jobs for each job in a job group ([#17932](https://github.com/lightdash/lightdash/issues/17932)) ([5bc3df1](https://github.com/lightdash/lightdash/commit/5bc3df1c7075642e3f16967566a07fb9e8a3756b))
+
 ## [0.2154.1](https://github.com/lightdash/lightdash/compare/0.2154.0...0.2154.1) (2025-11-07)
 
 
