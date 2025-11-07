@@ -2317,6 +2317,23 @@ export class AiAgentModel {
         );
     }
 
+    async getArtifactEmbedding(
+        artifactVersionUuid: string,
+    ): Promise<number[] | null> {
+        const result = await this.database(AiArtifactVersionsTableName)
+            .select('embedding_vector')
+            .where({ ai_artifact_version_uuid: artifactVersionUuid })
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Artifact version ${artifactVersionUuid} not found`,
+            );
+        }
+
+        return result.embedding_vector;
+    }
+
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {
         await this.database(AiSlackPromptTableName)
             .update({
