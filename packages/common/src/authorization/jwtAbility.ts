@@ -190,9 +190,7 @@ export function applyEmbeddedAbility(
     }
 
     const abilities =
-        contentType === 'dashboard'
-            ? dashboardTypeAbilities
-            : chartTypeAbilities;
+        contentType === 'chart' ? chartTypeAbilities : dashboardTypeAbilities;
     const applyAbilities = flow(abilities);
 
     applyAbilities({
