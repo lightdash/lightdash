@@ -1,3 +1,10 @@
+## [0.2155.1](https://github.com/lightdash/lightdash/compare/0.2155.0...0.2155.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* allow embedding private space content ([#17963](https://github.com/lightdash/lightdash/issues/17963)) ([9b232fd](https://github.com/lightdash/lightdash/commit/9b232fdc0220c445812e3d7efed8ec6627d06008)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2155.0](https://github.com/lightdash/lightdash/compare/0.2154.5...0.2155.0) (2025-11-07)
 
 
