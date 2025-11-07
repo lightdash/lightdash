@@ -1,3 +1,10 @@
+## [0.2154.3](https://github.com/lightdash/lightdash/compare/0.2154.2...0.2154.3) (2025-11-07)
+
+
+### Bug Fixes
+
+* reorder SCIM user role updates and deprecate extension role ([#17925](https://github.com/lightdash/lightdash/issues/17925)) ([49f5679](https://github.com/lightdash/lightdash/commit/49f56799ff4c9e149e5d271a25e19f42366bdffc))
+
 ## [0.2154.2](https://github.com/lightdash/lightdash/compare/0.2154.1...0.2154.2) (2025-11-07)
 
 
