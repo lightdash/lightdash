@@ -208,14 +208,15 @@ export class UnfurlService extends BaseService {
                         `Received paginated response: ${response.url()}`,
                     );
                     const body = await response.body();
-                    const json = JSON.parse(body.toString()) as {
+                    const json = JSON.parse(body.toString()) as Partial<{
                         status: 'ok';
                         results: ApiGetAsyncQueryResults;
-                    };
+                    }>;
+
                     // Check if is last page (aka has no next page)
                     if (
-                        json.results.status === QueryHistoryStatus.READY &&
-                        !json.results.nextPage
+                        json.results?.status === QueryHistoryStatus.READY &&
+                        !json.results?.nextPage
                     ) {
                         responseCount += 1;
                         this.logger.info(
@@ -231,10 +232,10 @@ export class UnfurlService extends BaseService {
                     } else {
                         this.logger.debug(
                             `Paginated response is not complete. Status: ${
-                                json.results.status
+                                json.results?.status
                             }, hasNextPage: ${
-                                'nextPage' in json.results
-                                    ? !!json.results.nextPage
+                                json.results && 'nextPage' in json.results
+                                    ? !!json.results?.nextPage
                                     : 'N/A'
                             }`,
                         );
@@ -825,12 +826,12 @@ export class UnfurlService extends BaseService {
                                     ) {
                                         const json = JSON.parse(
                                             buffer.toString(),
-                                        ) as {
+                                        ) as Partial<{
                                             status: 'ok';
                                             results: ApiGetAsyncQueryResults;
-                                        };
+                                        }>;
                                         if (
-                                            json.results.status ===
+                                            json.results?.status ===
                                             QueryHistoryStatus.ERROR
                                         ) {
                                             this.logger.error(
@@ -1275,13 +1276,13 @@ export class UnfurlService extends BaseService {
         }
         const header = response.headers.get('set-cookie');
         if (header === null) {
-            const loginBody = (await response.json()) as {
+            const loginBody = (await response.json()) as Partial<{
                 status: string;
                 results: SessionUser;
-            };
+            }>;
             throw new AuthorizationError(
                 `Cannot sign in user before taking screenshot:\n${
-                    'results' in loginBody ? loginBody.results?.userUuid : ''
+                    loginBody.results?.userUuid ?? ''
                 }`,
             );
         }
