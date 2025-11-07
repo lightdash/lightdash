@@ -28,6 +28,8 @@ export type DbAiArtifactVersion = {
     saved_dashboard_uuid: string | null;
     chart_config: Record<string, unknown> | null;
     dashboard_config: Record<string, unknown> | null;
+    verified_by_user_uuid: string | null;
+    verified_at: Date | null;
 };
 
 export type AiArtifactVersionsTable = Knex.CompositeTableType<
@@ -44,6 +46,28 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
             | 'saved_dashboard_uuid'
             | 'chart_config'
             | 'dashboard_config'
+            | 'verified_by_user_uuid'
+            | 'verified_at'
         >
     >
+>;
+
+export const AiPromptArtifactReferencesTableName =
+    'ai_prompt_artifact_references';
+
+export type DbAiPromptArtifactReference = {
+    ai_prompt_uuid: string;
+    ai_artifact_version_uuid: string;
+    project_uuid: string;
+    similarity_score: number | null;
+    created_at: Date;
+};
+
+export type AiPromptArtifactReferencesTable = Knex.CompositeTableType<
+    DbAiPromptArtifactReference,
+    Pick<
+        DbAiPromptArtifactReference,
+        'ai_prompt_uuid' | 'ai_artifact_version_uuid' | 'project_uuid'
+    > &
+        Partial<Pick<DbAiPromptArtifactReference, 'similarity_score'>>
 >;
