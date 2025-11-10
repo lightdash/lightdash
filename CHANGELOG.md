@@ -1,3 +1,10 @@
+## [0.2155.3](https://github.com/lightdash/lightdash/compare/0.2155.2...0.2155.3) (2025-11-10)
+
+
+### Bug Fixes
+
+* legend shape changes when disabling item ([#17922](https://github.com/lightdash/lightdash/issues/17922)) ([d493d17](https://github.com/lightdash/lightdash/commit/d493d17a1e59c3f725d8c3a3fb265aac4a2d8dbe)), closes [#17732](https://github.com/lightdash/lightdash/issues/17732)
+
 ## [0.2155.2](https://github.com/lightdash/lightdash/compare/0.2155.1...0.2155.2) (2025-11-07)
 
 
