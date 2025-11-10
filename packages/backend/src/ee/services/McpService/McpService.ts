@@ -65,10 +65,10 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
-    GetExploreFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
+import { AgentContext } from '../ai/utils/AgentContext';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 export enum McpToolName {
@@ -663,14 +663,13 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const { getExplore, runMiniMetricQuery } =
+                const { agentContext, runMiniMetricQuery } =
                     await this.getRunMetricQueryDependencies(
                         argsWithProject,
                         context as McpProtocolContext,
                     );
 
                 const runMetricQueryTool = getRunMetricQuery({
-                    getExplore,
                     runMiniMetricQuery,
                     maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
@@ -683,6 +682,7 @@ export class McpService extends BaseService {
                     {
                         toolCallId: '',
                         messages: [],
+                        experimental_context: agentContext,
                     },
                 );
 
@@ -1126,7 +1126,7 @@ export class McpService extends BaseService {
         },
         context: McpProtocolContext,
     ): Promise<{
-        getExplore: GetExploreFn;
+        agentContext: AgentContext;
         runMiniMetricQuery: RunMiniMetricQueryFn;
     }> {
         const { user, account } = context.authInfo!.extra;
@@ -1154,14 +1154,14 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const getExplore: GetExploreFn = async ({ exploreName }) => {
-            const explore = await this.projectService.getExplore(
-                account,
-                projectUuid,
-                exploreName,
-            );
-            return explore;
-        };
+        // Get tags from context and fetch available explores
+        const tagsFromContext = await this.getTagsFromContext(context);
+        const explores = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            tagsFromContext,
+        );
+        const agentContext = new AgentContext(explores);
 
         const runMiniMetricQuery: RunMiniMetricQueryFn = async (
             metricQuery,
@@ -1186,7 +1186,7 @@ export class McpService extends BaseService {
                 },
             });
 
-        return { getExplore, runMiniMetricQuery };
+        return { agentContext, runMiniMetricQuery };
     }
 
     async getSearchFieldValuesFunction(

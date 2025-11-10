@@ -10,13 +10,13 @@ import {
 import { tool } from 'ai';
 import type {
     CreateOrUpdateArtifactFn,
-    GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateBarVizConfig } from '../utils/validateBarVizConfig';
@@ -24,7 +24,6 @@ import { validateTableVizConfig } from '../utils/validateTableVizConfig';
 import { validateTimeSeriesVizConfig } from '../utils/validateTimeSeriesVizConfig';
 
 type Dependencies = {
-    getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
@@ -35,7 +34,6 @@ type Dependencies = {
 };
 
 export const getGenerateDashboard = ({
-    getExplore,
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) => {
@@ -63,8 +61,9 @@ export const getGenerateDashboard = ({
         description: toolDashboardArgsSchema.description,
         inputSchema: toolDashboardArgsSchema,
         outputSchema: toolDashboardOutputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs, { experimental_context: context }) => {
             try {
+                const ctx = AgentContext.from(context);
                 const transformedToolArgs =
                     toolDashboardArgsSchemaTransformed.parse(toolArgs);
 
@@ -75,9 +74,9 @@ export const getGenerateDashboard = ({
                 const vizPromises = transformedToolArgs.visualizations.map(
                     async (viz, index) => {
                         try {
-                            const explore = await getExplore({
-                                exploreName: viz.vizConfig.exploreName,
-                            });
+                            const explore = ctx.getExplore(
+                                viz.vizConfig.exploreName,
+                            );
 
                             validateVisualization(viz, explore);
                             validIndices.add(index);

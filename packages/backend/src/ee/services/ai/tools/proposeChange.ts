@@ -9,11 +9,9 @@ import {
     toolProposeChangeOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import type {
-    GetExploreCompilerFn,
-    GetExploreFn,
-} from '../types/aiAgentDependencies';
+import type { GetExploreCompilerFn } from '../types/aiAgentDependencies';
 import { CreateChangeFn } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricSQL } from '../utils/populateCustomMetricsSQL';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -101,25 +99,22 @@ export const translateToolProposeChangeArgs = async (
 
 type GetProposeChangeArgs = {
     createChange: CreateChangeFn;
-    getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
 };
 
 export const getProposeChange = ({
     createChange,
-    getExplore,
     getExploreCompiler,
 }: GetProposeChangeArgs) =>
     tool({
         description: toolProposeChangeArgsSchema.description,
         inputSchema: toolProposeChangeArgsSchema,
         outputSchema: toolProposeChangeOutputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs, { experimental_context: context }) => {
             try {
+                const ctx = AgentContext.from(context);
                 const { entityTableName, change } = toolArgs;
-                const explore = await getExplore({
-                    exploreName: entityTableName,
-                });
+                const explore = ctx.getExplore(entityTableName);
 
                 switch (change.entityType) {
                     case 'table':
