@@ -67,11 +67,13 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                 {relatedDashboards.length > 0 && (
                     <>
                         <Alert
+                            color="red"
                             icon={<MantineIcon icon={IconAlertCircle} />}
                             title={
                                 <Text fw={600}>
-                                    This action will remove a chart tile from{' '}
-                                    {relatedDashboards.length} dashboard
+                                    This action will permanently remove a chart
+                                    tile from {relatedDashboards.length}{' '}
+                                    dashboard
                                     {relatedDashboards.length > 1 ? 's' : ''}:
                                 </Text>
                             }
@@ -80,6 +82,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                                 {relatedDashboards.map((dashboard) => (
                                     <List.Item key={dashboard.uuid}>
                                         <Anchor
+                                            color="red"
                                             component={Link}
                                             target="_blank"
                                             to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
