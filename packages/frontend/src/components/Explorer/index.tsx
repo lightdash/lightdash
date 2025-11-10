@@ -13,6 +13,7 @@ import {
     selectMetrics,
     selectParameterReferences,
     selectParameters,
+    selectSavedChart,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -29,6 +30,7 @@ import { Can } from '../../providers/Ability';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
@@ -53,6 +55,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             selectParameterReferences,
         );
         const parameters = useExplorerSelector(selectParameters);
+
+        const savedChart = useExplorerSelector(selectSavedChart);
 
         const { isOpen: isAdditionalMetricModalOpen } = useExplorerSelector(
             selectAdditionalMetricModal,
@@ -149,7 +153,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
             >
                 <Stack sx={{ flexGrow: 1 }}>
-                    {!hideHeader && isEditMode && <ExplorerHeader />}
+                    {!hideHeader &&
+                        (isEditMode ? (
+                            <ExplorerHeader />
+                        ) : (
+                            !savedChart && <RefreshDbtButton />
+                        ))}
 
                     {!!tableName &&
                         parameterReferencesFromRedux &&
