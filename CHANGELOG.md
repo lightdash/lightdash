@@ -1,3 +1,10 @@
+## [0.2155.6](https://github.com/lightdash/lightdash/compare/0.2155.5...0.2155.6) (2025-11-10)
+
+
+### Bug Fixes
+
+* stream closing errors were being swallowed by the void call of 'runAsyncWarehouseQuery' ([#17965](https://github.com/lightdash/lightdash/issues/17965)) ([e110995](https://github.com/lightdash/lightdash/commit/e110995fa01d708cf1f41e4d931a3326cbb847d3))
+
 ## [0.2155.5](https://github.com/lightdash/lightdash/compare/0.2155.4...0.2155.5) (2025-11-10)
 
 
