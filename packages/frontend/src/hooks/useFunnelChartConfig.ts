@@ -177,7 +177,9 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                     if (dataValue > dataMaxValue) {
                         dataMaxValue = dataValue;
                     }
+                    const rowId = rowValues[0].formatted;
                     return {
+                        id: rowId,
                         name: rowValues[0].formatted,
                         value: dataValue,
                         meta: {
@@ -204,6 +206,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                                 ? getItemLabelWithoutTableName(item)
                                 : id;
                             acc.push({
+                                id,
                                 name: fieldName,
                                 value: dataValue,
                                 meta: {
@@ -231,7 +234,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     const colorDefaults = useMemo(() => {
         return Object.fromEntries(
             data.map((item, index) => {
-                return [item.name, colorPalette[index % colorPalette.length]];
+                return [item.id, colorPalette[index % colorPalette.length]];
             }),
         );
     }, [data, colorPalette]);
