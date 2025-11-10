@@ -26,6 +26,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import useApp from '../providers/App/useApp';
 import {
     defaultQueryExecution,
     defaultState,
@@ -212,6 +213,7 @@ export const useExplorerRoute = () => {
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
     const { showToastError } = useToaster();
     const { search } = useLocation();
+    const { health } = useApp();
     const pathParams = useParams<{
         projectUuid: string;
         tableId: string | undefined;
@@ -235,7 +237,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         metrics: [],
                         filters: {},
                         sorts: [],
-                        limit: 500,
+                        limit: health.data?.query.defaultLimit ?? 500,
                         tableCalculations: [],
                         additionalMetrics: [],
                     },
@@ -290,7 +292,14 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 });
             }
         }
-    }, [pathParams, search, showToastError, fromDashboard, isExploreFromHere]);
+    }, [
+        pathParams,
+        search,
+        showToastError,
+        fromDashboard,
+        isExploreFromHere,
+        health.data?.query.defaultLimit,
+    ]);
 };
 
 export const createMetricPreviewUnsavedChartVersion = (
