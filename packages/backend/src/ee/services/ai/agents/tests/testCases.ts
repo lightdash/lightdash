@@ -43,15 +43,11 @@ export const testCases: TestCase[] = [
     },
     {
         prompt: 'What is the total revenue?',
-        expectedAnswer: [
-            'Explains how the total revenue was calculated using:',
+        expectedAnswer: 'Replies with total amount of revenue 3,053.87',
+        expectedToolOutcome: [
             `Explore: orders`,
-            `time: order date month`,
-            `metric: total order amount`,
-            `sorted by date month`,
-        ].join(`\n`),
-        expectedToolOutcome:
-            'It should have used the findFields or findExplores tool and then generated a table to get the total amount of revenue 3,053.87',
+            `Metric: total order amount`,
+        ].join('\n'),
     },
     {
         prompt: 'Revenue from the last 3 months for the "credit_card" and "coupon" payment method, displayed as a bar chart.',
@@ -67,6 +63,11 @@ export const testCases: TestCase[] = [
                 .format(
                     'YYYY-MM-DD',
                 )} and Payment method (credit_card, coupon)`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            'Should use a filter for the last 3 months',
+            'Should use filter for filtering the payment method',
+            'Default visualization should be a bar chart',
         ].join('\n'),
     },
     {
@@ -105,11 +106,10 @@ export const testCases: TestCase[] = [
     },
     {
         prompt: 'Show me orders where the order amount is greater than 1000000',
-        expectedAnswer: [
-            `The response included the following information:`,
-            `explore: orders`,
-            `filter: order amount > 1000000`,
-            `The agent doesn't have access to the returned data, so it doesn't mention there are no results`,
+        expectedAnswer: 'Replies with a message that there are no such orders',
+        expectedToolOutcome: [
+            'Should use filter for filtering the order amount greater than 1000000',
+            'Should handle the empty result case',
         ].join('\n'),
     },
     {
