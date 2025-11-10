@@ -120,36 +120,39 @@ const ProjectAccessRowV2: FC<Props> = ({
         return groupsWithAccess.length > 0 ? groupsWithAccess[0] : null;
     }, [organizationGroups, groupRoles, user.userUuid]);
 
-    const currentRoleUuid = useMemo(() => {
-        if (hasProjectRole) {
-            // Find the project role UUID from organization roles
-            const projectRoleData = organizationRoles.find(
-                (role) => role.label === user.projectRole,
-            );
-            return projectRoleData?.value;
-        }
-        return undefined;
-    }, [hasProjectRole, user, organizationRoles]);
-
     const isLoading = upsertMutation.isLoading || deleteMutation.isLoading;
     const isMember = user.role === OrganizationMemberRole.MEMBER;
 
-    const { highestRole, highestRoleType } = useMemo(() => {
+    const highestRole = useMemo(() => {
+        let currentHighestRole: {
+            role: string;
+            label: string;
+        } = {
+            role: organizationRole || 'member',
+            label: 'Organization',
+        };
+        if (
+            user.projectRole &&
+            systemRolesOrder.indexOf(user.projectRole) >
+                systemRolesOrder.indexOf(currentHighestRole.role)
+        ) {
+            currentHighestRole = {
+                role: user.projectRole,
+                label: `Project`,
+            };
+        }
         if (
             userGroupAccess?.access.roleId &&
             systemRolesOrder.indexOf(userGroupAccess.access.roleId) >
-                systemRolesOrder.indexOf(organizationRole || 'member')
+                systemRolesOrder.indexOf(currentHighestRole.role)
         ) {
-            return {
-                highestRole: userGroupAccess.access.roleId,
-                highestRoleType: `Group ${userGroupAccess.group.name}`,
+            currentHighestRole = {
+                role: userGroupAccess.access.roleId,
+                label: `Group ${userGroupAccess.group.name}`,
             };
         }
-        return {
-            highestRole: organizationRole,
-            highestRoleType: 'Organization',
-        };
-    }, [userGroupAccess, organizationRole]);
+        return currentHighestRole;
+    }, [organizationRole, user.projectRole, userGroupAccess]);
 
     // Helper function to get role name from roleId
     const getRoleName = useCallback(
@@ -230,7 +233,7 @@ const ProjectAccessRowV2: FC<Props> = ({
                                 <Text>
                                     User inherits this role from{' '}
                                     <Text span fw={600}>
-                                        {highestRoleType}
+                                        {highestRole.label}
                                     </Text>
                                 </Text>
                             }
@@ -252,7 +255,7 @@ const ProjectAccessRowV2: FC<Props> = ({
                                           ]
                                         : organizationRoles
                                 }
-                                value={currentRoleUuid || highestRole}
+                                value={highestRole.role}
                                 onChange={handleRoleChange}
                             />
                         </Tooltip>
