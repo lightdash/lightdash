@@ -124,6 +124,7 @@ type CreateProjectOptions = {
     copyContent?: boolean;
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
+    targetPath?: string;
 };
 
 export const createProject = async (
@@ -146,7 +147,10 @@ export const createProject = async (
     const dbtVersion = await getDbtVersion();
 
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        targetPath: options.targetPath,
+    });
 
     let targetName: string | undefined;
     let credentials: CreateWarehouseCredentials | undefined;
