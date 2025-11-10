@@ -4250,4 +4250,67 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             instruction,
         });
     }
+
+    async getVerifiedArtifacts(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        // Verify agent exists and user has access
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        // Get verified artifacts from model
+        const { pagination, data } =
+            await this.aiAgentModel.getVerifiedArtifactsForAgent({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid,
+                paginateArgs,
+            });
+
+        // Fetch user details for verified_by users
+        const userUuids = [...new Set(data.map((a) => a.verifiedByUserUuid))];
+        const users = await Promise.all(
+            userUuids.map((uuid) => this.userModel.getUserDetailsByUuid(uuid)),
+        );
+
+        const userMap = new Map(users.map((u) => [u.userUuid, u]));
+
+        // Combine data with user info
+        const artifactsWithUserInfo = data.map((artifact) => {
+            const verifiedByUser = userMap.get(artifact.verifiedByUserUuid);
+            return {
+                artifactUuid: artifact.artifactUuid,
+                versionUuid: artifact.versionUuid,
+                artifactType: artifact.artifactType,
+                title: artifact.title,
+                description: artifact.description,
+                verifiedAt: artifact.verifiedAt,
+                verifiedBy: {
+                    userUuid: artifact.verifiedByUserUuid,
+                    firstName: verifiedByUser?.firstName ?? '',
+                    lastName: verifiedByUser?.lastName ?? '',
+                },
+                referenceCount: artifact.referenceCount,
+                threadUuid: artifact.threadUuid,
+                promptUuid: artifact.promptUuid,
+            };
+        });
+
+        return {
+            pagination,
+            data: artifactsWithUserInfo,
+        };
+    }
 }

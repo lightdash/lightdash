@@ -1588,6 +1588,121 @@ export class AiAgentModel {
         );
     }
 
+    async getVerifiedArtifactsForAgent({
+        organizationUuid,
+        projectUuid,
+        agentUuid,
+        paginateArgs,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<
+        KnexPaginatedData<
+            Array<{
+                artifactUuid: string;
+                versionUuid: string;
+                artifactType: 'chart' | 'dashboard';
+                title: string | null;
+                description: string | null;
+                verifiedAt: Date;
+                verifiedByUserUuid: string;
+                referenceCount: number;
+                threadUuid: string;
+                promptUuid: string | null;
+            }>
+        >
+    > {
+        return wrapSentryTransaction(
+            'getVerifiedArtifactsForAgent',
+            { organizationUuid, projectUuid, agentUuid },
+            async () => {
+                const query = this.database(AiArtifactVersionsTableName)
+                    .select(
+                        `${AiArtifactsTableName}.ai_artifact_uuid as artifactUuid`,
+                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as versionUuid`,
+                        `${AiArtifactsTableName}.artifact_type as artifactType`,
+                        `${AiArtifactVersionsTableName}.title`,
+                        `${AiArtifactVersionsTableName}.description`,
+                        `${AiArtifactVersionsTableName}.verified_at as verifiedAt`,
+                        `${AiArtifactVersionsTableName}.verified_by_user_uuid as verifiedByUserUuid`,
+                        `${AiArtifactsTableName}.ai_thread_uuid as threadUuid`,
+                        `${AiArtifactVersionsTableName}.ai_prompt_uuid as promptUuid`,
+                    )
+                    .countDistinct(
+                        `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid as referenceCount`,
+                    )
+                    .join(
+                        AiArtifactsTableName,
+                        `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                        `${AiArtifactsTableName}.ai_artifact_uuid`,
+                    )
+                    .join(
+                        AiThreadTableName,
+                        `${AiArtifactsTableName}.ai_thread_uuid`,
+                        `${AiThreadTableName}.ai_thread_uuid`,
+                    )
+                    .leftJoin(
+                        AiPromptArtifactReferencesTableName,
+                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                        `${AiPromptArtifactReferencesTableName}.ai_artifact_version_uuid`,
+                    )
+                    .whereNotNull(
+                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                    )
+                    .where(
+                        `${AiThreadTableName}.organization_uuid`,
+                        organizationUuid,
+                    )
+                    .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
+                    .where(`${AiThreadTableName}.project_uuid`, projectUuid)
+                    .groupBy(
+                        `${AiArtifactsTableName}.ai_artifact_uuid`,
+                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                        `${AiArtifactsTableName}.artifact_type`,
+                        `${AiArtifactVersionsTableName}.title`,
+                        `${AiArtifactVersionsTableName}.description`,
+                        `${AiArtifactVersionsTableName}.verified_at`,
+                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                        `${AiArtifactsTableName}.ai_thread_uuid`,
+                        `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    )
+                    .orderByRaw(
+                        `COUNT(DISTINCT ${AiPromptArtifactReferencesTableName}.ai_prompt_uuid) DESC`,
+                    );
+
+                const { pagination, data } = await KnexPaginate.paginate(
+                    query,
+                    paginateArgs,
+                );
+
+                return {
+                    pagination,
+                    data: (data as Array<Record<string, unknown>>).map(
+                        (row) => ({
+                            artifactUuid: row.artifactUuid as string,
+                            versionUuid: row.versionUuid as string,
+                            artifactType: row.artifactType as
+                                | 'chart'
+                                | 'dashboard',
+                            title: (row.title as string | null) ?? null,
+                            description:
+                                (row.description as string | null) ?? null,
+                            verifiedAt: row.verifiedAt as Date,
+                            verifiedByUserUuid:
+                                row.verifiedByUserUuid as string,
+                            referenceCount: Number(row.referenceCount),
+                            threadUuid: row.threadUuid as string,
+                            promptUuid:
+                                (row.promptUuid as string | null) ?? null,
+                        }),
+                    ),
+                };
+            },
+        );
+    }
+
     async findArtifactReferencesByPromptUuid(
         promptUuid: string,
     ): Promise<string[]> {
