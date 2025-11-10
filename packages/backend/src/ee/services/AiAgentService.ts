@@ -1748,22 +1748,28 @@ export class AiAgentService {
             return;
         }
 
-        void this.schedulerClient
-            .embedArtifactVersion({
-                organizationUuid,
-                projectUuid: agent.projectUuid,
-                userUuid: user.userUuid,
-                artifactVersionUuid: versionUuid,
-                title: artifact.title,
-                description: artifact.description,
-            })
-            .catch((error) => {
-                Logger.error(
-                    'Failed to enqueue embedding job:',
-                    error instanceof Error ? error.message : error,
-                );
-                Sentry.captureException(error);
-            });
+        // Only embed if not already embedded
+        const embedding = await this.aiAgentModel.getArtifactEmbedding(
+            versionUuid,
+        );
+        if (embedding === null) {
+            void this.schedulerClient
+                .embedArtifactVersion({
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: user.userUuid,
+                    artifactVersionUuid: versionUuid,
+                    title: artifact.title,
+                    description: artifact.description,
+                })
+                .catch((error) => {
+                    Logger.error(
+                        'Failed to enqueue embedding job:',
+                        error instanceof Error ? error.message : error,
+                    );
+                    Sentry.captureException(error);
+                });
+        }
     }
 
     async embedArtifactVersion(payload: {
