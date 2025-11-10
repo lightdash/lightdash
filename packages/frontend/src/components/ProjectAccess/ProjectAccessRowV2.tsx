@@ -124,7 +124,7 @@ const ProjectAccessRowV2: FC<Props> = ({
         if (hasProjectRole) {
             // Find the project role UUID from organization roles
             const projectRoleData = organizationRoles.find(
-                (role) => role.label === user.projectRole,
+                (role) => role.value === user.projectRole,
             );
             return projectRoleData?.value;
         }
