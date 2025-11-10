@@ -1,3 +1,15 @@
+# [0.2157.0](https://github.com/lightdash/lightdash/compare/0.2156.0...0.2157.0) (2025-11-10)
+
+
+### Bug Fixes
+
+* rename "artifacts" to "answers" in AI verification UI ([#17978](https://github.com/lightdash/lightdash/issues/17978)) ([7d1a20c](https://github.com/lightdash/lightdash/commit/7d1a20ce5ebf31698fd12a5e3c5184c8407af08d))
+
+
+### Features
+
+* add suggested questions from verified artifacts ([#17955](https://github.com/lightdash/lightdash/issues/17955)) ([9a3410a](https://github.com/lightdash/lightdash/commit/9a3410abaccb0093764d8bf95101e2732ff7dcba)), closes [#15632](https://github.com/lightdash/lightdash/issues/15632)
+
 # [0.2156.0](https://github.com/lightdash/lightdash/compare/0.2155.10...0.2156.0) (2025-11-10)
 
 
