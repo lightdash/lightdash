@@ -9,19 +9,21 @@ import { EditableText } from '../common/EditableText';
 type StepConfigProps = {
     defaultColor: string;
     defaultLabel: string;
+    id?: string;
 
     swatches: string[];
 
     color: string | undefined;
     label: string | undefined;
 
-    onColorChange: (label: string, newColor: string) => void;
-    onLabelChange: (label: string, newLabel: string) => void;
+    onColorChange: (id: string, newColor: string) => void;
+    onLabelChange: (id: string, newLabel: string) => void;
 };
 
 export const StepConfig: FC<StepConfigProps> = ({
     defaultColor,
     defaultLabel,
+    id,
     swatches,
     color,
     label,
@@ -29,6 +31,7 @@ export const StepConfig: FC<StepConfigProps> = ({
     onLabelChange,
     ...rest
 }) => {
+    const stepId = id ?? defaultLabel;
     return (
         <Stack spacing="xs" {...rest}>
             <Group spacing="xs">
@@ -37,7 +40,7 @@ export const StepConfig: FC<StepConfigProps> = ({
                     defaultColor={defaultColor}
                     swatches={swatches}
                     onColorChange={(newColor: string) =>
-                        onColorChange(defaultLabel, newColor)
+                        onColorChange(stepId, newColor)
                     }
                 />
                 <Box style={{ flexGrow: 1 }}>
@@ -45,10 +48,7 @@ export const StepConfig: FC<StepConfigProps> = ({
                         placeholder={defaultLabel}
                         value={label}
                         onChange={(event) => {
-                            onLabelChange(
-                                defaultLabel,
-                                event.currentTarget.value,
-                            );
+                            onLabelChange(stepId, event.currentTarget.value);
                         }}
                     />
                 </Box>
