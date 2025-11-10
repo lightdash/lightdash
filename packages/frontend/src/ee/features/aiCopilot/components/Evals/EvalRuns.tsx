@@ -6,10 +6,10 @@ import {
     Loader,
     Paper,
     Stack,
-    Table,
     Text,
     Title,
     Tooltip,
+    useMantineTheme,
 } from '@mantine-8/core';
 import {
     IconCheck,
@@ -18,7 +18,12 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { type FC } from 'react';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+} from 'mantine-react-table';
+import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -33,141 +38,259 @@ type Props = {
     evalUuid: string;
 };
 
-type RunRowProps = {
-    projectUuid: string;
-    agentUuid: string;
-    evalUuid: string;
-    run: AiAgentEvaluationRunSummary;
-    onSelectRun: (run: AiAgentEvaluationRunSummary) => void;
-};
-
-const EvalRunRow: FC<RunRowProps> = ({
-    projectUuid,
-    agentUuid,
-    evalUuid,
-    run,
-    onSelectRun,
-}) => {
-    // Start polling for this run if it's pending or running
-    useEvaluationRunPolling(projectUuid, agentUuid, evalUuid, run);
-
-    const runDuration = run.completedAt
-        ? dayjs
-              .utc(
-                  dayjs
-                      .duration(
-                          dayjs(run.completedAt).diff(dayjs(run.createdAt)),
-                      )
-                      .asMilliseconds(),
-              )
-              .format('mm[m]ss[s]')
-        : '-';
-
-    const createdAt = run.createdAt
-        ? dayjs(run.createdAt).format('DD/MM/YYYY HH:mm:ss')
-        : '-';
-    const completedAt = run.completedAt
-        ? dayjs(run.completedAt).format('DD/MM/YYYY HH:mm:ss')
-        : '-';
-    const evalStatus = statusConfig[run.status];
-    return (
-        <Table.Tr
-            key={run.runUuid}
-            style={{
-                cursor: 'pointer',
-            }}
-            onClick={() => onSelectRun(run)}
-        >
-            <Table.Td>
-                <Text size="sm" fw={500}>
-                    {run.runUuid.slice(-8)}
-                </Text>
-            </Table.Td>
-            <Table.Td>
-                <Badge
-                    color={evalStatus.color}
-                    variant="dot"
-                    size="sm"
-                    radius="sm"
-                    c="gray.7"
-                    style={{ border: 'none' }}
-                >
-                    {evalStatus.label}
-                </Badge>
-            </Table.Td>
-            <Table.Td>
-                {isRunning(run.status) ? (
-                    <Tooltip label="Running">
-                        <Loader size={12} color="gray" />
-                    </Tooltip>
-                ) : !run.passedAssessments && !run.failedAssessments ? (
-                    <Tooltip label="No assessments available">
-                        <MantineIcon icon={IconCircleDotted} color="gray.6" />
-                    </Tooltip>
-                ) : (
-                    <Group gap="sm">
-                        {run.passedAssessments > 0 && (
-                            <Group gap={2}>
-                                <MantineIcon icon={IconCheck} color="green.8" />
-                                <Text fz="xs" c="green.8" fw={500}>
-                                    {run.passedAssessments}
-                                </Text>
-                            </Group>
-                        )}
-                        {run.failedAssessments > 0 && (
-                            <Group gap={2}>
-                                <MantineIcon icon={IconX} color="red.8" />
-                                <Text fz="xs" c="red.8" fw={500}>
-                                    {run.failedAssessments}
-                                </Text>
-                            </Group>
-                        )}
-                    </Group>
-                )}
-            </Table.Td>
-            <Table.Td>
-                <Tooltip
-                    withinPortal
-                    position="left-start"
-                    label={
-                        <Text size="xs">
-                            Started {createdAt}
-                            {run.completedAt && (
-                                <>
-                                    <br />
-                                    Completed {completedAt}
-                                </>
-                            )}
-                        </Text>
-                    }
-                >
-                    <Text size="sm" c="dimmed">
-                        {createdAt}
-                    </Text>
-                </Tooltip>
-            </Table.Td>
-            <Table.Td>
-                <Text size="sm" c="dimmed">
-                    {runDuration}
-                </Text>
-            </Table.Td>
-        </Table.Tr>
-    );
-};
-
 export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     const navigate = useNavigate();
+    const theme = useMantineTheme();
 
     const { data: runsData, isLoading: isLoadingRuns } =
         useAiAgentEvaluationRuns(projectUuid, agentUuid, evalUuid);
 
-    const runs = runsData?.data?.runs;
+    const runs = useMemo(
+        () => runsData?.data?.runs ?? [],
+        [runsData?.data?.runs],
+    );
+
+    // Poll for any active (running/pending) run to keep the list updated
+    const activeRun = useMemo(() => {
+        return runs.find(
+            (run) => run.status === 'pending' || run.status === 'running',
+        );
+    }, [runs]);
+
+    // Enable polling only if there's an active run
+    useEvaluationRunPolling(projectUuid, agentUuid, evalUuid, activeRun);
 
     const handleSelectRun = (run: AiAgentEvaluationRunSummary) => {
         void navigate(
             `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${evalUuid}/run/${run.runUuid}`,
         );
     };
+
+    const columns: MRT_ColumnDef<AiAgentEvaluationRunSummary>[] = useMemo(
+        () => [
+            {
+                accessorKey: 'runUuid',
+                header: 'Run ID',
+                enableSorting: false,
+                size: 120,
+                Cell: ({ row }) => (
+                    <Text fz="sm" fw={500}>
+                        {row.original.runUuid.slice(-8)}
+                    </Text>
+                ),
+            },
+            {
+                accessorKey: 'status',
+                header: 'Run Status',
+                enableSorting: false,
+                size: 150,
+                Cell: ({ row }) => {
+                    const evalStatus = statusConfig[row.original.status];
+                    return (
+                        <Badge
+                            color={evalStatus.color}
+                            variant="dot"
+                            size="sm"
+                            radius="sm"
+                            c="gray.7"
+                            style={{ border: 'none' }}
+                        >
+                            {evalStatus.label}
+                        </Badge>
+                    );
+                },
+            },
+            {
+                accessorKey: 'assessment',
+                header: 'Assessment',
+                enableSorting: false,
+                size: 140,
+                Cell: ({ row }) => {
+                    const run = row.original;
+                    return isRunning(run.status) ? (
+                        <Tooltip label="Running">
+                            <Loader size={12} color="gray" />
+                        </Tooltip>
+                    ) : !run.passedAssessments && !run.failedAssessments ? (
+                        <Tooltip label="No assessments available">
+                            <MantineIcon
+                                icon={IconCircleDotted}
+                                color="gray.6"
+                            />
+                        </Tooltip>
+                    ) : (
+                        <Group gap="sm">
+                            {run.passedAssessments > 0 && (
+                                <Group gap={2}>
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        color="green.8"
+                                    />
+                                    <Text fz="xs" c="green.8" fw={500}>
+                                        {run.passedAssessments}
+                                    </Text>
+                                </Group>
+                            )}
+                            {run.failedAssessments > 0 && (
+                                <Group gap={2}>
+                                    <MantineIcon icon={IconX} color="red.8" />
+                                    <Text fz="xs" c="red.8" fw={500}>
+                                        {run.failedAssessments}
+                                    </Text>
+                                </Group>
+                            )}
+                        </Group>
+                    );
+                },
+            },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableSorting: false,
+                size: 180,
+                Cell: ({ row }) => {
+                    const run = row.original;
+                    const createdAt = run.createdAt
+                        ? dayjs(run.createdAt).format('DD/MM/YYYY HH:mm:ss')
+                        : '-';
+                    const completedAt = run.completedAt
+                        ? dayjs(run.completedAt).format('DD/MM/YYYY HH:mm:ss')
+                        : '-';
+                    return (
+                        <Tooltip
+                            withinPortal
+                            position="left-start"
+                            label={
+                                <Text size="xs">
+                                    Started {createdAt}
+                                    {run.completedAt && (
+                                        <>
+                                            <br />
+                                            Completed {completedAt}
+                                        </>
+                                    )}
+                                </Text>
+                            }
+                        >
+                            <Text fz="sm" c="gray.6">
+                                {createdAt}
+                            </Text>
+                        </Tooltip>
+                    );
+                },
+            },
+            {
+                accessorKey: 'duration',
+                header: 'Duration',
+                enableSorting: false,
+                size: 120,
+                Cell: ({ row }) => {
+                    const run = row.original;
+                    const runDuration = run.completedAt
+                        ? dayjs
+                              .utc(
+                                  dayjs
+                                      .duration(
+                                          dayjs(run.completedAt).diff(
+                                              dayjs(run.createdAt),
+                                          ),
+                                      )
+                                      .asMilliseconds(),
+                              )
+                              .format('mm[m]ss[s]')
+                        : '-';
+                    return (
+                        <Text fz="sm" c="gray.6">
+                            {runDuration}
+                        </Text>
+                    );
+                },
+            },
+        ],
+        [],
+    );
+
+    const table = useMantineReactTable({
+        columns,
+        data: runs,
+        enableSorting: false,
+        enableColumnActions: false,
+        enablePagination: false,
+        enableBottomToolbar: false,
+        enableTopToolbar: false,
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        mantineTableBodyRowProps: ({ row }) => ({
+            onClick: () => handleSelectRun(row.original),
+            style: {
+                cursor: 'pointer',
+            },
+        }),
+        state: {
+            isLoading: isLoadingRuns,
+        },
+        mantinePaperProps: {
+            shadow: undefined,
+            style: {
+                border: `1px solid ${theme.colors.gray[2]}`,
+                borderRadius: theme.spacing.sm,
+                boxShadow: theme.shadows.subtle,
+                display: 'flex',
+                flexDirection: 'column',
+            },
+        },
+        mantineTableContainerProps: {
+            style: { maxHeight: '320px' },
+        },
+        mantineTableProps: {
+            highlightOnHover: true,
+            withColumnBorders: Boolean(runs.length),
+        },
+        mantineTableHeadCellProps: (props) => {
+            const isFirstColumn =
+                props.table.getAllColumns().indexOf(props.column) === 0;
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    userSelect: 'none',
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${
+                              isLastColumn || isFirstColumn
+                                  ? 'transparent'
+                                  : theme.colors.gray[2]
+                          }`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                },
+            };
+        },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+            },
+        },
+        mantineTableBodyCellProps: () => {
+            return {
+                h: 48,
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                    borderRight: 'none',
+                    borderLeft: 'none',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                },
+            };
+        },
+    });
 
     if (isLoadingRuns) {
         return (
@@ -201,33 +324,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     </Text>
                 </Paper>
             ) : (
-                <Paper p="sm">
-                    <Table.ScrollContainer maxHeight={320} minWidth={500}>
-                        <Table highlightOnHover stickyHeader>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th>Run ID</Table.Th>
-                                    <Table.Th>Run Status</Table.Th>
-                                    <Table.Th>Assessment</Table.Th>
-                                    <Table.Th>Created</Table.Th>
-                                    <Table.Th>Duration</Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {runs.map((run) => (
-                                    <EvalRunRow
-                                        key={run.runUuid}
-                                        projectUuid={projectUuid}
-                                        agentUuid={agentUuid}
-                                        evalUuid={evalUuid}
-                                        run={run}
-                                        onSelectRun={handleSelectRun}
-                                    />
-                                ))}
-                            </Table.Tbody>
-                        </Table>
-                    </Table.ScrollContainer>
-                </Paper>
+                <MantineReactTable table={table} />
             )}
         </Stack>
     );

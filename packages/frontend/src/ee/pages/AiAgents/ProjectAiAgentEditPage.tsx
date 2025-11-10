@@ -221,6 +221,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 width: 300,
                 breakpoint: 'sm',
             }}
+            bg="#fcfcfc"
         >
             <AppShell.Navbar p="md">
                 <Stack gap="lg">
