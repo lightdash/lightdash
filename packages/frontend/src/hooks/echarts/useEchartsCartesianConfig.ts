@@ -1528,6 +1528,13 @@ const getEchartAxes = ({
               maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
             : undefined;
 
+    const showSecondaryXAxis = validCartesianConfig.layout.flipAxes
+        ? topAxisXFieldIds && topAxisXFieldIds.length > 0
+        : false;
+    const showSecondaryYAxis = !validCartesianConfig.layout.flipAxes
+        ? rightAxisYFieldIds && rightAxisYFieldIds.length > 0
+        : false;
+
     return {
         xAxis: [
             {
@@ -1581,6 +1588,7 @@ const getEchartAxes = ({
             },
             {
                 type: topAxisType,
+                show: showSecondaryXAxis,
                 ...(showXAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
@@ -1621,6 +1629,7 @@ const getEchartAxes = ({
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
                 ),
+                inverse: !!xAxisConfiguration?.[1]?.inverse,
                 ...topAxisExtraConfig,
             },
         ],
@@ -1679,6 +1688,7 @@ const getEchartAxes = ({
             },
             {
                 type: rightAxisType,
+                show: showSecondaryYAxis,
                 ...(showYAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
@@ -1725,6 +1735,7 @@ const getEchartAxes = ({
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
                 ),
+                inverse: !!yAxisConfiguration?.[1]?.inverse,
                 ...rightAxisExtraConfig,
             },
         ],
