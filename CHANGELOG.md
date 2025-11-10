@@ -1,3 +1,15 @@
+# [0.2156.0](https://github.com/lightdash/lightdash/compare/0.2155.10...0.2156.0) (2025-11-10)
+
+
+### Bug Fixes
+
+* avoid duplicate artifact embedding jobs ([#17954](https://github.com/lightdash/lightdash/issues/17954)) ([dcd5c65](https://github.com/lightdash/lightdash/commit/dcd5c65a9e7a3789c27ac38393445af811a71f2a))
+
+
+### Features
+
+* add verified artifacts management to AI agents ([#17953](https://github.com/lightdash/lightdash/issues/17953)) ([4aedaa9](https://github.com/lightdash/lightdash/commit/4aedaa9d99ba81961f872867cfd89d3bac9d56f7))
+
 ## [0.2155.10](https://github.com/lightdash/lightdash/compare/0.2155.9...0.2155.10) (2025-11-10)
 
 
