@@ -409,10 +409,6 @@ export class RolesService extends BaseService {
         // Get existing project access data
         const projectAccess = await this.getProjectAccess(account, projectId);
 
-        console.log(
-            'projectAccess',
-            projectAccess.users.map((u) => `${u.userUuid}-${u.roleName}`),
-        );
         const assignments: RoleAssignment[] = [];
 
         // Convert user access to unified format

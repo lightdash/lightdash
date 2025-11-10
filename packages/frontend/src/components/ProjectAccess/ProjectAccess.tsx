@@ -119,8 +119,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         return <LoadingState title="Loading user access" />;
     }
 
-    console.log('usersWithProjectRole', usersWithProjectRole);
-
     return (
         <>
             <SettingsCard shadow="none" p={0}>
