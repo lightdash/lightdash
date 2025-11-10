@@ -105,7 +105,7 @@ const AiAgentNewThreadPage: FC = () => {
                         )}
                     </Stack>
 
-                    {verifiedQuestions && verifiedQuestions.length > 1 && (
+                    {verifiedQuestions && (
                         <SuggestedQuestions
                             questions={verifiedQuestions}
                             onQuestionClick={onSubmit}
