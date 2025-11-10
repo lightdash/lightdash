@@ -1,3 +1,85 @@
+# [0.2157.0](https://github.com/lightdash/lightdash/compare/0.2156.0...0.2157.0) (2025-11-10)
+
+
+### Bug Fixes
+
+* rename "artifacts" to "answers" in AI verification UI ([#17978](https://github.com/lightdash/lightdash/issues/17978)) ([7d1a20c](https://github.com/lightdash/lightdash/commit/7d1a20ce5ebf31698fd12a5e3c5184c8407af08d))
+
+
+### Features
+
+* add suggested questions from verified artifacts ([#17955](https://github.com/lightdash/lightdash/issues/17955)) ([9a3410a](https://github.com/lightdash/lightdash/commit/9a3410abaccb0093764d8bf95101e2732ff7dcba)), closes [#15632](https://github.com/lightdash/lightdash/issues/15632)
+
+# [0.2156.0](https://github.com/lightdash/lightdash/compare/0.2155.10...0.2156.0) (2025-11-10)
+
+
+### Bug Fixes
+
+* avoid duplicate artifact embedding jobs ([#17954](https://github.com/lightdash/lightdash/issues/17954)) ([dcd5c65](https://github.com/lightdash/lightdash/commit/dcd5c65a9e7a3789c27ac38393445af811a71f2a))
+
+
+### Features
+
+* add verified artifacts management to AI agents ([#17953](https://github.com/lightdash/lightdash/issues/17953)) ([4aedaa9](https://github.com/lightdash/lightdash/commit/4aedaa9d99ba81961f872867cfd89d3bac9d56f7))
+
+## [0.2155.10](https://github.com/lightdash/lightdash/compare/0.2155.9...0.2155.10) (2025-11-10)
+
+
+### Bug Fixes
+
+* remove tooltip showDelay property ([#17976](https://github.com/lightdash/lightdash/issues/17976)) ([1ae4552](https://github.com/lightdash/lightdash/commit/1ae455239284d83dc38dabd6e35420d9e24ed308))
+
+## [0.2155.9](https://github.com/lightdash/lightdash/compare/0.2155.8...0.2155.9) (2025-11-10)
+
+
+### Bug Fixes
+
+* update AI agent test cases for revenue and order filtering ([#17983](https://github.com/lightdash/lightdash/issues/17983)) ([652dbb9](https://github.com/lightdash/lightdash/commit/652dbb9ecba1cc0174415a9be3da9710e9be8d50))
+
+## [0.2155.8](https://github.com/lightdash/lightdash/compare/0.2155.7...0.2155.8) (2025-11-10)
+
+
+### Bug Fixes
+
+* allow setting targetPath on cli commands ([#17923](https://github.com/lightdash/lightdash/issues/17923)) ([5d03d8f](https://github.com/lightdash/lightdash/commit/5d03d8f17db1dc2aa170c55b52ffd548c182c89c)), closes [#17833](https://github.com/lightdash/lightdash/issues/17833)
+* settings/invites e2e fix ([#17982](https://github.com/lightdash/lightdash/issues/17982)) ([e77ee8c](https://github.com/lightdash/lightdash/commit/e77ee8c857f3f2a8ba83ebce7f6da81688075f6a))
+
+## [0.2155.7](https://github.com/lightdash/lightdash/compare/0.2155.6...0.2155.7) (2025-11-10)
+
+
+### Bug Fixes
+
+* address new show table names default changes ([#17981](https://github.com/lightdash/lightdash/issues/17981)) ([b7d9474](https://github.com/lightdash/lightdash/commit/b7d9474ecdebd31a79d65b56bd72f50301f097e7))
+* improve big number font size in smaller tiles ([#17918](https://github.com/lightdash/lightdash/issues/17918)) ([c38118a](https://github.com/lightdash/lightdash/commit/c38118af15921977505913fe2dbaf9dc8605942b)), closes [#17897](https://github.com/lightdash/lightdash/issues/17897)
+
+## [0.2155.6](https://github.com/lightdash/lightdash/compare/0.2155.5...0.2155.6) (2025-11-10)
+
+
+### Bug Fixes
+
+* stream closing errors were being swallowed by the void call of 'runAsyncWarehouseQuery' ([#17965](https://github.com/lightdash/lightdash/issues/17965)) ([e110995](https://github.com/lightdash/lightdash/commit/e110995fa01d708cf1f41e4d931a3326cbb847d3))
+
+## [0.2155.5](https://github.com/lightdash/lightdash/compare/0.2155.4...0.2155.5) (2025-11-10)
+
+
+### Bug Fixes
+
+* check if db has table aiAgents before starting preview ([#17970](https://github.com/lightdash/lightdash/issues/17970)) ([e7da066](https://github.com/lightdash/lightdash/commit/e7da066f744572542d04e6c6d8bb8b1e46ed01de))
+
+## [0.2155.4](https://github.com/lightdash/lightdash/compare/0.2155.3...0.2155.4) (2025-11-10)
+
+
+### Bug Fixes
+
+* random black line appears on top of some charts ([#17943](https://github.com/lightdash/lightdash/issues/17943)) ([8ef815c](https://github.com/lightdash/lightdash/commit/8ef815c02e64771cde5e2b21747b3afed00eb256)), closes [#17666](https://github.com/lightdash/lightdash/issues/17666)
+
+## [0.2155.3](https://github.com/lightdash/lightdash/compare/0.2155.2...0.2155.3) (2025-11-10)
+
+
+### Bug Fixes
+
+* legend shape changes when disabling item ([#17922](https://github.com/lightdash/lightdash/issues/17922)) ([d493d17](https://github.com/lightdash/lightdash/commit/d493d17a1e59c3f725d8c3a3fb265aac4a2d8dbe)), closes [#17732](https://github.com/lightdash/lightdash/issues/17732)
+
 ## [0.2155.2](https://github.com/lightdash/lightdash/compare/0.2155.1...0.2155.2) (2025-11-07)
 
 

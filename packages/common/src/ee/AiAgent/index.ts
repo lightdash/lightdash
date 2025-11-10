@@ -411,6 +411,31 @@ export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
 export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
 
+export type AiAgentVerifiedArtifact = {
+    artifactUuid: string;
+    versionUuid: string;
+    artifactType: 'chart' | 'dashboard';
+    title: string | null;
+    description: string | null;
+    verifiedAt: Date;
+    verifiedBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    };
+    referenceCount: number;
+    threadUuid: string;
+    promptUuid: string | null;
+};
+
+export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentVerifiedArtifact[]>
+>;
+
+export type ApiAiAgentVerifiedQuestionsResponse = ApiSuccess<
+    { question: string; uuid: string }[]
+>;
+
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;
     createdAt: Date;

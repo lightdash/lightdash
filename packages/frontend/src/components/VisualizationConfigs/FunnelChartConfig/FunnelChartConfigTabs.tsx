@@ -229,18 +229,15 @@ export const ConfigTabs: FC = memo(() => {
                                     .map((step) => {
                                         return (
                                             <StepConfig
-                                                key={step.name}
+                                                key={step.id}
+                                                id={step.id}
                                                 defaultColor={
-                                                    colorDefaults[step.name]
+                                                    colorDefaults[step.id]
                                                 }
                                                 defaultLabel={step.name}
                                                 swatches={[]}
-                                                color={
-                                                    colorOverrides[step.name]
-                                                }
-                                                label={
-                                                    labelOverrides[step.name]
-                                                }
+                                                color={colorOverrides[step.id]}
+                                                label={labelOverrides[step.id]}
                                                 onColorChange={
                                                     onColorOverridesChange
                                                 }

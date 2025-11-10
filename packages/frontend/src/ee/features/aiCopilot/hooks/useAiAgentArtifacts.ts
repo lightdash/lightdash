@@ -1,4 +1,5 @@
 import type { AiArtifact, ApiError, ApiSuccessEmpty } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
@@ -123,6 +124,7 @@ const setArtifactVersionVerified = async ({
 export const useSetArtifactVersionVerified = (
     projectUuid: string,
     agentUuid: string,
+    { showSuccessAction = true }: { showSuccessAction?: boolean } = {},
 ) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -163,10 +165,30 @@ export const useSetArtifactVersionVerified = (
                     ],
                 });
             }
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'ai-agent-verified-artifacts',
+                    projectUuid,
+                    agentUuid,
+                ],
+            });
+
             showToastSuccess({
                 title: verified
-                    ? 'Added to verified artifacts list'
-                    : 'Removed from verified artifact list',
+                    ? 'Added to verified answers list'
+                    : 'Removed from verified answers list',
+                action:
+                    showSuccessAction && verified
+                        ? {
+                              children: 'Go to verified answers',
+                              onClick: () => {
+                                  void navigate(
+                                      `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts`,
+                                  );
+                              },
+                              icon: IconArrowRight,
+                          }
+                        : undefined,
             });
         },
         onError: ({ error }) => {
@@ -176,7 +198,7 @@ export const useSetArtifactVersionVerified = (
                 );
             } else {
                 showToastApiError({
-                    title: 'Failed to update artifact verification',
+                    title: 'Failed to update answer verification',
                     apiError: error,
                 });
             }

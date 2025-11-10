@@ -55,7 +55,10 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
-    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        targetPath: options.targetPath,
+    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(

@@ -57,6 +57,12 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ) => {
                 await this.aiAgentService.embedArtifactVersion(payload);
             },
+            [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentService.generateArtifactQuestion(payload);
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: async (
                 payload,
                 helpers,

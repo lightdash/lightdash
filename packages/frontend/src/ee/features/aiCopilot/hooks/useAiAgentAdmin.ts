@@ -3,6 +3,7 @@ import {
     type AiAgentAdminSort,
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentSummaryResponse,
+    type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
 } from '@lightdash/common';
 import {
@@ -120,5 +121,66 @@ export const useAiAgentAdminEmbedToken = () => {
         keepPreviousData: true,
         refetchOnWindowFocus: false,
         staleTime: 30 * 60 * 1000, // 30 minutes (token expires in 1 hour)
+    });
+};
+
+const getVerifiedArtifacts = async ({
+    projectUuid,
+    agentUuid,
+    page,
+    pageSize,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    page?: number;
+    pageSize?: number;
+}) => {
+    const params = createQueryString({ page, pageSize });
+    return lightdashApi<ApiAiAgentVerifiedArtifactsResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/verified-artifacts${
+            params ? `?${params}` : ''
+        }`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteVerifiedArtifacts = (
+    projectUuid: string,
+    agentUuid: string,
+    pagination: { pageSize?: number; page?: number },
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentVerifiedArtifactsResponse['results'],
+        ApiError
+    > = {},
+) => {
+    return useInfiniteQuery<
+        ApiAiAgentVerifiedArtifactsResponse['results'],
+        ApiError
+    >({
+        queryKey: [
+            'ai-agent-verified-artifacts',
+            projectUuid,
+            agentUuid,
+            pagination,
+        ],
+        queryFn: async ({ pageParam }) => {
+            return getVerifiedArtifacts({
+                projectUuid,
+                agentUuid,
+                ...pagination,
+                page: (pageParam as number) ?? 1,
+            });
+        },
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
     });
 };

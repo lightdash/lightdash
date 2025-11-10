@@ -23,6 +23,7 @@ import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
+    id: string;
     name: string;
     value: number;
     meta: {
@@ -91,13 +92,13 @@ const useEchartsFunnelConfig = (
         return {
             type: 'funnel',
             gap: 3,
-            data: seriesData.map(({ name, value, meta }) => {
+            data: seriesData.map(({ id, name, value, meta }) => {
                 return {
-                    name: labelOverrides?.[name] ?? name,
+                    name: labelOverrides?.[id] ?? name,
                     value,
                     meta,
                     itemStyle: {
-                        color: colorOverrides?.[name] ?? colorDefaults[name],
+                        color: colorOverrides?.[id] ?? colorDefaults[id],
                     },
                 };
             }),

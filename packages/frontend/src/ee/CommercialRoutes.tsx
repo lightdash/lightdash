@@ -118,6 +118,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                         path: 'evals/:evalUuid/run/:runUuid',
                         element: <ProjectAiAgentEditPage />,
                     },
+                    {
+                        path: 'verified-artifacts',
+                        element: <ProjectAiAgentEditPage />,
+                    },
                 ],
             },
             {

@@ -8,6 +8,7 @@ import { renderTemplatedYml } from './templating';
 type GetDbtContextArgs = {
     projectDir: string;
     initialProjectDir?: string;
+    targetPath?: string;
 };
 export type DbtContext = {
     projectName: string;
@@ -35,6 +36,7 @@ function tryRenderVariable(variableName: string, raw: string): string {
 export const getDbtContext = async ({
     projectDir,
     initialProjectDir,
+    targetPath,
 }: GetDbtContextArgs): Promise<DbtContext> => {
     GlobalState.debug(`> Loading dbt_project.yml file from: ${projectDir}`);
 
@@ -49,6 +51,7 @@ export const getDbtContext = async ({
             return await getDbtContext({
                 projectDir: parentDir,
                 initialProjectDir: initialProjectDir || projectDir,
+                targetPath,
             });
         }
 
@@ -61,20 +64,41 @@ export const getDbtContext = async ({
     const config = yaml.load(file) as Record<string, string>;
 
     // Try to render Jinja templating (e.g., env_var) for each individual config key needed
-    let targetSubDir = config['target-path'] || './target';
+    let targetSubDir: string;
+
+    // Precedence: CLI option > env var > dbt_project.yml > default
+    if (targetPath) {
+        targetSubDir = targetPath;
+        GlobalState.debug(
+            `> Using target-path from CLI option: ${targetSubDir}`,
+        );
+    } else if (process.env.DBT_TARGET_PATH) {
+        targetSubDir = process.env.DBT_TARGET_PATH;
+        GlobalState.debug(
+            `> Using target-path from DBT_TARGET_PATH env var: ${targetSubDir}`,
+        );
+    } else {
+        targetSubDir = config['target-path'] || './target';
+        targetSubDir = tryRenderVariable('target-path', targetSubDir);
+        GlobalState.debug(
+            `> Using target-path from dbt_project.yml: ${targetSubDir}`,
+        );
+    }
+
     let modelsSubDir = config['models-path'] || './models';
     let projectName = config.name;
     let profileName = config.profile;
 
     // ! Important: We only render the variables that are needed for the context, other variables are not rendered to avoid unexpected behavior.
-    targetSubDir = tryRenderVariable('target-path', targetSubDir);
     modelsSubDir = tryRenderVariable('models-path', modelsSubDir);
     projectName = tryRenderVariable('name', projectName);
     profileName = tryRenderVariable('profile', profileName);
 
     GlobalState.debug(`> dbt target directory: ${targetSubDir}`);
 
-    const targetDir = path.join(projectDir, targetSubDir);
+    const targetDir = path.isAbsolute(targetSubDir)
+        ? targetSubDir
+        : path.join(projectDir, targetSubDir);
     const modelsDir = path.join(projectDir, modelsSubDir);
     return {
         projectName,

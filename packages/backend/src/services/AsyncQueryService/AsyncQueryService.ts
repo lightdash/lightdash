@@ -1519,9 +1519,25 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentialsType,
                 queryTags.query_context,
             );
-        } finally {
-            void sshTunnel?.disconnect();
-            void stream?.close();
+        }
+
+        try {
+            // await for the cleanup functions so that the error is thrown if they fail
+            await sshTunnel?.disconnect();
+            await stream?.close();
+        } catch (e) {
+            await this.queryHistoryModel.update(
+                queryHistoryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                },
+                queryHistoryAccount,
+            );
+
+            // Throw the error again so that it can be added to the span
+            throw e;
         }
     }
 
@@ -1880,6 +1896,15 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
+                    }).catch((e) => {
+                        const errorMessage = getErrorMessage(e);
+
+                        // There's no point in throwing the error here as this promise is called with void
+                        // Set the status of the span to ERROR
+                        span.setStatus({
+                            code: 2, // ERROR
+                            message: errorMessage,
+                        });
                     });
 
                     return {

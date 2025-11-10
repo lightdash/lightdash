@@ -15,6 +15,7 @@ import {
     IconAdjustmentsAlt,
     IconArrowLeft,
     IconBook2,
+    IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
@@ -28,6 +29,7 @@ import {
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
+import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
 import { AiAgentFormSetup } from '../../features/aiCopilot/components/AiAgentFormSetup';
 import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
 import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRunDetails';
@@ -133,7 +135,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     }, [agent, isCreateMode]);
 
     // Derive activeTab from current pathname
-    const activeTab = location.pathname.includes('/evals') ? 'evals' : 'setup';
+    const activeTab = location.pathname.includes('/evals')
+        ? 'evals'
+        : location.pathname.includes('/verified-artifacts')
+        ? 'verified-artifacts'
+        : 'setup';
 
     const { mutateAsync: createAgent } = useProjectCreateAiAgentMutation(
         projectUuid!,
@@ -304,6 +310,27 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 Evals
                             </Button>
                         )}
+                        {!isCreateMode && agent?.version === 3 && (
+                            <Button
+                                variant={
+                                    activeTab === 'verified-artifacts'
+                                        ? 'light'
+                                        : 'subtle'
+                                }
+                                fullWidth
+                                justify="flex-start"
+                                leftSection={
+                                    <MantineIcon icon={IconCircleCheck} />
+                                }
+                                onClick={() => {
+                                    void navigate(
+                                        `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit/verified-artifacts`,
+                                    );
+                                }}
+                            >
+                                Verified Answers
+                            </Button>
+                        )}
                         {!isCreateMode && (
                             <Button
                                 fullWidth
@@ -363,6 +390,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 />
                             )}
                         </EvalSectionLayout>
+                    )}
+
+                    {activeTab === 'verified-artifacts' && (
+                        <VerifiedArtifactsLayout />
                     )}
                 </Box>
             </AppShell.Main>

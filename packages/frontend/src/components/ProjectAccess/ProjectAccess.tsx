@@ -124,6 +124,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm">
                     <TextInput
+                        data-testid="org-users-search-input"
                         size="xs"
                         placeholder="Search users by name, email, or role"
                         onChange={(e) => setSearch(e.target.value)}

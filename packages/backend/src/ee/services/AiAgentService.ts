@@ -112,6 +112,7 @@ import {
     streamAgentResponse,
 } from './ai/agents/agentV2';
 import { generateEmbedding } from './ai/agents/embeddingGenerator';
+import { generateArtifactQuestion } from './ai/agents/questionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -1748,22 +1749,51 @@ export class AiAgentService {
             return;
         }
 
-        void this.schedulerClient
-            .embedArtifactVersion({
-                organizationUuid,
-                projectUuid: agent.projectUuid,
-                userUuid: user.userUuid,
-                artifactVersionUuid: versionUuid,
-                title: artifact.title,
-                description: artifact.description,
-            })
-            .catch((error) => {
-                Logger.error(
-                    'Failed to enqueue embedding job:',
-                    error instanceof Error ? error.message : error,
-                );
-                Sentry.captureException(error);
-            });
+        // Only embed if not already embedded
+        const embedding = await this.aiAgentModel.getArtifactEmbedding(
+            versionUuid,
+        );
+        if (embedding === null) {
+            void this.schedulerClient
+                .embedArtifactVersion({
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: user.userUuid,
+                    artifactVersionUuid: versionUuid,
+                    title: artifact.title,
+                    description: artifact.description,
+                })
+                .catch((error) => {
+                    Logger.error(
+                        'Failed to enqueue embedding job:',
+                        error instanceof Error ? error.message : error,
+                    );
+                    Sentry.captureException(error);
+                });
+        }
+
+        // Generate question if not already generated
+        const existingQuestion = await this.aiAgentModel.getArtifactQuestion(
+            versionUuid,
+        );
+        if (!existingQuestion) {
+            void this.schedulerClient
+                .generateArtifactQuestion({
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: user.userUuid,
+                    artifactVersionUuid: versionUuid,
+                    title: artifact.title,
+                    description: artifact.description,
+                })
+                .catch((error) => {
+                    Logger.error(
+                        'Failed to enqueue question generation job:',
+                        error instanceof Error ? error.message : error,
+                    );
+                    Sentry.captureException(error);
+                });
+        }
     }
 
     async embedArtifactVersion(payload: {
@@ -1796,6 +1826,78 @@ export class AiAgentService {
             );
             Sentry.captureException(error);
         }
+    }
+
+    async generateArtifactQuestion(payload: {
+        artifactVersionUuid: string;
+        title: string | null;
+        description: string | null;
+    }): Promise<void> {
+        try {
+            if (!payload.title && !payload.description) {
+                return;
+            }
+
+            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+            });
+
+            const question = await generateArtifactQuestion(
+                model,
+                payload.title,
+                payload.description,
+                { artifactVersionUuid: payload.artifactVersionUuid },
+            );
+
+            await this.aiAgentModel.updateArtifactQuestion(
+                payload.artifactVersionUuid,
+                question,
+            );
+        } catch (error) {
+            Logger.error(
+                `Failed to generate question for artifact version ${payload.artifactVersionUuid}`,
+            );
+            Sentry.captureException(error);
+        }
+    }
+
+    async getVerifiedQuestions(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<Array<{ question: string; uuid: string }>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check view permissions
+        if (
+            user.ability.cannot(
+                'view',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot view agent questions');
+        }
+
+        return this.aiAgentModel.getVerifiedQuestions(agentUuid);
     }
 
     async revertChange(
@@ -4249,5 +4351,68 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             agentUuid,
             instruction,
         });
+    }
+
+    async getVerifiedArtifacts(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        // Verify agent exists and user has access
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+
+        // Get verified artifacts from model
+        const { pagination, data } =
+            await this.aiAgentModel.getVerifiedArtifactsForAgent({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid,
+                paginateArgs,
+            });
+
+        // Fetch user details for verified_by users
+        const userUuids = [...new Set(data.map((a) => a.verifiedByUserUuid))];
+        const users = await Promise.all(
+            userUuids.map((uuid) => this.userModel.getUserDetailsByUuid(uuid)),
+        );
+
+        const userMap = new Map(users.map((u) => [u.userUuid, u]));
+
+        // Combine data with user info
+        const artifactsWithUserInfo = data.map((artifact) => {
+            const verifiedByUser = userMap.get(artifact.verifiedByUserUuid);
+            return {
+                artifactUuid: artifact.artifactUuid,
+                versionUuid: artifact.versionUuid,
+                artifactType: artifact.artifactType,
+                title: artifact.title,
+                description: artifact.description,
+                verifiedAt: artifact.verifiedAt,
+                verifiedBy: {
+                    userUuid: artifact.verifiedByUserUuid,
+                    firstName: verifiedByUser?.firstName ?? '',
+                    lastName: verifiedByUser?.lastName ?? '',
+                },
+                referenceCount: artifact.referenceCount,
+                threadUuid: artifact.threadUuid,
+                promptUuid: artifact.promptUuid,
+            };
+        });
+
+        return {
+            pagination,
+            data: artifactsWithUserInfo,
+        };
     }
 }

@@ -6,7 +6,6 @@ export const useLegendDoubleClickTooltip = () => {
     return {
         tooltip: {
             show: true,
-            showDelay: 500,
             backgroundColor: theme.colors.gray[9],
             borderColor: theme.colors.gray[9],
             borderWidth: 0,
