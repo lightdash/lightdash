@@ -66,7 +66,7 @@
         "@uiw/react-md-editor": "^4.0.5",
         "@xyflow/react": "^12.3.5",
         "ace-builds": "^1.4.14",
-        "ai": "^5.0.35",
+        "ai": "^5.0.52",
         "canvas-confetti": "^1.6.0",
         "colorjs.io": "^0.5.2",
         "cron-converter": "^2.0.0",
