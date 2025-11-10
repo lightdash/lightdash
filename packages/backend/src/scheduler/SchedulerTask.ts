@@ -2162,6 +2162,7 @@ export default class SchedulerTask {
                     organizationUuid: notification.organizationUuid,
                     createdByUserUuid: notification.userUuid,
                 },
+                target: recipient,
             });
 
             throw e; // Cascade error to it can be retried by graphile
