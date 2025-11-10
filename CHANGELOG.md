@@ -1,3 +1,11 @@
+## [0.2155.7](https://github.com/lightdash/lightdash/compare/0.2155.6...0.2155.7) (2025-11-10)
+
+
+### Bug Fixes
+
+* address new show table names default changes ([#17981](https://github.com/lightdash/lightdash/issues/17981)) ([b7d9474](https://github.com/lightdash/lightdash/commit/b7d9474ecdebd31a79d65b56bd72f50301f097e7))
+* improve big number font size in smaller tiles ([#17918](https://github.com/lightdash/lightdash/issues/17918)) ([c38118a](https://github.com/lightdash/lightdash/commit/c38118af15921977505913fe2dbaf9dc8605942b)), closes [#17897](https://github.com/lightdash/lightdash/issues/17897)
+
 ## [0.2155.6](https://github.com/lightdash/lightdash/compare/0.2155.5...0.2155.6) (2025-11-10)
 
 
