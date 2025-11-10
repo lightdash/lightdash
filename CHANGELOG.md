@@ -1,3 +1,24 @@
+# [0.2158.0](https://github.com/lightdash/lightdash/compare/0.2157.1...0.2158.0) (2025-11-10)
+
+
+### Bug Fixes
+
+* add recepient to failed notification email log ([#17990](https://github.com/lightdash/lightdash/issues/17990)) ([865e4cd](https://github.com/lightdash/lightdash/commit/865e4cdb6bdfdbe03bf7ccd6de06c1c4de244bd4))
+* respect LIGHTDASH_QUERY_DEFAULT_LIMIT ([#17980](https://github.com/lightdash/lightdash/issues/17980)) ([45b00de](https://github.com/lightdash/lightdash/commit/45b00de568fab9c923a43439569cdf810107b2a3))
+* retry logic for ECONNRESET ([#17988](https://github.com/lightdash/lightdash/issues/17988)) ([170b3e7](https://github.com/lightdash/lightdash/commit/170b3e7452c099afc1bf1715a3827cb0193d38c2))
+
+
+### Features
+
+* show refresh dbt button on tables list ([#17962](https://github.com/lightdash/lightdash/issues/17962)) ([0881955](https://github.com/lightdash/lightdash/commit/08819550f984a7985965afd6b45a32db759bd3bf))
+
+## [0.2157.1](https://github.com/lightdash/lightdash/compare/0.2157.0...0.2157.1) (2025-11-10)
+
+
+### Bug Fixes
+
+* Restore funnel chart color overrides by using field IDs as keys ([#17989](https://github.com/lightdash/lightdash/issues/17989)) ([a4ab5bd](https://github.com/lightdash/lightdash/commit/a4ab5bd9893e90ce85058d5bb4fd913f972cdac5)), closes [#17368](https://github.com/lightdash/lightdash/issues/17368) [#17368](https://github.com/lightdash/lightdash/issues/17368)
+
 # [0.2157.0](https://github.com/lightdash/lightdash/compare/0.2156.0...0.2157.0) (2025-11-10)
 
 
