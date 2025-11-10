@@ -1,3 +1,10 @@
+## [0.2155.5](https://github.com/lightdash/lightdash/compare/0.2155.4...0.2155.5) (2025-11-10)
+
+
+### Bug Fixes
+
+* check if db has table aiAgents before starting preview ([#17970](https://github.com/lightdash/lightdash/issues/17970)) ([e7da066](https://github.com/lightdash/lightdash/commit/e7da066f744572542d04e6c6d8bb8b1e46ed01de))
+
 ## [0.2155.4](https://github.com/lightdash/lightdash/compare/0.2155.3...0.2155.4) (2025-11-10)
 
 
