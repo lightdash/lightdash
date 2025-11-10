@@ -1,3 +1,10 @@
+## [0.2155.10](https://github.com/lightdash/lightdash/compare/0.2155.9...0.2155.10) (2025-11-10)
+
+
+### Bug Fixes
+
+* remove tooltip showDelay property ([#17976](https://github.com/lightdash/lightdash/issues/17976)) ([1ae4552](https://github.com/lightdash/lightdash/commit/1ae455239284d83dc38dabd6e35420d9e24ed308))
+
 ## [0.2155.9](https://github.com/lightdash/lightdash/compare/0.2155.8...0.2155.9) (2025-11-10)
 
 
