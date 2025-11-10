@@ -198,8 +198,8 @@ export const AiChartQuickOptions = ({
                 <Tooltip
                     label={
                         isVerified
-                            ? 'Remove from verified artifacts'
-                            : 'Add to verified artifacts'
+                            ? 'Remove from verified answers'
+                            : 'Add to verified answers'
                     }
                 >
                     <ActionIcon
@@ -308,7 +308,7 @@ export const AiChartQuickOptions = ({
             <MantineModal
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}
-                title="Remove from verified artifacts"
+                title="Remove from verified answers"
                 icon={IconCircleCheck}
                 size="sm"
                 actions={
@@ -323,8 +323,8 @@ export const AiChartQuickOptions = ({
                 }
             >
                 <Text>
-                    Are you sure you want to remove this artifact from verified
-                    artifacts? It will no longer be used as an example in future
+                    Are you sure you want to remove this answer from verified
+                    answers? It will no longer be used as an example in future
                     Agent responses.
                 </Text>
             </MantineModal>
