@@ -16,7 +16,7 @@ export const getLegendStyle = (iconType: LegendIconType = 'square') => ({
           }
         : {
               icon: 'roundRect',
-              itemStyle: { borderRadius: 3 },
+              itemStyle: { borderRadius: 3, borderWidth: 0 },
           }),
     textStyle: {
         color: GRAY_7,
@@ -24,6 +24,7 @@ export const getLegendStyle = (iconType: LegendIconType = 'square') => ({
         fontWeight: 500,
         padding: [0, 0, 0, 2],
     },
+    inactiveBorderWidth: 0, // Remove border on inactive items to prevent visual size increase
     // Navigation controls (for scrollable legends)
     pageButtonItemGap: 16, // Space between left arrow, page text, and right arrow
     pageButtonGap: 8, // Space between legend items and navigation controls
