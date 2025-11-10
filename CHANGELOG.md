@@ -1,3 +1,10 @@
+## [0.2155.4](https://github.com/lightdash/lightdash/compare/0.2155.3...0.2155.4) (2025-11-10)
+
+
+### Bug Fixes
+
+* random black line appears on top of some charts ([#17943](https://github.com/lightdash/lightdash/issues/17943)) ([8ef815c](https://github.com/lightdash/lightdash/commit/8ef815c02e64771cde5e2b21747b3afed00eb256)), closes [#17666](https://github.com/lightdash/lightdash/issues/17666)
+
 ## [0.2155.3](https://github.com/lightdash/lightdash/compare/0.2155.2...0.2155.3) (2025-11-10)
 
 
