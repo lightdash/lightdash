@@ -1,3 +1,11 @@
+## [0.2155.8](https://github.com/lightdash/lightdash/compare/0.2155.7...0.2155.8) (2025-11-10)
+
+
+### Bug Fixes
+
+* allow setting targetPath on cli commands ([#17923](https://github.com/lightdash/lightdash/issues/17923)) ([5d03d8f](https://github.com/lightdash/lightdash/commit/5d03d8f17db1dc2aa170c55b52ffd548c182c89c)), closes [#17833](https://github.com/lightdash/lightdash/issues/17833)
+* settings/invites e2e fix ([#17982](https://github.com/lightdash/lightdash/issues/17982)) ([e77ee8c](https://github.com/lightdash/lightdash/commit/e77ee8c857f3f2a8ba83ebce7f6da81688075f6a))
+
 ## [0.2155.7](https://github.com/lightdash/lightdash/compare/0.2155.6...0.2155.7) (2025-11-10)
 
 
