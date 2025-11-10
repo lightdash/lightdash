@@ -3,18 +3,8 @@ import {
     type AiAgentMessageAssistant,
     type AiArtifact,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Center,
-    Group,
-    Loader,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
-import { useMediaQuery } from '@mantine-8/hooks';
-import { IconExclamationCircle, IconX } from '@tabler/icons-react';
+import { Center, Loader, Paper, Stack, Text } from '@mantine-8/core';
+import { IconExclamationCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
@@ -22,9 +12,8 @@ import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
-import { AiChartQuickOptions } from './AiChartQuickOptions';
+import { AiChartVisualizationHeader } from './AiChartVisualizationHeader';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     artifactData: AiArtifact;
@@ -46,7 +35,6 @@ export const AiChartVisualization: FC<Props> = ({
     showCloseButton = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const vizConfig = useMemo(() => {
         if (!artifactData?.chartConfig) return null;
@@ -91,17 +79,18 @@ export const AiChartVisualization: FC<Props> = ({
 
     if (isQueryError) {
         return (
-            <Stack h="100%">
-                <Group justify="flex-end">
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => dispatch(clearArtifact())}
-                    >
-                        <MantineIcon icon={IconX} color="gray" />
-                    </ActionIcon>
-                </Group>
+            <Stack h="100%" gap="md">
+                <AiChartVisualizationHeader
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    artifactData={artifactData}
+                    message={message}
+                    title="Visualization Error"
+                    description="Unable to load data for this visualization"
+                    compiledSql={compiledSql?.query}
+                    showCloseButton={showCloseButton}
+                    onClose={() => dispatch(clearArtifact())}
+                />
                 <Paper h="100%" bg="gray.0">
                     <Stack gap="xs" align="center" justify="center" h="100%">
                         <MantineIcon
@@ -129,43 +118,20 @@ export const AiChartVisualization: FC<Props> = ({
                 queryExecutionHandle={queryExecutionHandle}
                 chartConfig={artifactData.chartConfig!}
                 headerContent={
-                    <Group gap="md" align="start">
-                        <Stack gap={0} flex={1}>
-                            <Title order={5}>
-                                {queryExecutionHandle.data.metadata.title}
-                            </Title>
-                            <Text c="dimmed" size="xs">
-                                {queryExecutionHandle.data.metadata.description}
-                            </Text>
-                        </Stack>
-                        <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                            <ViewSqlButton sql={compiledSql?.query} />
-                            <AiChartQuickOptions
-                                message={message}
-                                projectUuid={projectUuid}
-                                artifactData={artifactData}
-                                saveChartOptions={{
-                                    name: queryExecutionHandle.data.metadata
-                                        .title,
-                                    description:
-                                        queryExecutionHandle.data.metadata
-                                            .description,
-                                    linkToMessage: true,
-                                }}
-                                compiledSql={compiledSql?.query}
-                            />
-                            {showCloseButton && (
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={() => dispatch(clearArtifact())}
-                                >
-                                    <MantineIcon icon={IconX} color="gray" />
-                                </ActionIcon>
-                            )}
-                        </Group>
-                    </Group>
+                    <AiChartVisualizationHeader
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        artifactData={artifactData}
+                        message={message}
+                        title={queryExecutionHandle.data.metadata.title}
+                        description={
+                            queryExecutionHandle.data.metadata.description ??
+                            null
+                        }
+                        compiledSql={compiledSql?.query}
+                        showCloseButton={showCloseButton}
+                        onClose={() => dispatch(clearArtifact())}
+                    />
                 }
             />
         </Stack>
