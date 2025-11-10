@@ -10,6 +10,7 @@ import type {
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
     ApiCreateAiAgent,
@@ -1213,5 +1214,27 @@ export const useAppendInstructionMutation = (
                 apiError: error,
             });
         },
+    });
+};
+
+const getVerifiedQuestions = async (
+    projectUuid: string,
+    agentUuid: string,
+): Promise<ApiAiAgentVerifiedQuestionsResponse['results']> =>
+    lightdashApi<ApiAiAgentVerifiedQuestionsResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/verified-questions`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useVerifiedQuestions = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+) => {
+    return useQuery<ApiAiAgentVerifiedQuestionsResponse['results'], ApiError>({
+        queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'verified-questions'],
+        queryFn: () => getVerifiedQuestions(projectUuid!, agentUuid!),
+        enabled: !!projectUuid && !!agentUuid,
     });
 };

@@ -2334,6 +2334,62 @@ export class AiAgentModel {
         return result.embedding_vector;
     }
 
+    async updateArtifactQuestion(
+        artifactVersionUuid: string,
+        question: string,
+    ): Promise<void> {
+        await this.database(AiArtifactVersionsTableName)
+            .update({ verified_question: question })
+            .where({ ai_artifact_version_uuid: artifactVersionUuid });
+    }
+
+    async getArtifactQuestion(
+        artifactVersionUuid: string,
+    ): Promise<string | null> {
+        const result = await this.database(AiArtifactVersionsTableName)
+            .select('verified_question')
+            .where({ ai_artifact_version_uuid: artifactVersionUuid })
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Artifact version ${artifactVersionUuid} not found`,
+            );
+        }
+
+        return result.verified_question;
+    }
+
+    async getVerifiedQuestions(agentUuid: string): Promise<
+        {
+            question: string;
+            uuid: string;
+        }[]
+    > {
+        const rows = await this.database(AiArtifactVersionsTableName)
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .join(
+                AiThreadTableName,
+                `${AiArtifactsTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
+            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
+            .whereNotNull(`${AiArtifactVersionsTableName}.verified_question`)
+            .select(
+                `${AiArtifactVersionsTableName}.verified_question as question`,
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as uuid`,
+            )
+            .orderBy(`${AiArtifactVersionsTableName}.verified_at`, 'desc')
+            .limit(40);
+
+        return rows;
+    }
+
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {
         await this.database(AiSlackPromptTableName)
             .update({

@@ -80,6 +80,7 @@
         "echarts": "^5.6.0",
         "echarts-for-react": "^3.0.2",
         "emoji-picker-react": "^4.12.0",
+        "fastest-levenshtein": "^1.0.16",
         "fuse.js": "^6.5.3",
         "hast": "^1.0.0",
         "html2canvas": "^1.4.1",

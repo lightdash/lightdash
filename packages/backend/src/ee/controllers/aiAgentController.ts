@@ -19,6 +19,7 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
+    ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -202,6 +203,25 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/verified-questions')
+    @OperationId('getVerifiedQuestions')
+    async getVerifiedQuestions(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAiAgentVerifiedQuestionsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getVerifiedQuestions(
+                req.user!,
+                agentUuid,
+            ),
         };
     }
 

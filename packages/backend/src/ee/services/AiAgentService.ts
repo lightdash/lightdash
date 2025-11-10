@@ -112,6 +112,7 @@ import {
     streamAgentResponse,
 } from './ai/agents/agentV2';
 import { generateEmbedding } from './ai/agents/embeddingGenerator';
+import { generateArtifactQuestion } from './ai/agents/questionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -1770,6 +1771,29 @@ export class AiAgentService {
                     Sentry.captureException(error);
                 });
         }
+
+        // Generate question if not already generated
+        const existingQuestion = await this.aiAgentModel.getArtifactQuestion(
+            versionUuid,
+        );
+        if (!existingQuestion) {
+            void this.schedulerClient
+                .generateArtifactQuestion({
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: user.userUuid,
+                    artifactVersionUuid: versionUuid,
+                    title: artifact.title,
+                    description: artifact.description,
+                })
+                .catch((error) => {
+                    Logger.error(
+                        'Failed to enqueue question generation job:',
+                        error instanceof Error ? error.message : error,
+                    );
+                    Sentry.captureException(error);
+                });
+        }
     }
 
     async embedArtifactVersion(payload: {
@@ -1802,6 +1826,78 @@ export class AiAgentService {
             );
             Sentry.captureException(error);
         }
+    }
+
+    async generateArtifactQuestion(payload: {
+        artifactVersionUuid: string;
+        title: string | null;
+        description: string | null;
+    }): Promise<void> {
+        try {
+            if (!payload.title && !payload.description) {
+                return;
+            }
+
+            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+            });
+
+            const question = await generateArtifactQuestion(
+                model,
+                payload.title,
+                payload.description,
+                { artifactVersionUuid: payload.artifactVersionUuid },
+            );
+
+            await this.aiAgentModel.updateArtifactQuestion(
+                payload.artifactVersionUuid,
+                question,
+            );
+        } catch (error) {
+            Logger.error(
+                `Failed to generate question for artifact version ${payload.artifactVersionUuid}`,
+            );
+            Sentry.captureException(error);
+        }
+    }
+
+    async getVerifiedQuestions(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<Array<{ question: string; uuid: string }>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check view permissions
+        if (
+            user.ability.cannot(
+                'view',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot view agent questions');
+        }
+
+        return this.aiAgentModel.getVerifiedQuestions(agentUuid);
     }
 
     async revertChange(

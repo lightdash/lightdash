@@ -6587,6 +6587,35 @@
             "ApiAiAgentVerifiedArtifactsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__"
             },
+            "ApiSuccess__question-string--uuid-string_-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "properties": {
+                                "uuid": {
+                                    "type": "string"
+                                },
+                                "question": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["uuid", "question"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentVerifiedQuestionsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__question-string--uuid-string_-Array_"
+            },
             "ApiCreateAiAgentResponse": {
                 "properties": {
                     "results": {
@@ -13828,6 +13857,7 @@
                     "slackAiPrompt",
                     "aiAgentEvalResult",
                     "embedArtifactVersion",
+                    "generateArtifactQuestion",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
