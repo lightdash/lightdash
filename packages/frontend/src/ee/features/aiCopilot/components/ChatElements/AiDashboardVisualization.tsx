@@ -103,6 +103,8 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                     p="md"
                                     radius="md"
                                     h={400}
+                                    display="flex"
+                                    dir="column"
                                 >
                                     <ErrorBoundary>
                                         <AiDashboardVisualizationItem
