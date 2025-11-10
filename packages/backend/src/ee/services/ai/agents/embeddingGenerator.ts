@@ -1,7 +1,10 @@
 import { ParameterError } from '@lightdash/common';
 import { embed, EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
+
+const EMBEDDING_DIMENSIONS = 1536;
 
 function getEmbeddingModelConfig(config: LightdashConfig): {
     model: EmbeddingModel<string>;
@@ -24,6 +27,15 @@ function getEmbeddingModelConfig(config: LightdashConfig): {
         };
     }
 
+    const bedrockConfig = config.ai.copilot.providers.bedrock;
+    if (embeddingProvider === 'bedrock' && bedrockConfig) {
+        return {
+            model: getBedrockEmbeddingModel(bedrockConfig),
+            provider: 'bedrock',
+            modelName: bedrockConfig.embeddingModelName,
+        };
+    }
+
     throw new ParameterError('No valid embedding provider configuration found');
 }
 
@@ -38,7 +50,7 @@ export async function generateEmbedding(
 }> {
     const { model, provider, modelName } = getEmbeddingModelConfig(config);
 
-    const { embedding } = await embed({
+    let { embedding } = await embed({
         model,
         value: text.trim(),
         experimental_telemetry: {
@@ -48,7 +60,17 @@ export async function generateEmbedding(
             recordOutputs: false,
             metadata,
         },
+        // TODO :: provider options to set dimensions
     });
+
+    if (embedding.length !== 1536) {
+        console.warn(
+            `Embedding length is not ${EMBEDDING_DIMENSIONS}, padding with zeros`,
+        );
+        embedding = embedding.concat(
+            new Array(EMBEDDING_DIMENSIONS - embedding.length).fill(0),
+        );
+    }
 
     return { embedding, provider, modelName };
 }
