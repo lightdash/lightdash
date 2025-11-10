@@ -360,24 +360,24 @@ describe('Explore', () => {
                     cy.get('[data-testid="VisualizationCardOptions"]').click();
                     cy.get('[role="menuitem"]').contains('Table').click();
 
-                    // check that chart table headers are correct
+                    // check that chart table headers are correct (table names hidden by default)
+                    cy.findByTestId('visualization')
+                        .find('th')
+                        .contains('First name')
+                        .should('exist');
                     cy.findByTestId('visualization')
                         .find('th')
                         .contains('Order Customer First name')
-                        .should('exist');
+                        .should('not.exist');
 
                     cy.findByLabelText('Show table names').click({
                         force: true,
                     });
 
-                    // check that chart table headers are correct
+                    // check that chart table headers show table names after toggle
                     cy.findByTestId('visualization')
                         .find('th')
                         .contains('Order Customer First name')
-                        .should('not.exist');
-                    cy.findByTestId('visualization')
-                        .find('th')
-                        .contains('First name')
                         .should('exist');
                 });
 
@@ -405,15 +405,15 @@ describe('Explore', () => {
                     cy.get('[data-testid="VisualizationCardOptions"]').click();
                     cy.get('[role="menuitem"]').contains('Table').click();
 
-                    // check that chart table headers are correct
+                    // check that chart table headers are correct (table names hidden by default)
                     cy.findByTestId('visualization')
                         .find('th')
                         .eq(1)
-                        .contains('Order Customer First name')
+                        .contains('First name')
                         .should('exist');
 
-                    // open configuration and flip Show table names in the config
-                    cy.findByPlaceholderText('Order Customer First name')
+                    // open configuration and add custom header
+                    cy.findByPlaceholderText('First name')
                         .focus()
                         .type('Overridden header')
                         .blur();
