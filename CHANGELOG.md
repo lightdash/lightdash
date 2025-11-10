@@ -1,3 +1,10 @@
+## [0.2155.9](https://github.com/lightdash/lightdash/compare/0.2155.8...0.2155.9) (2025-11-10)
+
+
+### Bug Fixes
+
+* update AI agent test cases for revenue and order filtering ([#17983](https://github.com/lightdash/lightdash/issues/17983)) ([652dbb9](https://github.com/lightdash/lightdash/commit/652dbb9ecba1cc0174415a9be3da9710e9be8d50))
+
 ## [0.2155.8](https://github.com/lightdash/lightdash/compare/0.2155.7...0.2155.8) (2025-11-10)
 
 
