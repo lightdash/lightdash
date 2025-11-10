@@ -46,6 +46,7 @@ export const UsersTopToolbar: FC<UsersTopToolbarProps> = memo(
                         label="Search by name, email, or role"
                     >
                         <TextInput
+                            data-testid="org-users-search-input"
                             size="xs"
                             radius="md"
                             type="search"

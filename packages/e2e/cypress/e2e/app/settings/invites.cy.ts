@@ -51,12 +51,18 @@ describe('Settings - Invites', () => {
         cy.get('table')
             .contains('tr', 'demo+marygreen@lightdash.com')
             .scrollIntoView()
-            .find('.tabler-icon-trash')
+            .find('.tabler-icon-dots')
             .click({ force: true });
-        cy.findByText('Are you sure you want to delete this user?')
-            .parents('.mantine-Modal-root')
-            .findByText('Delete')
-            .click();
+        cy.findByRole('menuitem', { name: /delete/i }).click();
+
+        // Wait for modal to appear
+        cy.findByText('Are you sure you want to delete this user?').should(
+            'be.visible',
+        );
+
+        // Click the Delete button in the modal
+        cy.findByRole('button', { name: 'Delete' }).click();
+
         cy.findByText('Success! User was deleted.').should('be.visible');
         cy.findByText('demo+marygreen@lightdash.com').should('not.exist');
     });
