@@ -221,6 +221,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     },
                 },
             },
+            verifiedAnswerSimilarityThreshold: 0.5,
         },
     },
     embedding: {
