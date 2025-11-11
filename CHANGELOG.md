@@ -1,3 +1,10 @@
+## [0.2159.2](https://github.com/lightdash/lightdash/compare/0.2159.1...0.2159.2) (2025-11-11)
+
+
+### Bug Fixes
+
+* remove hidden fields when findExplores tool call ([#18026](https://github.com/lightdash/lightdash/issues/18026)) ([25f18bc](https://github.com/lightdash/lightdash/commit/25f18bcbd8e102de89a41a77ad9746c1acfb2bf8))
+
 ## [0.2159.1](https://github.com/lightdash/lightdash/compare/0.2159.0...0.2159.1) (2025-11-11)
 
 
