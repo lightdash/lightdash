@@ -1,3 +1,10 @@
+## [0.2158.1](https://github.com/lightdash/lightdash/compare/0.2158.0...0.2158.1) (2025-11-11)
+
+
+### Bug Fixes
+
+* whitelist charts and dashboards ([#17938](https://github.com/lightdash/lightdash/issues/17938)) ([516ae3f](https://github.com/lightdash/lightdash/commit/516ae3f8b4d2df959ea8924707a3c33d060eee2c))
+
 # [0.2158.0](https://github.com/lightdash/lightdash/compare/0.2157.1...0.2158.0) (2025-11-10)
 
 
