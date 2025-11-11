@@ -364,6 +364,14 @@ export class AiAgentService {
         return false;
     }
 
+    /**
+     * Get all available explores for an AI agent
+     * Filters out hidden dimensions and metrics from all tables
+     * @param user - The user making the request
+     * @param projectUuid - The project UUID
+     * @param availableTags - The available tags
+     * @returns The available explores
+     */
     async getAvailableExplores(
         user: SessionUser,
         projectUuid: string,
@@ -411,7 +419,36 @@ export class AiAgentService {
                     .filter((explore) =>
                         filterExploreByTags({ explore, availableTags }),
                     )
-                    .filter((explore): explore is Explore => !!explore);
+                    .filter((explore): explore is Explore => !!explore)
+                    .map((explore) => ({
+                        ...explore,
+                        tables: Object.fromEntries(
+                            Object.entries(explore.tables).map(
+                                ([tableName, table]) => [
+                                    tableName,
+                                    {
+                                        ...table,
+                                        dimensions: Object.fromEntries(
+                                            Object.entries(
+                                                table.dimensions,
+                                            ).filter(
+                                                ([, dimension]) =>
+                                                    !dimension.hidden &&
+                                                    !dimension.isIntervalBase,
+                                            ),
+                                        ),
+                                        metrics: Object.fromEntries(
+                                            Object.entries(
+                                                table.metrics,
+                                            ).filter(
+                                                ([, metric]) => !metric.hidden,
+                                            ),
+                                        ),
+                                    },
+                                ],
+                            ),
+                        ),
+                    }));
             },
         );
     }

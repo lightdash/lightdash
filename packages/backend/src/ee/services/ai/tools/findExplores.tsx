@@ -94,12 +94,8 @@ const generateExploreResponse = ({
                         <fields alt="dimensions and metrics">
                             {Object.values(table.dimensions).length > 0 && (
                                 <dimensions alt="dimensions">
-                                    {Object.values(table.dimensions)
-                                        .filter(
-                                            (d) =>
-                                                !d.hidden && !d.isIntervalBase,
-                                        )
-                                        .map((dimension) => (
+                                    {Object.values(table.dimensions).map(
+                                        (dimension) => (
                                             <dimension
                                                 usageInCharts={getCatalogChartUsage(
                                                     catalogFields,
@@ -132,15 +128,15 @@ const generateExploreResponse = ({
                                                         </aihints>
                                                     )}
                                             </dimension>
-                                        ))}
+                                        ),
+                                    )}
                                 </dimensions>
                             )}
 
                             {Object.values(table.metrics).length > 0 && (
                                 <metrics alt="metrics">
-                                    {Object.values(table.metrics)
-                                        .filter((m) => !m.hidden)
-                                        .map((metric) => (
+                                    {Object.values(table.metrics).map(
+                                        (metric) => (
                                             <metric
                                                 usageInCharts={getCatalogChartUsage(
                                                     catalogFields,
@@ -173,7 +169,8 @@ const generateExploreResponse = ({
                                                         </aihints>
                                                     )}
                                             </metric>
-                                        ))}
+                                        ),
+                                    )}
                                 </metrics>
                             )}
                         </fields>
