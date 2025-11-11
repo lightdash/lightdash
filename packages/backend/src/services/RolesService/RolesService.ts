@@ -2,10 +2,8 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
-    CreateProjectMember,
     CreateRole,
     ForbiddenError,
-    getSystemRoles,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -106,9 +104,8 @@ export class RolesService extends BaseService {
         );
 
         const canManageSomeProjects = projects.some((project) =>
-            // Note that we don't check for 'manage' here because developers can update project access
             account.user.ability.can(
-                'update',
+                'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid: project.projectUuid,
@@ -173,9 +170,8 @@ export class RolesService extends BaseService {
         if (projectUuid) {
             const project = await this.projectModel.getSummary(projectUuid);
             if (
-                // Note that we don't check for 'manage' here because developers can update project access
                 account.user.ability.cannot(
-                    'update',
+                    'manage',
                     subject('Project', {
                         organizationUuid: project.organizationUuid,
                         projectUuid,

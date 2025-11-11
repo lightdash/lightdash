@@ -1,9 +1,12 @@
 import {
     CreateRole,
+    defineUserAbility,
     ForbiddenError,
     getSystemRoles,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -319,6 +322,87 @@ describe('RolesService', () => {
                     ),
                 ).rejects.toThrow(ForbiddenError);
             });
+        });
+    });
+
+    describe('getRolesByOrganizationUuid', () => {
+        const organizationUuid = 'test-org-uuid';
+        beforeEach(() => {
+            jest.clearAllMocks();
+            mockRolesModel.getRolesByOrganizationUuid.mockResolvedValue([]);
+        });
+
+        it('allows organization admins to view roles without fetching projects', async () => {
+            // mockAccount by default can manage Organization
+            await service.getRolesByOrganizationUuid(
+                mockAccount,
+                organizationUuid,
+                false,
+            );
+
+            expect(
+                mockProjectModel.getAllByOrganizationUuid,
+            ).not.toHaveBeenCalled();
+            expect(
+                mockRolesModel.getRolesByOrganizationUuid,
+            ).toHaveBeenCalledWith(organizationUuid, undefined);
+        });
+
+        it('allows users who can manage at least one project in the organization to view roles', async () => {
+            const accountProjectManager = {
+                ...mockAccount,
+                user: {
+                    ...mockAccount.user,
+                    // Use defineUserAbility: cannot manage Organization (MEMBER), but can manage a specific Project (ADMIN on proj-2)
+                    role: OrganizationMemberRole.MEMBER,
+                    ability: defineUserAbility(
+                        {
+                            userUuid: mockAccount.user.userUuid,
+                            role: OrganizationMemberRole.MEMBER,
+                            organizationUuid,
+                            roleUuid: undefined,
+                        },
+                        [
+                            {
+                                projectUuid: 'proj-2',
+                                role: ProjectMemberRole.ADMIN,
+                                userUuid: mockAccount.user.userUuid,
+                                roleUuid: undefined,
+                            },
+                        ],
+                    ),
+                },
+            };
+
+            await service.getRolesByOrganizationUuid(
+                accountProjectManager,
+                organizationUuid,
+                false,
+            );
+
+            expect(
+                mockProjectModel.getAllByOrganizationUuid,
+            ).toHaveBeenCalledWith(organizationUuid);
+            expect(
+                mockRolesModel.getRolesByOrganizationUuid,
+            ).toHaveBeenCalledWith(organizationUuid, undefined);
+        });
+
+        it('throws ForbiddenError if user cannot manage organization nor any project within it', async () => {
+            await expect(
+                service.getRolesByOrganizationUuid(
+                    mockAccountNoAccess,
+                    organizationUuid,
+                    false,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(
+                mockProjectModel.getAllByOrganizationUuid,
+            ).toHaveBeenCalledWith(organizationUuid);
+            expect(
+                mockRolesModel.getRolesByOrganizationUuid,
+            ).not.toHaveBeenCalled();
         });
     });
 });
