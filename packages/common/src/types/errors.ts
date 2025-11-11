@@ -629,3 +629,17 @@ export class LightdashProjectConfigError extends LightdashError {
         });
     }
 }
+
+export class CorruptedExploreError extends LightdashError {
+    constructor(
+        message = 'Explore has corrupted or missing data',
+        data: Record<string, AnyType> = {},
+    ) {
+        super({
+            message,
+            name: 'CorruptedExploreError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
