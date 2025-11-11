@@ -92,7 +92,7 @@ export const EvalFormModal: FC<Props> = ({
                             expectedResponse: p.expectedResponse,
                         };
                     },
-                ) || [''],
+                ) || [{ prompt: '', expectedResponse: '' }],
             };
         }
         return {
@@ -158,7 +158,7 @@ export const EvalFormModal: FC<Props> = ({
     };
 
     const addPrompt = () => {
-        form.insertListItem('prompts', '');
+        form.insertListItem('prompts', { prompt: '', expectedResponse: '' });
     };
 
     const removePrompt = (index: number) => {
@@ -277,14 +277,12 @@ export const EvalFormModal: FC<Props> = ({
                                         key={index}
                                         gap="sm"
                                         align="flex-start"
-                                        mb="md"
                                     >
                                         <Text
                                             size="sm"
                                             fw={500}
                                             c="dimmed"
                                             miw={20}
-                                            mt={8}
                                         >
                                             {index + 1}.
                                         </Text>
