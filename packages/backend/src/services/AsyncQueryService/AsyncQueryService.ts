@@ -464,12 +464,24 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
-        if (
+        const isForbidden =
             account.user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ) &&
+            account.user.ability.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [queryHistory.metricQuery.exploreName],
+                }),
+            );
+
+        if (isForbidden) {
             throw new ForbiddenError();
         }
 
@@ -1695,16 +1707,24 @@ export class AsyncQueryService extends ProjectService {
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
-
-                    if (
+                    const isForbidden =
                         account.user.ability.cannot(
                             'view',
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid,
                             }),
-                        )
-                    ) {
+                        ) &&
+                        account.user.ability.cannot(
+                            'view',
+                            subject('Explore', {
+                                organizationUuid,
+                                projectUuid,
+                                exploreNames: [explore.name],
+                            }),
+                        );
+
+                    if (isForbidden) {
                         throw new ForbiddenError();
                     }
 
@@ -1943,12 +1963,19 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         );
 
-        if (
-            account.user.ability.cannot(
-                'view',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
+        // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
+        // on condition checks that aren't set. If no `exploreName` is set in conditions,
+        // CASL ignores it.
+
+        const isForbidden = account.user.ability.cannot(
+            'view',
+            subject('Explore', {
+                organizationUuid,
+                projectUuid,
+                exploreNames: [metricQuery.exploreName],
+            }),
+        );
+        if (isForbidden) {
             throw new ForbiddenError();
         }
 
@@ -2122,6 +2149,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('Project', {
                     organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
+                    exploreNames: [savedChartTableName],
                 }),
             )
         ) {

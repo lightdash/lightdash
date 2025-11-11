@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { OssEmbed } from '../../types/auth';
+import type { EmbedContent, OssEmbed } from '../../types/auth';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 /** @deprecated Use OssEmbed instead */
@@ -205,7 +205,7 @@ export function isChartContent(
 }
 
 export function isDashboardContent(
-    content: CreateEmbedJwt['content'],
+    content: CreateEmbedJwt['content'] | EmbedContent,
 ): content is EmbedJwtContentDashboardUuid | EmbedJwtContentDashboardSlug {
     return content.type === 'dashboard';
 }

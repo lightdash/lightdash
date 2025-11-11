@@ -62,8 +62,7 @@ const defineAbilityForEmbedUser = (
     const externalId = 'external-id-1';
     applyEmbeddedAbility(
         embedUser,
-        dashboardUuid,
-        'dashboard',
+        { dashboardUuid, type: 'dashboard', chartUuids: [], explores: [] },
         embed,
         externalId,
         builder,
@@ -365,6 +364,8 @@ describe('Embedded dashboard abilities', () => {
             it('should allow only CSV and PDF when images is disabled', () => {
                 const embedUser = createEmbedJwt({
                     content: {
+                        type: 'dashboard',
+                        dashboardUuid,
                         canExportCsv: true,
                         canExportPagePdf: true,
                         canExportImages: false,

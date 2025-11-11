@@ -61,7 +61,7 @@ export class PermissionsService extends BaseService {
         savedChartUuid: string,
     ) {
         const { embed } = account;
-        const { contentId, contentType } = account.access;
+        const { content } = account.access;
 
         if (!embed.projectUuid) {
             throw new ForbiddenError(
@@ -69,15 +69,15 @@ export class PermissionsService extends BaseService {
             );
         }
 
-        if (contentType === 'dashboard' && contentId) {
+        if (content.type === 'dashboard' && content.dashboardUuid) {
             return this.checkEmbeddedDashboardPermission(
-                contentId,
+                content.dashboardUuid,
                 savedChartUuid,
                 embed,
             );
         }
 
-        if (contentType === 'chart') {
+        if (content.type === 'chart') {
             return PermissionsService.checkEmbeddedChartPermissions(
                 savedChartUuid,
                 embed,

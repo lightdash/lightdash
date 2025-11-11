@@ -468,10 +468,10 @@ describe('Embed Chart JWT API', () => {
                 });
             });
 
-            it('allows chart JWT to access getExplore for any explore', () => {
+            it('prevents chart JWT to access getExplore for explores outside the chart scope', () => {
                 cy.get<string>('@chartJwtToken').then((token) => {
                     // Try to access an explore (doesn't matter which one)
-                    const exploreName = 'orders';
+                    const exploreName = 'users';
                     cy.request({
                         url: `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/${exploreName}?projectUuid=${SEED_PROJECT.project_uuid}`,
                         headers: {
@@ -480,9 +480,8 @@ describe('Embed Chart JWT API', () => {
                         method: 'GET',
                         failOnStatusCode: false,
                     }).then((resp) => {
-                        // TODO: This should fail if token chartUuid doesn't match the requested explore
-                        expect(resp.status).to.eq(200);
-                        expect(resp.body).not.to.have.property('error');
+                        expect(resp.status).to.eq(403);
+                        expect(resp.body).to.have.property('error');
                     });
                 });
             });
