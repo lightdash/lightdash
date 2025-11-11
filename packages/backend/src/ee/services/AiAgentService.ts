@@ -2818,6 +2818,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         organizationUuid: string | undefined,
         promptUuid: string,
         humanScore: number,
+        humanFeedback?: string,
     ) {
         this.analytics.track<AiAgentPromptFeedbackEvent>({
             event: 'ai_agent_prompt.feedback',
@@ -2832,6 +2833,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         await this.aiAgentModel.updateHumanScore({
             promptUuid,
             humanScore,
+            humanFeedback,
         });
     }
 
@@ -3366,7 +3368,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     public handlePromptDownvote(app: App) {
         app.action(
             'prompt_human_score.downvote',
-            async ({ ack, body, respond, context }) => {
+            async ({ ack, body, respond, client, context }) => {
                 await ack();
                 const { user } = body;
                 const newBlock = {
@@ -3392,12 +3394,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                   teamId,
                               )
                             : undefined;
+
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
                             organizationUuid,
                             promptUuid,
                             -1,
                         );
+
                         const { message } = body;
                         if (message) {
                             const { blocks } = message;
@@ -3411,10 +3415,79 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                 ),
                             });
                         }
+
+                        await client.views.open({
+                            trigger_id: body.trigger_id,
+                            view: {
+                                type: 'modal',
+                                callback_id: 'downvote_feedback_modal',
+                                private_metadata: JSON.stringify({
+                                    promptUuid,
+                                }),
+                                title: {
+                                    type: 'plain_text',
+                                    text: 'Feedback',
+                                },
+                                submit: {
+                                    type: 'plain_text',
+                                    text: 'Submit',
+                                },
+                                close: {
+                                    type: 'plain_text',
+                                    text: 'Skip',
+                                },
+                                blocks: [
+                                    {
+                                        type: 'section',
+                                        text: {
+                                            type: 'mrkdwn',
+                                            text: 'Help us improve! What went wrong with this answer?',
+                                        },
+                                    },
+                                    {
+                                        type: 'input',
+                                        block_id: 'feedback_input',
+                                        optional: false,
+                                        element: {
+                                            type: 'plain_text_input',
+                                            action_id: 'feedback_text',
+                                            multiline: true,
+                                            placeholder: {
+                                                type: 'plain_text',
+                                                text: 'Your feedback will help improve the AI agent (optional)',
+                                            },
+                                        },
+                                        label: {
+                                            type: 'plain_text',
+                                            text: 'Feedback',
+                                        },
+                                    },
+                                ],
+                            },
+                        });
                     }
                 }
             },
         );
+
+        // Handle modal submission
+        app.view('downvote_feedback_modal', async ({ ack, view, body }) => {
+            await ack();
+
+            const metadata = JSON.parse(view.private_metadata);
+            const { promptUuid } = metadata;
+
+            const feedbackValue =
+                view.state.values.feedback_input?.feedback_text?.value;
+
+            if (feedbackValue) {
+                await this.aiAgentModel.updateHumanScore({
+                    promptUuid,
+                    humanScore: -1,
+                    humanFeedback: feedbackValue,
+                });
+            }
+        });
     }
 
     // eslint-disable-next-line class-methods-use-this
