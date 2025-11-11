@@ -25,11 +25,11 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
 
         return projectRoleAssignmentsQuery.data.reduce<
             Record<string, ProjectMemberRole>
-        >((acc: Record<string, ProjectMemberRole>, assignment: any) => {
+        >((acc: Record<string, ProjectMemberRole>, assignment) => {
             if (assignment.assigneeType === 'user') {
-                // Convert the role name to ProjectMemberRole
-                const projectRole = assignment.roleName as ProjectMemberRole;
-                acc[assignment.assigneeId] = projectRole;
+                // Convert the role id to ProjectMemberRole
+                acc[assignment.assigneeId] =
+                    assignment.roleId as ProjectMemberRole;
             }
             return acc;
         }, {});
