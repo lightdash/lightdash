@@ -189,6 +189,7 @@ const convertDimension = (
         requiredAttributes: meta.dimension?.required_attributes,
         colors: meta.dimension?.colors,
         ...(meta.dimension?.urls ? { urls: meta.dimension.urls } : {}),
+        ...(meta.dimension?.image ? { image: meta.dimension.image } : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
         isIntervalBase,

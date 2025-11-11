@@ -168,6 +168,9 @@ export type DbtColumnLightdashDimension = {
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
+    image?: {
+        url: string;
+    };
 } & DbtLightdashFieldTags;
 
 export type DbtColumnLightdashAdditionalDimension = Omit<
