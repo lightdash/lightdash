@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 
@@ -9,11 +9,11 @@ import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
+    buildInitialExplorerState,
+    createExplorerStore,
     explorerActions,
-    explorerStore,
     selectTableName,
     useExplorerDispatch,
-    useExplorerInitialization,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
@@ -26,20 +26,7 @@ import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
-const ExplorerWithUrlParams = memo(() => {
-    // Get health config for default limit
-    const { health } = useApp();
-
-    // Get URL state for initialization
-    const explorerUrlState = useExplorerUrlState();
-
-    // Initialize Redux store with URL state and default limit
-    useExplorerInitialization({
-        initialState: explorerUrlState,
-        isEditMode: true,
-        defaultLimit: health.data?.query.defaultLimit,
-    });
-
+const ExplorerContent = memo(() => {
     // Sync URL params to Redux
     useExplorerRoute();
 
@@ -80,6 +67,32 @@ const ExplorerWithUrlParams = memo(() => {
     );
 });
 
+const ExplorerWithUrlParams = memo(() => {
+    const { health } = useApp();
+
+    // Get URL state for initialization
+    const explorerUrlState = useExplorerUrlState();
+
+    // Create store once when component mounts with URL state
+    // Parent component uses key={tableId} so this unmounts/remounts when navigating between tables
+    // After initialization, useExplorerRoute handles syncing URL ↔ Redux
+    const [store] = useState(() => {
+        const initialState = buildInitialExplorerState({
+            initialState: explorerUrlState,
+            isEditMode: true,
+            defaultLimit: health.data?.query.defaultLimit,
+        });
+
+        return createExplorerStore({ explorer: initialState });
+    });
+
+    return (
+        <Provider store={store}>
+            <ExplorerContent />
+        </Provider>
+    );
+});
+
 const ExplorerPage = memo(() => {
     const { projectUuid, tableId } = useParams<{
         projectUuid: string;
@@ -107,13 +120,11 @@ const ExplorerPage = memo(() => {
         return <ForbiddenPanel />;
     }
 
+    // Key ensures component remounts when navigating between tables
     return (
-        <Provider
-            store={explorerStore}
+        <ExplorerWithUrlParams
             key={`explorer-${projectUuid}-${tableId || 'none'}`}
-        >
-            <ExplorerWithUrlParams />
-        </Provider>
+        />
     );
 });
 
