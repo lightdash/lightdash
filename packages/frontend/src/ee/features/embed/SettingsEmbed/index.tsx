@@ -23,8 +23,9 @@ import { SettingsGridCard } from '../../../../components/common/Settings/Setting
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
-import EmbedDashboardsForm from './EmbedDashboardsForm';
+import EmbedDashboardsAndChartsForm from './EmbedDashboardsAndChartsForm';
 import EmbedUrlForm from './EmbedUrlForm';
 
 const useEmbedConfig = (projectUuid: string) => {
@@ -75,13 +76,20 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<null, ApiError, UpdateEmbed>(
-        ({ dashboardUuids, allowAllDashboards }: UpdateEmbed) =>
+        ({
+            dashboardUuids,
+            allowAllDashboards,
+            chartUuids,
+            allowAllCharts,
+        }: UpdateEmbed) =>
             lightdashApi<null>({
-                url: `/embed/${projectUuid}/config/dashboards`,
+                url: `/embed/${projectUuid}/config`,
                 method: 'PATCH',
                 body: JSON.stringify({
                     dashboardUuids,
                     allowAllDashboards,
+                    chartUuids,
+                    allowAllCharts,
                 }),
             }),
         {
@@ -110,6 +118,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         undefined,
         true,
     );
+
+    const { isLoading: isLoadingCharts, data: charts } = useCharts(projectUuid);
     const { mutate: createEmbedConfig, isLoading: isCreating } =
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
@@ -128,7 +138,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         );
     }, [dashboards, embedConfig]);
 
-    if (isLoading || isLoadingDashboards || !health.data) {
+    if (isLoading || isLoadingDashboards || isLoadingCharts || !health.data) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading embed config" loading />
@@ -214,12 +224,13 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsGridCard>
             <Paper shadow="sm" withBorder p="md">
                 <Stack spacing="sm" mb="md">
-                    <Title order={4}>Allowed dashboards</Title>
+                    <Title order={4}>Allowed dashboards and charts</Title>
                 </Stack>
-                <EmbedDashboardsForm
+                <EmbedDashboardsAndChartsForm
                     disabled={isSaving}
                     embedConfig={embedConfig}
                     dashboards={dashboards || []}
+                    charts={charts || []}
                     onSave={updateEmbedConfig}
                 />
             </Paper>
