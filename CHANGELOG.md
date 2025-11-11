@@ -1,3 +1,10 @@
+## [0.2158.2](https://github.com/lightdash/lightdash/compare/0.2158.1...0.2158.2) (2025-11-11)
+
+
+### Bug Fixes
+
+* on new question add proper initialiser ([#18013](https://github.com/lightdash/lightdash/issues/18013)) ([78ee4e5](https://github.com/lightdash/lightdash/commit/78ee4e563eea493e44ca1f51fd54e1256d1296fb))
+
 ## [0.2158.1](https://github.com/lightdash/lightdash/compare/0.2158.0...0.2158.1) (2025-11-11)
 
 
