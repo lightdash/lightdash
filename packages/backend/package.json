@@ -39,6 +39,7 @@
         "ts-node": "^10.9.2"
     },
     "dependencies": {
+        "@ai-sdk/amazon-bedrock": "^3.0.22",
         "@ai-sdk/anthropic": "^2.0.36",
         "@ai-sdk/azure": "^2.0.54",
         "@ai-sdk/openai": "^2.0.53",

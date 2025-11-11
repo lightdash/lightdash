@@ -107,7 +107,7 @@ const getRepairToolCall =
             messages: [
                 ...conversationHistory,
                 {
-                    role: 'system',
+                    role: 'assistant',
                     content: [
                         `The model tried to call the tool "${toolCall.toolName}"` +
                             ` with the following arguments:`,
@@ -666,6 +666,12 @@ export const streamAgentResponse = async ({
                     }`,
                 );
                 Sentry.captureException(error);
+
+                void dependencies.updatePrompt({
+                    response: 'Something went wrong. Please try again.',
+                    promptUuid: args.promptUuid,
+                });
+                throw error instanceof Error ? error : new Error(String(error));
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',
