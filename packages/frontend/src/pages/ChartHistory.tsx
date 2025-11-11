@@ -32,8 +32,9 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import {
-    explorerStore,
-    useExplorerInitialization,
+    buildInitialExplorerState,
+    createExplorerStore,
+    explorerActions,
 } from '../features/explorer/store';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
@@ -46,6 +47,13 @@ import { Can } from '../providers/Ability';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
+const ChartHistoryContent = memo(() => {
+    // Run the query effects hook - orchestrates all query effects
+    useExplorerQueryEffects();
+
+    return <Explorer hideHeader={true} />;
+});
+
 const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
     ({ selectedVersionUuid }) => {
         const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
@@ -54,30 +62,43 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
             selectedVersionUuid,
         );
 
-        // Initialize Redux with the chart version data
-        useExplorerInitialization({
-            initialState: chartVersionQuery.data
-                ? {
-                      parameterReferences: [],
-                      parameterDefinitions: {},
-                      expandedSections: [ExplorerSection.VISUALIZATION],
-                      unsavedChartVersion: chartVersionQuery.data.chart,
-                      modals: {
-                          format: { isOpen: false },
-                          additionalMetric: { isOpen: false },
-                          customDimension: { isOpen: false },
-                          writeBack: { isOpen: false },
-                          itemDetail: { isOpen: false },
-                      },
-                  }
-                : undefined,
-            savedChart: chartVersionQuery.data?.chart,
-        });
+        // Create store once with useState
+        const [store] = useState(() => createExplorerStore());
 
-        // Run the query effects hook - orchestrates all query effects
-        useExplorerQueryEffects();
+        // Reset store state when chart version data changes
+        useEffect(() => {
+            if (!chartVersionQuery.data) return;
 
-        return <Explorer hideHeader={true} />;
+            const initialState = buildInitialExplorerState({
+                initialState: {
+                    parameterReferences: [],
+                    parameterDefinitions: {},
+                    expandedSections: [ExplorerSection.VISUALIZATION],
+                    unsavedChartVersion: chartVersionQuery.data.chart,
+                    modals: {
+                        format: { isOpen: false },
+                        additionalMetric: { isOpen: false },
+                        customDimension: { isOpen: false },
+                        writeBack: { isOpen: false },
+                        itemDetail: { isOpen: false },
+                    },
+                },
+                savedChart: chartVersionQuery.data.chart,
+            });
+
+            store.dispatch(explorerActions.reset(initialState));
+        }, [chartVersionQuery.data, store]);
+
+        // Early return if no data yet
+        if (!chartVersionQuery.data) {
+            return null;
+        }
+
+        return (
+            <Provider store={store}>
+                <ChartHistoryContent />
+            </Provider>
+        );
     },
 );
 
@@ -279,11 +300,10 @@ const ChartHistory = () => {
                 />
             )}
             {selectedVersionUuid && (
-                <Provider store={explorerStore} key={selectedVersionUuid}>
-                    <ChartHistoryExplorer
-                        selectedVersionUuid={selectedVersionUuid}
-                    />
-                </Provider>
+                <ChartHistoryExplorer
+                    key={selectedVersionUuid}
+                    selectedVersionUuid={selectedVersionUuid}
+                />
             )}
 
             <Modal

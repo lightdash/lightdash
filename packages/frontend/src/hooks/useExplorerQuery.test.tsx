@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { explorerStore } from '../features/explorer/store';
+import { createExplorerStore } from '../features/explorer/store';
 import { useExplorerQuery } from './useExplorerQuery';
 
 // Mock the hooks that depend on external APIs
@@ -42,10 +42,11 @@ const createWrapper = () => {
             mutations: { retry: false },
         },
     });
+    const store = createExplorerStore();
 
     return ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>
-            <Provider store={explorerStore}>
+            <Provider store={store}>
                 <MemoryRouter>{children}</MemoryRouter>
             </Provider>
         </QueryClientProvider>
