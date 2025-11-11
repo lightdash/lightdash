@@ -4,6 +4,7 @@ import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
@@ -258,9 +259,77 @@ const Explore: FC<Props & { exploreId: string; savedChart: SavedChart }> = ({
     );
 };
 
-const Lightdash = { Dashboard, Explore };
+const Chart: FC<Omit<Props, 'filters' | 'onExplore'> & { id: string }> = ({
+    token: tokenOrTokenPromise,
+    instanceUrl,
+    styles,
+    contentOverrides,
+    id,
+}) => {
+    const [token, setToken] = useState<string | null>(null);
+    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+
+    const handleDecodeToken = (tokenToDecode: string) => {
+        const { payload } = decodeJWT(tokenToDecode);
+
+        if (
+            payload &&
+            'content' in payload &&
+            'projectUuid' in payload.content
+        ) {
+            setToken(tokenToDecode);
+            setProjectUuid(payload.content.projectUuid);
+        } else {
+            throw new Error('Error decoding token');
+        }
+    };
+
+    useEffect(() => {
+        persistInstanceUrl(instanceUrl);
+
+        if (typeof tokenOrTokenPromise === 'string') {
+            handleDecodeToken(tokenOrTokenPromise);
+        } else {
+            tokenOrTokenPromise
+                .then((tokenToDecode) => {
+                    handleDecodeToken(tokenToDecode);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    throw new Error('Error retrieving token');
+                });
+        }
+    }, [instanceUrl, tokenOrTokenPromise]);
+
+    if (!token || !projectUuid) {
+        return null;
+    }
+
+    return (
+        <SdkProviders styles={styles}>
+            <EmbedProvider
+                embedToken={token}
+                projectUuid={projectUuid}
+                contentOverrides={contentOverrides}
+                savedQueryUuid={id}
+            >
+                <EmbedChart
+                    containerStyles={{
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        overflow: 'auto',
+                        backgroundColor: styles?.backgroundColor,
+                    }}
+                />
+            </EmbedProvider>
+        </SdkProviders>
+    );
+};
+
+const Lightdash = { Dashboard, Explore, Chart };
 
 // ts-unused-exports:disable-next-line
-export { Dashboard, Explore };
+export { Chart, Dashboard, Explore };
 // ts-unused-exports:disable-next-line
 export default Lightdash;

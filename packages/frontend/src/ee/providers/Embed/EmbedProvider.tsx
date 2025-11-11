@@ -23,6 +23,7 @@ type Props = {
     onExplore?: (options: { chart: SavedChart }) => void;
     onBackToDashboard?: () => void;
     savedChart?: SavedChart;
+    savedQueryUuid?: string;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -34,6 +35,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onExplore,
     onBackToDashboard,
     savedChart,
+    savedQueryUuid,
 }) => {
     const embedToken = encodedToken || window.location.hash.replace('#', '');
     const [isInitialized, setIsInitialized] = useState(false);
@@ -98,6 +100,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             languageMap: contentOverrides,
             onExplore,
             savedChart,
+            savedQueryUuid,
             onBackToDashboard,
             mode,
         };
@@ -110,6 +113,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         contentOverrides,
         onExplore,
         savedChart,
+        savedQueryUuid,
         onBackToDashboard,
         mode,
     ]);
