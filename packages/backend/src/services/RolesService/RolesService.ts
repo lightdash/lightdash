@@ -78,6 +78,49 @@ export class RolesService extends BaseService {
         this.emailClient = emailClient;
     }
 
+    /**
+     * Validate that org admins or project developers/admins have access to view roles in the organization
+     * @param account
+     * @param organizationUuid
+     * @private
+     */
+    private async validateRolesViewAccess(
+        account: Account,
+        organizationUuid: string,
+    ) {
+        // if user is admin of organization, they can see roles
+        if (
+            account.user.ability.can(
+                'manage',
+                subject('Organization', {
+                    organizationUuid,
+                }),
+            )
+        ) {
+            return;
+        }
+
+        // get all projects in organization
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            organizationUuid,
+        );
+
+        const canManageSomeProjects = projects.some((project) =>
+            // Note that we don't check for 'manage' here because developers can update project access
+            account.user.ability.can(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            ),
+        );
+
+        if (!canManageSomeProjects) {
+            throw new ForbiddenError();
+        }
+    }
+
     private static validateOrganizationAccess(
         account: Account,
         organizationUuid?: string,
@@ -130,8 +173,9 @@ export class RolesService extends BaseService {
         if (projectUuid) {
             const project = await this.projectModel.getSummary(projectUuid);
             if (
+                // Note that we don't check for 'manage' here because developers can update project access
                 account.user.ability.cannot(
-                    'manage',
+                    'update',
                     subject('Project', {
                         organizationUuid: project.organizationUuid,
                         projectUuid,
@@ -163,9 +207,10 @@ export class RolesService extends BaseService {
         loadScopes?: boolean,
         roleTypeFilter?: string,
     ): Promise<Role[] | RoleWithScopes[]> {
-        RolesService.validateOrganizationAccess(account, organizationUuid);
+        await this.validateRolesViewAccess(account, organizationUuid);
 
         if (loadScopes) {
+            RolesService.validateOrganizationAccess(account, organizationUuid);
             return this.rolesModel.getRolesWithScopesByOrganizationUuid(
                 organizationUuid,
                 roleTypeFilter,
@@ -316,7 +361,7 @@ export class RolesService extends BaseService {
         account: Account,
         orgUuid: string,
     ): Promise<RoleAssignment[]> {
-        RolesService.validateOrganizationAccess(account, orgUuid);
+        await this.validateRolesViewAccess(account, orgUuid);
 
         // Get organization role assignments from model
         const userAssignments =
@@ -774,12 +819,7 @@ export class RolesService extends BaseService {
         });
     }
 
-    async getProjectAccess(account: Account, projectUuid: string) {
-        const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
+    private async getProjectAccess(account: Account, projectUuid: string) {
         await this.validateProjectAccess(account, projectUuid);
 
         const userAccess = await this.rolesModel.getProjectAccess(projectUuid);
