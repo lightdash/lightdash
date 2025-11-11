@@ -1,3 +1,10 @@
+# [0.2159.0](https://github.com/lightdash/lightdash/compare/0.2158.3...0.2159.0) (2025-11-11)
+
+
+### Features
+
+* add feedback modal for AI agent downvotes in slack ([#17972](https://github.com/lightdash/lightdash/issues/17972)) ([fb83441](https://github.com/lightdash/lightdash/commit/fb83441af0d01b4569bb25b2be17790aa8963156))
+
 ## [0.2158.3](https://github.com/lightdash/lightdash/compare/0.2158.2...0.2158.3) (2025-11-11)
 
 
