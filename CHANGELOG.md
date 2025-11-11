@@ -1,3 +1,10 @@
+## [0.2159.1](https://github.com/lightdash/lightdash/compare/0.2159.0...0.2159.1) (2025-11-11)
+
+
+### Bug Fixes
+
+* use role value instead of label for project role matching ([#17984](https://github.com/lightdash/lightdash/issues/17984)) ([131edd3](https://github.com/lightdash/lightdash/commit/131edd380818ca226b5452a448c44420ec037ccc))
+
 # [0.2159.0](https://github.com/lightdash/lightdash/compare/0.2158.3...0.2159.0) (2025-11-11)
 
 
