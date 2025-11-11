@@ -5,6 +5,11 @@ import {
     S3ServiceException,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
+import {
+    createCredentialChain,
+    fromEnv,
+    fromIni,
+} from '@aws-sdk/credential-providers';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -51,7 +56,15 @@ export class S3Client {
                 });
                 Logger.debug('Using S3 storage with access key credentials');
             } else {
-                Logger.debug('Using S3 storage with IAM role credentials');
+                // Use explicit credential chain to handle IRSA and role chaining scenarios
+                // This addresses issues with default credential resolution in Kubernetes/EKS environments
+                // See: https://github.com/aws/aws-sdk-js-v3/issues/6419
+                Object.assign(s3Config, {
+                    credentials: createCredentialChain(fromIni(), fromEnv()),
+                });
+                Logger.debug(
+                    'Using S3 storage with IAM role credentials (credential chain)',
+                );
             }
 
             this.s3 = new S3(s3Config);
