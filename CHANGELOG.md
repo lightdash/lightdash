@@ -1,3 +1,10 @@
+## [0.2158.3](https://github.com/lightdash/lightdash/compare/0.2158.2...0.2158.3) (2025-11-11)
+
+
+### Bug Fixes
+
+* new props causing 'save' in existing charts ([#18011](https://github.com/lightdash/lightdash/issues/18011)) ([4d1fd16](https://github.com/lightdash/lightdash/commit/4d1fd16870bdad5614dff15cb1da9e8340e9fcbb))
+
 ## [0.2158.2](https://github.com/lightdash/lightdash/compare/0.2158.1...0.2158.2) (2025-11-11)
 
 
