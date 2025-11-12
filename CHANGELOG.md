@@ -1,3 +1,10 @@
+## [0.2160.1](https://github.com/lightdash/lightdash/compare/0.2160.0...0.2160.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* project admins to view organization roles ([#18018](https://github.com/lightdash/lightdash/issues/18018)) ([8e47a1f](https://github.com/lightdash/lightdash/commit/8e47a1f21d2d917901ddeed5e38bb7082dcf0c96))
+
 # [0.2160.0](https://github.com/lightdash/lightdash/compare/0.2159.2...0.2160.0) (2025-11-12)
 
 
