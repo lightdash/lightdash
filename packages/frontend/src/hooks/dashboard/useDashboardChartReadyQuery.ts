@@ -100,9 +100,7 @@ export const useDashboardChartReadyQuery = (
         id: chartUuid ?? undefined,
     });
 
-    const error = chartQuery.error;
-
-    const { data: explore } = useExplore(
+    const { data: explore, error: exploreError } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
     );
 
@@ -283,5 +281,8 @@ export const useDashboardChartReadyQuery = (
         queryResult.error,
     ]);
 
-    return { ...queryResult, error: error || queryResult.error };
+    return {
+        ...queryResult,
+        error: chartQuery.error || exploreError || queryResult.error,
+    };
 };
