@@ -155,6 +155,10 @@ export const mockProjectModel = {
         projectUuid: 'test-project-uuid',
         organizationUuid: 'test-org-uuid',
     }),
+    getAllByOrganizationUuid: jest.fn().mockResolvedValue([
+        { projectUuid: 'proj-1', organizationUuid: 'test-org-uuid' },
+        { projectUuid: 'proj-2', organizationUuid: 'test-org-uuid' },
+    ]),
 };
 
 export const mockGroupsModel = {

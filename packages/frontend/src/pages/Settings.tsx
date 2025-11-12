@@ -759,12 +759,23 @@ const Settings: FC = () => {
                                         }
                                     />
 
-                                    <RouterNavLink
-                                        label="Project access"
-                                        exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
-                                        icon={<MantineIcon icon={IconUsers} />}
-                                    />
+                                    <Can
+                                        I="manage"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Project access"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
+                                            icon={
+                                                <MantineIcon icon={IconUsers} />
+                                            }
+                                        />
+                                    </Can>
 
                                     {user.ability.can(
                                         'view',
