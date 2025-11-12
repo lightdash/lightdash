@@ -79,6 +79,14 @@ models:
           metrics:
             count:
               type: count
+      - name: image_url
+        description: "Image URL for the event from events.sql"
+        meta:
+          dimension:
+            type: string
+            groups: [ 'image' ]
+            image: 
+                url: "${value.raw}" 
       - name: event_id
         description: ""
         meta:
@@ -86,6 +94,28 @@ models:
             type: number
             groups: [ 'events', 'nested_group', 'another_nested_group' ]
           additional_dimensions:
+            image_event_id:
+              groups: [ 'image' ]
+              description: "Additional dimension of image URL for event_id. Uses event_id from SQL, but image URL template combines with event name from row"
+              type: string
+              # creates url in sql
+              # intentionally introduce some missing images to test the image cell
+              sql: |
+                case
+                  when ${event_id} > 100 then 'lightdash.com/missing-image.jpg'
+                  else 'placehold.co/300x100?text=id%20' || ${event_id}
+                  end
+              image:
+                # Template combines value (the URL from SQL) with other row fields
+                # Use liquidjs to combine the URL with the event name and upcase
+                url: "https://${value.raw}-${row.events.event.raw | upcase}" 
+            image_invalid_protocol:
+              groups: [ 'image' ]
+              description: "Invalid URL protocol"
+              type: string
+              sql: ${event_id}
+              image:
+                url: "file://${value.raw}" 
             event_tier:
               type: string
               description: Ratio of event_id to event

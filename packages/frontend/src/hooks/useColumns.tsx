@@ -1,6 +1,7 @@
 import {
     DimensionType,
     formatItemValue,
+    getErrorMessage,
     getItemId,
     getItemMap,
     isAdditionalMetric,
@@ -10,8 +11,10 @@ import {
     isNumericItem,
     isResultValue,
     itemsInMetricQuery,
+    renderTemplatedUrl,
     type AdditionalMetric,
     type CustomDimension,
+    type Dimension,
     type Field,
     type ItemsMap,
     type ParametersValuesMap,
@@ -27,6 +30,10 @@ import omit from 'lodash/omit';
 import { useMemo } from 'react';
 import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import MantineIcon from '../components/common/MantineIcon';
+import {
+    BrokenImageCell,
+    ImageCell,
+} from '../components/common/Table/ImageCell';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -156,6 +163,92 @@ const formatBarDisplayCell = (
     );
 };
 
+const formatImageCell = (
+    item: Dimension,
+    info:
+        | CellContext<ResultRow, { value: ResultValue }>
+        | CellContext<RawResultRow, string>,
+) => {
+    // Extract value from cell
+    const cellValue = info.getValue();
+    const value: ResultValue = isResultValue(cellValue)
+        ? cellValue.value
+        : { raw: cellValue, formatted: String(cellValue) };
+
+    const urlTemplate = item.image?.url || '';
+
+    // Only extract row data if template references other fields
+    // Skip expensive getAllCells() for simple templates like "${value.raw}"
+    const needsRowContext =
+        urlTemplate.includes('${') &&
+        !urlTemplate.match(/^\$\{value\.(raw|formatted)\}$/);
+
+    // TODO optimization opportunity:
+    // extract row at a row level (not per cell) , not at a cell level, if the row contains at least 1 image.
+    // this will optimize rows with more than 2 images
+    // we'll have to refactor the existing code to pass this parsed row info
+
+    // Build row data similar to UrlMenuItem (only when needed)
+    const row = needsRowContext
+        ? info.row
+              .getAllCells()
+              .reduce<Record<string, Record<string, ResultValue>>>(
+                  (acc, rowCell) => {
+                      const cellItem = rowCell.column.columnDef.meta?.item;
+                      const rowCellValue = rowCell.getValue();
+
+                      // Handle both ResultRow and RawResultRow formats
+                      const cellResultValue = isResultValue(rowCellValue)
+                          ? (rowCellValue as { value: ResultValue }).value
+                          : {
+                                raw: rowCellValue,
+                                formatted: String(rowCellValue),
+                            };
+
+                      if (cellItem && isField(cellItem) && cellResultValue) {
+                          acc[cellItem.table] = acc[cellItem.table] || {};
+                          acc[cellItem.table][cellItem.name] = cellResultValue;
+                      }
+                      return acc;
+                  },
+                  {},
+              )
+        : {};
+
+    try {
+        // Render the templated URL with row context
+        // eslint-disable-next-line testing-library/render-result-naming-convention
+        const processedUrl = renderTemplatedUrl(
+            item.image?.url || '',
+            value,
+            row,
+        );
+        // Validate image url
+        const imageUrl = new URL(processedUrl);
+        if (!['http:', 'https:'].includes(imageUrl.protocol)) {
+            console.error(`Invalid image protocol "${processedUrl}"`);
+            return (
+                <BrokenImageCell
+                    imageUrl={processedUrl}
+                    error={`Invalid image protocol`}
+                />
+            );
+        }
+
+        return <ImageCell item={item} imageUrl={imageUrl.href} />;
+    } catch (error) {
+        console.error(
+            `Invalid image URL template "${item.image?.url}": ${error}`,
+        );
+        return (
+            <BrokenImageCell
+                imageUrl={item.image?.url || (value.raw as string)}
+                error={getErrorMessage(error) as string}
+            />
+        );
+    }
+};
+
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
     parameters?: ParametersValuesMap,
@@ -167,6 +260,11 @@ export const getFormattedValueCell = (
         if (isBarDisplay(info)) return formatBarDisplayCell(info, parameters);
     } catch (error) {
         console.error(`Unable to format value for bar display cell ${error}`);
+    }
+
+    // Check if this is an image dimension
+    if (item && isDimension(item) && item.image?.url && cellValue) {
+        return formatImageCell(item, info);
     }
 
     return formatCellContent(cellValue, item, parameters);
@@ -182,6 +280,12 @@ export const getValueCell = (
         if (isBarDisplay(info)) return formatBarDisplayCell(info, parameters);
     } catch (error) {
         console.error(`Unable to get value for bar display cell ${error}`);
+    }
+
+    // Check if this is an image dimension
+    const item = info.column.columnDef.meta?.item;
+    if (item && isDimension(item) && item.image?.url) {
+        return formatImageCell(item, info);
     }
 
     // Default text rendering
