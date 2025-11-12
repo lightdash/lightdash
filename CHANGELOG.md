@@ -1,3 +1,10 @@
+## [0.2164.3](https://github.com/lightdash/lightdash/compare/0.2164.2...0.2164.3) (2025-11-12)
+
+
+### Bug Fixes
+
+* add guards for null values in explore filtering ([#18032](https://github.com/lightdash/lightdash/issues/18032)) ([d48ca79](https://github.com/lightdash/lightdash/commit/d48ca7945c79def20f34a7d34527e327fc270ff7))
+
 ## [0.2164.2](https://github.com/lightdash/lightdash/compare/0.2164.1...0.2164.2) (2025-11-12)
 
 
