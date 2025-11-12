@@ -163,7 +163,7 @@ export class EmbedController extends BaseController {
      * @param req
      * @param projectUuid
      * @param body Contains dashboardUuids, allowAllDashboards, chartUuids, allowAllCharts
-     * @returns
+     * @returns Empty response with status 'ok'
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
