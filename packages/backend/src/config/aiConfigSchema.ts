@@ -88,6 +88,11 @@ export const aiCopilotConfigSchema = z
         debugLoggingEnabled: z.boolean(),
         askAiButtonEnabled: z.boolean(),
         maxQueryLimit: z.number().positive(),
+        verifiedAnswerSimilarityThreshold: z
+            .number()
+            .min(0)
+            .max(1)
+            .default(0.6),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>
