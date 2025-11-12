@@ -2538,6 +2538,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         args.searchQuery.label,
                         undefined,
                         'OR',
+                        // TODO: add space access filter
                     );
 
                 const chartSearchResults =
@@ -2545,6 +2546,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         projectUuid,
                         args.searchQuery.label,
                         'OR',
+                        // TODO: add space access filter
                     );
 
                 const allContent = [
@@ -2568,20 +2570,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     };
                 }
 
-                const contentWithRoots = await Promise.all(
-                    filteredResults.map(async (item) => {
-                        const rootSpaceUuid =
-                            await this.spaceModel.getSpaceRoot(item.spaceUuid);
-                        return { item, rootSpaceUuid };
-                    }),
-                );
-
                 return {
-                    content: contentWithRoots
-                        .filter(({ rootSpaceUuid }) =>
-                            agentSettings.spaceAccess.includes(rootSpaceUuid),
-                        )
-                        .map(({ item }) => item),
+                    content:
+                        agentSettings.spaceAccess.length === 0
+                            ? filteredResults
+                            : filteredResults.filter(({ spaceUuid }) =>
+                                  agentSettings.spaceAccess.includes(spaceUuid),
+                              ),
                 };
             });
 
