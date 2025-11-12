@@ -10,6 +10,7 @@ export type ProviderOptionsMap = {
     azure: OpenAIResponsesProviderOptions;
     anthropic: AnthropicProviderOptions;
     openrouter: Record<string, JSONValue>;
+    bedrock: Record<string, JSONValue>;
 };
 
 export type AiModel<P extends AiProvider> = {
