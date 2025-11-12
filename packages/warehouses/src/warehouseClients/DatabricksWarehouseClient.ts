@@ -277,27 +277,28 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     private async getSession() {
         const client = new DBSQLClient({});
-        let connection: IDBSQLClient | undefined;
+        let connection: IDBSQLClient;
         let session: IDBSQLSession;
 
         try {
             connection = await client.connect(this.connectionOptions);
+        } catch (e: AnyType) {
+            throw new WarehouseConnectionError(getErrorMessage(e));
+        }
 
+        try {
             session = await connection.openSession({
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
         } catch (e: AnyType) {
-            if (connection) {
-                try {
-                    await connection.close();
-                } catch (closeError: AnyType) {
-                    // Ignore close errors, don't mask original error
-                    console.error(
-                        'Error closing connection after creating session',
-                        closeError,
-                    );
-                }
+            try {
+                await connection.close();
+            } catch (closeError: AnyType) {
+                console.error(
+                    'Error closing connection after session failure',
+                    closeError,
+                );
             }
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
@@ -306,7 +307,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             session,
             close: async () => {
                 await session.close();
-                await connection?.close();
+                await connection.close();
             },
         };
     }
