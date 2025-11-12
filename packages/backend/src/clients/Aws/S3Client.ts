@@ -7,8 +7,11 @@ import {
 } from '@aws-sdk/client-s3';
 import {
     createCredentialChain,
+    fromContainerMetadata,
     fromEnv,
     fromIni,
+    fromInstanceMetadata,
+    fromTokenFile,
 } from '@aws-sdk/credential-providers';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -56,11 +59,17 @@ export class S3Client {
                 });
                 Logger.debug('Using S3 storage with access key credentials');
             } else {
-                // Use explicit credential chain to handle IRSA and role chaining scenarios
-                // This addresses issues with default credential resolution in Kubernetes/EKS environments
+                // Use createCredentialChain for robust credential resolution in IRSA and role chaining scenarios
+                // Order matters: prioritize environment variables and token files for IRSA compatibility
                 // See: https://github.com/aws/aws-sdk-js-v3/issues/6419
                 Object.assign(s3Config, {
-                    credentials: createCredentialChain(fromIni(), fromEnv()),
+                    credentials: createCredentialChain(
+                        fromEnv(), // Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+                        fromTokenFile(), // IRSA - IAM Role for Service Accounts (Kubernetes/EKS token file)
+                        fromIni(), // AWS credentials file (~/.aws/credentials) and config file (~/.aws/config)
+                        fromContainerMetadata(), // ECS Task Role credentials from container metadata endpoint
+                        fromInstanceMetadata(), // EC2 Instance Profile credentials from metadata service
+                    ),
                 });
                 Logger.debug(
                     'Using S3 storage with IAM role credentials (credential chain)',
