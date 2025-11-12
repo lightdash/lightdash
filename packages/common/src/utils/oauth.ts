@@ -308,7 +308,7 @@ export interface OAuthUser {
     organizationName: string;
 }
 
-export interface OAuthScope {
+export interface OAuthScopeDescription {
     title: string;
     description: string;
 }
@@ -318,7 +318,7 @@ export interface OAuthAuthorizeParams {
     client_id: string;
     client_name: string;
     scope: string;
-    scopes: OAuthScope[];
+    scopes: OAuthScopeDescription[];
     user: OAuthUser;
     hiddenInputs: OAuthHiddenInput[];
 }
@@ -329,7 +329,7 @@ export interface OAuthRedirectParams {
 }
 
 // Scope descriptions mapping
-const SCOPE_DESCRIPTIONS: Record<string, OAuthScope> = {
+const SCOPE_DESCRIPTIONS: Record<string, OAuthScopeDescription> = {
     read: {
         title: 'Read access',
         description:
@@ -353,7 +353,9 @@ const SCOPE_DESCRIPTIONS: Record<string, OAuthScope> = {
 /**
  * Parses a scope string (e.g. "read write") and returns an array of scope objects with descriptions
  */
-export const parseScopeString = (scopeString: string): OAuthScope[] => {
+export const parseScopeString = (
+    scopeString: string,
+): OAuthScopeDescription[] => {
     if (!scopeString || typeof scopeString !== 'string') {
         return [];
     }
@@ -361,7 +363,7 @@ export const parseScopeString = (scopeString: string): OAuthScope[] => {
     const scopes = scopeString.trim().split(/\s+/);
     return scopes
         .map((scope) => SCOPE_DESCRIPTIONS[scope])
-        .filter((scope): scope is OAuthScope => scope !== undefined);
+        .filter((scope): scope is OAuthScopeDescription => scope !== undefined);
 };
 
 /**
