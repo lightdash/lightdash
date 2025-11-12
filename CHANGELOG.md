@@ -1,3 +1,10 @@
+## [0.2164.2](https://github.com/lightdash/lightdash/compare/0.2164.1...0.2164.2) (2025-11-12)
+
+
+### Bug Fixes
+
+* skip analytics tracking for zero-score AI agent feedback ([#18038](https://github.com/lightdash/lightdash/issues/18038)) ([8cef549](https://github.com/lightdash/lightdash/commit/8cef549bcd9b647ed645529090798b795ef48a05))
+
 ## [0.2164.1](https://github.com/lightdash/lightdash/compare/0.2164.0...0.2164.1) (2025-11-12)
 
 
