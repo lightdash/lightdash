@@ -1,3 +1,10 @@
+# [0.2161.0](https://github.com/lightdash/lightdash/compare/0.2160.1...0.2161.0) (2025-11-12)
+
+
+### Features
+
+* add "Add to Evals" button for users with manage permission ([#18040](https://github.com/lightdash/lightdash/issues/18040)) ([aae70c1](https://github.com/lightdash/lightdash/commit/aae70c182597d27cdb94a11253d4eabcd830f9a7)), closes [#18039](https://github.com/lightdash/lightdash/issues/18039)
+
 ## [0.2160.1](https://github.com/lightdash/lightdash/compare/0.2160.0...0.2160.1) (2025-11-12)
 
 
