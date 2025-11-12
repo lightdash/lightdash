@@ -1462,6 +1462,24 @@
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     {{/truncatedCsvUrls}}
+                                                                                                    {{#if hasFailures}}
+                                                                                                    <tr>
+                                                                                                        <td>
+                                                                                                            <div style="padding: 16px; margin-top: 16px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-family: BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif, 'Inter';">
+                                                                                                                <p style="margin: 0 0 8px 0; font-weight: 700; color: #856404; font-size: 14px; font-family: BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif, 'Inter';">
+                                                                                                                    ⚠️ Warning: {{failures.length}} chart(s) failed to export
+                                                                                                                </p>
+                                                                                                                <ul style="margin: 0; padding-left: 20px; color: #856404; font-size: 12px; font-family: BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif, 'Inter'; line-height: 18px;">
+                                                                                                                    {{#failures}}
+                                                                                                                    <li style="margin-bottom: 6px; line-height: 18px;">
+                                                                                                                        <strong>{{chartName}}:</strong> {{error}}
+                                                                                                                    </li>
+                                                                                                                    {{/failures}}
+                                                                                                                </ul>
+                                                                                                            </div>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                    {{/if}}
                                                                                                 </table>
                                                                                             </td>
                                                                                         </tr>

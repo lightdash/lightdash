@@ -304,6 +304,7 @@ export default class SchedulerTask {
         let csvUrl;
         let csvUrls;
         let pdfFile;
+        let failures: { chartName: string; error: string }[] | undefined;
 
         const schedulerUuid =
             'schedulerUuid' in scheduler &&
@@ -612,6 +613,7 @@ export default class SchedulerTask {
                                             },
                                         );
                                     return {
+                                        chartName: chart.name,
                                         filename: chart.name,
                                         path: downloadResult.fileUrl,
                                         localPath: downloadResult.fileUrl,
@@ -686,6 +688,7 @@ export default class SchedulerTask {
                                         },
                                     );
                                 return {
+                                    chartName: chart.name,
                                     filename: chart.name,
                                     path: downloadResult.fileUrl,
                                     localPath: downloadResult.fileUrl,
@@ -694,10 +697,58 @@ export default class SchedulerTask {
                             },
                         );
 
-                        csvUrls = await Promise.allSettled([
+                        const results = await Promise.allSettled([
                             ...csvForChartPromises,
                             ...csvForSqlChartPromises,
-                        ]).then(getFulfilledValues);
+                        ]);
+
+                        // Separate successes and failures
+                        const successfulResults = results.filter(
+                            (
+                                result,
+                            ): result is PromiseFulfilledResult<{
+                                chartName: string;
+                                filename: string;
+                                path: string;
+                                localPath: string;
+                                truncated: boolean;
+                            }> => result.status === 'fulfilled',
+                        );
+                        csvUrls = successfulResults.map((r) => r.value);
+
+                        const csvFailures = results
+                            .filter(
+                                (result): result is PromiseRejectedResult =>
+                                    result.status === 'rejected',
+                            )
+                            .map((result, index) => {
+                                // Try to get chart name from the error context or use a default
+                                const chartIndex = results.indexOf(result);
+                                const chartName =
+                                    chartIndex <
+                                    chartTileUuidsWithChartUuids.length
+                                        ? `Chart ${chartIndex + 1}`
+                                        : `SQL Chart ${
+                                              chartIndex -
+                                              chartTileUuidsWithChartUuids.length +
+                                              1
+                                          }`;
+                                Logger.warn(
+                                    `Failed to generate CSV for ${chartName} in scheduled delivery: ${result.reason}`,
+                                );
+                                return {
+                                    chartName,
+                                    error: getErrorMessage(result.reason),
+                                };
+                            });
+
+                        // Log partial failures if any
+                        if (csvFailures.length > 0) {
+                            Logger.warn(
+                                `Scheduled delivery completed with ${csvFailures.length} failed chart(s) out of ${results.length} total`,
+                            );
+                            failures = csvFailures;
+                        }
 
                         this.analytics.trackAccount(account, {
                             event: 'download_results.completed',
@@ -705,6 +756,7 @@ export default class SchedulerTask {
                             properties: {
                                 ...baseAnalyticsProperties,
                                 numCharts: csvUrls.length,
+                                numFailures: csvFailures.length,
                             },
                         });
                     } else {
@@ -756,6 +808,7 @@ export default class SchedulerTask {
             csvUrl,
             csvUrls,
             pdfFile,
+            failures,
         };
     }
 
@@ -829,6 +882,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                failures,
             } = notificationPageData;
 
             const defaultSchedulerTimezone =
@@ -980,6 +1034,7 @@ export default class SchedulerTask {
                     blocks = getDashboardCsvResultsBlocks({
                         ...getBlocksArgs,
                         csvUrls,
+                        failures,
                     });
                 } else {
                     throw new Error('Not implemented');
@@ -1147,6 +1202,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                failures,
             } = notificationPageData;
 
             const schedulerType =
@@ -1970,6 +2026,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                failures,
             } = notificationPageData;
 
             const schedulerUrl = `${url}?${setUuidParam(
@@ -2096,6 +2153,7 @@ export default class SchedulerTask {
                     this.s3Client.getExpirationWarning()?.days,
                     csvOptions?.asAttachment,
                     format,
+                    failures,
                 );
             } else {
                 throw new Error('Not implemented');
