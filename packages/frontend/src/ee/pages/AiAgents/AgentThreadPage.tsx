@@ -4,6 +4,7 @@ import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
 import {
     useProjectAiAgent as useAiAgent,
@@ -35,6 +36,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
 
     const agentQuery = useAiAgent(projectUuid!, agentUuid!);
     const { agent } = useOutletContext<AgentContext>();
+
+    const canManage = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
 
     const {
         mutateAsync: createAgentThreadMessage,
@@ -83,6 +89,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             debug={debug}
             projectUuid={projectUuid}
             agentUuid={agentUuid}
+            showAddToEvalsButton={canManage}
         >
             <AgentChatInput
                 disabled={
