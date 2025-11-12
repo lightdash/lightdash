@@ -1,3 +1,10 @@
+## [0.2164.1](https://github.com/lightdash/lightdash/compare/0.2164.0...0.2164.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* remove JSDoc to fix TSOA ([#18059](https://github.com/lightdash/lightdash/issues/18059)) ([92de768](https://github.com/lightdash/lightdash/commit/92de7683160e75239a47b045d5160d3f9963dff3))
+
 # [0.2164.0](https://github.com/lightdash/lightdash/compare/0.2163.1...0.2164.0) (2025-11-12)
 
 
