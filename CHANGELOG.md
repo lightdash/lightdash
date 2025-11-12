@@ -1,3 +1,10 @@
+# [0.2162.0](https://github.com/lightdash/lightdash/compare/0.2161.0...0.2162.0) (2025-11-12)
+
+
+### Features
+
+* add timeout to databricks config under feature flag ([#18035](https://github.com/lightdash/lightdash/issues/18035)) ([81c52db](https://github.com/lightdash/lightdash/commit/81c52db076c40fa957400361cb79fde2bf5ff994))
+
 # [0.2161.0](https://github.com/lightdash/lightdash/compare/0.2160.1...0.2161.0) (2025-11-12)
 
 
