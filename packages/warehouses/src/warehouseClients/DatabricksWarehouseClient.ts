@@ -216,6 +216,9 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;
+const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
+
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
@@ -248,7 +251,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 path: credentials.httpPath.startsWith('/')
                     ? credentials.httpPath
                     : `/${credentials.httpPath}`,
-                ...(this.enableTimeouts && { socketTimeout: 60000 }),
+                ...(this.enableTimeouts && {
+                    socketTimeout: DATABRICKS_SOCKET_TIMEOUT_MS,
+                }),
             };
         } else {
             // Default to personal access token authentication
@@ -263,7 +268,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 path: credentials.httpPath.startsWith('/')
                     ? credentials.httpPath
                     : `/${credentials.httpPath}`,
-                ...(this.enableTimeouts && { socketTimeout: 60000 }),
+                ...(this.enableTimeouts && {
+                    socketTimeout: DATABRICKS_SOCKET_TIMEOUT_MS,
+                }),
             };
         }
     }
@@ -327,7 +334,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
             query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
-                ...(this.enableTimeouts && { queryTimeout: 300 }), // 5 minutes (in seconds, not milliseconds)
+                ...(this.enableTimeouts && {
+                    queryTimeout: DATABRICKS_QUERY_TIMEOUT_SECONDS,
+                }),
                 ordinalParameters: options?.values,
             });
 
