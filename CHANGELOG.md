@@ -1,3 +1,10 @@
+## [0.2164.5](https://github.com/lightdash/lightdash/compare/0.2164.4...0.2164.5) (2025-11-12)
+
+
+### Bug Fixes
+
+* Pass specific credential chain to S3 client when using IAM (IRSA) auth ([#18021](https://github.com/lightdash/lightdash/issues/18021)) ([5af600e](https://github.com/lightdash/lightdash/commit/5af600ef036fe33182f4ed69e79432ce77dae8d1))
+
 ## [0.2164.4](https://github.com/lightdash/lightdash/compare/0.2164.3...0.2164.4) (2025-11-12)
 
 

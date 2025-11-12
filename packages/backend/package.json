@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2164.4",
+    "version": "0.2164.5",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -43,6 +43,7 @@
         "@ai-sdk/azure": "^2.0.54",
         "@ai-sdk/openai": "^2.0.53",
         "@aws-sdk/client-s3": "^3.529.0",
+        "@aws-sdk/credential-providers": "^3.529.0",
         "@aws-sdk/lib-storage": "^3.529.0",
         "@aws-sdk/s3-request-presigner": "^3.529.0",
         "@casl/ability": "^5.4.3",
