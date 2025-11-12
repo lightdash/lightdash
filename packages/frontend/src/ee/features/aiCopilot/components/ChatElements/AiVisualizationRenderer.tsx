@@ -214,7 +214,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         </Group>
                     )}
                     <Box
-                        flex="1 0 0"
+                        flex="1"
                         style={{
                             // Scrolling for tables
                             overflow: 'auto',
