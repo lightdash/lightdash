@@ -589,6 +589,9 @@ export default class EmailClient {
                   )
             : undefined;
 
+        const allChartsFailed =
+            csvUrls.length === 0 && failures && failures.length > 0;
+
         return this.sendEmail({
             to: recipient,
             subject,
@@ -613,6 +616,7 @@ export default class EmailClient {
                 attachmentCount: emailAttachments?.length || 0,
                 failures,
                 hasFailures: failures && failures.length > 0,
+                allChartsFailed,
             },
             text: title,
             attachments: emailAttachments,
