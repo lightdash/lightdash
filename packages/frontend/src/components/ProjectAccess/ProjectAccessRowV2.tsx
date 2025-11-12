@@ -91,8 +91,8 @@ const ProjectAccessRowV2: FC<Props> = ({
     );
 
     // Find groups the user belongs to that have project access
-    const userGroupAccess = useMemo((): UserGroupAccess | null => {
-        if (!organizationGroups || !groupRoles) return null;
+    const userGroupAccesses = useMemo((): UserGroupAccess[] => {
+        if (!organizationGroups || !groupRoles) return [];
 
         // Find groups where the user is a member
         const userGroups = organizationGroups.filter((group) => {
@@ -116,8 +116,7 @@ const ProjectAccessRowV2: FC<Props> = ({
             })
             .filter((item): item is UserGroupAccess => item !== null);
 
-        // TODO can an user be in multiple groups ? what happens then with permisisons
-        return groupsWithAccess.length > 0 ? groupsWithAccess[0] : null;
+        return groupsWithAccess;
     }, [organizationGroups, groupRoles, user.userUuid]);
 
     const currentRoleUuid = useMemo(() => {
@@ -135,21 +134,23 @@ const ProjectAccessRowV2: FC<Props> = ({
     const isMember = user.role === OrganizationMemberRole.MEMBER;
 
     const { highestRole, highestRoleType } = useMemo(() => {
-        if (
-            userGroupAccess?.access.roleId &&
-            systemRolesOrder.indexOf(userGroupAccess.access.roleId) >
-                systemRolesOrder.indexOf(organizationRole || 'member')
-        ) {
-            return {
-                highestRole: userGroupAccess.access.roleId,
-                highestRoleType: `Group ${userGroupAccess.group.name}`,
-            };
-        }
-        return {
-            highestRole: organizationRole,
-            highestRoleType: 'Organization',
-        };
-    }, [userGroupAccess, organizationRole]);
+        // start with organization role as baseline
+        let bestRole = organizationRole || 'member';
+        let bestSource: string = 'Organization';
+
+        userGroupAccesses.forEach((uga) => {
+            const roleId = uga.access.roleId;
+            if (
+                systemRolesOrder.indexOf(roleId) >
+                systemRolesOrder.indexOf(bestRole)
+            ) {
+                bestRole = roleId;
+                bestSource = `Group ${uga.group.name}`;
+            }
+        });
+
+        return { highestRole: bestRole, highestRoleType: bestSource };
+    }, [userGroupAccesses, organizationRole]);
 
     // Helper function to get role name from roleId
     const getRoleName = useCallback(
@@ -165,9 +166,9 @@ const ProjectAccessRowV2: FC<Props> = ({
             organizationRole,
             hasProjectRole,
             projectRole: user.projectRole,
-            userGroupAccess,
+            userGroupAccesses,
         });
-    }, [organizationRole, hasProjectRole, user.projectRole, userGroupAccess]);
+    }, [organizationRole, hasProjectRole, user.projectRole, userGroupAccesses]);
 
     const userRoleSummary = useMemo(() => {
         return (
@@ -178,18 +179,18 @@ const ProjectAccessRowV2: FC<Props> = ({
                         {getRoleName(organizationRole || '')}
                     </Text>
                 </Text>
-                {userGroupAccess?.access.roleId ? (
-                    <Text fw={300}>
+                {(userGroupAccesses || []).map((uga) => (
+                    <Text key={uga.group.uuid} fw={300}>
                         Group{' '}
                         <Text fw={600} span>
-                            {userGroupAccess.group.name}
+                            {uga.group.name}
                         </Text>
                         :{' '}
                         <Text fw={600} span>
-                            {userGroupAccess.roleName}
+                            {uga.roleName}
                         </Text>
                     </Text>
-                ) : null}
+                ))}
                 {hasProjectRole ? (
                     <Text fw={300}>
                         {' '}
@@ -201,7 +202,13 @@ const ProjectAccessRowV2: FC<Props> = ({
                 ) : null}
             </Stack>
         );
-    }, [user, organizationRole, userGroupAccess, hasProjectRole, getRoleName]);
+    }, [
+        user,
+        organizationRole,
+        userGroupAccesses,
+        hasProjectRole,
+        getRoleName,
+    ]);
 
     return (
         <>

@@ -20,7 +20,7 @@ export interface AccessWarningParams {
     organizationRole?: string;
     hasProjectRole: boolean;
     projectRole?: ProjectMemberRole | null;
-    userGroupAccess?: UserGroupAccess | null;
+    userGroupAccesses?: UserGroupAccess[] | null;
 }
 
 /* 
@@ -41,7 +41,7 @@ export const getAccessWarning = ({
     organizationRole,
     hasProjectRole,
     projectRole,
-    userGroupAccess,
+    userGroupAccesses,
 }: AccessWarningParams): ReactNode | undefined => {
     try {
         // Check for organization role warnings (existing logic)
@@ -50,25 +50,41 @@ export const getAccessWarning = ({
         const typedProjectRole = projectRole as ProjectMemberRole;
 
         if (isSystemRole(typedProjectRole)) {
-            // Group role inheritance warning
-            if (
-                userGroupAccess?.access.roleId &&
-                systemRolesOrder.indexOf(userGroupAccess.access.roleId) >
-                    systemRolesOrder.indexOf(typedProjectRole)
-            ) {
-                return (
-                    <Text fw={300}>
-                        User inherits role{' '}
-                        <Text fw={600} span>
-                            {userGroupAccess.roleName}
-                        </Text>{' '}
-                        from group{' '}
-                        <Text fw={600} span>
-                            {userGroupAccess.group.name}
+            // Group role inheritance warning (consider all groups and pick the highest)
+            const groupsWithSystemRoles = (userGroupAccesses || []).filter(
+                (uga) =>
+                    uga.access.roleId &&
+                    isSystemRole(uga.access.roleId as ProjectMemberRole),
+            );
+            if (groupsWithSystemRoles.length > 0) {
+                const bestGroup = groupsWithSystemRoles.reduce((best, curr) => {
+                    const bestIdx = systemRolesOrder.indexOf(
+                        best.access.roleId as string,
+                    );
+                    const currIdx = systemRolesOrder.indexOf(
+                        curr.access.roleId as string,
+                    );
+                    return currIdx > bestIdx ? curr : best;
+                });
+                if (
+                    bestGroup.access.roleId &&
+                    systemRolesOrder.indexOf(bestGroup.access.roleId) >
+                        systemRolesOrder.indexOf(typedProjectRole)
+                ) {
+                    return (
+                        <Text fw={300}>
+                            User inherits role{' '}
+                            <Text fw={600} span>
+                                {bestGroup.roleName}
+                            </Text>{' '}
+                            from group{' '}
+                            <Text fw={600} span>
+                                {bestGroup.group.name}
+                            </Text>
+                            .
                         </Text>
-                        .
-                    </Text>
-                );
+                    );
+                }
             }
 
             // Organization role inheritance warning
@@ -88,24 +104,26 @@ export const getAccessWarning = ({
             }
         }
 
-        // Custom group role warning
-        if (
-            userGroupAccess?.access.roleId &&
-            !isSystemRole(userGroupAccess.access.roleId)
-        ) {
+        // Custom group role warning (if any group has a custom role)
+        const customGroup = (userGroupAccesses || []).find(
+            (uga) =>
+                uga.access.roleId &&
+                !isSystemRole(uga.access.roleId as ProjectMemberRole),
+        );
+        if (customGroup) {
             return (
                 <>
                     <Text fw={300}>
                         This user belongs to a group{' '}
                         <Text fw={600} span>
-                            {userGroupAccess.group.name}
+                            {customGroup.group.name}
                         </Text>{' '}
                     </Text>
                     <Text fw={300}>
                         which has a custom role
                         <Text fw={600} span>
                             {' '}
-                            {userGroupAccess.roleName}
+                            {customGroup.roleName}
                         </Text>{' '}
                         assigned.{' '}
                     </Text>
