@@ -10,6 +10,7 @@ import {
     Paper,
     PasswordInput,
     Stack,
+    Tabs,
     Text,
     Title,
 } from '@mantine/core';
@@ -25,8 +26,9 @@ import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
-import EmbedDashboardsAndChartsForm from './EmbedDashboardsAndChartsForm';
-import EmbedUrlForm from './EmbedUrlForm';
+import EmbedAllowListForm from './EmbedAllowListForm';
+import EmbedPreviewChartForm from './EmbedPreviewChartForm';
+import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
 
 const useEmbedConfig = (projectUuid: string) => {
     return useQuery<DecodedEmbed, ApiError>({
@@ -226,7 +228,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 <Stack spacing="sm" mb="md">
                     <Title order={4}>Allowed dashboards and charts</Title>
                 </Stack>
-                <EmbedDashboardsAndChartsForm
+                <EmbedAllowListForm
                     disabled={isSaving}
                     embedConfig={embedConfig}
                     dashboards={dashboards || []}
@@ -238,11 +240,30 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 <Stack spacing="sm" mb="md">
                     <Title order={4}>Preview & code snippet</Title>
                 </Stack>
-                <EmbedUrlForm
-                    projectUuid={projectUuid}
-                    siteUrl={health.data.siteUrl}
-                    dashboards={allowedDashboards}
-                />
+                <Tabs defaultValue="dashboards" keepMounted>
+                    <Tabs.List>
+                        <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
+                        <Tabs.Tab value="charts">Charts</Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="dashboards">
+                        <Stack mt="md">
+                            <EmbedPreviewDashboardForm
+                                projectUuid={projectUuid}
+                                siteUrl={health.data.siteUrl}
+                                dashboards={allowedDashboards}
+                            />
+                        </Stack>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="charts">
+                        <Stack mt="md">
+                            <EmbedPreviewChartForm
+                                projectUuid={projectUuid}
+                                siteUrl={health.data.siteUrl}
+                                charts={charts || []}
+                            />
+                        </Stack>
+                    </Tabs.Panel>
+                </Tabs>
             </Paper>
         </Stack>
     );

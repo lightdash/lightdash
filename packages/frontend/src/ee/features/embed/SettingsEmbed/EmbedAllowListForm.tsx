@@ -8,7 +8,7 @@ import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { type FC } from 'react';
 
-const EmbedDashboardsAndChartsForm: FC<{
+const EmbedAllowListForm: FC<{
     disabled: boolean;
     embedConfig: DecodedEmbed;
     dashboards: DashboardBasicDetails[];
@@ -90,7 +90,7 @@ const EmbedDashboardsAndChartsForm: FC<{
                         }
                         defaultValue={[]}
                         placeholder={
-                            dashboards.length === 0
+                            charts.length === 0
                                 ? 'No charts available to embed'
                                 : 'Select a chart...'
                         }
@@ -117,4 +117,4 @@ const EmbedDashboardsAndChartsForm: FC<{
     );
 };
 
-export default EmbedDashboardsAndChartsForm;
+export default EmbedAllowListForm;
