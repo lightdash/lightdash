@@ -1,3 +1,127 @@
+## [0.2164.4](https://github.com/lightdash/lightdash/compare/0.2164.3...0.2164.4) (2025-11-12)
+
+
+### Bug Fixes
+
+* show explore error on tile instead of loading ([#18063](https://github.com/lightdash/lightdash/issues/18063)) ([1342d62](https://github.com/lightdash/lightdash/commit/1342d622aa58dc722ac1e8cd4ba9f22e2d064039))
+
+## [0.2164.3](https://github.com/lightdash/lightdash/compare/0.2164.2...0.2164.3) (2025-11-12)
+
+
+### Bug Fixes
+
+* add guards for null values in explore filtering ([#18032](https://github.com/lightdash/lightdash/issues/18032)) ([d48ca79](https://github.com/lightdash/lightdash/commit/d48ca7945c79def20f34a7d34527e327fc270ff7))
+
+## [0.2164.2](https://github.com/lightdash/lightdash/compare/0.2164.1...0.2164.2) (2025-11-12)
+
+
+### Bug Fixes
+
+* skip analytics tracking for zero-score AI agent feedback ([#18038](https://github.com/lightdash/lightdash/issues/18038)) ([8cef549](https://github.com/lightdash/lightdash/commit/8cef549bcd9b647ed645529090798b795ef48a05))
+
+## [0.2164.1](https://github.com/lightdash/lightdash/compare/0.2164.0...0.2164.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* remove JSDoc to fix TSOA ([#18059](https://github.com/lightdash/lightdash/issues/18059)) ([92de768](https://github.com/lightdash/lightdash/commit/92de7683160e75239a47b045d5160d3f9963dff3))
+
+# [0.2164.0](https://github.com/lightdash/lightdash/compare/0.2163.1...0.2164.0) (2025-11-12)
+
+
+### Bug Fixes
+
+* properly close Databricks connection on session creation error ([#18050](https://github.com/lightdash/lightdash/issues/18050)) ([3c811a0](https://github.com/lightdash/lightdash/commit/3c811a0bc707ad471c5deee57c511ef3665e32c4))
+
+
+### Features
+
+* add configurable similarity threshold for verified answers ([#17979](https://github.com/lightdash/lightdash/issues/17979)) ([f861624](https://github.com/lightdash/lightdash/commit/f861624aa87ab3a5cca61ad124afef92a7f6377a))
+
+## [0.2163.1](https://github.com/lightdash/lightdash/compare/0.2163.0...0.2163.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* support multiple group access roles in project access component ([#18020](https://github.com/lightdash/lightdash/issues/18020)) ([27afb5a](https://github.com/lightdash/lightdash/commit/27afb5a4e6d01f37525e8cfc09738a9fc3ec7fa2))
+
+# [0.2163.0](https://github.com/lightdash/lightdash/compare/0.2162.0...0.2163.0) (2025-11-12)
+
+
+### Features
+
+* images in tables ([#18019](https://github.com/lightdash/lightdash/issues/18019)) ([bee7b34](https://github.com/lightdash/lightdash/commit/bee7b34f500881b2d45d23ab7552bcfeef528ad1))
+
+# [0.2162.0](https://github.com/lightdash/lightdash/compare/0.2161.0...0.2162.0) (2025-11-12)
+
+
+### Features
+
+* add timeout to databricks config under feature flag ([#18035](https://github.com/lightdash/lightdash/issues/18035)) ([81c52db](https://github.com/lightdash/lightdash/commit/81c52db076c40fa957400361cb79fde2bf5ff994))
+
+# [0.2161.0](https://github.com/lightdash/lightdash/compare/0.2160.1...0.2161.0) (2025-11-12)
+
+
+### Features
+
+* add "Add to Evals" button for users with manage permission ([#18040](https://github.com/lightdash/lightdash/issues/18040)) ([aae70c1](https://github.com/lightdash/lightdash/commit/aae70c182597d27cdb94a11253d4eabcd830f9a7)), closes [#18039](https://github.com/lightdash/lightdash/issues/18039)
+
+## [0.2160.1](https://github.com/lightdash/lightdash/compare/0.2160.0...0.2160.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* project admins to view organization roles ([#18018](https://github.com/lightdash/lightdash/issues/18018)) ([8e47a1f](https://github.com/lightdash/lightdash/commit/8e47a1f21d2d917901ddeed5e38bb7082dcf0c96))
+
+# [0.2160.0](https://github.com/lightdash/lightdash/compare/0.2159.2...0.2160.0) (2025-11-12)
+
+
+### Features
+
+* add chart embedding support in embed settings ([#17940](https://github.com/lightdash/lightdash/issues/17940)) ([e12ab72](https://github.com/lightdash/lightdash/commit/e12ab72877916047831b1c44c6fc664657a12ee3))
+
+## [0.2159.2](https://github.com/lightdash/lightdash/compare/0.2159.1...0.2159.2) (2025-11-11)
+
+
+### Bug Fixes
+
+* remove hidden fields when findExplores tool call ([#18026](https://github.com/lightdash/lightdash/issues/18026)) ([25f18bc](https://github.com/lightdash/lightdash/commit/25f18bcbd8e102de89a41a77ad9746c1acfb2bf8))
+
+## [0.2159.1](https://github.com/lightdash/lightdash/compare/0.2159.0...0.2159.1) (2025-11-11)
+
+
+### Bug Fixes
+
+* use role value instead of label for project role matching ([#17984](https://github.com/lightdash/lightdash/issues/17984)) ([131edd3](https://github.com/lightdash/lightdash/commit/131edd380818ca226b5452a448c44420ec037ccc))
+
+# [0.2159.0](https://github.com/lightdash/lightdash/compare/0.2158.3...0.2159.0) (2025-11-11)
+
+
+### Features
+
+* add feedback modal for AI agent downvotes in slack ([#17972](https://github.com/lightdash/lightdash/issues/17972)) ([fb83441](https://github.com/lightdash/lightdash/commit/fb83441af0d01b4569bb25b2be17790aa8963156))
+
+## [0.2158.3](https://github.com/lightdash/lightdash/compare/0.2158.2...0.2158.3) (2025-11-11)
+
+
+### Bug Fixes
+
+* new props causing 'save' in existing charts ([#18011](https://github.com/lightdash/lightdash/issues/18011)) ([4d1fd16](https://github.com/lightdash/lightdash/commit/4d1fd16870bdad5614dff15cb1da9e8340e9fcbb))
+
+## [0.2158.2](https://github.com/lightdash/lightdash/compare/0.2158.1...0.2158.2) (2025-11-11)
+
+
+### Bug Fixes
+
+* on new question add proper initialiser ([#18013](https://github.com/lightdash/lightdash/issues/18013)) ([78ee4e5](https://github.com/lightdash/lightdash/commit/78ee4e563eea493e44ca1f51fd54e1256d1296fb))
+
+## [0.2158.1](https://github.com/lightdash/lightdash/compare/0.2158.0...0.2158.1) (2025-11-11)
+
+
+### Bug Fixes
+
+* whitelist charts and dashboards ([#17938](https://github.com/lightdash/lightdash/issues/17938)) ([516ae3f](https://github.com/lightdash/lightdash/commit/516ae3f8b4d2df959ea8924707a3c33d060eee2c))
+
 # [0.2158.0](https://github.com/lightdash/lightdash/compare/0.2157.1...0.2158.0) (2025-11-10)
 
 

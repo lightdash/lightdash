@@ -1,6 +1,7 @@
 import {
     AuthorizationError,
     CompiledDimension,
+    CorruptedExploreError,
     Explore,
     getDimensions,
     UserAttributeValueMap,
@@ -34,13 +35,16 @@ export const hasUserAttributes = (
 };
 
 export const exploreHasFilteredAttribute = (explore: Explore) =>
-    Object.values(explore.tables).some(
-        (table) =>
+    Object.values(explore.tables).some((table) => {
+        if (!table) return false;
+
+        return (
             table.requiredAttributes !== undefined ||
             Object.values(table.dimensions).some(
-                (dimension) => dimension.requiredAttributes !== undefined,
-            ),
-    );
+                (dimension) => dimension?.requiredAttributes !== undefined,
+            )
+        );
+    });
 
 export const doesExploreMatchRequiredAttributes = (
     exploreAttributes:
@@ -55,9 +59,16 @@ export const getFilteredExplore = (
     explore: Explore,
     userAttributes: UserAttributeValueMap,
 ): Explore => {
+    const baseTable = explore.tables[explore.baseTable];
+    if (!baseTable) {
+        throw new CorruptedExploreError(
+            `Explore '${explore.name}' has missing or null base table '${explore.baseTable}'`,
+            { exploreName: explore.name, baseTable: explore.baseTable },
+        );
+    }
     if (
         !doesExploreMatchRequiredAttributes(
-            explore.tables[explore.baseTable].requiredAttributes,
+            baseTable.requiredAttributes,
             userAttributes,
         )
     ) {
@@ -92,6 +103,8 @@ export const getFilteredExplore = (
                     metrics: Object.fromEntries(
                         Object.entries(table.metrics).filter(
                             ([metricName, metric]) => {
+                                if (!metric) return false;
+
                                 const canAccessMetric = hasUserAttributes(
                                     metric.requiredAttributes,
                                     userAttributes,
@@ -112,6 +125,8 @@ export const getFilteredExplore = (
                     dimensions: Object.fromEntries(
                         Object.entries(table.dimensions).filter(
                             ([dimensionName, dimension]) => {
+                                if (!dimension) return false;
+
                                 const canAccessAllTableReferences =
                                     !dimension.tablesReferences ||
                                     dimension.tablesReferences.every(

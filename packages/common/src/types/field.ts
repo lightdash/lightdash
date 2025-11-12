@@ -566,6 +566,9 @@ export interface Dimension extends Field {
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];
+    image?: {
+        url: string;
+    };
 }
 
 type CompiledProperties = {

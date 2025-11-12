@@ -167,7 +167,7 @@ type EmbedJwtContentDashboardSlug = CommonEmbedJwtContent & {
     dashboardSlug: string;
 };
 
-type EmbedJwtContentChart = CommonChartEmbedJwtContent & {
+export type EmbedJwtContentChart = CommonChartEmbedJwtContent & {
     contentId: string;
 };
 

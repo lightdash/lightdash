@@ -1,14 +1,15 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import {
+    buildInitialExplorerState,
     createExplorerStore,
+    explorerActions,
     selectSavedChart,
-    useExplorerInitialization,
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
@@ -26,16 +27,6 @@ const themeOverride: MantineThemeOverride = {
 };
 
 const MinimalExplorerContent = memo(() => {
-    const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
-    const { data } = useSavedQuery({ id: savedQueryUuid });
-
-    // Initialize Redux store
-    useExplorerInitialization({
-        savedChart: data,
-        minimal: true,
-        expandedSections: [ExplorerSection.VISUALIZATION],
-    });
-
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
 
@@ -107,10 +98,23 @@ const MinimalSavedExplorer: FC = () => {
         id: savedQueryUuid,
     });
 
-    // Create a fresh store instance per chart to prevent state leaking between charts
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
+    // Create store once with useState
+    const [store] = useState(() => createExplorerStore());
 
+    // Reset store state when data changes
+    useEffect(() => {
+        if (!data) return;
+
+        const initialState = buildInitialExplorerState({
+            savedChart: data,
+            minimal: true,
+            expandedSections: [ExplorerSection.VISUALIZATION],
+        });
+
+        store.dispatch(explorerActions.reset(initialState));
+    }, [data, store]);
+
+    // Early return if no data yet
     if (isInitialLoading || !data) {
         return null;
     }

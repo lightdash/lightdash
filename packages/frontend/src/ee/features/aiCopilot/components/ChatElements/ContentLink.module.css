@@ -15,3 +15,9 @@
         background-color: var(--mantine-color-gray-1) !important;
     }
 }
+
+.contentLink[data-artifact-active='true'] {
+    background: #f8faff !important;
+    border: 1px solid var(--mantine-color-indigo-1);
+    box-shadow: var(--mantine-shadow-subtle);
+}

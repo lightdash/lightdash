@@ -1,15 +1,15 @@
 import { ChartType, type SavedChart } from '@lightdash/common';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../../../../../components/Explorer';
 import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
 import {
-    explorerStore,
-    useExplorerInitialization,
+    buildInitialExplorerState,
+    createExplorerStore,
 } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
@@ -24,56 +24,8 @@ const themeOverride: MantineThemeOverride = {
     }),
 };
 
-const EmbedExploreContent: FC<{
-    exploreId: string;
-    savedChart: SavedChart;
-}> = ({ exploreId, savedChart }) => {
+const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
     const { data } = useExplore(exploreId);
-
-    // Initialize Redux with embed-specific state
-    useExplorerInitialization({
-        isEditMode: true,
-        expandedSections: [
-            ExplorerSection.FILTERS,
-            ExplorerSection.VISUALIZATION,
-            ExplorerSection.RESULTS,
-        ],
-        initialState: {
-            unsavedChartVersion: {
-                tableName: exploreId,
-                metricQuery: savedChart?.metricQuery || {
-                    exploreName: exploreId,
-                    dimensions: [],
-                    metrics: [],
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                    timezone: undefined,
-                },
-                chartConfig: savedChart?.chartConfig || {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: {
-                            xField: '',
-                            yField: [],
-                        },
-                        eChartsConfig: {
-                            series: [],
-                        },
-                    },
-                },
-                tableConfig: savedChart?.tableConfig || {
-                    columnOrder: [],
-                },
-                pivotConfig: savedChart?.pivotConfig || {
-                    columns: [],
-                },
-            },
-        },
-        defaultLimit: 500,
-    });
 
     // Run the query effects hook
     useExplorerQueryEffects();
@@ -89,6 +41,68 @@ const EmbedExploreContent: FC<{
                 <Explorer />
             </Page>
         </MantineProvider>
+    );
+};
+
+const EmbedExploreContent: FC<{
+    exploreId: string;
+    savedChart: SavedChart;
+}> = ({ exploreId, savedChart }) => {
+    // Create store with embed-specific state
+    // Using useState - store is created once when component mounts
+    // Parent key prop ensures component remounts when exploring different tables
+    const [store] = useState(() => {
+        const initialState = buildInitialExplorerState({
+            isEditMode: true,
+            expandedSections: [
+                ExplorerSection.FILTERS,
+                ExplorerSection.VISUALIZATION,
+                ExplorerSection.RESULTS,
+            ],
+            initialState: {
+                unsavedChartVersion: {
+                    tableName: exploreId,
+                    metricQuery: savedChart?.metricQuery || {
+                        exploreName: exploreId,
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                        additionalMetrics: [],
+                        timezone: undefined,
+                    },
+                    chartConfig: savedChart?.chartConfig || {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: {
+                                xField: '',
+                                yField: [],
+                            },
+                            eChartsConfig: {
+                                series: [],
+                            },
+                        },
+                    },
+                    tableConfig: savedChart?.tableConfig || {
+                        columnOrder: [],
+                    },
+                    pivotConfig: savedChart?.pivotConfig || {
+                        columns: [],
+                    },
+                },
+            },
+            defaultLimit: 500,
+        });
+
+        return createExplorerStore({ explorer: initialState });
+    });
+
+    return (
+        <Provider store={store}>
+            <EmbedExploreView exploreId={exploreId} />
+        </Provider>
     );
 };
 
@@ -132,12 +146,11 @@ const EmbedExplore: FC<Props> = ({
 
     return (
         <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
-            <Provider store={explorerStore} key={`embed-${exploreId}`}>
-                <EmbedExploreContent
-                    exploreId={exploreId}
-                    savedChart={savedChart}
-                />
-            </Provider>
+            <EmbedExploreContent
+                key={`embed-${exploreId}`}
+                exploreId={exploreId}
+                savedChart={savedChart}
+            />
         </div>
     );
 };

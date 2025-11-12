@@ -216,6 +216,9 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;
+const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
+
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
@@ -223,10 +226,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     connectionOptions: ConnectionOptions;
 
+    private readonly enableTimeouts: boolean;
+
     constructor(credentials: CreateDatabricksCredentials) {
         super(credentials, new DatabricksSqlBuilder(credentials.startOfWeek));
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
+        this.enableTimeouts = process.env.DATABRICKS_ENABLE_TIMEOUTS === 'true';
 
         // Build connection options based on authentication type
         if (
@@ -245,6 +251,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 path: credentials.httpPath.startsWith('/')
                     ? credentials.httpPath
                     : `/${credentials.httpPath}`,
+                ...(this.enableTimeouts && {
+                    socketTimeout: DATABRICKS_SOCKET_TIMEOUT_MS,
+                }),
             };
         } else {
             // Default to personal access token authentication
@@ -259,6 +268,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 path: credentials.httpPath.startsWith('/')
                     ? credentials.httpPath
                     : `/${credentials.httpPath}`,
+                ...(this.enableTimeouts && {
+                    socketTimeout: DATABRICKS_SOCKET_TIMEOUT_MS,
+                }),
             };
         }
     }
@@ -270,12 +282,24 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
         try {
             connection = await client.connect(this.connectionOptions);
+        } catch (e: AnyType) {
+            throw new WarehouseConnectionError(getErrorMessage(e));
+        }
 
+        try {
             session = await connection.openSession({
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
         } catch (e: AnyType) {
+            try {
+                await connection.close();
+            } catch (closeError: AnyType) {
+                console.error(
+                    'Error closing connection after session failure',
+                    closeError,
+                );
+            }
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
@@ -319,8 +343,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     },
                 );
             }
+
             query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
+                ...(this.enableTimeouts && {
+                    queryTimeout: DATABRICKS_QUERY_TIMEOUT_SECONDS,
+                }),
                 ordinalParameters: options?.values,
             });
 

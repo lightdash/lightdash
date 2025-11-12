@@ -10,6 +10,7 @@ import {
     Paper,
     PasswordInput,
     Stack,
+    Tabs,
     Text,
     Title,
 } from '@mantine/core';
@@ -23,9 +24,11 @@ import { SettingsGridCard } from '../../../../components/common/Settings/Setting
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
-import EmbedDashboardsForm from './EmbedDashboardsForm';
-import EmbedUrlForm from './EmbedUrlForm';
+import EmbedAllowListForm from './EmbedAllowListForm';
+import EmbedPreviewChartForm from './EmbedPreviewChartForm';
+import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
 
 const useEmbedConfig = (projectUuid: string) => {
     return useQuery<DecodedEmbed, ApiError>({
@@ -75,13 +78,20 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<null, ApiError, UpdateEmbed>(
-        ({ dashboardUuids, allowAllDashboards }: UpdateEmbed) =>
+        ({
+            dashboardUuids,
+            allowAllDashboards,
+            chartUuids,
+            allowAllCharts,
+        }: UpdateEmbed) =>
             lightdashApi<null>({
-                url: `/embed/${projectUuid}/config/dashboards`,
+                url: `/embed/${projectUuid}/config`,
                 method: 'PATCH',
                 body: JSON.stringify({
                     dashboardUuids,
                     allowAllDashboards,
+                    chartUuids,
+                    allowAllCharts,
                 }),
             }),
         {
@@ -110,6 +120,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         undefined,
         true,
     );
+
+    const { isLoading: isLoadingCharts, data: charts } = useCharts(projectUuid);
     const { mutate: createEmbedConfig, isLoading: isCreating } =
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
@@ -128,7 +140,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         );
     }, [dashboards, embedConfig]);
 
-    if (isLoading || isLoadingDashboards || !health.data) {
+    if (isLoading || isLoadingDashboards || isLoadingCharts || !health.data) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading embed config" loading />
@@ -214,12 +226,13 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsGridCard>
             <Paper shadow="sm" withBorder p="md">
                 <Stack spacing="sm" mb="md">
-                    <Title order={4}>Allowed dashboards</Title>
+                    <Title order={4}>Allowed dashboards and charts</Title>
                 </Stack>
-                <EmbedDashboardsForm
+                <EmbedAllowListForm
                     disabled={isSaving}
                     embedConfig={embedConfig}
                     dashboards={dashboards || []}
+                    charts={charts || []}
                     onSave={updateEmbedConfig}
                 />
             </Paper>
@@ -227,11 +240,30 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 <Stack spacing="sm" mb="md">
                     <Title order={4}>Preview & code snippet</Title>
                 </Stack>
-                <EmbedUrlForm
-                    projectUuid={projectUuid}
-                    siteUrl={health.data.siteUrl}
-                    dashboards={allowedDashboards}
-                />
+                <Tabs defaultValue="dashboards" keepMounted>
+                    <Tabs.List>
+                        <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
+                        <Tabs.Tab value="charts">Charts</Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="dashboards">
+                        <Stack mt="md">
+                            <EmbedPreviewDashboardForm
+                                projectUuid={projectUuid}
+                                siteUrl={health.data.siteUrl}
+                                dashboards={allowedDashboards}
+                            />
+                        </Stack>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="charts">
+                        <Stack mt="md">
+                            <EmbedPreviewChartForm
+                                projectUuid={projectUuid}
+                                siteUrl={health.data.siteUrl}
+                                charts={charts || []}
+                            />
+                        </Stack>
+                    </Tabs.Panel>
+                </Tabs>
             </Paper>
         </Stack>
     );

@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useEffect, useMemo } from 'react';
+import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
@@ -8,8 +8,9 @@ import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
+    buildInitialExplorerState,
     createExplorerStore,
-    useExplorerInitialization,
+    explorerActions,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -21,20 +22,9 @@ const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
 );
 
-const SavedExplorerContent = memo<{
-    isEditMode: boolean;
-    defaultLimit?: number;
-}>(({ isEditMode, defaultLimit }) => {
-    const { savedQueryUuid } = useParams<{ savedQueryUuid: string }>();
-    const { data } = useSavedQuery({ id: savedQueryUuid });
-
-    // Initialize Redux store
-    useExplorerInitialization({
-        savedChart: data,
-        isEditMode,
-        expandedSections: [ExplorerSection.VISUALIZATION],
-        defaultLimit,
-    });
+const SavedExplorerContent = memo(() => {
+    const { mode } = useParams<{ mode?: string }>();
+    const isEditMode = mode === 'edit';
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
@@ -73,10 +63,6 @@ const SavedExplorer = () => {
         id: savedQueryUuid,
     });
 
-    // Create a fresh store instance per chart to prevent state leaking between charts
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const store = useMemo(() => createExplorerStore(), [savedQueryUuid]);
-
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
         // so we can show the banner + the user can navigate back to the dashboard easily
@@ -88,23 +74,40 @@ const SavedExplorer = () => {
         }
     }, [data, setDashboardChartInfo]);
 
-    if (isInitialLoading) {
+    // Create store once with useState
+    const [store] = useState(() => createExplorerStore());
+
+    // Reset store state when data/mode changes
+    useEffect(() => {
+        if (!data) return;
+
+        const initialState = buildInitialExplorerState({
+            savedChart: data,
+            isEditMode,
+            expandedSections: [ExplorerSection.VISUALIZATION],
+            defaultLimit: health.data?.query.defaultLimit,
+        });
+
+        store.dispatch(explorerActions.reset(initialState));
+    }, [data, isEditMode, health.data?.query.defaultLimit, store]);
+
+    // Check for error first
+    if (error) {
+        return <ErrorState error={error.error} />;
+    }
+
+    // Early return if no data yet
+    if (isInitialLoading || !data) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />
             </div>
         );
     }
-    if (error) {
-        return <ErrorState error={error.error} />;
-    }
 
     return (
-        <Provider store={store} key={`saved-${savedQueryUuid}-${mode}`}>
-            <SavedExplorerContent
-                isEditMode={isEditMode}
-                defaultLimit={health.data?.query.defaultLimit}
-            />
+        <Provider store={store} key={`saved-${savedQueryUuid}`}>
+            <SavedExplorerContent />
         </Provider>
     );
 };

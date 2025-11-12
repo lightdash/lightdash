@@ -81,6 +81,7 @@ import {
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
@@ -1565,35 +1566,43 @@ export class EmbedService extends BaseService {
     }
 
     async getAccountFromJwt(projectUuid: string, encodedJwt: string) {
-        const embed = await this.getEmbeddingByProjectId(projectUuid);
-        const decodedToken = decodeLightdashJwt(
-            encodedJwt,
-            embed.encodedSecret,
-        );
-        const userAttributesPromise = this.getEmbedUserAttributes(
-            embed.organization.organizationUuid,
-            decodedToken,
-        );
-        const contentPromise = this.getContentUuidFromJwt(
-            decodedToken,
-            projectUuid,
-        );
-        const [content, userAttributes] = await Promise.all([
-            contentPromise,
-            userAttributesPromise,
-        ]);
+        return wrapSentryTransaction(
+            'EmbedService.getAccountFromJwt',
+            { project_uuid: projectUuid },
+            async () => {
+                const embed = await this.getEmbeddingByProjectId(projectUuid);
+                const decodedToken = decodeLightdashJwt(
+                    encodedJwt,
+                    embed.encodedSecret,
+                );
+                const userAttributesPromise = this.getEmbedUserAttributes(
+                    embed.organization.organizationUuid,
+                    decodedToken,
+                );
+                const contentPromise = this.getContentUuidFromJwt(
+                    decodedToken,
+                    projectUuid,
+                );
+                const [content, userAttributes] = await Promise.all([
+                    contentPromise,
+                    userAttributesPromise,
+                ]);
 
-        if (!content.contentUuid) {
-            throw new NotFoundError('Cannot verify JWT. Content ID not found');
-        }
+                if (!content.contentUuid) {
+                    throw new NotFoundError(
+                        'Cannot verify JWT. Content ID not found',
+                    );
+                }
 
-        return fromJwt({
-            decodedToken,
-            source: encodedJwt,
-            embed,
-            contentUuid: content.contentUuid,
-            contentType: content.contentType,
-            userAttributes,
-        });
+                return fromJwt({
+                    decodedToken,
+                    source: encodedJwt,
+                    embed,
+                    contentUuid: content.contentUuid,
+                    contentType: content.contentType,
+                    userAttributes,
+                });
+            },
+        );
     }
 }

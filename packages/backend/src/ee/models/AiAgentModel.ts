@@ -55,6 +55,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
@@ -115,13 +116,17 @@ import {
 
 type Dependencies = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 export class AiAgentModel {
     private database: Knex;
 
+    private lightdashConfig: LightdashConfig;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.lightdashConfig = dependencies.lightdashConfig;
     }
 
     static async withTrx<T>(
@@ -1503,7 +1508,9 @@ export class AiAgentModel {
                 }
 
                 const embeddingJson = JSON.stringify(queryEmbedding);
-                const similarityThreshold = 0.3;
+                const similarityThreshold =
+                    this.lightdashConfig.ai.copilot
+                        .verifiedAnswerSimilarityThreshold;
 
                 const results = await this.database(AiArtifactVersionsTableName)
                     .select(

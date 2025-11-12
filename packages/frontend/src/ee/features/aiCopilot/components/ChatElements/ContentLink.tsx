@@ -9,7 +9,10 @@ import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { setArtifact } from '../../store/aiArtifactSlice';
-import { useAiAgentStoreDispatch } from '../../store/hooks';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import styles from './ContentLink.module.css';
 
 type ContentLinkProps = {
@@ -30,6 +33,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
     agentUuid,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
+    const currentArtifact = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.artifact,
+    );
 
     switch (contentType) {
         case 'dashboard-link':
@@ -145,6 +151,11 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     ? IconLayoutDashboard
                     : IconChartBar;
 
+            const isActive =
+                currentArtifact &&
+                currentArtifact.artifactUuid === artifactUuid &&
+                currentArtifact.versionUuid === versionUuid;
+
             return (
                 <Anchor
                     component="button"
@@ -157,6 +168,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     classNames={{
                         root: styles.contentLink,
                     }}
+                    data-artifact-active={isActive || undefined}
                     onClick={(e) => {
                         e.preventDefault();
                         if (artifactUuid && versionUuid) {

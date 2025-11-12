@@ -8,8 +8,8 @@ import {
     type ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
-    Box,
     Center,
+    Flex,
     Group,
     HoverCard,
     Loader,
@@ -261,23 +261,18 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         }
 
         return (
-            <Stack gap="sm">
-                {/* Actual Visualization */}
-                <Box mih={300}>
-                    <AiVisualizationRenderer
-                        results={queryResults}
-                        queryExecutionHandle={queryExecutionHandle}
-                        chartConfig={visualization}
-                        headerContent={<VisualizationHeaderWithButton />}
-                        onDashboardChartTypeChange={
-                            handleDashboardChartTypeChange
-                        }
-                        onDashboardChartConfigChange={
-                            handleDashboardChartConfigChange
-                        }
-                    />
-                </Box>
-            </Stack>
+            <Flex direction="column" h="100%">
+                <AiVisualizationRenderer
+                    results={queryResults}
+                    queryExecutionHandle={queryExecutionHandle}
+                    chartConfig={visualization}
+                    headerContent={<VisualizationHeaderWithButton />}
+                    onDashboardChartTypeChange={handleDashboardChartTypeChange}
+                    onDashboardChartConfigChange={
+                        handleDashboardChartConfigChange
+                    }
+                />
+            </Flex>
         );
     },
 );

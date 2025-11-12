@@ -139,7 +139,7 @@ export class EmbedController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Patch('/config/dashboards')
     @OperationId('updateEmbeddedDashboards')
-    @Deprecated()
+    @Deprecated() // Use /config endpoint below instead
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,
@@ -158,6 +158,13 @@ export class EmbedController extends BaseController {
         };
     }
 
+    /**
+     * This endpoint is used for updating the embed config for dashboards and charts.
+     * @param req
+     * @param projectUuid
+     * @param body Contains dashboardUuids, allowAllDashboards, chartUuids, allowAllCharts
+     * @returns Empty response with status 'ok'
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Patch('/config')
