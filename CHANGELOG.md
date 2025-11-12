@@ -1,3 +1,10 @@
+## [0.2164.4](https://github.com/lightdash/lightdash/compare/0.2164.3...0.2164.4) (2025-11-12)
+
+
+### Bug Fixes
+
+* show explore error on tile instead of loading ([#18063](https://github.com/lightdash/lightdash/issues/18063)) ([1342d62](https://github.com/lightdash/lightdash/commit/1342d622aa58dc722ac1e8cd4ba9f22e2d064039))
+
 ## [0.2164.3](https://github.com/lightdash/lightdash/compare/0.2164.2...0.2164.3) (2025-11-12)
 
 
