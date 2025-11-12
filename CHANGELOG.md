@@ -1,3 +1,10 @@
+# [0.2163.0](https://github.com/lightdash/lightdash/compare/0.2162.0...0.2163.0) (2025-11-12)
+
+
+### Features
+
+* images in tables ([#18019](https://github.com/lightdash/lightdash/issues/18019)) ([bee7b34](https://github.com/lightdash/lightdash/commit/bee7b34f500881b2d45d23ab7552bcfeef528ad1))
+
 # [0.2162.0](https://github.com/lightdash/lightdash/compare/0.2161.0...0.2162.0) (2025-11-12)
 
 
