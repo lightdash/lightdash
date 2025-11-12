@@ -138,6 +138,7 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
+    getReferencedArtifactsBlocks,
 } from './ai/utils/getSlackBlocks';
 import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
@@ -3078,6 +3079,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             throw new Error('Could not reload slack prompt.');
         }
 
+        // Fetch referenced artifacts for this prompt
+        const referencedArtifactsMap =
+            await this.aiAgentModel.findThreadReferencedArtifacts({
+                promptUuids: [slackPrompt.promptUuid],
+            });
+        const referencedArtifacts =
+            referencedArtifactsMap.get(slackPrompt.promptUuid) ?? [];
+
         await this.slackClient.deleteMessage({
             organizationUuid: slackPrompt.organizationUuid,
             channelId: slackPrompt.slackChannelId,
@@ -3120,6 +3129,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
               )
             : undefined;
 
+        const referencedArtifactsBlocks =
+            agent && referencedArtifacts.length > 0
+                ? getReferencedArtifactsBlocks(
+                      agent.uuid,
+                      slackPrompt.projectUuid,
+                      this.lightdashConfig.siteUrl,
+                      referencedArtifacts,
+                      slackPrompt.threadUuid,
+                      slackPrompt.promptUuid,
+                  )
+                : [];
+
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
         const slackifiedMarkdown = slackifyMarkdown(response);
@@ -3141,6 +3162,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
                 ...exploreBlocks,
                 ...proposeChangeBlocks,
+                ...referencedArtifactsBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
                 ...(historyBlocks || []),
@@ -3279,6 +3301,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleViewArtifact(app: App) {
+        app.action('view_artifact', async ({ ack }) => {
+            await ack();
+            // TODO :: track analytics
         });
     }
 
