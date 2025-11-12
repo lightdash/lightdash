@@ -1,12 +1,7 @@
-import {
-    Paper,
-    SimpleGrid,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { SimpleGrid, Stack, Text } from '@mantine-8/core';
 import shuffle from 'lodash/shuffle';
 import { type FC, useMemo } from 'react';
+import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
 import classes from './SuggestedQuestions.module.css';
 import { getLeastSimilar } from './getLeastSimilar';
 
@@ -48,28 +43,19 @@ export const SuggestedQuestions: FC<SuggestedQuestionsProps> = ({
 
     return (
         <Stack gap="xs">
-            <Text size="sm" c="dimmed" fw={500}>
+            <Text size="xs" c="dimmed" fw={500}>
                 Suggested questions
             </Text>
             <SimpleGrid cols={2} spacing="xs">
                 {selectedQuestions.map((q) => (
-                    <Paper
+                    <PolymorphicPaperButton
                         key={q.uuid}
-                        withBorder
-                        shadow="xs"
-                        radius="md"
                         className={classes.questionCard}
+                        onClick={() => onQuestionClick(q.question)}
+                        disabled={isLoading}
                     >
-                        <UnstyledButton
-                            onClick={() => onQuestionClick(q.question)}
-                            disabled={isLoading}
-                            className={classes.questionButton}
-                        >
-                            <Text size="sm" lh={1.4}>
-                                {q.question}
-                            </Text>
-                        </UnstyledButton>
-                    </Paper>
+                        <Text size="xs">{q.question}</Text>
+                    </PolymorphicPaperButton>
                 ))}
             </SimpleGrid>
         </Stack>
