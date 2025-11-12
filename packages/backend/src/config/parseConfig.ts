@@ -693,6 +693,10 @@ export const getAiConfig = () => ({
     maxQueryLimit:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
         AI_DEFAULT_MAX_QUERY_LIMIT,
+    verifiedAnswerSimilarityThreshold:
+        getFloatFromEnvironmentVariable(
+            'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
+        ) ?? 0.6,
 });
 
 export type LoggingConfig = {

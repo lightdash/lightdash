@@ -322,7 +322,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            aiAgentModel: ({ database }) => new AiAgentModel({ database }),
+            aiAgentModel: ({ database }) =>
+                new AiAgentModel({ database, lightdashConfig }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
