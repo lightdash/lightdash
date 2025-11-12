@@ -277,6 +277,7 @@ export class MicrosoftTeamsClient {
         ctaUrl,
         csvUrls,
         footer,
+        failures,
     }: {
         webhookUrl: string;
         title: string;
@@ -285,11 +286,82 @@ export class MicrosoftTeamsClient {
         ctaUrl: string;
         csvUrls: AttachmentUrl[];
         footer: string;
+        failures?: { chartName: string; error: string }[];
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
         Logger.info(`Sending chart CSV to Microsoft Teams via webhook`);
+
+        const getFailureBlocks = (): {
+            type: string;
+            style: string;
+            items: {
+                type: string;
+                text: string;
+                weight?: string;
+                color?: string;
+                wrap: boolean;
+                spacing?: string;
+            }[];
+        }[] => {
+            if (!failures || failures.length === 0) {
+                return [];
+            }
+
+            const allChartsFailed = csvUrls.length === 0;
+            if (allChartsFailed) {
+                return [
+                    {
+                        type: 'Container',
+                        style: 'attention',
+                        items: [
+                            {
+                                type: 'TextBlock',
+                                text: '❌ **Error: All charts in this scheduled delivery failed to export**',
+                                weight: 'Bolder',
+                                color: 'Attention',
+                                wrap: true,
+                            },
+                            {
+                                type: 'TextBlock',
+                                text: 'No data could be exported from this dashboard. Please check the errors below and verify your data model.',
+                                wrap: true,
+                                spacing: 'Small',
+                            },
+                            ...failures.map((f) => ({
+                                type: 'TextBlock',
+                                text: `- **${f.chartName}:** ${f.error}`,
+                                wrap: true,
+                                spacing: 'None',
+                            })),
+                        ],
+                    },
+                ];
+            }
+
+            return [
+                {
+                    type: 'Container',
+                    style: 'warning',
+                    items: [
+                        {
+                            type: 'TextBlock',
+                            text: `⚠️ **Warning:** ${failures.length} chart(s) failed to export`,
+                            weight: 'Bolder',
+                            color: 'Warning',
+                            wrap: true,
+                        },
+                        ...failures.map((f) => ({
+                            type: 'TextBlock',
+                            text: `- **${f.chartName}:** ${f.error}`,
+                            wrap: true,
+                            spacing: 'None',
+                        })),
+                    ],
+                },
+            ];
+        };
 
         // https://adaptivecards.io/explorer/
         const payload = {
@@ -326,16 +398,21 @@ export class MicrosoftTeamsClient {
                                   ]
                                 : []),
 
-                            {
-                                type: 'TextBlock',
-                                text: 'Download results:',
-                            },
-                            ...csvUrls.map((csvUrl) => ({
-                                type: 'TextBlock',
-                                text: `- [${csvUrl.filename}](${csvUrl.path})`,
-                                isSubtle: true,
-                                spacing: 'none',
-                            })),
+                            ...(csvUrls.length > 0
+                                ? [
+                                      {
+                                          type: 'TextBlock',
+                                          text: 'Download results:',
+                                      },
+                                      ...csvUrls.map((csvUrl) => ({
+                                          type: 'TextBlock',
+                                          text: `- [${csvUrl.filename}](${csvUrl.path})`,
+                                          isSubtle: true,
+                                          spacing: 'none',
+                                      })),
+                                  ]
+                                : []),
+                            ...getFailureBlocks(),
                             {
                                 type: 'TextBlock',
                                 text: footer,
