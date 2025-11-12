@@ -282,12 +282,24 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
         try {
             connection = await client.connect(this.connectionOptions);
+        } catch (e: AnyType) {
+            throw new WarehouseConnectionError(getErrorMessage(e));
+        }
 
+        try {
             session = await connection.openSession({
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
         } catch (e: AnyType) {
+            try {
+                await connection.close();
+            } catch (closeError: AnyType) {
+                console.error(
+                    'Error closing connection after session failure',
+                    closeError,
+                );
+            }
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
