@@ -15,7 +15,7 @@ export const oauthPageStyles = `
     }
     .container {
         background: white;
-        border-radius: 4px;
+        border-radius: 8px;
         border: 1px solid #e9ecef;
         box-shadow: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
         padding: 24px;
@@ -52,7 +52,7 @@ export const oauthPageStyles = `
         color: #111418;
     }
     .error .icon {
-        color: #ef4444;
+        color: #6c757d;
     }
     .stack {
         display: flex;
@@ -114,26 +114,30 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             .oauth-btn-row { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
             .oauth-btn {
                 padding: 8px 24px;
-                border: none;
-                border-radius: 4px;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
                 font-weight: 500;
                 font-size: 14px;
                 cursor: pointer;
-                transition: background 0.15s;
+                transition: background 0.15s, border-color 0.15s;
             }
             .oauth-btn.approve {
                 background: #111418;
                 color: #fff;
+                border-color: #111418;
             }
             .oauth-btn.approve:hover {
                 background: #2c2e33;
+                border-color: #2c2e33;
             }
             .oauth-btn.deny {
-                background: #E03131;
-                color: #fff;
+                background: transparent;
+                color: #111418;
+                border-color: #e9ecef;
             }
             .oauth-btn.deny:hover {
-                background: #B32525;
+                background: #f8fafc;
+                border-color: #dee2e6;
             }
         </style>
     </head>
