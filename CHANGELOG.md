@@ -1,3 +1,10 @@
+# [0.2160.0](https://github.com/lightdash/lightdash/compare/0.2159.2...0.2160.0) (2025-11-12)
+
+
+### Features
+
+* add chart embedding support in embed settings ([#17940](https://github.com/lightdash/lightdash/issues/17940)) ([e12ab72](https://github.com/lightdash/lightdash/commit/e12ab72877916047831b1c44c6fc664657a12ee3))
+
 ## [0.2159.2](https://github.com/lightdash/lightdash/compare/0.2159.1...0.2159.2) (2025-11-11)
 
 
