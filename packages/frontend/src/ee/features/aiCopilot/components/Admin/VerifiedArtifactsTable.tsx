@@ -236,6 +236,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         enableBottomToolbar: true,
         enableTopToolbar: false,
         enableRowSelection: false,
+        enableStickyHeader: true,
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => onArtifactSelect(row.original),
             style: {
@@ -250,6 +251,16 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             isLoading,
             showProgressBars: isFetchingNextPage,
         },
+        mantinePaperProps: {
+            shadow: undefined,
+            style: {
+                border: `1px solid ${theme.colors.gray[2]}`,
+                borderRadius: theme.spacing.sm,
+                boxShadow: theme.shadows.subtle,
+                display: 'flex',
+                flexDirection: 'column',
+            },
+        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100vh - 200px)' },
             onScroll: (event: React.UIEvent<HTMLDivElement>) => {
@@ -263,6 +274,54 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                     void fetchNextPage();
                 }
             },
+        },
+        mantineTableProps: {
+            highlightOnHover: true,
+            withColumnBorders: Boolean(artifacts.length),
+        },
+        mantineTableHeadCellProps: (props) => {
+            const isFirstColumn =
+                props.table.getAllColumns().indexOf(props.column) === 0;
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    userSelect: 'none',
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${
+                              isLastColumn || isFirstColumn
+                                  ? 'transparent'
+                                  : theme.colors.gray[2]
+                          }`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                },
+            };
+        },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+            },
+        },
+        mantineTableBodyCellProps: () => {
+            return {
+                h: 48,
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                    borderRight: 'none',
+                    borderLeft: 'none',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                },
+            };
         },
         renderBottomToolbar: () => (
             <Box

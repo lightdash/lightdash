@@ -9,13 +9,18 @@ import {
     Loader,
     Paper,
     Stack,
-    Table,
     Text,
     Title,
     Tooltip,
+    useMantineTheme,
 } from '@mantine-8/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import {
+    MantineReactTable,
+    useMantineReactTable,
+    type MRT_ColumnDef,
+} from 'mantine-react-table';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -33,81 +38,6 @@ type Props = {
     runUuid: string;
 };
 
-type PromptRowProps = {
-    result: AiAgentEvaluationRunResult;
-    index: number;
-    onViewThread: (result: AiAgentEvaluationRunResult) => void;
-    selected?: boolean;
-};
-
-const PromptRow: FC<PromptRowProps> = ({
-    result,
-    index,
-    onViewThread,
-    selected,
-}) => {
-    const statusStyle = statusConfig[result.status];
-    const promptText = result.prompt || `Prompt ${index + 1}`;
-    const isEvalRunning = isRunning(result.status);
-    const isClickable = !isEvalRunning && result.threadUuid;
-    const assessmentConfig = getAssessmentConfig(result.assessment?.passed);
-
-    const handleRowClick = () => {
-        if (isClickable) {
-            onViewThread(result);
-        }
-    };
-
-    return (
-        <Table.Tr
-            style={{
-                cursor: isClickable ? 'pointer' : 'default',
-            }}
-            onClick={handleRowClick}
-            {...(selected ? { bg: 'gray.2' } : {})}
-        >
-            <Table.Td>
-                <Text size="sm" fw={500} c="dimmed">
-                    {index + 1}
-                </Text>
-            </Table.Td>
-            <Table.Td maw="300px">
-                <Text size="sm" title={promptText} truncate>
-                    {promptText}
-                </Text>
-            </Table.Td>
-            <Table.Td>
-                <Tooltip
-                    label={result.errorMessage}
-                    disabled={result.status !== 'failed'}
-                >
-                    <Text c={statusStyle.color}>
-                        <MantineIcon
-                            icon={isEvalRunning ? IconPoint : IconPointFilled}
-                        />
-                    </Text>
-                </Tooltip>
-            </Table.Td>
-
-            <Table.Td>
-                {isEvalRunning ? (
-                    <Badge w={68} variant="white" color="gray">
-                        {result.status === 'assessing' ? (
-                            <Loader size={12} color="gray" />
-                        ) : (
-                            <>...</>
-                        )}
-                    </Badge>
-                ) : (
-                    <Badge color={assessmentConfig.color} variant="white">
-                        {assessmentConfig.label}
-                    </Badge>
-                )}
-            </Table.Td>
-        </Table.Tr>
-    );
-};
-
 export const EvalRunDetails: FC<Props> = ({
     projectUuid,
     agentUuid,
@@ -115,6 +45,7 @@ export const EvalRunDetails: FC<Props> = ({
     runUuid,
 }) => {
     const navigate = useNavigate();
+    const theme = useMantineTheme();
     const { setSelectedThreadUuid, selectedThreadUuid } =
         useEvalSectionContext();
 
@@ -174,6 +105,180 @@ export const EvalRunDetails: FC<Props> = ({
             total: runData.results.length,
         };
     }, [runData?.results]);
+
+    const columns: MRT_ColumnDef<AiAgentEvaluationRunResult>[] = useMemo(
+        () => [
+            {
+                accessorKey: 'index',
+                header: '#',
+                enableSorting: false,
+                size: 60,
+                Cell: ({ row }) => (
+                    <Text fz="sm" fw={500} c="dimmed">
+                        {row.index + 1}
+                    </Text>
+                ),
+            },
+            {
+                accessorKey: 'prompt',
+                header: 'Prompt',
+                enableSorting: false,
+                size: 300,
+                Cell: ({ row }) => {
+                    const promptText =
+                        row.original.prompt || `Prompt ${row.index + 1}`;
+                    return (
+                        <Text fz="sm" title={promptText} truncate maw={300}>
+                            {promptText}
+                        </Text>
+                    );
+                },
+            },
+            {
+                accessorKey: 'status',
+                header: 'Eval Status',
+                enableSorting: false,
+                size: 115,
+                Cell: ({ row }) => {
+                    const result = row.original;
+                    const statusStyle = statusConfig[result.status];
+                    const isEvalRunning = isRunning(result.status);
+                    return (
+                        <Tooltip
+                            label={result.errorMessage}
+                            disabled={result.status !== 'failed'}
+                        >
+                            <Text c={statusStyle.color}>
+                                <MantineIcon
+                                    icon={
+                                        isEvalRunning
+                                            ? IconPoint
+                                            : IconPointFilled
+                                    }
+                                />
+                            </Text>
+                        </Tooltip>
+                    );
+                },
+            },
+            {
+                accessorKey: 'assessment',
+                header: 'Assessment',
+                enableSorting: false,
+                size: 120,
+                Cell: ({ row }) => {
+                    const result = row.original;
+                    const isEvalRunning = isRunning(result.status);
+                    const assessmentConfig = getAssessmentConfig(
+                        result.assessment?.passed,
+                    );
+                    return isEvalRunning ? (
+                        <Badge w={68} variant="white" color="gray">
+                            {result.status === 'assessing' ? (
+                                <Loader size={12} color="gray" />
+                            ) : (
+                                <>...</>
+                            )}
+                        </Badge>
+                    ) : (
+                        <Badge color={assessmentConfig.color} variant="white">
+                            {assessmentConfig.label}
+                        </Badge>
+                    );
+                },
+            },
+        ],
+        [],
+    );
+
+    const table = useMantineReactTable({
+        columns,
+        data: runData?.results ?? [],
+        enableSorting: false,
+        enableColumnActions: false,
+        enablePagination: false,
+        enableBottomToolbar: false,
+        enableTopToolbar: false,
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        mantineTableBodyRowProps: ({ row }) => {
+            const result = row.original;
+            const isEvalRunning = isRunning(result.status);
+            const isClickable = !isEvalRunning && result.threadUuid;
+            const selected = result.threadUuid === selectedThreadUuid;
+
+            return {
+                onClick: () => {
+                    if (isClickable) {
+                        handleViewThread(result);
+                    }
+                },
+                style: {
+                    cursor: isClickable ? 'pointer' : 'default',
+                    backgroundColor: selected
+                        ? 'var(--mantine-color-gray-1)'
+                        : undefined,
+                },
+            };
+        },
+        state: {
+            isLoading,
+        },
+        mantinePaperProps: {
+            shadow: undefined,
+            style: {
+                border: 'none',
+            },
+        },
+        mantineTableProps: {
+            highlightOnHover: true,
+            withColumnBorders: Boolean(runData?.results?.length),
+        },
+        mantineTableHeadCellProps: (props) => {
+            const isFirstColumn =
+                props.table.getAllColumns().indexOf(props.column) === 0;
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    userSelect: 'none',
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${
+                              isLastColumn || isFirstColumn
+                                  ? 'transparent'
+                                  : theme.colors.gray[2]
+                          }`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                },
+            };
+        },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+            },
+        },
+        mantineTableBodyCellProps: () => {
+            return {
+                h: 48,
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                    borderRight: 'none',
+                    borderLeft: 'none',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                },
+            };
+        },
+    });
 
     if (isLoading) {
         return (
@@ -264,40 +369,18 @@ export const EvalRunDetails: FC<Props> = ({
 
                 <Divider />
                 <Box>
-                    <Table highlightOnHover>
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th miw={30}>#</Table.Th>
-                                <Table.Th>Prompt</Table.Th>
-                                <Table.Th miw={115}>Eval Status</Table.Th>
-                                <Table.Th miw={120}>Assessment</Table.Th>
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {runData.results.map((result, index) => (
-                                <PromptRow
-                                    key={result.resultUuid}
-                                    result={result}
-                                    index={index}
-                                    onViewThread={handleViewThread}
-                                    selected={
-                                        result.threadUuid === selectedThreadUuid
-                                    }
-                                />
-                            ))}
-                        </Table.Tbody>
-                    </Table>
-                    <Divider />
-
-                    <Group justify="flex-end" pr="sm" py="sm">
-                        {summaryStats && (
-                            <Text size="xs" fw={500} fs="italic" c="dimmed">
-                                {summaryStats.completed + summaryStats.failed} /{' '}
-                                {summaryStats.total} completed
-                            </Text>
-                        )}
-                    </Group>
+                    <MantineReactTable table={table} />
                 </Box>
+                <Divider />
+
+                <Group justify="flex-end" pr="sm" py="sm">
+                    {summaryStats && (
+                        <Text size="xs" fw={500} fs="italic" c="dimmed">
+                            {summaryStats.completed + summaryStats.failed} /{' '}
+                            {summaryStats.total} completed
+                        </Text>
+                    )}
+                </Group>
             </Paper>
 
             {(!runData.results || runData.results.length === 0) && (
