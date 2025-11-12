@@ -1,3 +1,10 @@
+## [0.2163.1](https://github.com/lightdash/lightdash/compare/0.2163.0...0.2163.1) (2025-11-12)
+
+
+### Bug Fixes
+
+* support multiple group access roles in project access component ([#18020](https://github.com/lightdash/lightdash/issues/18020)) ([27afb5a](https://github.com/lightdash/lightdash/commit/27afb5a4e6d01f37525e8cfc09738a9fc3ec7fa2))
+
 # [0.2163.0](https://github.com/lightdash/lightdash/compare/0.2162.0...0.2163.0) (2025-11-12)
 
 
