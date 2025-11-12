@@ -74,7 +74,7 @@ type FormValues = {
     canViewUnderlyingData?: boolean;
 } & IntrinsicUserAttributes;
 
-const EmbedUrlForm: FC<{
+const EmbedPreviewDashboardForm: FC<{
     projectUuid: string;
     siteUrl: string;
     dashboards: DashboardBasicDetails[];
@@ -372,4 +372,4 @@ const EmbedUrlForm: FC<{
     );
 };
 
-export default EmbedUrlForm;
+export default EmbedPreviewDashboardForm;
