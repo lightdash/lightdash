@@ -1,3 +1,15 @@
+# [0.2164.0](https://github.com/lightdash/lightdash/compare/0.2163.1...0.2164.0) (2025-11-12)
+
+
+### Bug Fixes
+
+* properly close Databricks connection on session creation error ([#18050](https://github.com/lightdash/lightdash/issues/18050)) ([3c811a0](https://github.com/lightdash/lightdash/commit/3c811a0bc707ad471c5deee57c511ef3665e32c4))
+
+
+### Features
+
+* add configurable similarity threshold for verified answers ([#17979](https://github.com/lightdash/lightdash/issues/17979)) ([f861624](https://github.com/lightdash/lightdash/commit/f861624aa87ab3a5cca61ad124afef92a7f6377a))
+
 ## [0.2163.1](https://github.com/lightdash/lightdash/compare/0.2163.0...0.2163.1) (2025-11-12)
 
 
