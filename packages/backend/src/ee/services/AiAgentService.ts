@@ -1522,16 +1522,18 @@ export class AiAgentService {
         humanScore: number,
         humanFeedback?: string | null,
     ) {
-        this.analytics.track<AiAgentPromptFeedbackEvent>({
-            event: 'ai_agent_prompt.feedback',
-            userId: user.userUuid,
-            properties: {
-                organizationId: user.organizationUuid,
-                humanScore,
-                messageId: messageUuid,
-                context: 'web_app',
-            },
-        });
+        if (humanScore !== 0) {
+            this.analytics.track<AiAgentPromptFeedbackEvent>({
+                event: 'ai_agent_prompt.feedback',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    humanScore,
+                    messageId: messageUuid,
+                    context: 'web_app',
+                },
+            });
+        }
 
         await this.aiAgentModel.updateHumanScore({
             promptUuid: messageUuid,
