@@ -210,6 +210,8 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -235,6 +237,7 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
@@ -931,6 +934,7 @@ export class AiAgentService {
             instruction: body.instruction,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             enableReasoning: body.enableReasoning,
@@ -990,6 +994,7 @@ export class AiAgentService {
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             enableReasoning: body.enableReasoning,
@@ -2553,8 +2558,30 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         allContent,
                     );
 
+                const agentSettings = await this.getAgentSettings(user, prompt);
+                if (
+                    !agentSettings.spaceAccess ||
+                    agentSettings.spaceAccess.length === 0
+                ) {
+                    return {
+                        content: filteredResults,
+                    };
+                }
+
+                const contentWithRoots = await Promise.all(
+                    filteredResults.map(async (item) => {
+                        const rootSpaceUuid =
+                            await this.spaceModel.getSpaceRoot(item.spaceUuid);
+                        return { item, rootSpaceUuid };
+                    }),
+                );
+
                 return {
-                    content: filteredResults,
+                    content: contentWithRoots
+                        .filter(({ rootSpaceUuid }) =>
+                            agentSettings.spaceAccess.includes(rootSpaceUuid),
+                        )
+                        .map(({ item }) => item),
                 };
             });
 

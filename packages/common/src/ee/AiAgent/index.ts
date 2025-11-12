@@ -67,6 +67,7 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableReasoning: z.boolean(),
@@ -89,6 +90,7 @@ export type AiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableReasoning'
@@ -109,6 +111,7 @@ export type AiAgentSummary = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableReasoning'
@@ -207,6 +210,7 @@ export type ApiCreateAiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableReasoning'
@@ -224,6 +228,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'imageUrl'
         | 'groupAccess'
         | 'userAccess'
+        | 'spaceAccess'
         | 'enableDataAccess'
         | 'enableSelfImprovement'
         | 'enableReasoning'
