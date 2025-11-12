@@ -108,10 +108,58 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
         <title>Authorize Application</title>
         <style>
             {{{styles}}}
-            .container, .container p, .container strong, .container form { text-align: center; }
-            .container p { margin-left: auto; margin-right: auto; }
-            .oauth-desc { margin-bottom: 18px; color: #374151; font-size: 12px; }
-            .oauth-btn-row { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
+            .container { text-align: left; }
+            .oauth-header {
+                text-align: center;
+                margin-bottom: 24px;
+            }
+            .oauth-message {
+                text-align: center;
+                margin-bottom: 24px;
+                font-size: 14px;
+                color: #111418;
+            }
+            .oauth-message strong {
+                font-weight: 600;
+            }
+            .oauth-scopes {
+                border-top: 1px solid #e9ecef;
+                padding-top: 16px;
+                margin-bottom: 16px;
+            }
+            .oauth-scope-item {
+                display: flex;
+                gap: 12px;
+                padding: 12px 0;
+                border-bottom: 1px solid #f8fafc;
+            }
+            .oauth-scope-icon {
+                flex-shrink: 0;
+                width: 16px;
+                height: 16px;
+                margin-top: 2px;
+            }
+            .oauth-scope-content {
+                flex: 1;
+            }
+            .oauth-scope-title {
+                font-weight: 500;
+                color: #111418;
+                margin-bottom: 4px;
+            }
+            .oauth-scope-desc {
+                font-size: 12px;
+                color: #6c757d;
+                line-height: 1.4;
+            }
+            .oauth-btn-row {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                margin-top: 24px;
+                padding-top: 16px;
+                border-top: 1px solid #e9ecef;
+            }
             .oauth-btn {
                 padding: 8px 24px;
                 border: 1px solid #e9ecef;
@@ -144,26 +192,37 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
     <body>
         <div class="stack">
             <form class="container" method="POST" action="{{action}}">
-                {{{logo}}}
-                <h1>Authorize Application</h1>
-                <p class="oauth-desc">
-                    You are about to grant access to your Lightdash account using OAuth.<br/>
-                    This is a secure way to let trusted applications access your account without sharing your password.<br/>
-                    Approving will allow the client below to perform actions on your behalf, according to the requested permissions.
+                <div class="oauth-header">
+                    {{{logo}}}
+                    <h1>Authorize Application</h1>
+                </div>
+
+                <p class="oauth-message">
+                    <strong>{{client_name}}</strong> wants to access your Lightdash account <strong>{{user.firstName}} {{user.lastName}}</strong>
                 </p>
-                <p>Client: <b>{{client_id}}</b></p>
-                <p>Scope: <b>{{scope}}</b></p>
-                
+
+                <div class="oauth-scopes">
+                    {{#each scopes}}
+                    <div class="oauth-scope-item">
+                        <svg class="oauth-scope-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0z"/>
+                            <path d="M11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                        </svg>
+                        <div class="oauth-scope-content">
+                            <div class="oauth-scope-title">{{title}}</div>
+                            <div class="oauth-scope-desc">{{description}}</div>
+                        </div>
+                    </div>
+                    {{/each}}
+                </div>
+
                 {{#each hiddenInputs}}
                 <input type="hidden" name="{{name}}" value="{{value}}" />
                 {{/each}}
-                
-                <p>Authenticate as user: <b>{{user.firstName}} {{user.lastName}}</b></p>
-                <p>on organization: <b>{{user.organizationName}}</b></p>
 
                 <div class="oauth-btn-row">
-                    <button type="submit" name="approve" value="true" class="oauth-btn approve">Approve</button>
-                    <button type="submit" name="approve" value="false" class="oauth-btn deny">Deny</button>
+                    <button type="submit" name="approve" value="true" class="oauth-btn approve">Authorize</button>
+                    <button type="submit" name="approve" value="false" class="oauth-btn deny">Cancel</button>
                 </div>
             </form>
         </div>
@@ -249,10 +308,17 @@ export interface OAuthUser {
     organizationName: string;
 }
 
+export interface OAuthScope {
+    title: string;
+    description: string;
+}
+
 export interface OAuthAuthorizeParams {
     action: string;
     client_id: string;
+    client_name: string;
     scope: string;
+    scopes: OAuthScope[];
     user: OAuthUser;
     hiddenInputs: OAuthHiddenInput[];
 }
@@ -261,6 +327,52 @@ export interface OAuthRedirectParams {
     redirectUrl: string;
     message: string;
 }
+
+// Scope descriptions mapping
+const SCOPE_DESCRIPTIONS: Record<string, OAuthScope> = {
+    read: {
+        title: 'Read access',
+        description:
+            'View your projects, dashboards, charts, and other resources',
+    },
+    write: {
+        title: 'Write access',
+        description:
+            'Create, update, and delete projects, dashboards, charts, and other resources',
+    },
+    'mcp:read': {
+        title: 'MCP read access',
+        description: 'Read access through Model Context Protocol',
+    },
+    'mcp:write': {
+        title: 'MCP write access',
+        description: 'Write access through Model Context Protocol',
+    },
+};
+
+/**
+ * Parses a scope string (e.g. "read write") and returns an array of scope objects with descriptions
+ */
+export const parseScopeString = (scopeString: string): OAuthScope[] => {
+    if (!scopeString || typeof scopeString !== 'string') {
+        return [];
+    }
+
+    const scopes = scopeString.trim().split(/\s+/);
+    return scopes
+        .map((scope) => SCOPE_DESCRIPTIONS[scope])
+        .filter((scope): scope is OAuthScope => scope !== undefined);
+};
+
+/**
+ * Gets a friendly client name from the client_id
+ */
+export const getClientName = (clientId: string): string => {
+    const clientNames: Record<string, string> = {
+        'lightdash-cli': 'Lightdash CLI tool',
+    };
+    return clientNames[clientId] || clientId;
+};
 
 /**
  * Generates an OAuth response HTML page using Handlebars templating
