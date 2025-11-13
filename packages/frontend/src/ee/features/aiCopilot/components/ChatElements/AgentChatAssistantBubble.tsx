@@ -88,7 +88,7 @@ const AssistantBubbleContent: FC<{
         !isPending &&
         message.referencedArtifacts &&
         message.referencedArtifacts.length > 0
-            ? `\n\nReferenced artifacts: ${message.referencedArtifacts
+            ? `\n\nReferenced answers: ${message.referencedArtifacts
                   .map(
                       (artifact) =>
                           `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,

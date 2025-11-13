@@ -226,7 +226,7 @@ export const AiAgentFormSetup = ({
                                     style={{ flexGrow: 1 }}
                                     variant="subtle"
                                 />
-                                <Tooltip label="Agents can only be created in the context the current project">
+                                <Tooltip label="Agents can only be created within the context of the current project.">
                                     <TextInput
                                         label="Project"
                                         placeholder="Enter a project"
