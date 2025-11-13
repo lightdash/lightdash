@@ -1,3 +1,10 @@
+## [0.2165.1](https://github.com/lightdash/lightdash/compare/0.2165.0...0.2165.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* respect series order from the echartsConfig ([#18079](https://github.com/lightdash/lightdash/issues/18079)) ([9d8789f](https://github.com/lightdash/lightdash/commit/9d8789f0589b96761b76ddd3fec1a81d70e72e4a))
+
 # [0.2165.0](https://github.com/lightdash/lightdash/compare/0.2164.5...0.2165.0) (2025-11-13)
 
 
