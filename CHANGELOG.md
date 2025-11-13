@@ -1,3 +1,10 @@
+## [0.2166.1](https://github.com/lightdash/lightdash/compare/0.2166.0...0.2166.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* get whole height on thread preview eval ([#18071](https://github.com/lightdash/lightdash/issues/18071)) ([65d1db8](https://github.com/lightdash/lightdash/commit/65d1db867c55419f40aa88a387b4a9703cc387fd))
+
 # [0.2166.0](https://github.com/lightdash/lightdash/compare/0.2165.1...0.2166.0) (2025-11-13)
 
 
