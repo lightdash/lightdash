@@ -152,7 +152,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         >
                             <MantineIcon
-                                icon={series.hidden ? IconEye : IconEyeOff}
+                                icon={series.hidden ? IconEyeOff : IconEye}
                             />
                         </ActionIcon>
                     )}
