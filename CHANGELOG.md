@@ -1,3 +1,15 @@
+# [0.2168.0](https://github.com/lightdash/lightdash/compare/0.2167.1...0.2168.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* show drag icon on hover of dashboard tiles ([#18081](https://github.com/lightdash/lightdash/issues/18081)) ([8519931](https://github.com/lightdash/lightdash/commit/8519931bdfb812b4a7d1e3dba50c99dd41e88f69))
+
+
+### Features
+
+* upgrade echarts to v6 ([#17896](https://github.com/lightdash/lightdash/issues/17896)) ([49b4a2c](https://github.com/lightdash/lightdash/commit/49b4a2cff271441622afe081603f4201eb950494)), closes [#8811](https://github.com/lightdash/lightdash/issues/8811)
+
 ## [0.2167.1](https://github.com/lightdash/lightdash/compare/0.2167.0...0.2167.1) (2025-11-13)
 
 
