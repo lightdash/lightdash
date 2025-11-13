@@ -1,3 +1,16 @@
+# [0.2165.0](https://github.com/lightdash/lightdash/compare/0.2164.5...0.2165.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* update tooltip text and rename "Referenced artifacts" to "Referenced answers" ([#18067](https://github.com/lightdash/lightdash/issues/18067)) ([92852b7](https://github.com/lightdash/lightdash/commit/92852b78a3e55e68021deb40c96bedb805f8f991))
+
+
+### Features
+
+* add a page to view a single verified answer from a link ([#18057](https://github.com/lightdash/lightdash/issues/18057)) ([c1de74a](https://github.com/lightdash/lightdash/commit/c1de74ad05e31d34a7256542e3b9e19aca460e97))
+* display referenced artifacts in slack response ([#18058](https://github.com/lightdash/lightdash/issues/18058)) ([c4119a8](https://github.com/lightdash/lightdash/commit/c4119a886bbc0266356501a6ef5300b48b6a72f0))
+
 ## [0.2164.5](https://github.com/lightdash/lightdash/compare/0.2164.4...0.2164.5) (2025-11-12)
 
 
