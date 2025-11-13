@@ -1,0 +1,25 @@
+.selectTrigger {
+    cursor: pointer;
+}
+
+.selectTriggerDisabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.chevron {
+    transition: transform 0.2s ease;
+}
+
+.chevronExpanded {
+    transform: rotate(180deg);
+}
+
+.chevronCollapsed {
+    transform: rotate(0deg);
+}
+
+.treeContainer {
+    max-height: 300px;
+    overflow: auto;
+}
