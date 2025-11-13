@@ -1,3 +1,10 @@
+## [0.2170.2](https://github.com/lightdash/lightdash/compare/0.2170.1...0.2170.2) (2025-11-13)
+
+
+### Bug Fixes
+
+* cartesian charts with sql pivot results not going over reference line ([#18119](https://github.com/lightdash/lightdash/issues/18119)) ([5973c61](https://github.com/lightdash/lightdash/commit/5973c6131442b4721eafbf44e6e6ffe820ee4696)), closes [#18024](https://github.com/lightdash/lightdash/issues/18024)
+
 ## [0.2170.1](https://github.com/lightdash/lightdash/compare/0.2170.0...0.2170.1) (2025-11-13)
 
 
