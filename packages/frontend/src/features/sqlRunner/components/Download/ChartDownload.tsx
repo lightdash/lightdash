@@ -12,11 +12,11 @@ import {
     Text,
 } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
-import { type EChartsInstance } from 'echarts-for-react';
 import { memo, useState } from 'react';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';
 import { DownloadType } from '../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { type EChartsInstance } from '../../../../components/EChartsReactWrapper';
 import ExportResults, {
     type ExportResultsProps,
 } from '../../../../components/ExportResults';

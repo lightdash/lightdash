@@ -12,13 +12,13 @@ import {
     Text,
 } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
-import type { EChartsInstance } from 'echarts-for-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
+import type { EChartsInstance } from '../components/EChartsReactWrapper';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';

@@ -58,7 +58,6 @@ import {
     IconTelescope,
     IconVariable,
 } from '@tabler/icons-react';
-import type EChartsReact from 'echarts-for-react';
 import React, {
     useCallback,
     useEffect,
@@ -71,6 +70,7 @@ import React, {
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
+import { type EChartsReact } from '../EChartsReactWrapper';
 
 type ClientSideError = {
     error: {
