@@ -121,7 +121,6 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
-    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
@@ -2354,18 +2353,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 };
             });
 
-        const getExplore: GetExploreFn = (args) =>
-            wrapSentryTransaction('AiAgent.getExplore', args, async () => {
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                return this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.exploreName,
-                );
-            });
-
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('AiAgent.findFields', args, async () => {
                 const userAttributes =
@@ -2431,9 +2418,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 'AiAgent.runMiniMetricQuery',
                 metricQuery,
                 async () => {
-                    const explore = await getExplore({
-                        exploreName: metricQuery.exploreName,
-                    });
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        agentSettings.tags,
+                        metricQuery.exploreName,
+                    );
 
                     const metricQueryFields = [
                         ...metricQuery.dimensions,
@@ -2633,7 +2627,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -2709,7 +2702,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -2759,7 +2751,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             runMiniMetricQuery,
             getPrompt,
             sendFile,

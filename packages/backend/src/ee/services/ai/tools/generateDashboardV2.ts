@@ -7,21 +7,19 @@ import {
 import { tool } from 'ai';
 import type {
     CreateOrUpdateArtifactFn,
-    GetExploreFn,
     GetPromptFn,
 } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
 type Dependencies = {
-    getExplore: GetExploreFn;
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
 
 export const getGenerateDashboardV2 = ({
-    getExplore,
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) =>
@@ -29,8 +27,9 @@ export const getGenerateDashboardV2 = ({
         description: toolDashboardV2ArgsSchema.description,
         inputSchema: toolDashboardV2ArgsSchema,
         outputSchema: toolDashboardV2OutputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs, { experimental_context: context }) => {
             try {
+                const ctx = AgentContext.from(context);
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 
@@ -41,9 +40,9 @@ export const getGenerateDashboardV2 = ({
                 const vizPromises = transformedToolArgs.visualizations.map(
                     async (viz, index) => {
                         try {
-                            const explore = await getExplore({
-                                exploreName: viz.queryConfig.exploreName,
-                            });
+                            const explore = ctx.getExplore(
+                                viz.queryConfig.exploreName,
+                            );
 
                             validateRunQueryTool(viz, explore);
                             validIndices.add(index);

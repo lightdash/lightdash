@@ -25,6 +25,7 @@ import type {
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
+import { AgentContext } from '../utils/AgentContext';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -159,7 +160,6 @@ const getAgentTools = (
     });
 
     const runQuery = getRunQuery({
-        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -171,7 +171,6 @@ const getAgentTools = (
     });
 
     const generateDashboard = getGenerateDashboardV2({
-        getExplore: dependencies.getExplore,
         getPrompt: dependencies.getPrompt,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
     });
@@ -180,7 +179,6 @@ const getAgentTools = (
 
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
-        getExplore: dependencies.getExplore,
         getExploreCompiler: dependencies.getExploreCompiler,
     });
 
@@ -285,7 +283,7 @@ export const generateAgentResponse = async ({
             model: args.model,
             tools,
             messages,
-            experimental_context: { availableExplores },
+            experimental_context: new AgentContext(availableExplores),
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onStepFinish: async (step) => {
                 for (const toolCall of step.toolCalls) {
@@ -450,7 +448,7 @@ export const streamAgentResponse = async ({
             model: args.model,
             tools,
             messages,
-            experimental_context: { availableExplores },
+            experimental_context: new AgentContext(availableExplores),
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
                 // Track time to first chunk (any type) - only once

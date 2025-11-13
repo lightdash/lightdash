@@ -8,7 +8,6 @@ import {
     FindExploresFn,
     FindFieldFn,
     GetExploreCompilerFn,
-    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
@@ -61,7 +60,6 @@ export type AiAgentDependencies = {
     findContent: FindContentFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
-    getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
