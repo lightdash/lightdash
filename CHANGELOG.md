@@ -1,3 +1,10 @@
+# [0.2170.0](https://github.com/lightdash/lightdash/compare/0.2169.1...0.2170.0) (2025-11-13)
+
+
+### Features
+
+* add stricter embed chart permissions ([#18022](https://github.com/lightdash/lightdash/issues/18022)) ([315f897](https://github.com/lightdash/lightdash/commit/315f897caa5e8bf8c88ec365d694469e7f49b40c))
+
 ## [0.2169.1](https://github.com/lightdash/lightdash/compare/0.2169.0...0.2169.1) (2025-11-13)
 
 
