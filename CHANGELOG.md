@@ -1,3 +1,10 @@
+## [0.2169.1](https://github.com/lightdash/lightdash/compare/0.2169.0...0.2169.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* ValidateError returns empty message ([#18110](https://github.com/lightdash/lightdash/issues/18110)) ([262ece9](https://github.com/lightdash/lightdash/commit/262ece979a89f8a0d221e6bbb40ec4b9a38acd05)), closes [#18036](https://github.com/lightdash/lightdash/issues/18036)
+
 # [0.2169.0](https://github.com/lightdash/lightdash/compare/0.2168.0...0.2169.0) (2025-11-13)
 
 
