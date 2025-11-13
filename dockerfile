@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:20-bookworm-slim AS base
+FROM node:22-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -242,7 +242,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:20-bookworm-slim as prod
+FROM node:22-bookworm-slim as prod
 
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
