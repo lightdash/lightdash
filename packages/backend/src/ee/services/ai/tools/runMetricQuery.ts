@@ -13,10 +13,8 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
-import type {
-    GetExploreFn,
-    RunMiniMetricQueryFn,
-} from '../types/aiAgentDependencies';
+import type { RunMiniMetricQueryFn } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -31,13 +29,11 @@ import {
 } from '../utils/validators';
 
 type Dependencies = {
-    getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     maxLimit: number;
 };
 
 export const getRunMetricQuery = ({
-    getExplore,
     runMiniMetricQuery,
     maxLimit,
 }: Dependencies) => {
@@ -89,14 +85,13 @@ export const getRunMetricQuery = ({
         description: toolRunMetricQueryArgsSchema.description,
         inputSchema: toolRunMetricQueryArgsSchema,
         outputSchema: toolRunMetricQueryOutputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs, { experimental_context: context }) => {
             try {
+                const ctx = AgentContext.from(context);
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
-                const explore = await getExplore({
-                    exploreName: vizTool.vizConfig.exploreName,
-                });
+                const explore = ctx.getExplore(vizTool.vizConfig.exploreName);
 
                 validateVizTool(vizTool, explore);
 
