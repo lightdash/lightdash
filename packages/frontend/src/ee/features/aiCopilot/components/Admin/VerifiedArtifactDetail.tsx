@@ -25,8 +25,6 @@ export const VerifiedArtifactDetail: FC = () => {
     );
 
     const versionUuid = searchParams.get('versionUuid');
-    const threadUuid = searchParams.get('threadUuid');
-    const promptUuid = searchParams.get('promptUuid');
 
     const { data: artifactData } = useAiAgentArtifact({
         projectUuid: projectUuid!,
@@ -44,22 +42,13 @@ export const VerifiedArtifactDetail: FC = () => {
     });
 
     useEffect(() => {
-        if (
-            projectUuid &&
-            agentUuid &&
-            artifactUuid &&
-            versionUuid &&
-            threadUuid &&
-            promptUuid
-        ) {
+        if (projectUuid && agentUuid && artifactUuid && versionUuid) {
             dispatch(
                 setArtifact({
                     projectUuid,
                     agentUuid,
                     artifactUuid,
                     versionUuid,
-                    messageUuid: promptUuid,
-                    threadUuid,
                 }),
             );
         }
@@ -67,15 +56,7 @@ export const VerifiedArtifactDetail: FC = () => {
         return () => {
             dispatch(clearArtifact());
         };
-    }, [
-        dispatch,
-        projectUuid,
-        agentUuid,
-        artifactUuid,
-        versionUuid,
-        threadUuid,
-        promptUuid,
-    ]);
+    }, [dispatch, projectUuid, agentUuid, artifactUuid, versionUuid]);
 
     const handleNavigateToVerifiedArtifacts = () => {
         void navigate(

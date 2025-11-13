@@ -1,8 +1,4 @@
-import {
-    type AiAgentMessageAssistant,
-    type AiArtifact,
-    type SavedChart,
-} from '@lightdash/common';
+import { type SavedChart } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -38,6 +34,7 @@ import {
     useSavePromptQuery,
 } from '../../hooks/useProjectAiAgents';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
+import { useAiArtifactPanelContext } from './AiArtifactPanelContext';
 
 type Props = {
     projectUuid: string;
@@ -46,18 +43,15 @@ type Props = {
         description: string | null;
         linkToMessage: boolean;
     };
-    message: AiAgentMessageAssistant;
     compiledSql?: string;
-    artifactData?: AiArtifact;
 };
 
 export const AiChartQuickOptions = ({
     projectUuid,
     saveChartOptions = { name: '', description: '', linkToMessage: true },
-    message,
     compiledSql,
-    artifactData,
 }: Props) => {
+    const { message, artifactData } = useAiArtifactPanelContext();
     const { track } = useTracking();
     const { user } = useApp();
     const { agentUuid } = useParams();
@@ -77,8 +71,8 @@ export const AiChartQuickOptions = ({
     const { mutate: savePromptQuery } = useSavePromptQuery(
         projectUuid,
         agentUuid!,
-        message.threadUuid,
-        message.uuid,
+        message?.threadUuid ?? '',
+        message?.uuid ?? '',
     );
     const { mutate: setVerified } = useSetArtifactVersionVerified(
         projectUuid,
@@ -97,7 +91,7 @@ export const AiChartQuickOptions = ({
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
     const onSaveChart = (savedData: SavedChart) => {
-        if (!saveChartOptions.linkToMessage) {
+        if (!saveChartOptions.linkToMessage || !message) {
             close();
             return;
         }
@@ -158,8 +152,8 @@ export const AiChartQuickOptions = ({
                     organizationId: user.data.organizationUuid,
                     projectId: projectUuid,
                     aiAgentId: agentUuid,
-                    threadId: message.threadUuid,
-                    messageId: message.uuid,
+                    threadId: message?.threadUuid ?? '',
+                    messageId: message?.uuid ?? '',
                     tableName: metricQuery.exploreName,
                 },
             });
@@ -227,27 +221,31 @@ export const AiChartQuickOptions = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
-                    {message.savedQueryUuid ? (
-                        <Menu.Item
-                            component={Link}
-                            to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
-                            target="_blank"
-                            leftSection={
-                                <MantineIcon icon={IconTableShortcut} />
-                            }
-                        >
-                            View saved chart
-                        </Menu.Item>
-                    ) : (
-                        <Menu.Item
-                            onClick={() => open()}
-                            leftSection={
-                                <MantineIcon icon={IconDeviceFloppy} />
-                            }
-                        >
-                            Save
-                        </Menu.Item>
-                    )}
+                    {message ? (
+                        <>
+                            {message.savedQueryUuid ? (
+                                <Menu.Item
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon icon={IconTableShortcut} />
+                                    }
+                                >
+                                    View saved chart
+                                </Menu.Item>
+                            ) : (
+                                <Menu.Item
+                                    onClick={() => open()}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    Save
+                                </Menu.Item>
+                            )}
+                        </>
+                    ) : null}
 
                     <Menu.Item
                         component={Link}

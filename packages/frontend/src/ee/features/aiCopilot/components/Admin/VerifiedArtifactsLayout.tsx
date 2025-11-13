@@ -32,8 +32,6 @@ export const VerifiedArtifactsLayout: FC = () => {
                 agentUuid: agentUuid!,
                 artifactUuid: selectedArtifact.artifactUuid,
                 versionUuid: selectedArtifact.versionUuid,
-                messageUuid: selectedArtifact.promptUuid || '',
-                threadUuid: selectedArtifact.threadUuid,
             }),
         );
     };

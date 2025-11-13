@@ -5,6 +5,7 @@ import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import { AiArtifactPanelProvider } from './AiArtifactPanelContext';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { ChatElementsUtils } from './utils';
@@ -15,8 +16,8 @@ type AiArtifactPanelProps = {
         agentUuid: string;
         artifactUuid: string;
         versionUuid: string;
-        messageUuid: string;
-        threadUuid: string;
+        messageUuid?: string;
+        threadUuid?: string;
     };
     showCloseButton?: boolean;
 };
@@ -34,21 +35,35 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             versionUuid: artifact.versionUuid,
         });
 
+        const hasMessage = !!(artifact.threadUuid && artifact.messageUuid);
+
         const { data: thread } = useAiAgentThread(
             artifact.projectUuid,
             artifact.agentUuid,
-            artifact.threadUuid,
+            artifact.threadUuid ?? '',
+            {
+                enabled: hasMessage,
+            },
         );
 
         const message = useMemo(() => {
-            return thread?.messages.find(
+            if (!thread) return undefined;
+            return thread.messages.find(
                 (msg) =>
                     msg.role === 'assistant' &&
                     msg.uuid === artifact.messageUuid,
             ) as AiAgentMessageAssistant | undefined;
-        }, [thread?.messages, artifact.messageUuid]);
+        }, [thread, artifact.messageUuid]);
 
-        if (isArtifactLoading || !message) {
+        const contextValue = useMemo(
+            () => ({
+                message,
+                artifactData,
+            }),
+            [message, artifactData],
+        );
+
+        if (isArtifactLoading) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Center>
@@ -86,36 +101,38 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         if (artifactData.artifactType === 'dashboard') {
             return (
-                <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                    <Stack gap="md" h="100%">
-                        <AiDashboardVisualization
-                            artifactData={artifactData}
-                            projectUuid={artifact.projectUuid}
-                            agentUuid={artifact.agentUuid}
-                            dashboardConfig={artifactData.dashboardConfig!}
-                            message={message}
-                            showCloseButton={showCloseButton}
-                        />
-                    </Stack>
-                </Box>
+                <AiArtifactPanelProvider value={contextValue}>
+                    <Box {...ChatElementsUtils.centeredElementProps} p="md">
+                        <Stack gap="md" h="100%">
+                            <AiDashboardVisualization
+                                artifactData={artifactData}
+                                projectUuid={artifact.projectUuid}
+                                agentUuid={artifact.agentUuid}
+                                dashboardConfig={artifactData.dashboardConfig!}
+                                showCloseButton={showCloseButton}
+                            />
+                        </Stack>
+                    </Box>
+                </AiArtifactPanelProvider>
             );
         }
 
         // Handle chart artifacts (existing logic)
         return (
-            <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                <Stack gap="md" h="100%">
-                    <AiChartVisualization
-                        artifactData={artifactData}
-                        projectUuid={artifact.projectUuid}
-                        agentUuid={artifact.agentUuid}
-                        artifactUuid={artifact.artifactUuid}
-                        versionUuid={artifact.versionUuid}
-                        message={message}
-                        showCloseButton={showCloseButton}
-                    />
-                </Stack>
-            </Box>
+            <AiArtifactPanelProvider value={contextValue}>
+                <Box {...ChatElementsUtils.centeredElementProps} p="md">
+                    <Stack gap="md" h="100%">
+                        <AiChartVisualization
+                            artifactData={artifactData}
+                            projectUuid={artifact.projectUuid}
+                            agentUuid={artifact.agentUuid}
+                            artifactUuid={artifact.artifactUuid}
+                            versionUuid={artifact.versionUuid}
+                            showCloseButton={showCloseButton}
+                        />
+                    </Stack>
+                </Box>
+            </AiArtifactPanelProvider>
         );
     },
 );
