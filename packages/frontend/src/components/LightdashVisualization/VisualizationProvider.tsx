@@ -15,7 +15,6 @@ import {
     type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import type EChartsReact from 'echarts-for-react';
 import isEqual from 'lodash/isEqual';
 import {
     useCallback,
@@ -39,6 +38,7 @@ import {
 } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';

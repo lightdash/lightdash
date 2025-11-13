@@ -102,6 +102,9 @@ export const BaseResponse: HealthState = {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,
     },
+    echarts6: {
+        enabled: false,
+    },
 };
 
 export const userMock = {

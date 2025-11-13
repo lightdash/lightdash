@@ -1,9 +1,11 @@
 import { ChartKind } from '@lightdash/common';
 import { Box, Group, SegmentedControl, Stack } from '@mantine/core';
-import EChartsReact from 'echarts-for-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
+import EChartsReactComponent, {
+    type EChartsReact,
+} from '../../EChartsReactWrapper';
 
 interface SingleChartPreviewProps {
     chartType: ChartKind;
@@ -27,7 +29,7 @@ const SingleChartPreview: FC<SingleChartPreviewProps> = ({
                 display: currentChartType === chartType ? 'block' : 'none',
             }}
         >
-            <EChartsReact
+            <EChartsReactComponent
                 ref={chartRef}
                 option={options}
                 style={{ height: '100%', width: '100%' }}
