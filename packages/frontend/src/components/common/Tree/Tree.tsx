@@ -136,22 +136,6 @@ const Tree: React.FC<Props> = (props) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExpanded]);
 
-    useEffect(() => {
-        const uuids = tree.selectedState
-            .map((path) => {
-                const item = data.find((i) => i.path === path);
-                if (item) {
-                    return item.uuid;
-                }
-                return null;
-            })
-            .filter((item) => item !== null);
-
-        if (!isEqual(uuids, values)) {
-            handleChange(uuids);
-        }
-    }, [tree.selectedState, handleChange, data, values]);
-
     const handleSelectTopLevel = useCallback(() => {
         if (withRootSelectable) {
             tree.clearSelected();
@@ -214,10 +198,25 @@ const Tree: React.FC<Props> = (props) => {
                                             if (!expanded) {
                                                 nTree.expand(node.value);
                                             }
-                                            return;
+                                        } else {
+                                            nTree.toggleSelected(node.value);
                                         }
 
-                                        nTree.toggleSelected(node.value);
+                                        const uuids = nTree.selectedState
+                                            .map((path) => {
+                                                const item = data.find(
+                                                    (i) => i.path === path,
+                                                );
+                                                if (item) {
+                                                    return item.uuid;
+                                                }
+                                                return null;
+                                            })
+                                            .filter((item) => item !== null);
+
+                                        if (!isEqual(uuids, values)) {
+                                            handleChange(uuids);
+                                        }
                                     }}
                                     onClickExpand={() =>
                                         nTree.toggleExpanded(node.value)
