@@ -29,6 +29,7 @@ import {
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
+import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
 import { AiAgentFormSetup } from '../../features/aiCopilot/components/AiAgentFormSetup';
 import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
@@ -67,12 +68,14 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const navigate = useNavigate();
-    const { agentUuid, projectUuid, evalUuid, runUuid } = useParams<{
-        agentUuid: string;
-        projectUuid: string;
-        evalUuid?: string;
-        runUuid?: string;
-    }>();
+    const { agentUuid, projectUuid, evalUuid, runUuid, artifactUuid } =
+        useParams<{
+            agentUuid: string;
+            projectUuid: string;
+            evalUuid?: string;
+            runUuid?: string;
+            artifactUuid?: string;
+        }>();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -394,7 +397,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     )}
 
                     {activeTab === 'verified-artifacts' && (
-                        <VerifiedArtifactsLayout />
+                        <>
+                            {artifactUuid ? (
+                                <VerifiedArtifactDetail />
+                            ) : (
+                                <VerifiedArtifactsLayout />
+                            )}
+                        </>
                     )}
                 </Box>
             </AppShell.Main>
