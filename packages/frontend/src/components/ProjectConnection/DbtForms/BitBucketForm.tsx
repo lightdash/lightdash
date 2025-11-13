@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Anchor, PasswordInput, TextInput } from '@mantine/core';
+import { Alert, Anchor, PasswordInput, TextInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -13,6 +13,22 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
     return (
         <>
+            <Alert
+                variant="light"
+                color="yellow"
+                title="Bitbucket app passwords deprecation"
+                mb="md"
+            >
+                <Anchor
+                    href="https://www.atlassian.com/blog/bitbucket/bitbucket-cloud-transitions-to-api-tokens-enhancing-security-with-app-password-deprecation"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    Bitbucket Cloud transitions to API tokens
+                </Anchor>
+                . Existing app passwords will continue working until June 9,
+                2026.
+            </Alert>
             <TextInput
                 name="dbt.username"
                 {...form.getInputProps('dbt.username')}
@@ -25,18 +41,18 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <PasswordInput
                 name="dbt.personal_access_token"
                 {...form.getInputProps('dbt.personal_access_token')}
-                label="HTTP access token"
+                label="API Token"
                 description={
                     <>
                         <p>
                             Bitbucket Cloud users should
                             <Anchor
-                                href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/"
+                                href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 {' '}
-                                follow instructions for creating an App Password
+                                follow instructions for creating an API Token
                             </Anchor>
                         </p>
                         <p>
