@@ -43,8 +43,6 @@ const useEchartsPieConfig = (
         parameters,
     } = useVisualizationContext();
 
-    console.log('parameters', parameters);
-
     const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
@@ -159,7 +157,6 @@ const useEchartsPieConfig = (
     }, [chartConfig, getGroupColor]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
-        console.log('pieSeriesOption', parameters);
         if (!chartConfig) return;
 
         const {
@@ -193,7 +190,6 @@ const useEchartsPieConfig = (
                 trigger: 'item',
                 formatter: (params) => {
                     const { color, name, value, percent } = params;
-                    console.log('formatter', parameters);
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
