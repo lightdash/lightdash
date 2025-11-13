@@ -1,0 +1,380 @@
+# yaml-language-server: $schema=../schemas/view.schema.json
+type: view
+
+name: orders_lightdash
+description: |
+  This table has basic information about orders, as well as some derived
+  facts based on payments
+
+from_table: postgres.jaffle.orders
+# from_sql: select * from postgres.jaffle.orders
+# from_dbt: jaffle_shop.orders
+
+# Model-level configuration
+primary_key: order_id
+
+
+
+spotlight:
+  categories:
+    - sales
+
+default_time_dimension:
+  field: order_date
+  interval: MONTH
+
+dimensions:
+  - name: order_id
+    type: number
+    description: This is a unique identifier for an order
+    sql: ${TABLE}.order_id
+
+  - name: is_completed
+    type: boolean
+    description: Boolean indicating if status is completed
+
+  - name: customer_id
+    type: number
+    description: Foreign key to the customers table
+
+  - name: order_date
+    type: date
+    description: Date (UTC) that the order was placed
+    time_intervals: [ "DAY", "WEEK", "MONTH", "YEAR" ]
+
+  - name: status
+    type: string
+    description: Status of the order
+    colors:
+      "placed": "#e6fa0f"
+      "completed": "#00FF00"
+
+  - name: amount
+    type: number
+    description: Total amount (USD) of the order
+    hidden: true
+
+  - name: credit_card_amount
+    type: number
+    description: Amount of the order (AUD) paid for by credit card
+    hidden: true
+
+  - name: coupon_amount
+    type: number
+    description: Amount of the order (AUD) paid for by coupon
+    hidden: true
+
+  - name: bank_transfer_amount
+    type: number
+    description: Amount of the order (AUD) paid for by bank transfer
+    hidden: true
+
+  - name: gift_card_amount
+    type: number
+    description: Amount of the order (AUD) paid for by gift card
+    hidden: true
+
+  - name: order_source
+    type: string
+    description: Channel through which the order was placed
+    colors:
+      website: "#1f77b4"
+      mobile_app: "#ff7f0e"
+      phone: "#2ca02c"
+
+  - name: shipping_method
+    type: string
+    description: Shipping method selected for the order
+    colors:
+      standard: "#d62728"
+      express: "#ff7f0e"
+      overnight: "#2ca02c"
+
+  - name: promo_code
+    type: string
+    description: Promotional code applied to the order
+
+  - name: order_priority
+    type: string
+    description: Priority level assigned to the order
+    colors:
+      normal: "#1f77b4"
+      high: "#ff7f0e"
+      urgent: "#d62728"
+
+  - name: estimated_delivery_days
+    type: number
+    description: Expected number of days for order delivery
+
+  - name: shipping_cost
+    type: number
+    description: Cost of shipping for the order
+    format: usd
+
+  - name: tax_rate
+    type: number
+    description: Tax rate applied to the order
+    format: percent
+
+  - name: currency
+    type: string
+    description: Currency used for the order
+
+  - name: fulfillment_center
+    type: string
+    description: Fulfillment center handling the order
+    colors:
+      east_coast: "#1f77b4"
+      west_coast: "#ff7f0e"
+      central: "#2ca02c"
+
+  - name: order_notes
+    type: string
+    description: Additional notes and context about the order
+    hidden: true
+
+  - name: delivery_speed_tier
+    type: string
+    label: Delivery Speed Tier
+    sql: |
+      CASE
+        WHEN ${estimated_delivery_days} = 1 THEN 'Same/Next Day'
+        WHEN ${estimated_delivery_days} <= 3 THEN 'Fast (2-3 days)'
+        WHEN ${estimated_delivery_days} <= 5 THEN 'Standard (4-5 days)'
+        WHEN ${estimated_delivery_days} <= 7 THEN 'Extended (6-7 days)'
+        ELSE 'Slow (8+ days)'
+      END
+    colors:
+      "Same/Next Day": "#2ca02c"
+      "Fast (2-3 days)": "#ff7f0e"
+      "Standard (4-5 days)": "#1f77b4"
+      "Extended (6-7 days)": "#ffbb78"
+      "Slow (8+ days)": "#d62728"
+
+  - name: shipping_cost_tier
+    type: string
+    label: Shipping Cost Tier
+    sql: |
+      CASE
+      WHEN ${shipping_cost} < 10 THEN 'Low (<$10)'
+      WHEN ${shipping_cost} < 20 THEN 'Medium ($10-$20)'
+      WHEN ${shipping_cost} < 30 THEN 'High ($20-$30)'
+      ELSE 'Premium ($30+)'
+      END
+
+metrics:
+  # Model-level metrics
+  - name: completion_percentage
+    type: number
+    sql: ${total_completed_order_amount}/${total_order_amount}
+    format: percent
+    ai_hint: |
+      Ratio of completed orders to total orders
+      Completion percentage of orders.
+
+  # order_id metrics
+  - name: unique_order_count
+    type: count_distinct
+    sql: ${order_id}
+
+  - name: completed_order_count
+    label: Completed order count
+    description: Total number of completed orders
+    type: count_distinct
+    sql: ${order_id}
+    filters:
+      - is_completed: "true"
+
+  - name: completed_or_shipped_order_count
+    label: Completed or Shipped Order Count
+    type: count_distinct
+    sql: ${order_id}
+    filters:
+      - status:
+          - completed
+          - shipped
+
+  # is_completed metrics
+  - name: fulfillment_rate
+    type: average
+    format: percent
+    round: 1
+    sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+    show_underlying_values:
+      - amount
+      - customers.first_name
+
+  - name: fulfillment_rate_with_format_expression
+    type: average
+    format: "#,##0.0%"
+    sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+    show_underlying_values:
+      - amount
+      - customers.first_name
+
+  # order_date metrics
+  - name: date_of_first_order
+    type: min
+    sql: ${order_date}
+
+  - name: date_of_most_recent_order
+    type: max
+    sql: ${order_date}
+
+  # amount metrics
+  - name: average_order_size
+    type: average
+    sql: ${amount}
+    format: usd
+    round: 2
+
+  - name: total_order_amount
+    type: sum
+    sql: ${amount}
+    format: usd
+    round: 2
+    default_time_dimension:
+      field: order_date
+      interval: DAY
+
+  - name: amount_percent_of_previous
+    type: percent_of_previous
+    sql: ${total_order_amount}
+    format: "#,##0.00%"
+
+  - name: amount_percent_of_total
+    type: percent_of_total
+    sql: ${total_order_amount}
+    format: "#,##0.00%"
+
+  - name: amount_running_total
+    type: running_total
+    sql: ${total_order_amount}
+    format: usd
+    round: 2
+
+  - name: total_completed_order_amount
+    type: sum
+    sql: ${amount}
+    format: usd
+    round: 2
+    filters:
+      - is_completed: "true"
+
+  - name: total_completed_order_amount_eur
+    type: sum
+    sql: ${amount}
+    format: eur
+    filters:
+      - is_completed: "true"
+
+  - name: total_non_completed_order_amount
+    type: number
+    format: "$#,##0.00"
+    sql: ${total_order_amount}-${total_completed_order_amount}
+
+  # shipping_method metrics
+  - name: avg_shipping_cost_by_method
+    type: average
+    sql: ${shipping_cost}
+    format: usd
+    round: 2
+    label: Average Shipping Cost by Method
+
+  - name: orders_by_shipping_method
+    type: count_distinct
+    sql: ${order_id}
+    label: Orders by Shipping Method
+
+  # promo_code metrics
+  - name: promo_usage_rate
+    type: number
+    sql: COUNT(CASE WHEN ${promo_code} IS NOT NULL AND ${promo_code} != '' THEN 1 END)::NUMERIC / COUNT(*)
+    format: percent
+    round: 1
+    label: Promo Code Usage Rate
+
+  - name: orders_with_promos
+    type: count_distinct
+    sql: ${order_id}
+    filters:
+      - promo_code: IS NOT NULL
+    label: Orders with Promo Codes
+
+  # order_priority metrics
+  - name: avg_delivery_time_by_priority
+    type: average
+    sql: ${estimated_delivery_days}
+    round: 1
+    label: Average Delivery Time by Priority
+
+  - name: priority_distribution
+    type: count_distinct
+    sql: ${order_id}
+    label: Orders by Priority
+
+  # estimated_delivery_days metrics
+  - name: avg_estimated_delivery
+    type: average
+    sql: ${estimated_delivery_days}
+    round: 1
+    label: Average Estimated Delivery Days
+
+  - name: orders_by_delivery_speed
+    type: count_distinct
+    sql: ${order_id}
+    label: Orders by Delivery Speed
+
+  # shipping_cost metrics
+  - name: total_shipping_revenue
+    type: sum
+    sql: ${shipping_cost}
+    format: usd
+    label: Total Shipping Revenue
+
+  - name: avg_shipping_cost
+    type: average
+    sql: ${shipping_cost}
+    format: usd
+    round: 2
+    label: Average Shipping Cost
+
+  - name: shipping_cost_vs_order_value
+    type: number
+    sql: AVG(${shipping_cost} / NULLIF(${amount}, 0))
+    format: percent
+    round: 2
+    label: Shipping Cost as % of Order Value
+
+  # tax_rate metrics
+  - name: avg_tax_rate
+    type: average
+    sql: ${tax_rate}
+    format: percent
+    round: 3
+    label: Average Tax Rate
+
+  - name: total_tax_collected
+    type: sum
+    sql: ${amount} * ${tax_rate}
+    format: usd
+    label: Total Tax Collected
+
+  # fulfillment_center metrics
+  - name: orders_by_fulfillment_center
+    type: count_distinct
+    sql: ${order_id}
+    label: Orders by Fulfillment Center
+
+  - name: revenue_by_fulfillment_center
+    type: sum
+    sql: ${amount}
+    format: usd
+    label: Revenue by Fulfillment Center
+
+  - name: avg_shipping_cost_by_center
+    type: average
+    sql: ${shipping_cost}
+    format: usd
+    round: 2
+    label: Average Shipping Cost by Center

@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../schemas/explore.schema.json
+type: explore
+name: orders
+view: orders
+joins:
+  - join: customers
+    sql_on: ${customers.customer_id} = ${orders.customer_id}
+    relationship: many-to-one
+    label: Order Customer
+    description: The customer who placed this order (many orders can belong to one customer)
+
+---
+
+# yaml-language-server: $schema=../schemas/explore.schema.json
+type: explore
+name: completed_orders
+view: orders
+label: Completed Orders
+description: Analysis of completed orders with customer information
+group_label: Sales Analysis
+joins:
+  - join: customers
+    sql_on: ${customers.customer_id} = ${orders.customer_id}
+    relationship: many-to-one
+default_filters:
+  - is_completed: "true"
