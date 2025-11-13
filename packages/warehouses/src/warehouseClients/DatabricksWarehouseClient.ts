@@ -568,3 +568,48 @@ export const exchangeDatabricksOAuthCredentials = async (
         refreshToken: data.refresh_token,
     };
 };
+
+/**
+ * Refresh Databricks OAuth U2M access token using refresh token
+ */
+export const refreshDatabricksOAuthToken = async (
+    host: string,
+    clientId: string,
+    refreshToken: string,
+): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+}> => {
+    const tokenUrl = `https://${host}/oidc/v1/token`;
+
+    const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: clientId,
+        }).toString(),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+            `Failed to refresh Databricks OAuth token: ${response.status} ${errorText}`,
+        );
+    }
+
+    const data = (await response.json()) as {
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+    };
+    return {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
+    };
+};
