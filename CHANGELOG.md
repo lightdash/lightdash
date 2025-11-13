@@ -1,3 +1,10 @@
+## [0.2166.2](https://github.com/lightdash/lightdash/compare/0.2166.1...0.2166.2) (2025-11-13)
+
+
+### Bug Fixes
+
+* add noWrap to TileBase header Group component ([#18090](https://github.com/lightdash/lightdash/issues/18090)) ([cdbcc2f](https://github.com/lightdash/lightdash/commit/cdbcc2f94fbfba9a7fc74c6cf8fa5fec72f81624))
+
 ## [0.2166.1](https://github.com/lightdash/lightdash/compare/0.2166.0...0.2166.1) (2025-11-13)
 
 
