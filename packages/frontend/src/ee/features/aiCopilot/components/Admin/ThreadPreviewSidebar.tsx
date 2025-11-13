@@ -115,22 +115,21 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
 
             <Divider />
 
-            {evalUuid && runUuid && (
-                <EvalAssessmentDisplay
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    evalUuid={evalUuid}
-                    runUuid={runUuid}
-                    threadUuid={threadUuid}
-                />
-            )}
-
             {threadData && (
                 <>
                     <Box
                         mah="calc(100vh - 150px)"
                         style={{ overflowY: 'auto' }}
                     >
+                        {evalUuid && runUuid && (
+                            <EvalAssessmentDisplay
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                evalUuid={evalUuid}
+                                runUuid={runUuid}
+                                threadUuid={threadUuid}
+                            />
+                        )}
                         <AgentChatDisplay
                             thread={threadData}
                             projectUuid={projectUuid}
