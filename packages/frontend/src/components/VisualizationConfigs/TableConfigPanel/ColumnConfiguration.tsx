@@ -128,7 +128,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                     >
                         <MantineIcon
                             icon={
-                                isColumnVisible(fieldId) ? IconEyeOff : IconEye
+                                isColumnVisible(fieldId) ? IconEye : IconEyeOff
                             }
                         />
                     </ActionIcon>
