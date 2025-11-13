@@ -1,3 +1,17 @@
+# [0.2166.0](https://github.com/lightdash/lightdash/compare/0.2165.1...0.2166.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* wrap Storybook components with Mantine8Provider ([#18085](https://github.com/lightdash/lightdash/issues/18085)) ([18f67a9](https://github.com/lightdash/lightdash/commit/18f67a90233f49348d26e0cde3a469543be80000))
+
+
+### Features
+
+* add multiple selection support to Tree component ([#18086](https://github.com/lightdash/lightdash/issues/18086)) ([b78b7eb](https://github.com/lightdash/lightdash/commit/b78b7eb13ba620e7ef836d34480385453b4e9607))
+* add space access control for AI agents ([#18061](https://github.com/lightdash/lightdash/issues/18061)) ([b9cb25a](https://github.com/lightdash/lightdash/commit/b9cb25a9ed34fb64e7b202993ca5a9fadcc40425)), closes [#18044](https://github.com/lightdash/lightdash/issues/18044)
+* improve oauth page styling ([#18075](https://github.com/lightdash/lightdash/issues/18075)) ([67b322e](https://github.com/lightdash/lightdash/commit/67b322ef64deee8dec13958771a00c003511f023))
+
 ## [0.2165.1](https://github.com/lightdash/lightdash/compare/0.2165.0...0.2165.1) (2025-11-13)
 
 
