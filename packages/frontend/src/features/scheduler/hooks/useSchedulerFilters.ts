@@ -1,5 +1,6 @@
 import { type SchedulerFormat } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 export type DestinationType = 'slack' | 'email' | 'msteams';
 
@@ -40,25 +41,45 @@ const DEFAULT_FILTERS: SchedulerFiltersState = {
  * Custom hook to manage Scheduler filters
  */
 export const useSchedulerFilters = () => {
-    const [search, setSearchState] = useState<SchedulerFiltersState['search']>(
-        DEFAULT_FILTERS.search,
-    );
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Initialize from URL params
+    const initialSearch = searchParams.get('nameSearch') ?? undefined;
+
+    const initialFormats =
+        (searchParams.get('format')?.split(',').filter(Boolean) as
+            | SchedulerFormat[]
+            | undefined) ?? [];
+
+    const initialResourceType = searchParams.get('type') as
+        | 'chart'
+        | 'dashboard'
+        | null;
+
+    const initialCreators =
+        searchParams.get('creator')?.split(',').filter(Boolean) ?? [];
+
+    const initialDestinations =
+        (searchParams.get('destination')?.split(',').filter(Boolean) as
+            | DestinationType[]
+            | undefined) ?? [];
+
+    const [search, setSearchState] =
+        useState<SchedulerFiltersState['search']>(initialSearch);
     const [selectedCreatedByUserUuids, setSelectedCreatedByUserUuidsState] =
         useState<NonNullable<SchedulerFilters['createdByUserUuids']>>(
-            DEFAULT_FILTERS.selectedCreatedByUserUuids,
+            initialCreators,
         );
-    const [selectedFormats, setSelectedFormatsState] = useState<
-        NonNullable<SchedulerFilters['formats']>
-    >(DEFAULT_FILTERS.selectedFormats);
+    const [selectedFormats, setSelectedFormatsState] =
+        useState<NonNullable<SchedulerFilters['formats']>>(initialFormats);
     const [selectedResourceType, setSelectedResourceTypeState] = useState<
         SchedulerFiltersState['selectedResourceType']
-    >(DEFAULT_FILTERS.selectedResourceType);
+    >(initialResourceType || 'all');
     const [selectedResourceUuids, setSelectedResourceUuidsState] = useState<
         NonNullable<SchedulerFilters['resourceUuids']>
     >(DEFAULT_FILTERS.selectedResourceUuids);
-    const [selectedDestinations, setSelectedDestinationsState] = useState<
-        DestinationType[]
-    >(DEFAULT_FILTERS.selectedDestinations);
+    const [selectedDestinations, setSelectedDestinationsState] =
+        useState<DestinationType[]>(initialDestinations);
     const [sortField, setSortFieldState] = useState<
         SchedulerFiltersState['sortField']
     >(DEFAULT_FILTERS.sortField);
@@ -69,29 +90,57 @@ export const useSchedulerFilters = () => {
     const setSearch = useCallback(
         (newSearch: SchedulerFiltersState['search']) => {
             setSearchState(newSearch);
+            const newParams = new URLSearchParams(searchParams);
+            if (newSearch) {
+                newParams.set('nameSearch', newSearch);
+            } else {
+                newParams.delete('nameSearch');
+            }
+            setSearchParams(newParams);
         },
-        [],
+        [searchParams, setSearchParams],
     );
 
     const setSelectedCreatedByUserUuids = useCallback(
         (userUuids: NonNullable<SchedulerFilters['createdByUserUuids']>) => {
             setSelectedCreatedByUserUuidsState(userUuids);
+            const newParams = new URLSearchParams(searchParams);
+            if (userUuids.length > 0) {
+                newParams.set('creator', userUuids.join(','));
+            } else {
+                newParams.delete('creator');
+            }
+            setSearchParams(newParams);
         },
-        [],
+        [searchParams, setSearchParams],
     );
 
     const setSelectedFormats = useCallback(
         (formats: NonNullable<SchedulerFilters['formats']>) => {
             setSelectedFormatsState(formats);
+            const newParams = new URLSearchParams(searchParams);
+            if (formats.length > 0) {
+                newParams.set('format', formats.join(','));
+            } else {
+                newParams.delete('format');
+            }
+            setSearchParams(newParams);
         },
-        [],
+        [searchParams, setSearchParams],
     );
 
     const setSelectedResourceType = useCallback(
         (resourceType: SchedulerFiltersState['selectedResourceType']) => {
             setSelectedResourceTypeState(resourceType);
+            const newParams = new URLSearchParams(searchParams);
+            if (resourceType && resourceType !== 'all') {
+                newParams.set('type', resourceType);
+            } else {
+                newParams.delete('type');
+            }
+            setSearchParams(newParams);
         },
-        [],
+        [searchParams, setSearchParams],
     );
 
     const setSelectedResourceUuids = useCallback(
@@ -104,8 +153,15 @@ export const useSchedulerFilters = () => {
     const setSelectedDestinations = useCallback(
         (destinations: DestinationType[]) => {
             setSelectedDestinationsState(destinations);
+            const newParams = new URLSearchParams(searchParams);
+            if (destinations.length > 0) {
+                newParams.set('destination', destinations.join(','));
+            } else {
+                newParams.delete('destination');
+            }
+            setSearchParams(newParams);
         },
-        [],
+        [searchParams, setSearchParams],
     );
 
     const setSorting = useCallback(
@@ -130,7 +186,16 @@ export const useSchedulerFilters = () => {
         setSelectedDestinationsState(DEFAULT_FILTERS.selectedDestinations);
         setSortFieldState(DEFAULT_FILTERS.sortField);
         setSortDirectionState(DEFAULT_FILTERS.sortDirection);
-    }, []);
+
+        // Clear filter-related URL params
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('nameSearch');
+        newParams.delete('format');
+        newParams.delete('type');
+        newParams.delete('creator');
+        newParams.delete('destination');
+        setSearchParams(newParams);
+    }, [searchParams, setSearchParams]);
 
     const hasActiveFilters = useMemo(() => {
         return (
