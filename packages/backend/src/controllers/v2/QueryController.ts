@@ -194,7 +194,7 @@ export class QueryController extends BaseController {
 
         if (
             isJwtUser(req.account!) &&
-            req.account!.access.contentType !== 'chart'
+            req.account!.access.content.type !== 'chart'
         ) {
             throw new ForbiddenError('Feature not available for this JWT');
         }

@@ -82,11 +82,22 @@ export type UserAccessControls = {
     intrinsicUserAttributes: IntrinsicUserAttributes;
 };
 
+/**
+ * Details about the content bound to the given JWT
+ */
+export type EmbedContent = {
+    /** The dashboard UUID the JWT may have access to */
+    dashboardUuid?: string;
+    /** The chart IDs the JWT dashboard may have access to */
+    chartUuids: string[];
+    /** Explores available to the embedded dashboard */
+    explores: string[];
+    /** The type of content */
+    type: 'dashboard' | 'chart';
+};
+
 export type EmbedAccess = {
-    /** The content ID the account has access to (dashboard or chart) */
-    contentId?: string;
-    /** The type of content (dashboard or chart) */
-    contentType?: 'dashboard' | 'chart';
+    content: EmbedContent;
     /** Dashboard filtering options for interactivity */
     filtering?: DashboardFilterInteractivityOptions;
     /** User-specific access controls */
