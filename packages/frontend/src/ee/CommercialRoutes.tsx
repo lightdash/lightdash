@@ -122,6 +122,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                         path: 'verified-artifacts',
                         element: <ProjectAiAgentEditPage />,
                     },
+                    {
+                        path: 'verified-artifacts/:artifactUuid',
+                        element: <ProjectAiAgentEditPage />,
+                    },
                 ],
             },
             {

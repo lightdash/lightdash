@@ -11,14 +11,14 @@ import {
     useMantineTheme,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { IconCircleX, IconDots } from '@tabler/icons-react';
+import { IconCircleX, IconDots, IconEye } from '@tabler/icons-react';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
 } from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -37,7 +37,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const { projectUuid, agentUuid } = useParams();
-
+    const navigate = useNavigate();
     const canManageAgent = useAiAgentPermission({
         action: 'manage',
         projectUuid: projectUuid!,
@@ -94,6 +94,15 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         closeUnverifyModal();
         setArtifactToUnverify(null);
     }, [artifactToUnverify, closeUnverifyModal, setVerified]);
+
+    const handleViewArtifact = useCallback(
+        (artifact: AiAgentVerifiedArtifact) => {
+            void navigate(
+                `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts/${artifact.artifactUuid}?versionUuid=${artifact.versionUuid}&threadUuid=${artifact.threadUuid}&promptUuid=${artifact.promptUuid}`,
+            );
+        },
+        [navigate, projectUuid, agentUuid],
+    );
 
     const columns: MRT_ColumnDef<AiAgentVerifiedArtifact>[] = useMemo(
         () => [
@@ -218,13 +227,23 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                 >
                                     Remove from verified answers
                                 </Menu.Item>
+
+                                <Menu.Item
+                                    leftSection={<MantineIcon icon={IconEye} />}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewArtifact(row.original);
+                                    }}
+                                >
+                                    View artifact
+                                </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                     );
                 },
             },
         ],
-        [canManageAgent, handleUnverify],
+        [canManageAgent, handleUnverify, handleViewArtifact],
     );
 
     const table = useMantineReactTable({
