@@ -39,8 +39,7 @@ export function getReferencedArtifactsBlocks(
             type: 'actions',
             elements: referencedArtifacts.map((artifact) => {
                 const title = artifact.title || artifact.artifactType;
-                // TODO :: threadUuid and promptUuid should not be required
-                const url = `${siteUrl}/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts/${artifact.artifactUuid}?versionUuid=${artifact.versionUuid}&threadUuid=${threadUuid}&promptUuid=${promptUuid}`;
+                const url = `${siteUrl}/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts/${artifact.artifactUuid}?versionUuid=${artifact.versionUuid}`;
                 return {
                     type: 'button',
                     url,
