@@ -1,3 +1,10 @@
+# [0.2169.0](https://github.com/lightdash/lightdash/compare/0.2168.0...0.2169.0) (2025-11-13)
+
+
+### Features
+
+* use Tree multi-select on agent space access ([#18103](https://github.com/lightdash/lightdash/issues/18103)) ([5f253ad](https://github.com/lightdash/lightdash/commit/5f253ada69d258f874a5a09d62a4ea1212af1ec1))
+
 # [0.2168.0](https://github.com/lightdash/lightdash/compare/0.2167.1...0.2168.0) (2025-11-13)
 
 
