@@ -1,13 +1,12 @@
 import { type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
 import { isDashboardContent, type CreateEmbedJwt } from '../ee';
-import type { OssEmbed } from '../types/auth';
+import type { EmbedContent, OssEmbed } from '../types/auth';
 import type { MemberAbility } from './types';
 
 type EmbeddedAbilityBuilderPayload = {
     embedUser: CreateEmbedJwt;
-    contentUuid: string;
-    contentType: 'dashboard' | 'chart';
+    content: EmbedContent;
     embed: OssEmbed;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
     externalId: string;
@@ -19,8 +18,7 @@ type EmbeddedAbilityBuilder = (
 
 const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    contentUuid,
-    contentType,
+    content,
     embed,
     externalId,
     builder,
@@ -29,7 +27,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     const { can } = builder;
 
     can('view', 'Dashboard', {
-        dashboardUuid: contentUuid,
+        dashboardUuid: content.dashboardUuid,
         organizationUuid: organization.organizationUuid,
     });
 
@@ -53,13 +51,12 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    return { embedUser, contentUuid, contentType, embed, builder, externalId };
+    return { embedUser, content, embed, builder, externalId };
 };
 
 const chartAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    contentUuid,
-    contentType,
+    content,
     embed,
     externalId,
     builder,
@@ -70,37 +67,44 @@ const chartAbilities: EmbeddedAbilityBuilder = ({
     can('view', 'SavedChart', {
         access: {
             $elemMatch: {
-                chartUuid: contentUuid,
+                chartUuid: content.chartUuids[0],
             },
         },
         organizationUuid: organization.organizationUuid,
         projectUuid: embed.projectUuid,
     });
 
+    can('view', 'Explore', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+        exploreNames: { $all: content.explores },
+    });
+
     can('view', 'Project', {
         organizationUuid: organization.organizationUuid,
         projectUuid: embed.projectUuid,
+        exploreNames: { $all: content.explores },
     });
 
-    return { embedUser, contentUuid, contentType, embed, builder, externalId };
+    return { embedUser, content, embed, builder, externalId };
 };
 
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    contentUuid,
-    contentType,
+    content,
     embed,
     externalId,
     builder,
 }) => {
-    const { content } = embedUser;
+    const { content: permissions } = embedUser;
     const { organization } = embed;
     const { can } = builder;
 
-    const canExplore = 'canExplore' in content ? content.canExplore : undefined;
+    const canExplore =
+        'canExplore' in permissions ? permissions.canExplore : undefined;
     const canViewUnderlyingData =
-        'canViewUnderlyingData' in content
-            ? content.canViewUnderlyingData
+        'canViewUnderlyingData' in permissions
+            ? permissions.canViewUnderlyingData
             : undefined;
 
     if (canExplore || canViewUnderlyingData) {
@@ -117,33 +121,32 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    return { embedUser, contentUuid, contentType, embed, externalId, builder };
+    return { embedUser, content, embed, externalId, builder };
 };
 
 const exportAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
-    contentUuid,
-    contentType,
+    content,
     embed,
     externalId,
     builder,
 }) => {
-    const { content } = embedUser;
+    const { content: permissions } = embedUser;
     const { organization } = embed;
     const { can } = builder;
 
     const subjectType: 'Dashboard' | 'SavedChart' =
-        contentType === 'dashboard' ? 'Dashboard' : 'SavedChart';
+        content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
     // Common abilities for both dashboard and chart
-    if (content.canExportImages) {
+    if (permissions.canExportImages) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
-    if (content.canExportCsv) {
+    if (permissions.canExportCsv) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
@@ -155,8 +158,8 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         });
     }
     // Dashboard specific abilities
-    if (isDashboardContent(content)) {
-        if (content.canExportPagePdf) {
+    if (isDashboardContent(embedUser.content)) {
+        if (embedUser.content.canExportPagePdf) {
             can('export', 'Dashboard', {
                 organizationUuid: organization.organizationUuid,
                 type: 'pdf',
@@ -164,7 +167,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         }
     }
 
-    return { embedUser, contentUuid, contentType, embed, externalId, builder };
+    return { embedUser, content, embed, externalId, builder };
 };
 
 const dashboardTypeAbilities = [
@@ -177,24 +180,22 @@ const chartTypeAbilities = [chartAbilities, exportAbilities, exploreAbilities];
 
 export function applyEmbeddedAbility(
     embedUser: CreateEmbedJwt,
-    contentUuid: string | undefined,
-    contentType: 'dashboard' | 'chart',
+    content: EmbedContent,
     embed: OssEmbed,
     externalId: string,
     builder: AbilityBuilder<MemberAbility>,
 ) {
-    if (!contentUuid) {
-        throw new Error('Content UUID is required');
+    if (!content) {
+        throw new Error('Content is required');
     }
 
     const abilities =
-        contentType === 'chart' ? chartTypeAbilities : dashboardTypeAbilities;
+        content.type === 'chart' ? chartTypeAbilities : dashboardTypeAbilities;
     const applyAbilities = flow(abilities);
 
     applyAbilities({
         embedUser,
-        contentUuid,
-        contentType,
+        content,
         embed,
         externalId,
         builder,
