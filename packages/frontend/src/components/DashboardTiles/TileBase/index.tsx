@@ -201,6 +201,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     spacing="xs"
                     className="non-draggable"
                     sx={{ marginLeft: 'auto' }}
+                    noWrap
                 >
                     {visibleHeaderElement && (
                         <Group spacing="xs" className="non-draggable">
