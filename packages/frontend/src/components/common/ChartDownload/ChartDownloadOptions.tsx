@@ -10,8 +10,11 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
-import { type EChartsInstance, type EChartsOption } from 'echarts-for-react';
 import React, { useCallback, useState } from 'react';
+import {
+    type EChartsInstance,
+    type EChartsOption,
+} from '../../EChartsReactWrapper';
 
 import { type PieSeriesOption } from 'echarts';
 import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';

@@ -15,9 +15,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
-import EChartsReact from 'echarts-for-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
+import EChartsReact from '../components/EChartsReactWrapper';
 
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';

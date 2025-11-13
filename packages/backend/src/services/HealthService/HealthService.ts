@@ -65,6 +65,7 @@ export class HealthService extends BaseService {
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
             this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
+
         return {
             healthy: true,
             mode: this.lightdashConfig.mode,
@@ -192,6 +193,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.analyticsProjectUuid,
                 analyticsDashboardUuid:
                     this.lightdashConfig.ai.analyticsDashboardUuid,
+            },
+            echarts6: {
+                enabled: this.lightdashConfig.echarts6.enabled,
             },
         };
     }

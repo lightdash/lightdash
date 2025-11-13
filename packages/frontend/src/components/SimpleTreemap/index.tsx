@@ -1,8 +1,8 @@
 import { IconChartTreemap } from '@tabler/icons-react';
-import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useEffect, type FC } from 'react';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
+import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 

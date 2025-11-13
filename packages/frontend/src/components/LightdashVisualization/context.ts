@@ -8,11 +8,11 @@ import type {
     ParametersValuesMap,
     StackType,
 } from '@lightdash/common';
-import type EChartsReact from 'echarts-for-react';
 import { createContext, type RefObject } from 'react';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { type VisualizationConfig } from './types';
 
