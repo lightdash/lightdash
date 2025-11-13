@@ -27,7 +27,6 @@ import {
     IconChartHistogram,
     IconGripHorizontal,
 } from '@tabler/icons-react';
-import type { EChartsInstance } from 'echarts-for-react';
 import {
     useCallback,
     useEffect,
@@ -53,6 +52,7 @@ import {
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -512,7 +512,7 @@ export const ContentPanel: FC = () => {
                             selectedChartType ? (
                                 <ChartDownload
                                     chartName={savedSqlChart?.name}
-                                    echartsInstance={activeEchartsInstance}
+                                    echartsInstance={activeEchartsInstance!}
                                     projectUuid={projectUuid}
                                     disabled={isLoadingSqlQuery}
                                     hideLimitSelection={true}

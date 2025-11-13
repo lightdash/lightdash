@@ -412,6 +412,9 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
     };
+    echarts6: {
+        enabled: boolean;
+    };
 };
 
 export enum DBFieldTypes {

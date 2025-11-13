@@ -103,6 +103,9 @@ export default function mockHealthResponse(
             analyticsProjectUuid: undefined,
             analyticsDashboardUuid: undefined,
         },
+        echarts6: {
+            enabled: false,
+        },
         ...overrides,
     };
 }

@@ -12,6 +12,12 @@ const remapPeerDependencies = [
         peerDependency: '@mantine/hooks',
         newVersion: '8.0.0',
     },
+    {
+        package: 'echarts-for-react',
+        packageVersion: '3.0.1',
+        peerDependency: 'echarts',
+        newVersion: '6.0.0',
+    },
 ];
 
 function overridesPeerDependencies(pkg) {
@@ -24,12 +30,7 @@ function overridesPeerDependencies(pkg) {
                 // make it yellow
                 console.info(
                     '\x1b[33m%s\x1b[0m',
-                    `
-╭ Patching Mantine 8 dependencies ──────────────────────────╮
-│                                                           │
-│   Making mantine v8 and v6 coexist in the same project!   │
-│                                                           │
-╰───────────────────────────────────────────────────────────╯`,
+                    `⚠︎ Patching ${dep.package} ${dep.packageVersion} dependencies`,
                 );
 
                 console.info(`- Checking ${pkg.name}@${pkg.version}`); // , pkg.peerDependencies);
