@@ -167,6 +167,17 @@ export async function llmAsAJudge({
                     'expectedAnswer is required for factuality scorer',
                 );
             }
+
+            // Build context section if context is provided (e.g., tool results with data)
+            const contextSection =
+                context && context.length > 0
+                    ? `
+      ************
+      [Context]: 
+      ${context.join('\n')}
+      ************`
+                    : '';
+
             const { object } = await generateObject({
                 model: judge,
                 ...defaultAgentOptions,
@@ -195,9 +206,17 @@ export async function llmAsAJudge({
       [Expert]: ${expectedAnswer}
       ************
       [Submission]: ${response}
-      ************
+      ************${contextSection}
       [END DATA]
-
+${
+    context && context.length > 0
+        ? `
+      Additional Context: The above context includes query results. 
+      Use this information to verify if the submitted answer correctly references or includes the data from these results.
+      When comparing factual content, check if numbers, metrics, or data points in the submission match those in the tool results.
+`
+        : ''
+}
       Compare the factual content of the submitted answer with the expert answer. Ignore any differences in style, grammar, or punctuation.
       The submitted answer may either be a subset or superset of the expert answer, or it may conflict with it. Determine which case applies. Answer the question by selecting one of the following options:
       (A) The submitted answer is a subset of the expert answer and is fully consistent with it.

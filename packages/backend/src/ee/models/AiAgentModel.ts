@@ -3992,6 +3992,7 @@ export class AiAgentModel {
             title: string | null;
             description: string | null;
         } | null;
+        toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[];
     }> {
         const result = await this.database(AiEvalRunResultTableName)
             .leftJoin(
@@ -4028,6 +4029,7 @@ export class AiAgentModel {
                 dashboard_config: Record<string, unknown> | null;
                 title: string | null;
                 description: string | null;
+                ai_prompt_uuid: string | null;
             }>(
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.response`,
@@ -4037,6 +4039,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.dashboard_config`,
                 `${AiArtifactVersionsTableName}.title`,
                 `${AiArtifactVersionsTableName}.description`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
             )
             .first();
 
@@ -4058,6 +4061,15 @@ export class AiAgentModel {
             );
         }
 
+        // Fetch tool calls and results if there's a prompt UUID
+        let toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[] = [];
+
+        if (result.ai_prompt_uuid) {
+            toolResults = await this.getToolResultsForPrompt(
+                result.ai_prompt_uuid,
+            );
+        }
+
         return {
             query: result.prompt,
             response: result.response,
@@ -4071,6 +4083,7 @@ export class AiAgentModel {
                       description: result.description,
                   }
                 : null,
+            toolResults,
         };
     }
 
