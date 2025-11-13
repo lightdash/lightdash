@@ -1200,10 +1200,11 @@ const getEchartAxes = ({
         : getLineChartGridStyle();
 
     // There is no Top x axis when no flipped
+    // Use hashFieldReference to get the same hash used in series encoding (includes pivot values)
     const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 1)
-              .map((s) => s.encode.yRef.field)
+              .map((s) => hashFieldReference(s.encode.yRef))
         : undefined;
 
     const topAxisXId = topAxisXFieldIds?.[0] || undefined;
@@ -1211,7 +1212,7 @@ const getEchartAxes = ({
     const bottomAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => s.encode.yRef.field)
+              .map((s) => hashFieldReference(s.encode.yRef))
         : [];
 
     const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
@@ -1232,14 +1233,14 @@ const getEchartAxes = ({
             : []
         : validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => s.encode.yRef.field);
+              .map((s) => hashFieldReference(s.encode.yRef));
 
     const leftAxisYId = leftAxisYFieldIds?.[0] || yAxisItemId;
 
     // There is no right Y axis when flipped
     const rightAxisYFieldIds = validCartesianConfig.eChartsConfig.series
         ?.filter((serie) => serie.yAxisIndex === 1)
-        .map((s) => s.encode.yRef.field);
+        .map((s) => hashFieldReference(s.encode.yRef));
 
     const rightAxisYId =
         rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
