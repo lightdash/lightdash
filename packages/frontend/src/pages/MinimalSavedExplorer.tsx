@@ -26,6 +26,10 @@ const themeOverride: MantineThemeOverride = {
     }),
 };
 
+type Props = {
+    savedQueryUuid?: string;
+};
+
 const MinimalExplorerContent = memo(() => {
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
@@ -89,10 +93,13 @@ const MinimalExplorerContent = memo(() => {
     );
 });
 
-const MinimalSavedExplorer: FC = () => {
-    const { savedQueryUuid } = useParams<{
+const MinimalSavedExplorer: FC<Props> = ({
+    savedQueryUuid: queryUuidProps,
+}) => {
+    const params = useParams<{
         savedQueryUuid: string;
     }>();
+    const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,

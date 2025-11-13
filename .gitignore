@@ -103,3 +103,4 @@ data/
 .local/*
 
 CLAUDE.local.md
+http-client.private.env.json

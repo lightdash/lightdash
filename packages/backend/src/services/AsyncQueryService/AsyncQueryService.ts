@@ -2084,11 +2084,28 @@ export class AsyncQueryService extends ProjectService {
         const space = await this.spaceModel.getSpaceSummary(
             savedChartSpaceUuid,
         );
-
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            space.uuid,
-        );
+        let access;
+        if (isJwtUser(account)) {
+            if (!ProjectService.isChartEmbed(account)) {
+                throw new ForbiddenError();
+            }
+            await this.permissionsService.checkEmbedPermissions(
+                account,
+                savedChart.uuid,
+            );
+            // We pass this access everytime, but we only define the ability
+            // rule for this chart only if the JWT is type: 'chart'.
+            // Dashboards won't have `access` defined in their abilityRules,
+            // so this CASL check will pass for them.
+            // TODO: Get all chartUuids for a given dashboard in the middleware.
+            //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
+            access = [{ chartUuid: savedChart.uuid }];
+        } else {
+            access = await this.spaceModel.getUserSpaceAccess(
+                account.user.id,
+                space.uuid,
+            );
+        }
 
         if (
             account.user.ability.cannot(
@@ -2113,7 +2130,7 @@ export class AsyncQueryService extends ProjectService {
 
         await this.analyticsModel.addChartViewEvent(
             savedChartUuid,
-            account.user.id,
+            account.isRegisteredUser() ? account.user.id : null,
         );
 
         const requestParameters: ExecuteAsyncSavedChartRequestParams = {
