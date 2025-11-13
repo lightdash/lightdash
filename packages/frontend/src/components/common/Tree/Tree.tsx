@@ -1,4 +1,11 @@
-import { Box, Tree as MantineTree, rem, useTree } from '@mantine-8/core';
+import {
+    Box,
+    Tree as MantineTree,
+    rem,
+    type TreeNodeData,
+    useTree,
+} from '@mantine-8/core';
+import isEqual from 'lodash/isEqual';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
@@ -11,40 +18,97 @@ import classes from './Tree.module.css';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
-type Props = {
-    withRootSelectable?: boolean;
-    topLevelLabel: string;
-    isExpanded: boolean;
-    data: Data<NestableItem>[];
-    value: string | null;
-    onChange: (selectedUuid: string | null) => void;
-};
+type Props =
+    | {
+          withRootSelectable?: boolean;
+          topLevelLabel: string;
+          isExpanded: boolean;
+          data: Data<NestableItem>[];
+      } & (
+          | {
+                type: 'single';
+                value: string | null;
+                onChange: (selectedUuid: string | null) => void;
+            }
+          | {
+                type: 'multiple';
+                values: string[];
+                onChangeMultiple: (selectedUuids: string[]) => void;
+            }
+      );
 
-const Tree: React.FC<Props> = ({
-    withRootSelectable = true,
-    topLevelLabel,
-    isExpanded,
-    value,
-    data,
-    onChange,
-}) => {
+type TreeController = ReturnType<typeof useTree>;
+
+function recursivelyToggleSelected(
+    tree: TreeController,
+    node: TreeNodeData,
+    selected: boolean,
+) {
+    if (!selected) {
+        tree.select(node.value);
+    } else {
+        tree.deselect(node.value);
+    }
+
+    if (node.children && node.children.length > 0) {
+        node.children.forEach((child) => {
+            recursivelyToggleSelected(tree, child, selected);
+        });
+    }
+}
+
+const Tree: React.FC<Props> = (props) => {
+    const {
+        withRootSelectable = true,
+        type,
+        topLevelLabel,
+        isExpanded,
+        data,
+    } = props;
+
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
-    const item = useMemo(() => {
-        if (!value) return null;
+    const values = useMemo(
+        () =>
+            props.type === 'multiple'
+                ? props.values
+                : props.value
+                ? [props.value]
+                : [],
+        [
+            props.type,
+            // @ts-expect-error - props.values and props.value are only defined if type is 'multiple' or 'single'
+            props.values,
+            // @ts-expect-error - props.values and props.value are only defined if type is 'multiple' or 'single'
+            props.value,
+        ],
+    );
 
-        return data.find((i) => i.uuid === value) ?? null;
-    }, [value, data]);
+    const handleChange = useCallback(
+        (selectedUuids: string[]) => {
+            if (type === 'multiple') {
+                props.onChangeMultiple(selectedUuids);
+                return;
+            }
+
+            props.onChange(selectedUuids.length > 0 ? selectedUuids[0] : null);
+        },
+        [type, props],
+    );
+
+    const items = useMemo(() => {
+        return data.filter((i) => values.includes(i.uuid));
+    }, [values, data]);
 
     const initialSelectedState = useMemo(() => {
-        if (!item) return [];
-        return [item.path];
+        return items.map((item) => item.path);
         // WARNING: this is to get an initial state, so we don't need to re-run this
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const tree = useTree({
         initialSelectedState,
+        multiple: type === 'multiple',
     });
 
     const expandAllParentPaths = useCallback(
@@ -61,10 +125,8 @@ const Tree: React.FC<Props> = ({
     );
 
     useEffect(() => {
-        if (item) {
-            expandAllParentPaths(item);
-        }
-    }, [item, expandAllParentPaths]);
+        items.forEach(expandAllParentPaths);
+    }, [items, expandAllParentPaths]);
 
     useEffect(() => {
         if (isExpanded) {
@@ -75,19 +137,20 @@ const Tree: React.FC<Props> = ({
     }, [isExpanded]);
 
     useEffect(() => {
-        let uuid: string | null = null;
+        const uuids = tree.selectedState
+            .map((path) => {
+                const item = data.find((i) => i.path === path);
+                if (item) {
+                    return item.uuid;
+                }
+                return null;
+            })
+            .filter((item) => item !== null);
 
-        if (tree.selectedState.length === 0) {
-            uuid = null;
-        } else {
-            const path = tree.selectedState[0];
-            uuid = data.find((i) => i.path === path)?.uuid ?? null;
+        if (!isEqual(uuids, values)) {
+            handleChange(uuids);
         }
-
-        if (uuid !== value) {
-            onChange(uuid);
-        }
-    }, [tree.selectedState, onChange, data, value]);
+    }, [tree.selectedState, handleChange, data, values]);
 
     const handleSelectTopLevel = useCallback(() => {
         if (withRootSelectable) {
@@ -99,7 +162,7 @@ const Tree: React.FC<Props> = ({
         <Box px="sm" py="xs">
             <TreeItem
                 withRootSelectable={withRootSelectable}
-                selected={!value}
+                selected={values.length === 0}
                 label={topLevelLabel}
                 isRoot={true}
                 onClick={handleSelectTopLevel}
@@ -141,9 +204,21 @@ const Tree: React.FC<Props> = ({
                                     label={node.label}
                                     matchHighlights={highlights}
                                     hasChildren={hasChildren}
-                                    onClick={() =>
-                                        nTree.toggleSelected(node.value)
-                                    }
+                                    onClick={() => {
+                                        if (type === 'multiple') {
+                                            recursivelyToggleSelected(
+                                                tree,
+                                                node,
+                                                selected,
+                                            );
+                                            if (!expanded) {
+                                                nTree.expand(node.value);
+                                            }
+                                            return;
+                                        }
+
+                                        nTree.toggleSelected(node.value);
+                                    }}
                                     onClickExpand={() =>
                                         nTree.toggleExpanded(node.value)
                                     }
