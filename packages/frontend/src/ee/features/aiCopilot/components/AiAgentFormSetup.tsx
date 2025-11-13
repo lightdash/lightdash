@@ -60,6 +60,7 @@ import {
     InstructionsGuidelines,
     InstructionsTemplates,
 } from './InstructionsSupport';
+import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -74,6 +75,7 @@ const formSchema = z.object({
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableReasoning: z.boolean(),
@@ -554,6 +556,20 @@ export const AiAgentFormSetup = ({
                                     />
                                 </Stack>
                             )}
+
+                            <SpaceAccessSelect
+                                projectUuid={projectUuid}
+                                value={
+                                    form.getInputProps('spaceAccess').value ??
+                                    []
+                                }
+                                onChange={(value) => {
+                                    form.setFieldValue(
+                                        'spaceAccess',
+                                        value.length > 0 ? value : [],
+                                    );
+                                }}
+                            />
 
                             <Box>
                                 <TagsInput
