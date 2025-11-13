@@ -84,6 +84,9 @@ type ExploreConfig = {
 
 type SharedDbtModelLightdashConfig = {
     default_filters?: RequiredFilter[];
+    /**
+     * @deprecated use default_filters instead
+     */
     required_filters?: RequiredFilter[]; // Alias for default_filters, for backwards compatibility
 };
 
@@ -118,6 +121,7 @@ type DbtModelLightdashConfig = ExploreConfig &
         >;
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];
+        primary_key?: string | string[];
     };
 
 export type DbtModelGroup = {
@@ -137,7 +141,6 @@ type DbtModelJoin = {
     fields?: string[];
     always?: boolean;
     relationship?: JoinRelationship;
-    primary_key?: string | string[];
     description?: string;
 };
 export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
