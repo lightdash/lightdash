@@ -2,8 +2,10 @@
 import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
+    getClientName,
     getErrorMessage,
     OAuthIntrospectResponse,
+    parseScopeString,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
@@ -42,12 +44,15 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     }
 
     // Render authorize page using Handlebars template
+    const scopeString = (scope as string) || '';
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthAuthorizePage({
             action: '/api/v1/oauth/authorize',
             client_id: client_id as string,
-            scope: scope as string,
+            client_name: getClientName(client_id as string),
+            scope: scopeString,
+            scopes: parseScopeString(scopeString),
             user: {
                 firstName: req.user.firstName,
                 lastName: req.user.lastName,
@@ -70,7 +75,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 },
                 {
                     name: 'scope',
-                    value: scope as string,
+                    value: scopeString,
                 },
                 {
                     name: 'state',
