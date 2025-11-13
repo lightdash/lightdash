@@ -1,3 +1,106 @@
+## [0.2170.1](https://github.com/lightdash/lightdash/compare/0.2170.0...0.2170.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* pass runQuery results when llm-as-judge-eval & data access ([#18111](https://github.com/lightdash/lightdash/issues/18111)) ([0fe2e0d](https://github.com/lightdash/lightdash/commit/0fe2e0d8282bed451ac6d32b0632c2c97d7c5c76)), closes [#18066](https://github.com/lightdash/lightdash/issues/18066)
+
+# [0.2170.0](https://github.com/lightdash/lightdash/compare/0.2169.1...0.2170.0) (2025-11-13)
+
+
+### Features
+
+* add stricter embed chart permissions ([#18022](https://github.com/lightdash/lightdash/issues/18022)) ([315f897](https://github.com/lightdash/lightdash/commit/315f897caa5e8bf8c88ec365d694469e7f49b40c))
+
+## [0.2169.1](https://github.com/lightdash/lightdash/compare/0.2169.0...0.2169.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* ValidateError returns empty message ([#18110](https://github.com/lightdash/lightdash/issues/18110)) ([262ece9](https://github.com/lightdash/lightdash/commit/262ece979a89f8a0d221e6bbb40ec4b9a38acd05)), closes [#18036](https://github.com/lightdash/lightdash/issues/18036)
+
+# [0.2169.0](https://github.com/lightdash/lightdash/compare/0.2168.0...0.2169.0) (2025-11-13)
+
+
+### Features
+
+* use Tree multi-select on agent space access ([#18103](https://github.com/lightdash/lightdash/issues/18103)) ([5f253ad](https://github.com/lightdash/lightdash/commit/5f253ada69d258f874a5a09d62a4ea1212af1ec1))
+
+# [0.2168.0](https://github.com/lightdash/lightdash/compare/0.2167.1...0.2168.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* show drag icon on hover of dashboard tiles ([#18081](https://github.com/lightdash/lightdash/issues/18081)) ([8519931](https://github.com/lightdash/lightdash/commit/8519931bdfb812b4a7d1e3dba50c99dd41e88f69))
+
+
+### Features
+
+* upgrade echarts to v6 ([#17896](https://github.com/lightdash/lightdash/issues/17896)) ([49b4a2c](https://github.com/lightdash/lightdash/commit/49b4a2cff271441622afe081603f4201eb950494)), closes [#8811](https://github.com/lightdash/lightdash/issues/8811)
+
+## [0.2167.1](https://github.com/lightdash/lightdash/compare/0.2167.0...0.2167.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* correct eye icon visibility logic in chart and table components ([#18089](https://github.com/lightdash/lightdash/issues/18089)) ([2c0b15c](https://github.com/lightdash/lightdash/commit/2c0b15c987429d7cd0cf6fafdbe8de4d9d4ba52a))
+* pass parameters to formatItemValue in pie chart visualization ([#18096](https://github.com/lightdash/lightdash/issues/18096)) ([765efc9](https://github.com/lightdash/lightdash/commit/765efc9d97ac37a23472fc6f014bff16b73a9f33))
+
+# [0.2167.0](https://github.com/lightdash/lightdash/compare/0.2166.2...0.2167.0) (2025-11-13)
+
+
+### Features
+
+* add Chart to embed SDK ([#18017](https://github.com/lightdash/lightdash/issues/18017)) ([f48184e](https://github.com/lightdash/lightdash/commit/f48184efa30aeb0e58ef1e9613e63c1e769219e5))
+
+## [0.2166.2](https://github.com/lightdash/lightdash/compare/0.2166.1...0.2166.2) (2025-11-13)
+
+
+### Bug Fixes
+
+* add noWrap to TileBase header Group component ([#18090](https://github.com/lightdash/lightdash/issues/18090)) ([cdbcc2f](https://github.com/lightdash/lightdash/commit/cdbcc2f94fbfba9a7fc74c6cf8fa5fec72f81624))
+
+## [0.2166.1](https://github.com/lightdash/lightdash/compare/0.2166.0...0.2166.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* get whole height on thread preview eval ([#18071](https://github.com/lightdash/lightdash/issues/18071)) ([65d1db8](https://github.com/lightdash/lightdash/commit/65d1db867c55419f40aa88a387b4a9703cc387fd))
+
+# [0.2166.0](https://github.com/lightdash/lightdash/compare/0.2165.1...0.2166.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* wrap Storybook components with Mantine8Provider ([#18085](https://github.com/lightdash/lightdash/issues/18085)) ([18f67a9](https://github.com/lightdash/lightdash/commit/18f67a90233f49348d26e0cde3a469543be80000))
+
+
+### Features
+
+* add multiple selection support to Tree component ([#18086](https://github.com/lightdash/lightdash/issues/18086)) ([b78b7eb](https://github.com/lightdash/lightdash/commit/b78b7eb13ba620e7ef836d34480385453b4e9607))
+* add space access control for AI agents ([#18061](https://github.com/lightdash/lightdash/issues/18061)) ([b9cb25a](https://github.com/lightdash/lightdash/commit/b9cb25a9ed34fb64e7b202993ca5a9fadcc40425)), closes [#18044](https://github.com/lightdash/lightdash/issues/18044)
+* improve oauth page styling ([#18075](https://github.com/lightdash/lightdash/issues/18075)) ([67b322e](https://github.com/lightdash/lightdash/commit/67b322ef64deee8dec13958771a00c003511f023))
+
+## [0.2165.1](https://github.com/lightdash/lightdash/compare/0.2165.0...0.2165.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* respect series order from the echartsConfig ([#18079](https://github.com/lightdash/lightdash/issues/18079)) ([9d8789f](https://github.com/lightdash/lightdash/commit/9d8789f0589b96761b76ddd3fec1a81d70e72e4a))
+
+# [0.2165.0](https://github.com/lightdash/lightdash/compare/0.2164.5...0.2165.0) (2025-11-13)
+
+
+### Bug Fixes
+
+* update tooltip text and rename "Referenced artifacts" to "Referenced answers" ([#18067](https://github.com/lightdash/lightdash/issues/18067)) ([92852b7](https://github.com/lightdash/lightdash/commit/92852b78a3e55e68021deb40c96bedb805f8f991))
+
+
+### Features
+
+* add a page to view a single verified answer from a link ([#18057](https://github.com/lightdash/lightdash/issues/18057)) ([c1de74a](https://github.com/lightdash/lightdash/commit/c1de74ad05e31d34a7256542e3b9e19aca460e97))
+* display referenced artifacts in slack response ([#18058](https://github.com/lightdash/lightdash/issues/18058)) ([c4119a8](https://github.com/lightdash/lightdash/commit/c4119a886bbc0266356501a6ef5300b48b6a72f0))
+
 ## [0.2164.5](https://github.com/lightdash/lightdash/compare/0.2164.4...0.2164.5) (2025-11-12)
 
 

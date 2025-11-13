@@ -324,7 +324,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     mt={
                         showBigNumberLabel
                             ? labelFontSize * 0.85 * spacingMultiplier
-                            : valueFontSize * 0.15 * spacingMultiplier
+                            : valueFontSize * 0.5 * spacingMultiplier
                     }
                     gap="xs"
                 >
@@ -346,6 +346,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         >
                             <Text
                                 fz={comparisonPillFontSize}
+                                fw={600}
                                 {...(spacingMultiplier === 0 && { lh: 0 })}
                             >
                                 {comparisonValue}

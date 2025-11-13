@@ -1,5 +1,12 @@
-import { Box, Tree as MantineTree, rem, useTree } from '@mantine-8/core';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import {
+    Box,
+    Tree as MantineTree,
+    rem,
+    type TreeNodeData,
+    useTree,
+} from '@mantine-8/core';
+import isEqual from 'lodash/isEqual';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import TreeItem from './TreeItem';
@@ -11,41 +18,105 @@ import classes from './Tree.module.css';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
-type Props = {
-    withRootSelectable?: boolean;
-    topLevelLabel: string;
-    isExpanded: boolean;
-    data: Data<NestableItem>[];
-    value: string | null;
-    onChange: (selectedUuid: string | null) => void;
-};
+type Props =
+    | {
+          withRootSelectable?: boolean;
+          topLevelLabel: string;
+          isExpanded: boolean;
+          data: Data<NestableItem>[];
+      } & (
+          | {
+                type: 'single';
+                value: string | null;
+                onChange: (selectedUuid: string | null) => void;
+            }
+          | {
+                type: 'multiple';
+                values: string[];
+                onChangeMultiple: (selectedUuids: string[]) => void;
+            }
+      );
 
-const Tree: React.FC<Props> = ({
-    withRootSelectable = true,
-    topLevelLabel,
-    isExpanded,
-    value,
-    data,
-    onChange,
-}) => {
+type TreeController = ReturnType<typeof useTree>;
+
+function recursivelyToggleSelected(
+    tree: TreeController,
+    node: TreeNodeData,
+    selected: boolean,
+) {
+    if (!selected) {
+        tree.select(node.value);
+    } else {
+        tree.deselect(node.value);
+    }
+
+    if (node.children && node.children.length > 0) {
+        node.children.forEach((child) => {
+            recursivelyToggleSelected(tree, child, selected);
+        });
+    }
+}
+
+const Tree: React.FC<Props> = (props) => {
+    const {
+        withRootSelectable = true,
+        type,
+        topLevelLabel,
+        isExpanded,
+        data,
+    } = props;
+
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
-    const item = useMemo(() => {
-        if (!value) return null;
+    const values = useMemo(
+        () =>
+            props.type === 'multiple'
+                ? props.values
+                : props.value
+                ? [props.value]
+                : [],
+        [
+            props.type,
+            // @ts-expect-error - props.values and props.value are only defined if type is 'multiple' or 'single'
+            props.values,
+            // @ts-expect-error - props.values and props.value are only defined if type is 'multiple' or 'single'
+            props.value,
+        ],
+    );
 
-        return data.find((i) => i.uuid === value) ?? null;
-    }, [value, data]);
+    const handleChange = useCallback(
+        (selectedUuids: string[]) => {
+            if (type === 'multiple') {
+                props.onChangeMultiple(selectedUuids);
+                return;
+            }
+
+            props.onChange(selectedUuids.length > 0 ? selectedUuids[0] : null);
+        },
+        [type, props],
+    );
+
+    const items = useMemo(() => {
+        return data.filter((i) => values.includes(i.uuid));
+    }, [values, data]);
 
     const initialSelectedState = useMemo(() => {
-        if (!item) return [];
-        return [item.path];
+        return items.map((item) => item.path);
         // WARNING: this is to get an initial state, so we don't need to re-run this
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const tree = useTree({
         initialSelectedState,
+        multiple: type === 'multiple',
     });
+
+    /**
+     * Prevents infinite loops between bidirectional state sync effects.
+     * When true, the external sync effect (values → tree) will skip its update.
+     * This is set by the internal sync effect (tree → values) before calling onChange.
+     */
+    const isInternalUpdate = useRef(false);
 
     const expandAllParentPaths = useCallback(
         (node: NestableItem) => {
@@ -61,10 +132,8 @@ const Tree: React.FC<Props> = ({
     );
 
     useEffect(() => {
-        if (item) {
-            expandAllParentPaths(item);
-        }
-    }, [item, expandAllParentPaths]);
+        items.forEach(expandAllParentPaths);
+    }, [items, expandAllParentPaths]);
 
     useEffect(() => {
         if (isExpanded) {
@@ -74,20 +143,52 @@ const Tree: React.FC<Props> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExpanded]);
 
+    /**
+     * External → Internal sync: Updates tree state when values prop changes externally.
+     * This handles cases like form resets, "Clear selection" clicks, or parent component updates.
+     * Skips updates that originated from tree interactions to prevent feedback loops.
+     */
     useEffect(() => {
-        let uuid: string | null = null;
-
-        if (tree.selectedState.length === 0) {
-            uuid = null;
-        } else {
-            const path = tree.selectedState[0];
-            uuid = data.find((i) => i.path === path)?.uuid ?? null;
+        if (isInternalUpdate.current) {
+            isInternalUpdate.current = false;
+            return;
         }
 
-        if (uuid !== value) {
-            onChange(uuid);
+        const expectedPaths = values
+            .map((uuid) => {
+                const item = data.find((i) => i.uuid === uuid);
+                return item?.path;
+            })
+            .filter((path): path is string => path !== undefined);
+
+        if (!isEqual(new Set(tree.selectedState), new Set(expectedPaths))) {
+            tree.setSelectedState(expectedPaths);
         }
-    }, [tree.selectedState, onChange, data, value]);
+        // WARNING: does not need to be re-run every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [values, data]);
+
+    /**
+     * Internal → External sync: Propagates tree selection changes to parent via onChange.
+     * This fires when users click nodes in the tree. Sets isInternalUpdate flag to prevent
+     * the external sync effect from immediately undoing this change.
+     */
+    useEffect(() => {
+        const uuids = tree.selectedState
+            .map((path) => {
+                const item = data.find((i) => i.path === path);
+                if (item) {
+                    return item.uuid;
+                }
+                return null;
+            })
+            .filter((item) => item !== null);
+
+        if (!isEqual(uuids, values)) {
+            isInternalUpdate.current = true;
+            handleChange(uuids);
+        }
+    }, [tree.selectedState, handleChange, data, values]);
 
     const handleSelectTopLevel = useCallback(() => {
         if (withRootSelectable) {
@@ -99,7 +200,7 @@ const Tree: React.FC<Props> = ({
         <Box px="sm" py="xs">
             <TreeItem
                 withRootSelectable={withRootSelectable}
-                selected={!value}
+                selected={values.length === 0}
                 label={topLevelLabel}
                 isRoot={true}
                 onClick={handleSelectTopLevel}
@@ -141,9 +242,21 @@ const Tree: React.FC<Props> = ({
                                     label={node.label}
                                     matchHighlights={highlights}
                                     hasChildren={hasChildren}
-                                    onClick={() =>
-                                        nTree.toggleSelected(node.value)
-                                    }
+                                    onClick={() => {
+                                        if (type === 'multiple') {
+                                            recursivelyToggleSelected(
+                                                tree,
+                                                node,
+                                                selected,
+                                            );
+                                            if (!expanded) {
+                                                nTree.expand(node.value);
+                                            }
+                                            return;
+                                        }
+
+                                        nTree.toggleSelected(node.value);
+                                    }}
                                     onClickExpand={() =>
                                         nTree.toggleExpanded(node.value)
                                     }

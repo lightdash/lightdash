@@ -122,3 +122,25 @@ export type AiAgentUserAccessTable = Knex.CompositeTableType<
         Omit<DbAiAgentUserAccess, 'user_uuid' | 'ai_agent_uuid' | 'created_at'>
     >
 >;
+
+export const AiAgentSpaceAccessTableName = 'ai_agent_space_access';
+
+export type DbAiAgentSpaceAccess = {
+    ai_agent_uuid: string;
+    space_uuid: string;
+    created_at: Date;
+};
+
+export type AiAgentSpaceAccessTable = Knex.CompositeTableType<
+    // base
+    DbAiAgentSpaceAccess,
+    // insert
+    Omit<DbAiAgentSpaceAccess, 'created_at'>,
+    // update
+    Partial<
+        Omit<
+            DbAiAgentSpaceAccess,
+            'ai_agent_uuid' | 'space_uuid' | 'created_at'
+        >
+    >
+>;

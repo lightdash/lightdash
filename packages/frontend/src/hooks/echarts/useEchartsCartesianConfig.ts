@@ -345,10 +345,17 @@ const mergeLegendSettings = <T = Record<any, any>>(
         return {
             show: series.length > 1,
             type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
             selected: legendsSelected,
         };
     }
     return {
+        orient: 'horizontal',
+        // After echarts v6, the new default legend is positioned at bottom. We need to keep old behavior in placeholders
+        // so we only define top 0 if there is no 'bottom' configuration.
+        // spreading `normalizedConfig` will overwrite top value if needed
+        top: 'bottom' in normalizedConfig ? undefined : 0,
         ...normalizedConfig,
         selected: legendsSelected,
     };
@@ -955,26 +962,10 @@ const getEchartsSeriesFromPivotedData = (
 
     const allSeries = cartesianChart.eChartsConfig.series || [];
 
+    // Don't sort here - series order is already set correctly by useCartesianChartConfig
+    // which respects the user's columnOrder preference
     const resultSeries = allSeries
         .filter((s) => !s.hidden)
-        .sort((a, b) => {
-            const aColumnName = findMatchingColumnName(a);
-            const bColumnName = findMatchingColumnName(b);
-
-            if (aColumnName && bColumnName && pivotValuesColumnsMap) {
-                const aColumn = pivotValuesColumnsMap[aColumnName];
-                const bColumn = pivotValuesColumnsMap[bColumnName];
-
-                if (
-                    aColumn?.columnIndex !== undefined &&
-                    bColumn?.columnIndex !== undefined
-                ) {
-                    return aColumn.columnIndex - bColumn.columnIndex;
-                }
-            }
-
-            return 0;
-        })
         .map<EChartsSeries>((series) => {
             const { flipAxes } = cartesianChart.layout;
             const xFieldHash = hashFieldReference(series.encode.xRef);

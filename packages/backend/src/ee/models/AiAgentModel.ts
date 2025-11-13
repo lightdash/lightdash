@@ -84,6 +84,7 @@ import {
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
+    AiAgentSpaceAccessTableName,
     AiAgentTableName,
     AiAgentUserAccessTableName,
     DbAiAgent,
@@ -173,6 +174,11 @@ export class AiAgentModel {
             .select('ai_agent_uuid', 'user_uuid')
             .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid);
 
+        const spaceAccess = this.database
+            .from(AiAgentSpaceAccessTableName)
+            .select('ai_agent_uuid', 'space_uuid')
+            .where(`${AiAgentSpaceAccessTableName}.ai_agent_uuid`, agentUuid);
+
         const latestInstruction = this.database
             .from(AiAgentInstructionVersionsTableName)
             .select(
@@ -188,6 +194,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
@@ -230,6 +237,14 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                spaceAccess: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(space_uuid)
+                         FROM space_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -283,6 +298,10 @@ export class AiAgentModel {
             .from(AiAgentUserAccessTableName)
             .select('ai_agent_uuid', 'user_uuid');
 
+        const spaceAccess = this.database
+            .from(AiAgentSpaceAccessTableName)
+            .select('ai_agent_uuid', 'space_uuid');
+
         const latestInstruction = this.database
             .from(AiAgentInstructionVersionsTableName)
             .select(
@@ -298,6 +317,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
@@ -340,6 +360,14 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                spaceAccess: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(space_uuid)
+                         FROM space_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -407,6 +435,7 @@ export class AiAgentModel {
             | 'instruction'
             | 'groupAccess'
             | 'userAccess'
+            | 'spaceAccess'
             | 'enableDataAccess'
             | 'enableSelfImprovement'
             | 'enableReasoning'
@@ -484,6 +513,12 @@ export class AiAgentModel {
                 { trx },
             );
 
+            const spaceAccess = await this.setAndGetSpaceAccess(
+                agent.ai_agent_uuid,
+                args.spaceAccess ?? undefined,
+                { trx },
+            );
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -497,6 +532,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableReasoning: agent.enable_reasoning,
@@ -613,6 +649,12 @@ export class AiAgentModel {
                 { trx },
             );
 
+            const spaceAccess = await this.setAndGetSpaceAccess(
+                agent.ai_agent_uuid,
+                args.spaceAccess ?? undefined,
+                { trx },
+            );
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -626,6 +668,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableReasoning: agent.enable_reasoning,
@@ -724,6 +767,52 @@ export class AiAgentModel {
             await this.setUserAccess(agentUuid, userAccess, { trx });
         }
         return this.getUserAccess(agentUuid, { trx });
+    }
+
+    private async getSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<NonNullable<AiAgent['spaceAccess']>> {
+        const rows = await trx(AiAgentSpaceAccessTableName)
+            .select('space_uuid')
+            .where('ai_agent_uuid', agentUuid);
+
+        return rows.map((row) => row.space_uuid);
+    }
+
+    private async setSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        spaceAccess: NonNullable<AiAgent['spaceAccess']>,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<NonNullable<AiAgent['spaceAccess']>> {
+        // Delete existing space access
+        await trx(AiAgentSpaceAccessTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .delete();
+
+        if (spaceAccess.length === 0) {
+            return [];
+        }
+
+        await trx(AiAgentSpaceAccessTableName).insert(
+            spaceAccess.map((spaceUuid) => ({
+                ai_agent_uuid: agentUuid,
+                space_uuid: spaceUuid,
+            })),
+        );
+
+        return spaceAccess;
+    }
+
+    private async setAndGetSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        spaceAccess: NonNullable<AiAgent['spaceAccess']> | undefined,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<NonNullable<AiAgent['spaceAccess']>> {
+        if (spaceAccess !== undefined) {
+            await this.setSpaceAccess(agentUuid, spaceAccess, { trx });
+        }
+        return this.getSpaceAccess(agentUuid, { trx });
     }
 
     async getAgentLastInstruction(
@@ -3903,6 +3992,7 @@ export class AiAgentModel {
             title: string | null;
             description: string | null;
         } | null;
+        toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[];
     }> {
         const result = await this.database(AiEvalRunResultTableName)
             .leftJoin(
@@ -3939,6 +4029,7 @@ export class AiAgentModel {
                 dashboard_config: Record<string, unknown> | null;
                 title: string | null;
                 description: string | null;
+                ai_prompt_uuid: string | null;
             }>(
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.response`,
@@ -3948,6 +4039,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.dashboard_config`,
                 `${AiArtifactVersionsTableName}.title`,
                 `${AiArtifactVersionsTableName}.description`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
             )
             .first();
 
@@ -3969,6 +4061,15 @@ export class AiAgentModel {
             );
         }
 
+        // Fetch tool calls and results if there's a prompt UUID
+        let toolResults: Pick<AiAgentToolResult, 'toolName' | 'result'>[] = [];
+
+        if (result.ai_prompt_uuid) {
+            toolResults = await this.getToolResultsForPrompt(
+                result.ai_prompt_uuid,
+            );
+        }
+
         return {
             query: result.prompt,
             response: result.response,
@@ -3982,6 +4083,7 @@ export class AiAgentModel {
                       description: result.description,
                   }
                 : null,
+            toolResults,
         };
     }
 

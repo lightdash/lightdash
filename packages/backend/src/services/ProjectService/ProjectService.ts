@@ -4368,16 +4368,24 @@ export class ProjectService extends BaseService {
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
 
-                if (
-                    ProjectService.isChartEmbed(account) ||
+                const isForbidden =
                     account.user.ability.cannot(
                         'view',
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                         }),
-                    )
-                ) {
+                    ) &&
+                    account.user.ability.cannot(
+                        'view',
+                        subject('Explore', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                            exploreNames,
+                        }),
+                    );
+
+                if (isForbidden) {
                     throw new ForbiddenError();
                 }
                 const explores = await this.projectModel.findExploresFromCache(
@@ -6891,6 +6899,6 @@ export class ProjectService extends BaseService {
     static isChartEmbed(account: Account) {
         if (!isJwtUser(account)) return false;
 
-        return account.access.contentType === 'chart';
+        return account.access.content.type === 'chart';
     }
 }

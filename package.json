@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2164.5",
+    "version": "0.2170.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -15,7 +15,8 @@
         "typescript": "5.5.4"
     },
     "overrides": {
-        "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks"
+        "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
+        "echarts-for-react@3.0.1": "$echarts-6"
     },
     "pnpm": {
         "overrides": {

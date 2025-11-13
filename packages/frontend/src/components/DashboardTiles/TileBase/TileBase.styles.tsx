@@ -105,3 +105,25 @@ export const ChartContainer = styled.div`
     overflow: hidden;
     display: flex;
 `;
+
+export const TileCardWrapper = styled.div`
+    height: 100%;
+
+    &:hover .drag-handle-icon {
+        opacity: 1;
+    }
+`;
+
+export const DragHandle = styled.div`
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    cursor: grab;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &:active {
+        cursor: grabbing;
+    }
+`;

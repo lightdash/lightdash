@@ -1,6 +1,6 @@
 import Lightdash from '@lightdash/sdk';
 import '@lightdash/sdk/sdk.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FilterOperator, SavedChart } from '../../common/src';
 
@@ -78,7 +78,7 @@ const contentStyle = {
     width: '100%',
 };
 
-// Chart container style
+// Dashboard Chart container style
 const chartContainerStyle = {
     width: '100%',
     height: '500px',
@@ -87,6 +87,12 @@ const chartContainerStyle = {
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'aliceblue',
+};
+
+const singleChartContainerStyle = {
+    width: '50%',
+    height: '500px',
+    border: '2px dashed #ccc',
 };
 
 // Info box style with bluish text and a light blue background
@@ -117,6 +123,11 @@ function App() {
     const handleExploreClick = (options: { chart: SavedChart }) => {
         setSavedChart(options.chart);
     };
+
+    const chartIdRef = useRef<HTMLInputElement>(null);
+    const [chartUuidOrSlug, setChartUuidOrSlug] = useState<string>(
+        localStorage.getItem('chartUuidOrSlug') || '',
+    );
 
     useEffect(() => {
         const [lightdashUrl, rest] = embedUrl.split('embed');
@@ -260,6 +271,79 @@ function App() {
                         <div style={infoBoxStyle}>
                             {t(
                                 'Additional Information: This chart is powered by Lightdash SDK.',
+                            )}
+                        </div>
+
+                        <h2
+                            style={{
+                                color: '#555',
+                                margin: '30px 0 10px 0',
+                            }}
+                        >
+                            {t('Chart component')}
+                        </h2>
+                        <p
+                            style={{
+                                fontSize: '1.1em',
+                                lineHeight: '1.6',
+                                color: '#666',
+                            }}
+                        >
+                            {t(
+                                'This section demonstrates the Chart component. Enter a chart UUID or slug to display just the visualization.',
+                            )}
+                        </p>
+
+                        <div style={{ marginBottom: '10px' }}>
+                            <h4>Chart UUID or Slug:</h4>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    type="text"
+                                    defaultValue={chartUuidOrSlug}
+                                    ref={chartIdRef}
+                                    placeholder="Enter chart UUID or slug"
+                                    style={{ flexGrow: 1 }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        const { value } = chartIdRef.current;
+                                        setChartUuidOrSlug(value);
+                                        localStorage.setItem(
+                                            'chartUuidOrSlug',
+                                            value,
+                                        );
+                                    }}
+                                >
+                                    {t('Load Chart')}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setChartUuidOrSlug('');
+                                        localStorage.removeItem(
+                                            'chartUuidOrSlug',
+                                        );
+                                    }}
+                                >
+                                    {t('Clear')}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={singleChartContainerStyle}>
+                            {chartUuidOrSlug ? (
+                                <Lightdash.Chart
+                                    instanceUrl={lightdashUrl}
+                                    token={lightdashToken}
+                                    styles={{
+                                        backgroundColor: 'transparent',
+                                        fontFamily: 'Arial, sans-serif',
+                                    }}
+                                    id={chartUuidOrSlug}
+                                />
+                            ) : (
+                                <p style={{ color: '#999' }}>
+                                    {t('Enter a chart UUID or slug to display')}
+                                </p>
                             )}
                         </div>
                     </main>

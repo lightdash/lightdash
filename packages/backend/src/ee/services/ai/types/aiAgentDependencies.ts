@@ -66,8 +66,6 @@ export type FindContentFn = (args: {
     content: (AllChartsSearchResult | DashboardSearchResult)[];
 }>;
 
-export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
-
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;

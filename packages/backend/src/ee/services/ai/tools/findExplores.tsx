@@ -13,6 +13,7 @@ import type {
     FindExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateExploreNameExists } from '../utils/validators';
@@ -22,10 +23,6 @@ type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
-};
-
-type AgentContext = {
-    availableExplores: Explore[];
 };
 
 function getCatalogChartUsage(
@@ -197,8 +194,11 @@ export const getFindExplores = ({
                     `🔍 Searching explore: \`${args.exploreName}\`...`,
                 );
 
-                const { availableExplores } = context as AgentContext;
-                validateExploreNameExists(availableExplores, args.exploreName);
+                const ctx = AgentContext.from(context);
+                validateExploreNameExists(
+                    ctx.getAvailableExplores(),
+                    args.exploreName,
+                );
 
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,

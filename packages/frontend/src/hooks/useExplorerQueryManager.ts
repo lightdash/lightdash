@@ -1,6 +1,7 @@
 import { FeatureFlags, type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     explorerActions,
     selectIsEditMode,
@@ -58,10 +59,13 @@ export const useExplorerQueryManager = () => {
         selectUnpivotedQueryUuidHistory,
     );
 
-    const { savedQueryUuid, projectUuid } = useParams<{
+    const embed = useEmbed();
+    const params = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
     }>();
+    const savedQueryUuid = embed?.savedQueryUuid || params.savedQueryUuid;
+    const projectUuid = embed?.projectUuid || params.projectUuid!;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
     }, [savedQueryUuid]);

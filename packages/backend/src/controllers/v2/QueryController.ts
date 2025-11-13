@@ -12,6 +12,7 @@ import {
     ForbiddenError,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
+    isJwtUser,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -191,9 +192,11 @@ export class QueryController extends BaseController {
 
         const context = body.context ?? getContextFromHeader(req);
 
-        if (req.account!.isJwtUser()) {
-            // we need more granular CASTL abilities before enabling this
-            throw new ForbiddenError('Feature not available for JWT users');
+        if (
+            isJwtUser(req.account!) &&
+            req.account!.access.content.type !== 'chart'
+        ) {
+            throw new ForbiddenError('Feature not available for this JWT');
         }
 
         const results = await this.services

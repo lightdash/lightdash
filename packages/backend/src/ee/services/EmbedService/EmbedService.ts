@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     AnonymousAccount,
@@ -16,6 +15,7 @@ import {
     DateGranularity,
     DecodedEmbed,
     Embed,
+    EmbedContent,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
@@ -39,7 +39,6 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
-    isJwtUser,
     isParameterInteractivityEnabled,
     LightdashSessionUser,
     MetricQuery,
@@ -73,7 +72,6 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import type { ScheduleDownloadAsyncQueryResultsArgs } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import {
     getAvailableParameterDefinitions,
@@ -401,10 +399,7 @@ export class EmbedService extends BaseService {
     /**
      * Meant to be used for {@link jwtAuthMiddleware} to extract the chart UUID from the JWT content.
      */
-    async getChartUuidFromJwt(
-        decodedToken: CreateEmbedJwt,
-        projectUuid: string,
-    ) {
+    async getChartFromJwt(decodedToken: CreateEmbedJwt, projectUuid: string) {
         if (!isChartContent(decodedToken.content)) {
             throw new ParameterError('JWT content is not of type chart');
         }
@@ -418,7 +413,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        return chart.uuid;
+        return chart;
     }
 
     /**
@@ -427,21 +422,28 @@ export class EmbedService extends BaseService {
     async getContentUuidFromJwt(
         decodedToken: CreateEmbedJwt,
         projectUuid: string,
-    ): Promise<{ contentUuid: string; contentType: 'dashboard' | 'chart' }> {
+    ): Promise<EmbedContent> {
         if (decodedToken.content.type === 'dashboard') {
             const dashboardUuid = await this.getDashboardUuidFromJwt(
                 decodedToken,
                 projectUuid,
             );
-            return { contentUuid: dashboardUuid, contentType: 'dashboard' };
+            return {
+                dashboardUuid,
+                type: 'dashboard',
+                chartUuids: [],
+                explores: [],
+            };
         }
 
         if (decodedToken.content.type === 'chart') {
-            const chartUuid = await this.getChartUuidFromJwt(
-                decodedToken,
-                projectUuid,
-            );
-            return { contentUuid: chartUuid, contentType: 'chart' };
+            const chart = await this.getChartFromJwt(decodedToken, projectUuid);
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [chart.uuid],
+                type: 'chart',
+                explores: [chart.tableName],
+            };
         }
 
         throw new ParameterError(
@@ -461,7 +463,7 @@ export class EmbedService extends BaseService {
             account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (decodedToken.content.type !== 'dashboard') {
             throw new ForbiddenError('Not authorized for dashboard content');
@@ -551,7 +553,7 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -941,7 +943,7 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1043,7 +1045,7 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1177,7 +1179,7 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1502,7 +1504,7 @@ export class EmbedService extends BaseService {
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = account.access.contentId;
+        const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1588,9 +1590,9 @@ export class EmbedService extends BaseService {
                     userAttributesPromise,
                 ]);
 
-                if (!content.contentUuid) {
+                if (!content) {
                     throw new NotFoundError(
-                        'Cannot verify JWT. Content ID not found',
+                        'Cannot verify JWT. Content not found',
                     );
                 }
 
@@ -1598,8 +1600,7 @@ export class EmbedService extends BaseService {
                     decodedToken,
                     source: encodedJwt,
                     embed,
-                    contentUuid: content.contentUuid,
-                    contentType: content.contentType,
+                    content,
                     userAttributes,
                 });
             },

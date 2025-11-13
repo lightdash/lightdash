@@ -29,6 +29,7 @@ import {
 } from '../../../components/common/Page/constants';
 import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
+import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
 import { AiAgentFormSetup } from '../../features/aiCopilot/components/AiAgentFormSetup';
 import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
@@ -55,6 +56,7 @@ const formSchema = z.object({
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableReasoning: z.boolean(),
@@ -67,12 +69,14 @@ type Props = {
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const navigate = useNavigate();
-    const { agentUuid, projectUuid, evalUuid, runUuid } = useParams<{
-        agentUuid: string;
-        projectUuid: string;
-        evalUuid?: string;
-        runUuid?: string;
-    }>();
+    const { agentUuid, projectUuid, evalUuid, runUuid, artifactUuid } =
+        useParams<{
+            agentUuid: string;
+            projectUuid: string;
+            evalUuid?: string;
+            runUuid?: string;
+            artifactUuid?: string;
+        }>();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -101,6 +105,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             imageUrl: null,
             groupAccess: [],
             userAccess: [],
+            spaceAccess: [],
             enableDataAccess: false,
             enableSelfImprovement: false,
             enableReasoning: false,
@@ -123,6 +128,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 imageUrl: agent.imageUrl,
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
+                spaceAccess: agent.spaceAccess ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
                 enableReasoning: agent.enableReasoning ?? false,
@@ -394,7 +400,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     )}
 
                     {activeTab === 'verified-artifacts' && (
-                        <VerifiedArtifactsLayout />
+                        <>
+                            {artifactUuid ? (
+                                <VerifiedArtifactDetail />
+                            ) : (
+                                <VerifiedArtifactsLayout />
+                            )}
+                        </>
                     )}
                 </Box>
             </AppShell.Main>

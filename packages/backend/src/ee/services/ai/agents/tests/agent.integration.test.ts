@@ -67,6 +67,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 instruction: '',
                 groupAccess: [],
                 userAccess: [],
+                spaceAccess: [],
                 imageUrl: null,
                 enableDataAccess: true,
                 enableSelfImprovement: false,

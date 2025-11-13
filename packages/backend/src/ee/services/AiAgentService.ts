@@ -121,7 +121,6 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
-    GetExploreFn,
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
@@ -138,6 +137,7 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
+    getReferencedArtifactsBlocks,
 } from './ai/utils/getSlackBlocks';
 import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
@@ -210,6 +210,8 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -235,6 +237,7 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
@@ -931,6 +934,7 @@ export class AiAgentService {
             instruction: body.instruction,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             enableReasoning: body.enableReasoning,
@@ -990,6 +994,7 @@ export class AiAgentService {
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             enableReasoning: body.enableReasoning,
@@ -2353,18 +2358,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 };
             });
 
-        const getExplore: GetExploreFn = (args) =>
-            wrapSentryTransaction('AiAgent.getExplore', args, async () => {
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                return this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.exploreName,
-                );
-            });
-
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('AiAgent.findFields', args, async () => {
                 const userAttributes =
@@ -2430,9 +2423,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 'AiAgent.runMiniMetricQuery',
                 metricQuery,
                 async () => {
-                    const explore = await getExplore({
-                        exploreName: metricQuery.exploreName,
-                    });
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        agentSettings.tags,
+                        metricQuery.exploreName,
+                    );
 
                     const metricQueryFields = [
                         ...metricQuery.dimensions,
@@ -2553,8 +2553,23 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         allContent,
                     );
 
+                const agentSettings = await this.getAgentSettings(user, prompt);
+                if (
+                    !agentSettings.spaceAccess ||
+                    agentSettings.spaceAccess.length === 0
+                ) {
+                    return {
+                        content: filteredResults,
+                    };
+                }
+
                 return {
-                    content: filteredResults,
+                    content:
+                        agentSettings.spaceAccess.length === 0
+                            ? filteredResults
+                            : filteredResults.filter(({ spaceUuid }) =>
+                                  agentSettings.spaceAccess.includes(spaceUuid),
+                              ),
                 };
             });
 
@@ -2632,7 +2647,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -2708,7 +2722,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -2758,7 +2771,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            getExplore,
             runMiniMetricQuery,
             getPrompt,
             sendFile,
@@ -3078,6 +3090,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             throw new Error('Could not reload slack prompt.');
         }
 
+        // Fetch referenced artifacts for this prompt
+        const referencedArtifactsMap =
+            await this.aiAgentModel.findThreadReferencedArtifacts({
+                promptUuids: [slackPrompt.promptUuid],
+            });
+        const referencedArtifacts =
+            referencedArtifactsMap.get(slackPrompt.promptUuid) ?? [];
+
         await this.slackClient.deleteMessage({
             organizationUuid: slackPrompt.organizationUuid,
             channelId: slackPrompt.slackChannelId,
@@ -3120,6 +3140,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
               )
             : undefined;
 
+        const referencedArtifactsBlocks =
+            agent && referencedArtifacts.length > 0
+                ? getReferencedArtifactsBlocks(
+                      agent.uuid,
+                      slackPrompt.projectUuid,
+                      this.lightdashConfig.siteUrl,
+                      referencedArtifacts,
+                      slackPrompt.threadUuid,
+                      slackPrompt.promptUuid,
+                  )
+                : [];
+
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
         const slackifiedMarkdown = slackifyMarkdown(response);
@@ -3141,6 +3173,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
                 ...exploreBlocks,
                 ...proposeChangeBlocks,
+                ...referencedArtifactsBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
                 ...(historyBlocks || []),
@@ -3279,6 +3312,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleViewArtifact(app: App) {
+        app.action('view_artifact', async ({ ack }) => {
+            await ack();
+            // TODO :: track analytics
         });
     }
 
@@ -4281,7 +4322,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
                 status: `assessing`,
             });
-            await this.assessResult(result.resultUuid);
+            const agent = await this.getAgent(sessionUser, agentUuid);
+            const canAccessData = agent.enableDataAccess;
+            await this.assessResult(result.resultUuid, canAccessData);
 
             // Mark as completed with assessment status
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
@@ -4314,11 +4357,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
      * Assess the correctness of an evaluation result based on factuality and context relevancy scores.
      * TODO: Consider adding explores information for extra context relevancy assessment
      * @param resultUuid
+     * @param canAccessData - Indicates whether the agent can access data (data access is enabled) which means the assessment will be including the data in the context.
      * @returns boolean - Indicates whether the result is correct or not.
      */
-    async assessResult(resultUuid: string): Promise<boolean> {
+    async assessResult(
+        resultUuid: string,
+        canAccessData: boolean,
+    ): Promise<boolean> {
         Logger.info(`Assessing result ${resultUuid}`);
-        const { query, response, expectedAnswer, artifact } =
+        const { query, response, expectedAnswer, artifact, toolResults } =
             await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
 
         // TODO: Implement judge configuration in the future!
@@ -4327,41 +4374,62 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             this.lightdashConfig.ai.copilot,
         );
 
-        const artifactContext: string[] = artifact
-            ? [
-                  `Artifact type: ${artifact.artifactType}`,
-                  artifact.chartConfig
-                      ? `Chart config: ${JSON.stringify(artifact.chartConfig)}`
-                      : '',
-                  artifact.dashboardConfig
-                      ? `Dashboard config: ${JSON.stringify(
-                            artifact.dashboardConfig,
-                        )}`
-                      : '',
-              ].filter(Boolean)
-            : [];
+        // Build context from artifacts and tool results
+        const contextParts: string[] = [];
+
+        // Add artifact context
+        if (artifact) {
+            contextParts.push(`Artifact type: ${artifact.artifactType}`);
+            if (artifact.chartConfig) {
+                contextParts.push(
+                    `Chart config: ${JSON.stringify(artifact.chartConfig)}`,
+                );
+            }
+            if (artifact.dashboardConfig) {
+                contextParts.push(
+                    `Dashboard config: ${JSON.stringify(
+                        artifact.dashboardConfig,
+                    )}`,
+                );
+            }
+        }
+
+        // Add query results context if data access is enabled
+        if (canAccessData && toolResults.length > 0) {
+            const queryResults = toolResults.filter(
+                (toolResult) => toolResult.toolName === 'runQuery',
+            );
+            if (queryResults.length > 0) {
+                contextParts.push('\nQuery Results:');
+                queryResults.forEach((toolResult) => {
+                    contextParts.push(String(toolResult.result));
+                });
+            }
+        }
 
         const factualityScore = expectedAnswer
             ? await llmAsAJudge({
                   query,
                   response,
                   expectedAnswer,
+                  context: contextParts.length > 0 ? contextParts : undefined,
                   judge,
                   callOptions,
                   scorerType: 'factuality',
               })
             : null;
 
-        const contextRelevancyScore = artifact
-            ? await llmAsAJudge({
-                  query,
-                  response,
-                  context: artifactContext,
-                  judge,
-                  callOptions,
-                  scorerType: 'contextRelevancy',
-              })
-            : null;
+        const contextRelevancyScore =
+            artifact || toolResults.length > 0
+                ? await llmAsAJudge({
+                      query,
+                      response,
+                      context: contextParts,
+                      judge,
+                      callOptions,
+                      scorerType: 'contextRelevancy',
+                  })
+                : null;
 
         const reasoning = [];
         let passed = true;

@@ -104,6 +104,7 @@ const SpaceSelector = ({
                     onChange={onSelectSpace}
                     topLevelLabel="Spaces"
                     isExpanded={fuzzyFilteredSpaces !== undefined}
+                    type="single"
                 />
             </Paper>
 

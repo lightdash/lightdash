@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.2164.5",
+    "version": "0.2170.1",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -26,7 +26,7 @@
         "cronstrue": "^2.23.0",
         "dayjs": "^1.11.9",
         "dependency-graph": "^0.11.0",
-        "echarts": "^5.6.0",
+        "echarts": "^6.0.0",
         "fast-json-patch": "^3.1.1",
         "handlebars": "^4.7.8",
         "js-yaml": "^4.1.0",

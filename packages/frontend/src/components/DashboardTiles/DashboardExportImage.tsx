@@ -4,7 +4,7 @@ import { type FC, type RefObject } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 
-import type EChartsReact from 'echarts-for-react';
+import { type EChartsReact } from '../EChartsReactWrapper';
 import {
     base64SvgToBase64Image,
     downloadImage,

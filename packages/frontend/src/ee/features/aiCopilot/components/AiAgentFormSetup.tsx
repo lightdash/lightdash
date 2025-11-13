@@ -60,6 +60,7 @@ import {
     InstructionsGuidelines,
     InstructionsTemplates,
 } from './InstructionsSupport';
+import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -74,6 +75,7 @@ const formSchema = z.object({
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableReasoning: z.boolean(),
@@ -226,7 +228,7 @@ export const AiAgentFormSetup = ({
                                     style={{ flexGrow: 1 }}
                                     variant="subtle"
                                 />
-                                <Tooltip label="Agents can only be created in the context the current project">
+                                <Tooltip label="Agents can only be created within the context of the current project.">
                                     <TextInput
                                         label="Project"
                                         placeholder="Enter a project"
@@ -554,6 +556,14 @@ export const AiAgentFormSetup = ({
                                     />
                                 </Stack>
                             )}
+
+                            <SpaceAccessSelect
+                                projectUuid={projectUuid}
+                                value={form.values.spaceAccess}
+                                onChange={(value) => {
+                                    form.setFieldValue('spaceAccess', value);
+                                }}
+                            />
 
                             <Box>
                                 <TagsInput

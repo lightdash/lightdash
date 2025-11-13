@@ -280,4 +280,7 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    echarts6: {
+        enabled: false,
+    },
 };

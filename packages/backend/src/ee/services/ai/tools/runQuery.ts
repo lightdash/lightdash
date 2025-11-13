@@ -15,12 +15,12 @@ import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
-    GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import { AgentContext } from '../utils/AgentContext';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
@@ -40,7 +40,6 @@ import {
 } from '../utils/validators';
 
 type Dependencies = {
-    getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
@@ -119,7 +118,6 @@ export const validateRunQueryTool = (
 };
 
 export const getRunQuery = ({
-    getExplore,
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
@@ -133,15 +131,16 @@ export const getRunQuery = ({
         description: toolRunQueryArgsSchema.description,
         inputSchema: toolRunQueryArgsSchema,
         outputSchema: toolRunQueryOutputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('📊 Running your query...');
 
                 const queryTool =
                     toolRunQueryArgsSchemaTransformed.parse(toolArgs);
-                const explore = await getExplore({
-                    exploreName: queryTool.queryConfig.exploreName,
-                });
+                const ctx = AgentContext.from(context);
+                const explore = ctx.getExplore(
+                    queryTool.queryConfig.exploreName,
+                );
 
                 validateRunQueryTool(queryTool, explore);
 
