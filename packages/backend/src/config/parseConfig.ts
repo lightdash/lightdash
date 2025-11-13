@@ -1475,7 +1475,7 @@ export const parseConfig = (): LightdashConfig => {
             maxColumnLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
-                ) || 60,
+                ) || 200,
         },
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,

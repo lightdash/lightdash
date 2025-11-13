@@ -1743,7 +1743,10 @@ export class AsyncQueryService extends ProjectService {
                             args.metricQuery.limit,
                         );
 
-                        pivotedQuery = pivotQueryBuilder.toSql();
+                        pivotedQuery = pivotQueryBuilder.toSql({
+                            columnLimit:
+                                this.lightdashConfig.pivotTable.maxColumnLimit,
+                        });
                     }
 
                     const query = pivotedQuery || compiledQuery;

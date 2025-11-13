@@ -535,7 +535,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     resultsPageExecutionMs: number;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
-        // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
+        // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over maxColumnLimit
         totalColumnCount: number | null;
         indexColumn: PivotConfiguration['indexColumn'] | undefined;
         valuesColumns: PivotValuesColumn[];
