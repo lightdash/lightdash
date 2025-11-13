@@ -35,8 +35,13 @@ const useEchartsPieConfig = (
     selectedLegends?: Record<string, boolean>,
     isInDashboard?: boolean,
 ) => {
-    const { visualizationConfig, itemsMap, getGroupColor, minimal } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        getGroupColor,
+        minimal,
+        parameters,
+    } = useVisualizationContext();
 
     const theme = useMantineTheme();
 
@@ -188,6 +193,8 @@ const useEchartsPieConfig = (
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
+                        false,
+                        parameters,
                     );
 
                     const truncatedName =
@@ -209,7 +216,7 @@ const useEchartsPieConfig = (
                 },
             },
         };
-    }, [chartConfig, seriesData]);
+    }, [chartConfig, seriesData, parameters]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
