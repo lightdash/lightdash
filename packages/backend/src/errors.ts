@@ -11,12 +11,26 @@ import { ValidateError } from '@tsoa/runtime';
 import { NextFunction, Request, Response } from 'express';
 import Logger from './logging/logger';
 
+const messageFromValidateError = (error: ValidateError) => {
+    // error message might come empty even though it's not supposed to 😠
+    if (error.message && error.message.length > 0) return error.message;
+    let errorMessage = `Validation failed`;
+    const fieldErrors = error.fields;
+    if (fieldErrors && typeof fieldErrors === 'object') {
+        errorMessage = Object.entries(fieldErrors)
+            .map(([name, e]) => `${name}: ${e.message}`)
+            .join(', ');
+    }
+    return errorMessage;
+};
+
 export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof ValidateError) {
+        const errorMessage = messageFromValidateError(error);
         return new LightdashError({
             statusCode: 422,
             name: error.name,
-            message: error.message,
+            message: errorMessage,
             data: error.fields,
         });
     }
