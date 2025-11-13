@@ -10,6 +10,7 @@ Content-Type: application/json
 }
 
 ### Logout
+
 GET http://localhost:8080/api/v1/logout
 
 ### Get project config
@@ -49,11 +50,10 @@ Content-Type: application/json
     "chartUuid": "e6efe2fa-f884-47ea-ac9b-1e3ebe303b30"
 }
 
-### Generate embed url - use the dashboardUuid you want to embed
+### Generate dashboard embed url
+#### use the dashboardUuid you want to embed
 
-@dashboardUuid = e45dcfb9-d5fe-4c0e-9d8c-70871e904aea
-
-POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/get-embed-url
+POST http://localhost:8080/api/v1/embed/{{projectUuid}}/get-embed-url
 Content-Type: application/json
 
 {
@@ -68,16 +68,13 @@ Content-Type: application/json
         "canExportImages": true,
         "canDateZoom": true,
         "canExportPagePdf": true,
-        "projectUuid": "3675b69e-8324-4110-bdca-059031aa8da3"
+        "projectUuid": "{{projectUuid}}"
     }
 }
 
 ### Generate embed url for chart - use the chartUuid you want to embed
 
-@chartUuid = 0854611a-9842-4937-9cab-37fb3557e852
-@projectUuid = 3675b69e-8324-4110-bdca-059031aa8da3
-
-POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/get-embed-url
+POST http://localhost:8080/api/v1/embed/{{projectUuid}}/get-embed-url
 Content-Type: application/json
 
 {
@@ -92,13 +89,13 @@ Content-Type: application/json
         "canExportCsv": true,
         "canExportImages": false,
         "canViewUnderlyingData": true,
-        "projectUuid": "3675b69e-8324-4110-bdca-059031aa8da3"
+        "projectUuid": "{{projectUuid}}"
     },
     "expiresIn": "24h"
 }
 
 
-# We can use JWT token to call some endpoints that support `account` parameters. 
+### We can use JWT token to call some endpoints that support `account` parameters.
 
 ### Get chart results using JWT token
 GET http://localhost:8080/api/v1/saved/{{chartUuid}}
@@ -120,7 +117,7 @@ Content-Type: application/json
 }
    
 
-# This calculate total endpoint does not support chart JWT token, only dashboard
+### This calculate total endpoint does not support chart JWT token, only dashboard
 @chartJwtToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImV4dGVybmFsSWQiOiJjaGFydC11c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJjaGFydC11c2VyQGV4YW1wbGUuY29tIn0sImNvbnRlbnQiOnsidHlwZSI6ImNoYXJ0IiwiY29udGVudElkIjoiMDg1NDYxMWEtOTg0Mi00OTM3LTljYWItMzdmYjM1NTdlODUyIiwic2NvcGVzIjpbInZpZXc6Q2hhcnQiXSwiY2FuRXhwb3J0Q3N2Ijp0cnVlLCJjYW5FeHBvcnRJbWFnZXMiOmZhbHNlLCJjYW5WaWV3VW5kZXJseWluZ0RhdGEiOnRydWUsInByb2plY3RVdWlkIjoiMzY3NWI2OWUtODMyNC00MTEwLWJkY2EtMDU5MDMxYWE4ZGEzIn0sImlhdCI6MTc2MTIxNDgxNCwiZXhwIjoxNzYxMzAxMjE0fQ.h1bv99NPtjIICpsmQ0QqZPDJOJYtJ7iJ4-urQqNDXP8
 POST http://localhost:8080/api/v1/embed/{{projectUuid}}/chart/{{chartUuid}}/calculate-total
 Lightdash-Embed-Token: {{chartJwtToken}}

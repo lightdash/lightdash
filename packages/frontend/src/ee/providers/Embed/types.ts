@@ -27,6 +27,8 @@ export interface EmbedContext {
     onBackToDashboard?: () => void;
     // The chart that the user is exploring
     savedChart?: SavedChart;
+    // The UUID of the saved query being viewed in an embedded Chart
+    savedQueryUuid?: string;
     // The mode of the embed: 'sdk' when embedded via SDK (no URL sync), 'direct' when navigating directly to /embed (sync URL)
     mode: EmbedMode;
 }
