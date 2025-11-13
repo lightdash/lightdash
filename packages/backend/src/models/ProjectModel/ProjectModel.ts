@@ -963,37 +963,32 @@ export class ProjectModel {
 
     static convertMetricFiltersFieldIdsToFieldRef = (
         explore: Explore | ExploreError,
-    ) =>
-        wrapSentryTransactionSync(
-            'ProjectModel.convertMetricFiltersFieldIdsToFieldRef',
-            { exploreName: explore.name },
-            () => {
-                if (isExploreError(explore)) return explore;
-                const convertedExplore = { ...explore };
-                if (convertedExplore.tables) {
-                    Object.values(convertedExplore.tables).forEach((table) => {
-                        if (table.metrics) {
-                            Object.values(table.metrics).forEach((metric) => {
-                                if (metric.filters) {
-                                    metric.filters.forEach((filter) => {
-                                        // @ts-expect-error cached explore types might not be up to date
-                                        const { fieldId, fieldRef, ...rest } =
-                                            filter.target;
-                                        // eslint-disable-next-line no-param-reassign
-                                        filter.target = {
-                                            ...rest,
-                                            fieldRef: fieldRef ?? fieldId,
-                                        };
-                                    });
-                                }
+    ) => {
+        if (isExploreError(explore)) return explore;
+        const convertedExplore = { ...explore };
+        if (convertedExplore.tables) {
+            Object.values(convertedExplore.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // @ts-expect-error cached explore types might not be up to date
+                                const { fieldId, fieldRef, ...rest } =
+                                    filter.target;
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...rest,
+                                    fieldRef: fieldRef ?? fieldId,
+                                };
                             });
                         }
                     });
                 }
+            });
+        }
 
-                return convertedExplore;
-            },
-        );
+        return convertedExplore;
+    };
 
     /**
      * Find explores from cache (cached_explore) from a project.
