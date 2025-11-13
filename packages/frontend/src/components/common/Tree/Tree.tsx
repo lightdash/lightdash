@@ -6,7 +6,7 @@ import {
     useTree,
 } from '@mantine-8/core';
 import isEqual from 'lodash/isEqual';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import TreeItem from './TreeItem';
@@ -111,6 +111,13 @@ const Tree: React.FC<Props> = (props) => {
         multiple: type === 'multiple',
     });
 
+    /**
+     * Prevents infinite loops between bidirectional state sync effects.
+     * When true, the external sync effect (values → tree) will skip its update.
+     * This is set by the internal sync effect (tree → values) before calling onChange.
+     */
+    const isInternalUpdate = useRef(false);
+
     const expandAllParentPaths = useCallback(
         (node: NestableItem) => {
             const allParentPaths = getAllParentPaths(treeData, node.path);
@@ -136,6 +143,36 @@ const Tree: React.FC<Props> = (props) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExpanded]);
 
+    /**
+     * External → Internal sync: Updates tree state when values prop changes externally.
+     * This handles cases like form resets, "Clear selection" clicks, or parent component updates.
+     * Skips updates that originated from tree interactions to prevent feedback loops.
+     */
+    useEffect(() => {
+        if (isInternalUpdate.current) {
+            isInternalUpdate.current = false;
+            return;
+        }
+
+        const expectedPaths = values
+            .map((uuid) => {
+                const item = data.find((i) => i.uuid === uuid);
+                return item?.path;
+            })
+            .filter((path): path is string => path !== undefined);
+
+        if (!isEqual(new Set(tree.selectedState), new Set(expectedPaths))) {
+            tree.setSelectedState(expectedPaths);
+        }
+        // WARNING: does not need to be re-run every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [values, data]);
+
+    /**
+     * Internal → External sync: Propagates tree selection changes to parent via onChange.
+     * This fires when users click nodes in the tree. Sets isInternalUpdate flag to prevent
+     * the external sync effect from immediately undoing this change.
+     */
     useEffect(() => {
         const uuids = tree.selectedState
             .map((path) => {
@@ -148,6 +185,7 @@ const Tree: React.FC<Props> = (props) => {
             .filter((item) => item !== null);
 
         if (!isEqual(uuids, values)) {
+            isInternalUpdate.current = true;
             handleChange(uuids);
         }
     }, [tree.selectedState, handleChange, data, values]);

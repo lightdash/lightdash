@@ -559,15 +559,9 @@ export const AiAgentFormSetup = ({
 
                             <SpaceAccessSelect
                                 projectUuid={projectUuid}
-                                value={
-                                    form.getInputProps('spaceAccess').value ??
-                                    []
-                                }
+                                value={form.values.spaceAccess}
                                 onChange={(value) => {
-                                    form.setFieldValue(
-                                        'spaceAccess',
-                                        value.length > 0 ? value : [],
-                                    );
+                                    form.setFieldValue('spaceAccess', value);
                                 }}
                             />
 
