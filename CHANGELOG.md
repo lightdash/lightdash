@@ -1,3 +1,10 @@
+# [0.2167.0](https://github.com/lightdash/lightdash/compare/0.2166.2...0.2167.0) (2025-11-13)
+
+
+### Features
+
+* add Chart to embed SDK ([#18017](https://github.com/lightdash/lightdash/issues/18017)) ([f48184e](https://github.com/lightdash/lightdash/commit/f48184efa30aeb0e58ef1e9613e63c1e769219e5))
+
 ## [0.2166.2](https://github.com/lightdash/lightdash/compare/0.2166.1...0.2166.2) (2025-11-13)
 
 
