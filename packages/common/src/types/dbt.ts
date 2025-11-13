@@ -627,6 +627,8 @@ export enum DbtManifestVersion {
     V10 = 'v10',
     V11 = 'v11',
     V12 = 'v12',
+    // dbt fusion
+    // V20 = 'v20',
 }
 
 export const getDbtManifestVersion = (
@@ -638,6 +640,14 @@ export const getDbtManifestVersion = (
         throw new Error(
             `Could not determine dbt manifest version from ${manifest.metadata.dbt_schema_version}`,
         );
+    }
+    if (version === 'v20') {
+        // Fusion is backwards-compatible and can read dbt Core manifests.
+        // However, dbt Core isn't forward-compatible and can't read Fusion manifests.
+        // Fusion produces a v20 manifest, while the latest version of dbt Core still produces a v12 manifest.
+        // TODO add support for dbt fusion manifest v20
+        console.warn('Fallback to v12 manifest version for dbt fusion');
+        return DbtManifestVersion.V12;
     }
     if (
         Object.values(DbtManifestVersion).includes(
