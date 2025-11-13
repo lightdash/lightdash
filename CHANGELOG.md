@@ -1,3 +1,11 @@
+## [0.2167.1](https://github.com/lightdash/lightdash/compare/0.2167.0...0.2167.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* correct eye icon visibility logic in chart and table components ([#18089](https://github.com/lightdash/lightdash/issues/18089)) ([2c0b15c](https://github.com/lightdash/lightdash/commit/2c0b15c987429d7cd0cf6fafdbe8de4d9d4ba52a))
+* pass parameters to formatItemValue in pie chart visualization ([#18096](https://github.com/lightdash/lightdash/issues/18096)) ([765efc9](https://github.com/lightdash/lightdash/commit/765efc9d97ac37a23472fc6f014bff16b73a9f33))
+
 # [0.2167.0](https://github.com/lightdash/lightdash/compare/0.2166.2...0.2167.0) (2025-11-13)
 
 
