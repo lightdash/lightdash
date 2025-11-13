@@ -1,3 +1,10 @@
+## [0.2170.1](https://github.com/lightdash/lightdash/compare/0.2170.0...0.2170.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* pass runQuery results when llm-as-judge-eval & data access ([#18111](https://github.com/lightdash/lightdash/issues/18111)) ([0fe2e0d](https://github.com/lightdash/lightdash/commit/0fe2e0d8282bed451ac6d32b0632c2c97d7c5c76)), closes [#18066](https://github.com/lightdash/lightdash/issues/18066)
+
 # [0.2170.0](https://github.com/lightdash/lightdash/compare/0.2169.1...0.2170.0) (2025-11-13)
 
 
