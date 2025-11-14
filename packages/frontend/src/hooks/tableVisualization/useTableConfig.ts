@@ -489,22 +489,49 @@ const useTableConfig = (
             return undefined;
         }
 
+        // For backend-pivoted data (SQL pivot), we need to find the pivot columns
+        // that correspond to each metric
+        const getColumnsForField = (fieldId: string): string[] => {
+            if (!resultsData.pivotDetails) {
+                // No backend pivot, use the field directly
+                return [fieldId];
+            }
+
+            // Find all pivot columns that reference this field
+            return resultsData.pivotDetails.valuesColumns
+                .filter((col) => col.referenceField === fieldId)
+                .map((col) => col.pivotColumnName);
+        };
+
         return Object.entries(itemsMap)
             .filter(([_, field]) => isNumericItem(field))
             .filter(([fieldId]) => fieldsNeedingMinMax.has(fieldId))
             .filter(([fieldId]) => isColumnVisible(fieldId))
-            .filter(([fieldId]) => fieldId in resultsData.rows[0])
             .reduce<ConditionalFormattingMinMaxMap>((acc, [fieldId, field]) => {
-                const columnValues = resultsData.rows
-                    .map((row) => row[fieldId].value.raw)
-                    .filter(
-                        (value) =>
-                            value !== undefined &&
-                            value !== null &&
-                            value !== '',
-                    )
-                    .map((value) => Number(value))
-                    .map((value) => convertFormattedValue(value, field));
+                const columnsToCheck = getColumnsForField(fieldId);
+
+                if (columnsToCheck.length === 0) {
+                    return acc;
+                }
+
+                // Collect values from all columns that correspond to this field
+                const columnValues = resultsData.rows.flatMap((row) =>
+                    columnsToCheck
+                        .map((colName) => row[colName]?.value?.raw)
+                        .filter(
+                            (value) =>
+                                value !== undefined &&
+                                value !== null &&
+                                value !== '',
+                        )
+                        .map((value) => Number(value))
+                        .filter((value) => !Number.isNaN(value))
+                        .map((value) => convertFormattedValue(value, field)),
+                );
+
+                if (columnValues.length === 0) {
+                    return acc;
+                }
 
                 return {
                     ...acc,
