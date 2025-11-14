@@ -1,3 +1,10 @@
+# [0.2171.0](https://github.com/lightdash/lightdash/compare/0.2170.3...0.2171.0) (2025-11-14)
+
+
+### Features
+
+* send google sheets sync failure email to owner ([#18073](https://github.com/lightdash/lightdash/issues/18073)) ([cfc3bc5](https://github.com/lightdash/lightdash/commit/cfc3bc59b2b8a7c7cae4f81cb08764cdac5d0307))
+
 ## [0.2170.3](https://github.com/lightdash/lightdash/compare/0.2170.2...0.2170.3) (2025-11-14)
 
 
