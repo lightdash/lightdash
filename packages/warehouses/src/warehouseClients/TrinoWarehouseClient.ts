@@ -224,6 +224,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             catalog: credentials.dbname,
             schema: credentials.schema,
             server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
+            ...(credentials.source && { source: credentials.source }),
         };
     }
 

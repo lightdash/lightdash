@@ -151,6 +151,7 @@ export type CreateTrinoCredentials = {
     dbname: string;
     schema: string;
     http_scheme: string;
+    source?: string;
     startOfWeek?: WeekDay | null;
 };
 export type TrinoCredentials = Omit<
