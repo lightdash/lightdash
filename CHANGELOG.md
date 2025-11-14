@@ -1,3 +1,10 @@
+# [0.2172.0](https://github.com/lightdash/lightdash/compare/0.2171.1...0.2172.0) (2025-11-14)
+
+
+### Features
+
+* add optional source parameter to Trino credentials ([#18131](https://github.com/lightdash/lightdash/issues/18131)) ([bf9277c](https://github.com/lightdash/lightdash/commit/bf9277c0065457b70c16c34520681f170a29dc8e))
+
 ## [0.2171.1](https://github.com/lightdash/lightdash/compare/0.2171.0...0.2171.1) (2025-11-14)
 
 
