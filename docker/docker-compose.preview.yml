@@ -27,7 +27,7 @@ services:
         build:
             target: pr-runner
             context: ..
-            dockerfile: dockerfile-prs
+            dockerfile: optimized.Dockerfile
         depends_on:
             - db-preview
             - headless-browser
