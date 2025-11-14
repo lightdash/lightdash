@@ -119,6 +119,8 @@ export const useExplorerQuery = () => {
     }, [queryClient, queryResults.queryUuid, cancelQueryMutation]);
 
     return {
+        unpivotedEnabled,
+
         // Spread all state from manager
         ...manager,
 
