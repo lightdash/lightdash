@@ -1,3 +1,10 @@
+## [0.2171.1](https://github.com/lightdash/lightdash/compare/0.2171.0...0.2171.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* allow empty roles array in SCIM service validation ([#18126](https://github.com/lightdash/lightdash/issues/18126)) ([07507ef](https://github.com/lightdash/lightdash/commit/07507efb3dc71ec3f69357617f2057e93e00aae9))
+
 # [0.2171.0](https://github.com/lightdash/lightdash/compare/0.2170.3...0.2171.0) (2025-11-14)
 
 
