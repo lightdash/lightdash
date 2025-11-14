@@ -4625,9 +4625,6 @@
             },
             "GaugeChart": {
                 "properties": {
-                    "gapSectionColor": {
-                        "type": "string"
-                    },
                     "sections": {
                         "items": {
                             "$ref": "#/components/schemas/GaugeSection"
@@ -4635,9 +4632,6 @@
                         "type": "array"
                     },
                     "showAxisLabels": {
-                        "type": "boolean"
-                    },
-                    "showProgress": {
                         "type": "boolean"
                     },
                     "max": {
@@ -14226,6 +14220,301 @@
             "ApiSchedulerLogsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_SchedulerWithLogs__"
             },
+            "SchedulerRunStatus": {
+                "enum": [
+                    "completed",
+                    "partial_failure",
+                    "failed",
+                    "running",
+                    "scheduled"
+                ],
+                "type": "string"
+            },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LogCounts": {
+                "properties": {
+                    "error": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "completed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "started": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "error",
+                    "completed",
+                    "started",
+                    "scheduled",
+                    "total"
+                ],
+                "type": "object"
+            },
+            "SchedulerRun": {
+                "properties": {
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "logCounts": {
+                        "$ref": "#/components/schemas/LogCounts"
+                    },
+                    "details": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.AnyType_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runStatus": {
+                        "$ref": "#/components/schemas/SchedulerRunStatus"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logCounts",
+                    "details",
+                    "createdAt",
+                    "runStatus",
+                    "status",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "KnexPaginatedData_SchedulerRun-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerRun"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_SchedulerRun-Array__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_SchedulerRun-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSchedulerRunsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_SchedulerRun-Array__"
+            },
+            "SchedulerRunLog": {
+                "properties": {
+                    "isParent": {
+                        "type": "boolean"
+                    },
+                    "details": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.AnyType_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "targetType": {
+                        "type": "string",
+                        "enum": ["email", "slack", "msteams", "gsheets", null],
+                        "nullable": true
+                    },
+                    "target": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
+                    },
+                    "task": {
+                        "$ref": "#/components/schemas/SchedulerTaskName"
+                    },
+                    "jobGroup": {
+                        "type": "string"
+                    },
+                    "jobId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isParent",
+                    "details",
+                    "targetType",
+                    "target",
+                    "createdAt",
+                    "scheduledTime",
+                    "status",
+                    "task",
+                    "jobGroup",
+                    "jobId"
+                ],
+                "type": "object"
+            },
+            "SchedulerRunLogsResponse": {
+                "properties": {
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "logs": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerRunLog"
+                        },
+                        "type": "array"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logs",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SchedulerRunLogsResponse_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SchedulerRunLogsResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSchedulerRunLogsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SchedulerRunLogsResponse_"
+            },
             "KnexPaginatedData_SchedulerAndTargets-Array_": {
                 "properties": {
                     "pagination": {
@@ -14319,12 +14608,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "ApiJobStatusResponse": {
                 "properties": {
@@ -27564,6 +27847,194 @@
                         "in": "query",
                         "name": "destinations",
                         "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/schedulers/{projectUuid}/runs": {
+            "get": {
+                "operationId": "getSchedulerRuns",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerRunsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get paginated scheduler runs with aggregated child job counts",
+                "summary": "List scheduler runs",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "number of items per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "page number",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "search query to filter runs by scheduler name",
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "column to sort by (scheduledTime, createdAt)",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["scheduledTime", "createdAt"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    },
+                    {
+                        "description": "filter by specific scheduler UUID",
+                        "in": "query",
+                        "name": "schedulerUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)",
+                        "in": "query",
+                        "name": "statuses",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by creator user UUIDs (comma-separated)",
+                        "in": "query",
+                        "name": "createdByUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "in": "query",
+                        "name": "destinations",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by resource type (chart or dashboard)",
+                        "in": "query",
+                        "name": "resourceType",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["chart", "dashboard"]
+                        }
+                    },
+                    {
+                        "description": "filter by resource UUIDs (comma-separated)",
+                        "in": "query",
+                        "name": "resourceUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/schedulers/runs/{runId}/logs": {
+            "get": {
+                "operationId": "getRunLogs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerRunLogsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get detailed logs for a specific scheduler run",
+                "summary": "Get run logs",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The ID of the run (parent job ID)",
+                        "in": "path",
+                        "name": "runId",
+                        "required": true,
                         "schema": {
                             "type": "string"
                         }
