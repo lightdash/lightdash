@@ -852,7 +852,9 @@ export class CsvService extends BaseService {
                 sqlChart.limit,
             );
 
-            sql = pivotQueryBuilder.toSql();
+            sql = pivotQueryBuilder.toSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
         }
 
         const resultsFileUrl = await this.projectService.runSqlQuery(
