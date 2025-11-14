@@ -107,6 +107,12 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 gapWidth: 4,
                 borderRadius: 4,
             },
+            upperLabel: {
+                show: true,
+                height: 30,
+                formatter: '{b}',
+                padding: [4, 8],
+            },
             label: {
                 show: true,
                 formatter: (params) => {
