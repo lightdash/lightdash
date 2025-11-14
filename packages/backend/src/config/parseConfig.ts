@@ -496,6 +496,12 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
         10,
     );
+    const useCredentialsFromRaw = getArrayFromCommaSeparatedList(
+        'S3_USE_CREDENTIALS_FROM',
+    );
+    const useCredentialsFrom = useCredentialsFromRaw
+        .map((v) => v.trim().toLowerCase())
+        .filter((v) => v.length > 0);
 
     if (!endpoint || !bucket || !region) {
         return undefined;
@@ -509,6 +515,9 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         secretKey,
         expirationTime,
         forcePathStyle,
+        useCredentialsFrom: useCredentialsFrom.length
+            ? useCredentialsFrom
+            : undefined,
     };
 };
 
@@ -957,6 +966,11 @@ export type S3Config = {
     accessKey?: string;
     secretKey?: string;
     forcePathStyle?: boolean;
+    /**
+     * Ordered list of credential sources to use for AWS SDK credential resolution.
+     * Comma-separated env var S3_USE_CREDENTIALS_FROM -> ["env","token_file","ini","container_metadata","instance_metadata"], etc.
+     */
+    useCredentialsFrom?: string[];
 };
 export type IntercomConfig = {
     appId: string;
