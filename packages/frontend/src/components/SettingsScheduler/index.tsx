@@ -53,7 +53,7 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
             <Card>
                 <Group justify="space-between">
-                    <Title order={4}>Settings</Title>
+                    <Title order={5}>Settings</Title>
 
                     <SchedulerSettingsForm
                         isLoading={false}
