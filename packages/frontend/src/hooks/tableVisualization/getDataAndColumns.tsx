@@ -2,6 +2,7 @@ import {
     formatItemValue,
     getSubtotalKey,
     isCustomDimension,
+    isDimension,
     isField,
     type ItemsMap,
     type ParametersValuesMap,
@@ -75,6 +76,23 @@ export function getSubtotalValueFromGroup(
     return subtotal?.[columnId];
 }
 
+const getImageSize = (item: ItemsMap[string] | undefined) => {
+    if (isDimension(item) && item.image?.url) {
+        const defaultWidth = 100;
+        const defaultPadding = 8 * 2;
+        const width = (item.image?.width || defaultWidth) + defaultPadding;
+
+        return {
+            style: {
+                width,
+                minWidth: width,
+                maxWidth: width,
+            },
+        };
+    }
+    return {};
+};
+
 const getDataAndColumns = ({
     itemsMap,
     selectedItemIds,
@@ -99,7 +117,7 @@ const getDataAndColumns = ({
             const headerOverride = getFieldLabelOverride(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
-                (row) => row[itemId],
+                (row: ResultRow) => row[itemId],
                 {
                     id: itemId,
                     header: () => (
@@ -148,6 +166,8 @@ const getDataAndColumns = ({
                         item,
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
+                        // For image columns with explicit width: set fixed width constraints
+                        ...getImageSize(item),
                     },
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use
