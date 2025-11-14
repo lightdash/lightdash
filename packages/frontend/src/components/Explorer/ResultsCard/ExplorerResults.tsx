@@ -48,7 +48,7 @@ const getQueryStatus = (
         return 'error';
     } else if (isCreatingQuery || isFetchingFirstPage) {
         return 'loading';
-    } else if (query.status === 'loading' || !query.isFetched) {
+    } else if (!query.data) {
         return 'idle';
     } else if (query.status === 'success') {
         return 'success';
@@ -78,6 +78,7 @@ export const ExplorerResults = memo(() => {
         queryResults,
         unpivotedQuery,
         unpivotedQueryResults,
+        unpivotedEnabled,
         missingRequiredParameters,
     } = useExplorerQuery();
 
@@ -98,7 +99,10 @@ export const ExplorerResults = memo(() => {
 
         // Only use unpivoted data when SQL pivot is enabled
         const shouldUseUnpivotedData =
-            isSqlPivotEnabled && hasPivotConfig && hasUnpivotedQuery;
+            isSqlPivotEnabled &&
+            hasPivotConfig &&
+            hasUnpivotedQuery &&
+            unpivotedEnabled;
 
         if (shouldUseUnpivotedData) {
             return {
@@ -126,10 +130,11 @@ export const ExplorerResults = memo(() => {
         return result;
     }, [
         useSqlPivotResults?.enabled,
+        unpivotedQuery,
         hasPivotConfig,
+        unpivotedEnabled,
         query,
         queryResults,
-        unpivotedQuery,
         unpivotedQueryResults,
     ]);
 
