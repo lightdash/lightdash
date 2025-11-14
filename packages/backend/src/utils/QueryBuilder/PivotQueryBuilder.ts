@@ -381,7 +381,7 @@ export class PivotQueryBuilder {
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
 
-            const rowAnchorSql = `SELECT DISTINCT ${indexColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${indexColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query`;
+            const rowAnchorSql = `SELECT DISTINCT ${indexColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${indexColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query`;
 
             result[rowAnchorCteName] = {
                 cteName: rowAnchorCteName,
@@ -394,7 +394,7 @@ export class PivotQueryBuilder {
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
 
-            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
+            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
 
             result[colAnchorCteName] = {
                 cteName: colAnchorCteName,
