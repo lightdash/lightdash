@@ -1,3 +1,10 @@
+# [0.2175.0](https://github.com/lightdash/lightdash/compare/0.2174.2...0.2175.0) (2025-11-14)
+
+
+### Features
+
+* send clear error when all charts fail ([#18074](https://github.com/lightdash/lightdash/issues/18074)) ([fe14751](https://github.com/lightdash/lightdash/commit/fe14751ec4aa6746d6f554b77900ef8158b1f97d))
+
 ## [0.2174.2](https://github.com/lightdash/lightdash/compare/0.2174.1...0.2174.2) (2025-11-14)
 
 
