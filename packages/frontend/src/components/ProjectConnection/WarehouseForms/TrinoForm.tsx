@@ -141,6 +141,15 @@ const TrinoForm: FC<{
                             disabled={disabled}
                         />
 
+                        <TextInput
+                            name="warehouse.source"
+                            label="Source"
+                            description="Optional identifier for queries in Trino logs (e.g., project name or team)."
+                            placeholder="Default: trino-js-client"
+                            {...form.getInputProps('warehouse.source')}
+                            disabled={disabled}
+                        />
+
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
                 </FormSection>
