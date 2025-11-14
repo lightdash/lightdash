@@ -29,6 +29,7 @@ export const BrokenImageCell = ({
 };
 
 export const ImageCell = ({
+    item,
     imageUrl,
 }: {
     item: Dimension;
@@ -39,6 +40,29 @@ export const ImageCell = ({
     if (isBroken) {
         return <BrokenImageCell imageUrl={imageUrl} />;
     }
+
+    // Get dimensions and objectFit from item.image configuration
+    const width = item.image?.width;
+    const height = item.image?.height;
+
+    const size =
+        width || height
+            ? {
+                  width: width ? `${width}px` : 'auto',
+                  height: height ? `${height}px` : 'auto',
+              }
+            : { height: '32px', width: 'auto' };
+
+    // Cast fit to allow any string value
+    // If fit is not a valid value, this will not cause any error
+    const objectFit = (item.image?.fit ??
+        'cover') as React.CSSProperties['objectFit'];
+
+    const imageStyle: React.CSSProperties = {
+        display: 'block',
+        objectFit,
+        ...size,
+    };
 
     return (
         <Tooltip
@@ -56,12 +80,7 @@ export const ImageCell = ({
             <img
                 src={imageUrl}
                 alt=""
-                style={{
-                    height: '32px',
-                    width: 'auto',
-                    display: 'block',
-                    objectFit: 'contain',
-                }}
+                style={imageStyle}
                 onError={() => setIsBroken(true)}
             />
         </Tooltip>
