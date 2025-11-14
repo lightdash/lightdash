@@ -14,6 +14,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
+import { ConfigTabs as GaugeConfigTabs } from '../../VisualizationConfigs/GaugeConfig/GaugeConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
@@ -46,6 +47,8 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 return FunnelChartConfigTabs;
             case ChartType.TREEMAP:
                 return TreemapConfigTabs;
+            case ChartType.GAUGE:
+                return GaugeConfigTabs;
             case ChartType.CUSTOM:
                 // Return a wrapper component that handles lazy loading
                 return () => (

@@ -43,6 +43,7 @@ import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
+import VisualizationGaugeConfig from './VisualizationConfigGauge';
 import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationTreemapConfig from './VisualizationConfigTreemap';
@@ -429,6 +430,24 @@ const VisualizationProvider: FC<
                         </Context.Provider>
                     )}
                 </VisualizationTreemapConfig>
+            );
+        case ChartType.GAUGE:
+            return (
+                <VisualizationGaugeConfig
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                    parameters={parameters}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationGaugeConfig>
             );
         case ChartType.TABLE:
             return (

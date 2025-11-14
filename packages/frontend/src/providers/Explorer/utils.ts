@@ -10,6 +10,7 @@ const DEFAULTS = {
     [ChartType.PIE]: () => ({ showLegend: false, valueLabel: 'outside' }),
     [ChartType.FUNNEL]: () => ({}),
     [ChartType.TREEMAP]: () => ({}),
+    [ChartType.GAUGE]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
 };
 
