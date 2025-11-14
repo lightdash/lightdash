@@ -1573,12 +1573,16 @@ export class AiAgentModel {
         projectUuid,
         agentUuid,
         queryEmbedding,
+        embeddingModelProvider,
+        embeddingModel,
         limit = 3,
     }: {
         organizationUuid: string;
         projectUuid: string;
         agentUuid: string;
         queryEmbedding: number[];
+        embeddingModelProvider: string;
+        embeddingModel: string;
         limit?: number;
     }): Promise<
         {
@@ -1634,6 +1638,14 @@ export class AiAgentModel {
                     )
                     .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
                     .where(`${AiThreadTableName}.project_uuid`, projectUuid)
+                    .where(
+                        `${AiArtifactVersionsTableName}.embedding_model_provider`,
+                        embeddingModelProvider,
+                    )
+                    .where(
+                        `${AiArtifactVersionsTableName}.embedding_model`,
+                        embeddingModel,
+                    )
                     .whereRaw(
                         `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) > ${similarityThreshold}`,
                         [embeddingJson],
@@ -2402,22 +2414,31 @@ export class AiAgentModel {
     async updateArtifactEmbedding(
         artifactVersionUuid: string,
         embedding: number[],
+        embeddingModelProvider: string,
+        embeddingModel: string,
     ): Promise<void> {
-        await this.database.raw(
-            `
-            UPDATE ${AiArtifactVersionsTableName}
-            SET embedding_vector = ?::vector
-            WHERE ai_artifact_version_uuid = ?
-        `,
-            [JSON.stringify(embedding), artifactVersionUuid],
-        );
+        await this.database(AiArtifactVersionsTableName)
+            .where({ ai_artifact_version_uuid: artifactVersionUuid })
+            .update({
+                embedding_vector: this.database.raw('?::vector', [
+                    JSON.stringify(embedding),
+                ]) as unknown as number[],
+                embedding_model_provider: embeddingModelProvider,
+                embedding_model: embeddingModel,
+            });
     }
 
-    async getArtifactEmbedding(
-        artifactVersionUuid: string,
-    ): Promise<number[] | null> {
+    async getArtifactEmbedding(artifactVersionUuid: string): Promise<{
+        embedding: number[];
+        provider: string;
+        model: string;
+    } | null> {
         const result = await this.database(AiArtifactVersionsTableName)
-            .select('embedding_vector')
+            .select(
+                'embedding_vector',
+                'embedding_model_provider',
+                'embedding_model',
+            )
             .where({ ai_artifact_version_uuid: artifactVersionUuid })
             .first();
 
@@ -2427,7 +2448,20 @@ export class AiAgentModel {
             );
         }
 
-        return result.embedding_vector;
+        // Return null if embedding hasn't been generated yet
+        if (
+            !result.embedding_vector ||
+            !result.embedding_model_provider ||
+            !result.embedding_model
+        ) {
+            return null;
+        }
+
+        return {
+            embedding: result.embedding_vector,
+            provider: result.embedding_model_provider,
+            model: result.embedding_model,
+        };
     }
 
     async updateArtifactQuestion(

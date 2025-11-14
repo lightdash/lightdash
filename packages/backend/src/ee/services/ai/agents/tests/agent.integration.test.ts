@@ -41,6 +41,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
     const { model: judge, callOptions } = getOpenaiGptmodel({
         apiKey: process.env.OPENAI_API_KEY!,
         modelName: 'gpt-4.1-2025-04-14',
+        embeddingModelName: 'text-embedding-3-small',
         temperature: 0.2,
         responsesApi: true,
         reasoning: {
