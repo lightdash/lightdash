@@ -1,3 +1,10 @@
+# [0.2174.0](https://github.com/lightdash/lightdash/compare/0.2173.0...0.2174.0) (2025-11-14)
+
+
+### Features
+
+* show warnings for failed csvs/xlsxs in SDs ([#18069](https://github.com/lightdash/lightdash/issues/18069)) ([950b66d](https://github.com/lightdash/lightdash/commit/950b66d2461365288f9220a863f0f1f770cf4622))
+
 # [0.2173.0](https://github.com/lightdash/lightdash/compare/0.2172.1...0.2173.0) (2025-11-14)
 
 
