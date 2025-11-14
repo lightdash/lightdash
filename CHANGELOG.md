@@ -1,3 +1,10 @@
+## [0.2176.3](https://github.com/lightdash/lightdash/compare/0.2176.2...0.2176.3) (2025-11-14)
+
+
+### Bug Fixes
+
+* add explicit frame clauses to FIRST_VALUE window functions ([#18065](https://github.com/lightdash/lightdash/issues/18065)) ([b4513a7](https://github.com/lightdash/lightdash/commit/b4513a7158bab1c69d1c37e94b7a6597b04b67b3))
+
 ## [0.2176.2](https://github.com/lightdash/lightdash/compare/0.2176.1...0.2176.2) (2025-11-14)
 
 
