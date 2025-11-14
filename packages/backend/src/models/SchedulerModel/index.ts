@@ -342,15 +342,27 @@ export class SchedulerModel {
             });
         }
 
+        const dashboardChartsJoinTable = 'dashboard_charts';
+
         // Create a union of two queries: one for saved charts and one for dashboards
         let schedulerCharts = baseQuery
             .clone()
-            .leftJoin(SpaceTableName, function joinSpaces() {
+            // Join to get the dashboard that the chart belongs to (if any)
+            .leftJoin(
+                { [dashboardChartsJoinTable]: DashboardsTableName },
+                `${dashboardChartsJoinTable}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function joinSpaces() {
                 this.on(
                     `${SpaceTableName}.space_id`,
                     '=',
+                    `${dashboardChartsJoinTable}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
                     `${SavedChartsTableName}.space_id`,
-                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+                );
             })
             .leftJoin(
                 ProjectTableName,
