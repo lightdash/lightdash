@@ -249,6 +249,15 @@
                                                     "url": {
                                                         "type": "string",
                                                         "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                                                    },
+                                                    "width": {
+                                                        "type": "number"
+                                                    },
+                                                    "height": {
+                                                        "type": "number"
+                                                    },
+                                                    "fit": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": ["url"]

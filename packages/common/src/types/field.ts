@@ -568,6 +568,9 @@ export interface Dimension extends Field {
     aiHint?: string | string[];
     image?: {
         url: string;
+        width?: number;
+        height?: number;
+        fit?: string;
     };
 }
 

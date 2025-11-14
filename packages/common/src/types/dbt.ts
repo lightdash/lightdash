@@ -170,6 +170,9 @@ export type DbtColumnLightdashDimension = {
     ai_hint?: string | string[];
     image?: {
         url: string;
+        width?: number;
+        height?: number;
+        fit?: string;
     };
 } & DbtLightdashFieldTags;
 

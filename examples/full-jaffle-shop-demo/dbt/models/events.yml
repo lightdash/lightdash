@@ -87,6 +87,17 @@ models:
             groups: [ 'image' ]
             image: 
                 url: "${value.raw}" 
+          additional_dimensions:
+            image_with_size:
+              groups: [ 'image' ]
+              description: "Image URL with size"
+              type: string
+              sql: ${image_url}
+              image:
+                url: "${value.raw}" 
+                width: 128 # squared, do not preserve aspect ratio
+                height: 128
+                fit: cover
       - name: event_id
         description: ""
         meta:
@@ -108,7 +119,8 @@ models:
               image:
                 # Template combines value (the URL from SQL) with other row fields
                 # Use liquidjs to combine the URL with the event name and upcase
-                url: "https://${value.raw}-${row.events.event.raw | upcase}" 
+                url: "https://${value.raw}-${row.events.event.raw | upcase}"
+
             image_invalid_protocol:
               groups: [ 'image' ]
               description: "Invalid URL protocol"
