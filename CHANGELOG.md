@@ -1,3 +1,10 @@
+## [0.2174.2](https://github.com/lightdash/lightdash/compare/0.2174.1...0.2174.2) (2025-11-14)
+
+
+### Bug Fixes
+
+* filter number input debounce ([#18134](https://github.com/lightdash/lightdash/issues/18134)) ([ce81c26](https://github.com/lightdash/lightdash/commit/ce81c269be13fe5040f61c5400efe3a6f248f722))
+
 ## [0.2174.1](https://github.com/lightdash/lightdash/compare/0.2174.0...0.2174.1) (2025-11-14)
 
 
