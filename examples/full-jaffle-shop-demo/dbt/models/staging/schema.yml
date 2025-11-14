@@ -155,3 +155,105 @@ models:
         description: Category of condition (Endocrine, Cardiovascular, etc.)
       - name: chronic
         description: Whether condition is chronic
+
+  # Facilities Management staging models - all prefixed with stg_fm_
+  - name: stg_fm_work_orders
+    description: Service tickets and maintenance requests
+    meta:
+      group_label: "staging"
+    columns:
+      - name: work_order_id
+        description: Unique identifier
+        tests:
+          - unique
+          - not_null
+      - name: status
+        description: Current status
+      - name: priority
+        description: Priority level
+      - name: category
+        description: Work category
+      - name: total_cost
+        description: Total cost
+      - name: labor_cost
+        description: Labor cost
+      - name: materials_cost
+        description: Materials cost
+
+  - name: stg_fm_technicians
+    description: Field service personnel and staff
+    meta:
+      group_label: "staging"
+    columns:
+      - name: technician_id
+        description: Unique identifier
+        tests:
+          - unique
+          - not_null
+      - name: employment_status
+        description: Current status
+      - name: primary_trade
+        description: Primary specialization
+      - name: average_rating
+        description: Performance rating
+      - name: customer_satisfaction_score
+        description: Customer satisfaction rating
+
+  - name: stg_fm_buildings
+    description: Properties and facilities
+    meta:
+      group_label: "staging"
+    columns:
+      - name: building_id
+        description: Unique identifier
+        tests:
+          - unique
+          - not_null
+      - name: building_status
+        description: Current status
+      - name: building_type
+        description: Type of property
+      - name: total_square_feet
+        description: Total size
+      - name: occupancy_rate
+        description: Occupancy percentage
+      - name: total_operating_cost_monthly
+        description: Monthly operating cost
+
+  - name: stg_fm_parts
+    description: Inventory and supplies
+    meta:
+      group_label: "staging"
+    columns:
+      - name: part_id
+        description: Unique identifier
+        tests:
+          - unique
+          - not_null
+      - name: stock_status
+        description: Current status
+      - name: part_category
+        description: Category
+      - name: unit_cost
+        description: Unit cost
+      - name: stock_quantity
+        description: Quantity in stock
+
+  - name: stg_fm_service_contracts
+    description: Service agreements and SLAs
+    meta:
+      group_label: "staging"
+    columns:
+      - name: contract_id
+        description: Unique identifier
+        tests:
+          - unique
+          - not_null
+      - name: status
+        description: Current status
+      - name: contract_type
+        description: Type of contract
+      - name: monthly_recurring_revenue
+        description: Monthly revenue
+      - name: customer_satisfaction_score
+        description: Customer satisfaction rating

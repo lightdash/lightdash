@@ -1,0 +1,179 @@
+version: 2
+models:
+  - name: fm_technicians
+    description: Field service personnel and workforce
+    config:
+      tags: ["ai", "facilities"]
+      meta:
+        primary_key: technician_id
+    columns:
+      - name: technician_id
+        description: Unique identifier
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_count:
+              type: count
+              description: Total number of personnel
+            unique_count:
+              type: count_distinct
+              description: Count of unique personnel
+              
+      - name: full_name
+        description: Personnel name
+        meta:
+          dimension:
+            type: string
+            
+      - name: employment_status
+        description: Current status
+        meta:
+          dimension:
+            type: string
+            
+      - name: primary_trade
+        description: Primary specialization
+        meta:
+          dimension:
+            type: string
+            
+      - name: seniority_level
+        description: Experience tier
+        meta:
+          dimension:
+            type: string
+            
+      - name: average_rating
+        description: Performance rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_rating:
+              type: average
+              description: Average performance rating
+              
+      - name: customer_satisfaction_score
+        description: Satisfaction rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_satisfaction:
+              type: average
+              description: Average customer satisfaction
+              
+      - name: total_work_orders
+        description: Total assignments
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_assignments:
+              type: sum
+              description: Total work orders
+              
+      - name: completed_work_orders
+        description: Completed assignments
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_completed:
+              type: sum
+              description: Total completed
+              
+      - name: completion_rate
+        description: Completion percentage
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_completion_rate:
+              type: average
+              format: percent
+              description: Average completion rate
+              
+      - name: first_time_fix_rate
+        description: First time fix percentage
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_ftf_rate:
+              type: average
+              format: percent
+              description: Average first time fix rate
+              
+      - name: average_resolution_time_hours
+        description: Average resolution time
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_resolution:
+              type: average
+              description: Average time to resolve
+              
+      - name: response_time_avg_minutes
+        description: Average response time
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_response:
+              type: average
+              description: Average response time
+              
+      - name: utilization_rate
+        description: Utilization percentage
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_utilization:
+              type: average
+              format: percent
+              description: Average utilization rate
+              
+      - name: billable_hours_ytd
+        description: Billable hours year to date
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_billable_hours:
+              type: sum
+              description: Total billable hours
+              
+      - name: base_salary
+        description: Base compensation
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_salary_cost:
+              type: sum
+              description: Total salary cost
+            avg_salary:
+              type: average
+              description: Average salary
+              
+      - name: years_experience
+        description: Years of experience
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_experience:
+              type: average
+              description: Average experience
+              
+      - name: assigned_territory
+        description: Service area
+        meta:
+          dimension:
+            type: string
+
+
