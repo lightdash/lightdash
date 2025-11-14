@@ -41,14 +41,18 @@ export const SchedulerSettingsForm: FC<Props> = ({
                             <Tooltip
                                 maw={400}
                                 label={
-                                    <Text fw={400}>
+                                    <Text fz="xs">
                                         Default time zone for the project's
                                         scheduled deliveries
                                     </Text>
                                 }
                                 multiline
                             >
-                                <MantineIcon icon={IconHelp} color="gray.6" />
+                                <MantineIcon
+                                    icon={IconHelp}
+                                    color="gray.6"
+                                    size="sm"
+                                />
                             </Tooltip>
                         </Group>
                     }
