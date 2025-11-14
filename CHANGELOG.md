@@ -1,3 +1,10 @@
+## [0.2174.1](https://github.com/lightdash/lightdash/compare/0.2174.0...0.2174.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* show dashboard chart schedulers on schedulers list ([#18130](https://github.com/lightdash/lightdash/issues/18130)) ([696739d](https://github.com/lightdash/lightdash/commit/696739de6800c0f1d828505ae2446a45ee53c31d))
+
 # [0.2174.0](https://github.com/lightdash/lightdash/compare/0.2173.0...0.2174.0) (2025-11-14)
 
 
