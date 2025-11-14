@@ -8,7 +8,7 @@ import {
 import { Group, Select, Stack } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
-import { type FC } from 'react';
+import { startTransition, useCallback, type FC } from 'react';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
@@ -43,6 +43,17 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
     onChangeMinMax,
     onChangeColorRange,
 }) => {
+    const handleOnChangeColorRange = useCallback(
+        (newColor: string, rangeName: string) => {
+            startTransition(() => {
+                onChangeColorRange({
+                    [rangeName]: newColor,
+                });
+            });
+        },
+        [onChangeColorRange],
+    );
+
     return (
         <Stack spacing="xs">
             {groups.map(([rangeName, minMaxName]) => (
@@ -111,11 +122,9 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
                         }}
                         color={config.color[rangeName]}
                         swatches={colorPalette}
-                        onColorChange={(newColor) => {
-                            onChangeColorRange({
-                                [rangeName]: newColor,
-                            });
-                        }}
+                        onColorChange={(newColor) =>
+                            handleOnChangeColorRange(newColor, rangeName)
+                        }
                     />
                 </Group>
             ))}
