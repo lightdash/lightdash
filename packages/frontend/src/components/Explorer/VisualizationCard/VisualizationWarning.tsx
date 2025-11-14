@@ -26,6 +26,7 @@ export type PivotMismatchWarningProps = {
         | 'pivotDetails'
     > & { metricQuery?: MetricQuery; fields?: ItemsMap };
     isLoading: boolean;
+    maxColumnLimit: number | undefined;
 };
 
 const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
@@ -33,6 +34,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     chartConfig,
     resultsData,
     isLoading,
+    maxColumnLimit,
 }) => {
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
@@ -48,6 +50,15 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             resultsData?.isFetchingFirstPage ||
             resultsData?.isFetchingRows,
     );
+
+    // Determine if pivot column limit has been exceeded
+    const shouldShowPivotColumnLimit = useMemo(() => {
+        return (
+            resultsData?.pivotDetails?.totalColumnCount &&
+            maxColumnLimit &&
+            resultsData.pivotDetails.totalColumnCount > maxColumnLimit
+        );
+    }, [resultsData?.pivotDetails?.totalColumnCount, maxColumnLimit]);
 
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
@@ -124,12 +135,19 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 'Please re-run the query to fetch the latest data with correct group by settings.',
             );
         }
+        if (shouldShowPivotColumnLimit && maxColumnLimit) {
+            _messages.push(
+                `This query exceeds the maximum number of columns (${maxColumnLimit}). Showing the first ${maxColumnLimit} columns.`,
+            );
+        }
         return _messages;
     }, [
         isLoading,
         isQueryFetching,
         shouldShowPivotMismatch,
         shouldShowUnusedDims,
+        shouldShowPivotColumnLimit,
+        maxColumnLimit,
     ]);
 
     if (messages.length === 0) return null;
