@@ -92,7 +92,9 @@ const pivotBuilder = new PivotQueryBuilder(
     warehouseSqlBuilder,
     500
 );
-const pivotSql = pivotBuilder.toSql();
+const pivotSql = pivotBuilder.toSql({
+    columnLimit: lightdashConfig.pivotTable.maxColumnLimit  // From LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT env var (default: 100)
+});
 
 // 3. Execute and transform results (in AsyncQueryService)
 const { columns, pivotDetails } = await AsyncQueryService.runQueryAndTransformRows({
@@ -141,7 +143,10 @@ const { replacedSql, usedParameters } = safeReplaceParametersWithSqlBuilder(
 **Key Technical Details:**
 
 -   **MetricQueryBuilder** handles complex joins, window functions, and warehouse-specific SQL generation
--   Maximum 60 pivot columns (MAX_PIVOT_COLUMN_LIMIT) to prevent performance issues
+-   Pivot column limit is configurable via `LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT` (default: 100)
+    -   When set, the limit is passed to `PivotQueryBuilder.toSql({ columnLimit })`
+    -   If `columnLimit` is provided, SQL adds `column_index <= maxColumnsPerValueColumn` filter
+    -   If `columnLimit` is undefined, no column filtering is applied (unlimited columns)
 -   Pivot results are streamed and transformed during processing, not after loading all data
 -   Parameter replacement supports both safe (typed) and raw replacement modes
 -   The module supports multiple warehouse dialects (BigQuery, Snowflake, Postgres, etc.)

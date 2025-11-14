@@ -1,3 +1,94 @@
+## [0.2176.2](https://github.com/lightdash/lightdash/compare/0.2176.1...0.2176.2) (2025-11-14)
+
+
+### Bug Fixes
+
+* apply percentage formatting in metrics explorer ([#18143](https://github.com/lightdash/lightdash/issues/18143)) ([3f27cd2](https://github.com/lightdash/lightdash/commit/3f27cd2e13c616f5fb7902ed18b6da5731f7db8d))
+
+## [0.2176.1](https://github.com/lightdash/lightdash/compare/0.2176.0...0.2176.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* conditional formatting on pivoted tables with USE_SQL_PIVOT_RESULTS enabled ([#18133](https://github.com/lightdash/lightdash/issues/18133)) ([f4b79ea](https://github.com/lightdash/lightdash/commit/f4b79eaa833cbd7d5bfe82a0a26afe830e2d1d58))
+
+# [0.2176.0](https://github.com/lightdash/lightdash/compare/0.2175.0...0.2176.0) (2025-11-14)
+
+
+### Features
+
+* add export failure warnings for MS Teams ([#18077](https://github.com/lightdash/lightdash/issues/18077)) ([4f9c80a](https://github.com/lightdash/lightdash/commit/4f9c80a1dab03f5d94d14f6802de996829ea4047))
+
+# [0.2175.0](https://github.com/lightdash/lightdash/compare/0.2174.2...0.2175.0) (2025-11-14)
+
+
+### Features
+
+* send clear error when all charts fail ([#18074](https://github.com/lightdash/lightdash/issues/18074)) ([fe14751](https://github.com/lightdash/lightdash/commit/fe14751ec4aa6746d6f554b77900ef8158b1f97d))
+
+## [0.2174.2](https://github.com/lightdash/lightdash/compare/0.2174.1...0.2174.2) (2025-11-14)
+
+
+### Bug Fixes
+
+* filter number input debounce ([#18134](https://github.com/lightdash/lightdash/issues/18134)) ([ce81c26](https://github.com/lightdash/lightdash/commit/ce81c269be13fe5040f61c5400efe3a6f248f722))
+
+## [0.2174.1](https://github.com/lightdash/lightdash/compare/0.2174.0...0.2174.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* show dashboard chart schedulers on schedulers list ([#18130](https://github.com/lightdash/lightdash/issues/18130)) ([696739d](https://github.com/lightdash/lightdash/commit/696739de6800c0f1d828505ae2446a45ee53c31d))
+
+# [0.2174.0](https://github.com/lightdash/lightdash/compare/0.2173.0...0.2174.0) (2025-11-14)
+
+
+### Features
+
+* show warnings for failed csvs/xlsxs in SDs ([#18069](https://github.com/lightdash/lightdash/issues/18069)) ([950b66d](https://github.com/lightdash/lightdash/commit/950b66d2461365288f9220a863f0f1f770cf4622))
+
+# [0.2173.0](https://github.com/lightdash/lightdash/compare/0.2172.1...0.2173.0) (2025-11-14)
+
+
+### Features
+
+* add deep linking to schedulers list ([#18116](https://github.com/lightdash/lightdash/issues/18116)) ([60fba56](https://github.com/lightdash/lightdash/commit/60fba5650fe0f68e000453a1e604490e4ed3dec1))
+
+## [0.2172.1](https://github.com/lightdash/lightdash/compare/0.2172.0...0.2172.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* treemap not displaying upper label ([#18132](https://github.com/lightdash/lightdash/issues/18132)) ([96c02f3](https://github.com/lightdash/lightdash/commit/96c02f383ac973df624ac8c69c9bcdfbdfd26877)), closes [#18121](https://github.com/lightdash/lightdash/issues/18121) [#17830](https://github.com/lightdash/lightdash/issues/17830)
+
+# [0.2172.0](https://github.com/lightdash/lightdash/compare/0.2171.1...0.2172.0) (2025-11-14)
+
+
+### Features
+
+* add optional source parameter to Trino credentials ([#18131](https://github.com/lightdash/lightdash/issues/18131)) ([bf9277c](https://github.com/lightdash/lightdash/commit/bf9277c0065457b70c16c34520681f170a29dc8e))
+
+## [0.2171.1](https://github.com/lightdash/lightdash/compare/0.2171.0...0.2171.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* allow empty roles array in SCIM service validation ([#18126](https://github.com/lightdash/lightdash/issues/18126)) ([07507ef](https://github.com/lightdash/lightdash/commit/07507efb3dc71ec3f69357617f2057e93e00aae9))
+
+# [0.2171.0](https://github.com/lightdash/lightdash/compare/0.2170.3...0.2171.0) (2025-11-14)
+
+
+### Features
+
+* send google sheets sync failure email to owner ([#18073](https://github.com/lightdash/lightdash/issues/18073)) ([cfc3bc5](https://github.com/lightdash/lightdash/commit/cfc3bc59b2b8a7c7cae4f81cb08764cdac5d0307))
+
+## [0.2170.3](https://github.com/lightdash/lightdash/compare/0.2170.2...0.2170.3) (2025-11-14)
+
+
+### Bug Fixes
+
+* respect max column limit config for backend pivoted results ([#18112](https://github.com/lightdash/lightdash/issues/18112)) ([5117ab5](https://github.com/lightdash/lightdash/commit/5117ab5482be3ab56ec4b3a7360b477c2cd5c9ba))
+
 ## [0.2170.2](https://github.com/lightdash/lightdash/compare/0.2170.1...0.2170.2) (2025-11-13)
 
 

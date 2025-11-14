@@ -120,6 +120,7 @@ export const TrinoDefaultValues: CreateTrinoCredentials = {
     port: 443,
     dbname: '',
     http_scheme: 'https',
+    source: '',
 };
 
 export const ClickhouseDefaultValues: CreateClickhouseCredentials = {

@@ -134,7 +134,7 @@ describe('PivotQueryBuilder', () => {
                 100,
             );
 
-            const result = builder.toSql();
+            const result = builder.toSql({ columnLimit: 100 });
 
             // Should contain all CTEs
             expect(result).toContain(
@@ -219,10 +219,38 @@ describe('PivotQueryBuilder', () => {
                 mockWarehouseSqlBuilder,
             );
 
-            const result = builder.toSql();
+            const result = builder.toSql({ columnLimit: 100 });
 
             // With 3 value columns: (100-1)/3 = 33 max columns per value column
             expect(result).toContain('"column_index" <= 33');
+        });
+
+        test('Should not apply column limit when columnLimit is not provided', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                100,
+            );
+
+            const result = builder.toSql(); // No columnLimit provided
+
+            // Should NOT contain column_index filtering
+            expect(result).not.toContain('"column_index" <=');
+            // Should still contain row_index filtering
+            expect(result).toContain('"row_index" <= 100');
         });
     });
 
@@ -304,6 +332,47 @@ describe('PivotQueryBuilder', () => {
             // Row index order must follow: revenue anchor ASC, store_id DESC, then date ASC (appended)
             expect(replaceWhitespace(result)).toContain(
                 'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" ASC, g."store_id" DESC, g."date" ASC) AS "row_index"',
+            );
+        });
+
+        test('Should include explicit frame clauses in FIRST_VALUE for Redshift compatibility', () => {
+            // Redshift requires explicit frame clauses for aggregate window functions with ORDER BY
+            // See: https://docs.aws.amazon.com/redshift/latest/dg/r_WF_first_value.html
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Both anchor CTEs should have explicit frame clauses
+            expect(result).toContain(
+                'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+            );
+
+            // Verify the complete FIRST_VALUE syntax in row anchor
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "date" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            // Verify the complete FIRST_VALUE syntax in column anchor
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
             );
         });
     });

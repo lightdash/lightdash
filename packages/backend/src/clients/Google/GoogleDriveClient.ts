@@ -13,6 +13,7 @@ import {
     ItemsMap,
     Metric,
     MissingConfigError,
+    NotFoundError,
     TableCalculation,
     UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
@@ -54,10 +55,16 @@ export class GoogleDriveClient {
         }
     }
 
-    private static async catchForbiddenError<T>(promise: Promise<T>) {
+    private static async catchApiError<T>(promise: Promise<T>) {
         try {
             return await promise;
         } catch (err: AnyType) {
+            if (err?.response?.status === 404) {
+                throw new NotFoundError(
+                    `Google Sheet not found: ${err.response?.data?.error?.message}`,
+                );
+            }
+
             if (err?.response?.status === 401) {
                 throw new ForbiddenError(
                     `Failed to authorize: ${err.response.data?.error}: ${err.response.data?.error_description}`,
@@ -86,7 +93,7 @@ export class GoogleDriveClient {
 
         // Creates a new tab in the sheet
         const tabTitle = tabName.replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
-        await GoogleDriveClient.catchForbiddenError(
+        await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.batchUpdate({
                 spreadsheetId: fileId,
                 requestBody: {
@@ -125,7 +132,7 @@ export class GoogleDriveClient {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
-        const response = await GoogleDriveClient.catchForbiddenError(
+        const response = await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.create({
                 requestBody: {
                     properties: {
@@ -168,7 +175,7 @@ export class GoogleDriveClient {
             ...tabsUpdated,
         ];
 
-        await GoogleDriveClient.catchForbiddenError(
+        await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.values.update({
                 spreadsheetId: fileId,
                 range: `${metadataTabName}!A1`,
@@ -189,7 +196,7 @@ export class GoogleDriveClient {
         // So instead we select all the cells in the first tab by its name
         try {
             if (tabName === undefined) {
-                const spreadsheet = await GoogleDriveClient.catchForbiddenError(
+                const spreadsheet = await GoogleDriveClient.catchApiError(
                     sheets.spreadsheets.get({
                         spreadsheetId: fileId,
                     }),
@@ -202,7 +209,7 @@ export class GoogleDriveClient {
                     );
                 }
                 Logger.debug(`Clearing first sheet name ${firstSheetName}`);
-                await GoogleDriveClient.catchForbiddenError(
+                await GoogleDriveClient.catchApiError(
                     sheets.spreadsheets.values.clear({
                         spreadsheetId: fileId,
                         range: firstSheetName,
@@ -211,7 +218,7 @@ export class GoogleDriveClient {
             } else {
                 Logger.debug(`Clearing sheet name ${tabName}`);
 
-                await GoogleDriveClient.catchForbiddenError(
+                await GoogleDriveClient.catchApiError(
                     sheets.spreadsheets.values.clear({
                         spreadsheetId: fileId,
                         range: tabName,
@@ -363,7 +370,7 @@ export class GoogleDriveClient {
             `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
         );
 
-        await GoogleDriveClient.catchForbiddenError(
+        await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.values.update({
                 spreadsheetId: fileId,
                 range: sanitizedTabName ? `${sanitizedTabName}!A1` : 'A1',

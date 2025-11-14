@@ -50,7 +50,12 @@ type EmailTemplate = {
     template: string;
     context: Record<
         string,
-        string | boolean | number | AttachmentUrl[] | undefined
+        | string
+        | boolean
+        | number
+        | AttachmentUrl[]
+        | { chartName: string; error: string }[]
+        | undefined
     >;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
@@ -278,18 +283,65 @@ export default class EmailClient {
         recipient: string,
         schedulerName: string,
         schedulerUrl: string,
+        errorMessage?: string,
+        disabledSync: boolean = true,
     ) {
+        // Sync failure but not disabled - will be retried
+        if (!this.canSendEmail()) {
+            Logger.error(
+                'Cannot send Google Sheets sync failure email - email transporter not configured',
+                {
+                    recipient: recipient ? '***@***' : undefined,
+                    schedulerName,
+                },
+            );
+
+            throw new Error('Email transporter not configured');
+        }
+
+        // Sync has been disabled
+        if (disabledSync) {
+            return this.sendEmail({
+                to: recipient,
+                subject: `Google Sheets sync: "${schedulerName}" disabled due to error`,
+                template: 'googleSheetsSyncDisabledNotification',
+                context: {
+                    host: this.lightdashConfig.siteUrl,
+                    subject: 'Google Sheets Sync disabled',
+                    description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
+                    schedulerUrl,
+                },
+                text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
+            });
+        }
+
+        const message = `
+            <p>Your Google Sheets sync <strong>"${schedulerName}"</strong> failed.</p>
+            <br />
+            <br />
+            <br />
+            ${
+                errorMessage
+                    ? `<p><strong>Error:</strong> ${sanitizeHtml(
+                          errorMessage,
+                      )}</p><br /><br />`
+                    : ''
+            }
+            <p>Please check your <a href="${schedulerUrl}">Google Sheets sync settings</a> and verify your Google Sheets connection and permissions.</p>
+        `;
+
         return this.sendEmail({
             to: recipient,
-            subject: `Google Sheets sync: "${schedulerName}" disabled due to error`,
-            template: 'googleSheetsSyncDisabledNotification',
+            subject: `Failed to sync Google Sheet - "${schedulerName}"`,
+            template: 'genericNotification',
             context: {
                 host: this.lightdashConfig.siteUrl,
-                subject: 'Google Sheets Sync disabled',
-                description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
-                schedulerUrl,
+                title: 'Google Sheet sync failure',
+                message,
             },
-            text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
+            text: `Warning: Your Google Sheets sync "${schedulerName}" failed. ${
+                errorMessage ? `Error: ${errorMessage}.` : ''
+            } Please check your settings at ${schedulerUrl}`,
         });
     }
 
@@ -515,6 +567,7 @@ export default class EmailClient {
         expirationDays?: number,
         asAttachment?: boolean,
         format?: SchedulerFormat,
+        failures?: { chartName: string; error: string }[],
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -535,6 +588,9 @@ export default class EmailClient {
                       EmailClient.createFileAttachment(attachment, format),
                   )
             : undefined;
+
+        const allChartsFailed =
+            csvUrls.length === 0 && failures && failures.length > 0;
 
         return this.sendEmail({
             to: recipient,
@@ -558,6 +614,9 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
+                failures,
+                hasFailures: failures && failures.length > 0,
+                allChartsFailed,
             },
             text: title,
             attachments: emailAttachments,

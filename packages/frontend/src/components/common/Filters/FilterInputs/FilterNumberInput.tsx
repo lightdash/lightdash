@@ -1,5 +1,12 @@
 import { TextInput, type TextInputProps } from '@mantine/core';
-import { useEffect, useState, type ChangeEvent, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useState,
+    type ChangeEvent,
+    type FC,
+} from 'react';
+import { useDebounce } from 'react-use';
 
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;
@@ -30,19 +37,28 @@ const FilterNumberInput: FC<Props> = ({
         }
     }, [value]);
 
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
+    useDebounce(
+        () => {
+            if (internalValue === '') {
+                onChange(null);
+            } else if (/^-?\d+$/.test(internalValue)) {
+                onChange(parseInt(internalValue, 10));
+            } else if (/^-?\d+\.\d+$/.test(internalValue)) {
+                onChange(parseFloat(internalValue));
+            }
+        },
+        300,
+        [internalValue],
+    );
 
-        setInternalValue(newValue);
+    const handleInputChange = useCallback(
+        (e: ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
 
-        if (newValue === '') {
-            onChange(null);
-        } else if (/^-?\d+$/.test(newValue)) {
-            onChange(parseInt(newValue, 10));
-        } else if (/^-?\d+\.\d+$/.test(newValue)) {
-            onChange(parseFloat(newValue));
-        }
-    };
+            setInternalValue(newValue);
+        },
+        [],
+    );
 
     return (
         <TextInput

@@ -2,7 +2,7 @@ import {
     ComparisonFormatTypes,
     MetricExplorerComparison,
     TimeFrames,
-    applyCustomFormat,
+    formatItemValue,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
@@ -231,14 +231,11 @@ const TooltipEntry: FC<{
 
     const formattedValue = useMemo(() => {
         if (entry.name === 'metric') {
-            return applyCustomFormat(
-                entryData?.value,
-                props.formatConfig.metric,
-            );
+            return formatItemValue(props.formatConfig.metric, entryData?.value);
         }
-        return applyCustomFormat(
+        return formatItemValue(
+            props.formatConfig.compareMetric ?? undefined,
             entryData?.value,
-            props.formatConfig.compareMetric,
         );
     }, [
         entry.name,

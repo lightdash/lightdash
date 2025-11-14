@@ -315,6 +315,7 @@ type GetDashboardCsvResultsBlocksArgs = {
     ctaUrl: string;
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
+    failures?: { chartName: string; error: string }[];
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
@@ -324,8 +325,42 @@ export const getDashboardCsvResultsBlocks = ({
     csvUrls,
     footerMarkdown,
     ctaUrl,
-}: GetDashboardCsvResultsBlocksArgs): KnownBlock[] =>
-    getBlocks([
+    failures,
+}: GetDashboardCsvResultsBlocksArgs): KnownBlock[] => {
+    const getFailureBlock = ():
+        | { type: 'section'; text: { type: 'mrkdwn'; text: string } }
+        | undefined => {
+        if (!failures || failures.length === 0) {
+            return undefined;
+        }
+
+        const allChartsFailed = csvUrls.length === 0;
+        if (allChartsFailed) {
+            return {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `:x: *Error: All charts in this scheduled delivery failed to export*\n\nNo data could be exported from this dashboard. Please check the errors below and verify your data model.\n\n${failures
+                        .map((f) => `\t• *${f.chartName}:* ${f.error}`)
+                        .join('\n')}`,
+                },
+            };
+        }
+
+        return {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `:warning: *Warning:* ${
+                    failures.length
+                } chart(s) failed to export:\n${failures
+                    .map((f) => `\t• ${f.chartName}: ${f.error}`)
+                    .join('\n')}`,
+            },
+        };
+    };
+
+    return getBlocks([
         {
             type: 'header',
             text: {
@@ -386,6 +421,7 @@ export const getDashboardCsvResultsBlocks = ({
                       },
                   },
         ),
+        getFailureBlock(),
         footerMarkdown
             ? {
                   type: 'context',
@@ -398,6 +434,7 @@ export const getDashboardCsvResultsBlocks = ({
               }
             : undefined,
     ]);
+};
 
 const getExploreBlocks = (
     title: string,

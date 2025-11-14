@@ -10,6 +10,7 @@ import {
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useSearchParams } from 'react-router';
 import { useSchedulerLogs } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../hooks/toaster/useToaster';
 import LoadingState from '../common/LoadingState';
@@ -19,7 +20,13 @@ import LogsTable from './LogsTable';
 import SchedulersTable from './SchedulersTable';
 import classes from './SchedulersView.module.css';
 
+enum SchedulersViewTab {
+    ALL_SCHEDULERS = 'scheduled-deliveries',
+    RUN_HISTORY = 'run-history',
+}
+
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const { data, isInitialLoading } = useSchedulerLogs({
         projectUuid,
         paginateArgs: { page: 1, pageSize: 1 },
@@ -29,6 +36,21 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     // Extract data from paginated response
     const schedulersData = data?.pages?.[0]?.data;
+
+    const activeTab =
+        searchParams.get('tab') === SchedulersViewTab.RUN_HISTORY
+            ? SchedulersViewTab.RUN_HISTORY
+            : SchedulersViewTab.ALL_SCHEDULERS;
+
+    const handleTabChange = (value: string | null) => {
+        const newParams = new URLSearchParams(searchParams);
+        if (value === SchedulersViewTab.RUN_HISTORY) {
+            newParams.set('tab', SchedulersViewTab.RUN_HISTORY);
+        } else {
+            newParams.delete('tab');
+        }
+        setSearchParams(newParams);
+    };
 
     const handleRefresh = async () => {
         await Promise.all([
@@ -49,7 +71,8 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             <Stack gap="sm">
                 <Tabs
                     keepMounted={false}
-                    defaultValue="scheduled-deliveries"
+                    value={activeTab}
+                    onChange={handleTabChange}
                     variant="pills"
                     classNames={{
                         list: classes.tabsList,
@@ -81,23 +104,23 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     </Group>
                     <Tabs.List>
                         <Tabs.Tab
-                            value="scheduled-deliveries"
+                            value={SchedulersViewTab.ALL_SCHEDULERS}
                             leftSection={<MantineIcon icon={IconSend} />}
                         >
                             All schedulers
                         </Tabs.Tab>
                         <Tabs.Tab
-                            value="run-history"
+                            value={SchedulersViewTab.RUN_HISTORY}
                             leftSection={<MantineIcon icon={IconClock} />}
                         >
                             Run history
                         </Tabs.Tab>
                     </Tabs.List>
 
-                    <Tabs.Panel value="scheduled-deliveries">
+                    <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
                         <SchedulersTable projectUuid={projectUuid} />
                     </Tabs.Panel>
-                    <Tabs.Panel value="run-history">
+                    <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
                         {schedulersData &&
                         schedulersData.schedulers.length > 0 ? (
                             schedulersData.logs.length > 0 ? (
