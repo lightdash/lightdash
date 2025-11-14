@@ -103,7 +103,6 @@ import {
     JobType,
     LightdashError,
     LightdashProjectConfig,
-    MAX_PIVOT_COLUMN_LIMIT,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
@@ -3422,7 +3421,9 @@ export class ProjectService extends BaseService {
             limit,
         );
 
-        const pivotedSql = pivotQueryBuilder.toSql();
+        const pivotedSql = pivotQueryBuilder.toSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
 
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {

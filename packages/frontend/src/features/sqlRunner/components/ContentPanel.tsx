@@ -3,7 +3,6 @@ import {
     getFirstIndexColumns,
     getParameterReferences,
     isVizTableConfig,
-    MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
@@ -273,11 +272,16 @@ export const ContentPanel: FC = () => {
         selectPivotChartDataByKind(state, selectedChartType),
     );
 
+    const maxColumnLimit = useMemo(
+        () => health.data?.pivotTable.maxColumnLimit,
+        [health],
+    );
     const hasReachedPivotColumnLimit = useMemo(
         () =>
             pivotedChartInfo?.data?.columnCount &&
-            pivotedChartInfo?.data?.columnCount > MAX_PIVOT_COLUMN_LIMIT,
-        [pivotedChartInfo],
+            maxColumnLimit &&
+            pivotedChartInfo.data.columnCount > maxColumnLimit,
+        [pivotedChartInfo, maxColumnLimit],
     );
 
     useEffect(() => {
@@ -828,39 +832,41 @@ export const ContentPanel: FC = () => {
                                             pivotedChartInfo?.data
                                                 ?.tableData && (
                                                 <>
-                                                    {hasReachedPivotColumnLimit && (
-                                                        <Group
-                                                            position="center"
-                                                            spacing="xs"
-                                                        >
-                                                            <MantineIcon
-                                                                color="gray"
-                                                                icon={
-                                                                    IconAlertCircle
-                                                                }
-                                                            />
-                                                            <Text
-                                                                fz="xs"
-                                                                fw={400}
-                                                                c="gray.7"
-                                                                ta="center"
+                                                    {hasReachedPivotColumnLimit &&
+                                                        maxColumnLimit && (
+                                                            <Group
+                                                                position="center"
+                                                                spacing="xs"
                                                             >
-                                                                This query
-                                                                exceeds the
-                                                                maximum number
-                                                                of columns (
-                                                                {
-                                                                    MAX_PIVOT_COLUMN_LIMIT
-                                                                }
-                                                                ). Showing the
-                                                                first{' '}
-                                                                {
-                                                                    MAX_PIVOT_COLUMN_LIMIT
-                                                                }{' '}
-                                                                columns.
-                                                            </Text>
-                                                        </Group>
-                                                    )}
+                                                                <MantineIcon
+                                                                    color="gray"
+                                                                    icon={
+                                                                        IconAlertCircle
+                                                                    }
+                                                                />
+                                                                <Text
+                                                                    fz="xs"
+                                                                    fw={400}
+                                                                    c="gray.7"
+                                                                    ta="center"
+                                                                >
+                                                                    This query
+                                                                    exceeds the
+                                                                    maximum
+                                                                    number of
+                                                                    columns (
+                                                                    {
+                                                                        maxColumnLimit
+                                                                    }
+                                                                    ). Showing
+                                                                    the first{' '}
+                                                                    {
+                                                                        maxColumnLimit
+                                                                    }{' '}
+                                                                    columns.
+                                                                </Text>
+                                                            </Group>
+                                                        )}
                                                     <ChartDataTable
                                                         columnNames={
                                                             pivotedChartInfo

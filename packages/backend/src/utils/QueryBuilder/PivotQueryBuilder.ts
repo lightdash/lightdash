@@ -1,6 +1,5 @@
 import {
     getAggregatedField,
-    MAX_PIVOT_COLUMN_LIMIT,
     normalizeIndexColumns,
     ParameterError,
     type PivotConfiguration,
@@ -73,9 +72,10 @@ export class PivotQueryBuilder {
      */
     private static calculateMaxColumnsPerValueColumn(
         valuesColumns: PivotConfiguration['valuesColumns'],
+        columnLimit: number,
     ): number {
         const valueColumnsCount = valuesColumns?.length || 1;
-        const remainingColumns = MAX_PIVOT_COLUMN_LIMIT - 1; // Account for the index column
+        const remainingColumns = columnLimit - 1; // Account for the index column
         return Math.floor(remainingColumns / valueColumnsCount);
     }
 
@@ -509,6 +509,7 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
+        columnLimit: number | undefined,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
@@ -527,8 +528,19 @@ export class PivotQueryBuilder {
             sortBy,
             metricFirstValueQueries,
         );
-        const maxColumnsPerValueColumn =
-            PivotQueryBuilder.calculateMaxColumnsPerValueColumn(valuesColumns);
+
+        let maxColumnsPerValueColumnSql = '';
+
+        if (columnLimit) {
+            const maxColumnsPerValueColumn =
+                PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
+                    valuesColumns,
+                    columnLimit,
+                );
+
+            // Keep leading space to avoid SQL syntax errors
+            maxColumnsPerValueColumnSql = ` and p.${q}column_index${q} <= ${maxColumnsPerValueColumn}`;
+        }
 
         const totalColumnsQuery = this.getTotalColumnsSQL(
             groupByColumns,
@@ -547,7 +559,7 @@ export class PivotQueryBuilder {
             `total_columns AS (${totalColumnsQuery})`,
         ];
 
-        const finalSelect = `SELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit} and p.${q}column_index${q} <= ${maxColumnsPerValueColumn} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+        const finalSelect = `SELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit}${maxColumnsPerValueColumnSql} order by p.${q}row_index${q}, p.${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
@@ -591,10 +603,11 @@ export class PivotQueryBuilder {
 
     /**
      * Generates the final pivot SQL query.
+     * @param columnLimit - Maximum number of columns to generate for the pivot query
      * @returns Complete SQL query with CTEs for pivoting the data
      * @throws {ParameterError} If no index columns are provided
      */
-    toSql(): string {
+    toSql(opts?: { columnLimit: number }): string {
         const indexColumns = normalizeIndexColumns(
             this.pivotConfiguration.indexColumn,
         );
@@ -630,6 +643,7 @@ export class PivotQueryBuilder {
         );
 
         if (groupByColumns && groupByColumns.length > 0) {
+            const { columnLimit } = opts ?? {};
             return this.getFullPivotSQL(
                 baseSql,
                 groupByQuery,
@@ -637,6 +651,7 @@ export class PivotQueryBuilder {
                 valuesColumns,
                 groupByColumns,
                 sortBy,
+                columnLimit,
             );
         }
 

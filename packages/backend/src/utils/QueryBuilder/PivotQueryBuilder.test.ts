@@ -134,7 +134,7 @@ describe('PivotQueryBuilder', () => {
                 100,
             );
 
-            const result = builder.toSql();
+            const result = builder.toSql({ columnLimit: 100 });
 
             // Should contain all CTEs
             expect(result).toContain(
@@ -219,10 +219,38 @@ describe('PivotQueryBuilder', () => {
                 mockWarehouseSqlBuilder,
             );
 
-            const result = builder.toSql();
+            const result = builder.toSql({ columnLimit: 100 });
 
             // With 3 value columns: (100-1)/3 = 33 max columns per value column
             expect(result).toContain('"column_index" <= 33');
+        });
+
+        test('Should not apply column limit when columnLimit is not provided', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                100,
+            );
+
+            const result = builder.toSql(); // No columnLimit provided
+
+            // Should NOT contain column_index filtering
+            expect(result).not.toContain('"column_index" <=');
+            // Should still contain row_index filtering
+            expect(result).toContain('"row_index" <= 100');
         });
     });
 
