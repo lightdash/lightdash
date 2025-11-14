@@ -5,11 +5,14 @@ import {
     isSchedulerGsheetsOptions,
     isSlackTarget,
     SchedulerFormat,
+    SchedulerRunStatus,
 } from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Box,
     Group,
+    Loader,
     Stack,
     Text,
     Tooltip,
@@ -17,14 +20,17 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconAlertCircle,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
+    IconCheck,
     IconClock,
     IconLayoutDashboard,
     IconMail,
     IconRadar,
+    IconRun,
     IconTextCaption,
 } from '@tabler/icons-react';
 import {
@@ -44,7 +50,10 @@ import {
     type UIEvent,
 } from 'react';
 import { Link } from 'react-router';
-import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
+import {
+    usePaginatedSchedulers,
+    useSchedulerLatestRun,
+} from '../../features/scheduler/hooks/useScheduler';
 import {
     useSchedulerFilters,
     type DestinationType,
@@ -69,6 +78,100 @@ interface SchedulersTableProps {
 }
 
 const fetchSize = 50;
+
+// Component to display the latest run status for a scheduler
+const SchedulerStatusCell: FC<{
+    schedulerUuid: string;
+    projectUuid: string;
+}> = ({ schedulerUuid, projectUuid }) => {
+    const { data, isLoading } = useSchedulerLatestRun(
+        projectUuid,
+        schedulerUuid,
+    );
+
+    if (isLoading) {
+        return <Loader size="xs" />;
+    }
+
+    const latestRun = data?.data?.[0];
+
+    if (!latestRun) {
+        return (
+            <Text fz="xs" c="gray.6">
+                No runs yet
+            </Text>
+        );
+    }
+
+    const getStatusConfig = (status: SchedulerRunStatus) => {
+        switch (status) {
+            case SchedulerRunStatus.COMPLETED:
+                return {
+                    color: 'green',
+                    icon: IconCheck,
+                    label: 'Completed',
+                };
+            case SchedulerRunStatus.PARTIAL_FAILURE:
+                return {
+                    color: 'yellow',
+                    icon: IconAlertCircle,
+                    label: 'Partial failure',
+                };
+            case SchedulerRunStatus.FAILED:
+                return {
+                    color: 'red',
+                    icon: IconAlertCircle,
+                    label: 'Failed',
+                };
+            case SchedulerRunStatus.RUNNING:
+                return {
+                    color: 'blue',
+                    icon: IconRun,
+                    label: 'Running',
+                };
+            case SchedulerRunStatus.SCHEDULED:
+                return {
+                    color: 'gray',
+                    icon: IconClock,
+                    label: 'Scheduled',
+                };
+            default:
+                return assertUnreachable(
+                    status,
+                    'Unknown scheduler run status',
+                );
+        }
+    };
+
+    const statusConfig = getStatusConfig(latestRun.runStatus);
+
+    return (
+        <Tooltip
+            label={
+                <Stack gap="xxs">
+                    <Text fz="xs">
+                        Last run:{' '}
+                        {new Date(latestRun.scheduledTime).toLocaleString()}
+                    </Text>
+                    {latestRun.logCounts && (
+                        <Text fz="xs" c="gray.5">
+                            {latestRun.logCounts.completed} completed,{' '}
+                            {latestRun.logCounts.error} failed
+                        </Text>
+                    )}
+                </Stack>
+            }
+        >
+            <Badge
+                size="sm"
+                color={statusConfig.color}
+                leftSection={<MantineIcon icon={statusConfig.icon} size="xs" />}
+            >
+                {statusConfig.label}
+            </Badge>
+        </Tooltip>
+    );
+};
 
 const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
     const theme = useMantineTheme();
@@ -366,6 +469,27 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                                 ) : null}
                             </Stack>
                         </Group>
+                    );
+                },
+            },
+            {
+                accessorKey: 'lastRunStatus',
+                header: 'Last Run Status',
+                enableSorting: false,
+                size: 160,
+                Header: ({ column }) => (
+                    <Group gap="two">
+                        <MantineIcon icon={IconRun} color="gray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const item = row.original;
+                    return (
+                        <SchedulerStatusCell
+                            schedulerUuid={item.schedulerUuid}
+                            projectUuid={projectUuid}
+                        />
                     );
                 },
             },
