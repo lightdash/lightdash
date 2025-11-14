@@ -426,6 +426,10 @@ export type NotificationPayloadBase = {
             source: string;
             fileName: string;
         };
+        failures?: {
+            chartName: string;
+            error: string;
+        }[];
     };
     scheduler: CreateSchedulerAndTargets;
 };
