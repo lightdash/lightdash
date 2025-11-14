@@ -1,3 +1,10 @@
+## [0.2170.3](https://github.com/lightdash/lightdash/compare/0.2170.2...0.2170.3) (2025-11-14)
+
+
+### Bug Fixes
+
+* respect max column limit config for backend pivoted results ([#18112](https://github.com/lightdash/lightdash/issues/18112)) ([5117ab5](https://github.com/lightdash/lightdash/commit/5117ab5482be3ab56ec4b3a7360b477c2cd5c9ba))
+
 ## [0.2170.2](https://github.com/lightdash/lightdash/compare/0.2170.1...0.2170.2) (2025-11-13)
 
 
