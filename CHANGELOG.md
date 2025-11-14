@@ -1,3 +1,10 @@
+## [0.2176.2](https://github.com/lightdash/lightdash/compare/0.2176.1...0.2176.2) (2025-11-14)
+
+
+### Bug Fixes
+
+* apply percentage formatting in metrics explorer ([#18143](https://github.com/lightdash/lightdash/issues/18143)) ([3f27cd2](https://github.com/lightdash/lightdash/commit/3f27cd2e13c616f5fb7902ed18b6da5731f7db8d))
+
 ## [0.2176.1](https://github.com/lightdash/lightdash/compare/0.2176.0...0.2176.1) (2025-11-14)
 
 
