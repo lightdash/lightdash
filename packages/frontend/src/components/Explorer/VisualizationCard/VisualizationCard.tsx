@@ -282,6 +282,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                 chartConfig={unsavedChartVersion.chartConfig}
                                 resultsData={resultsData}
                                 isLoading={isLoadingQueryResults}
+                                maxColumnLimit={
+                                    health.data?.pivotTable?.maxColumnLimit
+                                }
                             />
                         )
                     }
