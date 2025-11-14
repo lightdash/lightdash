@@ -1,3 +1,10 @@
+# [0.2176.0](https://github.com/lightdash/lightdash/compare/0.2175.0...0.2176.0) (2025-11-14)
+
+
+### Features
+
+* add export failure warnings for MS Teams ([#18077](https://github.com/lightdash/lightdash/issues/18077)) ([4f9c80a](https://github.com/lightdash/lightdash/commit/4f9c80a1dab03f5d94d14f6802de996829ea4047))
+
 # [0.2175.0](https://github.com/lightdash/lightdash/compare/0.2174.2...0.2175.0) (2025-11-14)
 
 
