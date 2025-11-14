@@ -1,8 +1,8 @@
 import {
     MetricExplorerComparison,
-    applyCustomFormat,
     assertUnreachable,
     capitalize,
+    formatItemValue,
     friendlyName,
     getCustomFormat,
     type MetricExploreDataPointWithDateValue,
@@ -357,15 +357,16 @@ const MetricsVisualization: FC<Props> = ({
 
     const formatConfig = useMemo<MetricVisualizationFormatConfig>(() => {
         return {
-            metric: getCustomFormat(results?.metric),
-            compareMetric: getCustomFormat(results?.compareMetric ?? undefined),
+            metric: results?.metric,
+            compareMetric: results?.compareMetric,
         };
     }, [results]);
 
     const shouldSplitYAxis = useMemo(() => {
         return (
             query.comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
-            formatConfig.compareMetric !== formatConfig.metric
+            getCustomFormat(formatConfig.compareMetric ?? undefined) !==
+                getCustomFormat(formatConfig.metric)
         );
     }, [query.comparison, formatConfig]);
 
@@ -695,9 +696,9 @@ const MetricsVisualization: FC<Props> = ({
                                         : undefined
                                 }
                                 tickFormatter={(value) => {
-                                    return applyCustomFormat(
-                                        value,
+                                    return formatItemValue(
                                         formatConfig.metric,
+                                        value,
                                     );
                                 }}
                                 style={{ userSelect: 'none' }}
@@ -780,9 +781,10 @@ const MetricsVisualization: FC<Props> = ({
                                             width={rightYAxisWidth}
                                             {...commonYAxisConfig}
                                             tickFormatter={(value) => {
-                                                return applyCustomFormat(
+                                                return formatItemValue(
+                                                    formatConfig.compareMetric ??
+                                                        undefined,
                                                     value,
-                                                    formatConfig.compareMetric,
                                                 );
                                             }}
                                             style={{ userSelect: 'none' }}

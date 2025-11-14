@@ -1,4 +1,4 @@
-import type { CustomFormat } from '@lightdash/common';
+import type { MetricWithAssociatedTimeDimension } from '@lightdash/common';
 import dayjs from 'dayjs';
 
 export const DATE_FORMATS = {
@@ -15,6 +15,6 @@ export const DATE_FORMATS = {
 export const COMPARISON_OPACITY = 0.3;
 
 export type MetricVisualizationFormatConfig = {
-    metric: CustomFormat | undefined;
-    compareMetric: CustomFormat | undefined;
+    metric: MetricWithAssociatedTimeDimension | undefined;
+    compareMetric: MetricWithAssociatedTimeDimension | null | undefined;
 };
