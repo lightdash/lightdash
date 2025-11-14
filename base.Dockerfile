@@ -55,7 +55,7 @@ RUN --mount=type=cache,id=pip-dbt,target=/root/.cache/pip,sharing=locked \
     && ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
 
 RUN --mount=type=cache,id=pip-dbt,target=/root/.cache/pip,sharing=locked \
-    && python3 -m venv /usr/local/dbt1.5 \
+    python3 -m venv /usr/local/dbt1.5 \
     && /usr/local/dbt1.5/bin/pip install \
     "dbt-postgres~=1.5.0" \
     "dbt-redshift~=1.5.0" \
