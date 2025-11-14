@@ -1,3 +1,10 @@
+## [0.2176.1](https://github.com/lightdash/lightdash/compare/0.2176.0...0.2176.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* conditional formatting on pivoted tables with USE_SQL_PIVOT_RESULTS enabled ([#18133](https://github.com/lightdash/lightdash/issues/18133)) ([f4b79ea](https://github.com/lightdash/lightdash/commit/f4b79eaa833cbd7d5bfe82a0a26afe830e2d1d58))
+
 # [0.2176.0](https://github.com/lightdash/lightdash/compare/0.2175.0...0.2176.0) (2025-11-14)
 
 
