@@ -315,6 +315,7 @@ type GetDashboardCsvResultsBlocksArgs = {
     ctaUrl: string;
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
+    failures?: { chartName: string; error: string }[];
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
@@ -324,6 +325,7 @@ export const getDashboardCsvResultsBlocks = ({
     csvUrls,
     footerMarkdown,
     ctaUrl,
+    failures,
 }: GetDashboardCsvResultsBlocksArgs): KnownBlock[] =>
     getBlocks([
         {
@@ -386,6 +388,19 @@ export const getDashboardCsvResultsBlocks = ({
                       },
                   },
         ),
+        failures && failures.length > 0
+            ? {
+                  type: 'section',
+                  text: {
+                      type: 'mrkdwn',
+                      text: `:warning: *Warning:* ${
+                          failures.length
+                      } chart(s) failed to export:\n${failures
+                          .map((f) => `\t• ${f.chartName}: ${f.error}`)
+                          .join('\n')}`,
+                  },
+              }
+            : undefined,
         footerMarkdown
             ? {
                   type: 'context',

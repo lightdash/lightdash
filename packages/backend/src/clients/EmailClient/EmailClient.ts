@@ -50,7 +50,12 @@ type EmailTemplate = {
     template: string;
     context: Record<
         string,
-        string | boolean | number | AttachmentUrl[] | undefined
+        | string
+        | boolean
+        | number
+        | AttachmentUrl[]
+        | { chartName: string; error: string }[]
+        | undefined
     >;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
@@ -562,6 +567,7 @@ export default class EmailClient {
         expirationDays?: number,
         asAttachment?: boolean,
         format?: SchedulerFormat,
+        failures?: { chartName: string; error: string }[],
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -605,6 +611,8 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
+                failures,
+                hasFailures: failures && failures.length > 0,
             },
             text: title,
             attachments: emailAttachments,
