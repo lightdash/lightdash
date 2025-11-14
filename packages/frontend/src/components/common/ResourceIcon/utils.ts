@@ -9,6 +9,7 @@ import {
     IconChartTreemap,
     IconCode,
     IconFilter,
+    IconGauge,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -34,6 +35,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconFilter;
         case ChartKind.TREEMAP:
             return IconChartTreemap;
+        case ChartKind.GAUGE:
+            return IconGauge;
         case ChartKind.TABLE:
             return IconTable;
         case ChartKind.BIG_NUMBER:

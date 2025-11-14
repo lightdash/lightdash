@@ -16,6 +16,7 @@ import {
     IconChevronDown,
     IconCode,
     IconFilter,
+    IconGauge,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -30,6 +31,7 @@ import {
     isCartesianVisualizationConfig,
     isCustomVisualizationConfig,
     isFunnelVisualizationConfig,
+    isGaugeVisualizationConfig,
     isPieVisualizationConfig,
     isTableVisualizationConfig,
     isTreemapVisualizationConfig,
@@ -169,6 +171,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Treemap',
                     icon: <MantineIcon icon={IconChartTreemap} color="gray" />,
+                };
+            case ChartType.GAUGE:
+                return {
+                    text: 'Gauge',
+                    icon: <MantineIcon icon={IconGauge} color="gray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -375,6 +382,23 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Treemap
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isGaugeVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconGauge} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.GAUGE);
+                    }}
+                >
+                    Gauge
                 </Menu.Item>
 
                 <Menu.Item

@@ -12,6 +12,7 @@ import {
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
+    type GaugeChartConfig,
     type Item,
     type Metric,
     type MetricQuery,
@@ -79,6 +80,7 @@ export type ConfigCacheMap = {
     [ChartType.TABLE]: ChartConfigCache<TableChartConfig['config']>;
     [ChartType.CARTESIAN]: ChartConfigCache<CartesianChartConfig['config']>;
     [ChartType.TREEMAP]: ChartConfigCache<TreemapChartConfig['config']>;
+    [ChartType.GAUGE]: ChartConfigCache<GaugeChartConfig['config']>;
     [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
 };
 
