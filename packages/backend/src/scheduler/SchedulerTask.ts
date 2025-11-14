@@ -1271,6 +1271,7 @@ export default class SchedulerTask {
                         webhookUrl: webhook,
                         ...getBlocksArgs,
                         csvUrls,
+                        failures,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');
