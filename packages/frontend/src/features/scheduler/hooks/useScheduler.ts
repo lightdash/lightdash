@@ -66,7 +66,7 @@ const getSchedulerRuns = async (
     }
 
     if (filters?.schedulerUuid) {
-        params.set('schedulerUuid', filters.schedulerUuid);
+        params.set('schedulerUuids', filters.schedulerUuid);
     }
 
     if (filters?.statuses && filters.statuses.length > 0) {

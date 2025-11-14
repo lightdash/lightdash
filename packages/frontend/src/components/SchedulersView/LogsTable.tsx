@@ -103,6 +103,8 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         setSelectedCreatedByUserUuids,
         selectedDestinations,
         setSelectedDestinations,
+        selectedSchedulerUuid,
+        setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
     } = useLogsFilters();
@@ -112,6 +114,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         return {
             search,
             filters: {
+                schedulerUuid: selectedSchedulerUuid,
                 statuses: selectedStatuses,
                 createdByUserUuids: selectedCreatedByUserUuids,
                 destinations: selectedDestinations,
@@ -119,6 +122,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         };
     }, [
         search,
+        selectedSchedulerUuid,
         selectedStatuses,
         selectedCreatedByUserUuids,
         selectedDestinations,
@@ -137,6 +141,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
             sortBy: 'scheduledTime',
             sortDirection: 'desc',
             filters: {
+                schedulerUuid: debouncedSearchAndFilters.filters.schedulerUuid,
                 statuses: debouncedSearchAndFilters.filters.statuses,
                 createdByUserUuids:
                     debouncedSearchAndFilters.filters.createdByUserUuids,
@@ -279,6 +284,25 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
             });
         });
         return Array.from(userMap.values()).sort((a, b) =>
+            a.name.localeCompare(b.name),
+        );
+    }, [schedulerRunsData]);
+
+    // Compute available schedulers from runs (unique schedulers)
+    const availableSchedulers = useMemo(() => {
+        const schedulerMap = new Map<
+            string,
+            { schedulerUuid: string; name: string }
+        >();
+        schedulerRunsData?.forEach((run) => {
+            if (!schedulerMap.has(run.schedulerUuid)) {
+                schedulerMap.set(run.schedulerUuid, {
+                    schedulerUuid: run.schedulerUuid,
+                    name: run.schedulerName,
+                });
+            }
+        });
+        return Array.from(schedulerMap.values()).sort((a, b) =>
             a.name.localeCompare(b.name),
         );
     }, [schedulerRunsData]);
@@ -609,12 +633,15 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 setSelectedCreatedByUserUuids={setSelectedCreatedByUserUuids}
                 selectedDestinations={selectedDestinations}
                 setSelectedDestinations={setSelectedDestinations}
+                selectedSchedulerUuid={selectedSchedulerUuid}
+                setSelectedSchedulerUuid={setSelectedSchedulerUuid}
                 isFetching={isFetching || isLoading}
                 currentResultsCount={totalFetched}
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
                 availableUsers={availableUsers}
                 availableDestinations={availableDestinations}
+                availableSchedulers={availableSchedulers}
             />
         ),
         mantinePaperProps: {

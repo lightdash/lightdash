@@ -2,6 +2,8 @@ import {
     ActionIcon,
     Divider,
     Group,
+    Pill,
+    Text,
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
@@ -22,6 +24,11 @@ type User = {
     name: string;
 };
 
+type Scheduler = {
+    schedulerUuid: string;
+    name: string;
+};
+
 interface LogsTopToolbarProps
     extends Pick<
         ReturnType<typeof useLogsFilters>,
@@ -33,6 +40,8 @@ interface LogsTopToolbarProps
         | 'setSelectedCreatedByUserUuids'
         | 'selectedDestinations'
         | 'setSelectedDestinations'
+        | 'selectedSchedulerUuid'
+        | 'setSelectedSchedulerUuid'
         | 'hasActiveFilters'
         | 'resetFilters'
     > {
@@ -40,6 +49,7 @@ interface LogsTopToolbarProps
     currentResultsCount: number;
     availableUsers: User[];
     availableDestinations: DestinationType[];
+    availableSchedulers: Scheduler[];
 }
 
 export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
@@ -52,12 +62,19 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
         setSelectedCreatedByUserUuids,
         selectedDestinations,
         setSelectedDestinations,
+        selectedSchedulerUuid,
+        setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
         availableUsers,
         availableDestinations,
+        availableSchedulers,
     }) => {
         const theme = useMantineTheme();
+
+        const selectedScheduler = availableSchedulers.find(
+            (s) => s.schedulerUuid === selectedSchedulerUuid,
+        );
 
         return (
             <Group
@@ -76,6 +93,28 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                             alignSelf: 'center',
                         }}
                     />
+
+                    {selectedScheduler && (
+                        <>
+                            <Text fz="sm" c="gray.7" fw={500}>
+                                Scheduler:
+                            </Text>
+                            <Pill
+                                withRemoveButton
+                                onRemove={() => setSelectedSchedulerUuid('')}
+                            >
+                                {selectedScheduler.name}
+                            </Pill>
+                            <Divider
+                                orientation="vertical"
+                                w={1}
+                                h={20}
+                                style={{
+                                    alignSelf: 'center',
+                                }}
+                            />
+                        </>
+                    )}
 
                     <StatusFilter
                         selectedStatuses={selectedStatuses}

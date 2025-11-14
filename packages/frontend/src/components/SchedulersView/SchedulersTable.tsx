@@ -48,7 +48,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import {
     useSchedulerFilters,
@@ -102,6 +102,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+    const [, setSearchParams] = useSearchParams();
 
     const {
         search,
@@ -431,6 +432,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                                             {latestRun.logCounts.error} failed
                                         </Text>
                                     )}
+                                    <Text fz="xs" c="gray.4" fs="italic">
+                                        Click to view run history
+                                    </Text>
                                 </Stack>
                             }
                         >
@@ -443,6 +447,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                                         size="xs"
                                     />
                                 }
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => {
+                                    setSearchParams({
+                                        tab: 'run-history',
+                                        schedulerUuid: item.schedulerUuid,
+                                    });
+                                }}
                             >
                                 {statusConfig.label}
                             </Badge>
@@ -634,7 +645,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                 },
             },
         ],
-        [project, projectUuid, getSlackChannelName],
+        [project, projectUuid, getSlackChannelName, setSearchParams],
     );
 
     const table = useMantineReactTable({
