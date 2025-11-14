@@ -1,8 +1,4 @@
-import {
-    parseVizConfig,
-    type AiAgentMessageAssistant,
-    type AiArtifact,
-} from '@lightdash/common';
+import { parseVizConfig, type AiArtifact } from '@lightdash/common';
 import {
     ActionIcon,
     Center,
@@ -32,7 +28,6 @@ type Props = {
     agentUuid: string;
     artifactUuid: string;
     versionUuid: string;
-    message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
 };
 
@@ -42,7 +37,6 @@ export const AiChartVisualization: FC<Props> = ({
     agentUuid,
     artifactUuid,
     versionUuid,
-    message,
     showCloseButton = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
@@ -141,9 +135,7 @@ export const AiChartVisualization: FC<Props> = ({
                         <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
                             <ViewSqlButton sql={compiledSql?.query} />
                             <AiChartQuickOptions
-                                message={message}
                                 projectUuid={projectUuid}
-                                artifactData={artifactData}
                                 saveChartOptions={{
                                     name: queryExecutionHandle.data.metadata
                                         .title,

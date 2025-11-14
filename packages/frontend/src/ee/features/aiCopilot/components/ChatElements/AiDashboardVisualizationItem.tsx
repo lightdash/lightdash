@@ -1,6 +1,5 @@
 import {
     type AiAgentChartTypeOption,
-    type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
     type ToolTableVizArgs,
@@ -40,7 +39,6 @@ type Props = {
     threadUuid: string;
     artifactUuid: string;
     versionUuid: string;
-    message: AiAgentMessageAssistant;
     index: number;
 };
 
@@ -52,7 +50,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         threadUuid: _threadUuid,
         artifactUuid,
         versionUuid,
-        message,
         index,
     }) => {
         const queryClient = useQueryClient();
@@ -180,7 +177,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                             description: visualization.description ?? null,
                             linkToMessage: false,
                         }}
-                        message={message}
                         compiledSql={compiledSql?.query}
                     />
                 </Group>

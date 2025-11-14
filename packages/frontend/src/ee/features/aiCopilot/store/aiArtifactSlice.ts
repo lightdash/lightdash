@@ -3,8 +3,8 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 export interface ArtifactData {
     artifactUuid: string;
     versionUuid: string;
-    messageUuid: string;
-    threadUuid: string;
+    messageUuid?: string;
+    threadUuid?: string;
     projectUuid: string;
     agentUuid: string;
 }
@@ -26,8 +26,8 @@ export const aiArtifactSlice = createSlice({
             action: PayloadAction<{
                 artifactUuid: string;
                 versionUuid: string;
-                messageUuid: string;
-                threadUuid: string;
+                messageUuid?: string;
+                threadUuid?: string;
                 projectUuid: string;
                 agentUuid: string;
             }>,
