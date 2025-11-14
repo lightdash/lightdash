@@ -1542,11 +1542,9 @@ export class ScimService extends BaseService {
         roles: ScimUserRole[],
         validRoleValues: string[],
     ): void {
-        // If roles array is provided, it must have at least 1 entry
+        // For backwards compatibility, when array is empty, skip validation and let caller skip updates
         if (roles.length === 0) {
-            throw new ParameterError(
-                'Roles array must contain at least one role when provided',
-            );
+            return;
         }
 
         // Check for invalid role values

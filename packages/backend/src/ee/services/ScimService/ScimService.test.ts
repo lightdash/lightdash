@@ -687,12 +687,10 @@ describe('ScimService', () => {
             }).not.toThrow();
         });
 
-        test('should throw error for empty roles array', () => {
+        test('should not throw error for empty roles array (skip updates)', () => {
             expect(() => {
                 ScimService.validateRolesArray([], validRoleValues);
-            }).toThrow(
-                'Roles array must contain at least one role when provided',
-            );
+            }).not.toThrow();
         });
 
         test('should throw error for invalid role values', () => {
