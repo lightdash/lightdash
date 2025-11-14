@@ -1,3 +1,10 @@
+## [0.2172.1](https://github.com/lightdash/lightdash/compare/0.2172.0...0.2172.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* treemap not displaying upper label ([#18132](https://github.com/lightdash/lightdash/issues/18132)) ([96c02f3](https://github.com/lightdash/lightdash/commit/96c02f383ac973df624ac8c69c9bcdfbdfd26877)), closes [#18121](https://github.com/lightdash/lightdash/issues/18121) [#17830](https://github.com/lightdash/lightdash/issues/17830)
+
 # [0.2172.0](https://github.com/lightdash/lightdash/compare/0.2171.1...0.2172.0) (2025-11-14)
 
 
