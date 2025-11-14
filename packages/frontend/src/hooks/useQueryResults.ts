@@ -549,11 +549,8 @@ export const useInfiniteQueryResults = (
             totalClientFetchTimeMs,
             isInitialLoading: isInitialLoading || dependenciesChanged,
             isFetchingFirstPage:
-                !!queryUuid &&
-                (dependenciesChanged ||
-                    fetchedPages[0]?.totalResults === undefined ||
-                    (fetchedPages[0]?.totalResults > 0 &&
-                        fetchedRows.length === 0)),
+                dependenciesChanged ||
+                (!fetchedPages.length && nextPage.isFetching),
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
             error: nextPage.error,
@@ -561,6 +558,8 @@ export const useInfiniteQueryResults = (
         [
             projectUuid,
             queryUuid,
+            dependenciesChanged,
+            nextPageData?.status,
             fetchedPages,
             hasFetchedAllRows,
             fetchedRows,
@@ -568,10 +567,9 @@ export const useInfiniteQueryResults = (
             fetchMoreRows,
             totalClientFetchTimeMs,
             isInitialLoading,
-            fetchAll,
-            nextPageData,
+            nextPage.isFetching,
             nextPage.error,
-            dependenciesChanged,
+            fetchAll,
         ],
     );
 };
