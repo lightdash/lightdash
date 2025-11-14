@@ -3,6 +3,7 @@ import {
     type AnyType,
     type ApiError,
     type ApiJobStatusResponse,
+    type ApiSchedulerRunsResponse,
     type ApiSchedulersResponse,
     type ApiTestSchedulerResponse,
     type CreateSchedulerAndTargets,
@@ -134,6 +135,28 @@ const sendNowSchedulerByUuid = async (uuid: string) =>
         method: 'POST',
         body: undefined,
     });
+
+const getSchedulerRuns = async (
+    projectUuid: string,
+    schedulerUuid?: string,
+): Promise<ApiSchedulerRunsResponse['results']> => {
+    const params = new URLSearchParams({
+        page: '1',
+        pageSize: '1', // Only fetch the most recent run
+        sortBy: 'scheduledTime',
+        sortDirection: 'desc',
+    });
+
+    if (schedulerUuid) {
+        params.set('schedulerUuid', schedulerUuid);
+    }
+
+    return lightdashApi({
+        url: `/schedulers/${projectUuid}/runs?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    }) as unknown as Promise<ApiSchedulerRunsResponse['results']>;
+};
 
 export const useScheduler = (
     uuid: string | null,
@@ -488,4 +511,16 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
         ...sendNowMutation,
         isLoading,
     };
+};
+
+export const useSchedulerLatestRun = (
+    projectUuid: string,
+    schedulerUuid: string,
+) => {
+    return useQuery<ApiSchedulerRunsResponse['results'], ApiError>({
+        queryKey: ['schedulerLatestRun', projectUuid, schedulerUuid],
+        queryFn: () => getSchedulerRuns(projectUuid, schedulerUuid),
+        enabled: Boolean(projectUuid && schedulerUuid),
+        refetchOnWindowFocus: false,
+    });
 };
