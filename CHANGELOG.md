@@ -1,3 +1,10 @@
+# [0.2173.0](https://github.com/lightdash/lightdash/compare/0.2172.1...0.2173.0) (2025-11-14)
+
+
+### Features
+
+* add deep linking to schedulers list ([#18116](https://github.com/lightdash/lightdash/issues/18116)) ([60fba56](https://github.com/lightdash/lightdash/commit/60fba5650fe0f68e000453a1e604490e4ed3dec1))
+
 ## [0.2172.1](https://github.com/lightdash/lightdash/compare/0.2172.0...0.2172.1) (2025-11-14)
 
 
