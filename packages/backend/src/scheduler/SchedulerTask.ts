@@ -22,6 +22,7 @@ import {
     MissingConfigError,
     type MsTeamsNotificationPayload,
     NotEnoughResults,
+    NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
     ParametersValuesMap,
@@ -2626,7 +2627,9 @@ export default class SchedulerTask {
                     createdByUserUuid: notification.userUuid,
                 },
             });
+
             const shouldDisableSync =
+                e instanceof NotFoundError ||
                 e instanceof ForbiddenError ||
                 e instanceof MissingConfigError ||
                 e instanceof UnexpectedGoogleSheetsError;
@@ -2649,6 +2652,25 @@ export default class SchedulerTask {
                 });
             }
 
+            // Send failure email to scheduler creator for all errors
+            try {
+                if (account?.user.email) {
+                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
+                        account.user.email,
+                        scheduler?.name || 'Unknown',
+                        deliveryUrl,
+                        getErrorMessage(e),
+                        shouldDisableSync,
+                    );
+                }
+            } catch (emailError) {
+                // Don't throw - continue with existing error handling
+                Logger.error(
+                    `Failed to send Google Sheets failure email: ${emailError}`,
+                );
+            }
+
+            // Disable scheduler if it should be disabled
             if (shouldDisableSync) {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
@@ -2660,15 +2682,9 @@ export default class SchedulerTask {
                     false,
                 );
 
-                if (account?.user.email) {
-                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
-                        account.user.email,
-                        scheduler?.name || 'Unknown',
-                        deliveryUrl,
-                    );
-                }
                 return; // Do not cascade error
             }
+
             throw e; // Cascade error to it can be retried by graphile
         }
     }
