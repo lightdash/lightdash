@@ -1,0 +1,99 @@
+name: Build Base Docker Image
+
+on:
+  # Allow manual trigger version
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Version tag to use'
+        required: true
+        type: string
+
+  # Trigger when base image files change
+  push:
+    branches:
+      - main
+    paths:
+      - 'base.Dockerfile'
+      - '.github/workflows/build-base-image.yml'
+
+env:
+  REGISTRY_IMAGE: lightdash/lightdash-base
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set version from input
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version_override }}"
+          echo "Using provided version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push base image
+        run: |
+          echo "Building base image: ${{ env.REGISTRY_IMAGE }}"
+          echo "Version: ${{ steps.version.outputs.version }}"
+
+          docker buildx build \
+            -f base.Dockerfile \
+            --platform linux/amd64 \
+            --cache-from type=registry,ref=${{ env.REGISTRY_IMAGE }}:cache \
+            --cache-to type=registry,ref=${{ env.REGISTRY_IMAGE }}:cache,mode=max,compression=zstd \
+            -t "${{ env.REGISTRY_IMAGE }}:${{ steps.version.outputs.version }}" \
+            -t "${{ env.REGISTRY_IMAGE }}:latest" \
+            --push \
+            .
+
+      - name: Output image details
+        run: |
+          echo "✅ Base image published successfully!"
+          echo ""
+          echo "Image tags:"
+          echo "  - ${{ env.REGISTRY_IMAGE }}:${{ steps.version.outputs.version }}"
+          echo "  - ${{ env.REGISTRY_IMAGE }}:latest"
+          echo ""
+          echo "To use in Dockerfile:"
+          echo "  FROM ${{ env.REGISTRY_IMAGE }}:latest"
+          echo ""
+          echo "To pull manually:"
+          echo "  docker pull ${{ env.REGISTRY_IMAGE }}:latest"
+
+      - name: Create summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Base Image Build Complete
+
+          **Version:** \`${{ steps.version.outputs.version }}\`
+
+          **Images pushed:**
+          - \`${{ env.REGISTRY_IMAGE }}:${{ steps.version.outputs.version }}\`
+          - \`${{ env.REGISTRY_IMAGE }}:latest\`
+
+          **Next steps:**
+          - PR builds will automatically use this base image
+          - To force rebuild, trigger workflow manually
+          EOF
