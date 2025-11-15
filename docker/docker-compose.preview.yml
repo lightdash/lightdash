@@ -28,6 +28,11 @@ services:
             target: pr-runner
             context: ..
             dockerfile: dockerfile-prs
+            cache_from:
+                - type=registry,ref=registry.okteto.dev/lightdash/lightdash-cache:latest
+            # Cache all layers
+            cache_to:
+                - type=registry,ref=registry.okteto.dev/lightdash/lightdash-cache:latest,mode=max
         depends_on:
             - db-preview
             - headless-browser
