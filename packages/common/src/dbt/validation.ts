@@ -21,6 +21,7 @@ import lightdashSchemaV9 from './schemas/lightdashV9.json';
 import dbtManifestSchemaV10 from './schemas/manifestV10.json';
 import dbtManifestSchemaV11 from './schemas/manifestV11.json';
 import dbtManifestSchemaV12 from './schemas/manifestV12.json';
+// import dbtManifestSchemaV20 from './schemas/manifestV20.json';
 import dbtManifestSchemaV7 from './schemas/manifestV7.json';
 import dbtManifestSchemaV8 from './schemas/manifestV8.json';
 import dbtManifestSchemaV9 from './schemas/manifestV9.json';
@@ -34,6 +35,7 @@ ajv.addSchema([
     dbtManifestSchemaV10,
     dbtManifestSchemaV11,
     dbtManifestSchemaV12,
+    // dbtManifestSchemaV20,
     lightdashMetadataSchema,
     lightdashSchemaV7,
     lightdashSchemaV8,
