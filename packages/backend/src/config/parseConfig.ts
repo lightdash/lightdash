@@ -33,6 +33,7 @@ import {
     aiCopilotConfigSchema,
     AiCopilotConfigSchemaType,
     DEFAULT_ANTHROPIC_MODEL_NAME,
+    DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
@@ -686,6 +687,27 @@ export const getAiConfig = () => ({
                   ),
                   temperature: getFloatFromEnvironmentVariable(
                       'OPENROUTER_TEMPERATURE',
+                  ),
+              }
+            : undefined,
+        bedrock: process.env.BEDROCK_REGION
+            ? {
+                  region: process.env.BEDROCK_REGION,
+                  ...(process.env.BEDROCK_BASE_URL
+                      ? { baseURL: process.env.BEDROCK_BASE_URL }
+                      : {}),
+                  ...(process.env.BEDROCK_ACCESS_KEY_ID
+                      ? {
+                            accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID,
+                            secretAccessKey:
+                                process.env.BEDROCK_SECRET_ACCESS_KEY,
+                        }
+                      : {}),
+                  modelName:
+                      process.env.BEDROCK_MODEL_NAME ||
+                      DEFAULT_BEDROCK_MODEL_NAME,
+                  temperature: getFloatFromEnvironmentVariable(
+                      'BEDROCK_TEMPERATURE',
                   ),
               }
             : undefined,

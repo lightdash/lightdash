@@ -1,5 +1,6 @@
 import { assertUnreachable, ParameterError } from '@lightdash/common';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { getAmazonBedrockModel } from './amazon-bedrock';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getOpenaiGptmodel } from './openai-gpt';
@@ -41,6 +42,15 @@ export const getModel = (
                 );
             }
             return getOpenRouterModel(openrouterConfig);
+        }
+        case 'bedrock': {
+            const bedrockConfig = config.providers.bedrock;
+            if (!bedrockConfig) {
+                throw new ParameterError(
+                    'Amazon Bedrock configuration is required',
+                );
+            }
+            return getAmazonBedrockModel(bedrockConfig);
         }
         default:
             return assertUnreachable(
