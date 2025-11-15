@@ -5,10 +5,13 @@ import {
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
+    ApiSchedulerRunLogsResponse,
+    ApiSchedulerRunsResponse,
     ApiSchedulersResponse,
     ApiTestSchedulerResponse,
     KnexPaginateArgs,
     SchedulerJobStatus,
+    SchedulerRunStatus,
 } from '@lightdash/common';
 import {
     Body,
@@ -94,6 +97,109 @@ export class SchedulerController extends BaseController {
                     searchQuery,
                     filters,
                 ),
+        };
+    }
+
+    /**
+     * Get paginated scheduler runs with aggregated child job counts
+     * @summary List scheduler runs
+     * @param req express request
+     * @param projectUuid The uuid of the project
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery search query to filter runs by scheduler name
+     * @param sortBy column to sort by (scheduledTime, createdAt)
+     * @param sortDirection sort direction (asc or desc)
+     * @param schedulerUuid filter by specific scheduler UUID
+     * @param statuses filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)
+     * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param resourceType filter by resource type (chart or dashboard)
+     * @param resourceUuids filter by resource UUIDs (comma-separated)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/runs')
+    @OperationId('getSchedulerRuns')
+    async getRuns(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() sortBy?: 'scheduledTime' | 'createdAt',
+        @Query() sortDirection?: 'asc' | 'desc',
+        @Query() schedulerUuid?: string,
+        @Query() statuses?: string,
+        @Query() createdByUserUuids?: string,
+        @Query() destinations?: string,
+        @Query() resourceType?: 'chart' | 'dashboard',
+        @Query() resourceUuids?: string,
+    ): Promise<ApiSchedulerRunsResponse> {
+        this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
+        const sort =
+            sortBy && sortDirection
+                ? { column: sortBy, direction: sortDirection }
+                : undefined;
+
+        const filters = {
+            schedulerUuid,
+            statuses: statuses
+                ? (statuses.split(',') as SchedulerRunStatus[])
+                : undefined,
+            createdByUserUuids: createdByUserUuids
+                ? createdByUserUuids.split(',')
+                : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
+            resourceType,
+            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
+        };
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getSchedulerRuns(
+                    req.user!,
+                    projectUuid,
+                    paginateArgs,
+                    searchQuery,
+                    sort,
+                    filters,
+                ),
+        };
+    }
+
+    /**
+     * Get detailed logs for a specific scheduler run
+     * @summary Get run logs
+     * @param req express request
+     * @param runId The ID of the run (parent job ID)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/runs/{runId}/logs')
+    @OperationId('getRunLogs')
+    async getRunLogs(
+        @Path() runId: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSchedulerRunLogsResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getRunLogs(req.user!, runId),
         };
     }
 
