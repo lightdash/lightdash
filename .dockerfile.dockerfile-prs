@@ -1,4 +1,4 @@
-# .oktetoignore
+# .dockerfile.dockerfile-prs
 .claude
 .cursor
 .github
