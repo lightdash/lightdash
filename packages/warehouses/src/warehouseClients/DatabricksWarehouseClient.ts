@@ -237,11 +237,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         // Build connection options based on authentication type
         if (
             credentials.authenticationType ===
-            DatabricksAuthenticationType.OAUTH_M2M
+                DatabricksAuthenticationType.OAUTH_M2M ||
+            credentials.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M
         ) {
             if (!credentials.token) {
                 throw new UnexpectedServerError(
-                    'Databricks OAuth access token is required for OAuth authentication',
+                    `Databricks OAuth access token is required for OAuth ${credentials.authenticationType} authentication`,
                 );
             }
             this.connectionOptions = {

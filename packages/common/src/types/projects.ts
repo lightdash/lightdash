@@ -83,6 +83,7 @@ export type BigqueryCredentials = Omit<
 export enum DatabricksAuthenticationType {
     PERSONAL_ACCESS_TOKEN = 'personal_access_token',
     OAUTH_M2M = 'oauth_m2m',
+    OAUTH_U2M = 'oauth_u2m',
 }
 
 export type CreateDatabricksCredentials = {
