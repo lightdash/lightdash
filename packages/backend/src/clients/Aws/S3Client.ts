@@ -3,16 +3,7 @@ import {
     PutObjectCommandInput,
     S3,
     S3ServiceException,
-    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
-import {
-    createCredentialChain,
-    fromContainerMetadata,
-    fromEnv,
-    fromIni,
-    fromInstanceMetadata,
-    fromTokenFile,
-} from '@aws-sdk/credential-providers';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -29,57 +20,18 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
+import { S3BaseClient } from './S3BaseClient';
 
 type S3ClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
-export class S3Client {
+export class S3Client extends S3BaseClient {
     lightdashConfig: LightdashConfig;
 
-    private readonly s3?: S3;
-
     constructor({ lightdashConfig }: S3ClientArguments) {
+        super(lightdashConfig.s3);
         this.lightdashConfig = lightdashConfig;
-
-        if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {
-            const s3Config: S3ClientConfig = {
-                region: lightdashConfig.s3.region,
-                apiVersion: '2006-03-01',
-                endpoint: lightdashConfig.s3.endpoint,
-                forcePathStyle: lightdashConfig.s3.forcePathStyle,
-            };
-
-            if (lightdashConfig.s3?.accessKey && lightdashConfig.s3.secretKey) {
-                Object.assign(s3Config, {
-                    credentials: {
-                        accessKeyId: lightdashConfig.s3.accessKey,
-                        secretAccessKey: lightdashConfig.s3.secretKey,
-                    },
-                });
-                Logger.debug('Using S3 storage with access key credentials');
-            } else {
-                // Use createCredentialChain for robust credential resolution in IRSA and role chaining scenarios
-                // Order matters: prioritize environment variables and token files for IRSA compatibility
-                // See: https://github.com/aws/aws-sdk-js-v3/issues/6419
-                Object.assign(s3Config, {
-                    credentials: createCredentialChain(
-                        fromEnv(), // Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
-                        fromTokenFile(), // IRSA - IAM Role for Service Accounts (Kubernetes/EKS token file)
-                        fromIni(), // AWS credentials file (~/.aws/credentials) and config file (~/.aws/config)
-                        fromContainerMetadata(), // ECS Task Role credentials from container metadata endpoint
-                        fromInstanceMetadata(), // EC2 Instance Profile credentials from metadata service
-                    ),
-                });
-                Logger.debug(
-                    'Using S3 storage with IAM role credentials (credential chain)',
-                );
-            }
-
-            this.s3 = new S3(s3Config);
-        } else {
-            Logger.debug('Missing S3 bucket configuration');
-        }
     }
 
     private async uploadFile(
