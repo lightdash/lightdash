@@ -483,8 +483,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
 
-    const addDimensionDashboardFilter = useDashboardContext(
-        (c) => c.addDimensionDashboardFilter,
+    const upsertDimensionDashboardFilter = useDashboardContext(
+        (c) => c.upsertDimensionDashboardFilter,
     );
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
@@ -699,12 +699,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 });
             }
 
-            addDimensionDashboardFilter(filter, !isEditMode);
+            upsertDimensionDashboardFilter(filter, !isEditMode);
         },
         [
             track,
             isEditMode,
-            addDimensionDashboardFilter,
+            upsertDimensionDashboardFilter,
             explore,
             projectUuid,
             dashboardUuid,

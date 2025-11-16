@@ -34,8 +34,8 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const addDimensionDashboardFilter = useDashboardContext(
-        (c) => c.addDimensionDashboardFilter,
+    const upsertDimensionDashboardFilter = useDashboardContext(
+        (c) => c.upsertDimensionDashboardFilter,
     );
 
     const handleSaveNew = useCallback(
@@ -53,9 +53,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                     mode: isEditMode ? 'edit' : 'viewer',
                 },
             });
-            addDimensionDashboardFilter(value, !isEditMode);
+            upsertDimensionDashboardFilter(value, !isEditMode);
         },
-        [addDimensionDashboardFilter, isEditMode, track],
+        [upsertDimensionDashboardFilter, isEditMode, track],
     );
 
     const handlePopoverOpen = useCallback((id: string) => {

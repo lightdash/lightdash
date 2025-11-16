@@ -48,7 +48,7 @@ export type DashboardContextType = {
     resetDashboardFilters: () => void;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
-    addDimensionDashboardFilter: (
+    upsertDimensionDashboardFilter: (
         filter: DashboardFilterRule,
         isTemporary: boolean,
     ) => void;
