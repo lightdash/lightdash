@@ -246,8 +246,16 @@ export class AiAgentService {
             dependencies.aiOrganizationSettingsService;
     }
 
+<<<<<<< HEAD
     private getIsVerifiedArtifactsEnabled(): boolean {
         return this.lightdashConfig.ai.copilot.embeddingEnabled;
+=======
+    private getIsVerifiedArtifactsEnabled(agentVersion: number): boolean {
+        return (
+            this.lightdashConfig.ai.copilot.embeddingEnabled &&
+            agentVersion === 3
+        );
+>>>>>>> 0ea0b8952f (feat: configurable embedding models (#18001))
     }
 
     private async getIsCopilotEnabled(
@@ -1144,7 +1152,11 @@ export class AiAgentService {
                 agentUuid: agent.uuid,
                 retrieveRelevantArtifacts:
                     retrieveRelevantArtifacts &&
+<<<<<<< HEAD
                     this.getIsVerifiedArtifactsEnabled(),
+=======
+                    this.getIsVerifiedArtifactsEnabled(agent.version),
+>>>>>>> 0ea0b8952f (feat: configurable embedding models (#18001))
             },
         );
 
@@ -1712,7 +1724,11 @@ export class AiAgentService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+<<<<<<< HEAD
         if (verified && !this.getIsVerifiedArtifactsEnabled()) {
+=======
+        if (verified && !this.getIsVerifiedArtifactsEnabled(agent.version)) {
+>>>>>>> 0ea0b8952f (feat: configurable embedding models (#18001))
             throw new NotImplementedError('Answer verification is not enabled');
         }
 
