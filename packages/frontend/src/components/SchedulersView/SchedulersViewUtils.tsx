@@ -99,13 +99,18 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
 };
 
 export const getSchedulerLink = (item: SchedulerItem, projectUuid: string) => {
+    const paramName =
+        item.thresholds && item.thresholds.length > 0
+            ? 'threshold_uuid'
+            : 'scheduler_uuid';
+
     return item.savedChartUuid
         ? `/projects/${projectUuid}/saved/${
               item.savedChartUuid
-          }/view/?scheduler_uuid=${item.schedulerUuid}${
+          }/view/?${paramName}=${item.schedulerUuid}${
               item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
           }`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?scheduler_uuid=${item.schedulerUuid}`;
+        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
 };
 export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
     return item.savedChartUuid
