@@ -47,6 +47,55 @@ export function getFullTextSearchRankCalcSql({
     );
 }
 
+/**
+ * Converts a natural language query to OR-based websearch query.
+ * For example: "average cost" becomes "average OR cost"
+ * This makes searches more permissive for better recall.
+ */
+function getWebSearchQuery(searchQuery: string): string {
+    // Split on spaces and join with OR for more permissive matching
+    return searchQuery
+        .split(' ')
+        .filter((word) => word.trim())
+        .join(' OR ');
+}
+
+/**
+ * Web search variant that uses websearch_to_tsquery for natural language queries.
+ * This is better suited for user-provided queries because:
+ * - No special formatting required
+ * - Handles phrases naturally with quotes
+ * - Supports OR and NOT operators naturally
+ * - Never raises syntax errors
+ * - Uses OR by default for better recall (multiple words = any word matches)
+ *
+ * Use this for AI agent queries and user-facing search inputs.
+ */
+export function getWebSearchRankCalcSql({
+    database,
+    variables,
+}: {
+    database: Knex;
+    variables: Record<string, string>;
+}) {
+    const webSearchQuery = getWebSearchQuery(variables.searchQuery);
+
+    return database.raw(
+        `ROUND(
+            ts_rank_cd(
+                :searchVectorColumn:,
+                websearch_to_tsquery('lightdash_english_config', :searchQuery),
+                32
+            )::numeric,
+            6
+        )::float`,
+        {
+            ...variables,
+            searchQuery: webSearchQuery,
+        },
+    );
+}
+
 export function getRegexFromUserQuery(query: string) {
     const sanitizedQuery = escapeRegExp(query);
     const splitQuery = compact(Array.from(new Set(sanitizedQuery.split(' '))));

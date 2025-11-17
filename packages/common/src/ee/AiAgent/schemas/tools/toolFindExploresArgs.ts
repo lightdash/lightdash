@@ -37,9 +37,27 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema({
     })
     .build();
 
+export const toolFindExploresArgsSchemaV3 = createToolSchema({
+    type: 'find_explores',
+    description: TOOL_FIND_EXPLORES_DESCRIPTION,
+    version: 3,
+})
+    .extend({
+        exploreName: z
+            .string()
+            .describe('Name of the explore that you have access to'),
+        searchQuery: z
+            .string()
+            .describe(
+                'The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.',
+            ),
+    })
+    .build();
+
 export const toolFindExploresArgsSchema = z.discriminatedUnion('type', [
     toolFindExploresArgsSchemaV1,
     toolFindExploresArgsSchemaV2,
+    toolFindExploresArgsSchemaV3,
 ]);
 
 export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
@@ -54,6 +72,9 @@ export type ToolFindExploresArgsV1 = z.infer<
 >;
 export type ToolFindExploresArgsV2 = z.infer<
     typeof toolFindExploresArgsSchemaV2
+>;
+export type ToolFindExploresArgsV3 = z.infer<
+    typeof toolFindExploresArgsSchemaV3
 >;
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;

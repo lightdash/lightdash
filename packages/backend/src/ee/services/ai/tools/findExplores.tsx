@@ -4,8 +4,9 @@ import {
     CompiledMetric,
     convertToAiHints,
     Explore,
+    ExploreAmbiguityError,
     getItemId,
-    toolFindExploresArgsSchemaV2,
+    toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -185,8 +186,8 @@ export const getFindExplores = ({
     fieldSearchSize,
 }: Dependencies) =>
     tool({
-        description: toolFindExploresArgsSchemaV2.description,
-        inputSchema: toolFindExploresArgsSchemaV2,
+        description: toolFindExploresArgsSchemaV3.description,
+        inputSchema: toolFindExploresArgsSchemaV3,
         outputSchema: toolFindExploresOutputSchema,
         execute: async (args, { experimental_context: context }) => {
             try {
@@ -195,14 +196,18 @@ export const getFindExplores = ({
                 );
 
                 const ctx = AgentContext.from(context);
-                validateExploreNameExists(
-                    ctx.getAvailableExplores(),
-                    args.exploreName,
-                );
+
+                if (!args.searchQuery) {
+                    validateExploreNameExists(
+                        ctx.getAvailableExplores(),
+                        args.exploreName,
+                    );
+                }
 
                 const { explore, catalogFields } = await findExplores({
                     exploreName: args.exploreName,
                     fieldSearchSize,
+                    searchQuery: args.searchQuery,
                 });
 
                 return {
@@ -215,6 +220,31 @@ export const getFindExplores = ({
                     },
                 };
             } catch (error) {
+                // Handle ambiguity error specially - provide formatted candidate list
+                if (error instanceof ExploreAmbiguityError) {
+                    const candidatesList = error.candidates
+                        .map(
+                            (c, i) =>
+                                `${i + 1}. **${c.label}** (\`${c.name}\`)\n   ${
+                                    c.description || 'No description'
+                                }\n    ${c.aiHints?.join(
+                                    ', ',
+                                )}\n    Relevance: ${
+                                    c.searchRank?.toFixed(3) ?? 'N/A'
+                                }`,
+                        )
+                        .join('\n\n');
+
+                    return {
+                        result: `Multiple explores match your query. Please ask the user to clarify which one they mean:\n\n${candidatesList}\n\nAsk the user: "Which dataset would you like to use?"`,
+                        metadata: {
+                            status: 'error',
+                            errorType: 'ambiguity',
+                            candidates: error.candidates,
+                        },
+                    };
+                }
+
                 return {
                     result: toolErrorHandler(error, `Error listing explores.`),
                     metadata: {

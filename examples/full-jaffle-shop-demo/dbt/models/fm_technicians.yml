@@ -1,7 +1,7 @@
 version: 2
 models:
   - name: fm_technicians
-    description: Field service personnel and workforce
+    description: Field service personnel and workforce. You can use this table do workforce cost analysis
     config:
       tags: ["ai", "facilities"]
       meta:
@@ -19,31 +19,31 @@ models:
             unique_count:
               type: count_distinct
               description: Count of unique personnel
-              
+
       - name: full_name
         description: Personnel name
         meta:
           dimension:
             type: string
-            
+
       - name: employment_status
         description: Current status
         meta:
           dimension:
             type: string
-            
+
       - name: primary_trade
         description: Primary specialization
         meta:
           dimension:
             type: string
-            
+
       - name: seniority_level
         description: Experience tier
         meta:
           dimension:
             type: string
-            
+
       - name: average_rating
         description: Performance rating
         meta:
@@ -53,7 +53,7 @@ models:
             avg_rating:
               type: average
               description: Average performance rating
-              
+
       - name: customer_satisfaction_score
         description: Satisfaction rating
         meta:
@@ -63,7 +63,7 @@ models:
             avg_satisfaction:
               type: average
               description: Average customer satisfaction
-              
+
       - name: total_work_orders
         description: Total assignments
         meta:
@@ -73,7 +73,7 @@ models:
             total_assignments:
               type: sum
               description: Total work orders
-              
+
       - name: completed_work_orders
         description: Completed assignments
         meta:
@@ -83,7 +83,7 @@ models:
             total_completed:
               type: sum
               description: Total completed
-              
+
       - name: completion_rate
         description: Completion percentage
         meta:
@@ -94,7 +94,7 @@ models:
               type: average
               format: percent
               description: Average completion rate
-              
+
       - name: first_time_fix_rate
         description: First time fix percentage
         meta:
@@ -105,7 +105,7 @@ models:
               type: average
               format: percent
               description: Average first time fix rate
-              
+
       - name: average_resolution_time_hours
         description: Average resolution time
         meta:
@@ -115,7 +115,7 @@ models:
             avg_resolution:
               type: average
               description: Average time to resolve
-              
+
       - name: response_time_avg_minutes
         description: Average response time
         meta:
@@ -125,7 +125,7 @@ models:
             avg_response:
               type: average
               description: Average response time
-              
+
       - name: utilization_rate
         description: Utilization percentage
         meta:
@@ -136,7 +136,7 @@ models:
               type: average
               format: percent
               description: Average utilization rate
-              
+
       - name: billable_hours_ytd
         description: Billable hours year to date
         meta:
@@ -146,7 +146,7 @@ models:
             total_billable_hours:
               type: sum
               description: Total billable hours
-              
+
       - name: base_salary
         description: Base compensation
         meta:
@@ -159,7 +159,7 @@ models:
             avg_salary:
               type: average
               description: Average salary
-              
+
       - name: years_experience
         description: Years of experience
         meta:
@@ -169,11 +169,9 @@ models:
             avg_experience:
               type: average
               description: Average experience
-              
+
       - name: assigned_territory
         description: Service area
         meta:
           dimension:
             type: string
-
-
