@@ -535,6 +535,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         accessKey: baseAccessKey,
         secretKey: baseSecretKey,
         forcePathStyle: baseForcePathStyle,
+        useCredentialsFrom: baseUseCredentialsFrom,
     } = baseS3Config;
 
     const bucket =
@@ -561,6 +562,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         region,
         accessKey,
         secretKey,
+        useCredentialsFrom: baseUseCredentialsFrom,
     };
 };
 
