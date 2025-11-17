@@ -1,6 +1,6 @@
 // eslint-disable-next-line max-classes-per-file
 import { type AnyType } from './any';
-import type { CatalogTable } from './catalog';
+import type { CatalogField, CatalogTable } from './catalog';
 import { type DbtLog } from './job';
 
 type LightdashErrorData = {
@@ -551,7 +551,11 @@ export class ExploreAmbiguityError extends LightdashError {
         Pick<
             CatalogTable,
             'name' | 'label' | 'aiHints' | 'description' | 'searchRank'
-        >
+        > & {
+            matchingFields?: Array<
+                Pick<CatalogField, 'name' | 'label' | 'searchRank'>
+            >;
+        }
     >;
 
     constructor(
@@ -560,7 +564,11 @@ export class ExploreAmbiguityError extends LightdashError {
             Pick<
                 CatalogTable,
                 'name' | 'label' | 'aiHints' | 'description' | 'searchRank'
-            >
+            > & {
+                matchingFields?: Array<
+                    Pick<CatalogField, 'name' | 'label' | 'searchRank'>
+                >;
+            }
         >,
     ) {
         super({

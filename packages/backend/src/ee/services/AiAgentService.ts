@@ -23,6 +23,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    CatalogField,
     CatalogFilter,
     CatalogTable,
     CatalogType,
@@ -133,6 +134,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
+import { checkExploreAmbiguity } from './ai/utils/exploreAmbiguityChecker';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
@@ -276,78 +278,6 @@ export class AiAgentService {
             );
 
         return isEligibleForTrial;
-    }
-
-    /**
-     * Checks if explore selection is ambiguous based on search results.
-     * Returns candidates if multiple explores have similar relevance scores.
-     */
-    private static checkExploreAmbiguity(
-        searchResults: Array<CatalogTable>,
-        selectedExploreName: string,
-    ): {
-        isAmbiguous: boolean;
-        candidates: Array<
-            Pick<
-                CatalogTable,
-                'name' | 'label' | 'aiHints' | 'description' | 'searchRank'
-            >
-        >;
-    } {
-        // No ambiguity if less than 2 results
-        if (searchResults.length < 2) {
-            return { isAmbiguous: false, candidates: [] };
-        }
-
-        const topResult = searchResults[0];
-        if (!topResult.searchRank) {
-            return { isAmbiguous: false, candidates: [] };
-        }
-
-        const minRelevanceThreshold = 0.1; // Only consider results above this
-        const similarityThreshold = 0.25; // Rank difference threshold for ambiguity
-
-        // Filter candidates that are:
-        // 1. Above minimum relevance
-        // 2. Within similarity threshold of top result
-        const candidates = searchResults
-            .filter(
-                (result) =>
-                    result.searchRank &&
-                    result.searchRank >= minRelevanceThreshold,
-            )
-            .filter(
-                (result) =>
-                    result.searchRank &&
-                    topResult.searchRank &&
-                    Math.abs(topResult.searchRank - result.searchRank) <=
-                        similarityThreshold,
-            )
-            .map((result) => ({
-                name: result.name,
-                label: result.label,
-                aiHints: result.aiHints,
-                description: result.description,
-                searchRank: result.searchRank || 0,
-            }))
-            .sort((a, b) => b.searchRank - a.searchRank); // Sort by relevance descending
-
-        // Ambiguous if:
-        // 1. Multiple similar candidates exist (2+)
-        // 2. The selected explore is NOT the top result OR there are multiple top results
-        const selectedIsTopResult =
-            candidates.length > 0 &&
-            candidates[0].name === selectedExploreName &&
-            candidates[0].searchRank === topResult.searchRank;
-
-        const hasMultipleSimilarResults = candidates.length >= 2;
-
-        const isAmbiguous = hasMultipleSimilarResults && !selectedIsTopResult;
-
-        return {
-            isAmbiguous,
-            candidates,
-        };
     }
 
     /**
@@ -2391,12 +2321,41 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             fullTextSearchOperator: 'OR',
                         });
 
-                    const ambiguityCheck = AiAgentService.checkExploreAmbiguity(
-                        exploreSearchResults.data.filter(
-                            (item) => item.type === CatalogType.Table,
-                        ) as CatalogTable[],
+                    const exploreResults = exploreSearchResults.data.filter(
+                        (item) => item.type === CatalogType.Table,
+                    ) as CatalogTable[];
+
+                    // If multiple explores found, search fields to help disambiguate
+                    let fieldSearchResults: CatalogField[] | undefined;
+                    if (exploreResults.length >= 2) {
+                        const fieldResults =
+                            await this.catalogService.searchCatalog({
+                                projectUuid,
+                                userAttributes,
+                                catalogSearch: {
+                                    searchQuery: args.searchQuery,
+                                    type: CatalogType.Field,
+                                    catalogTags:
+                                        agentSettings.tags ?? undefined,
+                                },
+                                context: CatalogSearchContext.AI_AGENT,
+                                paginateArgs: {
+                                    page: 1,
+                                    pageSize: 50, // Get top 50 fields
+                                },
+                                fullTextSearchOperator: 'OR',
+                            });
+                        fieldSearchResults = fieldResults.data.filter(
+                            (item) => item.type === CatalogType.Field,
+                        ) as CatalogField[];
+                    }
+
+                    const ambiguityCheck = checkExploreAmbiguity(
+                        exploreResults,
                         args.exploreName,
+                        fieldSearchResults,
                     );
+
                     if (ambiguityCheck.candidates.length === 1) {
                         soloCandidateExploreName =
                             ambiguityCheck.candidates[0].name;
