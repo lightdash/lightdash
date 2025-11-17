@@ -44,11 +44,11 @@ const BOX_MAX_HEIGHT = 1000;
 const LINE_SIZE_MIN = 15;
 const LINE_SIZE_MAX = 150;
 
-const VALUE_SIZE_MIN = 16;
-const VALUE_SIZE_MAX = 80;
+const DETAILS_SIZE_MIN = 10;
+const DETAILS_SIZE_MAX = 160;
 
-const LABEL_SIZE_MIN = 10;
-const LABEL_SIZE_MAX = 40;
+const TITLE_SIZE_MIN = 5;
+const TITLE_SIZE_MAX = 50;
 
 const calculateFontSize = (
     fontSizeMin: number,
@@ -105,14 +105,14 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo((props) => {
 
         return {
             tileFontSize: calculateFontSize(
-                LABEL_SIZE_MIN,
-                LABEL_SIZE_MAX,
+                TITLE_SIZE_MIN,
+                TITLE_SIZE_MAX,
                 boundWidth,
                 boundHeight,
             ),
             detailsFontSize: calculateFontSize(
-                VALUE_SIZE_MIN,
-                VALUE_SIZE_MAX,
+                DETAILS_SIZE_MIN,
+                DETAILS_SIZE_MAX,
                 boundWidth,
                 boundHeight,
             ),
