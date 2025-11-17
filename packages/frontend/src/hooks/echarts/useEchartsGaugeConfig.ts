@@ -1,4 +1,5 @@
 import {
+    formatItemValue,
     type GaugeSection,
     getItemLabelWithoutTableName,
 } from '@lightdash/common';
@@ -60,7 +61,7 @@ const useEchartsGaugeConfig = ({
     lineSize,
     radius,
 }: Args) => {
-    const { visualizationConfig, itemsMap, resultsData } =
+    const { visualizationConfig, itemsMap, resultsData, parameters } =
         useVisualizationContext();
     const theme = useMantineTheme();
 
@@ -203,7 +204,12 @@ const useEchartsGaugeConfig = ({
                     (lineSize > 35 ? (lineSize > 60 ? 1 : 0.75) : 0.5),
                 formatter: function (value): string {
                     if ([min, max].includes(value)) {
-                        return `${value}`;
+                        return formatItemValue(
+                            fieldItem,
+                            value,
+                            false,
+                            parameters,
+                        );
                     }
                     return '';
                 },
@@ -218,6 +224,9 @@ const useEchartsGaugeConfig = ({
                 fontSize: detailsFontSize,
                 offsetCenter: [0, '-5%'],
                 color: valueColor.text,
+                formatter: (value): string => {
+                    return formatItemValue(fieldItem, value, false, parameters);
+                },
             },
             data: [
                 {
@@ -265,6 +274,7 @@ const useEchartsGaugeConfig = ({
         lineSize,
         detailsFontSize,
         tileFontSize,
+        parameters,
     ]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
