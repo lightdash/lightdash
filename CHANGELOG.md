@@ -1,3 +1,11 @@
+## [0.2177.1](https://github.com/lightdash/lightdash/compare/0.2177.0...0.2177.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* custom metric sql templates and filters not updated on rename ([#18146](https://github.com/lightdash/lightdash/issues/18146)) ([0d5c02f](https://github.com/lightdash/lightdash/commit/0d5c02f87a919b642761c62ad11f329444b2aa74))
+* resize iamge on table column width ([#18129](https://github.com/lightdash/lightdash/issues/18129)) ([3236f44](https://github.com/lightdash/lightdash/commit/3236f44623e379437b7c688b34b42f487541b40a))
+
 # [0.2177.0](https://github.com/lightdash/lightdash/compare/0.2176.3...0.2177.0) (2025-11-17)
 
 
