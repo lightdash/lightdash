@@ -74,6 +74,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowAxisTicks,
         setXAxisSort,
         setXAxisLabelRotation,
+        setScrollableChart,
         dirtyChartType,
     } = visualizationConfig.chartConfig;
 
@@ -229,6 +230,19 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             </Group>
                         )}
                     </Group>
+
+                    {getAxisTypeFromField(xAxisField) === 'category' && (
+                        <Checkbox
+                            label="Enable scrollable chart"
+                            checked={
+                                dirtyEchartsConfig?.xAxis?.[0]
+                                    ?.enableDataZoom || false
+                            }
+                            onChange={(e) =>
+                                setScrollableChart(e.currentTarget.checked)
+                            }
+                        />
+                    )}
                 </Config.Section>
             </Config>
 

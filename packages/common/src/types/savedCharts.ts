@@ -304,6 +304,7 @@ type Axis = {
 
 export type XAxis = Axis & {
     sortType?: XAxisSortType;
+    enableDataZoom?: boolean;
 };
 
 export enum XAxisSortType {
