@@ -32,7 +32,7 @@ const useEchartsGaugeConfig = ({
         return visualizationConfig.chartConfig;
     }, [visualizationConfig]);
 
-    const gaugeSeriesOption: GaugeSeriesOption | undefined = useMemo(() => {
+    const gaugeSeries: GaugeSeriesOption[] | undefined = useMemo(() => {
         if (!chartConfig || !resultsData) return;
 
         const {
@@ -60,7 +60,7 @@ const useEchartsGaugeConfig = ({
         const fieldLabel = getItemLabelWithoutTableName(fieldItem);
 
         const sectionColors: [number, string][] = [];
-        const defaultGapColor = theme.colors.gray[4];
+        const defaultGapColor = theme.white;
 
         // Function to determine which section contains the current value
         const getDetailColor = (value: number): string => {
@@ -109,22 +109,46 @@ const useEchartsGaugeConfig = ({
             sectionColors.push([1, defaultGapColor]);
         }
 
-        return {
+        const baseSeries: Partial<GaugeSeriesOption> = {
             type: EchartsGaugeType,
             animation: false,
-            startAngle: 180,
-            endAngle: 0,
-            center: ['50%', '75%'],
+            startAngle: 195,
+            endAngle: -15,
+            center: ['50%', '70%'],
             radius: `${radius}%`,
             min: min ?? 0,
             max: max ?? 100,
             splitNumber: 10,
+            pointer: {
+                show: false,
+            },
+            progress: {
+                show: false,
+            },
+            axisTick: {
+                show: false,
+            },
+            splitLine: {
+                show: false,
+            },
+            axisLabel: {
+                show: false,
+            },
+            title: {
+                show: false,
+            },
+            detail: {
+                show: false,
+            },
+        };
+
+        const mainSeries: GaugeSeriesOption = {
+            ...baseSeries,
             axisLine: {
                 show: true,
                 lineStyle: {
                     width: lineSize,
-                    opacity: 0.5,
-                    color: sectionColors,
+                    color: [[1, theme.colors.gray[2]]],
                 },
             },
             pointer: {
@@ -139,15 +163,8 @@ const useEchartsGaugeConfig = ({
             },
             progress: {
                 show: showProgress ?? false,
-                width:
-                    sections && sections.length > 0 ? lineSize * 0.8 : lineSize, // smaller 20% than lines if there are sections
+                width: lineSize,
                 overlap: true,
-            },
-            axisTick: {
-                show: false,
-            },
-            splitLine: {
-                show: false,
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
@@ -164,13 +181,13 @@ const useEchartsGaugeConfig = ({
             },
             title: {
                 show: true,
-                offsetCenter: [0, '-30%'],
+                offsetCenter: [0, '-25%'],
                 fontSize: tileFontSize,
             },
             detail: {
                 valueAnimation: true,
                 fontSize: detailsFontSize,
-                offsetCenter: [0, '-10%'],
+                offsetCenter: [0, '-5%'],
                 color: getDetailColor(numericValue),
             },
             data: [
@@ -180,11 +197,24 @@ const useEchartsGaugeConfig = ({
                 },
             ],
         };
+        // Series just to show the sections above and on the outside
+        const sectionSeries: GaugeSeriesOption = {
+            ...baseSeries,
+            zlevel: 2,
+            axisLine: {
+                show: true,
+                lineStyle: {
+                    width: lineSize * 0.1,
+                    color: sectionColors,
+                },
+            },
+        };
+        return [sectionSeries, mainSeries];
     }, [
         chartConfig,
         resultsData,
         itemsMap,
-        theme.colors.gray,
+        theme,
         radius,
         lineSize,
         detailsFontSize,
@@ -192,26 +222,21 @@ const useEchartsGaugeConfig = ({
     ]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
-        if (!chartConfig || !gaugeSeriesOption) return;
+        if (!chartConfig || !gaugeSeries) return;
 
         return {
             textStyle: {
                 fontFamily: theme?.other?.chartFont as string | undefined,
             },
-            series: [gaugeSeriesOption],
+            series: gaugeSeries,
             animation: !isInDashboard,
         };
-    }, [
-        chartConfig,
-        gaugeSeriesOption,
-        isInDashboard,
-        theme?.other?.chartFont,
-    ]);
+    }, [chartConfig, gaugeSeries, isInDashboard, theme?.other?.chartFont]);
 
     if (!itemsMap) return;
-    if (!eChartsOption || !gaugeSeriesOption) return;
+    if (!eChartsOption) return;
 
-    return { eChartsOption, gaugeSeriesOption };
+    return { eChartsOption };
 };
 
 export default useEchartsGaugeConfig;
