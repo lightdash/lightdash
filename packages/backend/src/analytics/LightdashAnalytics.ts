@@ -1423,6 +1423,31 @@ export type AiAgentToolCallEvent = BaseTrack & {
     };
 };
 
+export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
+    event: 'ai_agent.artifact_version_verified';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        artifactId: string;
+        versionId: string;
+        verified: boolean;
+    };
+};
+
+export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
+    event: 'ai_agent.artifacts_retrieved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        promptId: string;
+        artifactCount: number;
+        averageSimilarity: number;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1521,7 +1546,9 @@ type TypedEvent =
     | AiAgentEvalRunEvent
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
-    | AiAgentToolCallEvent;
+    | AiAgentToolCallEvent
+    | AiAgentArtifactVersionVerifiedEvent
+    | AiAgentArtifactsRetrievedEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
