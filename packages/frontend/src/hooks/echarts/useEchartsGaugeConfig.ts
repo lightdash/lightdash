@@ -1,4 +1,7 @@
-import { getItemLabelWithoutTableName } from '@lightdash/common';
+import {
+    type GaugeSection,
+    getItemLabelWithoutTableName,
+} from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type GaugeSeriesOption } from 'echarts';
 import toNumber from 'lodash/toNumber';
@@ -14,6 +17,40 @@ type Args = {
     detailsFontSize: number;
     lineSize: number;
     radius: number;
+};
+
+const getValueColor = ({
+    numericValue,
+    sections,
+    primaryColor,
+}: {
+    numericValue: number;
+    sections: GaugeSection[] | undefined;
+    primaryColor: string;
+}) => {
+    const defaultColours = {
+        text: 'black',
+        bar: primaryColor,
+    };
+    if (!sections || sections.length === 0) {
+        // Default for no sections
+        return defaultColours;
+    }
+
+    // Find the section that contains this value
+    const sortedSections = [...sections].sort((a, b) => a.max - b.max);
+
+    for (const section of sortedSections) {
+        if (numericValue >= section.min && numericValue <= section.max) {
+            return {
+                text: section.color,
+                bar: section.color,
+            };
+        }
+    }
+
+    // If not in any section, it's in a gap - return black
+    return defaultColours;
 };
 
 const useEchartsGaugeConfig = ({
@@ -62,22 +99,11 @@ const useEchartsGaugeConfig = ({
         const sectionColors: [number, string][] = [];
         const defaultGapColor = theme.white;
 
-        // Function to determine which section contains the current value
-        const getDetailColor = (value: number): string => {
-            if (!sections || sections.length === 0) return 'black'; // Default for no sections
-
-            // Find the section that contains this value
-            const sortedSections = [...sections].sort((a, b) => a.max - b.max);
-
-            for (const section of sortedSections) {
-                if (value >= section.min && value <= section.max) {
-                    return section.color;
-                }
-            }
-
-            // If not in any section, it's in a gap - return black
-            return 'black';
-        };
+        const valueColor = getValueColor({
+            numericValue,
+            sections,
+            primaryColor: theme.colors.blue[6],
+        });
 
         if (sections && sections.length > 0) {
             const sortedSections = [...sections].sort((a, b) => a.max - b.max);
@@ -165,6 +191,9 @@ const useEchartsGaugeConfig = ({
                 show: showProgress ?? false,
                 width: lineSize,
                 overlap: true,
+                itemStyle: {
+                    color: valueColor.bar,
+                },
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
@@ -188,7 +217,7 @@ const useEchartsGaugeConfig = ({
                 valueAnimation: true,
                 fontSize: detailsFontSize,
                 offsetCenter: [0, '-5%'],
-                color: getDetailColor(numericValue),
+                color: valueColor.text,
             },
             data: [
                 {
