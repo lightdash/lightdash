@@ -221,6 +221,11 @@ jobs:
           ARM64_SHA=$(grep "macos-arm64" checksums-macos-sha256.txt | awk '{print $1}')
           X64_SHA=$(grep "macos-x64" checksums-macos-sha256.txt | awk '{print $1}')
 
+          if [ -z "$ARM64_SHA" ] || [ -z "$X64_SHA" ]; then
+            echo "Error: Failed to extract SHA256 checksums"
+            exit 1
+          fi
+
           echo "ARM64 SHA: $ARM64_SHA"
           echo "X64 SHA: $X64_SHA"
 
