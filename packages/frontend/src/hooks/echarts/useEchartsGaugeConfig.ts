@@ -75,8 +75,8 @@ const useEchartsGaugeConfig = ({
 
         const {
             selectedField,
-            min,
-            max,
+            min = 0,
+            max = 100,
             showProgress,
             showAxisLabels,
             sections,
@@ -108,21 +108,25 @@ const useEchartsGaugeConfig = ({
 
         if (sections && sections.length > 0) {
             const sortedSections = [...sections].sort((a, b) => a.max - b.max);
-            const range = (max ?? 100) - (min ?? 0);
+            const range = max - min;
 
             let previousThreshold = 0;
 
             for (const section of sortedSections) {
-                const normalizedThreshold = (section.max - (min ?? 0)) / range;
+                if (section.min > section.max) {
+                    continue; // skip invalid range
+                }
                 // Add gap section if there's a gap between previous threshold and current section
                 if (section.min > previousThreshold) {
                     const normalizedGapThreshold =
-                        (section.min - (min ?? 0)) / range;
+                        Math.min(section.min - min, max) / range;
                     sectionColors.push([
                         normalizedGapThreshold,
                         defaultGapColor,
                     ]);
                 }
+                const normalizedThreshold =
+                    Math.min(section.max - min, max) / range;
                 sectionColors.push([normalizedThreshold, section.color]);
                 previousThreshold = normalizedThreshold;
             }
@@ -143,8 +147,8 @@ const useEchartsGaugeConfig = ({
             endAngle: -15,
             center: ['50%', '70%'],
             radius: `${radius}%`,
-            min: min ?? 0,
-            max: max ?? 100,
+            min: min,
+            max: max,
             splitNumber: 10,
             pointer: {
                 show: false,
