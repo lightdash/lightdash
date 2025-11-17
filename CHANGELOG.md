@@ -1,3 +1,10 @@
+## [0.2178.4](https://github.com/lightdash/lightdash/compare/0.2178.3...0.2178.4) (2025-11-17)
+
+
+### Bug Fixes
+
+* add userId to artifact verification and similarity analytics ([#18171](https://github.com/lightdash/lightdash/issues/18171)) ([14c5361](https://github.com/lightdash/lightdash/commit/14c536119230a6cccf76ceda4eb53229f00d5d7e))
+
 ## [0.2178.3](https://github.com/lightdash/lightdash/compare/0.2178.2...0.2178.3) (2025-11-17)
 
 
