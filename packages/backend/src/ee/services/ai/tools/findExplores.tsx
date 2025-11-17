@@ -222,21 +222,65 @@ export const getFindExplores = ({
             } catch (error) {
                 // Handle ambiguity error specially - provide formatted candidate list
                 if (error instanceof ExploreAmbiguityError) {
-                    const candidatesList = error.candidates
-                        .map(
-                            (c, i) =>
-                                `${i + 1}. **${c.label}** (\`${c.name}\`)\n   ${
-                                    c.description || 'No description'
-                                }\n    ${c.aiHints?.join(
-                                    ', ',
-                                )}\n    Relevance: ${
-                                    c.searchRank?.toFixed(3) ?? 'N/A'
-                                }`,
-                        )
-                        .join('\n\n');
+                    const ambiguityResponse = (
+                        <ambiguity message="Multiple explores match your query. Please ask the user to clarify which one they mean.">
+                            <candidates count={error.candidates.length}>
+                                {error.candidates.map((c, i) => (
+                                    <candidate
+                                        rank={i + 1}
+                                        name={c.name}
+                                        relevance={
+                                            c.searchRank?.toFixed(3) ?? 'N/A'
+                                        }
+                                    >
+                                        <label>{c.label}</label>
+                                        {c.description && (
+                                            <description>
+                                                {c.description}
+                                            </description>
+                                        )}
+                                        {c.matchingFields &&
+                                            c.matchingFields.length > 0 && (
+                                                <matchingFields
+                                                    count={
+                                                        c.matchingFields.length
+                                                    }
+                                                >
+                                                    {c.matchingFields.map(
+                                                        (f) => (
+                                                            <field
+                                                                name={f.name}
+                                                                relevance={
+                                                                    f.searchRank?.toFixed(
+                                                                        3,
+                                                                    ) ?? 'N/A'
+                                                                }
+                                                            >
+                                                                {f.label}
+                                                            </field>
+                                                        ),
+                                                    )}
+                                                </matchingFields>
+                                            )}
+                                        {c.aiHints && c.aiHints.length > 0 && (
+                                            <aiHints>
+                                                {c.aiHints.map((hint) => (
+                                                    <hint>{hint}</hint>
+                                                ))}
+                                            </aiHints>
+                                        )}
+                                    </candidate>
+                                ))}
+                            </candidates>
+                            <instruction>
+                                Ask the user: "Which table would you like to
+                                use?"
+                            </instruction>
+                        </ambiguity>
+                    );
 
                     return {
-                        result: `Multiple explores match your query. Please ask the user to clarify which one they mean:\n\n${candidatesList}\n\nAsk the user: "Which dataset would you like to use?"`,
+                        result: ambiguityResponse.toString(),
                         metadata: {
                             status: 'error',
                             errorType: 'ambiguity',

@@ -642,13 +642,13 @@ export class CatalogModel {
                               },
                           })
                         : getFullTextSearchRankCalcSql({
-                              database: this.database,
-                              variables: {
-                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
-                                  searchQuery,
-                              },
-                              fullTextSearchOperator,
-                          }),
+                        database: this.database,
+                        variables: {
+                            searchVectorColumn: `${CatalogTableName}.search_vector`,
+                            searchQuery,
+                        },
+                        fullTextSearchOperator,
+                    }),
                 },
             )
             .leftJoin(
@@ -884,10 +884,10 @@ export class CatalogModel {
                     searchQuery,
                     fullTextSearchOperator,
                 );
-                catalogItemsQuery = catalogItemsQuery.andWhereRaw(
-                    `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
+            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
                     formattedQuery,
-                );
+            );
             }
         }
 
