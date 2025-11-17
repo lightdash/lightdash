@@ -1,3 +1,10 @@
+# [0.2177.0](https://github.com/lightdash/lightdash/compare/0.2176.3...0.2177.0) (2025-11-17)
+
+
+### Features
+
+* support width height and fit on image cell ([#18125](https://github.com/lightdash/lightdash/issues/18125)) ([2411830](https://github.com/lightdash/lightdash/commit/2411830d8f9ffb599cd2c68f3558038676ab7ff5))
+
 ## [0.2176.3](https://github.com/lightdash/lightdash/compare/0.2176.2...0.2176.3) (2025-11-14)
 
 
