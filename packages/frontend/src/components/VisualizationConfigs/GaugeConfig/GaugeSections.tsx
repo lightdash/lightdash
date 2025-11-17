@@ -28,7 +28,6 @@ const GaugeSections: FC = memo(() => {
             min: min,
             max: max,
             color: '#5470c6',
-            label: '',
         };
         setSections((prev) => {
             const newSections = [...prev, newSection];

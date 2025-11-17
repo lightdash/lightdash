@@ -1,5 +1,5 @@
 import { type GaugeSection } from '@lightdash/common';
-import { Accordion, Group, NumberInput, Stack, TextInput } from '@mantine/core';
+import { Accordion, Group, NumberInput, Stack } from '@mantine/core';
 import { memo, type FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -50,19 +50,6 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 value={section.max}
                                 onChange={(value) =>
                                     onUpdate(index, { max: Number(value) })
-                                }
-                                style={{ flex: 1 }}
-                            />
-                        </Group>
-
-                        <Group spacing="sm">
-                            <TextInput
-                                label="Label (optional)"
-                                value={section.label || ''}
-                                onChange={(event) =>
-                                    onUpdate(index, {
-                                        label: event.currentTarget.value,
-                                    })
                                 }
                                 style={{ flex: 1 }}
                             />

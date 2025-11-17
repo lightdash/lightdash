@@ -116,11 +116,15 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 show: false,
             },
             splitLine: {
-                show: showAxisLabels ?? false,
+                show: false,
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
-                distance: 30,
+                formatter: function (value) {
+                    if ([min, max].includes(value)) {
+                        return value;
+                    }
+                },
             },
             title: {
                 show: false,

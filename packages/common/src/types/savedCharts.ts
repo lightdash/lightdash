@@ -125,7 +125,6 @@ export type GaugeSection = {
     min: number;
     max: number;
     color: string;
-    label?: string;
 };
 
 export type GaugeChart = {
