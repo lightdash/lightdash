@@ -7,6 +7,7 @@ import { isGaugeVisualizationConfig } from '../../components/LightdashVisualizat
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 
 const EchartsGaugeType = 'gauge';
+const LINE_WIDTH = 30;
 
 const useEchartsGaugeConfig = (isInDashboard: boolean) => {
     const { visualizationConfig, itemsMap, resultsData } =
@@ -90,18 +91,16 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             splitNumber: 10,
             axisLine: {
                 show: true,
-                roundCap: false,
                 lineStyle: {
-                    width: 20,
-                    opacity: 0.8,
+                    width: LINE_WIDTH,
                     color: sectionColors,
                 },
             },
             pointer: {
                 show: !showProgress ?? true,
                 icon: 'triangle',
-                length: '-20px',
-                width: 8,
+                length: -1 * (LINE_WIDTH * 0.8),
+                width: 10,
                 offsetCenter: [0, '-100%'],
                 itemStyle: {
                     color: 'black',
@@ -109,8 +108,8 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             },
             progress: {
                 show: showProgress ?? false,
-                overlap: false,
-                roundCap: false,
+                width: sections.length > 0 ? LINE_WIDTH * 0.8 : LINE_WIDTH, // smaller 20% than lines if there are sections
+                overlap: true,
             },
             axisTick: {
                 show: false,
