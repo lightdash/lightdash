@@ -1,0 +1,281 @@
+name: CLI Release Binaries
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach binaries to (e.g., 0.2178.4 or 0.2178.5-rc.1)'
+        required: true
+        type: string
+
+jobs:
+  check-cli-changes:
+    name: Check if CLI files changed
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Check for CLI-related changes
+        id: check
+        run: |
+          # For manual triggers, always build
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger - building binaries"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get the current and previous tags
+          CURRENT_TAG="${{ github.event.release.tag_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
+
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
+            echo "No previous tag found, building binaries"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
+
+          # Check if CLI directory changed
+          CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" | grep -E '^packages/cli/' || true)
+
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "CLI files changed:"
+            echo "$CHANGED_FILES"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "No CLI files changed, skipping build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-macos-binaries:
+    name: Build macOS CLI Binaries
+    needs: check-cli-changes
+    if: needs.check-cli-changes.outputs.should_build == 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+
+      - name: Cache common build
+        id: cache-common
+        uses: actions/cache@v4
+        with:
+          path: packages/common/dist
+          key: ${{ runner.os }}-common-build-${{ hashFiles('packages/common/src/**', 'packages/common/tsconfig*.json') }}
+
+      - name: Build common package
+        if: steps.cache-common.outputs.cache-hit != 'true'
+        run: pnpm common-build
+
+      - name: Cache warehouses build
+        id: cache-warehouses
+        uses: actions/cache@v4
+        with:
+          path: packages/warehouses/dist
+          key: ${{ runner.os }}-warehouses-build-${{ hashFiles('packages/warehouses/src/**', 'packages/warehouses/tsconfig*.json', 'packages/common/src/**') }}
+
+      - name: Build warehouses package
+        if: steps.cache-warehouses.outputs.cache-hit != 'true'
+        run: pnpm warehouses-build
+
+      - name: Import Code Signing Certificate
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create a temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          # Set key partition list
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+
+          # Clean up certificate file
+          rm -f "$CERTIFICATE_PATH"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+      - name: Store Notarization Credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "notary-profile" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD"
+
+      - name: Build, Sign and Notarize macOS Binaries
+        working-directory: packages/cli
+        env:
+          DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          NOTARY_KEYCHAIN_PROFILE: "notary-profile"
+        run: |
+          ./scripts/build-binaries.sh --sign --archive --mac-only
+
+      - name: Upload Binaries to Release
+        working-directory: packages/cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+
+          echo "Uploading binaries to release $TAG..."
+
+          # Upload archives and checksums
+          gh release upload "$TAG" \
+            lightdash-cli-*.tar.gz \
+            checksums-macos-sha256.txt \
+            --clobber
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+  update-homebrew-formula:
+    name: Update Homebrew Formula
+    needs: build-macos-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: lightdash/homebrew-lightdash
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          path: homebrew-tap
+
+      - name: Get release info and update formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${TAG#v}"  # Remove 'v' prefix if present
+
+          echo "Updating Homebrew formula for version $VERSION"
+
+          # Download the checksums file from the release
+          gh release download "$TAG" \
+            --repo lightdash/lightdash \
+            --pattern "checksums-macos-sha256.txt" \
+            --dir .
+
+          # Extract SHA256 checksums
+          ARM64_SHA=$(grep "macos-arm64" checksums-macos-sha256.txt | awk '{print $1}')
+          X64_SHA=$(grep "macos-x64" checksums-macos-sha256.txt | awk '{print $1}')
+
+          echo "ARM64 SHA: $ARM64_SHA"
+          echo "X64 SHA: $X64_SHA"
+
+          # Update the formula
+          FORMULA_PATH="homebrew-tap/Formula/lightdash.rb"
+
+          # Export for Ruby script
+          export VERSION TAG ARM64_SHA X64_SHA
+
+          ruby -i -pe '
+            version = ENV["VERSION"]
+            tag = ENV["TAG"]
+            arm64_sha = ENV["ARM64_SHA"]
+            x64_sha = ENV["X64_SHA"]
+
+            # Update version line
+            if /^\s*version\s+"/
+              gsub(/version\s+"[^"]+"/, "version \"#{version}\"")
+            end
+
+            # Update ARM64 URL (in on_arm block)
+            if /on_arm/ .. /end/ and /url\s+".*macos-arm64/
+              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-arm64.tar.gz\"")
+            end
+
+            # Update ARM64 SHA (line after ARM64 URL)
+            if $_.include?("macos-arm64") and @next_sha_is_arm64 = true
+            elsif @next_sha_is_arm64 and /sha256/
+              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{arm64_sha}\"")
+              @next_sha_is_arm64 = false
+            end
+
+            # Update x64 URL (in on_intel block)
+            if /on_intel/ .. /end/ and /url\s+".*macos-x64/
+              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-x64.tar.gz\"")
+            end
+
+            # Update x64 SHA (line after x64 URL)
+            if $_.include?("macos-x64") and @next_sha_is_x64 = true
+            elsif @next_sha_is_x64 and /sha256/
+              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{x64_sha}\"")
+              @next_sha_is_x64 = false
+            end
+          ' "$FORMULA_PATH"
+
+          echo "Updated formula:"
+          cat "$FORMULA_PATH"
+
+      - name: Commit and push changes
+        working-directory: homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${TAG#v}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Formula/lightdash.rb
+          git commit -m "Update lightdash to $VERSION"
+          git push origin main
