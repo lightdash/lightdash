@@ -49,6 +49,23 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
         const sectionColors: [number, string][] = [];
         const defaultGapColor = theme.colors.gray[3];
 
+        // Function to determine which section contains the current value
+        const getDetailColor = (value: number): string => {
+            if (!sections || sections.length === 0) return 'black'; // Default for no sections
+
+            // Find the section that contains this value
+            const sortedSections = [...sections].sort((a, b) => a.max - b.max);
+
+            for (const section of sortedSections) {
+                if (value >= section.min && value <= section.max) {
+                    return section.color;
+                }
+            }
+
+            // If not in any section, it's in a gap - return black
+            return 'black';
+        };
+
         if (sections && sections.length > 0) {
             const sortedSections = [...sections].sort((a, b) => a.max - b.max);
             const range = (max ?? 100) - (min ?? 0);
@@ -126,11 +143,15 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 },
             },
             title: {
-                show: false,
+                show: true,
+                offsetCenter: [0, '-30%'],
+                fontSize: 20,
             },
             detail: {
                 valueAnimation: true,
-                offsetCenter: [0, 0],
+                fontSize: 50,
+                offsetCenter: [0, '-10%'],
+                color: getDetailColor(numericValue),
             },
             data: [
                 {
