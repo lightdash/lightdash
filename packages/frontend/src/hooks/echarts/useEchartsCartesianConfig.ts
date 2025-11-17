@@ -76,6 +76,7 @@ import {
     type TooltipComponentOption,
 } from 'echarts';
 import groupBy from 'lodash/groupBy';
+import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
@@ -1076,6 +1077,9 @@ const calculateWidthText = (text: string | undefined): number => {
     return width;
 };
 
+const findLongest = (strings: string[]): string | undefined =>
+    strings.length > 0 ? maxBy(strings, 'length') : undefined;
+
 const getLongestLabel = ({
     rows = [],
     axisId,
@@ -1083,15 +1087,31 @@ const getLongestLabel = ({
     rows?: ResultRow[];
     axisId?: string;
 }): string | undefined => {
-    return (
-        axisId &&
-        rows
-            .map((row) => row[axisId]?.value.formatted)
-            .reduce<string>(
-                (acc, p) => (p && acc.length > p.length ? acc : p),
-                '',
-            )
-    );
+    if (!axisId || rows.length === 0) return undefined;
+
+    const directValues = rows
+        .map((row) => row[axisId]?.value.formatted)
+        .filter((v): v is string => v !== undefined);
+
+    if (directValues.length > 0) return findLongest(directValues);
+
+    // If no direct match, check if this is a hashed field reference with pivot values
+    // In that case, we need to find all row keys that could be pivot variants of this field
+    const baseField = axisId.split('.')[0];
+
+    const allValues: string[] = [];
+    rows.forEach((row) => {
+        Object.keys(row).forEach((key) => {
+            if (key.startsWith(baseField)) {
+                const formatted = row[key]?.value.formatted;
+                if (formatted) {
+                    allValues.push(formatted);
+                }
+            }
+        });
+    });
+
+    return findLongest(allValues);
 };
 
 const getWeekAxisConfig = (
