@@ -138,18 +138,27 @@ const sendNowSchedulerByUuid = async (uuid: string) =>
 
 const getSchedulerRuns = async (
     projectUuid: string,
-    schedulerUuid?: string,
+    {
+        schedulerUuid,
+        page,
+        pageSize,
+        sortBy,
+        sortDirection,
+    }: {
+        schedulerUuid?: string;
+        page?: number;
+        pageSize?: number;
+        sortBy?: 'scheduledTime' | 'createdAt';
+        sortDirection?: 'asc' | 'desc';
+    } = {},
 ): Promise<ApiSchedulerRunsResponse['results']> => {
-    const params = new URLSearchParams({
-        page: '1',
-        pageSize: '1', // Only fetch the most recent run
-        sortBy: 'scheduledTime',
-        sortDirection: 'desc',
-    });
+    const params = new URLSearchParams();
 
-    if (schedulerUuid) {
-        params.set('schedulerUuid', schedulerUuid);
-    }
+    if (page !== undefined) params.set('page', String(page));
+    if (pageSize !== undefined) params.set('pageSize', String(pageSize));
+    if (sortBy) params.set('sortBy', sortBy);
+    if (sortDirection) params.set('sortDirection', sortDirection);
+    if (schedulerUuid) params.set('schedulerUuid', schedulerUuid);
 
     return lightdashApi({
         url: `/schedulers/${projectUuid}/runs?${params.toString()}`,
@@ -519,7 +528,14 @@ export const useSchedulerLatestRun = (
 ) => {
     return useQuery<ApiSchedulerRunsResponse['results'], ApiError>({
         queryKey: ['schedulerLatestRun', projectUuid, schedulerUuid],
-        queryFn: () => getSchedulerRuns(projectUuid, schedulerUuid),
+        queryFn: () =>
+            getSchedulerRuns(projectUuid, {
+                schedulerUuid,
+                page: 1,
+                pageSize: 1,
+                sortBy: 'scheduledTime',
+                sortDirection: 'desc',
+            }),
         enabled: Boolean(projectUuid && schedulerUuid),
         refetchOnWindowFocus: false,
     });
