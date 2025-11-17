@@ -14,6 +14,8 @@ jobs:
   check-cli-changes:
     name: Check if CLI files changed
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
@@ -190,6 +192,8 @@ jobs:
     name: Update Homebrew Formula
     needs: build-macos-binaries
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Homebrew tap
         uses: actions/checkout@v4
