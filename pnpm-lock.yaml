@@ -360,9 +360,6 @@ importers:
       node-fetch:
         specifier: ^2.6.13
         version: 2.7.0(encoding@0.1.13)
-      nodejs-polars:
-        specifier: ^0.15.0
-        version: 0.15.0
       nodemailer:
         specifier: ^6.9.9
         version: 6.9.9
@@ -13679,58 +13676,6 @@ packages:
     resolution: {integrity: sha512-1uiY543L+N7Og4yswvlm5NCKgPKDEXd9AUR9Jh3gen6oOeBsesr6LqhXom1er3eRzSUcVRWXzhv8tSNrIfGHKw==}
     engines: {node: '>=18'}
 
-  nodejs-polars-android-arm64@0.15.0:
-    resolution: {integrity: sha512-sIuAVgM3SjNxQ0njaN/jF5+WuUKdlZiTY1W3s8OB65D3AEphZVmIfy+uM+dShTrLOxvRkaFLDTy2dB/T60ISbA==}
-    engines: {node: '>= 16'}
-    cpu: [arm64]
-    os: [android]
-
-  nodejs-polars-darwin-arm64@0.15.0:
-    resolution: {integrity: sha512-/Gm6nLg/0mzbgFZqH18UwNxGXFnZrfYst6HLbG+tDhUNfNAOVVUr/hDzYXm6me0h4CsL3LrN//6L5Jn0stxseA==}
-    engines: {node: '>= 16'}
-    cpu: [arm64]
-    os: [darwin]
-
-  nodejs-polars-darwin-x64@0.15.0:
-    resolution: {integrity: sha512-bkij++fSLUsblvxPiGUNLUbpbuPWsneJzKM9iqCB2CaTBvNWZ/Qzocqm7biwoyHFw3w1IonH2CnvhNYgjxRSsg==}
-    engines: {node: '>= 16'}
-    cpu: [x64]
-    os: [darwin]
-
-  nodejs-polars-linux-arm64-gnu@0.15.0:
-    resolution: {integrity: sha512-DOZpaFd9kL8F+ZM8751Jg2fyF3h3+Rb0NDYSatlDApZA6J1KzEnM9ZECiuBwMhq42D2Ii4IdSylg202mfVvWZA==}
-    engines: {node: '>= 16'}
-    cpu: [arm64]
-    os: [linux]
-
-  nodejs-polars-linux-arm64-musl@0.15.0:
-    resolution: {integrity: sha512-fg/2Wo1rCH53kk260iJvqdxTSW9q++Zh3Q6Vu7q4RX2AAr4nS08yMO90JHbnhsYeeunnzzvhC8K/fjEOBsDpsA==}
-    engines: {node: '>= 16'}
-    cpu: [arm64]
-    os: [linux]
-
-  nodejs-polars-linux-x64-gnu@0.15.0:
-    resolution: {integrity: sha512-FF0VyJAZoqpthHoCOnCVN5dYHEXimvi06dpjNHifsFBEAS1tI6GMBDT1JAM0HKlpKtPrqJwH1Tbsr58EXqia/w==}
-    engines: {node: '>= 16'}
-    cpu: [x64]
-    os: [linux]
-
-  nodejs-polars-linux-x64-musl@0.15.0:
-    resolution: {integrity: sha512-rjCNTzK+g+JHNBbT6pzfEoZyyCPkMEo8kcCp3M//rwPLAQijvKt8JfyoP7k2ovsOZHHKw28OZ3Sw308ufX+b/A==}
-    engines: {node: '>= 16'}
-    cpu: [x64]
-    os: [linux]
-
-  nodejs-polars-win32-x64-msvc@0.15.0:
-    resolution: {integrity: sha512-N9Sxke9tqb0BGe/iSleKLbgdF3V6lrcytmLP0x+8SGAkXQT/opj1Ubd41bi0o4Put9yIp+veWiG+hcnhG16S3Q==}
-    engines: {node: '>= 16'}
-    cpu: [x64]
-    os: [win32]
-
-  nodejs-polars@0.15.0:
-    resolution: {integrity: sha512-qlwPGxR3Jh/N1IMXWgQP1JAHDSXTFg7b3iE7Jiw3sX6wnOnPcDCcPXmcT3KB2uH5vGBrK3W+xQQPqL9YePrvMQ==}
-    engines: {node: '>= 18'}
-
   nodemailer-express-handlebars@6.1.0:
     resolution: {integrity: sha512-CWhsoDDa5JbvQmOxTOJhISFuUqDLKW0kvL09whIDBnD71P8ykATCQ+xOjQfltXR5qpK15m0AqwE/kHgbYx/zsQ==}
     engines: {node: 14.* || 16.* || >= 18}
@@ -19626,7 +19571,7 @@ snapshots:
       '@babel/traverse': 7.26.4
       '@babel/types': 7.28.2
       convert-source-map: 2.0.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -19646,7 +19591,7 @@ snapshots:
       '@babel/traverse': 7.27.0
       '@babel/types': 7.27.0
       convert-source-map: 2.0.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -19746,13 +19691,6 @@ snapshots:
       semver: 6.3.1
 
   '@babel/helper-globals@7.28.0': {}
-
-  '@babel/helper-module-imports@7.24.7':
-    dependencies:
-      '@babel/traverse': 7.25.6
-      '@babel/types': 7.28.2
-    transitivePeerDependencies:
-      - supports-color
 
   '@babel/helper-module-imports@7.24.7(supports-color@5.5.0)':
     dependencies:
@@ -20004,18 +19942,6 @@ snapshots:
       '@babel/parser': 7.28.4
       '@babel/types': 7.28.4
 
-  '@babel/traverse@7.25.6':
-    dependencies:
-      '@babel/code-frame': 7.26.2
-      '@babel/generator': 7.28.0
-      '@babel/parser': 7.28.0
-      '@babel/template': 7.25.0
-      '@babel/types': 7.28.2
-      debug: 4.4.0(supports-color@8.1.1)
-      globals: 11.12.0
-    transitivePeerDependencies:
-      - supports-color
-
   '@babel/traverse@7.25.6(supports-color@5.5.0)':
     dependencies:
       '@babel/code-frame': 7.26.2
@@ -20047,7 +19973,7 @@ snapshots:
       '@babel/parser': 7.28.0
       '@babel/template': 7.27.0
       '@babel/types': 7.28.2
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -20273,7 +20199,7 @@ snapshots:
 
   '@emotion/babel-plugin@11.10.6':
     dependencies:
-      '@babel/helper-module-imports': 7.24.7
+      '@babel/helper-module-imports': 7.24.7(supports-color@5.5.0)
       '@babel/runtime': 7.27.0
       '@emotion/hash': 0.9.0
       '@emotion/memoize': 0.8.0
@@ -20752,7 +20678,7 @@ snapshots:
   '@eslint/eslintrc@2.1.4':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.2.0
@@ -21129,7 +21055,7 @@ snapshots:
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -26938,7 +26864,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
       tsutils: 3.21.0(typescript@5.5.4)
     optionalDependencies:
@@ -26970,7 +26896,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/visitor-keys': 5.62.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       globby: 11.1.0
       is-glob: 4.0.3
       semver: 7.6.3
@@ -26984,7 +26910,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/visitor-keys': 5.62.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       globby: 11.1.0
       is-glob: 4.0.3
       semver: 7.6.3
@@ -27458,7 +27384,7 @@ snapshots:
 
   agent-base@7.1.0:
     dependencies:
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -28854,7 +28780,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       fast-shuffle: 6.1.0
       find-cypress-specs: 1.47.9(@babel/core@7.28.4)
       globby: 11.1.0
@@ -30037,7 +29963,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.5
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -30555,7 +30481,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       find-test-names: 1.29.5(@babel/core@7.28.4)
       globby: 11.1.0
       minimatch: 3.1.2
@@ -31447,7 +31373,7 @@ snapshots:
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -31467,7 +31393,7 @@ snapshots:
   https-proxy-agent@7.0.4:
     dependencies:
       agent-base: 7.1.0
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -33971,41 +33897,6 @@ snapshots:
     dependencies:
       '@babel/parser': 7.28.4
 
-  nodejs-polars-android-arm64@0.15.0:
-    optional: true
-
-  nodejs-polars-darwin-arm64@0.15.0:
-    optional: true
-
-  nodejs-polars-darwin-x64@0.15.0:
-    optional: true
-
-  nodejs-polars-linux-arm64-gnu@0.15.0:
-    optional: true
-
-  nodejs-polars-linux-arm64-musl@0.15.0:
-    optional: true
-
-  nodejs-polars-linux-x64-gnu@0.15.0:
-    optional: true
-
-  nodejs-polars-linux-x64-musl@0.15.0:
-    optional: true
-
-  nodejs-polars-win32-x64-msvc@0.15.0:
-    optional: true
-
-  nodejs-polars@0.15.0:
-    optionalDependencies:
-      nodejs-polars-android-arm64: 0.15.0
-      nodejs-polars-darwin-arm64: 0.15.0
-      nodejs-polars-darwin-x64: 0.15.0
-      nodejs-polars-linux-arm64-gnu: 0.15.0
-      nodejs-polars-linux-arm64-musl: 0.15.0
-      nodejs-polars-linux-x64-gnu: 0.15.0
-      nodejs-polars-linux-x64-musl: 0.15.0
-      nodejs-polars-win32-x64-msvc: 0.15.0
-
   nodemailer-express-handlebars@6.1.0(express-handlebars@7.1.2)(nodemailer@6.9.9):
     dependencies:
       express-handlebars: 7.1.2
@@ -36445,7 +36336,7 @@ snapshots:
   spec-change@1.11.11:
     dependencies:
       arg: 5.0.2
-      debug: 4.4.0(supports-color@8.1.1)
+      debug: 4.4.0(supports-color@5.5.0)
       deep-equal: 2.2.3
       dependency-tree: 11.0.1
       lazy-ass: 2.0.3
