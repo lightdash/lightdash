@@ -1,4 +1,4 @@
-import { Checkbox, ColorInput, NumberInput, Stack } from '@mantine/core';
+import { Checkbox, NumberInput, Stack } from '@mantine/core';
 import { memo, type FC } from 'react';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -22,8 +22,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
             setShowProgress,
             showAxisLabels,
             setShowAxisLabels,
-            gapSectionColor,
-            setGapSectionColor,
         },
     } = visualizationConfig;
 
@@ -52,12 +50,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Appearance</Config.Heading>
-                    <ColorInput
-                        label="Gap Section Color"
-                        description="Color for unfilled areas between sections"
-                        value={gapSectionColor}
-                        onChange={setGapSectionColor}
-                    />
                     <Checkbox
                         label="Show Progress"
                         description="Display progress arc around the gauge"

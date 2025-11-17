@@ -28,7 +28,6 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             showProgress,
             showAxisLabels,
             sections,
-            gapSectionColor,
         } = chartConfig.chartConfig.validConfig;
 
         // Get the first row of data
@@ -46,19 +45,38 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
 
         const fieldLabel = getItemLabelWithoutTableName(fieldItem);
 
-        const gapSection = [1, gapSectionColor];
+        const sectionColors: [number, string][] = [];
+        const defaultGapColor = theme.colors.gray[3];
 
-        const sectionColors =
-            sections && sections.length > 0
-                ? [...sections]
-                      .sort((a, b) => a.max - b.max)
-                      .map((section) => {
-                          const normalizedThreshold =
-                              (section.max - (min ?? 0)) /
-                              ((max ?? 100) - (min ?? 0));
-                          return [normalizedThreshold, section.color];
-                      })
-                : [];
+        if (sections && sections.length > 0) {
+            const sortedSections = [...sections].sort((a, b) => a.max - b.max);
+            const range = (max ?? 100) - (min ?? 0);
+
+            let previousThreshold = 0;
+
+            for (const section of sortedSections) {
+                const normalizedThreshold = (section.max - (min ?? 0)) / range;
+                // Add gap section if there's a gap between previous threshold and current section
+                if (section.min > previousThreshold) {
+                    const normalizedGapThreshold =
+                        (section.min - (min ?? 0)) / range;
+                    sectionColors.push([
+                        normalizedGapThreshold,
+                        defaultGapColor,
+                    ]);
+                }
+                sectionColors.push([normalizedThreshold, section.color]);
+                previousThreshold = normalizedThreshold;
+            }
+
+            // Fill any remaining gap to the end with gap color
+            if (previousThreshold < 1) {
+                sectionColors.push([1, defaultGapColor]);
+            }
+        } else {
+            // If no sections defined, fill entire gauge with gap color
+            sectionColors.push([1, defaultGapColor]);
+        }
 
         return {
             type: EchartsGaugeType,
@@ -76,7 +94,7 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 lineStyle: {
                     width: 20,
                     opacity: 0.8,
-                    color: [...sectionColors, gapSection],
+                    color: sectionColors,
                 },
             },
             pointer: {
@@ -118,7 +136,7 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 },
             ],
         };
-    }, [chartConfig, resultsData, itemsMap]);
+    }, [chartConfig, resultsData, itemsMap, theme.colors.gray]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !gaugeSeriesOption) return;

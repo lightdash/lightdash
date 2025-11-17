@@ -48,9 +48,6 @@ const useGaugeChartConfig = (
     const [sections, setSections] = useState<GaugeSection[]>(
         initialChartConfig?.sections ?? [],
     );
-    const [gapSectionColor, setGapSectionColor] = useState<string>(
-        initialChartConfig?.gapSectionColor ?? '#e0e0e0',
-    );
 
     // Get the effective selected field - use state value or fallback to first available
     const effectiveSelectedField = useMemo(() => {
@@ -80,7 +77,6 @@ const useGaugeChartConfig = (
             showProgress,
             showAxisLabels,
             sections,
-            gapSectionColor,
         };
     }, [
         effectiveSelectedField,
@@ -89,7 +85,6 @@ const useGaugeChartConfig = (
         showProgress,
         showAxisLabels,
         sections,
-        gapSectionColor,
     ]);
 
     return useMemo(
@@ -111,8 +106,6 @@ const useGaugeChartConfig = (
             setShowAxisLabels,
             sections,
             setSections,
-            gapSectionColor,
-            setGapSectionColor,
         }),
         [
             validConfig,
@@ -124,7 +117,6 @@ const useGaugeChartConfig = (
             showProgress,
             showAxisLabels,
             sections,
-            gapSectionColor,
         ],
     );
 };

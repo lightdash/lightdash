@@ -1,12 +1,5 @@
 import { type GaugeSection } from '@lightdash/common';
-import {
-    Accordion,
-    ColorInput,
-    Group,
-    NumberInput,
-    Stack,
-    TextInput,
-} from '@mantine/core';
+import { Accordion, Group, NumberInput, Stack, TextInput } from '@mantine/core';
 import { memo, type FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -34,7 +27,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                         <ColorSelector
                             color={section.color}
                             swatches={colorPalette}
-                            withAlpha
+                            withEyeDropper={false}
                             onColorChange={(color) =>
                                 onUpdate(index, { color })
                             }
@@ -63,12 +56,6 @@ const GaugeSectionComponent: FC<Props> = memo(
                         </Group>
 
                         <Group spacing="sm">
-                            <ColorInput
-                                label="Color"
-                                value={section.color}
-                                onChange={(color) => onUpdate(index, { color })}
-                                style={{ flex: 1 }}
-                            />
                             <TextInput
                                 label="Label (optional)"
                                 value={section.label || ''}
