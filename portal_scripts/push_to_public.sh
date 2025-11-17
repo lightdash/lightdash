@@ -240,7 +240,7 @@ while true; do
         continue
     fi
 
-    HAS_CONVENTIONAL_COMMIT_TYPE=$(starts_with $COMMIT_MESSAGE $CONVENTIONAL_COMMIT_TYPE_TESTS)
+    HAS_CONVENTIONAL_COMMIT_TYPE=$(starts_with "$COMMIT_MESSAGE" $CONVENTIONAL_COMMIT_TYPE_TESTS)
     if [[ "$HAS_CONVENTIONAL_COMMIT_TYPE" -eq "0" ]]; then
         echo "vvvvvvv Commit message must start with a conventional commit type plus a colon vvvvvvv"
         echo ${CONVENTIONAL_COMMIT_TYPE_TESTS[*]}
