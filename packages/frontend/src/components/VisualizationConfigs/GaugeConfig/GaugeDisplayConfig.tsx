@@ -18,8 +18,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
             setMin,
             max,
             setMax,
-            showProgress,
-            setShowProgress,
             showAxisLabels,
             setShowAxisLabels,
         },
@@ -50,14 +48,6 @@ export const GaugeDisplayConfig: FC = memo(() => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Appearance</Config.Heading>
-                    <Checkbox
-                        label="Show Progress"
-                        description="Display progress arc around the gauge"
-                        checked={showProgress}
-                        onChange={(event) =>
-                            setShowProgress(event.currentTarget.checked)
-                        }
-                    />
 
                     <Checkbox
                         label="Show Axis Labels"

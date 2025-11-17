@@ -77,7 +77,6 @@ const useEchartsGaugeConfig = ({
             selectedField,
             min = 0,
             max = 100,
-            showProgress,
             showAxisLabels,
             sections,
         } = chartConfig.chartConfig.validConfig;
@@ -182,18 +181,8 @@ const useEchartsGaugeConfig = ({
                     color: [[1, theme.colors.gray[2]]],
                 },
             },
-            pointer: {
-                show: !showProgress ?? true,
-                icon: 'triangle',
-                length: -1 * (lineSize * 0.8),
-                width: 10,
-                offsetCenter: [0, '-100%'],
-                itemStyle: {
-                    color: 'black',
-                },
-            },
             progress: {
-                show: showProgress ?? false,
+                show: true,
                 width: lineSize,
                 overlap: true,
                 itemStyle: {
