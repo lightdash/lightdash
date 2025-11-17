@@ -536,7 +536,10 @@ export class RenameService extends BaseService {
                                 ...field,
                                 name: to,
                             }),
-                            fromReference: getFieldRef(field),
+                            fromReference: getFieldRef({
+                                ...field,
+                                name: from,
+                            }),
                             toReference: getFieldRef({
                                 ...field,
                                 name: to,
@@ -544,6 +547,10 @@ export class RenameService extends BaseService {
                             fromFieldName: from,
                             toFieldName: to,
                         };
+
+                        this.logger.info(
+                            `field.name="${field.name}", fieldInExplore="${fieldInExplore}", fromReference="${nameChanges.fromReference}", fromFieldName="${nameChanges.fromFieldName}"`,
+                        );
 
                         this.logger.debug(
                             `Rename resources: Renaming field id "${nameChanges.from}" to "${nameChanges.to}"`,
