@@ -317,7 +317,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 Evals
                             </Button>
                         )}
-                        {!isCreateMode && agent?.version === 3 && (
+                        {!isCreateMode && (
                             <Button
                                 variant={
                                     activeTab === 'verified-artifacts'
