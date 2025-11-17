@@ -21,8 +21,15 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
     const gaugeSeriesOption: GaugeSeriesOption | undefined = useMemo(() => {
         if (!chartConfig || !resultsData) return;
 
-        const { selectedField, min, max, showProgress, showAxisLabels } =
-            chartConfig.chartConfig.validConfig;
+        const {
+            selectedField,
+            min,
+            max,
+            showProgress,
+            showAxisLabels,
+            sections,
+            gapSectionColor,
+        } = chartConfig.chartConfig.validConfig;
 
         // Get the first row of data
         const rows = resultsData.rows;
@@ -39,6 +46,20 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
 
         const fieldLabel = getItemLabelWithoutTableName(fieldItem);
 
+        const gapSection = [1, gapSectionColor];
+
+        const sectionColors =
+            sections && sections.length > 0
+                ? [...sections]
+                      .sort((a, b) => a.max - b.max)
+                      .map((section) => {
+                          const normalizedThreshold =
+                              (section.max - (min ?? 0)) /
+                              ((max ?? 100) - (min ?? 0));
+                          return [normalizedThreshold, section.color];
+                      })
+                : [];
+
         return {
             type: EchartsGaugeType,
             animation: false,
@@ -51,9 +72,11 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             splitNumber: 10,
             axisLine: {
                 show: true,
-                roundCap: true,
+                roundCap: false,
                 lineStyle: {
                     width: 20,
+                    opacity: 0.8,
+                    color: [...sectionColors, gapSection],
                 },
             },
             pointer: {
@@ -69,7 +92,7 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             progress: {
                 show: showProgress ?? false,
                 overlap: false,
-                roundCap: true,
+                roundCap: false,
             },
             axisTick: {
                 show: false,

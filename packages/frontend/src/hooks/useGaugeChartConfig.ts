@@ -5,6 +5,7 @@ import {
     isNumericItem,
     isTableCalculation,
     type GaugeChart,
+    type GaugeSection,
     type ItemsMap,
 } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
@@ -44,6 +45,12 @@ const useGaugeChartConfig = (
     const [showAxisLabels, setShowAxisLabels] = useState<boolean>(
         initialChartConfig?.showAxisLabels ?? false,
     );
+    const [sections, setSections] = useState<GaugeSection[]>(
+        initialChartConfig?.sections ?? [],
+    );
+    const [gapSectionColor, setGapSectionColor] = useState<string>(
+        initialChartConfig?.gapSectionColor ?? '#e0e0e0',
+    );
 
     // Get the effective selected field - use state value or fallback to first available
     const effectiveSelectedField = useMemo(() => {
@@ -72,8 +79,18 @@ const useGaugeChartConfig = (
             max,
             showProgress,
             showAxisLabels,
+            sections,
+            gapSectionColor,
         };
-    }, [effectiveSelectedField, min, max, showProgress, showAxisLabels]);
+    }, [
+        effectiveSelectedField,
+        min,
+        max,
+        showProgress,
+        showAxisLabels,
+        sections,
+        gapSectionColor,
+    ]);
 
     return useMemo(
         () => ({
@@ -92,6 +109,10 @@ const useGaugeChartConfig = (
             setShowProgress,
             showAxisLabels,
             setShowAxisLabels,
+            sections,
+            setSections,
+            gapSectionColor,
+            setGapSectionColor,
         }),
         [
             validConfig,
@@ -102,6 +123,8 @@ const useGaugeChartConfig = (
             max,
             showProgress,
             showAxisLabels,
+            sections,
+            gapSectionColor,
         ],
     );
 };

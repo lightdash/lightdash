@@ -121,12 +121,21 @@ export type TreemapChart = {
     endColorThreshold?: number;
 };
 
+export type GaugeSection = {
+    min: number;
+    max: number;
+    color: string;
+    label?: string;
+};
+
 export type GaugeChart = {
     selectedField?: string;
     min?: number;
     max?: number;
     showProgress?: boolean;
     showAxisLabels?: boolean;
+    sections?: GaugeSection[];
+    gapSectionColor?: string;
 };
 
 export enum FunnelChartDataInput {
