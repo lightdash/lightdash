@@ -4,22 +4,29 @@ import { type KnexPaginatedData } from './knex-paginate';
 import { type SchedulerAndTargets, type SchedulerJobStatus } from './scheduler';
 import { type SchedulerTaskName } from './schedulerTaskList';
 
-export type SchedulerLog = {
-    task: SchedulerTaskName;
-    schedulerUuid?: string;
+export type SchedulerTargetType = 'email' | 'slack' | 'gsheets' | 'msteams';
+
+export type SchedulerDetails = {
+    projectUuid?: string;
+    organizationUuid?: string;
+    createdByUserUuid?: string;
+    [key: string]: AnyType;
+};
+
+type BaseSchedulerLog = {
     jobId: string;
-    jobGroup?: string;
+    task: SchedulerTaskName;
+    status: SchedulerJobStatus;
     scheduledTime: Date;
     createdAt: Date;
-    status: SchedulerJobStatus;
+};
+
+export type SchedulerLog = BaseSchedulerLog & {
+    schedulerUuid?: string;
+    jobGroup?: string;
     target?: string;
-    targetType?: 'email' | 'slack' | 'gsheets' | 'msteams';
-    details: {
-        projectUuid: string | undefined; // For project creation, this is undefined
-        organizationUuid: string;
-        createdByUserUuid: string;
-        [key: string]: AnyType;
-    };
+    targetType?: SchedulerTargetType;
+    details: SchedulerDetails;
 };
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
@@ -78,16 +85,11 @@ export type ApiSchedulerRunsResponse = ApiSuccess<
 
 // Run Logs API types
 
-export type SchedulerRunLog = {
-    jobId: string;
+export type SchedulerRunLog = BaseSchedulerLog & {
     jobGroup: string;
-    task: SchedulerTaskName;
-    status: SchedulerJobStatus;
-    scheduledTime: Date;
-    createdAt: Date;
     target: string | null;
-    targetType: 'email' | 'slack' | 'msteams' | 'gsheets' | null;
-    details: Record<string, AnyType> | null;
+    targetType: SchedulerTargetType | null;
+    details: SchedulerDetails | null;
     isParent: boolean;
 };
 

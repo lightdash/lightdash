@@ -157,41 +157,6 @@ export class SchedulerModel {
         }, []);
     }
 
-    static computeRunStatus(
-        parentStatus: SchedulerJobStatus,
-        childCounts: LogCounts,
-    ): SchedulerRunStatus {
-        // Parent failed
-        if (parentStatus === SchedulerJobStatus.ERROR) {
-            return SchedulerRunStatus.FAILED;
-        }
-
-        // Parent not started yet
-        if (parentStatus === SchedulerJobStatus.SCHEDULED) {
-            return SchedulerRunStatus.SCHEDULED;
-        }
-
-        // Parent completed - check child errors only
-        if (parentStatus === SchedulerJobStatus.COMPLETED) {
-            // Any child errors?
-            if (childCounts.error > 0) {
-                return SchedulerRunStatus.PARTIAL_FAILURE;
-            }
-            return SchedulerRunStatus.COMPLETED;
-        }
-
-        // Parent or children still running
-        if (
-            parentStatus === SchedulerJobStatus.STARTED ||
-            childCounts.started > 0 ||
-            childCounts.scheduled > 0
-        ) {
-            return SchedulerRunStatus.RUNNING;
-        }
-
-        return SchedulerRunStatus.COMPLETED; // fallback
-    }
-
     static getBaseSchedulerQuery(db: Knex) {
         return db(SchedulerTableName)
             .select<SelectScheduler[]>(
@@ -1433,6 +1398,30 @@ export class SchedulerModel {
                 this.database.raw(
                     'COALESCE(child_counts.error_count, 0) as error_count',
                 ),
+                // Compute run_status in SQL to enable filtering before pagination
+                this.database.raw(`
+                    CASE
+                        -- Parent failed
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.ERROR}' THEN '${SchedulerRunStatus.FAILED}'
+
+                        -- Parent not started
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.SCHEDULED}' THEN '${SchedulerRunStatus.SCHEDULED}'
+
+                        -- Parent completed with errors
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.error_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+
+                        -- Parent completed, no errors
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}' THEN '${SchedulerRunStatus.COMPLETED}'
+
+                        -- Parent or children still running
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.STARTED}'
+                             OR COALESCE(child_counts.started_count, 0) > 0
+                             OR COALESCE(child_counts.scheduled_count, 0) > 0 THEN '${SchedulerRunStatus.RUNNING}'
+
+                        ELSE '${SchedulerRunStatus.SCHEDULED}'
+                    END as run_status
+                `),
             )
             .leftJoin(
                 childCountsSubquery,
@@ -1460,6 +1449,11 @@ export class SchedulerModel {
                 `${SchedulerTableName}.dashboard_uuid`,
             );
 
+        // Apply runStatus filter BEFORE pagination (CRITICAL for correct pagination)
+        if (filters?.statuses && filters.statuses.length > 0) {
+            runsQuery = runsQuery.whereIn('run_status', filters.statuses);
+        }
+
         // Apply sorting - reference distinct_runs subquery columns
         if (sort && sort.column && sort.direction) {
             // Map the sort column to the actual column name in distinct_runs
@@ -1477,19 +1471,21 @@ export class SchedulerModel {
             );
         }
 
-        // Paginate
+        // Paginate - KnexPaginate will correctly count filtered results
         const { pagination, data } = await KnexPaginate.paginate(
             runsQuery,
             paginateArgs,
         );
 
-        // Map database results to SchedulerRun type and compute runStatus
+        // Map database results to SchedulerRun type
+        // run_status is now computed in SQL, so we just read it from the row
         interface SchedulerRunRow {
             run_id: string;
             scheduler_uuid: string;
             scheduler_name: string;
             scheduled_time: Date;
             status: SchedulerJobStatus;
+            run_status: SchedulerRunStatus; // Computed in SQL
             created_at: Date;
             details: Record<string, AnyType> | null;
             total: string;
@@ -1514,18 +1510,13 @@ export class SchedulerModel {
                     error: parseInt(row.error_count, 10),
                 };
 
-                const runStatus = SchedulerModel.computeRunStatus(
-                    row.status as SchedulerJobStatus,
-                    logCounts,
-                );
-
                 return {
                     runId: row.run_id,
                     schedulerUuid: row.scheduler_uuid,
                     schedulerName: row.scheduler_name,
                     scheduledTime: row.scheduled_time,
                     status: row.status as SchedulerJobStatus,
-                    runStatus,
+                    runStatus: row.run_status as SchedulerRunStatus, // Use DB-computed value
                     createdAt: row.created_at,
                     details: row.details,
                     logCounts,
@@ -1538,26 +1529,11 @@ export class SchedulerModel {
             },
         );
 
-        // Apply runStatus filter if provided
-        let filteredRuns = runs;
-        if (filters?.statuses && filters.statuses.length > 0) {
-            filteredRuns = runs.filter((run) =>
-                filters.statuses!.includes(run.runStatus),
-            );
-        }
-
+        // Filter was applied in SQL before pagination - no post-processing needed
+        // Return correct pagination metadata from KnexPaginate
         return {
-            pagination: pagination
-                ? {
-                      page: pagination.page,
-                      pageSize: pagination.pageSize,
-                      totalResults: filteredRuns.length,
-                      totalPageCount: Math.ceil(
-                          filteredRuns.length / pagination.pageSize,
-                      ),
-                  }
-                : undefined,
-            data: filteredRuns,
+            pagination,
+            data: runs,
         };
     }
 
@@ -1619,9 +1595,10 @@ export class SchedulerModel {
             .orderBy('created_at', 'asc');
 
         // Map parent jobs to SchedulerRunLog type
+        // job_group is guaranteed to be present due to WHERE clause filtering
         const parentLogs: SchedulerRunLog[] = parentJobs.map((job) => ({
             jobId: job.job_id,
-            jobGroup: job.job_group,
+            jobGroup: job.job_group as string,
             task: job.task as SchedulerTaskName,
             status: job.status as SchedulerJobStatus,
             scheduledTime: job.scheduled_time,
@@ -1639,7 +1616,7 @@ export class SchedulerModel {
 
         const childLogs: SchedulerRunLog[] = childJobs.map((job) => ({
             jobId: job.job_id,
-            jobGroup: job.job_group,
+            jobGroup: job.job_group as string,
             task: job.task as SchedulerTaskName,
             status: job.status as SchedulerJobStatus,
             scheduledTime: job.scheduled_time,

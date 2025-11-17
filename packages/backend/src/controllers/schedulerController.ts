@@ -69,9 +69,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
-        if (pageSize && page) {
+        if (pageSize !== undefined) {
             paginateArgs = {
-                page,
+                page: page ?? 1, // Default to page 1 if not provided
                 pageSize,
             };
         }
@@ -139,9 +139,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
-        if (pageSize && page) {
+        if (pageSize !== undefined) {
             paginateArgs = {
-                page,
+                page: page ?? 1, // Default to page 1 if not provided
                 pageSize,
             };
         }
@@ -239,9 +239,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
 
-        if (pageSize && page) {
+        if (pageSize !== undefined) {
             paginateArgs = {
-                page,
+                page: page ?? 1, // Default to page 1 if not provided
                 pageSize,
             };
         }
