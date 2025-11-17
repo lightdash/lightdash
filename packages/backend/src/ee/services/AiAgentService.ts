@@ -2126,6 +2126,7 @@ export class AiAgentService {
 
             this.analytics.track<AiAgentArtifactsRetrievedEvent>({
                 event: 'ai_agent.artifacts_retrieved',
+                anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,

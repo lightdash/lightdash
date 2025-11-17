@@ -17,7 +17,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { toPairs } from 'lodash';
+import toPairs from 'lodash/toPairs';
 import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { OperationRenderer } from './OperationRenderer';

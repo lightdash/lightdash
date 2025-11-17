@@ -18,7 +18,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { isEmpty } from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import MantineIcon from '../../components/common/MantineIcon';
