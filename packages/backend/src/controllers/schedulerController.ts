@@ -79,24 +79,21 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
-        if (pageSize !== undefined) {
+        if (pageSize && page) {
             paginateArgs = {
-                page: page ?? 1, // Default to page 1 if not provided
+                page,
                 pageSize,
             };
         }
 
         const filters = {
-            statuses: parseEnumList(statuses, SchedulerJobStatus, 'statuses'),
-            createdByUserUuids: parseUuidList(
-                createdByUserUuids,
-                'createdByUserUuids',
-            ),
-            destinations: parseWhitelistedList(
-                destinations,
-                VALID_DESTINATIONS,
-                'destinations',
-            ),
+            statuses: statuses
+                ? (statuses.split(',') as SchedulerJobStatus[])
+                : undefined,
+            createdByUserUuids: createdByUserUuids
+                ? createdByUserUuids.split(',')
+                : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
         };
 
         return {
@@ -152,9 +149,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
-        if (pageSize !== undefined) {
+        if (pageSize && page) {
             paginateArgs = {
-                page: page ?? 1, // Default to page 1 if not provided
+                page,
                 pageSize,
             };
         }
@@ -255,9 +252,9 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
 
-        if (pageSize !== undefined) {
+        if (pageSize && page) {
             paginateArgs = {
-                page: page ?? 1, // Default to page 1 if not provided
+                page,
                 pageSize,
             };
         }
@@ -271,18 +268,13 @@ export class SchedulerController extends BaseController {
         }
 
         const filters = {
-            createdByUserUuids: parseUuidList(
-                createdByUserUuids,
-                'createdByUserUuids',
-            ),
-            formats: parseEnumList(formats, SchedulerFormat, 'formats'),
+            createdByUserUuids: createdByUserUuids
+                ? createdByUserUuids.split(',')
+                : undefined,
+            formats: formats ? formats.split(',') : undefined,
             resourceType,
-            resourceUuids: parseUuidList(resourceUuids, 'resourceUuids'),
-            destinations: parseWhitelistedList(
-                destinations,
-                VALID_DESTINATIONS,
-                'destinations',
-            ),
+            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
         };
 
         return {
