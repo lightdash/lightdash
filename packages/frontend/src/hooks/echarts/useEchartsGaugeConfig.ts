@@ -7,9 +7,22 @@ import { isGaugeVisualizationConfig } from '../../components/LightdashVisualizat
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 
 const EchartsGaugeType = 'gauge';
-const LINE_WIDTH = 30;
 
-const useEchartsGaugeConfig = (isInDashboard: boolean) => {
+type Args = {
+    isInDashboard: boolean;
+    tileFontSize: number;
+    detailsFontSize: number;
+    lineSize: number;
+    radius: number;
+};
+
+const useEchartsGaugeConfig = ({
+    isInDashboard,
+    tileFontSize,
+    detailsFontSize,
+    lineSize,
+    radius,
+}: Args) => {
     const { visualizationConfig, itemsMap, resultsData } =
         useVisualizationContext();
     const theme = useMantineTheme();
@@ -47,7 +60,7 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
         const fieldLabel = getItemLabelWithoutTableName(fieldItem);
 
         const sectionColors: [number, string][] = [];
-        const defaultGapColor = theme.colors.gray[3];
+        const defaultGapColor = theme.colors.gray[4];
 
         // Function to determine which section contains the current value
         const getDetailColor = (value: number): string => {
@@ -102,21 +115,22 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             startAngle: 180,
             endAngle: 0,
             center: ['50%', '75%'],
-            radius: '90%',
+            radius: `${radius}%`,
             min: min ?? 0,
             max: max ?? 100,
             splitNumber: 10,
             axisLine: {
                 show: true,
                 lineStyle: {
-                    width: LINE_WIDTH,
+                    width: lineSize,
+                    opacity: 0.5,
                     color: sectionColors,
                 },
             },
             pointer: {
                 show: !showProgress ?? true,
                 icon: 'triangle',
-                length: -1 * (LINE_WIDTH * 0.8),
+                length: -1 * (lineSize * 0.8),
                 width: 10,
                 offsetCenter: [0, '-100%'],
                 itemStyle: {
@@ -125,7 +139,8 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             },
             progress: {
                 show: showProgress ?? false,
-                width: sections.length > 0 ? LINE_WIDTH * 0.8 : LINE_WIDTH, // smaller 20% than lines if there are sections
+                width:
+                    sections && sections.length > 0 ? lineSize * 0.8 : lineSize, // smaller 20% than lines if there are sections
                 overlap: true,
             },
             axisTick: {
@@ -136,20 +151,25 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
-                formatter: function (value) {
+                fontSize: detailsFontSize / 4,
+                distance:
+                    lineSize *
+                    (lineSize > 35 ? (lineSize > 60 ? 1 : 0.75) : 0.5),
+                formatter: function (value): string {
                     if ([min, max].includes(value)) {
-                        return value;
+                        return `${value}`;
                     }
+                    return '';
                 },
             },
             title: {
                 show: true,
                 offsetCenter: [0, '-30%'],
-                fontSize: 20,
+                fontSize: tileFontSize,
             },
             detail: {
                 valueAnimation: true,
-                fontSize: 50,
+                fontSize: detailsFontSize,
                 offsetCenter: [0, '-10%'],
                 color: getDetailColor(numericValue),
             },
@@ -160,7 +180,16 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 },
             ],
         };
-    }, [chartConfig, resultsData, itemsMap, theme.colors.gray]);
+    }, [
+        chartConfig,
+        resultsData,
+        itemsMap,
+        theme.colors.gray,
+        radius,
+        lineSize,
+        detailsFontSize,
+        tileFontSize,
+    ]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !gaugeSeriesOption) return;
