@@ -1,3 +1,11 @@
+# [0.2178.0](https://github.com/lightdash/lightdash/compare/0.2177.1...0.2178.0) (2025-11-17)
+
+
+### Features
+
+* add analytics tracking for Verified Answers and enable ([#18157](https://github.com/lightdash/lightdash/issues/18157)) ([cdc8de1](https://github.com/lightdash/lightdash/commit/cdc8de163e70d5d728ef9153c0dfd9d860d954b2))
+* configurable embedding models ([#18001](https://github.com/lightdash/lightdash/issues/18001)) ([dae423a](https://github.com/lightdash/lightdash/commit/dae423a9e30ef21d7ad490e3d2265d23a34fde14))
+
 ## [0.2177.1](https://github.com/lightdash/lightdash/compare/0.2177.0...0.2177.1) (2025-11-17)
 
 
