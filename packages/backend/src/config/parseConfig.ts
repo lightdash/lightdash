@@ -35,6 +35,7 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
 } from './aiConfigSchema';
@@ -633,8 +634,13 @@ export const getAiConfig = () => ({
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
+    embeddingEnabled: process.env.AI_EMBEDDING_ENABLED === 'true',
     defaultProvider:
         process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
+    defaultEmbeddingModelProvider:
+        process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
+        process.env.AI_DEFAULT_PROVIDER ||
+        DEFAULT_DEFAULT_AI_PROVIDER,
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
@@ -653,6 +659,9 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.OPENAI_MODEL_NAME ||
                       DEFAULT_OPENAI_MODEL_NAME,
+                  embeddingModelName:
+                      process.env.OPENAI_EMBEDDING_MODEL ||
+                      DEFAULT_OPENAI_EMBEDDING_MODEL,
                   baseUrl: process.env.OPENAI_BASE_URL,
                   temperature:
                       getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),

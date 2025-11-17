@@ -6,17 +6,24 @@ export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-4.1-2025-04-14';
 export const DEFAULT_BEDROCK_MODEL_NAME =
     'anthropic.claude-sonnet-4-20250514-v1:0';
+export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
             .enum(['openai', 'azure', 'anthropic', 'openrouter', 'bedrock'])
-            .default('openai'),
+            .default(DEFAULT_DEFAULT_AI_PROVIDER),
+        defaultEmbeddingModelProvider: z
+            .enum(['openai'])
+            .default(DEFAULT_DEFAULT_AI_PROVIDER),
         providers: z.object({
             openai: z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
+                    embeddingModelName: z
+                        .string()
+                        .default(DEFAULT_OPENAI_EMBEDDING_MODEL),
                     baseUrl: z.string().optional(),
                     temperature: z.number().min(0).max(2).default(0.2),
                     responsesApi: z.boolean().default(false),
@@ -87,6 +94,7 @@ export const aiCopilotConfigSchema = z
         telemetryEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
         askAiButtonEnabled: z.boolean(),
+        embeddingEnabled: z.boolean(),
         maxQueryLimit: z.number().positive(),
         verifiedAnswerSimilarityThreshold: z
             .number()
@@ -101,6 +109,26 @@ export const aiCopilotConfigSchema = z
             message: `Configuration for the default provider "${defaultProvider}" must be present`,
             params: {
                 defaultProvider,
+            },
+            path: ['providers'],
+        }),
+    )
+    .refine(
+        ({
+            providers,
+            defaultEmbeddingModelProvider,
+            enabled,
+            embeddingEnabled,
+        }) =>
+            !(
+                enabled &&
+                embeddingEnabled &&
+                providers[defaultEmbeddingModelProvider] === undefined
+            ),
+        ({ defaultEmbeddingModelProvider }) => ({
+            message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
+            params: {
+                defaultEmbeddingModelProvider,
             },
             path: ['providers'],
         }),
