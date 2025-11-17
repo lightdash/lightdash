@@ -1363,7 +1363,7 @@ export class SchedulerModel {
             .where('rn', 1)
             .as('distinct_runs');
 
-        let runsQuery = this.database(distinctRunsSubquery)
+        const runsQuery = this.database(distinctRunsSubquery)
             .select(
                 'distinct_runs.job_id as run_id',
                 'distinct_runs.scheduler_uuid',
@@ -1398,7 +1398,8 @@ export class SchedulerModel {
                 this.database.raw(
                     'COALESCE(child_counts.error_count, 0) as error_count',
                 ),
-                // Compute run_status in SQL to enable filtering before pagination
+                // Compute run_status in SQL so it can be used in outer query for filtering/sorting
+                // (SELECT aliases can't be referenced in WHERE, so we wrap this as a subquery)
                 this.database.raw(`
                     CASE
                         -- Parent failed
@@ -1449,31 +1450,36 @@ export class SchedulerModel {
                 `${SchedulerTableName}.dashboard_uuid`,
             );
 
-        // Apply runStatus filter BEFORE pagination (CRITICAL for correct pagination)
+        // Wrap runsQuery as a subquery so we can filter/sort on computed columns like run_status
+        // (WHERE clause can't reference SELECT aliases, so we need an outer query)
+        const runsWithStatusSubquery = runsQuery.as('runs_with_status');
+
+        let finalQuery = this.database(runsWithStatusSubquery).select('*');
+
+        // Apply runStatus filter on the outer query (run_status is now a real column)
         if (filters?.statuses && filters.statuses.length > 0) {
-            runsQuery = runsQuery.whereIn('run_status', filters.statuses);
+            finalQuery = finalQuery.whereIn('run_status', filters.statuses);
         }
 
-        // Apply sorting - reference distinct_runs subquery columns
+        // Apply sorting on the outer query
         if (sort && sort.column && sort.direction) {
-            // Map the sort column to the actual column name in distinct_runs
-            let sortColumn = sort.column;
+            let sortColumn: string = sort.column;
+            // Map the sort column to the actual column name
             if (sort.column === 'scheduledTime') {
-                sortColumn = 'distinct_runs.scheduled_time';
+                sortColumn = 'scheduled_time';
             } else if (sort.column === 'createdAt') {
-                sortColumn = 'distinct_runs.created_at';
+                sortColumn = 'created_at';
+            } else if (sort.column === 'runStatus') {
+                sortColumn = 'run_status';
             }
-            runsQuery = runsQuery.orderBy(sortColumn, sort.direction);
+            finalQuery = finalQuery.orderBy(sortColumn, sort.direction);
         } else {
-            runsQuery = runsQuery.orderBy(
-                'distinct_runs.scheduled_time',
-                'desc',
-            );
+            finalQuery = finalQuery.orderBy('scheduled_time', 'desc');
         }
 
-        // Paginate - KnexPaginate will correctly count filtered results
+        // Paginate the final, filtered query
         const { pagination, data } = await KnexPaginate.paginate(
-            runsQuery,
+            finalQuery,
             paginateArgs,
         );
 
