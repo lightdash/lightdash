@@ -1,3 +1,10 @@
+## [0.2178.2](https://github.com/lightdash/lightdash/compare/0.2178.1...0.2178.2) (2025-11-17)
+
+
+### Bug Fixes
+
+* y-axis label overlaps with tick labels in pivoted charts ([#18168](https://github.com/lightdash/lightdash/issues/18168)) ([1e7f064](https://github.com/lightdash/lightdash/commit/1e7f064b4a0a3f552bd5fdd00ee21055de17d39f)), closes [#8811](https://github.com/lightdash/lightdash/issues/8811)
+
 ## [0.2178.1](https://github.com/lightdash/lightdash/compare/0.2178.0...0.2178.1) (2025-11-17)
 
 
