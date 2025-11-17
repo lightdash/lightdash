@@ -10,6 +10,8 @@ import {
     ApiSchedulersResponse,
     ApiTestSchedulerResponse,
     KnexPaginateArgs,
+    ParameterError,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerRunStatus,
 } from '@lightdash/common';
@@ -31,11 +33,19 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import {
+    parseEnumList,
+    parseUuidList,
+    parseWhitelistedList,
+} from '../utils/inputValidation';
+import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+
+// Valid destination types (whitelist for parseWhitelistedList)
+const VALID_DESTINATIONS = ['email', 'slack', 'msteams', 'gsheets'] as const;
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -77,13 +87,16 @@ export class SchedulerController extends BaseController {
         }
 
         const filters = {
-            statuses: statuses
-                ? (statuses.split(',') as SchedulerJobStatus[])
-                : undefined,
-            createdByUserUuids: createdByUserUuids
-                ? createdByUserUuids.split(',')
-                : undefined,
-            destinations: destinations ? destinations.split(',') : undefined,
+            statuses: parseEnumList(statuses, SchedulerJobStatus, 'statuses'),
+            createdByUserUuids: parseUuidList(
+                createdByUserUuids,
+                'createdByUserUuids',
+            ),
+            destinations: parseWhitelistedList(
+                destinations,
+                VALID_DESTINATIONS,
+                'destinations',
+            ),
         };
 
         return {
@@ -153,15 +166,18 @@ export class SchedulerController extends BaseController {
 
         const filters = {
             schedulerUuid,
-            statuses: statuses
-                ? (statuses.split(',') as SchedulerRunStatus[])
-                : undefined,
-            createdByUserUuids: createdByUserUuids
-                ? createdByUserUuids.split(',')
-                : undefined,
-            destinations: destinations ? destinations.split(',') : undefined,
+            statuses: parseEnumList(statuses, SchedulerRunStatus, 'statuses'),
+            createdByUserUuids: parseUuidList(
+                createdByUserUuids,
+                'createdByUserUuids',
+            ),
+            destinations: parseWhitelistedList(
+                destinations,
+                VALID_DESTINATIONS,
+                'destinations',
+            ),
             resourceType,
-            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
+            resourceUuids: parseUuidList(resourceUuids, 'resourceUuids'),
         };
 
         return {
@@ -255,13 +271,18 @@ export class SchedulerController extends BaseController {
         }
 
         const filters = {
-            createdByUserUuids: createdByUserUuids
-                ? createdByUserUuids.split(',')
-                : undefined,
-            formats: formats ? formats.split(',') : undefined,
+            createdByUserUuids: parseUuidList(
+                createdByUserUuids,
+                'createdByUserUuids',
+            ),
+            formats: parseEnumList(formats, SchedulerFormat, 'formats'),
             resourceType,
-            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
-            destinations: destinations ? destinations.split(',') : undefined,
+            resourceUuids: parseUuidList(resourceUuids, 'resourceUuids'),
+            destinations: parseWhitelistedList(
+                destinations,
+                VALID_DESTINATIONS,
+                'destinations',
+            ),
         };
 
         return {
