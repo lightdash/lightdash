@@ -38,6 +38,7 @@ module.exports = {
         'jest-dom',
         'testing-library',
         'react-refresh',
+        'lodash',
     ],
 
     settings: {
@@ -110,5 +111,6 @@ module.exports = {
             },
         ],
         'react-refresh/only-export-components': 'error',
+        'lodash/import-scope': [2, 'method'],
     },
 };
