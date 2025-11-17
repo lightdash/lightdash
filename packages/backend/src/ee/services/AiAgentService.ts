@@ -65,6 +65,8 @@ import {
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
+    AiAgentArtifactsRetrievedEvent,
+    AiAgentArtifactVersionVerifiedEvent,
     AiAgentCreatedEvent,
     AiAgentDeletedEvent,
     AiAgentEvalAppendedEvent,
@@ -244,10 +246,8 @@ export class AiAgentService {
             dependencies.aiOrganizationSettingsService;
     }
 
-    private static getIsVerifiedArtifactsEnabled(
-        agentVersion: number,
-    ): boolean {
-        return agentVersion === 3;
+    private getIsVerifiedArtifactsEnabled(): boolean {
+        return this.lightdashConfig.ai.copilot.embeddingEnabled;
     }
 
     private async getIsCopilotEnabled(
@@ -1144,7 +1144,7 @@ export class AiAgentService {
                 agentUuid: agent.uuid,
                 retrieveRelevantArtifacts:
                     retrieveRelevantArtifacts &&
-                    AiAgentService.getIsVerifiedArtifactsEnabled(agent.version),
+                    this.getIsVerifiedArtifactsEnabled(),
             },
         );
 
@@ -1712,13 +1712,8 @@ export class AiAgentService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
-        if (
-            verified &&
-            !AiAgentService.getIsVerifiedArtifactsEnabled(agent.version)
-        ) {
-            throw new NotImplementedError(
-                'Artifact verification is not enabled for this agent version',
-            );
+        if (verified && !this.getIsVerifiedArtifactsEnabled()) {
+            throw new NotImplementedError('Answer verification is not enabled');
         }
 
         // Only users who can manage the agent can verify artifacts
@@ -1752,11 +1747,23 @@ export class AiAgentService {
             user.userUuid,
         );
 
+        this.analytics.track<AiAgentArtifactVersionVerifiedEvent>({
+            event: 'ai_agent.artifact_version_verified',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                artifactId: artifactUuid,
+                versionId: versionUuid,
+                verified,
+            },
+        });
+
         if (!verified) {
             return;
         }
 
-        // Only embed if not already embedded
         const embedding = await this.aiAgentModel.getArtifactEmbedding(
             versionUuid,
         );
@@ -1817,7 +1824,7 @@ export class AiAgentService {
                 return;
             }
 
-            const embedding = await generateEmbedding(
+            const { embedding, provider, modelName } = await generateEmbedding(
                 text,
                 this.lightdashConfig,
                 { artifactVersionUuid: payload.artifactVersionUuid },
@@ -1826,6 +1833,8 @@ export class AiAgentService {
             await this.aiAgentModel.updateArtifactEmbedding(
                 payload.artifactVersionUuid,
                 embedding,
+                provider,
+                modelName,
             );
         } catch (error) {
             Logger.error(
@@ -2084,10 +2093,11 @@ export class AiAgentService {
             return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
         }
 
-        const queryEmbedding = await generateEmbedding(
-            searchQuery,
-            this.lightdashConfig,
-        );
+        const {
+            embedding: queryEmbedding,
+            provider,
+            modelName,
+        } = await generateEmbedding(searchQuery, this.lightdashConfig);
 
         const verifiedArtifacts =
             await this.aiAgentModel.searchArtifactsBySimilarity({
@@ -2095,6 +2105,8 @@ export class AiAgentService {
                 projectUuid,
                 agentUuid,
                 queryEmbedding,
+                embeddingModelProvider: provider,
+                embeddingModel: modelName,
                 limit: 3,
             });
 
@@ -2106,6 +2118,22 @@ export class AiAgentService {
                     artifactVersionUuid: a.artifactVersionUuid,
                     similarityScore: a.similarity,
                 })),
+            });
+
+            const averageSimilarity =
+                verifiedArtifacts.reduce((sum, a) => sum + a.similarity, 0) /
+                verifiedArtifacts.length;
+
+            this.analytics.track<AiAgentArtifactsRetrievedEvent>({
+                event: 'ai_agent.artifacts_retrieved',
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                    promptId: promptUuid,
+                    artifactCount: verifiedArtifacts.length,
+                    averageSimilarity,
+                },
             });
         }
 
@@ -3052,9 +3080,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     agentUuid: agent?.uuid!,
                     retrieveRelevantArtifacts:
                         agent !== undefined &&
-                        AiAgentService.getIsVerifiedArtifactsEnabled(
-                            agent.version,
-                        ),
+                        this.getIsVerifiedArtifactsEnabled(),
                 });
 
             response = await this.generateOrStreamAgentResponse(

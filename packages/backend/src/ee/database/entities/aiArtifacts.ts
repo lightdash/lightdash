@@ -31,6 +31,9 @@ export type DbAiArtifactVersion = {
     verified_by_user_uuid: string | null;
     verified_at: Date | null;
     verified_question: string | null;
+    embedding_vector: number[] | null;
+    embedding_model_provider: string | null;
+    embedding_model: string | null;
 };
 
 export type AiArtifactVersionsTable = Knex.CompositeTableType<
@@ -50,6 +53,9 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
             | 'verified_by_user_uuid'
             | 'verified_at'
             | 'verified_question'
+            | 'embedding_vector'
+            | 'embedding_model_provider'
+            | 'embedding_model'
         >
     >
 >;

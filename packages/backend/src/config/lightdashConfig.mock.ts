@@ -207,11 +207,13 @@ export const lightdashConfigMock: LightdashConfig = {
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
+            embeddingEnabled: true,
             defaultProvider: 'openai',
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
                     modelName: 'mock_model_name',
+                    embeddingModelName: 'text-embedding-3-small',
                     temperature: 0.2,
                     responsesApi: false,
                     reasoning: {
@@ -221,7 +223,8 @@ export const lightdashConfigMock: LightdashConfig = {
                     },
                 },
             },
-            verifiedAnswerSimilarityThreshold: 0.5,
+            verifiedAnswerSimilarityThreshold: 0.6,
+            defaultEmbeddingModelProvider: 'openai',
         },
     },
     embedding: {

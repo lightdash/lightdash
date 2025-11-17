@@ -120,7 +120,14 @@ models:
                 # Template combines value (the URL from SQL) with other row fields
                 # Use liquidjs to combine the URL with the event name and upcase
                 url: "https://${value.raw}-${row.events.event.raw | upcase}"
-
+            image_dynamic_width:
+              groups: [ 'image' ]
+              description: "Build a width dynamic image"
+              type: string
+              sql: |
+                'https://placehold.co/' || ${event_id} || 'x100?text=image'
+              image:
+                url: "${value.raw}"
             image_invalid_protocol:
               groups: [ 'image' ]
               description: "Invalid URL protocol"

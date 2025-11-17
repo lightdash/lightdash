@@ -12,5 +12,5 @@ export const getOpenAIEmbeddingModel = (
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
 
-    return openai.embedding('text-embedding-3-small');
+    return openai.embedding(config.embeddingModelName);
 };
