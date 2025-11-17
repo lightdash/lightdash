@@ -227,16 +227,33 @@ const useEchartsGaugeConfig = ({
             ],
         };
         // Series just to show the sections above and on the outside
+        const sectionWidth = Math.max(lineSize * 0.2, 8);
         const sectionSeries: GaugeSeriesOption = {
             ...baseSeries,
             zlevel: 2,
             axisLine: {
                 show: true,
                 lineStyle: {
-                    width: lineSize * 0.1,
+                    width: sectionWidth,
                     color: sectionColors,
                 },
             },
+            progress: {
+                show: true,
+                width: sectionWidth,
+                overlap: true,
+                itemStyle: {
+                    color: 'transparent', // we only want the border
+                    borderWidth: Math.max(lineSize * 0.06, 2),
+                    borderColor: 'white',
+                },
+            },
+            data: [
+                {
+                    value: max, // force progress to the max
+                    name: fieldLabel,
+                },
+            ],
         };
         return [sectionSeries, mainSeries];
     }, [
