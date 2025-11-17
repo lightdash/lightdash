@@ -33,10 +33,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
-import {
-    useProjectAiAgent,
-    useSavePromptQuery,
-} from '../../hooks/useProjectAiAgents';
+import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {
@@ -88,12 +85,10 @@ export const AiChartQuickOptions = ({
         action: 'manage',
         projectUuid,
     });
-    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
     const metricQuery = resultsData?.metricQuery;
     const type = chartConfig.type;
 
     const isVerified = artifactData?.verifiedByUserUuid !== null;
-    const isAgentVersion3 = agent?.version === 3;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
     const onSaveChart = (savedData: SavedChart) => {
@@ -194,7 +189,7 @@ export const AiChartQuickOptions = ({
 
     return (
         <Fragment>
-            {artifactData && canManageAgent && isAgentVersion3 && (
+            {artifactData && canManageAgent && (
                 <Tooltip
                     label={
                         isVerified
