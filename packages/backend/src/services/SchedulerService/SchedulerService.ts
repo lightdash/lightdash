@@ -766,15 +766,27 @@ export class SchedulerService extends BaseService {
         // Determine projectUuid based on resource type
         let projectUuid: string;
         if (scheduler.savedChartUuid) {
-            const chart = await this.savedChartModel.get(
-                scheduler.savedChartUuid,
-            );
-            projectUuid = chart.projectUuid;
+            try {
+                const chart = await this.savedChartModel.get(
+                    scheduler.savedChartUuid,
+                );
+                projectUuid = chart.projectUuid;
+            } catch (error) {
+                throw new NotFoundError(
+                    'Chart referenced by scheduler no longer exists',
+                );
+            }
         } else if (scheduler.dashboardUuid) {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                scheduler.dashboardUuid,
-            );
-            projectUuid = dashboard.projectUuid;
+            try {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    scheduler.dashboardUuid,
+                );
+                projectUuid = dashboard.projectUuid;
+            } catch (error) {
+                throw new NotFoundError(
+                    'Dashboard referenced by scheduler no longer exists',
+                );
+            }
         } else {
             throw new NotFoundError('Scheduler resource not found');
         }
