@@ -126,7 +126,7 @@ export type GaugeChart = {
     min?: number;
     max?: number;
     showProgress?: boolean;
-    isRadial?: boolean;
+    showAxisLabels?: boolean;
 };
 
 export enum FunnelChartDataInput {

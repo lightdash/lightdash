@@ -41,8 +41,8 @@ const useGaugeChartConfig = (
     const [showProgress, setShowProgress] = useState<boolean>(
         initialChartConfig?.showProgress ?? false,
     );
-    const [isRadial, setIsRadial] = useState<boolean>(
-        initialChartConfig?.isRadial ?? false,
+    const [showAxisLabels, setShowAxisLabels] = useState<boolean>(
+        initialChartConfig?.showAxisLabels ?? false,
     );
 
     // Get the effective selected field - use state value or fallback to first available
@@ -71,9 +71,9 @@ const useGaugeChartConfig = (
             min,
             max,
             showProgress,
-            isRadial,
+            showAxisLabels,
         };
-    }, [effectiveSelectedField, min, max, showProgress, isRadial]);
+    }, [effectiveSelectedField, min, max, showProgress, showAxisLabels]);
 
     return useMemo(
         () => ({
@@ -90,8 +90,8 @@ const useGaugeChartConfig = (
             setMax,
             showProgress,
             setShowProgress,
-            isRadial,
-            setIsRadial,
+            showAxisLabels,
+            setShowAxisLabels,
         }),
         [
             validConfig,
@@ -101,7 +101,7 @@ const useGaugeChartConfig = (
             min,
             max,
             showProgress,
-            isRadial,
+            showAxisLabels,
         ],
     );
 };

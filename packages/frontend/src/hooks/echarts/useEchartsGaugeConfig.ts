@@ -21,7 +21,7 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
     const gaugeSeriesOption: GaugeSeriesOption | undefined = useMemo(() => {
         if (!chartConfig || !resultsData) return;
 
-        const { selectedField, min, max, showProgress, isRadial } =
+        const { selectedField, min, max, showProgress, showAxisLabels } =
             chartConfig.chartConfig.validConfig;
 
         // Get the first row of data
@@ -43,9 +43,9 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
             type: EchartsGaugeType,
             animation: false,
             startAngle: 180,
-            endAngle: isRadial ? -180 : 0,
-            center: isRadial ? ['50%', '50%'] : ['50%', '75%'],
-            radius: isRadial ? '75%' : '90%',
+            endAngle: 0,
+            center: ['50%', '75%'],
+            radius: '90%',
             min: min ?? 0,
             max: max ?? 100,
             splitNumber: 10,
@@ -72,13 +72,13 @@ const useEchartsGaugeConfig = (isInDashboard: boolean) => {
                 roundCap: true,
             },
             axisTick: {
-                show: true,
+                show: false,
             },
             splitLine: {
-                show: true,
+                show: showAxisLabels ?? false,
             },
             axisLabel: {
-                show: true,
+                show: showAxisLabels ?? false,
                 distance: 30,
             },
             title: {
