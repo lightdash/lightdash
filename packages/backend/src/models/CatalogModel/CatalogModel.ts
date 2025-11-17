@@ -57,6 +57,7 @@ import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
+    getWebSearchRankCalcSql,
 } from '../SearchModel/utils/search';
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
@@ -616,6 +617,9 @@ export class CatalogModel {
         filteredExplore?: Explore;
         changeset?: ChangesetWithChanges;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
+        // Use websearch_to_tsquery for AI Agent queries for better natural language support
+        const useWebSearch = context === CatalogSearchContext.AI_AGENT;
+
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
@@ -629,14 +633,22 @@ export class CatalogModel {
                 `${CatalogTableName}.joined_tables`,
                 `icon`,
                 {
-                    search_rank: getFullTextSearchRankCalcSql({
-                        database: this.database,
-                        variables: {
-                            searchVectorColumn: `${CatalogTableName}.search_vector`,
-                            searchQuery,
-                        },
-                        fullTextSearchOperator,
-                    }),
+                    search_rank: useWebSearch
+                        ? getWebSearchRankCalcSql({
+                              database: this.database,
+                              variables: {
+                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
+                                  searchQuery,
+                              },
+                          })
+                        : getFullTextSearchRankCalcSql({
+                              database: this.database,
+                              variables: {
+                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
+                                  searchQuery,
+                              },
+                              fullTextSearchOperator,
+                          }),
                 },
             )
             .leftJoin(
@@ -855,10 +867,28 @@ export class CatalogModel {
         }
 
         if (excludeUnmatched && searchQuery) {
-            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
-                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                getFullTextSearchQuery(searchQuery, fullTextSearchOperator),
-            );
+            if (useWebSearch) {
+                // Use websearch_to_tsquery with OR logic for natural language queries
+                // Convert "average cost" to "average OR cost" for better recall
+                const webSearchQuery = searchQuery
+                    .split(' ')
+                    .filter((word) => word.trim())
+                    .join(' OR ');
+                catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                    `"${CatalogTableName}".search_vector @@ websearch_to_tsquery('lightdash_english_config', ?)`,
+                    webSearchQuery,
+                );
+            } else {
+                // Use to_tsquery with formatted query for traditional search
+                const formattedQuery = getFullTextSearchQuery(
+                    searchQuery,
+                    fullTextSearchOperator,
+                );
+                catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                    `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
+                    formattedQuery,
+                );
+            }
         }
 
         catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');

@@ -42,6 +42,7 @@ export type ListExploresFn = () => Promise<Explore[]>;
 export type FindExploresFn = (args: {
     exploreName: string;
     fieldSearchSize: number;
+    searchQuery?: string;
 }) => Promise<{
     explore: Explore;
     catalogFields: {
