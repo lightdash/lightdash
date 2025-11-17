@@ -1,3 +1,10 @@
+## [0.2178.3](https://github.com/lightdash/lightdash/compare/0.2178.2...0.2178.3) (2025-11-17)
+
+
+### Bug Fixes
+
+* paramName in getSchedulerLink ([#18162](https://github.com/lightdash/lightdash/issues/18162)) ([6dc4d2b](https://github.com/lightdash/lightdash/commit/6dc4d2b939dacff263cd27d6f974eb5cd777e17f))
+
 ## [0.2178.2](https://github.com/lightdash/lightdash/compare/0.2178.1...0.2178.2) (2025-11-17)
 
 
