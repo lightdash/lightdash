@@ -8,6 +8,7 @@ import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
+import type { SchedulerRun } from './schedulerLog';
 import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
 
@@ -143,6 +144,7 @@ export type SchedulerAndTargets = Scheduler & {
         | SchedulerEmailTarget
         | SchedulerMsTeamsTarget
     )[];
+    latestRun?: SchedulerRun | null;
 };
 
 export type SchedulerSlackTarget = {

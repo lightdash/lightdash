@@ -805,8 +805,9 @@ export class SchedulerModel {
 
     async getSchedulerForProject(
         projectUuid: string,
+        schedulerUuids?: string[],
     ): Promise<SchedulerAndTargets[]> {
-        const schedulerCharts = this.database(SchedulerTableName)
+        let schedulerCharts = this.database(SchedulerTableName)
             .select<SelectScheduler[]>(
                 `${SchedulerTableName}.*`,
                 this.database.raw(
@@ -850,8 +851,14 @@ export class SchedulerModel {
                 `${SpaceTableName}.project_id`,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+        if (schedulerUuids?.length) {
+            schedulerCharts = schedulerCharts.whereIn(
+                `${SchedulerTableName}.scheduler_uuid`,
+                schedulerUuids,
+            );
+        }
 
-        const schedulerDashboards = this.database(SchedulerTableName)
+        let schedulerDashboards = this.database(SchedulerTableName)
             .select<SelectScheduler[]>(
                 `${SchedulerTableName}.*`,
                 this.database.raw(
@@ -881,6 +888,12 @@ export class SchedulerModel {
                 `${SpaceTableName}.project_id`,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+        if (schedulerUuids?.length) {
+            schedulerDashboards = schedulerDashboards.whereIn(
+                `${SchedulerTableName}.scheduler_uuid`,
+                schedulerUuids,
+            );
+        }
 
         const schedulerDashboardWithTargets =
             await this.getSchedulersWithTargets(await schedulerDashboards);
@@ -889,6 +902,16 @@ export class SchedulerModel {
         );
 
         return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
+    }
+
+    async getSchedulersByUuid(
+        projectUuid: string,
+        schedulerUuids: string[],
+    ): Promise<SchedulerAndTargets[]> {
+        if (schedulerUuids.length === 0) {
+            return [];
+        }
+        return this.getSchedulerForProject(projectUuid, schedulerUuids);
     }
 
     async getSchedulerLogs({
@@ -1204,7 +1227,7 @@ export class SchedulerModel {
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
         filters?: {
-            schedulerUuid?: string;
+            schedulerUuids?: string[];
             statuses?: SchedulerRunStatus[];
             createdByUserUuids?: string[];
             destinations?: string[];
@@ -1212,8 +1235,13 @@ export class SchedulerModel {
             resourceUuids?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerRun[]>> {
-        // Get all schedulers for the project to filter by
-        const schedulers = await this.getSchedulerForProject(projectUuid);
+        const schedulers =
+            filters?.schedulerUuids && filters.schedulerUuids.length > 0
+                ? await this.getSchedulersByUuid(
+                      projectUuid,
+                      filters.schedulerUuids,
+                  )
+                : await this.getSchedulerForProject(projectUuid);
 
         // Apply scheduler-level filters
         let filteredSchedulers = schedulers;
@@ -1225,9 +1253,10 @@ export class SchedulerModel {
             );
         }
 
-        if (filters?.schedulerUuid) {
-            filteredSchedulers = filteredSchedulers.filter(
-                (s) => s.schedulerUuid === filters.schedulerUuid,
+        if (filters?.schedulerUuids && filters.schedulerUuids.length > 0) {
+            const schedulerUuidSet = new Set(filters.schedulerUuids);
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                schedulerUuidSet.has(s.schedulerUuid),
             );
         }
 
@@ -1535,8 +1564,6 @@ export class SchedulerModel {
             },
         );
 
-        // Filter was applied in SQL before pagination - no post-processing needed
-        // Return correct pagination metadata from KnexPaginate
         return {
             pagination,
             data: runs,
