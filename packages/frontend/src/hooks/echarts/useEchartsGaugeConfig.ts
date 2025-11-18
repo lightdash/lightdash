@@ -125,7 +125,7 @@ const useEchartsGaugeConfig = ({
                     ]);
                 }
                 const normalizedThreshold =
-                    Math.min(section.max - min, max) / range;
+                    (Math.min(section.max, max) - min) / range;
                 sectionColors.push([normalizedThreshold, section.color]);
                 previousThreshold = normalizedThreshold;
             }
