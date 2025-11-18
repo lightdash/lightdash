@@ -636,10 +636,7 @@ export const getAiConfig = () => ({
     embeddingEnabled: process.env.AI_EMBEDDING_ENABLED === 'true',
     defaultProvider:
         process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
-    defaultEmbeddingModelProvider:
-        process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
-        process.env.AI_DEFAULT_PROVIDER ||
-        DEFAULT_DEFAULT_AI_PROVIDER,
+    defaultEmbeddingModelProvider: process.env.AI_DEFAULT_EMBEDDING_PROVIDER,
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
