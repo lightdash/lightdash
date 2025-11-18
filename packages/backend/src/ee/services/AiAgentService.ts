@@ -41,6 +41,7 @@ import {
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
+    ReadinessScore,
     ShareUrl,
     SlackPrompt,
     ToolDashboardArgs,
@@ -116,6 +117,7 @@ import {
 } from './ai/agents/agentV2';
 import { generateEmbedding } from './ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from './ai/agents/questionGenerator';
+import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -1289,6 +1291,42 @@ export class AiAgentService {
             Logger.error('Failed to generate thread title:', e);
             throw new Error('Failed to generate thread title');
         }
+    }
+
+    async evaluateReadiness(
+        user: SessionUser,
+        { agentUuid, projectUuid }: { agentUuid: string; projectUuid: string },
+    ): Promise<ReadinessScore> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const agent = await this.getAgent(user, agentUuid);
+
+        const explores = await this.getAvailableExplores(
+            user,
+            agent.projectUuid,
+            agent.tags,
+        );
+
+        const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+        });
+
+        const readinessScore = await evaluateAgentReadiness(
+            model,
+            explores,
+            agent.instruction,
+        );
+
+        return readinessScore;
     }
 
     async getArtifactVizQuery(
