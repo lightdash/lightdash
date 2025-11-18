@@ -49,6 +49,21 @@ export type FindExploresFn = (args: {
         dimensions: CatalogField[];
         metrics: CatalogField[];
     };
+    exploreSearchResults?: Array<{
+        name: string;
+        label: string;
+        description?: string;
+        aiHints?: string[];
+        searchRank?: number;
+    }>;
+    topMatchingFields?: Array<{
+        name: string;
+        label: string;
+        tableName: string;
+        fieldType: string;
+        searchRank?: number;
+        description?: string;
+    }>;
 }>;
 
 export type FindFieldFn = (

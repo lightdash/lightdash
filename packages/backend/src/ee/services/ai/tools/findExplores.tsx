@@ -4,7 +4,6 @@ import {
     CompiledMetric,
     convertToAiHints,
     Explore,
-    ExploreAmbiguityError,
     getItemId,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
@@ -50,13 +49,68 @@ function getCatalogChartUsage(
 const generateExploreResponse = ({
     explore,
     catalogFields,
+    exploreSearchResults,
+    topMatchingFields,
 }: Awaited<ReturnType<FindExploresFn>>) => {
     const baseTable = explore.tables[explore.baseTable];
     const aiHints = baseTable.aiHint
         ? convertToAiHints(baseTable.aiHint)
         : null;
 
-    return (
+    const searchResultsXml =
+        exploreSearchResults && exploreSearchResults.length > 1 ? (
+            <searchResults count={exploreSearchResults.length}>
+                <note>
+                    Multiple explores matched your search. The explore below was
+                    selected, but you can also consider these alternatives if
+                    the fields don't match your needs.
+                </note>
+                {exploreSearchResults.slice(0, 5).map((result, i) => (
+                    <alternative
+                        name={result.name}
+                        searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
+                        selected={result.name === explore.name}
+                    >
+                        <label>{result.label}</label>
+                        {result.description && (
+                            <description>{result.description}</description>
+                        )}
+                        {result.aiHints && result.aiHints.length > 0 && (
+                            <aiHints>
+                                {result.aiHints.map((hint) => (
+                                    <hint>{hint}</hint>
+                                ))}
+                            </aiHints>
+                        )}
+                    </alternative>
+                ))}
+            </searchResults>
+        ) : null;
+
+    const topFieldsXml =
+        topMatchingFields && topMatchingFields.length > 0 ? (
+            <topMatchingFields count={topMatchingFields.length}>
+                <note>
+                    Here are the top matching fields across all explores. Use
+                    this to determine which explore is most relevant.
+                </note>
+                {topMatchingFields.map((field, i) => (
+                    <field
+                        name={field.name}
+                        exploreName={field.tableName}
+                        fieldType={field.fieldType}
+                        searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
+                    >
+                        <label>{field.label}</label>
+                        {field.description && (
+                            <description>{field.description}</description>
+                        )}
+                    </field>
+                ))}
+            </topMatchingFields>
+        ) : null;
+
+    const exploreXml = (
         <explore tableName={explore.name}>
             <label>{explore.label}</label>
             <basetable alt="ID of the base table">{baseTable.name}</basetable>
@@ -179,6 +233,10 @@ const generateExploreResponse = ({
                 ))}
         </explore>
     );
+
+    return `${searchResultsXml ? `${searchResultsXml.toString()}\n` : ''}${
+        topFieldsXml ? `${topFieldsXml.toString()}\n` : ''
+    }${exploreXml.toString()}`;
 };
 export const getFindExplores = ({
     findExplores,
@@ -204,7 +262,12 @@ export const getFindExplores = ({
                     );
                 }
 
-                const { explore, catalogFields } = await findExplores({
+                const {
+                    explore,
+                    catalogFields,
+                    exploreSearchResults,
+                    topMatchingFields,
+                } = await findExplores({
                     exploreName: args.exploreName,
                     fieldSearchSize,
                     searchQuery: args.searchQuery,
@@ -214,81 +277,14 @@ export const getFindExplores = ({
                     result: generateExploreResponse({
                         explore,
                         catalogFields,
-                    }).toString(),
+                        exploreSearchResults,
+                        topMatchingFields,
+                    }),
                     metadata: {
                         status: 'success',
                     },
                 };
             } catch (error) {
-                // Handle ambiguity error specially - provide formatted candidate list
-                if (error instanceof ExploreAmbiguityError) {
-                    const ambiguityResponse = (
-                        <ambiguity message="Multiple explores match your query. Please ask the user to clarify which one they mean.">
-                            <candidates count={error.candidates.length}>
-                                {error.candidates.map((c, i) => (
-                                    <candidate
-                                        rank={i + 1}
-                                        name={c.name}
-                                        relevance={
-                                            c.searchRank?.toFixed(3) ?? 'N/A'
-                                        }
-                                    >
-                                        <label>{c.label}</label>
-                                        {c.description && (
-                                            <description>
-                                                {c.description}
-                                            </description>
-                                        )}
-                                        {c.matchingFields &&
-                                            c.matchingFields.length > 0 && (
-                                                <matchingFields
-                                                    count={
-                                                        c.matchingFields.length
-                                                    }
-                                                >
-                                                    {c.matchingFields.map(
-                                                        (f) => (
-                                                            <field
-                                                                name={f.name}
-                                                                relevance={
-                                                                    f.searchRank?.toFixed(
-                                                                        3,
-                                                                    ) ?? 'N/A'
-                                                                }
-                                                            >
-                                                                {f.label}
-                                                            </field>
-                                                        ),
-                                                    )}
-                                                </matchingFields>
-                                            )}
-                                        {c.aiHints && c.aiHints.length > 0 && (
-                                            <aiHints>
-                                                {c.aiHints.map((hint) => (
-                                                    <hint>{hint}</hint>
-                                                ))}
-                                            </aiHints>
-                                        )}
-                                    </candidate>
-                                ))}
-                            </candidates>
-                            <instruction>
-                                Ask the user: "Which table would you like to
-                                use?"
-                            </instruction>
-                        </ambiguity>
-                    );
-
-                    return {
-                        result: ambiguityResponse.toString(),
-                        metadata: {
-                            status: 'error',
-                            errorType: 'ambiguity',
-                            candidates: error.candidates,
-                        },
-                    };
-                }
-
                 return {
                     result: toolErrorHandler(error, `Error listing explores.`),
                     metadata: {

@@ -5,11 +5,16 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Lists Explore along with their joined tables, all fields, hints for you (Ai Hints) and descriptions.
+Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 10 matching fields across ALL explores.
 
-Usage Tips:
-- Use this to understand the structure of an Explore before calling findFields.
-- All fields are returned as well as their field ids, descriptions labels and ai hints.
+Parameters:
+- exploreName: Name of the explore to retrieve
+- searchQuery: Full user query for finding relevant explores
+
+Output:
+- Selected explore with all fields and metadata
+- Alternative explores (if multiple matches) with searchRank scores
+- Top matching fields with their explore names and searchRank scores
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema({

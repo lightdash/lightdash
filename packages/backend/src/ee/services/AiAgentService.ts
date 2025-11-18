@@ -134,7 +134,6 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
-import { checkExploreAmbiguity } from './ai/utils/exploreAmbiguityChecker';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
@@ -2301,10 +2300,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                let soloCandidateExploreName: string | undefined;
-                // When searchQuery is provided, perform catalog search to check for ambiguity
+                // Search for explores if searchQuery provided
+                let exploreSearchResults;
+                let topMatchingFields;
                 if (args.searchQuery) {
-                    const exploreSearchResults =
+                    const searchResults =
                         await this.catalogService.searchCatalog({
                             projectUuid,
                             userAttributes,
@@ -2321,62 +2321,79 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             fullTextSearchOperator: 'OR',
                         });
 
-                    const exploreResults = exploreSearchResults.data.filter(
-                        (item) => item.type === CatalogType.Table,
-                    ) as CatalogTable[];
+                    exploreSearchResults = searchResults.data
+                        .filter((item) => item.type === CatalogType.Table)
+                        .map((table) => ({
+                            name: table.name,
+                            label: table.label,
+                            description: table.description,
+                            aiHints: table.aiHints ?? undefined,
+                            searchRank: table.searchRank,
+                        }));
 
-                    // If multiple explores found, search fields to help disambiguate
-                    let fieldSearchResults: CatalogField[] | undefined;
-                    if (exploreResults.length >= 2) {
-                        const fieldResults =
-                            await this.catalogService.searchCatalog({
-                                projectUuid,
-                                userAttributes,
-                                catalogSearch: {
-                                    searchQuery: args.searchQuery,
-                                    type: CatalogType.Field,
-                                    catalogTags:
-                                        agentSettings.tags ?? undefined,
-                                },
-                                context: CatalogSearchContext.AI_AGENT,
-                                paginateArgs: {
-                                    page: 1,
-                                    pageSize: 50, // Get top 50 fields
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-                        fieldSearchResults = fieldResults.data.filter(
-                            (item) => item.type === CatalogType.Field,
-                        ) as CatalogField[];
-                    }
+                    // ALWAYS search for fields to help agent decide - fields are the primary signal
+                    const fieldSearchResults =
+                        await this.catalogService.searchCatalog({
+                            projectUuid,
+                            userAttributes,
+                            catalogSearch: {
+                                searchQuery: args.searchQuery,
+                                type: CatalogType.Field,
+                                catalogTags: agentSettings.tags ?? undefined,
+                            },
+                            context: CatalogSearchContext.AI_AGENT,
+                            paginateArgs: {
+                                page: 1,
+                                pageSize: 10, // Top 10 most relevant fields
+                            },
+                            fullTextSearchOperator: 'OR',
+                        });
 
-                    const ambiguityCheck = checkExploreAmbiguity(
-                        exploreResults,
-                        args.exploreName,
-                        fieldSearchResults,
-                    );
-
-                    if (ambiguityCheck.candidates.length === 1) {
-                        soloCandidateExploreName =
-                            ambiguityCheck.candidates[0].name;
-                    }
-
-                    if (ambiguityCheck.isAmbiguous) {
-                        // Throw error with candidates - LLM will catch and ask user
-                        throw new ExploreAmbiguityError(
-                            `Multiple explores match your query "${args.searchQuery}". Please specify which one you'd like to use.`,
-                            ambiguityCheck.candidates,
-                        );
-                    }
+                    topMatchingFields = fieldSearchResults.data
+                        .filter((item) => item.type === CatalogType.Field)
+                        .map((field) => ({
+                            name: field.name,
+                            label: field.label,
+                            tableName: field.tableName,
+                            fieldType: field.fieldType,
+                            searchRank: field.searchRank,
+                            description: field.description,
+                        }));
                 }
 
+                // Select which explore to fetch details for
+                // Prioritize field evidence over explore names
+                // The LLM will use the system prompt rules to decide whether to use this explore,
+                // switch to a different one, or ask for clarification based on topMatchingFields
+                let exploreNameToUse: string | undefined;
+
+                if (topMatchingFields && topMatchingFields.length > 0) {
+                    exploreNameToUse = topMatchingFields[0].tableName;
+                } else if (
+                    exploreSearchResults &&
+                    exploreSearchResults.length > 0
+                ) {
+                    exploreNameToUse = exploreSearchResults[0].name;
+                } else {
+                    exploreNameToUse = args.exploreName;
+                }
+
+                // If no explore name determined from search, we can't proceed
+                if (!exploreNameToUse || exploreNameToUse.trim() === '') {
+                    throw new NotFoundError(
+                        `No explores found matching "${args.searchQuery}". The search did not return any matching explores or fields. Please try a different search query or provide a specific explore name.`,
+                    );
+                }
+
+                // Get the explore (either top search result or requested name)
                 const explore = await this.getExplore(
                     user,
                     projectUuid,
                     agentSettings.tags,
-                    soloCandidateExploreName ?? args.exploreName,
+                    exploreNameToUse,
                 );
 
+                // Get fields for the selected explore
                 const sharedArgs = {
                     projectUuid,
                     catalogSearch: {
@@ -2431,6 +2448,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             (m) => m.type === CatalogType.Field,
                         ),
                     },
+                    exploreSearchResults,
+                    topMatchingFields,
                 };
             });
 
