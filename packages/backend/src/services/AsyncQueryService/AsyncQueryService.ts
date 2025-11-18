@@ -1787,11 +1787,16 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     // Generate cache key from project and query identifiers
+                    // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
                     const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
                             timezone: metricQuery.timezone,
+                            userUuid:
+                                warehouseCredentials.userWarehouseCredentialsUuid
+                                    ? account.user.id
+                                    : undefined,
                         },
                     );
 
