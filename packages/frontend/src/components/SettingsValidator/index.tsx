@@ -10,6 +10,7 @@ import {
     Box,
     Button,
     Checkbox,
+    Code,
     Group,
     Highlight,
     Loader,
@@ -97,26 +98,37 @@ const FixValidationErrorModal: FC<{
                     e.fieldName === validationError?.fieldName,
             ).length;
         } else if (renameType === RenameType.MODEL) {
-            const tableName = savedQuery?.tableName;
+            const tableName = oldName ?? savedQuery?.tableName;
 
             return allValidationErrors.filter(
                 (e) =>
                     isChartValidationError(e) &&
-                    (e.fieldName || '').startsWith(tableName || ''),
+                    (e.fieldName || '').startsWith(tableName ?? ''),
             ).length;
         } else {
-            assertUnreachable(
+            return assertUnreachable(
                 renameType,
                 `Unexpected rename type ${renameType}`,
             );
         }
-    }, [validationError, allValidationErrors, renameType, savedQuery]);
+    }, [validationError, allValidationErrors, renameType, savedQuery, oldName]);
+
+    const fieldName = validationError?.fieldName;
+
+    // Check if the field belongs to the chart's base table
+    const fieldBaseTableNameCandidate = useMemo(() => {
+        if (!fieldName || !savedQuery?.tableName) return '';
+        if (fieldName.startsWith(savedQuery?.tableName ?? ''))
+            return savedQuery?.tableName;
+        return fieldName.split('_')[0];
+    }, [fieldName, savedQuery?.tableName]);
+
+    const isFieldFromBaseTable =
+        fieldBaseTableNameCandidate === savedQuery?.tableName;
 
     if (!validationError) {
         return null;
     }
-
-    const fieldName = validationError.fieldName;
 
     const handleClose = () => {
         setOldName(undefined);
@@ -194,7 +206,7 @@ const FixValidationErrorModal: FC<{
                                 setOldName(fieldName);
                                 break;
                             case RenameType.MODEL:
-                                setOldName(savedQuery?.tableName);
+                                setOldName(fieldBaseTableNameCandidate);
                                 break;
                             default:
                                 assertUnreachable(
@@ -252,11 +264,25 @@ const FixValidationErrorModal: FC<{
                 ) : renameType === RenameType.MODEL ? (
                     <Stack>
                         <TextInput
-                            disabled
+                            disabled={isFieldFromBaseTable}
                             label="Old model"
-                            defaultValue={fieldName}
+                            placeholder={
+                                isFieldFromBaseTable
+                                    ? undefined
+                                    : 'Enter the table name (e.g., customers)'
+                            }
                             value={oldName}
+                            onChange={(e) => setOldName(e.currentTarget.value)}
                         />
+                        {!isFieldFromBaseTable && (
+                            <Text size="xs" c="dimmed">
+                                The field <Code>{fieldName}</Code> doesn't
+                                belong to the base model for chart:{' '}
+                                <Code>{savedQuery?.tableName}</Code>. Enter the
+                                correct old model name to point the field to the
+                                correct model.
+                            </Text>
+                        )}
                         <Select
                             searchValue={search}
                             onSearchChange={setSearch}
