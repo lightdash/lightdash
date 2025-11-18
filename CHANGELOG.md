@@ -1,3 +1,11 @@
+# [0.2181.0](https://github.com/lightdash/lightdash/compare/0.2180.0...0.2181.0) (2025-11-18)
+
+
+### Features
+
+* add gauge chart visualization type ([#18150](https://github.com/lightdash/lightdash/issues/18150)) ([9b7b5f6](https://github.com/lightdash/lightdash/commit/9b7b5f6734bd06e25e14486caf12830d8de6b738))
+* remove dbt cloud project feature flag ([#18188](https://github.com/lightdash/lightdash/issues/18188)) ([61cae58](https://github.com/lightdash/lightdash/commit/61cae5835912548bf1462ad4db9b01fa6ab081d6))
+
 # [0.2180.0](https://github.com/lightdash/lightdash/compare/0.2179.2...0.2180.0) (2025-11-18)
 
 
