@@ -40,12 +40,11 @@ const VisualizationGaugeConfig: React.FC<VisualizationConfigGaugeProps> = ({
     );
 
     useEffect(() => {
-        if (!onChartConfigChange || !gaugeConfig.chartConfig.validConfig)
-            return;
+        if (!onChartConfigChange || !gaugeConfig.validConfig) return;
 
         onChartConfigChange({
             type: ChartType.GAUGE,
-            config: gaugeConfig.chartConfig.validConfig,
+            config: gaugeConfig.validConfig,
         });
     }, [gaugeConfig, onChartConfigChange]);
 

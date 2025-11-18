@@ -79,9 +79,7 @@ const useGaugeChartConfig = (
     return useMemo(
         () => ({
             chartType: ChartType.GAUGE as const,
-            chartConfig: {
-                validConfig,
-            },
+            validConfig,
             selectedField: effectiveSelectedField,
             setSelectedField,
             getField,

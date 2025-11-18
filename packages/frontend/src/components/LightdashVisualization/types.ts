@@ -30,10 +30,10 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
               fields?: ItemsMap;
           })
         | undefined;
-    initialChartConfig: any | undefined;
+    initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
         type: T['chartType'];
-        config: any;
+        config: T['chartConfig']['validConfig'];
     }) => void;
     children: (props: { visualizationConfig: T }) => JSX.Element;
     parameters?: ParametersValuesMap;
