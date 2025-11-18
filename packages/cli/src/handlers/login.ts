@@ -1,5 +1,4 @@
 import { AuthorizationError } from '@lightdash/common';
-import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -7,7 +6,6 @@ import { configFilePath, setContext, setDefaultUser } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
-import { generatePersonalAccessToken } from './login/pat';
 import { loginWithOauth } from './oauthLogin';
 import { setFirstProject, setProjectCommand } from './setProject';
 import { buildRequestHeaders } from './utils';
@@ -15,8 +13,6 @@ import { buildRequestHeaders } from './utils';
 type LoginOptions = {
     /** Associated with a Personal Access Token or Service Account Token */
     token?: string;
-    /** Use OAuth2 flow instead of password/token */
-    oauth?: boolean;
     /** Project UUID to select after login */
     project?: string;
     interactive?: boolean;
@@ -25,9 +21,8 @@ type LoginOptions = {
 
 // Helper function to determine login method
 const getLoginMethod = (options: LoginOptions): string => {
-    if (options.oauth) return 'oauth';
     if (options.token) return 'token';
-    return 'password';
+    return 'oauth';
 };
 
 const loginWithToken = async (url: string, token: string) => {
@@ -51,68 +46,6 @@ const loginWithToken = async (url: string, token: string) => {
         userUuid,
         organizationUuid,
         token,
-    };
-};
-
-const loginWithPassword = async (url: string) => {
-    const answers = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'email',
-        },
-        {
-            type: 'password',
-            name: 'password',
-        },
-    ]);
-    const { email, password } = answers;
-    const loginUrl = new URL(`/api/v1/login`, url).href;
-    const response = await fetch(loginUrl, {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
-    GlobalState.debug(`> Login response status: ${response.status}`);
-
-    switch (response.status) {
-        case 200:
-            break;
-        case 401:
-            throw new AuthorizationError(
-                `Unable to authenticate: invalid email or password`,
-            );
-        default:
-            // This error doesn't return a valid JSON, so we use .text instead
-            throw new AuthorizationError(
-                `Unable to authenticate: (${
-                    response.status
-                }) ${await response.text()}\nIf you use single sign-on (SSO) in the browser, login with a personal access token.`,
-            );
-    }
-
-    const loginBody = await response.json();
-    const header = response.headers.get('set-cookie');
-    if (header === null) {
-        throw new AuthorizationError(
-            `Cannot sign in:\n${JSON.stringify(loginBody)}`,
-        );
-    }
-    const { userUuid, organizationUuid } = loginBody.results;
-    const cookie = header.split(';')[0].split('=')[1];
-
-    const patToken = await generatePersonalAccessToken(
-        {
-            Cookie: `connect.sid=${cookie}`,
-        },
-        url,
-    );
-
-    return {
-        userUuid,
-        organizationUuid,
-        token: patToken,
     };
 };
 
@@ -144,12 +77,10 @@ export const login = async (url: string, options: LoginOptions) => {
     }
 
     let loginResult;
-    if (options.oauth) {
-        loginResult = await loginWithOauth(url);
-    } else if (options.token) {
+    if (options.token) {
         loginResult = await loginWithToken(url, options.token);
     } else {
-        loginResult = await loginWithPassword(url);
+        loginResult = await loginWithOauth(url);
     }
 
     const { userUuid, token, organizationUuid } = loginResult;

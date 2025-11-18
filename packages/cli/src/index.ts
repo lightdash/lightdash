@@ -147,7 +147,7 @@ program
     .command('login <url>')
     .description('Logs in to a Lightdash instance')
     .description(
-        'Logs in to a Lightdash instance.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
+        'Logs in to a Lightdash instance using OAuth2 (opens browser). Use --token to bypass OAuth.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
     )
     .addHelpText(
         'after',
@@ -156,36 +156,26 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://app.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud US instance',
+            '-- Logs in to Lightdash Cloud US instance (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://eu1.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud EU instance',
+            '-- Logs in to Lightdash Cloud EU instance (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain ${styles.secondary(
-            '-- Logs in to a self-hosted instance at a custom domain',
+            '-- Logs in to a self-hosted instance (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
-            '-- Logs in with an API access token (useful for users that use SSO in the browser)',
-        )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
-            'login',
-        )} https://custom.lightdash.domain --oauth ${styles.secondary(
-            '-- Logs in using OAuth2 flow (opens browser for authentication)',
+            '-- Logs in with an API access token (bypasses OAuth, useful for SSO users or CI/CD)',
         )}
 `,
     )
     .option('--token <token>', 'Login with an API access token', undefined)
-    .option(
-        '--oauth',
-        'Login using OAuth2 flow (opens browser for authentication)',
-        false,
-    )
     .option(
         '--project <project uuid>',
         'Select a project by UUID after login',
