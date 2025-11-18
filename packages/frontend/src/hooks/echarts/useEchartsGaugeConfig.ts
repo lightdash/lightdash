@@ -79,7 +79,7 @@ const useEchartsGaugeConfig = ({
             max = 100,
             showAxisLabels,
             sections,
-        } = chartConfig.chartConfig.validConfig;
+        } = chartConfig.validConfig;
 
         // Get the first row of data
         const rows = resultsData.rows;
