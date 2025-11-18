@@ -64,12 +64,23 @@ export class QueryHistoryModel {
         resultsIdentifiers: {
             sql: string;
             timezone?: string;
+            userUuid?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
-        const queryHashKey = resultsIdentifiers.timezone
-            ? `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
-            : `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}`;
+        let queryHashKey = `${CACHE_VERSION}.${projectUuid}`;
+
+        // Include user UUID in cache key to prevent sharing cache between users
+        // when user-specific warehouse credentials are in use
+        if (resultsIdentifiers.userUuid) {
+            queryHashKey += `.${resultsIdentifiers.userUuid}`;
+        }
+
+        queryHashKey += `.${resultsIdentifiers.sql}`;
+
+        if (resultsIdentifiers.timezone) {
+            queryHashKey += `.${resultsIdentifiers.timezone}`;
+        }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
