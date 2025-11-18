@@ -1,30 +1,10 @@
 import { AuthorizationError } from '@lightdash/common';
-import { exec } from 'child_process';
 import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators } from 'openid-client';
 import { URL } from 'url';
-import { promisify } from 'util';
 import GlobalState from '../../../globalState';
-
-const execAsync = promisify(exec);
-
-// Helper function to open browser
-const openBrowser = async (url: string): Promise<void> => {
-    try {
-        const { platform } = process;
-
-        if (platform === 'darwin') {
-            await execAsync(`open "${url}"`);
-        } else if (platform === 'win32') {
-            await execAsync(`start "${url}"`);
-        } else {
-            await execAsync(`xdg-open "${url}"`);
-        }
-    } catch (error) {
-        GlobalState.debug(`> Could not open browser automatically: ${error}`);
-    }
-};
+import { openBrowser } from '../../../handlers/login/oauth';
 
 /**
  * Databricks OAuth tokens result
@@ -122,33 +102,11 @@ export const performDatabricksOAuthFlow = async (
     });
 
     // Start the server on port 8020 (standard for Databricks CLI)
-    // If that fails, try random port
     const preferredPort = 8020;
     await new Promise<void>((resolve, reject) => {
         server.on('error', (err: NodeJS.ErrnoException) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port 8020 is busy, try random port
-                GlobalState.debug(
-                    `> Port ${preferredPort} is busy, using random port`,
-                );
-                server.listen(0, () => {
-                    const address = server.address();
-                    if (address === null)
-                        throw new Error('Failed to get server address');
-
-                    if (typeof address === 'object') {
-                        port = address.port;
-                    } else {
-                        port = parseInt(address.toString(), 10);
-                    }
-                    GlobalState.debug(
-                        `> OAuth callback server listening on port ${port}`,
-                    );
-                    resolve();
-                });
-            } else {
-                reject(err);
-            }
+            // perhaps 8020 port is busy, but we can't use a random port
+            reject(err);
         });
 
         server.listen(preferredPort, () => {
