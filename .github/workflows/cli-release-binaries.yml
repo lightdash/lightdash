@@ -113,6 +113,10 @@ jobs:
         if: steps.cache-warehouses.outputs.cache-hit != 'true'
         run: pnpm warehouses-build
 
+      - name: Build CLI package
+        working-directory: packages/cli
+        run: pnpm build
+
       - name: Import Code Signing Certificate
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
