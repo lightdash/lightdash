@@ -89,7 +89,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false
 
       - name: Cache common build
         id: cache-common
@@ -112,6 +112,10 @@ jobs:
       - name: Build warehouses package
         if: steps.cache-warehouses.outputs.cache-hit != 'true'
         run: pnpm warehouses-build
+
+      - name: Build CLI package
+        working-directory: packages/cli
+        run: pnpm build
 
       - name: Import Code Signing Certificate
         env:
@@ -252,7 +256,8 @@ jobs:
             end
 
             # Update ARM64 SHA (line after ARM64 URL)
-            if $_.include?("macos-arm64") and @next_sha_is_arm64 = true
+            if $_.include?("macos-arm64")
+              @next_sha_is_arm64 = true
             elsif @next_sha_is_arm64 and /sha256/
               gsub(/sha256\s+"[^"]+"/, "sha256 \"#{arm64_sha}\"")
               @next_sha_is_arm64 = false
