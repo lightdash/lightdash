@@ -2,12 +2,10 @@ import {
     assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
-    FeatureFlags,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Anchor, Select, Stack, TextInput } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
@@ -55,9 +53,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const toggleAdvancedSettingsOpen = () =>
         setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
-    const isEnabled = useFeatureFlagEnabled(
-        FeatureFlags.ShowDbtCloudProjectOption,
-    );
     const options = useMemo(() => {
         const enabledTypes = [
             DbtProjectType.GITHUB,
@@ -66,19 +61,17 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             DbtProjectType.AZURE_DEVOPS,
             DbtProjectType.NONE,
             DbtProjectType.MANIFEST,
+            DbtProjectType.DBT_CLOUD_IDE,
         ];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(DbtProjectType.DBT);
-        }
-        if (isEnabled || type === DbtProjectType.DBT_CLOUD_IDE) {
-            enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
         }
 
         return enabledTypes.map((value) => ({
             value,
             label: DbtProjectTypeLabels[value],
         }));
-    }, [isEnabled, health, type]);
+    }, [health]);
 
     const DbtForm = useMemo(() => {
         switch (type) {

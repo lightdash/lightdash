@@ -1,13 +1,16 @@
 import { AuthorizationError } from '@lightdash/common';
-import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { configFilePath, setContext, setDefaultUser } from '../config';
+import {
+    configFilePath,
+    getConfig,
+    setContext,
+    setDefaultUser,
+} from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
-import { generatePersonalAccessToken } from './login/pat';
 import { loginWithOauth } from './oauthLogin';
 import { setFirstProject, setProjectCommand } from './setProject';
 import { buildRequestHeaders } from './utils';
@@ -15,19 +18,53 @@ import { buildRequestHeaders } from './utils';
 type LoginOptions = {
     /** Associated with a Personal Access Token or Service Account Token */
     token?: string;
-    /** Use OAuth2 flow instead of password/token */
-    oauth?: boolean;
     /** Project UUID to select after login */
     project?: string;
     interactive?: boolean;
     verbose: boolean;
 };
 
+/**
+ * Normalizes a URL input to make it more user-friendly:
+ * - Single words (e.g., "app") become subdomains of lightdash.cloud (e.g., "https://app.lightdash.cloud")
+ * - Missing protocol defaults to https://
+ * - Any path is stripped (e.g., "https://app.lightdash.cloud/projects/123" -> "https://app.lightdash.cloud")
+ * - Preserves explicitly provided protocols (http:// or https://)
+ *
+ * @param input - The URL input from the user
+ * @returns Normalized URL with protocol and host only
+ *
+ * @example
+ * normalizeUrl("app") // "https://app.lightdash.cloud"
+ * normalizeUrl("app.lightdash.cloud") // "https://app.lightdash.cloud"
+ * normalizeUrl("https://app.lightdash.cloud/projects/123") // "https://app.lightdash.cloud"
+ * normalizeUrl("http://localhost:3000") // "http://localhost:3000"
+ * normalizeUrl("custom.domain.com") // "https://custom.domain.com"
+ */
+const normalizeUrl = (input: string): string => {
+    let url = input.trim();
+
+    // If it's a single word (no dots, slashes, or colons), assume it's a lightdash.cloud subdomain
+    if (!url.includes('/') && !url.includes('.') && !url.includes(':')) {
+        url = `${url}.lightdash.cloud`;
+    }
+
+    // If no protocol is specified, add https://
+    if (!url.match(/^https?:\/\//)) {
+        url = `https://${url}`;
+    }
+
+    // Parse the URL to extract protocol, hostname, and port (strips path)
+    const parsedUrl = new URL(url);
+
+    // Return only protocol + host (host includes hostname and port)
+    return `${parsedUrl.protocol}//${parsedUrl.host}`;
+};
+
 // Helper function to determine login method
 const getLoginMethod = (options: LoginOptions): string => {
-    if (options.oauth) return 'oauth';
     if (options.token) return 'token';
-    return 'password';
+    return 'oauth';
 };
 
 const loginWithToken = async (url: string, token: string) => {
@@ -54,73 +91,44 @@ const loginWithToken = async (url: string, token: string) => {
     };
 };
 
-const loginWithPassword = async (url: string) => {
-    const answers = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'email',
-        },
-        {
-            type: 'password',
-            name: 'password',
-        },
-    ]);
-    const { email, password } = answers;
-    const loginUrl = new URL(`/api/v1/login`, url).href;
-    const response = await fetch(loginUrl, {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
-    GlobalState.debug(`> Login response status: ${response.status}`);
-
-    switch (response.status) {
-        case 200:
-            break;
-        case 401:
-            throw new AuthorizationError(
-                `Unable to authenticate: invalid email or password`,
-            );
-        default:
-            // This error doesn't return a valid JSON, so we use .text instead
-            throw new AuthorizationError(
-                `Unable to authenticate: (${
-                    response.status
-                }) ${await response.text()}\nIf you use single sign-on (SSO) in the browser, login with a personal access token.`,
-            );
-    }
-
-    const loginBody = await response.json();
-    const header = response.headers.get('set-cookie');
-    if (header === null) {
-        throw new AuthorizationError(
-            `Cannot sign in:\n${JSON.stringify(loginBody)}`,
-        );
-    }
-    const { userUuid, organizationUuid } = loginBody.results;
-    const cookie = header.split(';')[0].split('=')[1];
-
-    const patToken = await generatePersonalAccessToken(
-        {
-            Cookie: `connect.sid=${cookie}`,
-        },
-        url,
-    );
-
-    return {
-        userUuid,
-        organizationUuid,
-        token: patToken,
-    };
-};
-
-export const login = async (url: string, options: LoginOptions) => {
+export const login = async (
+    urlInput: string | undefined,
+    options: LoginOptions,
+) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
-    GlobalState.debug(`> Login URL: ${url}`);
+    // If no URL provided, try to use the saved URL from config
+    let resolvedUrlInput = urlInput;
+    if (!resolvedUrlInput) {
+        const config = await getConfig();
+        if (config.context?.serverUrl) {
+            resolvedUrlInput = config.context.serverUrl;
+            console.error(
+                `${styles.secondary(`Using saved URL: ${resolvedUrlInput}`)}`,
+            );
+        } else {
+            throw new AuthorizationError(
+                `No URL provided and no saved URL found. Please provide a URL:\n\n  ${styles.bold(
+                    '⚡️ lightdash login <url>',
+                )}\n\nExamples:\n  ${styles.bold(
+                    '⚡️ lightdash login app',
+                )} ${styles.secondary(
+                    '(for https://app.lightdash.cloud)',
+                )}\n  ${styles.bold(
+                    '⚡️ lightdash login https://custom.domain.com',
+                )}`,
+            );
+        }
+    }
+
+    // Normalize the URL input to handle various formats
+    const url = normalizeUrl(resolvedUrlInput);
+
+    if (urlInput) {
+        GlobalState.debug(`> Original URL input: ${urlInput}`);
+    }
+    GlobalState.debug(`> Normalized URL: ${url}`);
 
     const loginMethod = getLoginMethod(options);
 
@@ -144,12 +152,10 @@ export const login = async (url: string, options: LoginOptions) => {
     }
 
     let loginResult;
-    if (options.oauth) {
-        loginResult = await loginWithOauth(url);
-    } else if (options.token) {
+    if (options.token) {
         loginResult = await loginWithToken(url, options.token);
     } else {
-        loginResult = await loginWithPassword(url);
+        loginResult = await loginWithOauth(url);
     }
 
     const { userUuid, token, organizationUuid } = loginResult;

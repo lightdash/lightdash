@@ -228,6 +228,9 @@ jobs:
                   DBT_DEMO_DIR: ${{ github.workspace }}/examples/full-jaffle-shop-demo
                   LD_SETUP_DBT_VERSION: v1.7
                   SKIP_TEST_MIGRATIONS: 'true'
+                  # TODO :: Support embeddings (Verifying Answers)
+                  AI_EMBEDDING_ENABLED: false
+                  AI_DEFAULT_EMBEDDING_PROVIDER: 'openai'
 
             - name: Upload test results
               uses: actions/upload-artifact@v4

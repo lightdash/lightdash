@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.2178.4",
+    "version": "0.2182.0",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -29,7 +29,7 @@
         "echarts": "^6.0.0",
         "fast-json-patch": "^3.1.1",
         "handlebars": "^4.7.8",
-        "js-yaml": "^4.1.0",
+        "js-yaml": "^4.1.1",
         "liquidjs": "^10.0.0",
         "lodash": "^4.17.21",
         "moment": "^2.29.4",

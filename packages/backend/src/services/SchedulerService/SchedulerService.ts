@@ -19,6 +19,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotExistsError,
+    NotFoundError,
     ParameterError,
     ScheduledJobs,
     Scheduler,
@@ -26,6 +27,9 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerRun,
+    SchedulerRunLogsResponse,
+    SchedulerRunStatus,
     SchedulerWithLogs,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
@@ -43,6 +47,8 @@ import {
     getSchedulerTargetType,
     SchedulerLogDb,
 } from '../../database/entities/scheduler';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -687,5 +693,136 @@ export class SchedulerService extends BaseService {
         const schedulerUpdates = await Promise.all(schedulerUpdatePromises);
 
         await this.schedulerModel.bulkUpdateSchedulersCron(schedulerUpdates);
+    }
+
+    async getSchedulerRuns(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            schedulerUuid?: string;
+            statuses?: SchedulerRunStatus[];
+            createdByUserUuids?: string[];
+            destinations?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        // Only allow editors to view scheduler runs
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const schedulerRuns = await this.schedulerModel.getSchedulerRuns({
+            projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
+        });
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'scheduled_delivery_runs.viewed',
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
+                numRuns: schedulerRuns.data.length,
+            },
+        });
+
+        return schedulerRuns;
+    }
+
+    async getRunLogs(
+        user: SessionUser,
+        runId: string,
+    ): Promise<SchedulerRunLogsResponse> {
+        // Fetch the run logs
+        const runLogs = await this.schedulerModel.getRunLogs(runId);
+
+        // Get project details for authorization check
+        const scheduler = await this.schedulerModel.getScheduler(
+            runLogs.schedulerUuid,
+        );
+
+        // Determine projectUuid based on resource type
+        let projectUuid: string;
+        if (scheduler.savedChartUuid) {
+            try {
+                const chart = await this.savedChartModel.get(
+                    scheduler.savedChartUuid,
+                );
+                projectUuid = chart.projectUuid;
+            } catch (error) {
+                throw new NotFoundError(
+                    'Chart referenced by scheduler no longer exists',
+                );
+            }
+        } else if (scheduler.dashboardUuid) {
+            try {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    scheduler.dashboardUuid,
+                );
+                projectUuid = dashboard.projectUuid;
+            } catch (error) {
+                throw new NotFoundError(
+                    'Dashboard referenced by scheduler no longer exists',
+                );
+            }
+        } else {
+            throw new NotFoundError('Scheduler resource not found');
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        // Only allow editors to view run logs
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'scheduled_delivery_run_logs.viewed',
+            properties: {
+                runId,
+                schedulerUuid: runLogs.schedulerUuid,
+                organizationId: user.organizationUuid,
+                projectId: projectUuid,
+                numLogs: runLogs.logs.length,
+            },
+        });
+
+        return runLogs;
     }
 }

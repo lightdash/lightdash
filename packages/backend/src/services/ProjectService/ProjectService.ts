@@ -172,6 +172,7 @@ import {
 import {
     BigqueryWarehouseClient,
     exchangeDatabricksOAuthCredentials,
+    refreshDatabricksOAuthToken,
     SshTunnel,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -809,6 +810,52 @@ export class ProjectService extends BaseService {
                 );
                 throw new UnexpectedServerError(
                     'Error refreshing databricks token',
+                );
+            }
+        }
+
+        if (
+            args.type === WarehouseTypes.DATABRICKS &&
+            args.authenticationType === DatabricksAuthenticationType.OAUTH_U2M
+        ) {
+            try {
+                // For U2M OAuth, refresh token should be stored in credentials
+                const { refreshToken } = args;
+
+                if (!refreshToken) {
+                    throw new Error(
+                        'No refresh token available for Databricks U2M OAuth authentication',
+                    );
+                }
+
+                this.logger.debug(
+                    `Refreshing databricks U2M OAuth token for user ${userUuid}`,
+                );
+
+                const { accessToken, refreshToken: newRefreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        args.serverHostName,
+                        args.oauthClientId || 'databricks-cli',
+                        refreshToken,
+                    );
+
+                return {
+                    ...args,
+                    authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+                    token: accessToken,
+                    refreshToken: newRefreshToken, // Update in case token was rotated
+                };
+            } catch (e: unknown) {
+                if (e instanceof LightdashError) {
+                    throw e;
+                }
+                this.logger.error(
+                    `Error refreshing databricks U2M OAuth token: ${JSON.stringify(
+                        e,
+                    )}`,
+                );
+                throw new UnexpectedServerError(
+                    'Error refreshing databricks U2M OAuth token',
                 );
             }
         }
@@ -2048,6 +2095,30 @@ export class ProjectService extends BaseService {
                         project.warehouseConnection.refreshToken,
                     );
                 project.warehouseConnection.token = accessToken;
+            }
+        }
+
+        if (
+            project.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            project.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_U2M
+        ) {
+            // For U2M OAuth, check if token needs refresh
+            if (project.warehouseConnection.refreshToken) {
+                this.logger.debug(
+                    `Refreshing databricks U2M OAuth token from refresh token on buildAdapter`,
+                );
+                const { accessToken, refreshToken } =
+                    await refreshDatabricksOAuthToken(
+                        project.warehouseConnection.serverHostName,
+                        project.warehouseConnection.oauthClientId ||
+                            'databricks-cli',
+                        project.warehouseConnection.refreshToken,
+                    );
+                project.warehouseConnection.token = accessToken;
+                // Update refresh token in case it was rotated
+                project.warehouseConnection.refreshToken = refreshToken;
+                // Note: Updated tokens will be persisted when project credentials are next saved
             }
         }
 

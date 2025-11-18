@@ -1,3 +1,61 @@
+# [0.2182.0](https://github.com/lightdash/lightdash/compare/0.2181.0...0.2182.0) (2025-11-18)
+
+
+### Bug Fixes
+
+* refresh token for databrics U2M ([#18102](https://github.com/lightdash/lightdash/issues/18102)) ([a0a6d95](https://github.com/lightdash/lightdash/commit/a0a6d953b36b4c02ee3767d1c5862486b9280609))
+
+
+### Features
+
+* default oauth for cli login ([#18191](https://github.com/lightdash/lightdash/issues/18191)) ([187d8dd](https://github.com/lightdash/lightdash/commit/187d8dda0d1b3cc116c5d2a480422e6f92cae8a3))
+* easier login options for the CLI ([#18192](https://github.com/lightdash/lightdash/issues/18192)) ([b12d48f](https://github.com/lightdash/lightdash/commit/b12d48f433bea14383a08c46346530b36337f13b))
+* key results cache on userUuid when using warehouse credentials ([#18194](https://github.com/lightdash/lightdash/issues/18194)) ([823c210](https://github.com/lightdash/lightdash/commit/823c210e10ccfe7b7c1034bac5c6e7bfa555a6bc))
+
+# [0.2181.0](https://github.com/lightdash/lightdash/compare/0.2180.0...0.2181.0) (2025-11-18)
+
+
+### Features
+
+* add gauge chart visualization type ([#18150](https://github.com/lightdash/lightdash/issues/18150)) ([9b7b5f6](https://github.com/lightdash/lightdash/commit/9b7b5f6734bd06e25e14486caf12830d8de6b738))
+* remove dbt cloud project feature flag ([#18188](https://github.com/lightdash/lightdash/issues/18188)) ([61cae58](https://github.com/lightdash/lightdash/commit/61cae5835912548bf1462ad4db9b01fa6ab081d6))
+
+# [0.2180.0](https://github.com/lightdash/lightdash/compare/0.2179.2...0.2180.0) (2025-11-18)
+
+
+### Features
+
+* add Databricks OAuth U2M authentication support ([#18098](https://github.com/lightdash/lightdash/issues/18098)) ([0edaf9a](https://github.com/lightdash/lightdash/commit/0edaf9aaebdc7d2d75da003e3478f88c00271cd9)), closes [#18116](https://github.com/lightdash/lightdash/issues/18116) [#18116](https://github.com/lightdash/lightdash/issues/18116) [#18069](https://github.com/lightdash/lightdash/issues/18069) [#18069](https://github.com/lightdash/lightdash/issues/18069) [#18130](https://github.com/lightdash/lightdash/issues/18130) [#18130](https://github.com/lightdash/lightdash/issues/18130) [#18134](https://github.com/lightdash/lightdash/issues/18134) [#18134](https://github.com/lightdash/lightdash/issues/18134) [#18074](https://github.com/lightdash/lightdash/issues/18074) [#18074](https://github.com/lightdash/lightdash/issues/18074) [#18077](https://github.com/lightdash/lightdash/issues/18077) [#18077](https://github.com/lightdash/lightdash/issues/18077) [#18133](https://github.com/lightdash/lightdash/issues/18133) [#18133](https://github.com/lightdash/lightdash/issues/18133) [#18143](https://github.com/lightdash/lightdash/issues/18143) [#18143](https://github.com/lightdash/lightdash/issues/18143) [#18065](https://github.com/lightdash/lightdash/issues/18065) [#18065](https://github.com/lightdash/lightdash/issues/18065) [#18144](https://github.com/lightdash/lightdash/issues/18144) [#18125](https://github.com/lightdash/lightdash/issues/18125)
+
+## [0.2179.2](https://github.com/lightdash/lightdash/compare/0.2179.1...0.2179.2) (2025-11-18)
+
+
+### Bug Fixes
+
+* remove streaming error check from retry condition ([#18187](https://github.com/lightdash/lightdash/issues/18187)) ([1d9c558](https://github.com/lightdash/lightdash/commit/1d9c558d9cb4b20e412a5eb056df229ecec968ad))
+
+## [0.2179.1](https://github.com/lightdash/lightdash/compare/0.2179.0...0.2179.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* disable embeddings in AI agent integration tests ([#18183](https://github.com/lightdash/lightdash/issues/18183)) ([2ed86ae](https://github.com/lightdash/lightdash/commit/2ed86ae311f50db0dc8c892e52a4f0199e342a0b))
+* handle multibyte characters in JSONL streaming ([#18185](https://github.com/lightdash/lightdash/issues/18185)) ([2e9d8f3](https://github.com/lightdash/lightdash/commit/2e9d8f32f4eff59c8e239ee91aca168360533963)), closes [#17290](https://github.com/lightdash/lightdash/issues/17290)
+
+# [0.2179.0](https://github.com/lightdash/lightdash/compare/0.2178.5...0.2179.0) (2025-11-18)
+
+
+### Features
+
+* add S3BaseClient with configurable credential providers ([#18128](https://github.com/lightdash/lightdash/issues/18128)) ([3616cdb](https://github.com/lightdash/lightdash/commit/3616cdbf2dbfc5631b7843cea29a11acc1648c63))
+
+## [0.2178.5](https://github.com/lightdash/lightdash/compare/0.2178.4...0.2178.5) (2025-11-18)
+
+
+### Bug Fixes
+
+* include first value of the custom range for x axis ([#18172](https://github.com/lightdash/lightdash/issues/18172)) ([fead3c6](https://github.com/lightdash/lightdash/commit/fead3c677511f5e5f32751bf4bd83e475b321b8a))
+
 ## [0.2178.4](https://github.com/lightdash/lightdash/compare/0.2178.3...0.2178.4) (2025-11-17)
 
 

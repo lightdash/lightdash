@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2178.4",
+    "version": "0.2182.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -109,7 +109,7 @@
         "helmet": "^7.1.0",
         "immer": "^10.1.1",
         "jose": "^5.2.3",
-        "js-yaml": "^4.1.0",
+        "js-yaml": "^4.1.1",
         "jsonwebtoken": "^9.0.2",
         "knex": "^2.5.1",
         "langchain": "^0.3.13",

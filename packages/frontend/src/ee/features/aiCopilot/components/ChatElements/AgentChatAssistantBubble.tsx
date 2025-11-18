@@ -73,10 +73,8 @@ const AssistantBubbleContent: FC<{
     const mdStyle = useMdEditorStyle();
 
     const isPending = message.status === 'pending';
-    const hasStreamingError =
-        streamingState?.error && streamingState?.messageUuid === message.uuid;
     const hasNoResponse = !isStreaming && !message.message && !isPending;
-    const shouldShowRetry = hasStreamingError || hasNoResponse;
+    const shouldShowRetry = hasNoResponse;
 
     const baseMessageContent =
         isStreaming && streamingState

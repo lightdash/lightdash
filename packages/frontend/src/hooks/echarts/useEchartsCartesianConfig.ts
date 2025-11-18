@@ -2147,7 +2147,7 @@ const useEchartsCartesianConfig = (
                       const isGreaterThan =
                           min === undefined ||
                           typeof min !== 'string' ||
-                          value > min;
+                          value >= min;
 
                       return isGreaterThan;
                   })

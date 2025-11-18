@@ -1,8 +1,10 @@
 import {
+    AnyType,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     KnexPaginateArgs,
     KnexPaginatedData,
+    LogCounts,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
@@ -10,7 +12,12 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerMsTeamsTarget,
+    SchedulerRun,
+    SchedulerRunLog,
+    SchedulerRunLogsResponse,
+    SchedulerRunStatus,
     SchedulerSlackTarget,
+    SchedulerTaskName,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
     isChartScheduler,
@@ -1183,5 +1190,473 @@ export class SchedulerModel {
 
             await Promise.all(updatePromises);
         });
+    }
+
+    async getSchedulerRuns({
+        projectUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+        filters,
+    }: {
+        projectUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            schedulerUuid?: string;
+            statuses?: SchedulerRunStatus[];
+            createdByUserUuids?: string[];
+            destinations?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        // Get all schedulers for the project to filter by
+        const schedulers = await this.getSchedulerForProject(projectUuid);
+
+        // Apply scheduler-level filters
+        let filteredSchedulers = schedulers;
+
+        if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase();
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                s.name.toLowerCase().includes(searchLower),
+            );
+        }
+
+        if (filters?.schedulerUuid) {
+            filteredSchedulers = filteredSchedulers.filter(
+                (s) => s.schedulerUuid === filters.schedulerUuid,
+            );
+        }
+
+        if (
+            filters?.createdByUserUuids &&
+            filters.createdByUserUuids.length > 0
+        ) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                filters.createdByUserUuids!.includes(s.createdBy),
+            );
+        }
+
+        if (filters?.destinations && filters.destinations.length > 0) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                s.targets.some((target) => {
+                    if (
+                        filters.destinations!.includes('slack') &&
+                        isSlackTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('email') &&
+                        isEmailTarget(target)
+                    ) {
+                        return true;
+                    }
+                    if (
+                        filters.destinations!.includes('msteams') &&
+                        isMsTeamsTarget(target)
+                    ) {
+                        return true;
+                    }
+                    return false;
+                }),
+            );
+        }
+
+        if (filters?.resourceType) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                filters.resourceType === 'chart'
+                    ? isChartScheduler(s)
+                    : !isChartScheduler(s),
+            );
+        }
+
+        if (filters?.resourceUuids && filters.resourceUuids.length > 0) {
+            filteredSchedulers = filteredSchedulers.filter((s) =>
+                isChartScheduler(s)
+                    ? filters.resourceUuids!.includes(s.savedChartUuid)
+                    : filters.resourceUuids!.includes(s.dashboardUuid),
+            );
+        }
+
+        if (filteredSchedulers.length === 0) {
+            return {
+                pagination: {
+                    page: paginateArgs?.page || 1,
+                    pageSize: paginateArgs?.pageSize || 10,
+                    totalPageCount: 0,
+                    totalResults: 0,
+                },
+                data: [],
+            };
+        }
+
+        const schedulerUuids = filteredSchedulers.map((s) => s.schedulerUuid);
+
+        // Query parent jobs (where job_id = job_group) with aggregated child counts
+        const sevenDaysAgo: Date = new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000,
+        );
+
+        // Build subquery for child job counts - only count most recent status per child
+        // First, get the most recent entry for each child job
+        const rankedChildJobsSubquery = this.database(SchedulerLogTableName)
+            .select(
+                'job_id',
+                'job_group',
+                'status',
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
+                ),
+            )
+            .whereRaw('job_id != job_group') // Only child jobs
+            .as('ranked_children');
+
+        // Then count only the most recent status of each child (rn = 1)
+        const childCountsSubquery = this.database
+            .from(rankedChildJobsSubquery)
+            .select(
+                'job_group',
+                this.database.raw('COUNT(*) as total'),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.SCHEDULED}' THEN 1 END) as scheduled_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.STARTED}' THEN 1 END) as started_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' THEN 1 END) as completed_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.ERROR}' THEN 1 END) as error_count`,
+                ),
+            )
+            .where('rn', 1)
+            .groupBy('job_group')
+            .as('child_counts');
+
+        // Use window function (ROW_NUMBER) to get only the most recent parent job per run
+        // This approach is safer and more compatible than DISTINCT ON
+        const rankedRunsSubquery = this.database(SchedulerLogTableName)
+            .select(
+                'job_id',
+                'scheduler_uuid',
+                'scheduled_time',
+                'status',
+                'created_at',
+                'details',
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
+                ),
+            )
+            .whereRaw('job_id = job_group') // Only parent jobs
+            .whereIn('scheduler_uuid', schedulerUuids)
+            .where('scheduled_time', '>', sevenDaysAgo)
+            .where('scheduled_time', '<', new Date())
+            .as('ranked_runs');
+
+        const distinctRunsSubquery = this.database
+            .from(rankedRunsSubquery)
+            .where('rn', 1)
+            .as('distinct_runs');
+
+        const runsQuery = this.database(distinctRunsSubquery)
+            .select(
+                'distinct_runs.job_id as run_id',
+                'distinct_runs.scheduler_uuid',
+                'distinct_runs.scheduled_time',
+                'distinct_runs.status',
+                'distinct_runs.created_at',
+                'distinct_runs.details',
+                `${SchedulerTableName}.name as scheduler_name`,
+                this.database.raw(
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SavedChartsTableName}.name, ${DashboardsTableName}.name) as resource_name`,
+                ),
+                `${SchedulerTableName}.created_by as created_by_user_uuid`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_user_name`,
+                ),
+                this.database.raw('COALESCE(child_counts.total, 0) as total'),
+                this.database.raw(
+                    'COALESCE(child_counts.scheduled_count, 0) as scheduled_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.started_count, 0) as started_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.completed_count, 0) as completed_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.error_count, 0) as error_count',
+                ),
+                // Compute run_status in SQL so it can be used in outer query for filtering/sorting
+                // (SELECT aliases can't be referenced in WHERE, so we wrap this as a subquery)
+                this.database.raw(`
+                    CASE
+                        -- Parent failed
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.ERROR}' THEN '${SchedulerRunStatus.FAILED}'
+
+                        -- Parent not started
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.SCHEDULED}' THEN '${SchedulerRunStatus.SCHEDULED}'
+
+                        -- Parent completed with errors
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.error_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+
+                        -- Parent completed, no errors
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}' THEN '${SchedulerRunStatus.COMPLETED}'
+
+                        -- Parent or children still running
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.STARTED}'
+                             OR COALESCE(child_counts.started_count, 0) > 0
+                             OR COALESCE(child_counts.scheduled_count, 0) > 0 THEN '${SchedulerRunStatus.RUNNING}'
+
+                        ELSE '${SchedulerRunStatus.SCHEDULED}'
+                    END as run_status
+                `),
+            )
+            .leftJoin(
+                childCountsSubquery,
+                'distinct_runs.job_id',
+                'child_counts.job_group',
+            )
+            .leftJoin(
+                SchedulerTableName,
+                `${SchedulerTableName}.scheduler_uuid`,
+                'distinct_runs.scheduler_uuid',
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            );
+
+        // Wrap runsQuery as a subquery so we can filter/sort on computed columns like run_status
+        // (WHERE clause can't reference SELECT aliases, so we need an outer query)
+        const runsWithStatusSubquery = runsQuery.as('runs_with_status');
+
+        let finalQuery = this.database(runsWithStatusSubquery).select('*');
+
+        // Apply runStatus filter on the outer query (run_status is now a real column)
+        if (filters?.statuses && filters.statuses.length > 0) {
+            finalQuery = finalQuery.whereIn('run_status', filters.statuses);
+        }
+
+        // Apply sorting on the outer query
+        if (sort && sort.column && sort.direction) {
+            let sortColumn: string = sort.column;
+            // Map the sort column to the actual column name
+            if (sort.column === 'scheduledTime') {
+                sortColumn = 'scheduled_time';
+            } else if (sort.column === 'createdAt') {
+                sortColumn = 'created_at';
+            } else if (sort.column === 'runStatus') {
+                sortColumn = 'run_status';
+            }
+            finalQuery = finalQuery.orderBy(sortColumn, sort.direction);
+        } else {
+            finalQuery = finalQuery.orderBy('scheduled_time', 'desc');
+        }
+
+        // Paginate the final, filtered query
+        const { pagination, data } = await KnexPaginate.paginate(
+            finalQuery,
+            paginateArgs,
+        );
+
+        // Map database results to SchedulerRun type
+        // run_status is now computed in SQL, so we just read it from the row
+        interface SchedulerRunRow {
+            run_id: string;
+            scheduler_uuid: string;
+            scheduler_name: string;
+            scheduled_time: Date;
+            status: SchedulerJobStatus;
+            run_status: SchedulerRunStatus; // Computed in SQL
+            created_at: Date;
+            details: Record<string, AnyType> | null;
+            total: string;
+            scheduled_count: string;
+            started_count: string;
+            completed_count: string;
+            error_count: string;
+            resource_type: 'chart' | 'dashboard';
+            resource_uuid: string;
+            resource_name: string;
+            created_by_user_uuid: string;
+            created_by_user_name: string;
+        }
+
+        const runs: SchedulerRun[] = (data as unknown as SchedulerRunRow[]).map(
+            (row) => {
+                const logCounts: LogCounts = {
+                    total: parseInt(row.total, 10),
+                    scheduled: parseInt(row.scheduled_count, 10),
+                    started: parseInt(row.started_count, 10),
+                    completed: parseInt(row.completed_count, 10),
+                    error: parseInt(row.error_count, 10),
+                };
+
+                return {
+                    runId: row.run_id,
+                    schedulerUuid: row.scheduler_uuid,
+                    schedulerName: row.scheduler_name,
+                    scheduledTime: row.scheduled_time,
+                    status: row.status as SchedulerJobStatus,
+                    runStatus: row.run_status as SchedulerRunStatus, // Use DB-computed value
+                    createdAt: row.created_at,
+                    details: row.details,
+                    logCounts,
+                    resourceType: row.resource_type,
+                    resourceUuid: row.resource_uuid,
+                    resourceName: row.resource_name,
+                    createdByUserUuid: row.created_by_user_uuid,
+                    createdByUserName: row.created_by_user_name,
+                };
+            },
+        );
+
+        // Filter was applied in SQL before pagination - no post-processing needed
+        // Return correct pagination metadata from KnexPaginate
+        return {
+            pagination,
+            data: runs,
+        };
+    }
+
+    async getRunLogs(runId: string): Promise<SchedulerRunLogsResponse> {
+        // Get ALL parent job entries (there may be multiple status updates)
+        const parentJobs = await this.database(SchedulerLogTableName)
+            .select(
+                `${SchedulerLogTableName}.*`,
+                `${SchedulerTableName}.name as scheduler_name`,
+                this.database.raw(
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SavedChartsTableName}.name, ${DashboardsTableName}.name) as resource_name`,
+                ),
+                `${SchedulerTableName}.created_by as created_by_user_uuid`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_user_name`,
+                ),
+            )
+            .leftJoin(
+                SchedulerTableName,
+                `${SchedulerTableName}.scheduler_uuid`,
+                `${SchedulerLogTableName}.scheduler_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .where(`${SchedulerLogTableName}.job_id`, runId)
+            .whereRaw(
+                `${SchedulerLogTableName}.job_id = ${SchedulerLogTableName}.job_group`,
+            )
+            .orderBy(`${SchedulerLogTableName}.created_at`, 'asc');
+
+        if (!parentJobs || parentJobs.length === 0) {
+            throw new NotFoundError(`Run with ID ${runId} not found`);
+        }
+
+        // Get child jobs
+        const childJobs = await this.database(SchedulerLogTableName)
+            .select()
+            .where('job_group', runId)
+            .whereNot('job_id', runId)
+            .orderBy('created_at', 'asc');
+
+        // Map parent jobs to SchedulerRunLog type
+        // job_group is guaranteed to be present due to WHERE clause filtering
+        const parentLogs: SchedulerRunLog[] = parentJobs.map((job) => ({
+            jobId: job.job_id,
+            jobGroup: job.job_group as string,
+            task: job.task as SchedulerTaskName,
+            status: job.status as SchedulerJobStatus,
+            scheduledTime: job.scheduled_time,
+            createdAt: job.created_at,
+            target: job.target || null,
+            targetType:
+                (job.target_type as
+                    | 'email'
+                    | 'slack'
+                    | 'msteams'
+                    | 'gsheets') || null,
+            details: job.details || null,
+            isParent: true,
+        }));
+
+        const childLogs: SchedulerRunLog[] = childJobs.map((job) => ({
+            jobId: job.job_id,
+            jobGroup: job.job_group as string,
+            task: job.task as SchedulerTaskName,
+            status: job.status as SchedulerJobStatus,
+            scheduledTime: job.scheduled_time,
+            createdAt: job.created_at,
+            target: job.target || null,
+            targetType:
+                (job.target_type as
+                    | 'email'
+                    | 'slack'
+                    | 'msteams'
+                    | 'gsheets') || null,
+            details: job.details || null,
+            isParent: false,
+        }));
+
+        // Merge and sort all logs by created_at
+        const allLogs = [...parentLogs, ...childLogs].sort(
+            (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+        );
+
+        // Use first parent job for metadata
+        const firstParentJob = parentJobs[0];
+
+        return {
+            runId,
+            schedulerUuid: firstParentJob.scheduler_uuid,
+            schedulerName: firstParentJob.scheduler_name,
+            scheduledTime: firstParentJob.scheduled_time,
+            logs: allLogs,
+            resourceType: firstParentJob.resource_type,
+            resourceUuid: firstParentJob.resource_uuid,
+            resourceName: firstParentJob.resource_name,
+            createdByUserUuid: firstParentJob.created_by_user_uuid,
+            createdByUserName: firstParentJob.created_by_user_name,
+        };
     }
 }

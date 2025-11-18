@@ -1630,7 +1630,8 @@
                     "big_number",
                     "funnel",
                     "custom",
-                    "treemap"
+                    "treemap",
+                    "gauge"
                 ],
                 "type": "string"
             },
@@ -2668,6 +2669,17 @@
                     },
                     "image": {
                         "properties": {
+                            "fit": {
+                                "type": "string"
+                            },
+                            "height": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "width": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "url": {
                                 "type": "string"
                             }
@@ -4590,6 +4602,64 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "ChartType.GAUGE": {
+                "enum": ["gauge"],
+                "type": "string"
+            },
+            "GaugeSection": {
+                "properties": {
+                    "color": {
+                        "type": "string"
+                    },
+                    "max": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "min": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["color", "max", "min"],
+                "type": "object"
+            },
+            "GaugeChart": {
+                "properties": {
+                    "sections": {
+                        "items": {
+                            "$ref": "#/components/schemas/GaugeSection"
+                        },
+                        "type": "array"
+                    },
+                    "showAxisLabels": {
+                        "type": "boolean"
+                    },
+                    "max": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "min": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "selectedField": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GaugeChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/GaugeChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.GAUGE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -4612,6 +4682,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/TreemapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GaugeChartConfig"
                     }
                 ]
             },
@@ -5097,6 +5170,17 @@
                     },
                     "image": {
                         "properties": {
+                            "fit": {
+                                "type": "string"
+                            },
+                            "height": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "width": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "url": {
                                 "type": "string"
                             }
@@ -7192,8 +7276,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -7205,8 +7289,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -8756,7 +8840,7 @@
                 "type": "string"
             },
             "DatabricksAuthenticationType": {
-                "enum": ["personal_access_token", "oauth_m2m"],
+                "enum": ["personal_access_token", "oauth_m2m", "oauth_u2m"],
                 "type": "string"
             },
             "Pick_CreateDatabricksCredentials.Exclude_keyofCreateDatabricksCredentials.SensitiveCredentialsFieldNames__": {
@@ -8851,6 +8935,9 @@
                         "type": "string"
                     },
                     "http_scheme": {
+                        "type": "string"
+                    },
+                    "source": {
                         "type": "string"
                     }
                 },
@@ -9482,6 +9569,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "source": {
+                        "type": "string"
                     },
                     "http_scheme": {
                         "type": "string"
@@ -10214,6 +10304,9 @@
                     "error": {
                         "type": "string"
                     },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "validationId": {
                         "type": "number",
                         "format": "double"
@@ -10223,9 +10316,6 @@
                     },
                     "spaceUuid": {
                         "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ValidationSourceType"
                     }
                 },
                 "required": [
@@ -12835,6 +12925,7 @@
                     "pie",
                     "funnel",
                     "treemap",
+                    "gauge",
                     "custom"
                 ],
                 "type": "string"
@@ -13949,36 +14040,8 @@
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
             },
-            "SchedulerLog": {
+            "BaseSchedulerLog": {
                 "properties": {
-                    "details": {
-                        "properties": {
-                            "createdByUserUuid": {
-                                "type": "string"
-                            },
-                            "organizationUuid": {
-                                "type": "string"
-                            },
-                            "projectUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/AnyType"
-                        },
-                        "required": ["createdByUserUuid", "organizationUuid"],
-                        "type": "object"
-                    },
-                    "targetType": {
-                        "type": "string",
-                        "enum": ["email", "slack", "gsheets", "msteams"]
-                    },
-                    "target": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/SchedulerJobStatus"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -13987,28 +14050,73 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "jobGroup": {
-                        "type": "string"
-                    },
-                    "jobId": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
                     },
                     "task": {
                         "$ref": "#/components/schemas/SchedulerTaskName"
+                    },
+                    "jobId": {
+                        "type": "string"
                     }
                 },
                 "required": [
-                    "details",
-                    "status",
                     "createdAt",
                     "scheduledTime",
-                    "jobId",
-                    "task"
+                    "status",
+                    "task",
+                    "jobId"
                 ],
                 "type": "object"
+            },
+            "SchedulerTargetType": {
+                "type": "string",
+                "enum": ["email", "slack", "gsheets", "msteams"]
+            },
+            "SchedulerDetails": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/AnyType"
+                },
+                "type": "object"
+            },
+            "SchedulerLog": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseSchedulerLog"
+                    },
+                    {
+                        "properties": {
+                            "details": {
+                                "$ref": "#/components/schemas/SchedulerDetails"
+                            },
+                            "targetType": {
+                                "$ref": "#/components/schemas/SchedulerTargetType"
+                            },
+                            "target": {
+                                "type": "string"
+                            },
+                            "jobGroup": {
+                                "type": "string"
+                            },
+                            "schedulerUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["details"],
+                        "type": "object"
+                    }
+                ]
             },
             "SchedulerWithLogs": {
                 "properties": {
@@ -14129,6 +14237,289 @@
             "ApiSchedulerLogsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_SchedulerWithLogs__"
             },
+            "SchedulerRunStatus": {
+                "enum": [
+                    "completed",
+                    "partial_failure",
+                    "failed",
+                    "running",
+                    "scheduled"
+                ],
+                "type": "string"
+            },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LogCounts": {
+                "properties": {
+                    "error": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "completed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "started": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "error",
+                    "completed",
+                    "started",
+                    "scheduled",
+                    "total"
+                ],
+                "type": "object"
+            },
+            "SchedulerRun": {
+                "properties": {
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "logCounts": {
+                        "$ref": "#/components/schemas/LogCounts"
+                    },
+                    "details": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.AnyType_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runStatus": {
+                        "$ref": "#/components/schemas/SchedulerRunStatus"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logCounts",
+                    "details",
+                    "createdAt",
+                    "runStatus",
+                    "status",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "KnexPaginatedData_SchedulerRun-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerRun"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_SchedulerRun-Array__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_SchedulerRun-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSchedulerRunsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_SchedulerRun-Array__"
+            },
+            "SchedulerRunLog": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseSchedulerLog"
+                    },
+                    {
+                        "properties": {
+                            "isParent": {
+                                "type": "boolean"
+                            },
+                            "details": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SchedulerDetails"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "targetType": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SchedulerTargetType"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "target": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "jobGroup": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "isParent",
+                            "details",
+                            "targetType",
+                            "target",
+                            "jobGroup"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SchedulerRunLogsResponse": {
+                "properties": {
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "logs": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerRunLog"
+                        },
+                        "type": "array"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logs",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SchedulerRunLogsResponse_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SchedulerRunLogsResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSchedulerRunLogsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SchedulerRunLogsResponse_"
+            },
             "KnexPaginatedData_SchedulerAndTargets-Array_": {
                 "properties": {
                     "pagination": {
@@ -14222,12 +14613,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "ApiJobStatusResponse": {
                 "properties": {
@@ -16426,22 +16811,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -16780,22 +17165,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -22087,7 +22472,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2164.1",
+        "version": "0.2180.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -27467,6 +27852,194 @@
                         "in": "query",
                         "name": "destinations",
                         "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/schedulers/{projectUuid}/runs": {
+            "get": {
+                "operationId": "getSchedulerRuns",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerRunsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get paginated scheduler runs with aggregated child job counts",
+                "summary": "List scheduler runs",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "number of items per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "page number",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "search query to filter runs by scheduler name",
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "column to sort by (scheduledTime, createdAt)",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["scheduledTime", "createdAt"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    },
+                    {
+                        "description": "filter by specific scheduler UUID",
+                        "in": "query",
+                        "name": "schedulerUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)",
+                        "in": "query",
+                        "name": "statuses",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by creator user UUIDs (comma-separated)",
+                        "in": "query",
+                        "name": "createdByUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by destination types (comma-separated: email, slack, msteams)",
+                        "in": "query",
+                        "name": "destinations",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by resource type (chart or dashboard)",
+                        "in": "query",
+                        "name": "resourceType",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["chart", "dashboard"]
+                        }
+                    },
+                    {
+                        "description": "filter by resource UUIDs (comma-separated)",
+                        "in": "query",
+                        "name": "resourceUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/schedulers/runs/{runId}/logs": {
+            "get": {
+                "operationId": "getRunLogs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerRunLogsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get detailed logs for a specific scheduler run",
+                "summary": "Get run logs",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The ID of the run (parent job ID)",
+                        "in": "path",
+                        "name": "runId",
+                        "required": true,
                         "schema": {
                             "type": "string"
                         }

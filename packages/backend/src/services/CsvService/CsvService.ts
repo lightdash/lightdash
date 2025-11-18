@@ -63,6 +63,7 @@ import {
     TransformCallback,
     Writable,
 } from 'stream';
+import { StringDecoder } from 'string_decoder';
 import { Worker } from 'worker_threads';
 import {
     DownloadCsv,
@@ -386,11 +387,13 @@ export class CsvService extends BaseService {
             ]);
             writeStream.write(headerWithBOM);
 
+            // StringDecoder preserves multibyte UTF-8 characters across chunk boundaries
+            const decoder = new StringDecoder('utf8');
             let lineBuffer = '';
             let rowCount = 0;
 
             readStream.on('data', (chunk: Buffer) => {
-                lineBuffer += chunk.toString();
+                lineBuffer += decoder.write(chunk);
                 const lines = lineBuffer.split('\n');
 
                 // Keep last incomplete line in buffer
@@ -413,6 +416,9 @@ export class CsvService extends BaseService {
             });
 
             readStream.on('end', () => {
+                // Flush any remaining bytes from decoder
+                lineBuffer += decoder.end();
+
                 // Process any remaining line in buffer
                 const csvString = CsvService.processJsonLineToCsv(
                     lineBuffer,

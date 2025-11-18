@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
+import { Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
@@ -318,5 +319,73 @@ $4.00,value_4,2020-03-16
                 name + false,
             );
         });
+    });
+
+    it('Should handle Japanese multibyte characters in JSONL streaming without corruption', async () => {
+        // Create JSONL data with Japanese characters
+        const jsonlData = [
+            JSON.stringify({
+                column_number: 1,
+                column_string: '日本語テスト',
+                column_date: '2020-03-16T11:32:55.000Z',
+            }),
+            JSON.stringify({
+                column_number: 2,
+                column_string: 'あああいいい',
+                column_date: '2020-03-17T11:32:55.000Z',
+            }),
+            JSON.stringify({
+                column_number: 3,
+                column_string: '漢字テスト🎌',
+                column_date: '2020-03-18T11:32:55.000Z',
+            }),
+        ].join('\n');
+
+        // Create a custom readable stream that chunks data in a way that can split multibyte characters
+        const chunkSize = 7; // Small chunk size to force splitting multibyte characters
+        const chunks: Buffer[] = [];
+        const buffer = Buffer.from(jsonlData, 'utf8');
+
+        for (let i = 0; i < buffer.length; i += chunkSize) {
+            chunks.push(buffer.subarray(i, i + chunkSize));
+        }
+
+        const readStream = new Readable({
+            read() {
+                const chunk = chunks.shift();
+                this.push(chunk || null);
+            },
+        });
+
+        // Create write stream to capture output
+        let csvOutput = '';
+        const writeStream = new Writable({
+            write(chunk, encoding, callback) {
+                csvOutput += chunk.toString();
+                callback();
+            },
+        });
+
+        // Process the stream
+        await CsvService.streamJsonlRowsToFile(
+            false,
+            itemMap,
+            ['column_number', 'column_string', 'column_date'],
+            ['column number', 'column string', 'column date'],
+            {
+                readStream,
+                writeStream,
+            },
+        );
+
+        // Verify the output contains correct Japanese characters without corruption
+        expect(csvOutput).toContain('日本語テスト');
+        expect(csvOutput).toContain('あああいいい');
+        expect(csvOutput).toContain('漢字テスト🎌');
+
+        // Verify the structure is correct (BOM + header + 3 data rows)
+        const lines = csvOutput.split('\n');
+        expect(lines[0]).toContain('column number,column string,column date');
+        expect(lines.length).toBeGreaterThanOrEqual(4); // header + 3 rows + possible empty line
     });
 });

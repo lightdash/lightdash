@@ -5,9 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /**/
-    ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
-
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

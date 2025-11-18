@@ -51,5 +51,63 @@ describe('QueryHistoryModel', () => {
             });
             expect(hash1).not.toBe(hash2);
         });
+
+        test('should generate same hash when userUuid is undefined (backward compatibility)', () => {
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+            });
+            const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: undefined,
+            });
+            expect(hash1).toBe(hash2);
+        });
+
+        test('should generate different hashes for different users', () => {
+            const userUuid1 = 'user-uuid-1';
+            const userUuid2 = 'user-uuid-2';
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: userUuid1,
+            });
+            const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: userUuid2,
+            });
+            expect(hash1).not.toBe(hash2);
+        });
+
+        test('should generate same hash for same user', () => {
+            const userUuid = 'user-uuid-1';
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid,
+            });
+            const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid,
+            });
+            expect(hash1).toBe(hash2);
+        });
+
+        test('should generate different hash with vs without user UUID', () => {
+            const userUuid = 'user-uuid-1';
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+            });
+            const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid,
+            });
+            expect(hash1).not.toBe(hash2);
+        });
     });
 });

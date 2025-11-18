@@ -497,6 +497,12 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
         10,
     );
+    const useCredentialsFromRaw = getArrayFromCommaSeparatedList(
+        'S3_USE_CREDENTIALS_FROM',
+    );
+    const useCredentialsFrom = useCredentialsFromRaw
+        .map((v) => v.trim().toLowerCase())
+        .filter((v) => v.length > 0);
 
     if (!endpoint || !bucket || !region) {
         return undefined;
@@ -510,6 +516,9 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         secretKey,
         expirationTime,
         forcePathStyle,
+        useCredentialsFrom: useCredentialsFrom.length
+            ? useCredentialsFrom
+            : undefined,
     };
 };
 
@@ -527,6 +536,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         accessKey: baseAccessKey,
         secretKey: baseSecretKey,
         forcePathStyle: baseForcePathStyle,
+        useCredentialsFrom: baseUseCredentialsFrom,
     } = baseS3Config;
 
     const bucket =
@@ -553,6 +563,7 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         region,
         accessKey,
         secretKey,
+        useCredentialsFrom: baseUseCredentialsFrom,
     };
 };
 
@@ -636,10 +647,7 @@ export const getAiConfig = () => ({
     embeddingEnabled: process.env.AI_EMBEDDING_ENABLED === 'true',
     defaultProvider:
         process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
-    defaultEmbeddingModelProvider:
-        process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
-        process.env.AI_DEFAULT_PROVIDER ||
-        DEFAULT_DEFAULT_AI_PROVIDER,
+    defaultEmbeddingModelProvider: process.env.AI_DEFAULT_EMBEDDING_PROVIDER,
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
@@ -966,6 +974,11 @@ export type S3Config = {
     accessKey?: string;
     secretKey?: string;
     forcePathStyle?: boolean;
+    /**
+     * Ordered list of credential sources to use for AWS SDK credential resolution.
+     * Comma-separated env var S3_USE_CREDENTIALS_FROM -> ["env","token_file","ini","container_metadata","instance_metadata"], etc.
+     */
+    useCredentialsFrom?: string[];
 };
 export type IntercomConfig = {
     appId: string;

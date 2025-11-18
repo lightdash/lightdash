@@ -7,6 +7,7 @@ import MantineIcon from '../common/MantineIcon';
 import CustomVisualization from '../CustomVisualization';
 import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
+import SimpleGauge from '../SimpleGauge';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
@@ -141,6 +142,16 @@ const LightdashVisualization = memo(
                         <SimpleTreemap
                             className={className}
                             isInDashboard={!!isDashboard}
+                            $shouldExpand
+                            data-testid={props['data-testid']}
+                            {...props}
+                        />
+                    );
+                case ChartType.GAUGE:
+                    return (
+                        <SimpleGauge
+                            className={className}
+                            isInDashboard={isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
                             {...props}
