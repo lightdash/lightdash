@@ -1,3 +1,10 @@
+## [0.2179.2](https://github.com/lightdash/lightdash/compare/0.2179.1...0.2179.2) (2025-11-18)
+
+
+### Bug Fixes
+
+* remove streaming error check from retry condition ([#18187](https://github.com/lightdash/lightdash/issues/18187)) ([1d9c558](https://github.com/lightdash/lightdash/commit/1d9c558d9cb4b20e412a5eb056df229ecec968ad))
+
 ## [0.2179.1](https://github.com/lightdash/lightdash/compare/0.2179.0...0.2179.1) (2025-11-18)
 
 
