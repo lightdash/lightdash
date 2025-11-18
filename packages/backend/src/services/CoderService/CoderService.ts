@@ -683,6 +683,7 @@ export class CoderService extends BaseService {
         slug: string,
         chartAsCode: ChartAsCode,
         skipSpaceCreate?: boolean,
+        publicSpaceCreate?: boolean,
     ) {
         const project = await this.projectModel.get(projectUuid);
 
@@ -713,6 +714,7 @@ export class CoderService extends BaseService {
                     chartAsCode.spaceSlug,
                     user,
                     skipSpaceCreate,
+                    publicSpaceCreate,
                 );
 
             console.info(
@@ -856,6 +858,7 @@ export class CoderService extends BaseService {
         spaceSlug: string,
         user: SessionUser,
         skipSpaceCreate?: boolean,
+        publicSpaceCreate?: boolean,
     ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
         const [existingSpace] = await this.spaceModel.find({
             path: getLtreePathFromContentAsCodePath(spaceSlug),
@@ -914,7 +917,9 @@ export class CoderService extends BaseService {
 
             const newSpace = await this.spaceModel.createSpace(
                 {
-                    isPrivate: closestAncestorSpace?.isPrivate ?? true,
+                    isPrivate:
+                        closestAncestorSpace?.isPrivate ??
+                        publicSpaceCreate !== true,
                     name: friendlyName(currentPath),
                     parentSpaceUuid,
                 },
@@ -984,6 +989,7 @@ export class CoderService extends BaseService {
         slug: string,
         dashboardAsCode: DashboardAsCode,
         skipSpaceCreate?: boolean,
+        publicSpaceCreate?: boolean,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1020,6 +1026,7 @@ export class CoderService extends BaseService {
                     dashboardAsCode.spaceSlug,
                     user,
                     skipSpaceCreate,
+                    publicSpaceCreate,
                 );
 
             const newDashboard = await this.dashboardModel.create(

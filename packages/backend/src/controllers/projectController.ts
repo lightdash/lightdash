@@ -921,6 +921,7 @@ export class ProjectController extends BaseController {
             'metricQuery' | 'chartConfig' | 'description'
         > & {
             skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
             chartConfig: AnyType;
             metricQuery: AnyType;
             description?: string | null; // Allow both undefined and null
@@ -939,6 +940,7 @@ export class ProjectController extends BaseController {
                     description: chart.description ?? undefined,
                 },
                 chart.skipSpaceCreate,
+                chart.publicSpaceCreate,
             ),
         };
     }
@@ -956,6 +958,7 @@ export class ProjectController extends BaseController {
             'filters' | 'tiles' | 'description'
         > & {
             skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
             filters: AnyType;
             tiles: AnyType;
             description?: string | null; // Allow both undefined and null
@@ -974,6 +977,7 @@ export class ProjectController extends BaseController {
                     description: dashboard.description ?? undefined,
                 },
                 dashboard.skipSpaceCreate,
+                dashboard.publicSpaceCreate,
             ),
         };
     }
