@@ -2,7 +2,7 @@ version: 2
 models:
   - name: customers
     config:
-      tags: ["ai"]
+      tags: ["core", "ai"]
       meta:
         parameters:
           customer_name:

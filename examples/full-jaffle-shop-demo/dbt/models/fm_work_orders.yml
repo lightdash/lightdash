@@ -3,7 +3,7 @@ models:
   - name: fm_work_orders
     description: Service requests and maintenance activities
     config:
-      tags: ["ai", "facilities"]
+      tags: ["core"]
       meta:
         primary_key: work_order_id
         joins:

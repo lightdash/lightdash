@@ -2,11 +2,11 @@ version: 2
 models:
   - name: plan
     config:
-      tags: ['ai']
+      tags: ["core", "ai"]
     meta:
       primary_key: id
       required_attributes:
-        is_admin: 'true'
+        is_admin: "true"
     columns:
       - name: id
       - name: plan_name

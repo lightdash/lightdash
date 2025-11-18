@@ -2,9 +2,8 @@ version: 2
 models:
   - name: events
     config:
-      tags: ['ai']
+      tags: ["core", "ai"]
     meta:
-
       primary_key: event_id
       group_details:
         events:
@@ -22,7 +21,7 @@ models:
         description: ""
         meta:
           dimension:
-            label: 'Timestamp (with timezone)'
+            label: "Timestamp (with timezone)"
             ai_hint:
               - Timestamp with timezone
               - Includes timezone information
@@ -68,14 +67,15 @@ models:
             format: "dd mmmm yyyy"
             urls:
               - label: Open in Google Calendar
-                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split:
+                url:
+                  'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split:
                   "-" |join: "/"}'
       - name: event
         description: ""
         meta:
           dimension:
             type: string
-            groups: [ 'events' ]
+            groups: ["events"]
           metrics:
             count:
               type: count
@@ -84,17 +84,17 @@ models:
         meta:
           dimension:
             type: string
-            groups: [ 'image' ]
-            image: 
-                url: "${value.raw}" 
+            groups: ["image"]
+            image:
+              url: "${value.raw}"
           additional_dimensions:
             image_with_size:
-              groups: [ 'image' ]
+              groups: ["image"]
               description: "Image URL with size"
               type: string
               sql: ${image_url}
               image:
-                url: "${value.raw}" 
+                url: "${value.raw}"
                 width: 128 # squared, do not preserve aspect ratio
                 height: 128
                 fit: cover
@@ -103,10 +103,10 @@ models:
         meta:
           dimension:
             type: number
-            groups: [ 'events', 'nested_group', 'another_nested_group' ]
+            groups: ["events", "nested_group", "another_nested_group"]
           additional_dimensions:
             image_event_id:
-              groups: [ 'image' ]
+              groups: ["image"]
               description: "Additional dimension of image URL for event_id. Uses event_id from SQL, but image URL template combines with event name from row"
               type: string
               # creates url in sql
@@ -121,7 +121,7 @@ models:
                 # Use liquidjs to combine the URL with the event name and upcase
                 url: "https://${value.raw}-${row.events.event.raw | upcase}"
             image_dynamic_width:
-              groups: [ 'image' ]
+              groups: ["image"]
               description: "Build a width dynamic image"
               type: string
               sql: |
@@ -129,12 +129,12 @@ models:
               image:
                 url: "${value.raw}"
             image_invalid_protocol:
-              groups: [ 'image' ]
+              groups: ["image"]
               description: "Invalid URL protocol"
               type: string
               sql: ${event_id}
               image:
-                url: "file://${value.raw}" 
+                url: "file://${value.raw}"
             event_tier:
               type: string
               description: Ratio of event_id to event
@@ -144,70 +144,69 @@ models:
                   when ${event_id} < 1000 then 'High'
                   else 'Very high' end
           metrics:
-           
-            with_currency_parameter: 
-              type: sum 
+            with_currency_parameter:
+              type: sum
               format: '${lightdash.parameters.currency=="usd"?"$":""}${lightdash.parameters.currency=="eur"?"€":""}${lightdash.parameters.currency=="gbp"?"£":""}0,0.00'
               sql: |
                 CASE 
                   WHEN ${lightdash.parameters.currency} = 'usd' THEN ${event_id} * 1
                   ELSE ${event_id} * 0.86
                 END
-            with_multiple_parameters: 
-              type: sum 
+            with_multiple_parameters:
+              type: sum
               # only shows $ currency
               format: '${ld.parameters.currency=="usd"?"$":""}0,0${ld.parameters.decimals=="true"?".00":""}'
-            with_decimals_format: 
-              type: sum 
+            with_decimals_format:
+              type: sum
               format: '0,0${ld.parameters.decimals=="true"?".00":""}'
-            with_mixed_parameter: 
-              type: sum 
+            with_mixed_parameter:
+              type: sum
               # Invalid parameter, using the wrong value for decimals
               format: '${ld.parameters.decimals=="usd"?"$":"-"}0,0.00'
             in_gbp:
               type: sum
-              format: 'gbp'
+              format: "gbp"
             in_gbp_with_format_expression:
               type: sum
-              format: '[$£]#,##0.00'
+              format: "[$£]#,##0.00"
             in_jpy:
               type: sum
-              format: 'jpy'
+              format: "jpy"
             in_dkk:
               type: sum
-              format: 'dkk'
+              format: "dkk"
             in_eur:
               type: sum
-              format: 'eur'
+              format: "eur"
             in_eur_with_round_2:
               type: sum
-              format: 'eur'
+              format: "eur"
               round: 2
             in_eur_with_round_0:
               type: sum
-              format: 'eur'
+              format: "eur"
               round: 0
             with_round_2:
               type: sum
               round: 2
             in_thousands_of_eur:
               type: sum
-              format: 'eur'
+              format: "eur"
               compact: thousands
             in_thousands_of_eur_with_round_0:
               type: sum
-              format: 'eur'
+              format: "eur"
               round: 0
               compact: thousands
             in_mi:
               type: sum
-              format: 'mi'
+              format: "mi"
             in_km:
               type: sum
-              format: 'km'
+              format: "km"
             in_percent:
               type: sum
-              format: 'percent'
+              format: "percent"
             in_thousands:
               type: sum
               compact: thousands

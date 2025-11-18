@@ -7,6 +7,7 @@ models:
       from initial touchpoint through conversion. Includes attribution data and engagement metrics.
     config:
       meta:
+        tags: ["core"]
         primary_key: touchpoint_id
         joins:
           - join: customers

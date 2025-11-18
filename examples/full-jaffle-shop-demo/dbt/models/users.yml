@@ -3,14 +3,14 @@ models:
   - name: users
     meta:
       primary_key: customer_id
-      sql_filter: 'customer_id = ${ld.attr.customer_id}'
+      sql_filter: "customer_id = ${ld.attr.customer_id}"
     columns:
       - name: customer_id
         description: This is a unique identifier for a customer
         config:
           meta:
             dimension:
-              tags: ['ai']
+              tags: ["core", "ai"]
       - name: first_name
         description: Customer's first name. PII.
       - name: last_name
@@ -20,4 +20,4 @@ models:
         config:
           meta:
             dimension:
-              tags: ['ai']
+              tags: ["core", "ai"]

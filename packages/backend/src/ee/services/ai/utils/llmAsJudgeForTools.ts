@@ -1,11 +1,10 @@
 import {
     isToolName,
-    toolDashboardArgsSchema,
     toolDashboardV2ArgsSchema,
     toolFindChartsArgsSchema,
     toolFindContentArgsSchema,
     toolFindDashboardsArgsSchema,
-    toolFindExploresArgsSchemaV2,
+    toolFindExploresArgsSchemaV3,
     toolFindFieldsArgsSchema,
     toolImproveContextArgsSchema,
     type ToolName,
@@ -42,7 +41,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
 
 // Explicit mapping of tool names to their schemas
 const TOOL_SCHEMAS = {
-    findExplores: toolFindExploresArgsSchemaV2,
+    findExplores: toolFindExploresArgsSchemaV3,
     findFields: toolFindFieldsArgsSchema,
     searchFieldValues: toolSearchFieldValuesArgsSchema,
     generateBarVizConfig: toolVerticalBarArgsSchema,

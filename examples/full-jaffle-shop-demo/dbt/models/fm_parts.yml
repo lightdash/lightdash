@@ -3,7 +3,7 @@ models:
   - name: fm_parts
     description: Inventory and supplies management
     config:
-      tags: ["ai", "facilities"]
+      tags: ["core"]
       meta:
         primary_key: part_id
     columns:
@@ -19,25 +19,25 @@ models:
             unique_count:
               type: count_distinct
               description: Count of unique items
-              
+
       - name: part_name
         description: Item name
         meta:
           dimension:
             type: string
-            
+
       - name: part_category
         description: Category classification
         meta:
           dimension:
             type: string
-            
+
       - name: stock_status
         description: Current status
         meta:
           dimension:
             type: string
-            
+
       - name: unit_cost
         description: Unit cost
         meta:
@@ -47,7 +47,7 @@ models:
             avg_unit_cost:
               type: average
               description: Average unit cost
-              
+
       - name: retail_price
         description: Retail price
         meta:
@@ -57,7 +57,7 @@ models:
             avg_retail_price:
               type: average
               description: Average retail price
-              
+
       - name: stock_quantity
         description: Quantity in stock
         meta:
@@ -70,7 +70,7 @@ models:
             avg_stock:
               type: average
               description: Average stock level
-              
+
       - name: total_value_in_stock
         description: Total inventory value
         meta:
@@ -80,13 +80,13 @@ models:
             total_inventory_value:
               type: sum
               description: Total value of inventory
-              
+
       - name: reorder_point
         description: Reorder threshold
         meta:
           dimension:
             type: number
-            
+
       - name: total_quantity_used_ytd
         description: Usage year to date
         meta:
@@ -96,7 +96,7 @@ models:
             total_usage:
               type: sum
               description: Total quantity used
-              
+
       - name: average_monthly_usage
         description: Average monthly usage
         meta:
@@ -106,7 +106,7 @@ models:
             avg_monthly_usage:
               type: average
               description: Average usage per month
-              
+
       - name: inventory_turnover_ratio
         description: Turnover rate
         meta:
@@ -116,7 +116,7 @@ models:
             avg_turnover:
               type: average
               description: Average inventory turnover
-              
+
       - name: work_orders_used_count
         description: Work orders using this part
         meta:
@@ -126,7 +126,7 @@ models:
             total_wo_count:
               type: sum
               description: Total work orders
-              
+
       - name: customer_rating
         description: Customer rating
         meta:
@@ -136,7 +136,7 @@ models:
             avg_rating:
               type: average
               description: Average customer rating
-              
+
       - name: supplier_rating
         description: Supplier rating
         meta:
@@ -146,7 +146,7 @@ models:
             avg_supplier_rating:
               type: average
               description: Average supplier rating
-              
+
       - name: lead_time_days
         description: Lead time in days
         meta:
@@ -156,7 +156,7 @@ models:
             avg_lead_time:
               type: average
               description: Average lead time
-              
+
       - name: critical_part
         description: Critical status indicator
         meta:
@@ -168,5 +168,3 @@ models:
               format: percent
               sql: CASE WHEN ${critical_part} THEN 1 ELSE 0 END
               description: Percentage critical
-
-

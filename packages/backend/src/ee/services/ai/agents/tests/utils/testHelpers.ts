@@ -1,9 +1,6 @@
 import { AiAgent } from '@lightdash/common';
 import type { IntegrationTestContext } from '../../../../../../vitest.setup.integration';
-import {
-    getModels,
-    getServices,
-} from '../../../../../../vitest.setup.integration';
+import { getServices } from '../../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../../database/entities/ai';
 
 export type ToolCallWithResult = DbAiAgentToolCall & { result?: unknown };
@@ -20,7 +17,6 @@ export const promptAndGetToolCalls = async (
     threadUuid?: string,
 ): Promise<PromptAndGetToolCallsResult> => {
     const services = getServices(context.app);
-    const models = getModels(context.app);
 
     let threadUuidToUse = threadUuid;
     let messageUuid: string;

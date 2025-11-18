@@ -3,7 +3,7 @@ models:
   - name: fm_technicians
     description: Field service personnel and workforce. You can use this table do workforce cost analysis
     config:
-      tags: ["ai", "facilities"]
+      tags: ["core"]
       meta:
         primary_key: technician_id
     columns:

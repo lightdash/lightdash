@@ -3,9 +3,9 @@ models:
   - name: payments
     description: This table has information about individual payments
     config:
-      tags: ["ai"]
+      tags: ["core", "ai"]
       meta:
-        sets: 
+        sets:
           base_set:
             fields:
               - orders.status
@@ -55,4 +55,3 @@ models:
                   - orders.total_order_amount
                   # # Dimensions
                   - orders.customer_id
-                  

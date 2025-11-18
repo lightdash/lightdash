@@ -1,9 +1,4 @@
-import {
-    AiAgent,
-    AVAILABLE_VISUALIZATION_TYPES,
-    CatalogType,
-    isDateItem,
-} from '@lightdash/common';
+import { AiAgent, CatalogType } from '@lightdash/common';
 import moment from 'moment';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
@@ -14,7 +9,13 @@ import {
 export const testCases: TestCase[] = [
     {
         prompt: 'What can you do?',
-        expectedAnswer: async ({ services, agent }) => {
+        expectedAnswer: async ({ services, agent, testContext }) => {
+            const filteredExplores =
+                await services.aiAgentService.getAvailableExplores(
+                    testContext.testUser,
+                    testContext.testProjectUuid,
+                    ['core'],
+                );
             const { data: tables } =
                 await services.catalogService.searchCatalog({
                     projectUuid: agent.projectUuid!,
@@ -25,8 +26,9 @@ export const testCases: TestCase[] = [
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {
                         page: 1,
-                        pageSize: 100,
+                        pageSize: 30,
                     },
+                    filteredExplores,
                 });
             const tablesText = tables.map((table) => table.name).join(', ');
             return [
@@ -42,30 +44,40 @@ export const testCases: TestCase[] = [
             'It should have skipped the tool calls because the agent has access to the data models already',
     },
     {
-        prompt: 'What is the total revenue?',
-        expectedAnswer: 'Replies with total amount of revenue 3,053.87',
+        name: 'should ask for clarification on the correct explore and metric',
+        prompt: 'What is our total revenue?',
+        expectedAnswer:
+            'Asks for clarification to determine the correct explore and metric',
         expectedToolOutcome: [
-            `Explore: orders`,
-            `Metric: total order amount`,
+            `It should have used the findExplores tool to ask for clarification on the correct explore and metric`,
         ].join('\n'),
     },
     {
-        prompt: 'Revenue from the last 3 months for the "credit_card" and "coupon" payment method, displayed as a bar chart.',
+        name: 'should use the correct explore and metric when question is specific',
+        prompt: 'What is our total order revenue?',
+        expectedAnswer: 'Replies with total amount of revenue 3,053.87',
+        expectedToolOutcome: [
+            `Explore: payments`,
+            `Metric: total revenue`,
+        ].join('\n'),
+    },
+    {
+        prompt: 'Revenue from the last 3 months for the "credit_card" and "coupon" payment methods, displayed as a bar chart.',
         expectedAnswer: [
             `The response included the following information:`,
             `explore: payments`,
             `metrics: total revenue`,
             `breakdown by dimension: payment method`,
-            `filter: Order date from last 3 months or from ${moment()
+        ].join('\n'),
+        expectedToolOutcome: [
+            `runQuery tool args should have filters: Order date from last 3 months or from ${moment()
                 .subtract(3, 'months')
                 .format('YYYY-MM-DD')} to ${moment()
                 .subtract(1, 'months')
                 .format(
                     'YYYY-MM-DD',
                 )} and Payment method (credit_card, coupon)`,
-        ].join('\n'),
-        expectedToolOutcome: [
-            'Should use a filter for the last 3 months',
+            'Should use a date filter (from orders explore) for the last 3 months',
             'Should use filter for filtering the payment method',
             'Default visualization should be a bar chart',
         ].join('\n'),
