@@ -1,3 +1,10 @@
+## [0.2182.1](https://github.com/lightdash/lightdash/compare/0.2182.0...0.2182.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* unpivoted query being used to determine query state when not enabled ([#18145](https://github.com/lightdash/lightdash/issues/18145)) ([007ee92](https://github.com/lightdash/lightdash/commit/007ee92db24c6650de91aa18fca176a32f5e6bf5))
+
 # [0.2182.0](https://github.com/lightdash/lightdash/compare/0.2181.0...0.2182.0) (2025-11-18)
 
 
