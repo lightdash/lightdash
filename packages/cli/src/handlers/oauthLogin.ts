@@ -3,34 +3,14 @@ import {
     generateOAuthErrorResponse,
     generateOAuthSuccessResponse,
 } from '@lightdash/common';
-import { exec } from 'child_process';
 import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
-import { promisify } from 'util';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { openBrowser } from './login/oauth';
 import { generatePersonalAccessToken } from './login/pat';
-
-const execAsync = promisify(exec);
-
-// Helper function to open browser
-const openBrowser = async (url: string): Promise<void> => {
-    try {
-        const { platform } = process;
-
-        if (platform === 'darwin') {
-            await execAsync(`open "${url}"`);
-        } else if (platform === 'win32') {
-            await execAsync(`start "${url}"`);
-        } else {
-            await execAsync(`xdg-open "${url}"`);
-        }
-    } catch (error) {
-        GlobalState.debug(`> Could not open browser automatically: ${error}`);
-    }
-};
 
 export const loginWithOauth = async (
     url: string,

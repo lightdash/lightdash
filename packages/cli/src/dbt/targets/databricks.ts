@@ -23,10 +23,14 @@ export type DatabricksTarget = {
     http_path: string;
     // PAT authentication
     token?: string;
-    // OAuth M2M authentication
+    // oauth can reference either M2M or U2M
     auth_type?: 'token' | 'oauth';
     client_id?: string;
+    // OAuth M2M fields
     client_secret?: string;
+    // OAuth U2M fields (optional - tokens kept in memory)
+    access_token?: string;
+    refresh_token?: string;
     threads?: number;
     compute?: DatabricksComputeConfig;
 };
@@ -65,6 +69,18 @@ export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
             nullable: true,
         },
         client_secret: {
+            type: 'string',
+            nullable: true,
+        },
+        access_token: {
+            type: 'string',
+            nullable: true,
+        },
+        refresh_token: {
+            type: 'string',
+            nullable: true,
+        },
+        oauth_client_id: {
             type: 'string',
             nullable: true,
         },
@@ -107,22 +123,36 @@ export const convertDatabricksSchema = (
 
     const authType = target.auth_type || 'token';
 
-    // OAuth M2M authentication
+    // OAuth authentication
     if (authType === 'oauth') {
-        if (!target.client_id || !target.client_secret) {
-            throw new ParseError(
-                'Databricks OAuth authentication requires client_id and client_secret in profiles.yml',
-            );
+        // Determine authentication type: check env var first, then auto-detect
+        let authenticationType: DatabricksAuthenticationType;
+
+        const databricksOAuthEnv = process.env.DATABRICKS_OAUTH?.toLowerCase();
+
+        if (databricksOAuthEnv === 'u2m') {
+            // Force U2M (user-to-machine) - browser-based OAuth
+            authenticationType = DatabricksAuthenticationType.OAUTH_U2M;
+        } else {
+            // Auto-detect based on presence of client credentials
+            // If both client_id and client_secret are present, assume M2M
+            // Otherwise, assume U2M (which uses PKCE and doesn't require secret)
+            authenticationType =
+                target.client_secret && target.client_id
+                    ? DatabricksAuthenticationType.OAUTH_M2M
+                    : DatabricksAuthenticationType.OAUTH_U2M;
         }
+
+        const clientId = target.client_id || 'dbt-databricks'; // Use the same default dbt client for databricks
 
         return {
             type: WarehouseTypes.DATABRICKS,
-            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            authenticationType,
             catalog: target.catalog,
             database: target.schema,
             serverHostName: target.host,
             httpPath: target.http_path,
-            oauthClientId: target.client_id,
+            oauthClientId: clientId,
             oauthClientSecret: target.client_secret,
             compute: Object.entries(target.compute || {}).map(
                 ([name, compute]) => ({
