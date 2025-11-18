@@ -1,3 +1,17 @@
+# [0.2182.0](https://github.com/lightdash/lightdash/compare/0.2181.0...0.2182.0) (2025-11-18)
+
+
+### Bug Fixes
+
+* refresh token for databrics U2M ([#18102](https://github.com/lightdash/lightdash/issues/18102)) ([a0a6d95](https://github.com/lightdash/lightdash/commit/a0a6d953b36b4c02ee3767d1c5862486b9280609))
+
+
+### Features
+
+* default oauth for cli login ([#18191](https://github.com/lightdash/lightdash/issues/18191)) ([187d8dd](https://github.com/lightdash/lightdash/commit/187d8dda0d1b3cc116c5d2a480422e6f92cae8a3))
+* easier login options for the CLI ([#18192](https://github.com/lightdash/lightdash/issues/18192)) ([b12d48f](https://github.com/lightdash/lightdash/commit/b12d48f433bea14383a08c46346530b36337f13b))
+* key results cache on userUuid when using warehouse credentials ([#18194](https://github.com/lightdash/lightdash/issues/18194)) ([823c210](https://github.com/lightdash/lightdash/commit/823c210e10ccfe7b7c1034bac5c6e7bfa555a6bc))
+
 # [0.2181.0](https://github.com/lightdash/lightdash/compare/0.2180.0...0.2181.0) (2025-11-18)
 
 
