@@ -256,7 +256,8 @@ jobs:
             end
 
             # Update ARM64 SHA (line after ARM64 URL)
-            if $_.include?("macos-arm64") and @next_sha_is_arm64 = true
+            if $_.include?("macos-arm64")
+              @next_sha_is_arm64 = true
             elsif @next_sha_is_arm64 and /sha256/
               gsub(/sha256\s+"[^"]+"/, "sha256 \"#{arm64_sha}\"")
               @next_sha_is_arm64 = false
