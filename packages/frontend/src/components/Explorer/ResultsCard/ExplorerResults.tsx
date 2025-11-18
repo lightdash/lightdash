@@ -44,7 +44,7 @@ const getQueryStatus = (
     const isFetchingFirstPage = queryResults.isFetchingFirstPage;
 
     // Don't return queryResults.status because we changed from mutation to query so 'loading' has a different meaning
-    if (queryResults.error) {
+    if (queryResults.error || query.error) {
         return 'error';
     } else if (isCreatingQuery || isFetchingFirstPage) {
         return 'loading';
