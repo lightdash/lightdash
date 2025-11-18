@@ -1,6 +1,5 @@
 // eslint-disable-next-line max-classes-per-file
 import { type AnyType } from './any';
-import type { CatalogField, CatalogTable } from './catalog';
 import { type DbtLog } from './job';
 
 type LightdashErrorData = {
@@ -543,41 +542,6 @@ export class AiAgentNotFoundError extends LightdashError {
             statusCode: 400,
             data: {},
         });
-    }
-}
-
-export class ExploreAmbiguityError extends LightdashError {
-    public candidates: Array<
-        Pick<
-            CatalogTable,
-            'name' | 'label' | 'aiHints' | 'description' | 'searchRank'
-        > & {
-            matchingFields?: Array<
-                Pick<CatalogField, 'name' | 'label' | 'searchRank'>
-            >;
-        }
-    >;
-
-    constructor(
-        message: string,
-        candidates: Array<
-            Pick<
-                CatalogTable,
-                'name' | 'label' | 'aiHints' | 'description' | 'searchRank'
-            > & {
-                matchingFields?: Array<
-                    Pick<CatalogField, 'name' | 'label' | 'searchRank'>
-                >;
-            }
-        >,
-    ) {
-        super({
-            message,
-            name: 'ExploreAmbiguityError',
-            statusCode: 400,
-            data: { candidates },
-        });
-        this.candidates = candidates;
     }
 }
 

@@ -8,8 +8,6 @@ import {
     AnyType,
     CacheMetadata,
     CatalogField,
-    CatalogTable,
-    ChangesetWithChanges,
     CreateChangeParams,
     DashboardSearchResult,
     Explore,
@@ -17,11 +15,8 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
-    SearchResult,
     SlackPrompt,
-    ToolFindChartsArgs,
     ToolFindContentArgs,
-    ToolFindDashboardsArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -40,15 +35,25 @@ type Pagination = KnexPaginateArgs & {
 export type ListExploresFn = () => Promise<Explore[]>;
 
 export type FindExploresFn = (args: {
-    exploreName: string;
     fieldSearchSize: number;
     searchQuery?: string;
 }) => Promise<{
-    explore: Explore;
-    catalogFields: {
-        dimensions: CatalogField[];
-        metrics: CatalogField[];
-    };
+    exploreSearchResults?: Array<{
+        name: string;
+        label: string;
+        description?: string;
+        aiHints?: string[];
+        searchRank?: number;
+    }>;
+    topMatchingFields?: Array<{
+        name: string;
+        label: string;
+        tableName: string;
+        fieldType: string;
+        searchRank?: number;
+        description?: string;
+        chartUsage?: number;
+    }>;
 }>;
 
 export type FindFieldFn = (

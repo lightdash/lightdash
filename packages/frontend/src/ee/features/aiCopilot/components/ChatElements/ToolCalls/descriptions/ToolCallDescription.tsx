@@ -46,7 +46,11 @@ export const ToolCallDescription: FC<{
         case 'find_explores_v3':
             return (
                 <ExploreToolCallDescription
-                    exploreName={toolArgs.exploreName}
+                    exploreName={
+                        toolArgs.type === 'find_explores_v3'
+                            ? undefined
+                            : toolArgs.exploreName ?? undefined
+                    }
                     searchQuery={
                         toolArgs.type === 'find_explores_v3'
                             ? toolArgs.searchQuery

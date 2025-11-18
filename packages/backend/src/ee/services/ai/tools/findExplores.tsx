@@ -1,11 +1,4 @@
 import {
-    CatalogField,
-    CompiledDimension,
-    CompiledMetric,
-    convertToAiHints,
-    Explore,
-    ExploreAmbiguityError,
-    getItemId,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from '@lightdash/common';
@@ -14,10 +7,8 @@ import type {
     FindExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { AgentContext } from '../utils/AgentContext';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { validateExploreNameExists } from '../utils/validators';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -26,159 +17,67 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
 };
 
-function getCatalogChartUsage(
-    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
-    type: 'dimension',
-    field: CompiledDimension,
-): number;
-function getCatalogChartUsage(
-    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
-    type: 'metric',
-    field: CompiledMetric,
-): number;
-function getCatalogChartUsage(
-    catalogFields: { dimensions: CatalogField[]; metrics: CatalogField[] },
-    type: 'dimension' | 'metric',
-    field: CompiledDimension | CompiledMetric,
-) {
-    const catalogField = catalogFields[
-        type === 'dimension' ? 'dimensions' : 'metrics'
-    ].find((f) => f.name === field.name);
-    return catalogField?.chartUsage ?? 0;
-}
-
 const generateExploreResponse = ({
-    explore,
-    catalogFields,
+    exploreSearchResults,
+    topMatchingFields,
 }: Awaited<ReturnType<FindExploresFn>>) => {
-    const baseTable = explore.tables[explore.baseTable];
-    const aiHints = baseTable.aiHint
-        ? convertToAiHints(baseTable.aiHint)
-        : null;
-
-    return (
-        <explore tableName={explore.name}>
-            <label>{explore.label}</label>
-            <basetable alt="ID of the base table">{baseTable.name}</basetable>
-            {aiHints && aiHints.length > 0 && (
-                <aihints>
-                    {aiHints.map((hint: string) => (
-                        <hint>{hint}</hint>
-                    ))}
-                </aihints>
-            )}
-            {baseTable.description && (
-                <description alt="Description of the base table">
-                    {baseTable.description}
-                </description>
-            )}
-            {explore.joinedTables && explore.joinedTables.length > 0 && (
-                <joinedtables
-                    alt="IDs of the joined tables"
-                    totalCount={explore.joinedTables.length}
-                >
-                    {explore.joinedTables.map((joinedTable) => (
-                        <tablename>{joinedTable.table}</tablename>
-                    ))}
-                </joinedtables>
-            )}
-
-            {Object.values(explore.tables).length > 0 &&
-                Object.values(explore.tables).map((table) => (
-                    <table
-                        name={table.name}
-                        isBaseTable={table.name === explore.baseTable}
+    const searchResultsXml =
+        exploreSearchResults && exploreSearchResults.length > 0 ? (
+            <searchResults count={exploreSearchResults.length}>
+                <note>
+                    {exploreSearchResults.length === 1
+                        ? 'One explore matched your search. Call findFields for this explore to get all its dimensions and metrics.'
+                        : 'Multiple explores matched your search. Use topMatchingFields below and apply Rule 2 (ambiguity check) to determine which explore to use, then call findFields for that explore.'}
+                </note>
+                {exploreSearchResults.map((result) => (
+                    <alternative
+                        name={result.name}
+                        label={result.label}
+                        searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
                     >
-                        <fields alt="dimensions and metrics">
-                            {Object.values(table.dimensions).length > 0 && (
-                                <dimensions alt="dimensions">
-                                    {Object.values(table.dimensions)
-                                        .filter(
-                                            (d) =>
-                                                !d.hidden && !d.isIntervalBase,
-                                        )
-                                        .map((dimension) => (
-                                            <dimension
-                                                usageInCharts={getCatalogChartUsage(
-                                                    catalogFields,
-                                                    'dimension',
-                                                    dimension,
-                                                )}
-                                                name={dimension.name}
-                                                label={dimension.label}
-                                                fieldId={getItemId(dimension)}
-                                            >
-                                                {dimension.aiHint &&
-                                                    (
-                                                        convertToAiHints(
-                                                            dimension.aiHint,
-                                                        ) ?? []
-                                                    ).length > 0 && (
-                                                        <aihints>
-                                                            {dimension.aiHint &&
-                                                                convertToAiHints(
-                                                                    dimension.aiHint,
-                                                                )?.map(
-                                                                    (hint) => (
-                                                                        <hint>
-                                                                            {
-                                                                                hint
-                                                                            }
-                                                                        </hint>
-                                                                    ),
-                                                                )}
-                                                        </aihints>
-                                                    )}
-                                            </dimension>
-                                        ))}
-                                </dimensions>
-                            )}
-
-                            {Object.values(table.metrics).length > 0 && (
-                                <metrics alt="metrics">
-                                    {Object.values(table.metrics)
-                                        .filter((m) => !m.hidden)
-                                        .map((metric) => (
-                                            <metric
-                                                usageInCharts={getCatalogChartUsage(
-                                                    catalogFields,
-                                                    'metric',
-                                                    metric,
-                                                )}
-                                                name={metric.name}
-                                                label={metric.label}
-                                                fieldId={getItemId(metric)}
-                                            >
-                                                {metric.aiHint &&
-                                                    (
-                                                        convertToAiHints(
-                                                            metric.aiHint,
-                                                        ) ?? []
-                                                    ).length > 0 && (
-                                                        <aihints>
-                                                            {metric.aiHint &&
-                                                                convertToAiHints(
-                                                                    metric.aiHint,
-                                                                )?.map(
-                                                                    (hint) => (
-                                                                        <hint>
-                                                                            {
-                                                                                hint
-                                                                            }
-                                                                        </hint>
-                                                                    ),
-                                                                )}
-                                                        </aihints>
-                                                    )}
-                                            </metric>
-                                        ))}
-                                </metrics>
-                            )}
-                        </fields>
-                    </table>
+                        {result.description && (
+                            <description>{result.description}</description>
+                        )}
+                        {result.aiHints && result.aiHints.length > 0 && (
+                            <aiHints>
+                                {result.aiHints.map((hint) => (
+                                    <hint>{hint}</hint>
+                                ))}
+                            </aiHints>
+                        )}
+                    </alternative>
                 ))}
-        </explore>
-    );
+            </searchResults>
+        ) : null;
+
+    const topFieldsXml =
+        topMatchingFields && topMatchingFields.length > 0 ? (
+            <topMatchingFields count={topMatchingFields.length}>
+                <note>
+                    Here are the top matching fields across all explores. Use
+                    this to determine which explore is most relevant by applying
+                    Rule 2 (ambiguity check).
+                </note>
+                {topMatchingFields.map((field) => (
+                    <field
+                        name={field.name}
+                        label={field.label}
+                        exploreName={field.tableName}
+                        fieldType={field.fieldType}
+                        searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
+                        usageInCharts={field.chartUsage ?? 0}
+                    >
+                        {field.description && (
+                            <description>{field.description}</description>
+                        )}
+                    </field>
+                ))}
+            </topMatchingFields>
+        ) : null;
+
+    return `${searchResultsXml ? `${searchResultsXml.toString()}\n` : ''}${
+        topFieldsXml ? `${topFieldsXml.toString()}\n` : ''
+    }`;
 };
 export const getFindExplores = ({
     findExplores,
@@ -189,106 +88,28 @@ export const getFindExplores = ({
         description: toolFindExploresArgsSchemaV3.description,
         inputSchema: toolFindExploresArgsSchemaV3,
         outputSchema: toolFindExploresOutputSchema,
-        execute: async (args, { experimental_context: context }) => {
+        execute: async (args) => {
             try {
                 await updateProgress(
-                    `🔍 Searching explore: \`${args.exploreName}\`...`,
+                    `🔍 Searching explores matching query: \`${args.searchQuery}\`...`,
                 );
 
-                const ctx = AgentContext.from(context);
-
-                if (!args.searchQuery) {
-                    validateExploreNameExists(
-                        ctx.getAvailableExplores(),
-                        args.exploreName,
-                    );
-                }
-
-                const { explore, catalogFields } = await findExplores({
-                    exploreName: args.exploreName,
-                    fieldSearchSize,
-                    searchQuery: args.searchQuery,
-                });
+                const { exploreSearchResults, topMatchingFields } =
+                    await findExplores({
+                        fieldSearchSize,
+                        searchQuery: args.searchQuery,
+                    });
 
                 return {
                     result: generateExploreResponse({
-                        explore,
-                        catalogFields,
-                    }).toString(),
+                        exploreSearchResults,
+                        topMatchingFields,
+                    }),
                     metadata: {
                         status: 'success',
                     },
                 };
             } catch (error) {
-                // Handle ambiguity error specially - provide formatted candidate list
-                if (error instanceof ExploreAmbiguityError) {
-                    const ambiguityResponse = (
-                        <ambiguity message="Multiple explores match your query. Please ask the user to clarify which one they mean.">
-                            <candidates count={error.candidates.length}>
-                                {error.candidates.map((c, i) => (
-                                    <candidate
-                                        rank={i + 1}
-                                        name={c.name}
-                                        relevance={
-                                            c.searchRank?.toFixed(3) ?? 'N/A'
-                                        }
-                                    >
-                                        <label>{c.label}</label>
-                                        {c.description && (
-                                            <description>
-                                                {c.description}
-                                            </description>
-                                        )}
-                                        {c.matchingFields &&
-                                            c.matchingFields.length > 0 && (
-                                                <matchingFields
-                                                    count={
-                                                        c.matchingFields.length
-                                                    }
-                                                >
-                                                    {c.matchingFields.map(
-                                                        (f) => (
-                                                            <field
-                                                                name={f.name}
-                                                                relevance={
-                                                                    f.searchRank?.toFixed(
-                                                                        3,
-                                                                    ) ?? 'N/A'
-                                                                }
-                                                            >
-                                                                {f.label}
-                                                            </field>
-                                                        ),
-                                                    )}
-                                                </matchingFields>
-                                            )}
-                                        {c.aiHints && c.aiHints.length > 0 && (
-                                            <aiHints>
-                                                {c.aiHints.map((hint) => (
-                                                    <hint>{hint}</hint>
-                                                ))}
-                                            </aiHints>
-                                        )}
-                                    </candidate>
-                                ))}
-                            </candidates>
-                            <instruction>
-                                Ask the user: "Which table would you like to
-                                use?"
-                            </instruction>
-                        </ambiguity>
-                    );
-
-                    return {
-                        result: ambiguityResponse.toString(),
-                        metadata: {
-                            status: 'error',
-                            errorType: 'ambiguity',
-                            candidates: error.candidates,
-                        },
-                    };
-                }
-
                 return {
                     result: toolErrorHandler(error, `Error listing explores.`),
                     metadata: {

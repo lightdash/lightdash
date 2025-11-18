@@ -23,13 +23,9 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
-    CatalogField,
-    CatalogFilter,
-    CatalogTable,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
-    ExploreAmbiguityError,
     ExploreCompiler,
     filterExploreByTags,
     followUpToolsText,
@@ -136,7 +132,6 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
-import { checkExploreAmbiguity } from './ai/utils/exploreAmbiguityChecker';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
@@ -2330,136 +2325,71 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                let soloCandidateExploreName: string | undefined;
-                // When searchQuery is provided, perform catalog search to check for ambiguity
-                if (args.searchQuery) {
-                    const exploreSearchResults =
-                        await this.catalogService.searchCatalog({
-                            projectUuid,
-                            userAttributes,
-                            catalogSearch: {
-                                searchQuery: args.searchQuery,
-                                type: CatalogType.Table,
-                                catalogTags: agentSettings.tags ?? undefined,
-                            },
-                            context: CatalogSearchContext.AI_AGENT,
-                            paginateArgs: {
-                                page: 1,
-                                pageSize: 10,
-                            },
-                            fullTextSearchOperator: 'OR',
-                        });
-
-                    const exploreResults = exploreSearchResults.data.filter(
-                        (item) => item.type === CatalogType.Table,
-                    ) as CatalogTable[];
-
-                    // If multiple explores found, search fields to help disambiguate
-                    let fieldSearchResults: CatalogField[] | undefined;
-                    if (exploreResults.length >= 2) {
-                        const fieldResults =
-                            await this.catalogService.searchCatalog({
-                                projectUuid,
-                                userAttributes,
-                                catalogSearch: {
-                                    searchQuery: args.searchQuery,
-                                    type: CatalogType.Field,
-                                    catalogTags:
-                                        agentSettings.tags ?? undefined,
-                                },
-                                context: CatalogSearchContext.AI_AGENT,
-                                paginateArgs: {
-                                    page: 1,
-                                    pageSize: 50, // Get top 50 fields
-                                },
-                                fullTextSearchOperator: 'OR',
-                            });
-                        fieldSearchResults = fieldResults.data.filter(
-                            (item) => item.type === CatalogType.Field,
-                        ) as CatalogField[];
-                    }
-
-                    const ambiguityCheck = checkExploreAmbiguity(
-                        exploreResults,
-                        args.exploreName,
-                        fieldSearchResults,
-                    );
-
-                    if (ambiguityCheck.candidates.length === 1) {
-                        soloCandidateExploreName =
-                            ambiguityCheck.candidates[0].name;
-                    }
-
-                    if (ambiguityCheck.isAmbiguous) {
-                        // Throw error with candidates - LLM will catch and ask user
-                        throw new ExploreAmbiguityError(
-                            `Multiple explores match your query "${args.searchQuery}". Please specify which one you'd like to use.`,
-                            ambiguityCheck.candidates,
-                        );
-                    }
-                }
-
-                const explore = await this.getExplore(
+                // Get available explores filtered by tags
+                const filteredExplores = await this.getAvailableExplores(
                     user,
                     projectUuid,
                     agentSettings.tags,
-                    soloCandidateExploreName ?? args.exploreName,
                 );
 
-                const sharedArgs = {
+                const searchResults = await this.catalogService.searchCatalog({
                     projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Field,
-                        catalogTags: agentSettings.tags ?? undefined,
-                        searchQuery: args.searchQuery,
-                    },
                     userAttributes,
+                    catalogSearch: {
+                        searchQuery: args.searchQuery,
+                        type: CatalogType.Table,
+                    },
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {
                         page: 1,
-                        pageSize: args.fieldSearchSize,
+                        pageSize: 10,
                     },
-                    // When searchQuery is provided, catalog is already sorted by search_rank
-                    // Otherwise, sort by chartUsage to prioritize commonly used fields
-                    sortArgs: args.searchQuery
-                        ? undefined
-                        : {
-                              sort: 'chartUsage',
-                              order: 'desc' as const,
-                          },
-                    filteredExplore: explore,
-                };
+                    fullTextSearchOperator: 'OR',
+                    filteredExplores,
+                });
 
-                const { data: dimensions } =
+                const exploreSearchResults = searchResults.data
+                    .filter((item) => item.type === CatalogType.Table)
+                    .map((table) => ({
+                        name: table.name,
+                        label: table.label,
+                        description: table.description,
+                        aiHints: table.aiHints ?? undefined,
+                        searchRank: table.searchRank,
+                    }));
+
+                const fieldSearchResults =
                     await this.catalogService.searchCatalog({
-                        ...sharedArgs,
+                        projectUuid,
+                        userAttributes,
                         catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Dimensions,
+                            searchQuery: args.searchQuery,
+                            type: CatalogType.Field,
+                        },
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: 1,
+                            pageSize: 50,
                         },
                         fullTextSearchOperator: 'OR',
+                        filteredExplores,
                     });
 
-                const { data: metrics } =
-                    await this.catalogService.searchCatalog({
-                        ...sharedArgs,
-                        catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Metrics,
-                        },
-                        fullTextSearchOperator: 'OR',
-                    });
+                const topMatchingFields = fieldSearchResults.data
+                    .filter((item) => item.type === CatalogType.Field)
+                    .map((field) => ({
+                        name: field.name,
+                        label: field.label,
+                        tableName: field.tableName,
+                        fieldType: field.fieldType,
+                        searchRank: field.searchRank,
+                        description: field.description,
+                        chartUsage: field.chartUsage ?? 0,
+                    }));
 
                 return {
-                    explore,
-                    catalogFields: {
-                        dimensions: dimensions.filter(
-                            (d) => d.type === CatalogType.Field,
-                        ),
-                        metrics: metrics.filter(
-                            (m) => m.type === CatalogType.Field,
-                        ),
-                    },
+                    exploreSearchResults,
+                    topMatchingFields,
                 };
             });
 
@@ -2496,7 +2426,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
+                        filteredExplores: [explore],
                     });
 
                 // TODO: we should not filter here, search should be returning a proper type
