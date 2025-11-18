@@ -1,7 +1,15 @@
+# syntax=docker/dockerfile:1.7
+
+# Optimized Multi-Stage Build for PR Previews
+# Uses parallel build stages and cache mounts for maximum caching
+# Okteto uses a cluster of buildkit instances to persist caches across PRs
+# New builds when the cluster scales will have a cold cache, but subsequent
+# builds will warm the cache again.
+
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:20-bookworm-slim AS base
+FROM node:20-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -11,6 +19,8 @@ RUN corepack prepare pnpm@9.15.5 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
+
+FROM pnpm-base AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -37,7 +47,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
-RUN python3 -m venv /usr/local/dbt1.4 \
+# Use pip cache to speed up subsequent builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m venv /usr/local/dbt1.4 \
     && /usr/local/dbt1.4/bin/pip install \
     "dbt-postgres~=1.4.0" \
     "dbt-redshift~=1.4.0" \
@@ -48,7 +60,8 @@ RUN python3 -m venv /usr/local/dbt1.4 \
     "dbt-clickhouse~=1.4.0" \
     "psycopg2-binary==2.9.6"
 
-RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
+RUN --mount=type=cache,target=/root/.cache/pip \
+    ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && python3 -m venv /usr/local/dbt1.5 \
     && /usr/local/dbt1.5/bin/pip install \
     "dbt-postgres~=1.5.0" \
@@ -104,7 +117,7 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     "dbt-databricks~=1.9.0" \
     "dbt-trino~=1.9.0" \
     "dbt-clickhouse~=1.9.0" \
-    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \ 
+    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
     "dbt-core~=1.10.0" \
@@ -118,7 +131,7 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10
 
 # -----------------------------
-# Stage 1: stop here for dev environment
+# Stage 1: Development environment
 # -----------------------------
 FROM base AS dev
 
@@ -135,19 +148,100 @@ EXPOSE 8080
 
 FROM base AS prod-builder
 # Install development dependencies for all
-COPY package.json .
-COPY pnpm-workspace.yaml .
-COPY pnpm-lock.yaml .
 COPY tsconfig.json .
 COPY .eslintrc.js .
 COPY .pnpmfile.cjs .
-COPY packages/common/package.json ./packages/common/
-COPY packages/warehouses/package.json ./packages/warehouses/
-COPY packages/backend/package.json ./packages/backend/
-COPY packages/frontend/package.json ./packages/frontend/
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prefer-offline
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages/common/package.json packages/common/
+COPY packages/warehouses/package.json packages/warehouses/
+COPY packages/backend/package.json packages/backend/
+COPY packages/frontend/package.json packages/frontend/
+
+# Produce a node_modules graph cache, reusable by all build stages
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline
+
+# Increase Node.js heap size for TypeScript compilation during parallel builds
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+############################
+# Build: common
+############################
+FROM prod-builder AS build-common
+COPY packages/common/tsconfig*.json packages/common/
+COPY packages/common/src/ packages/common/src/
+RUN pnpm -F @lightdash/common build
+# output: /usr/app/packages/common/dist
+
+############################
+# Build: warehouses
+############################
+FROM prod-builder AS build-warehouses
+
+COPY --from=build-common /usr/app/packages/common/ packages/common/
+
+COPY packages/warehouses/tsconfig.json packages/warehouses/
+COPY packages/warehouses/src/ packages/warehouses/src/
+RUN pnpm -F @lightdash/warehouses build
+# output: /usr/app/packages/warehouses/dist
+
+############################
+# Build: backend
+############################
+FROM prod-builder AS build-backend
+COPY --from=build-common /usr/app/packages/common/ packages/common/
+COPY --from=build-warehouses /usr/app/packages/warehouses/ packages/warehouses/
+
+COPY packages/backend/tsconfig*.json packages/backend/
+COPY packages/backend/src/ packages/backend/src/
+
+ARG SENTRY_AUTH_TOKEN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_RELEASE_VERSION=""
+ARG SENTRY_FRONTEND_PROJECT=""
+ARG SENTRY_BACKEND_PROJECT=""
+ARG SENTRY_ENVIRONMENT=""
+RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
+    echo "Building backend with sourcemaps for Sentry"; \
+    pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
+    else \
+    echo "Building backend without sourcemaps"; \
+    pnpm -F backend build; \
+    fi
+
+# output: /usr/app/packages/backend/dist
+
+############################
+# Build: frontend
+############################
+FROM prod-builder AS build-frontend
+COPY --from=build-common /usr/app/packages/common/ packages/common/
+
+COPY packages/frontend/ packages/frontend/
+
+ARG SENTRY_AUTH_TOKEN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_RELEASE_VERSION=""
+ARG SENTRY_FRONTEND_PROJECT=""
+ARG SENTRY_BACKEND_PROJECT=""
+ARG SENTRY_ENVIRONMENT=""
+
+RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
+    echo "Building frontend with Sentry integration"; \
+    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} pnpm -F frontend build; \
+    else \
+    echo "Building frontend without Sentry integration"; \
+    pnpm -F frontend build; \
+    fi
+
+# output: /usr/app/packages/frontend/build
+
+############################
+# Build: final build
+############################
+FROM prod-builder AS build-final
 
 # Install Sentry CLI if environment variables are set
 ARG SENTRY_AUTH_TOKEN=""
@@ -161,44 +255,11 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     npm install -g @sentry/cli; \
     fi
 
-# Build common
-COPY packages/common/tsconfig.json ./packages/common/
-COPY packages/common/tsconfig.build.json ./packages/common/
-COPY packages/common/tsconfig.esm.json ./packages/common/
-COPY packages/common/tsconfig.cjs.json ./packages/common/
-COPY packages/common/tsconfig.types.json ./packages/common/
-COPY packages/common/src/ ./packages/common/src/
-RUN pnpm -F @lightdash/common build
-
-# Build warehouses
-COPY packages/warehouses/tsconfig.json ./packages/warehouses/
-COPY packages/warehouses/src/ ./packages/warehouses/src/
-RUN pnpm -F @lightdash/warehouses build
-
-# Build backend
-COPY packages/backend/tsconfig.json ./packages/backend/
-COPY packages/backend/tsconfig.sentry.json ./packages/backend/
-COPY packages/backend/src/ ./packages/backend/src
-
-# Conditionally build backend with sourcemaps if Sentry environment variables are set
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
-    echo "Building backend with sourcemaps for Sentry"; \
-    pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
-    else \
-    echo "Building backend without sourcemaps"; \
-    pnpm -F backend build; \
-    fi
-
-# Build frontend
-COPY packages/frontend ./packages/frontend
-# Build frontend with sourcemaps (Vite generates them by default)
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
-    echo "Building frontend with Sentry integration"; \
-    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} pnpm -F frontend build; \
-    else \
-    echo "Building frontend without Sentry integration"; \
-    pnpm -F frontend build; \
-    fi
+# Copy built artifacts, not sources
+COPY --from=build-backend  /usr/app/packages/backend/dist  packages/backend/dist
+COPY --from=build-frontend /usr/app/packages/frontend/build packages/frontend/build
+COPY --from=build-common   /usr/app/packages/common/dist   packages/common/dist
+COPY --from=build-warehouses /usr/app/packages/warehouses/dist packages/warehouses/dist
 
 # Process and upload sourcemaps to Sentry if environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
@@ -235,23 +296,17 @@ RUN rm -rf node_modules \
 
 # Install production dependencies
 ENV NODE_ENV production
+
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --prod --frozen-lockfile --prefer-offline
+    pnpm install --prod --frozen-lockfile --offline
 
 # -----------------------------
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:20-bookworm-slim as prod
+FROM pnpm-base AS prod
 
 ENV NODE_ENV production
-ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
-RUN pnpm config set store-dir /pnpm/store
-
-WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -273,7 +328,6 @@ COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
 COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
 COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
 COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
-COPY --from=prod-builder /usr/app /usr/app
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
@@ -283,9 +337,9 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10
 
-
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+COPY --from=build-final /usr/app /usr/app
 
 EXPOSE 8080
 
@@ -295,7 +349,8 @@ ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
 
 FROM prod AS pr-runner
-#
+
+# Copy demo dbt project for E2E testing
 COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
