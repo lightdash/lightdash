@@ -88,7 +88,7 @@
         "hast": "^1.0.0",
         "html2canvas": "^1.4.1",
         "immer": "^10.1.1",
-        "js-yaml": "^4.1.0",
+        "js-yaml": "^4.1.1",
         "jspdf": "^3.0.2",
         "lodash": "^4.17.21",
         "mantine-form-zod-resolver": "^1.1.0",

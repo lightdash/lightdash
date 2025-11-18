@@ -26,7 +26,7 @@
         "execa": "^5",
         "google-auth-library": "^8.5.1",
         "inquirer": "^8.2.4",
-        "js-yaml": "^4.1.0",
+        "js-yaml": "^4.1.1",
         "lodash": "^4.17.21",
         "node-fetch": "^2.7.0",
         "nunjucks": "^3.2.3",
