@@ -6604,7 +6604,23 @@
                 "$ref": "#/components/schemas/ReadinessScoreEvaluation"
             },
             "ExploreAnalysisEvaluation": {
-                "$ref": "#/components/schemas/ReadinessScoreEvaluation"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ReadinessScoreEvaluation"
+                    },
+                    {
+                        "properties": {
+                            "largeExplores": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["largeExplores"],
+                        "type": "object"
+                    }
+                ]
             },
             "InstructionQualityEvaluation": {
                 "$ref": "#/components/schemas/ReadinessScoreEvaluation"

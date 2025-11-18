@@ -5830,7 +5830,23 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExploreAnalysisEvaluation: {
         dataType: 'refAlias',
-        type: { ref: 'ReadinessScoreEvaluation', validators: {} },
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ReadinessScoreEvaluation' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        largeExplores: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InstructionQualityEvaluation: {
