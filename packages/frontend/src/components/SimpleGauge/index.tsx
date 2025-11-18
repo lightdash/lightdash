@@ -89,7 +89,7 @@ const calculateRadius = (boundWidth: number, boundHeight: number) => {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleGauge: FC<SimpleGaugeProps> = memo((props) => {
-    const { chartRef, isLoading, resultsData } = useVisualizationContext();
+    const { chartRef, isLoading } = useVisualizationContext();
     const [chartWidth, setChartWidth] = useState(0);
     const [chartHeight, setChartHeight] = useState(0);
     const sizes = useMemo(() => {
@@ -131,11 +131,6 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo((props) => {
     });
 
     useEffect(() => {
-        // Load all the rows
-        resultsData?.setFetchAll(true);
-    }, [resultsData]);
-
-    useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();
         const observer = new ResizeObserver(([entry]) => {
             const { width, height } = entry.contentRect;
@@ -146,7 +141,7 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo((props) => {
         if (chartRef.current?.getEchartsInstance().getDom()) {
             observer.observe(chartRef.current?.getEchartsInstance().getDom());
         }
-
+        window.addEventListener('resize', listener);
         return () => {
             window.removeEventListener('resize', listener);
             observer.disconnect();
