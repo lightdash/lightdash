@@ -1,3 +1,10 @@
+## [0.2178.5](https://github.com/lightdash/lightdash/compare/0.2178.4...0.2178.5) (2025-11-18)
+
+
+### Bug Fixes
+
+* include first value of the custom range for x axis ([#18172](https://github.com/lightdash/lightdash/issues/18172)) ([fead3c6](https://github.com/lightdash/lightdash/commit/fead3c677511f5e5f32751bf4bd83e475b321b8a))
+
 ## [0.2178.4](https://github.com/lightdash/lightdash/compare/0.2178.3...0.2178.4) (2025-11-17)
 
 
