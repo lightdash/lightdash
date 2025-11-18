@@ -3,7 +3,6 @@ import {
     type AnyType,
     type ApiError,
     type ApiJobStatusResponse,
-    type ApiSchedulerRunsResponse,
     type ApiSchedulersResponse,
     type ApiTestSchedulerResponse,
     type CreateSchedulerAndTargets,
@@ -82,6 +81,7 @@ const getPaginatedSchedulers = async (
         resourceUuids?: string[];
         destinations?: DestinationType[];
     },
+    includeLatestRun?: boolean,
 ) => {
     const urlParams = new URLSearchParams({
         page: String(paginateArgs.page),
@@ -102,6 +102,7 @@ const getPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
     return lightdashApi<ApiSchedulersResponse['results']>({
@@ -135,37 +136,6 @@ const sendNowSchedulerByUuid = async (uuid: string) =>
         method: 'POST',
         body: undefined,
     });
-
-const getSchedulerRuns = async (
-    projectUuid: string,
-    {
-        schedulerUuid,
-        page,
-        pageSize,
-        sortBy,
-        sortDirection,
-    }: {
-        schedulerUuid?: string;
-        page?: number;
-        pageSize?: number;
-        sortBy?: 'scheduledTime' | 'createdAt';
-        sortDirection?: 'asc' | 'desc';
-    } = {},
-): Promise<ApiSchedulerRunsResponse['results']> => {
-    const params = new URLSearchParams();
-
-    if (page !== undefined) params.set('page', String(page));
-    if (pageSize !== undefined) params.set('pageSize', String(pageSize));
-    if (sortBy) params.set('sortBy', sortBy);
-    if (sortDirection) params.set('sortDirection', sortDirection);
-    if (schedulerUuid) params.set('schedulerUuid', schedulerUuid);
-
-    return lightdashApi({
-        url: `/schedulers/${projectUuid}/runs?${params.toString()}`,
-        method: 'GET',
-        body: undefined,
-    }) as unknown as Promise<ApiSchedulerRunsResponse['results']>;
-};
 
 export const useScheduler = (
     uuid: string | null,
@@ -240,6 +210,7 @@ export const usePaginatedSchedulers = ({
     sortBy,
     sortDirection,
     filters,
+    includeLatestRun,
 }: {
     projectUuid: string;
     paginateArgs?: KnexPaginateArgs;
@@ -252,6 +223,7 @@ export const usePaginatedSchedulers = ({
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
     };
+    includeLatestRun?: boolean;
 }) => {
     return useInfiniteQuery<ApiSchedulersResponse['results']>({
         queryKey: [
@@ -262,6 +234,7 @@ export const usePaginatedSchedulers = ({
             sortBy,
             sortDirection,
             filters,
+            includeLatestRun,
         ],
         queryFn: async ({ pageParam = 0 }) => {
             return getPaginatedSchedulers(
@@ -274,6 +247,7 @@ export const usePaginatedSchedulers = ({
                 sortBy,
                 sortDirection,
                 filters,
+                includeLatestRun,
             );
         },
         getNextPageParam: (_lastGroup, groups) => {
@@ -520,23 +494,4 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
         ...sendNowMutation,
         isLoading,
     };
-};
-
-export const useSchedulerLatestRun = (
-    projectUuid: string,
-    schedulerUuid: string,
-) => {
-    return useQuery<ApiSchedulerRunsResponse['results'], ApiError>({
-        queryKey: ['schedulerLatestRun', projectUuid, schedulerUuid],
-        queryFn: () =>
-            getSchedulerRuns(projectUuid, {
-                schedulerUuid,
-                page: 1,
-                pageSize: 1,
-                sortBy: 'scheduledTime',
-                sortDirection: 'desc',
-            }),
-        enabled: Boolean(projectUuid && schedulerUuid),
-        refetchOnWindowFocus: false,
-    });
 };

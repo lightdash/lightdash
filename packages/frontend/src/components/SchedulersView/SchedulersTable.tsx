@@ -12,7 +12,6 @@ import {
     Badge,
     Box,
     Group,
-    Loader,
     Stack,
     Text,
     Tooltip,
@@ -50,10 +49,7 @@ import {
     type UIEvent,
 } from 'react';
 import { Link } from 'react-router';
-import {
-    usePaginatedSchedulers,
-    useSchedulerLatestRun,
-} from '../../features/scheduler/hooks/useScheduler';
+import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import {
     useSchedulerFilters,
     type DestinationType,
@@ -79,98 +75,25 @@ interface SchedulersTableProps {
 
 const fetchSize = 50;
 
-// Component to display the latest run status for a scheduler
-const SchedulerStatusCell: FC<{
-    schedulerUuid: string;
-    projectUuid: string;
-}> = ({ schedulerUuid, projectUuid }) => {
-    const { data, isLoading } = useSchedulerLatestRun(
-        projectUuid,
-        schedulerUuid,
-    );
-
-    if (isLoading) {
-        return <Loader size="xs" />;
+const getRunStatusConfig = (status: SchedulerRunStatus) => {
+    switch (status) {
+        case SchedulerRunStatus.COMPLETED:
+            return { color: 'green', icon: IconCheck, label: 'Completed' };
+        case SchedulerRunStatus.PARTIAL_FAILURE:
+            return {
+                color: 'yellow',
+                icon: IconAlertCircle,
+                label: 'Partial failure',
+            };
+        case SchedulerRunStatus.FAILED:
+            return { color: 'red', icon: IconAlertCircle, label: 'Failed' };
+        case SchedulerRunStatus.RUNNING:
+            return { color: 'blue', icon: IconRun, label: 'Running' };
+        case SchedulerRunStatus.SCHEDULED:
+            return { color: 'gray', icon: IconClock, label: 'Scheduled' };
+        default:
+            return assertUnreachable(status, 'Unknown scheduler run status');
     }
-
-    const latestRun = data?.data?.[0];
-
-    if (!latestRun) {
-        return (
-            <Text fz="xs" c="gray.6">
-                No runs yet
-            </Text>
-        );
-    }
-
-    const getStatusConfig = (status: SchedulerRunStatus) => {
-        switch (status) {
-            case SchedulerRunStatus.COMPLETED:
-                return {
-                    color: 'green',
-                    icon: IconCheck,
-                    label: 'Completed',
-                };
-            case SchedulerRunStatus.PARTIAL_FAILURE:
-                return {
-                    color: 'yellow',
-                    icon: IconAlertCircle,
-                    label: 'Partial failure',
-                };
-            case SchedulerRunStatus.FAILED:
-                return {
-                    color: 'red',
-                    icon: IconAlertCircle,
-                    label: 'Failed',
-                };
-            case SchedulerRunStatus.RUNNING:
-                return {
-                    color: 'blue',
-                    icon: IconRun,
-                    label: 'Running',
-                };
-            case SchedulerRunStatus.SCHEDULED:
-                return {
-                    color: 'gray',
-                    icon: IconClock,
-                    label: 'Scheduled',
-                };
-            default:
-                return assertUnreachable(
-                    status,
-                    'Unknown scheduler run status',
-                );
-        }
-    };
-
-    const statusConfig = getStatusConfig(latestRun.runStatus);
-
-    return (
-        <Tooltip
-            label={
-                <Stack gap="xxs">
-                    <Text fz="xs">
-                        Last run:{' '}
-                        {new Date(latestRun.scheduledTime).toLocaleString()}
-                    </Text>
-                    {latestRun.logCounts && (
-                        <Text fz="xs" c="gray.5">
-                            {latestRun.logCounts.completed} completed,{' '}
-                            {latestRun.logCounts.error} failed
-                        </Text>
-                    )}
-                </Stack>
-            }
-        >
-            <Badge
-                size="sm"
-                color={statusConfig.color}
-                leftSection={<MantineIcon icon={statusConfig.icon} size="xs" />}
-            >
-                {statusConfig.label}
-            </Badge>
-        </Tooltip>
-    );
 };
 
 const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
@@ -218,6 +141,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
             sortBy: debouncedSearchAndFilters.sortField,
             sortDirection: debouncedSearchAndFilters.sortDirection,
             filters: debouncedSearchAndFilters.apiFilters,
+            includeLatestRun: true,
         });
 
     const flatData = useMemo<SchedulerItem[]>(
@@ -485,11 +409,53 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                 ),
                 Cell: ({ row }) => {
                     const item = row.original;
+                    const latestRun = item.latestRun;
+
+                    if (!latestRun) {
+                        return (
+                            <Text fz="xs" c="gray.6">
+                                No runs yet
+                            </Text>
+                        );
+                    }
+
+                    const statusConfig = getRunStatusConfig(
+                        latestRun.runStatus,
+                    );
+
                     return (
-                        <SchedulerStatusCell
-                            schedulerUuid={item.schedulerUuid}
-                            projectUuid={projectUuid}
-                        />
+                        <Tooltip
+                            label={
+                                <Stack gap="xxs">
+                                    <Text fz="xs">
+                                        Last run:{' '}
+                                        {new Date(
+                                            latestRun.scheduledTime,
+                                        ).toLocaleString()}
+                                    </Text>
+                                    {latestRun.logCounts && (
+                                        <Text fz="xs" c="gray.5">
+                                            {latestRun.logCounts.completed}{' '}
+                                            completed,{' '}
+                                            {latestRun.logCounts.error} failed
+                                        </Text>
+                                    )}
+                                </Stack>
+                            }
+                        >
+                            <Badge
+                                size="sm"
+                                color={statusConfig.color}
+                                leftSection={
+                                    <MantineIcon
+                                        icon={statusConfig.icon}
+                                        size="xs"
+                                    />
+                                }
+                            >
+                                {statusConfig.label}
+                            </Badge>
+                        </Tooltip>
                     );
                 },
             },
