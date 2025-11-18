@@ -144,34 +144,47 @@ ${styles.bold('Examples:')}
 
 // LOGIN
 program
-    .command('login <url>')
+    .command('login [url]')
     .description('Logs in to a Lightdash instance')
     .description(
-        'Logs in to a Lightdash instance using OAuth2 (opens browser). Use --token to bypass OAuth.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
+        'Logs in to a Lightdash instance using OAuth2 (opens browser). Use --token to bypass OAuth.\n\nURL is optional - if not provided, uses the last URL you logged into. URL can be flexible: single words like "app" become "https://app.lightdash.cloud", protocol defaults to https, and paths are ignored.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
     )
     .addHelpText(
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
-            'login',
-        )} https://app.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud US instance (opens browser for OAuth)',
+  ${styles.title('⚡')}️lightdash ${styles.bold('login')} ${styles.secondary(
+            '-- Uses previously saved URL (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
-        )} https://eu1.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud EU instance (opens browser for OAuth)',
+        )} app ${styles.secondary(
+            '-- Short form for https://app.lightdash.cloud (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
-        )} https://custom.lightdash.domain ${styles.secondary(
-            '-- Logs in to a self-hosted instance (opens browser for OAuth)',
+        )} eu1 ${styles.secondary(
+            '-- Short form for https://eu1.lightdash.cloud (opens browser for OAuth)',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
-        )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
-            '-- Logs in with an API access token (bypasses OAuth, useful for SSO users or CI/CD)',
+        )} app.lightdash.cloud ${styles.secondary(
+            '-- Adds https:// automatically (opens browser for OAuth)',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://custom.lightdash.domain/projects/123 ${styles.secondary(
+            '-- Strips path, uses https://custom.lightdash.domain (opens browser for OAuth)',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} http://localhost:3000 ${styles.secondary(
+            '-- Preserves http protocol for local development',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} --token 12345 ${styles.secondary(
+            '-- Logs in with API token using saved URL (bypasses OAuth)',
         )}
 `,
     )
