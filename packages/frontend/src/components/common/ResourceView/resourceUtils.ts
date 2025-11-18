@@ -35,6 +35,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Funnel chart';
                 case ChartKind.TREEMAP:
                     return 'Treemap';
+                case ChartKind.GAUGE:
+                    return 'Gauge';
                 case ChartKind.TABLE:
                     return 'Table';
                 case ChartKind.BIG_NUMBER:

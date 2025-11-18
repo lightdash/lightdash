@@ -338,6 +338,16 @@ export const renameChartConfigType = (
                     ),
                 },
             };
+        case ChartType.GAUGE:
+            return {
+                ...chartConfig,
+                config: {
+                    ...chartConfig.config,
+                    selectedField: replaceOptionalId(
+                        chartConfig.config?.selectedField,
+                    ),
+                },
+            };
 
         case ChartType.TABLE:
             return {

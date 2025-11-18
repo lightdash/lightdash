@@ -23,6 +23,7 @@ export enum ChartKind {
     FUNNEL = 'funnel',
     CUSTOM = 'custom',
     TREEMAP = 'treemap',
+    GAUGE = 'gauge',
 }
 
 export enum ChartType {
@@ -32,6 +33,7 @@ export enum ChartType {
     PIE = 'pie',
     FUNNEL = 'funnel',
     TREEMAP = 'treemap',
+    GAUGE = 'gauge',
     CUSTOM = 'custom',
 }
 
@@ -117,6 +119,20 @@ export type TreemapChart = {
     useDynamicColors?: boolean;
     startColorThreshold?: number;
     endColorThreshold?: number;
+};
+
+export type GaugeSection = {
+    min: number;
+    max: number;
+    color: string;
+};
+
+export type GaugeChart = {
+    selectedField?: string;
+    min?: number;
+    max?: number;
+    showAxisLabels?: boolean;
+    sections?: GaugeSection[];
 };
 
 export enum FunnelChartDataInput {
@@ -391,6 +407,11 @@ export type TreemapChartConfig = {
     config?: TreemapChart;
 };
 
+export type GaugeChartConfig = {
+    type: ChartType.GAUGE;
+    config?: GaugeChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
@@ -398,7 +419,8 @@ export type ChartConfig =
     | PieChartConfig
     | FunnelChartConfig
     | TableChartConfig
-    | TreemapChartConfig;
+    | TreemapChartConfig
+    | GaugeChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -592,6 +614,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.TABLE;
         case ChartKind.TREEMAP:
             return ChartType.TREEMAP;
+        case ChartKind.GAUGE:
+            return ChartType.GAUGE;
         default:
             return ChartType.CARTESIAN;
     }
@@ -646,6 +670,8 @@ export const getChartKind = (
             return undefined;
         case ChartType.TREEMAP:
             return ChartKind.TREEMAP;
+        case ChartType.GAUGE:
+            return ChartKind.GAUGE;
         default:
             return assertUnreachable(
                 chartType,
