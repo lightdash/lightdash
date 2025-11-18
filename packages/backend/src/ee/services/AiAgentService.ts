@@ -41,6 +41,7 @@ import {
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
+    SEED_ORG_1,
     SlackPrompt,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
@@ -1527,7 +1528,10 @@ export class AiAgentService {
         humanScore: number,
         humanFeedback?: string | null,
     ) {
-        if (humanScore !== 0) {
+        if (
+            humanScore !== 0 &&
+            user.organizationUuid !== SEED_ORG_1.organization_uuid
+        ) {
             this.analytics.track<AiAgentPromptFeedbackEvent>({
                 event: 'ai_agent_prompt.feedback',
                 userId: user.userUuid,
