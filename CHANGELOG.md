@@ -1,3 +1,11 @@
+## [0.2179.1](https://github.com/lightdash/lightdash/compare/0.2179.0...0.2179.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* disable embeddings in AI agent integration tests ([#18183](https://github.com/lightdash/lightdash/issues/18183)) ([2ed86ae](https://github.com/lightdash/lightdash/commit/2ed86ae311f50db0dc8c892e52a4f0199e342a0b))
+* handle multibyte characters in JSONL streaming ([#18185](https://github.com/lightdash/lightdash/issues/18185)) ([2e9d8f3](https://github.com/lightdash/lightdash/commit/2e9d8f32f4eff59c8e239ee91aca168360533963)), closes [#17290](https://github.com/lightdash/lightdash/issues/17290)
+
 # [0.2179.0](https://github.com/lightdash/lightdash/compare/0.2178.5...0.2179.0) (2025-11-18)
 
 
