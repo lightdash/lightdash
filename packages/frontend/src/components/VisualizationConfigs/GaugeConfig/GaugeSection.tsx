@@ -6,11 +6,11 @@ import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 
 export type Props = {
-    onClick: (index: string) => void;
+    onClick: () => void;
     index: number;
     section: GaugeSection;
     onUpdate: (index: number, updatedSection: Partial<GaugeSection>) => void;
-    onRemove: (index: string) => void;
+    onRemove: (index: number) => void;
 };
 
 const GaugeSectionComponent: FC<Props> = memo(
@@ -20,14 +20,13 @@ const GaugeSectionComponent: FC<Props> = memo(
         return (
             <Accordion.Item value={`${index}`}>
                 <AccordionControl
-                    label={section.label || `Section ${index + 1}`}
+                    label={`Section ${index + 1}`}
                     onControlClick={onClick}
                     onRemove={() => onRemove(index)}
                     extraControlElements={
                         <ColorSelector
                             color={section.color}
                             swatches={colorPalette}
-                            withEyeDropper={false}
                             onColorChange={(color) =>
                                 onUpdate(index, { color })
                             }

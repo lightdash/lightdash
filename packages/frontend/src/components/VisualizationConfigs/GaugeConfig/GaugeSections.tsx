@@ -109,11 +109,12 @@ const GaugeSections: FC = memo(() => {
                                 <GaugeSectionComponent
                                     key={index}
                                     index={index}
-                                    onClick={() =>
-                                        openItems.includes(`${index}`)
-                                            ? removeItem(index)
-                                            : addNewItem(index)
-                                    }
+                                    onClick={() => {
+                                        const indexString = `${index}`;
+                                        return openItems.includes(indexString)
+                                            ? removeItem(indexString)
+                                            : addNewItem(indexString);
+                                    }}
                                     onUpdate={updateSection}
                                     onRemove={removeSection}
                                     section={section}
