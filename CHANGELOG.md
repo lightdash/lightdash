@@ -1,3 +1,10 @@
+# [0.2180.0](https://github.com/lightdash/lightdash/compare/0.2179.2...0.2180.0) (2025-11-18)
+
+
+### Features
+
+* add Databricks OAuth U2M authentication support ([#18098](https://github.com/lightdash/lightdash/issues/18098)) ([0edaf9a](https://github.com/lightdash/lightdash/commit/0edaf9aaebdc7d2d75da003e3478f88c00271cd9)), closes [#18116](https://github.com/lightdash/lightdash/issues/18116) [#18116](https://github.com/lightdash/lightdash/issues/18116) [#18069](https://github.com/lightdash/lightdash/issues/18069) [#18069](https://github.com/lightdash/lightdash/issues/18069) [#18130](https://github.com/lightdash/lightdash/issues/18130) [#18130](https://github.com/lightdash/lightdash/issues/18130) [#18134](https://github.com/lightdash/lightdash/issues/18134) [#18134](https://github.com/lightdash/lightdash/issues/18134) [#18074](https://github.com/lightdash/lightdash/issues/18074) [#18074](https://github.com/lightdash/lightdash/issues/18074) [#18077](https://github.com/lightdash/lightdash/issues/18077) [#18077](https://github.com/lightdash/lightdash/issues/18077) [#18133](https://github.com/lightdash/lightdash/issues/18133) [#18133](https://github.com/lightdash/lightdash/issues/18133) [#18143](https://github.com/lightdash/lightdash/issues/18143) [#18143](https://github.com/lightdash/lightdash/issues/18143) [#18065](https://github.com/lightdash/lightdash/issues/18065) [#18065](https://github.com/lightdash/lightdash/issues/18065) [#18144](https://github.com/lightdash/lightdash/issues/18144) [#18125](https://github.com/lightdash/lightdash/issues/18125)
+
 ## [0.2179.2](https://github.com/lightdash/lightdash/compare/0.2179.1...0.2179.2) (2025-11-18)
 
 
