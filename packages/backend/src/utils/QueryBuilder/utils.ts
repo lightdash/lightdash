@@ -161,9 +161,11 @@ export const replaceLightdashValues = (
         throwOnMissing = true,
         // ! This is only for error messages so we can reuse the same function for user attributes and parameters
         replacementName = 'user attribute',
+        cast,
     }: {
         throwOnMissing?: boolean;
         replacementName?: 'user attribute' | 'parameter';
+        cast?: 'DATE';
     } = {},
 ): {
     replacedSql: string;
@@ -221,7 +223,11 @@ export const replaceLightdashValues = (
             } else if (typeof attributeValues === 'number') {
                 valueString = String(attributeValues);
             } else {
-                valueString = `${quoteChar}${attributeValues}${quoteChar}`;
+                const quotedValue = `${quoteChar}${attributeValues}${quoteChar}`;
+                valueString =
+                    cast === 'DATE'
+                        ? `CAST(${quotedValue} AS DATE)`
+                        : quotedValue;
             }
 
             return acc.replace(sqlAttribute, valueString);

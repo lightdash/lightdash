@@ -16,7 +16,7 @@ type SpotlightConfig = {
 export type LightdashProjectParameter = {
     label: string;
     description?: string;
-    type?: 'string' | 'number'; // defaults to 'string' for backwards compatibility
+    type?: 'string' | 'number' | 'date'; // defaults to 'string' for backwards compatibility
     default?: ParameterValue;
     multiple?: boolean; // the parameter input will be a multi select
     allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
