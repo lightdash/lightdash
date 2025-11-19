@@ -61,6 +61,7 @@ import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import {
     AiAgentToolCallTableName,
@@ -2775,11 +2776,6 @@ export class AiAgentModel {
         }
     }
 
-    /**
-     * Gets all tool calls and results for a prompt using a single query
-     * @param promptUuid
-     * @returns Array<{toolCall: AiAgentToolCall, toolResult: AiAgentToolResult}>
-     */
     async getToolCallsAndResultsForPrompt(promptUuid: string): Promise<
         Array<{
             toolCall: AiAgentToolCall;
@@ -2789,11 +2785,12 @@ export class AiAgentModel {
         const rows = await this.database(AiAgentToolCallTableName)
             .select<
                 Array<
-                    DbAiAgentToolCall &
-                        Pick<
-                            DbAiAgentToolResult,
-                            'ai_agent_tool_result_uuid' | 'result' | 'metadata'
-                        > & { result_created_at: Date }
+                    DbAiAgentToolCall & {
+                        ai_agent_tool_result_uuid: string | null;
+                        result: string | null;
+                        metadata: Record<string, unknown> | null;
+                        result_created_at: Date | null;
+                    }
                 >
             >(
                 `${AiAgentToolCallTableName}.*`,
@@ -2802,7 +2799,7 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.metadata`,
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
             )
-            .innerJoin(
+            .leftJoin(
                 AiAgentToolResultTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
                 `${AiAgentToolResultTableName}.tool_call_id`,
@@ -2810,31 +2807,33 @@ export class AiAgentModel {
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
-        return rows.map((row) => {
-            const toolCall = {
-                uuid: row.ai_agent_tool_call_uuid,
-                promptUuid: row.ai_prompt_uuid,
-                toolCallId: row.tool_call_id,
-                toolName: row.tool_name,
-                toolArgs: row.tool_args,
-                createdAt: row.created_at,
-            } satisfies AiAgentToolCall;
+        return rows
+            .filter((row) => row.result !== null)
+            .map((row) => {
+                const toolCall = {
+                    uuid: row.ai_agent_tool_call_uuid,
+                    promptUuid: row.ai_prompt_uuid,
+                    toolCallId: row.tool_call_id,
+                    toolName: row.tool_name,
+                    toolArgs: row.tool_args,
+                    createdAt: row.created_at,
+                } satisfies AiAgentToolCall;
 
-            const toolResult = this.parseToolResult({
-                ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid,
-                ai_prompt_uuid: row.ai_prompt_uuid,
-                tool_call_id: row.tool_call_id,
-                tool_name: row.tool_name,
-                result: row.result,
-                metadata: row.metadata,
-                created_at: row.result_created_at,
+                const toolResult = this.parseToolResult({
+                    ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid!,
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    tool_call_id: row.tool_call_id,
+                    tool_name: row.tool_name,
+                    result: row.result!,
+                    metadata: row.metadata!,
+                    created_at: row.result_created_at!,
+                });
+
+                return {
+                    toolCall,
+                    toolResult,
+                };
             });
-
-            return {
-                toolCall,
-                toolResult,
-            };
-        });
     }
 
     async getToolCallsForPrompt(
