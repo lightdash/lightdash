@@ -176,12 +176,13 @@ export function getFeedbackBlocks(
     ];
 }
 
-export function getExploreBlocks(
+export async function getArtifactBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
     maxQueryLimit: number,
+    createShareUrl: (path: string, params: string) => Promise<string>,
     artifacts?: AiArtifact[],
-): (Block | KnownBlock)[] {
+): Promise<(Block | KnownBlock)[]> {
     // TODO: Assuming each thread has just one artifact for now
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -225,11 +226,18 @@ export function getExploreBlocks(
         },
     };
 
-    const configStateQueryString = new URLSearchParams({
-        create_saved_chart_version: JSON.stringify(configState),
-    });
+    const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
+    const params = `?create_saved_chart_version=${encodeURIComponent(
+        JSON.stringify(configState),
+    )}`;
 
-    const exploreUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}?${configStateQueryString}`;
+    let exploreUrl: string;
+    try {
+        exploreUrl = await createShareUrl(path, params);
+    } catch {
+        // Fall back to full URL if share creation fails
+        exploreUrl = `${siteUrl}${path}${params}`;
+    }
 
     return [
         {
