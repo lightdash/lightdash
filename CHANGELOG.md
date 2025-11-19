@@ -1,3 +1,10 @@
+# [0.2186.0](https://github.com/lightdash/lightdash/compare/0.2185.0...0.2186.0) (2025-11-19)
+
+
+### Features
+
+* create agent readiness controller and service ([#18203](https://github.com/lightdash/lightdash/issues/18203)) ([e434caf](https://github.com/lightdash/lightdash/commit/e434caf15a009aacad425d499894361864b8de79))
+
 # [0.2185.0](https://github.com/lightdash/lightdash/compare/0.2184.1...0.2185.0) (2025-11-19)
 
 
