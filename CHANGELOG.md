@@ -1,3 +1,10 @@
+## [0.2183.1](https://github.com/lightdash/lightdash/compare/0.2183.0...0.2183.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* remove unused join meta fields ([#18107](https://github.com/lightdash/lightdash/issues/18107)) ([696e43e](https://github.com/lightdash/lightdash/commit/696e43e4c98ba35090d2c8fbca7fee3d3eb4f429))
+
 # [0.2183.0](https://github.com/lightdash/lightdash/compare/0.2182.2...0.2183.0) (2025-11-19)
 
 
