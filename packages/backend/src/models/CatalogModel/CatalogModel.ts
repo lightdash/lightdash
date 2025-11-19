@@ -57,6 +57,7 @@ import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
+    getWebSearchRankCalcSql,
 } from '../SearchModel/utils/search';
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
@@ -600,7 +601,7 @@ export class CatalogModel {
         sortArgs,
         context,
         fullTextSearchOperator = 'AND',
-        filteredExplore,
+        filteredExplores,
         changeset,
     }: {
         projectUuid: string;
@@ -613,9 +614,14 @@ export class CatalogModel {
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
-        filteredExplore?: Explore;
+        filteredExplores?: Explore[];
         changeset?: ChangesetWithChanges;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
+        // Use websearch_to_tsquery for AI Agent queries for better natural language support
+        const useWebSearch =
+            context === CatalogSearchContext.AI_AGENT ||
+            context === CatalogSearchContext.MCP;
+
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
@@ -629,14 +635,22 @@ export class CatalogModel {
                 `${CatalogTableName}.joined_tables`,
                 `icon`,
                 {
-                    search_rank: getFullTextSearchRankCalcSql({
-                        database: this.database,
-                        variables: {
-                            searchVectorColumn: `${CatalogTableName}.search_vector`,
-                            searchQuery,
-                        },
-                        fullTextSearchOperator,
-                    }),
+                    search_rank: useWebSearch
+                        ? getWebSearchRankCalcSql({
+                              database: this.database,
+                              variables: {
+                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
+                                  searchQuery,
+                              },
+                          })
+                        : getFullTextSearchRankCalcSql({
+                              database: this.database,
+                              variables: {
+                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
+                                  searchQuery,
+                              },
+                              fullTextSearchOperator,
+                          }),
                 },
             )
             .leftJoin(
@@ -818,47 +832,84 @@ export class CatalogModel {
             );
         }
 
-        // Filter by fields available in filteredExplore (AI agent explore tag filtering)
-        if (filteredExplore && type === CatalogType.Field) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                function filteredExploreFieldsFiltering() {
-                    // Build list of allowed (table_name, field_name) tuples from filtered explore
-                    const allowedFields = Object.entries(
-                        filteredExplore.tables,
-                    ).flatMap(([tableName, table]) => [
-                        ...Object.keys(table.dimensions).map(
-                            (dimName): [string, string] => [tableName, dimName],
-                        ),
-                        ...Object.keys(table.metrics).map(
-                            (metricName): [string, string] => [
-                                tableName,
-                                metricName,
-                            ],
-                        ),
-                    ]);
+        // Filter by filteredExplores (AI agent explore tag filtering)
+        if (filteredExplores) {
+            if (type === CatalogType.Table) {
+                // Filter tables by allowed explore names
+                const allowedExploreNames = filteredExplores.map((e) => e.name);
+                if (allowedExploreNames.length > 0) {
+                    catalogItemsQuery = catalogItemsQuery.andWhere(
+                        function allowedExploreNamesFiltering() {
+                            void this.whereIn(
+                                `${CatalogTableName}.name`,
+                                allowedExploreNames,
+                            );
+                        },
+                    );
+                } else {
+                    // No explores allowed, return no results
+                    catalogItemsQuery = catalogItemsQuery.andWhereRaw('false');
+                }
+            } else if (type === CatalogType.Field) {
+                // Filter fields by allowed (tableName, fieldName) tuples
+                const allowedFields = filteredExplores.flatMap((explore) =>
+                    Object.entries(explore.tables).flatMap(
+                        ([tableName, table]) => [
+                            ...Object.keys(table.dimensions).map(
+                                (dimName): [string, string] => [
+                                    tableName,
+                                    dimName,
+                                ],
+                            ),
+                            ...Object.keys(table.metrics).map(
+                                (metricName): [string, string] => [
+                                    tableName,
+                                    metricName,
+                                ],
+                            ),
+                        ],
+                    ),
+                );
 
-                    // Filter catalog to only include these fields using tuple comparison
-                    if (allowedFields.length > 0) {
-                        // Use PostgreSQL's row comparison: (table_name, name) IN (('orders', 'id'), ('users', 'email'), ...)
-                        void this.whereRaw(
-                            `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (VALUES ${allowedFields
-                                .map(() => '(?, ?)')
-                                .join(', ')})`,
-                            allowedFields.flat(),
-                        );
-                    } else {
-                        // No fields allowed, return no results
-                        void this.whereRaw('false');
-                    }
-                },
-            );
+                catalogItemsQuery = catalogItemsQuery.andWhere(
+                    function allowedFieldsFiltering() {
+                        if (allowedFields.length > 0) {
+                            // Use PostgreSQL's row comparison: (table_name, name) IN (VALUES ...)
+                            void this.whereRaw(
+                                `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (VALUES ${allowedFields
+                                    .map(() => '(?, ?)')
+                                    .join(', ')})`,
+                                allowedFields.flat(),
+                            );
+                        } else {
+                            // No fields allowed, return no results
+                            void this.whereRaw('false');
+                        }
+                    },
+                );
+            }
         }
 
         if (excludeUnmatched && searchQuery) {
-            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
-                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                getFullTextSearchQuery(searchQuery, fullTextSearchOperator),
-            );
+            if (useWebSearch) {
+                const webSearchQuery = searchQuery
+                    .split(' ')
+                    .filter((word) => word.trim())
+                    .join(' OR ');
+                catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                    `"${CatalogTableName}".search_vector @@ websearch_to_tsquery('lightdash_english_config', ?)`,
+                    webSearchQuery,
+                );
+            } else {
+                const formattedQuery = getFullTextSearchQuery(
+                    searchQuery,
+                    fullTextSearchOperator,
+                );
+                catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                    `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
+                    formattedQuery,
+                );
+            }
         }
 
         catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');

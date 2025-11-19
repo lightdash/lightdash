@@ -19,8 +19,8 @@ import {
     SessionUser,
     ToolFindContentArgs,
     toolFindContentArgsSchema,
-    toolFindExploresArgsSchemaV2,
-    ToolFindExploresArgsV2,
+    toolFindExploresArgsSchemaV3,
+    ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
     ToolRunMetricQueryArgs,
@@ -292,13 +292,13 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_EXPLORES,
             {
-                description: toolFindExploresArgsSchemaV2.description,
+                description: toolFindExploresArgsSchemaV3.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindExploresArgsSchemaV2.omit({ type: true }),
+                    toolFindExploresArgsSchemaV3.omit({ type: true }),
                 ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as Omit<ToolFindExploresArgsV2, 'type'>;
+                const args = _args as Omit<ToolFindExploresArgsV3, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -335,8 +335,9 @@ export class McpService extends BaseService {
                 });
                 const result = await findExploresTool.execute!(
                     {
-                        type: 'find_explores_v2',
+                        type: 'find_explores_v3',
                         ...argsWithProject,
+                        searchQuery: args.searchQuery,
                     },
                     {
                         toolCallId: '',
@@ -872,7 +873,7 @@ export class McpService extends BaseService {
     }
 
     async getFindExploresFunction(
-        toolArgs: Omit<ToolFindExploresArgsV2, 'type'> & {
+        toolArgs: Omit<ToolFindExploresArgsV3, 'type'> & {
             projectUuid: string;
         },
         context: McpProtocolContext,
@@ -915,64 +916,63 @@ export class McpService extends BaseService {
                         },
                     );
 
-                const explore = await this.getExplore(
-                    user,
+                const searchResults = await this.catalogService.searchCatalog({
                     projectUuid,
-                    tagsFromContext,
-                    args.exploreName,
-                );
-
-                const sharedArgs = {
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Field,
-                        yamlTags: tagsFromContext || undefined,
-                        tables: [explore.baseTable],
-                    },
                     userAttributes,
+                    catalogSearch: {
+                        searchQuery: args.searchQuery,
+                        type: CatalogType.Table,
+                        catalogTags: tagsFromContext || undefined,
+                    },
                     context: CatalogSearchContext.MCP,
                     paginateArgs: {
                         page: 1,
-                        pageSize: args.fieldSearchSize,
+                        pageSize: 15,
                     },
-                    sortArgs: {
-                        sort: 'chartUsage',
-                        order: 'desc' as const,
-                    },
-                };
+                    fullTextSearchOperator: 'OR',
+                });
 
-                const { data: dimensions } =
+                const exploreSearchResults = searchResults.data
+                    .filter((item) => item.type === CatalogType.Table)
+                    .map((table) => ({
+                        name: table.name,
+                        label: table.label,
+                        description: table.description,
+                        aiHints: table.aiHints ?? undefined,
+                        searchRank: table.searchRank,
+                    }));
+
+                const fieldSearchResults =
                     await this.catalogService.searchCatalog({
-                        ...sharedArgs,
+                        projectUuid,
+                        userAttributes,
                         catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Dimensions,
+                            searchQuery: args.searchQuery,
+                            type: CatalogType.Field,
+                            catalogTags: tagsFromContext || undefined,
+                        },
+                        context: CatalogSearchContext.MCP,
+                        paginateArgs: {
+                            page: 1,
+                            pageSize: 50,
                         },
                         fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
                     });
 
-                const { data: metrics } =
-                    await this.catalogService.searchCatalog({
-                        ...sharedArgs,
-                        catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Metrics,
-                        },
-                        fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
-                    });
+                const topMatchingFields = fieldSearchResults.data
+                    .filter((item) => item.type === CatalogType.Field)
+                    .map((field) => ({
+                        name: field.name,
+                        label: field.label,
+                        tableName: field.tableName,
+                        fieldType: field.fieldType,
+                        searchRank: field.searchRank,
+                        description: field.description,
+                    }));
 
                 return {
-                    explore,
-                    catalogFields: {
-                        dimensions: dimensions.filter(
-                            (d) => d.type === CatalogType.Field,
-                        ),
-                        metrics: metrics.filter(
-                            (m) => m.type === CatalogType.Field,
-                        ),
-                    },
+                    exploreSearchResults,
+                    topMatchingFields,
                 };
             });
 
@@ -1042,7 +1042,7 @@ export class McpService extends BaseService {
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
+                        filteredExplores: [explore],
                     });
 
                 const catalogFields = catalogItems.filter(
