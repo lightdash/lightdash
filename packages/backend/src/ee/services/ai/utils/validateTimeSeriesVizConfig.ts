@@ -59,6 +59,7 @@ export const validateTimeSeriesVizConfig = (
     validateTableCalculations(
         explore,
         vizTool.tableCalculations,
+        selectedDimensions,
         vizTool.vizConfig.yMetrics,
         vizTool.customMetrics,
     );
