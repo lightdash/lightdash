@@ -1,3 +1,10 @@
+## [0.2186.1](https://github.com/lightdash/lightdash/compare/0.2186.0...0.2186.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* checking for data presence vs. nextPage.isFetching ([#18218](https://github.com/lightdash/lightdash/issues/18218)) ([dcc1c61](https://github.com/lightdash/lightdash/commit/dcc1c61879bd4d02ae150f9b8234b4a9d9a7fd0f))
+
 # [0.2186.0](https://github.com/lightdash/lightdash/compare/0.2185.0...0.2186.0) (2025-11-19)
 
 
