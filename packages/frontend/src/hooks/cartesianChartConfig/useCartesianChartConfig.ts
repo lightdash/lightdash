@@ -406,6 +406,15 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setScrollableChart = useCallback((enableDataZoom: boolean) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, enableDataZoom }, ...axes],
+            };
+        });
+    }, []);
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -1065,6 +1074,7 @@ const useCartesianChartConfig = ({
         setShowAxisTicks,
         setXAxisSort,
         setXAxisLabelRotation,
+        setScrollableChart,
         updateSeries,
         referenceLines,
         setReferenceLines,

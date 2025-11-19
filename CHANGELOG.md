@@ -1,3 +1,78 @@
+## [0.2188.1](https://github.com/lightdash/lightdash/compare/0.2188.0...0.2188.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* look for exact table names in sql runner ([#18224](https://github.com/lightdash/lightdash/issues/18224)) ([73379ae](https://github.com/lightdash/lightdash/commit/73379ae9f2f20070da6afed784b245541d0e277e))
+
+# [0.2188.0](https://github.com/lightdash/lightdash/compare/0.2187.0...0.2188.0) (2025-11-19)
+
+
+### Bug Fixes
+
+* reset create-query cache to sync with redux state reset ([#18221](https://github.com/lightdash/lightdash/issues/18221)) ([b0447bf](https://github.com/lightdash/lightdash/commit/b0447bf0d27de9b8547f9e69cc013db5d7856943))
+
+
+### Features
+
+* run findExplores with ambiguity check ([#18180](https://github.com/lightdash/lightdash/issues/18180)) ([6e77fde](https://github.com/lightdash/lightdash/commit/6e77fde9cbf323e4ee18879f8288958befae1198))
+
+# [0.2187.0](https://github.com/lightdash/lightdash/compare/0.2186.1...0.2187.0) (2025-11-19)
+
+
+### Features
+
+* add Amazon Bedrock AI provider support ([#18208](https://github.com/lightdash/lightdash/issues/18208)) ([440409f](https://github.com/lightdash/lightdash/commit/440409f499782a7ba95874c74ab9aa87c3fb9364))
+
+## [0.2186.1](https://github.com/lightdash/lightdash/compare/0.2186.0...0.2186.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* checking for data presence vs. nextPage.isFetching ([#18218](https://github.com/lightdash/lightdash/issues/18218)) ([dcc1c61](https://github.com/lightdash/lightdash/commit/dcc1c61879bd4d02ae150f9b8234b4a9d9a7fd0f))
+
+# [0.2186.0](https://github.com/lightdash/lightdash/compare/0.2185.0...0.2186.0) (2025-11-19)
+
+
+### Features
+
+* create agent readiness controller and service ([#18203](https://github.com/lightdash/lightdash/issues/18203)) ([e434caf](https://github.com/lightdash/lightdash/commit/e434caf15a009aacad425d499894361864b8de79))
+
+# [0.2185.0](https://github.com/lightdash/lightdash/compare/0.2184.1...0.2185.0) (2025-11-19)
+
+
+### Features
+
+* implement scorer functionality for AI Agent readiness evaluation ([#18196](https://github.com/lightdash/lightdash/issues/18196)) ([a438481](https://github.com/lightdash/lightdash/commit/a438481372e70769c07a3c526a459e7d624fb80e))
+
+## [0.2184.1](https://github.com/lightdash/lightdash/compare/0.2184.0...0.2184.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* create share urls per ai artifact slack url ([#18216](https://github.com/lightdash/lightdash/issues/18216)) ([f7e09f8](https://github.com/lightdash/lightdash/commit/f7e09f8ff04127eb7f8b1a5a6a9741221867fd15)), closes [#18214](https://github.com/lightdash/lightdash/issues/18214)
+
+# [0.2184.0](https://github.com/lightdash/lightdash/compare/0.2183.1...0.2184.0) (2025-11-19)
+
+
+### Features
+
+* add dbt-fusion version detection and support ([#18088](https://github.com/lightdash/lightdash/issues/18088)) ([ed4a334](https://github.com/lightdash/lightdash/commit/ed4a3340bd95190f24d07cfd99b356cdc37ed928))
+
+## [0.2183.1](https://github.com/lightdash/lightdash/compare/0.2183.0...0.2183.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* remove unused join meta fields ([#18107](https://github.com/lightdash/lightdash/issues/18107)) ([696e43e](https://github.com/lightdash/lightdash/commit/696e43e4c98ba35090d2c8fbca7fee3d3eb4f429))
+
+# [0.2183.0](https://github.com/lightdash/lightdash/compare/0.2182.2...0.2183.0) (2025-11-19)
+
+
+### Features
+
+* scrollable chart ([#18164](https://github.com/lightdash/lightdash/issues/18164)) ([b0fdff3](https://github.com/lightdash/lightdash/commit/b0fdff333fc6fdf7dacf65211a3c6380f503f949))
+
 ## [0.2182.2](https://github.com/lightdash/lightdash/compare/0.2182.1...0.2182.2) (2025-11-19)
 
 

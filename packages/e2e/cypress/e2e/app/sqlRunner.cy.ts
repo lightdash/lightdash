@@ -24,7 +24,7 @@ describe('SQL Runner (new)', () => {
         // Verify the autocomplete SQL query
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
-        cy.contains('orders').click();
+        cy.contains(/^orders$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."orders"`,
@@ -61,7 +61,7 @@ describe('SQL Runner (new)', () => {
         );
 
         // Verify that the query is replaced with the new table suggestion and the new results are displayed
-        cy.contains('customers').click();
+        cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
@@ -90,7 +90,7 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
-        cy.contains('customers').click();
+        cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
@@ -140,7 +140,7 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
-        cy.contains('customers').click();
+        cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
@@ -193,7 +193,7 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
-        cy.contains('customers').click();
+        cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
@@ -278,7 +278,7 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
-        cy.contains('customers').click();
+        cy.contains(/^customers$/).click();
         cy.contains(
             '.monaco-editor',
             `SELECT * FROM "${schema}"."jaffle"."customers"`,

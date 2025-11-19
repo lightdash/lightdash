@@ -43,9 +43,19 @@ export const ToolCallDescription: FC<{
     switch (toolArgs.type) {
         case 'find_explores':
         case 'find_explores_v2':
+        case 'find_explores_v3':
             return (
                 <ExploreToolCallDescription
-                    exploreName={toolArgs.exploreName}
+                    exploreName={
+                        toolArgs.type === 'find_explores_v3'
+                            ? undefined
+                            : toolArgs.exploreName ?? undefined
+                    }
+                    searchQuery={
+                        toolArgs.type === 'find_explores_v3'
+                            ? toolArgs.searchQuery
+                            : undefined
+                    }
                 />
             );
         case 'find_fields':

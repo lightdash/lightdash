@@ -258,6 +258,7 @@ export class SchedulerService extends BaseService {
             resourceUuids?: string[];
             destinations?: string[];
         },
+        includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -276,13 +277,49 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        return this.schedulerModel.getSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid,
             paginateArgs,
             searchQuery,
             sort,
             filters,
         });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        const schedulerUuids = schedulers.data.map(
+            (scheduler) => scheduler.schedulerUuid,
+        );
+
+        if (schedulerUuids.length === 0) {
+            return schedulers;
+        }
+
+        const runs = await this.schedulerModel.getSchedulerRuns({
+            projectUuid,
+            sort: { column: 'scheduledTime', direction: 'desc' },
+            filters: {
+                schedulerUuids,
+            },
+        });
+
+        const latestRunByScheduler = new Map<string, SchedulerRun>();
+        runs.data.forEach((run) => {
+            if (!latestRunByScheduler.has(run.schedulerUuid)) {
+                latestRunByScheduler.set(run.schedulerUuid, run);
+            }
+        });
+
+        return {
+            ...schedulers,
+            data: schedulers.data.map((scheduler) => ({
+                ...scheduler,
+                latestRun:
+                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+            })),
+        };
     }
 
     async getScheduler(
@@ -702,7 +739,7 @@ export class SchedulerService extends BaseService {
         searchQuery?: string,
         sort?: { column: string; direction: 'asc' | 'desc' },
         filters?: {
-            schedulerUuid?: string;
+            schedulerUuids?: string[];
             statuses?: SchedulerRunStatus[];
             createdByUserUuids?: string[];
             destinations?: string[];

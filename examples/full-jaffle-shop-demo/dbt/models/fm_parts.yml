@@ -1,0 +1,172 @@
+version: 2
+models:
+  - name: fm_parts
+    description: Inventory and supplies management
+    config:
+      tags: ["ai", "facilities"]
+      meta:
+        primary_key: part_id
+    columns:
+      - name: part_id
+        description: Unique identifier
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_count:
+              type: count
+              description: Total number of items
+            unique_count:
+              type: count_distinct
+              description: Count of unique items
+              
+      - name: part_name
+        description: Item name
+        meta:
+          dimension:
+            type: string
+            
+      - name: part_category
+        description: Category classification
+        meta:
+          dimension:
+            type: string
+            
+      - name: stock_status
+        description: Current status
+        meta:
+          dimension:
+            type: string
+            
+      - name: unit_cost
+        description: Unit cost
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_unit_cost:
+              type: average
+              description: Average unit cost
+              
+      - name: retail_price
+        description: Retail price
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_retail_price:
+              type: average
+              description: Average retail price
+              
+      - name: stock_quantity
+        description: Quantity in stock
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_stock:
+              type: sum
+              description: Total stock quantity
+            avg_stock:
+              type: average
+              description: Average stock level
+              
+      - name: total_value_in_stock
+        description: Total inventory value
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_inventory_value:
+              type: sum
+              description: Total value of inventory
+              
+      - name: reorder_point
+        description: Reorder threshold
+        meta:
+          dimension:
+            type: number
+            
+      - name: total_quantity_used_ytd
+        description: Usage year to date
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_usage:
+              type: sum
+              description: Total quantity used
+              
+      - name: average_monthly_usage
+        description: Average monthly usage
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_monthly_usage:
+              type: average
+              description: Average usage per month
+              
+      - name: inventory_turnover_ratio
+        description: Turnover rate
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_turnover:
+              type: average
+              description: Average inventory turnover
+              
+      - name: work_orders_used_count
+        description: Work orders using this part
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_wo_count:
+              type: sum
+              description: Total work orders
+              
+      - name: customer_rating
+        description: Customer rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_rating:
+              type: average
+              description: Average customer rating
+              
+      - name: supplier_rating
+        description: Supplier rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_supplier_rating:
+              type: average
+              description: Average supplier rating
+              
+      - name: lead_time_days
+        description: Lead time in days
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_lead_time:
+              type: average
+              description: Average lead time
+              
+      - name: critical_part
+        description: Critical status indicator
+        meta:
+          dimension:
+            type: boolean
+          metrics:
+            critical_percentage:
+              type: average
+              format: percent
+              sql: CASE WHEN ${critical_part} THEN 1 ELSE 0 END
+              description: Percentage critical
+
+

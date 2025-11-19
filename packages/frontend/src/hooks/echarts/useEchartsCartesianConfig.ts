@@ -66,6 +66,7 @@ import {
     type ResultRow,
     type Series,
     type TableCalculation,
+    type XAxis,
 } from '@lightdash/common';
 import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import { useMantineTheme } from '@mantine/core';
@@ -1593,6 +1594,19 @@ const getEchartAxes = ({
                             formatter: '{value}%',
                         },
                     }),
+                // Override axisLabel settings when scrollable is enabled (not flipped)
+                ...(!validCartesianConfig.layout.flipAxes &&
+                    (xAxisConfiguration?.[0] as XAxis | undefined)
+                        ?.enableDataZoom &&
+                    bottomAxisType === 'category' &&
+                    showXAxis && {
+                        axisLabel: {
+                            ...(bottomAxisConfigWithStyle.axisLabel || {}),
+                            interval: 0,
+                            // Keep hideOverlap true to avoid overlapping when labels are long on X axis
+                            hideOverlap: true,
+                        },
+                    }),
                 inverse: !!xAxisConfiguration?.[0].inverse,
                 ...bottomAxisExtraConfig,
                 min: bottomAxisBounds.min,
@@ -1682,6 +1696,19 @@ const getEchartAxes = ({
                     showYAxis && {
                         axisLabel: {
                             formatter: '{value}%',
+                        },
+                    }),
+                // Override axisLabel settings when scrollable is enabled and axes are flipped
+                ...(validCartesianConfig.layout.flipAxes &&
+                    (yAxisConfiguration?.[0] as XAxis | undefined)
+                        ?.enableDataZoom &&
+                    leftAxisType === 'category' &&
+                    showYAxis && {
+                        axisLabel: {
+                            ...(leftAxisConfigWithStyle.axisLabel || {}),
+                            interval: 0,
+                            // Set hideOverlap to false to avoid hiding labels
+                            hideOverlap: false,
                         },
                     }),
                 splitLine: validCartesianConfig.layout.flipAxes
@@ -2377,6 +2404,10 @@ const useEchartsCartesianConfig = (
     ]);
 
     const currentGrid = useMemo(() => {
+        const enableDataZoom =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
+        const flipAxes = validCartesianConfig?.layout?.flipAxes;
+
         const grid = {
             ...defaultGrid,
             ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
@@ -2384,6 +2415,7 @@ const useEchartsCartesianConfig = (
 
         const gridLeft = grid.left;
         const gridRight = grid.right;
+        const gridBottom = grid.bottom;
 
         // Check if any series has a markLine (reference line) and determine label positions
         let maxLeftLabelLength = 0;
@@ -2449,15 +2481,33 @@ const useEchartsCartesianConfig = (
                       extraLeftPadding
                   }px`
                 : grid.left,
-            right: gridRight.includes('px')
-                ? `${
-                      parseInt(gridRight.replace('px', '')) +
-                      defaultAxisLabelGap +
-                      extraRightPadding
-                  }px`
-                : grid.right,
+            right:
+                gridRight.includes('px') && !enableDataZoom
+                    ? `${
+                          parseInt(gridRight.replace('px', '')) +
+                          defaultAxisLabelGap +
+                          extraRightPadding
+                      }px`
+                    : gridRight.includes('px') && enableDataZoom && flipAxes
+                    ? `${
+                          parseInt(gridRight.replace('px', '')) +
+                          defaultAxisLabelGap +
+                          extraRightPadding +
+                          30
+                      }px`
+                    : grid.right,
+            // Add extra bottom spacing for dataZoom slider when not flipped
+            bottom:
+                enableDataZoom && !flipAxes && gridBottom.includes('px')
+                    ? `${parseInt(gridBottom.replace('px', '')) + 30}px`
+                    : grid.bottom,
         };
-    }, [validCartesianConfig?.eChartsConfig.grid, series]);
+    }, [
+        validCartesianConfig?.eChartsConfig.grid,
+        validCartesianConfig?.eChartsConfig?.xAxis,
+        validCartesianConfig?.layout?.flipAxes,
+        series,
+    ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 
@@ -2492,6 +2542,10 @@ const useEchartsCartesianConfig = (
     ]);
 
     const eChartsOptions = useMemo(() => {
+        const enableDataZoom =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
+        const flipAxes = validCartesianConfig?.layout?.flipAxes;
+
         return {
             xAxis: axes.xAxis,
             yAxis: axes.yAxis,
@@ -2510,6 +2564,28 @@ const useEchartsCartesianConfig = (
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],
+            ...(enableDataZoom && {
+                dataZoom: [
+                    {
+                        type: 'slider',
+                        show: true,
+                        [flipAxes ? 'yAxisIndex' : 'xAxisIndex']: 0,
+                        startValue: 0,
+                        endValue: 10,
+                        brushSelect: false,
+                        zoomLock: true,
+                        minValueSpan: 5,
+                        maxValueSpan: 30,
+                        // Reduce scroll bar size
+                        ...(flipAxes && {
+                            width: 20,
+                        }),
+                        ...(!flipAxes && {
+                            height: 20,
+                        }),
+                    },
+                ],
+            }),
         };
     }, [
         axes,
@@ -2521,6 +2597,7 @@ const useEchartsCartesianConfig = (
         tooltip,
         currentGrid,
         theme?.other.chartFont,
+        validCartesianConfig,
     ]);
 
     if (

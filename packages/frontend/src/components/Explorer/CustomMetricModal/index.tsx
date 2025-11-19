@@ -234,13 +234,12 @@ export const CustomMetricModal = memo(() => {
             });
 
             if (isEditing && isAdditionalMetric(item)) {
-                // Edit by updating the entire array
-                const updatedMetrics = (additionalMetrics ?? []).map((metric) =>
-                    getItemId(metric) === getItemId(item)
-                        ? { ...item, ...data }
-                        : metric,
+                dispatch(
+                    explorerActions.editAdditionalMetric({
+                        additionalMetric: { ...item, ...data },
+                        previousAdditionalMetricName: getItemId(item),
+                    }),
                 );
-                dispatch(explorerActions.setAdditionalMetrics(updatedMetrics));
                 showToastSuccess({
                     title: 'Custom metric edited successfully',
                 });

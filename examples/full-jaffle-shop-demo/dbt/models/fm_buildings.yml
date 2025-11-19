@@ -1,0 +1,179 @@
+version: 2
+models:
+  - name: fm_buildings
+    description: Properties and facilities portfolio
+    config:
+      tags: ["ai", "facilities"]
+      meta:
+        primary_key: building_id
+    columns:
+      - name: building_id
+        description: Unique identifier
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_count:
+              type: count
+              description: Total number of properties
+            unique_count:
+              type: count_distinct
+              description: Count of unique properties
+              
+      - name: building_name
+        description: Property name
+        meta:
+          dimension:
+            type: string
+            
+      - name: building_status
+        description: Current state
+        meta:
+          dimension:
+            type: string
+            
+      - name: building_type
+        description: Property classification
+        meta:
+          dimension:
+            type: string
+            
+      - name: total_square_feet
+        description: Total size
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_sqft:
+              type: sum
+              description: Total square footage
+            avg_sqft:
+              type: average
+              description: Average size
+              
+      - name: occupancy_rate
+        description: Occupancy percentage
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_occupancy:
+              type: average
+              format: percent
+              description: Average occupancy rate
+              
+      - name: total_operating_cost_monthly
+        description: Monthly operating cost
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_operating_cost:
+              type: sum
+              description: Total operating cost
+            avg_operating_cost:
+              type: average
+              description: Average operating cost
+              
+      - name: maintenance_cost_monthly
+        description: Monthly maintenance cost
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_maintenance_cost:
+              type: sum
+              description: Total maintenance spend
+              
+      - name: revenue_monthly
+        description: Monthly revenue
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_revenue:
+              type: sum
+              description: Total revenue
+            avg_revenue:
+              type: average
+              description: Average revenue per property
+              
+      - name: net_operating_income_monthly
+        description: Net operating income
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_noi:
+              type: sum
+              description: Total NOI
+              
+      - name: building_age_years
+        description: Age in years
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_age:
+              type: average
+              description: Average building age
+              
+      - name: energy_star_score
+        description: Energy efficiency rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_energy_score:
+              type: average
+              description: Average energy rating
+              
+      - name: tenant_satisfaction_score
+        description: Satisfaction rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_satisfaction:
+              type: average
+              description: Average tenant satisfaction
+              
+      - name: total_work_orders_ytd
+        description: Work orders year to date
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_work_orders:
+              type: sum
+              description: Total work orders
+              
+      - name: average_work_order_cost
+        description: Average cost per work order
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_wo_cost:
+              type: average
+              description: Average work order cost
+              
+      - name: address_city
+        description: City location
+        meta:
+          dimension:
+            type: string
+            
+      - name: address_state
+        description: State location
+        meta:
+          dimension:
+            type: string
+            
+      - name: region
+        description: Geographic region
+        meta:
+          dimension:
+            type: string
+
+

@@ -260,7 +260,7 @@ export class CatalogService<
         sortArgs?: ApiSort;
         excludeUnmatched?: boolean;
         fullTextSearchOperator?: 'OR' | 'AND';
-        filteredExplore?: Explore;
+        filteredExplores?: Explore[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         const changeset =
             await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
@@ -294,7 +294,7 @@ export class CatalogService<
                             tablesConfiguration,
                             excludeUnmatched: args.excludeUnmatched,
                             fullTextSearchOperator: args.fullTextSearchOperator,
-                            filteredExplore: args.filteredExplore,
+                            filteredExplores: args.filteredExplores,
                         }),
                 );
             },

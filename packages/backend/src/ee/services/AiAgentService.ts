@@ -23,7 +23,6 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
-    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
@@ -41,6 +40,8 @@ import {
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
+    ReadinessScore,
+    ShareUrl,
     SlackPrompt,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
@@ -92,7 +93,6 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import PrometheusMetrics from '../../prometheus';
@@ -100,6 +100,7 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { ShareService } from '../../services/ShareService/ShareService';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -115,6 +116,7 @@ import {
 } from './ai/agents/agentV2';
 import { generateEmbedding } from './ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from './ai/agents/questionGenerator';
+import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
@@ -134,8 +136,8 @@ import {
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import {
+    getArtifactBlocks,
     getDeepLinkBlocks,
-    getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
@@ -158,7 +160,6 @@ type AiAgentServiceDependencies = {
     catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
     searchModel: SearchModel;
-    spaceModel: SpaceModel;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
     lightdashConfig: LightdashConfig;
@@ -172,6 +173,7 @@ type AiAgentServiceDependencies = {
     spaceService: SpaceService;
     projectModel: ProjectModel;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    shareService: ShareService;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -212,13 +214,13 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
-    private readonly spaceModel: SpaceModel;
-
     private readonly projectModel: ProjectModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    private readonly shareService: ShareService;
 
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
@@ -239,11 +241,11 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
-        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.shareService = dependencies.shareService;
     }
 
     private getIsVerifiedArtifactsEnabled(): boolean {
@@ -1290,6 +1292,42 @@ export class AiAgentService {
         }
     }
 
+    async evaluateReadiness(
+        user: SessionUser,
+        { agentUuid, projectUuid }: { agentUuid: string; projectUuid: string },
+    ): Promise<ReadinessScore> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const agent = await this.getAgent(user, agentUuid);
+
+        const explores = await this.getAvailableExplores(
+            user,
+            agent.projectUuid,
+            agent.tags,
+        );
+
+        const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+        });
+
+        const readinessScore = await evaluateAgentReadiness(
+            model,
+            explores,
+            agent.instruction,
+        );
+
+        return readinessScore;
+    }
+
     async getArtifactVizQuery(
         user: SessionUser,
         {
@@ -2318,13 +2356,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             wrapSentryTransaction('AiAgent.findExplores', args, async () => {
                 const agentSettings = await this.getAgentSettings(user, prompt);
 
-                const explore = await this.getExplore(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                    args.exploreName,
-                );
-
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
@@ -2333,57 +2364,71 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                const sharedArgs = {
+                // Get available explores filtered by tags
+                const filteredExplores = await this.getAvailableExplores(
+                    user,
                     projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Field,
-                        yamlTags: agentSettings.tags ?? undefined,
-                        tables: [explore.baseTable],
-                    },
+                    agentSettings.tags,
+                );
+
+                const searchResults = await this.catalogService.searchCatalog({
+                    projectUuid,
                     userAttributes,
+                    catalogSearch: {
+                        searchQuery: args.searchQuery,
+                        type: CatalogType.Table,
+                    },
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {
                         page: 1,
-                        pageSize: args.fieldSearchSize,
+                        pageSize: 10,
                     },
-                    sortArgs: {
-                        sort: 'chartUsage',
-                        order: 'desc' as const,
-                    },
-                };
+                    fullTextSearchOperator: 'OR',
+                    filteredExplores,
+                });
 
-                const { data: dimensions } =
+                const exploreSearchResults = searchResults.data
+                    .filter((item) => item.type === CatalogType.Table)
+                    .map((table) => ({
+                        name: table.name,
+                        label: table.label,
+                        description: table.description,
+                        aiHints: table.aiHints ?? undefined,
+                        searchRank: table.searchRank,
+                    }));
+
+                const fieldSearchResults =
                     await this.catalogService.searchCatalog({
-                        ...sharedArgs,
+                        projectUuid,
+                        userAttributes,
                         catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Dimensions,
+                            searchQuery: args.searchQuery,
+                            type: CatalogType.Field,
+                        },
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: 1,
+                            pageSize: 50,
                         },
                         fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
+                        filteredExplores,
                     });
 
-                const { data: metrics } =
-                    await this.catalogService.searchCatalog({
-                        ...sharedArgs,
-                        catalogSearch: {
-                            ...sharedArgs.catalogSearch,
-                            filter: CatalogFilter.Metrics,
-                        },
-                        fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
-                    });
+                const topMatchingFields = fieldSearchResults.data
+                    .filter((item) => item.type === CatalogType.Field)
+                    .map((field) => ({
+                        name: field.name,
+                        label: field.label,
+                        tableName: field.tableName,
+                        fieldType: field.fieldType,
+                        searchRank: field.searchRank,
+                        description: field.description,
+                        chartUsage: field.chartUsage ?? 0,
+                    }));
 
                 return {
-                    explore,
-                    catalogFields: {
-                        dimensions: dimensions.filter(
-                            (d) => d.type === CatalogType.Field,
-                        ),
-                        metrics: metrics.filter(
-                            (m) => m.type === CatalogType.Field,
-                        ),
-                    },
+                    exploreSearchResults,
+                    topMatchingFields,
                 };
             });
 
@@ -2420,7 +2465,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                         userAttributes,
                         fullTextSearchOperator: 'OR',
-                        filteredExplore: explore,
+                        filteredExplores: [explore],
                     });
 
                 // TODO: we should not filter here, search should be returning a proper type
@@ -3147,10 +3192,25 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             slackPrompt,
             threadArtifacts,
         );
-        const exploreBlocks = getExploreBlocks(
+
+        // Generates short share URLs for Slack (so that we can avoid the 3000 char URL limit)
+        const createShareUrl = async (
+            path: string,
+            params: string,
+        ): Promise<string> => {
+            const result = await this.shareService.createShareUrl(
+                user,
+                path,
+                params,
+            );
+            return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
+        };
+
+        const exploreBlocks = await getArtifactBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
+            createShareUrl,
             threadArtifacts,
         );
         const proposeChangeBlocks = getProposeChangeBlocks(
