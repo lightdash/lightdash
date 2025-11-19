@@ -162,26 +162,17 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
 
     // Compute available users from loaded schedulers
     const availableUsers = useMemo(() => {
-        const userMap = new Map<
-            string,
-            { userUuid: string; firstName: string; lastName: string }
-        >();
+        const userMap = new Map<string, { userUuid: string; name: string }>();
         flatData.forEach((scheduler) => {
             if (scheduler.createdBy && scheduler.createdByName) {
-                const nameParts = scheduler.createdByName.split(' ');
-                const firstName = nameParts[0] || '';
-                const lastName = nameParts.slice(1).join(' ') || '';
                 userMap.set(scheduler.createdBy, {
                     userUuid: scheduler.createdBy,
-                    firstName,
-                    lastName,
+                    name: scheduler.createdByName,
                 });
             }
         });
         return Array.from(userMap.values()).sort((a, b) =>
-            `${a.firstName} ${a.lastName}`.localeCompare(
-                `${b.firstName} ${b.lastName}`,
-            ),
+            a.name.localeCompare(b.name),
         );
     }, [flatData]);
 
@@ -402,7 +393,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
-                    <Group gap="two">
+                    <Group gap="two" wrap="nowrap">
                         <MantineIcon icon={IconRun} color="gray.6" />
                         {column.columnDef.header}
                     </Group>

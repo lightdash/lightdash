@@ -1,7 +1,11 @@
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type SchedulerAndTargets, type SchedulerJobStatus } from './scheduler';
+import {
+    type SchedulerAndTargets,
+    type SchedulerFormat,
+    type SchedulerJobStatus,
+} from './scheduler';
 import { type SchedulerTaskName } from './schedulerTaskList';
 
 export type SchedulerTargetType = 'email' | 'slack' | 'gsheets' | 'msteams';
@@ -77,6 +81,7 @@ export type SchedulerRun = {
     resourceName: string;
     createdByUserUuid: string;
     createdByUserName: string;
+    format: SchedulerFormat; // Scheduler format (CSV, IMAGE, GSHEETS, etc)
 };
 
 export type ApiSchedulerRunsResponse = ApiSuccess<

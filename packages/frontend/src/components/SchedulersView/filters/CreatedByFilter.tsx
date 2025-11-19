@@ -13,8 +13,7 @@ import classes from './FormatFilter.module.css';
 
 type User = {
     userUuid: string;
-    firstName: string;
-    lastName: string;
+    name: string;
 };
 
 interface CreatedByFilterProps {
@@ -89,7 +88,7 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                             {availableUsers.map((user) => (
                                 <Checkbox
                                     key={user.userUuid}
-                                    label={`${user.firstName} ${user.lastName}`}
+                                    label={user.name}
                                     checked={selectedCreatedByUserUuids.includes(
                                         user.userUuid,
                                     )}

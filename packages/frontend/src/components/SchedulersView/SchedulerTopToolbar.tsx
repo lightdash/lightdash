@@ -21,8 +21,7 @@ import { SearchFilter } from './filters/SearchFilter';
 
 type User = {
     userUuid: string;
-    firstName: string;
-    lastName: string;
+    name: string;
 };
 
 type SchedulerTopToolbarProps = GroupProps &

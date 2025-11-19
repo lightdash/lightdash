@@ -1,4 +1,4 @@
-import { type SchedulerJobStatus } from '@lightdash/common';
+import { type SchedulerRunStatus } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -10,7 +10,7 @@ export const useLogsFilters = () => {
     // Initialize from URL params
     const initialSearch = searchParams.get('nameSearch') || '';
     const initialStatuses = searchParams.get('status')
-        ? (searchParams.get('status')!.split(',') as SchedulerJobStatus[])
+        ? (searchParams.get('status')!.split(',') as SchedulerRunStatus[])
         : [];
     const initialCreators = searchParams.get('creator')
         ? searchParams.get('creator')!.split(',')
@@ -21,7 +21,7 @@ export const useLogsFilters = () => {
 
     const [search, setSearchState] = useState<string>(initialSearch);
     const [selectedStatuses, setSelectedStatusesState] =
-        useState<SchedulerJobStatus[]>(initialStatuses);
+        useState<SchedulerRunStatus[]>(initialStatuses);
     const [selectedCreatedByUserUuids, setSelectedCreatedByUserUuidsState] =
         useState<string[]>(initialCreators);
     const [selectedDestinations, setSelectedDestinationsState] =
@@ -42,7 +42,7 @@ export const useLogsFilters = () => {
     );
 
     const setSelectedStatuses = useCallback(
-        (statuses: SchedulerJobStatus[]) => {
+        (statuses: SchedulerRunStatus[]) => {
             setSelectedStatusesState(statuses);
             const newParams = new URLSearchParams(searchParams);
             if (statuses.length > 0) {
