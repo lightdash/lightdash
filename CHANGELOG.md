@@ -1,3 +1,10 @@
+## [0.2188.1](https://github.com/lightdash/lightdash/compare/0.2188.0...0.2188.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* look for exact table names in sql runner ([#18224](https://github.com/lightdash/lightdash/issues/18224)) ([73379ae](https://github.com/lightdash/lightdash/commit/73379ae9f2f20070da6afed784b245541d0e277e))
+
 # [0.2188.0](https://github.com/lightdash/lightdash/compare/0.2187.0...0.2188.0) (2025-11-19)
 
 
