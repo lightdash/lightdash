@@ -1,0 +1,249 @@
+version: 2
+models:
+  - name: fm_work_orders
+    description: Service requests and maintenance activities
+    config:
+      tags: ["ai", "facilities"]
+      meta:
+        primary_key: work_order_id
+        joins:
+          - join: fm_buildings
+            sql_on: ${fm_buildings.building_id} = ${fm_work_orders.building_id}
+            relationship: many-to-one
+          - join: fm_technicians
+            sql_on: ${fm_technicians.technician_id} = ${fm_work_orders.technician_id}
+            relationship: many-to-one
+          - join: fm_service_contracts
+            sql_on: ${fm_service_contracts.contract_id} = ${fm_work_orders.contract_id}
+            relationship: many-to-one
+        default_time_dimension:
+          field: request_date
+          interval: DAY
+    columns:
+      - name: work_order_id
+        description: Unique identifier
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_count:
+              type: count
+              description: Total number of items
+            unique_count:
+              type: count_distinct
+              description: Count of unique items
+
+      - name: building_id
+        description: Building reference
+        meta:
+          dimension:
+            type: number
+
+      - name: technician_id
+        description: Technician reference
+        meta:
+          dimension:
+            type: number
+
+      - name: contract_id
+        description: Contract reference
+        meta:
+          dimension:
+            type: number
+
+      - name: ticket_number
+        description: Reference number
+        meta:
+          dimension:
+            type: string
+
+      - name: status
+        description: Current state
+        meta:
+          dimension:
+            type: string
+          metrics:
+            completion_rate:
+              type: average
+              format: percent
+              sql: CASE WHEN ${status} = 'Completed' THEN 1 ELSE 0 END
+              description: Percentage complete
+
+      - name: priority
+        description: Importance level
+        meta:
+          dimension:
+            type: string
+
+      - name: category
+        description: Type classification
+        meta:
+          dimension:
+            type: string
+
+      - name: total_cost
+        description: Total cost amount
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_cost_sum:
+              type: sum
+              description: Sum of total cost
+            average_cost:
+              type: average
+              description: Average cost per item
+            max_cost:
+              type: max
+              description: Maximum cost value
+
+      - name: labor_cost
+        description: Labor cost amount
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_labor:
+              type: sum
+              description: Total labor cost
+            avg_labor:
+              type: average
+              description: Average labor cost
+
+      - name: materials_cost
+        description: Materials cost amount
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_materials:
+              type: sum
+              description: Total materials cost
+            avg_materials:
+              type: average
+              description: Average materials cost
+
+      - name: labor_hours
+        description: Hours worked
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_hours:
+              type: sum
+              description: Total hours
+            average_hours:
+              type: average
+              description: Average hours per item
+
+      - name: response_time_minutes
+        description: Response time
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_response_time:
+              type: average
+              description: Average response time
+
+      - name: resolution_time_hours
+        description: Time to complete
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_resolution_time:
+              type: average
+              description: Average resolution time
+
+      - name: customer_rating
+        description: Satisfaction rating
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_rating:
+              type: average
+              description: Average rating score
+
+      - name: sla_met
+        description: SLA compliance indicator
+        meta:
+          dimension:
+            type: boolean
+          metrics:
+            sla_compliance_rate:
+              type: average
+              format: percent
+              sql: CASE WHEN ${sla_met} THEN 1 ELSE 0 END
+              description: SLA met percentage
+
+      - name: first_time_fix
+        description: Fixed on first visit
+        meta:
+          dimension:
+            type: boolean
+          metrics:
+            first_time_fix_rate:
+              type: average
+              format: percent
+              sql: CASE WHEN ${first_time_fix} THEN 1 ELSE 0 END
+              description: First time fix rate
+
+      - name: emergency_call
+        description: Emergency status
+        meta:
+          dimension:
+            type: boolean
+          metrics:
+            emergency_percentage:
+              type: average
+              format: percent
+              sql: CASE WHEN ${emergency_call} THEN 1 ELSE 0 END
+              description: Percentage of emergencies
+
+      - name: request_date
+        description: Request timestamp
+        meta:
+          dimension:
+            type: timestamp
+
+      - name: completed_at
+        description: Completion timestamp
+        meta:
+          dimension:
+            type: timestamp
+
+      - name: building_name
+        description: Property name
+        meta:
+          dimension:
+            type: string
+
+      - name: building_type
+        description: Property type
+        meta:
+          dimension:
+            type: string
+
+      - name: address_city
+        description: City location
+        meta:
+          dimension:
+            type: string
+
+      - name: technician_name
+        description: Assigned personnel
+        meta:
+          dimension:
+            type: string
+
+      - name: total_duration_hours
+        description: Total time elapsed
+        meta:
+          dimension:
+            type: number
+          metrics:
+            avg_duration:
+              type: average
+              description: Average duration
