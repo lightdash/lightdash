@@ -1,3 +1,10 @@
+## [0.2182.2](https://github.com/lightdash/lightdash/compare/0.2182.1...0.2182.2) (2025-11-19)
+
+
+### Bug Fixes
+
+* improve model rename handling for fields from non-base tables ([#18190](https://github.com/lightdash/lightdash/issues/18190)) ([b4eedd5](https://github.com/lightdash/lightdash/commit/b4eedd53fb0de43e406bf031a1d5ab1b7494e885)), closes [#18189](https://github.com/lightdash/lightdash/issues/18189)
+
 ## [0.2182.1](https://github.com/lightdash/lightdash/compare/0.2182.0...0.2182.1) (2025-11-18)
 
 
