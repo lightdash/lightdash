@@ -672,14 +672,6 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.customDimensions =
                 action.payload;
         },
-
-        setAdditionalMetrics: (
-            state,
-            action: PayloadAction<AdditionalMetric[] | undefined>,
-        ) => {
-            state.unsavedChartVersion.metricQuery.additionalMetrics =
-                action.payload;
-        },
         addAdditionalMetric: (
             state,
             action: PayloadAction<AdditionalMetric>,
@@ -719,42 +711,6 @@ const explorerSlice = createSlice({
                 [...dimensionIds, ...metricIds, ...calcIds],
             );
         },
-        updateAdditionalMetric: (
-            state,
-            action: PayloadAction<{
-                oldId: string;
-                additionalMetric: AdditionalMetric;
-            }>,
-        ) => {
-            const { oldId, additionalMetric } = action.payload;
-            const newId = getItemId(additionalMetric);
-
-            state.unsavedChartVersion.metricQuery.additionalMetrics = (
-                state.unsavedChartVersion.metricQuery.additionalMetrics || []
-            ).map((metric) =>
-                getItemId(metric) === oldId ? additionalMetric : metric,
-            );
-
-            if (oldId !== newId) {
-                state.unsavedChartVersion.metricQuery.metrics =
-                    state.unsavedChartVersion.metricQuery.metrics.map(
-                        (metric) => (metric === oldId ? newId : metric),
-                    );
-
-                state.unsavedChartVersion.metricQuery.sorts =
-                    state.unsavedChartVersion.metricQuery.sorts.map((sort) =>
-                        sort.fieldId === oldId
-                            ? { ...sort, fieldId: newId }
-                            : sort,
-                    );
-
-                state.unsavedChartVersion.tableConfig.columnOrder =
-                    state.unsavedChartVersion.tableConfig.columnOrder.map(
-                        (col) => (col === oldId ? newId : col),
-                    );
-            }
-        },
-
         // Context-compatible editAdditionalMetric with full logic including filters and table calculations
         editAdditionalMetric: (
             state,
