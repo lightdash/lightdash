@@ -550,7 +550,8 @@ export const useInfiniteQueryResults = (
             isInitialLoading: isInitialLoading || dependenciesChanged,
             isFetchingFirstPage:
                 dependenciesChanged ||
-                (!fetchedPages.length && nextPage.isFetching),
+                (!!queryUuid && !fetchedPages.length) ||
+                (!!queryUuid && fetchedPages[0]?.totalResults === undefined),
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
             error: nextPage.error,
@@ -567,7 +568,6 @@ export const useInfiniteQueryResults = (
             fetchMoreRows,
             totalClientFetchTimeMs,
             isInitialLoading,
-            nextPage.isFetching,
             nextPage.error,
             fetchAll,
         ],
