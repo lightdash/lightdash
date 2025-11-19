@@ -63,7 +63,7 @@ export async function generateEmbedding(
         // TODO :: provider options to set dimensions
     });
 
-    if (embedding.length !== 1536) {
+    if (embedding.length !== EMBEDDING_DIMENSIONS) {
         console.warn(
             `Embedding length is not ${EMBEDDING_DIMENSIONS}, padding with zeros`,
         );
