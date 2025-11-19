@@ -1,3 +1,10 @@
+## [0.2184.1](https://github.com/lightdash/lightdash/compare/0.2184.0...0.2184.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* create share urls per ai artifact slack url ([#18216](https://github.com/lightdash/lightdash/issues/18216)) ([f7e09f8](https://github.com/lightdash/lightdash/commit/f7e09f8ff04127eb7f8b1a5a6a9741221867fd15)), closes [#18214](https://github.com/lightdash/lightdash/issues/18214)
+
 # [0.2184.0](https://github.com/lightdash/lightdash/compare/0.2183.1...0.2184.0) (2025-11-19)
 
 
