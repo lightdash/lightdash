@@ -1,3 +1,10 @@
+# [0.2185.0](https://github.com/lightdash/lightdash/compare/0.2184.1...0.2185.0) (2025-11-19)
+
+
+### Features
+
+* implement scorer functionality for AI Agent readiness evaluation ([#18196](https://github.com/lightdash/lightdash/issues/18196)) ([a438481](https://github.com/lightdash/lightdash/commit/a438481372e70769c07a3c526a459e7d624fb80e))
+
 ## [0.2184.1](https://github.com/lightdash/lightdash/compare/0.2184.0...0.2184.1) (2025-11-19)
 
 
