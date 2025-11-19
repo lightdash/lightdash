@@ -1,3 +1,15 @@
+# [0.2188.0](https://github.com/lightdash/lightdash/compare/0.2187.0...0.2188.0) (2025-11-19)
+
+
+### Bug Fixes
+
+* reset create-query cache to sync with redux state reset ([#18221](https://github.com/lightdash/lightdash/issues/18221)) ([b0447bf](https://github.com/lightdash/lightdash/commit/b0447bf0d27de9b8547f9e69cc013db5d7856943))
+
+
+### Features
+
+* run findExplores with ambiguity check ([#18180](https://github.com/lightdash/lightdash/issues/18180)) ([6e77fde](https://github.com/lightdash/lightdash/commit/6e77fde9cbf323e4ee18879f8288958befae1198))
+
 # [0.2187.0](https://github.com/lightdash/lightdash/compare/0.2186.1...0.2187.0) (2025-11-19)
 
 
