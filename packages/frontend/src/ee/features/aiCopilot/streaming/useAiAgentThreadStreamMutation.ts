@@ -251,7 +251,11 @@ export function useAiAgentThreadStreamMutation() {
                     return;
                 }
                 console.error('Error processing stream:', error);
-                captureException(error);
+                captureException(error, {
+                    tags: {
+                        errorType: 'AiAgentStreamError',
+                    },
+                });
                 const errorMessage =
                     error instanceof Error
                         ? error.message

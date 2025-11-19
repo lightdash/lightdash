@@ -663,7 +663,11 @@ export const streamAgentResponse = async ({
                         error instanceof Error ? error.message : 'Unknown error'
                     }`,
                 );
-                Sentry.captureException(error);
+                Sentry.captureException(error, {
+                    tags: {
+                        errorType: 'AiAgentStreamError',
+                    },
+                });
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',
@@ -679,7 +683,11 @@ export const streamAgentResponse = async ({
                 error instanceof Error ? error.message : 'Unknown error'
             }`,
         );
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+            tags: {
+                errorType: 'AiAgentStreamError',
+            },
+        });
         throw error;
     }
 };
