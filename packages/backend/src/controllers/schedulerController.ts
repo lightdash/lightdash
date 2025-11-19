@@ -120,7 +120,7 @@ export class SchedulerController extends BaseController {
      * @param searchQuery search query to filter runs by scheduler name
      * @param sortBy column to sort by (scheduledTime, createdAt)
      * @param sortDirection sort direction (asc or desc)
-     * @param schedulerUuid filter by specific scheduler UUID
+     * @param schedulerUuids filter by specific scheduler UUIDs (comma-separated)
      * @param statuses filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
      * @param destinations filter by destination types (comma-separated: email, slack, msteams)
@@ -139,7 +139,7 @@ export class SchedulerController extends BaseController {
         @Query() searchQuery?: string,
         @Query() sortBy?: 'scheduledTime' | 'createdAt',
         @Query() sortDirection?: 'asc' | 'desc',
-        @Query() schedulerUuid?: string,
+        @Query() schedulerUuids?: string,
         @Query() statuses?: string,
         @Query() createdByUserUuids?: string,
         @Query() destinations?: string,
@@ -162,7 +162,7 @@ export class SchedulerController extends BaseController {
                 : undefined;
 
         const filters = {
-            schedulerUuid,
+            schedulerUuids: parseUuidList(schedulerUuids, 'schedulerUuids'),
             statuses: parseEnumList(statuses, SchedulerRunStatus, 'statuses'),
             createdByUserUuids: parseUuidList(
                 createdByUserUuids,
@@ -248,6 +248,7 @@ export class SchedulerController extends BaseController {
         @Query() resourceType?: 'chart' | 'dashboard',
         @Query() resourceUuids?: string,
         @Query() destinations?: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiSchedulersResponse> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -288,6 +289,7 @@ export class SchedulerController extends BaseController {
                     searchQuery,
                     sort,
                     filters,
+                    includeLatestRun,
                 ),
         };
     }

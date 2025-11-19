@@ -1,4 +1,4 @@
-import { SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
 import { SchedulerModel } from './index';
 
 describe('Scheduler model test', () => {
@@ -106,6 +106,56 @@ describe('Scheduler model test', () => {
                     );
                 }
             });
+        });
+    });
+
+    describe('getSchedulerRuns scheduler filtering', () => {
+        const createModel = () =>
+            new SchedulerModel({ database: {} as AnyType });
+
+        it('uses getSchedulersByUuid when schedulerUuids filter is provided', async () => {
+            const model = createModel();
+            const getSchedulersByUuidSpy = jest
+                .spyOn(model, 'getSchedulersByUuid')
+                .mockResolvedValue([]);
+            const getSchedulerForProjectSpy = jest
+                .spyOn(model, 'getSchedulerForProject')
+                .mockResolvedValue([]);
+
+            const result = await model.getSchedulerRuns({
+                projectUuid: 'project-1',
+                filters: { schedulerUuids: ['scheduler-1'] },
+            });
+
+            expect(getSchedulersByUuidSpy).toHaveBeenCalledWith('project-1', [
+                'scheduler-1',
+            ]);
+            expect(getSchedulerForProjectSpy).not.toHaveBeenCalled();
+            expect(result.data).toEqual([]);
+            expect(result.pagination).toEqual({
+                page: 1,
+                pageSize: 10,
+                totalPageCount: 0,
+                totalResults: 0,
+            });
+        });
+
+        it('falls back to getSchedulerForProject when no schedulerUuids filter is provided', async () => {
+            const model = createModel();
+            const getSchedulersByUuidSpy = jest
+                .spyOn(model, 'getSchedulersByUuid')
+                .mockResolvedValue([]);
+            const getSchedulerForProjectSpy = jest
+                .spyOn(model, 'getSchedulerForProject')
+                .mockResolvedValue([]);
+
+            const result = await model.getSchedulerRuns({
+                projectUuid: 'project-2',
+            });
+
+            expect(getSchedulerForProjectSpy).toHaveBeenCalledWith('project-2');
+            expect(getSchedulersByUuidSpy).not.toHaveBeenCalled();
+            expect(result.data).toEqual([]);
         });
     });
 });
