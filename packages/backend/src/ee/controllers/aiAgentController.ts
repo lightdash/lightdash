@@ -1,5 +1,6 @@
 import {
     AiArtifactTSOACompat,
+    ApiAgentReadinessScoreResponse,
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -167,6 +168,28 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/evaluateReadiness')
+    @OperationId('evaluateAgentReadiness')
+    async evaluateAgentReadiness(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAgentReadinessScoreResponse> {
+        this.setStatus(200);
+
+        const readinessScore = await this.getAiAgentService().evaluateReadiness(
+            req.user!,
+            { agentUuid, projectUuid },
+        );
+
+        return {
+            status: 'ok',
+            results: readinessScore,
         };
     }
 

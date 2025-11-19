@@ -35,24 +35,21 @@ export interface Scorer<
 > {
     evaluate(context: ScorerContext): Promise<ScoreEvaluationResult>;
 }
+// Base evaluation type for all scorers
 export type ReadinessScoreEvaluation = {
     score: number;
     recommendations: string[];
 };
 
-const ExploreAnalysisSchema = BaseScorerSchema;
-export type ExploreAnalysisEvaluation = z.infer<typeof ExploreAnalysisSchema>;
+// Explicit types for each scorer (TSOA-compatible)
+export type MetadataCompletenessEvaluation = ReadinessScoreEvaluation;
+export type ExploreAnalysisEvaluation = ReadinessScoreEvaluation;
+export type InstructionQualityEvaluation = ReadinessScoreEvaluation;
 
-const InstructionQualitySchema = BaseScorerSchema;
-export type InstructionQualityEvaluation = z.infer<
-    typeof InstructionQualitySchema
->;
-
-const MetadataCompletenessSchema = BaseScorerSchema;
-
-export type MetadataCompletenessEvaluation = z.infer<
-    typeof MetadataCompletenessSchema
->;
+// Zod schemas for validation (backend only)
+export const MetadataCompletenessSchema = BaseScorerSchema;
+export const ExploreAnalysisSchema = BaseScorerSchema;
+export const InstructionQualitySchema = BaseScorerSchema;
 
 export interface ReadinessScore {
     overallScore: number;
