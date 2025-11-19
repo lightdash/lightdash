@@ -41,6 +41,7 @@ import {
     ParameterError,
     parseVizConfig,
     QueryExecutionContext,
+    ShareUrl,
     SlackPrompt,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
@@ -92,7 +93,6 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import PrometheusMetrics from '../../prometheus';
@@ -100,6 +100,7 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { ShareService } from '../../services/ShareService/ShareService';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -134,8 +135,8 @@ import {
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import {
+    getArtifactBlocks,
     getDeepLinkBlocks,
-    getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
@@ -158,7 +159,6 @@ type AiAgentServiceDependencies = {
     catalogModel: CatalogModel;
     changesetModel: ChangesetModel;
     searchModel: SearchModel;
-    spaceModel: SpaceModel;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
     lightdashConfig: LightdashConfig;
@@ -172,6 +172,7 @@ type AiAgentServiceDependencies = {
     spaceService: SpaceService;
     projectModel: ProjectModel;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    shareService: ShareService;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -212,13 +213,13 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
-    private readonly spaceModel: SpaceModel;
-
     private readonly projectModel: ProjectModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    private readonly shareService: ShareService;
 
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
@@ -239,11 +240,11 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
-        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.shareService = dependencies.shareService;
     }
 
     private getIsVerifiedArtifactsEnabled(): boolean {
@@ -3147,10 +3148,25 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             slackPrompt,
             threadArtifacts,
         );
-        const exploreBlocks = getExploreBlocks(
+
+        // Generates short share URLs for Slack (so that we can avoid the 3000 char URL limit)
+        const createShareUrl = async (
+            path: string,
+            params: string,
+        ): Promise<string> => {
+            const result = await this.shareService.createShareUrl(
+                user,
+                path,
+                params,
+            );
+            return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
+        };
+
+        const exploreBlocks = await getArtifactBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
+            createShareUrl,
             threadArtifacts,
         );
         const proposeChangeBlocks = getProposeChangeBlocks(
