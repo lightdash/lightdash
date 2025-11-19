@@ -494,6 +494,9 @@ export const useAddVersionMutation = () => {
                     data.uuid,
                     dashboardUuid,
                 ]);
+                // Reset create-query cache to sync with Redux state reset
+                // This ensures auto-fetch triggers when returning to view mode
+                await queryClient.resetQueries(['create-query']);
             }
 
             if (dashboardUuid)
