@@ -100,6 +100,7 @@ type Dependencies = {
     organizationModel: OrganizationModel;
 };
 
+// just a comment
 export class EmbedService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
