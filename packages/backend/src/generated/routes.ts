@@ -5823,9 +5823,84 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploreMetadataBreakdown: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldStats: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        withAiHints: { dataType: 'double', required: true },
+                        withLabels: { dataType: 'double', required: true },
+                        withDescriptions: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        total: { dataType: 'double', required: true },
+                    },
+                    required: true,
+                },
+                hasAiHint: { dataType: 'boolean', required: true },
+                hasLabel: { dataType: 'boolean', required: true },
+                hasDescription: { dataType: 'boolean', required: true },
+                completenessPercentage: { dataType: 'double', required: true },
+                score: { dataType: 'double', required: true },
+                exploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OverallMetadataMetrics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                exploreAiHintPercentage: { dataType: 'double', required: true },
+                exploreDescriptionPercentage: {
+                    dataType: 'double',
+                    required: true,
+                },
+                fieldDescriptionPercentage: {
+                    dataType: 'double',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetadataCompletenessEvaluation: {
         dataType: 'refAlias',
-        type: { ref: 'ReadinessScoreEvaluation', validators: {} },
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ReadinessScoreEvaluation' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        overallMetrics: {
+                            ref: 'OverallMetadataMetrics',
+                            required: true,
+                        },
+                        exploreBreakdown: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ExploreMetadataBreakdown',
+                            },
+                            required: true,
+                        },
+                        overallPercentage: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExploreAnalysisEvaluation: {
