@@ -1,3 +1,10 @@
+# [0.2187.0](https://github.com/lightdash/lightdash/compare/0.2186.1...0.2187.0) (2025-11-19)
+
+
+### Features
+
+* add Amazon Bedrock AI provider support ([#18208](https://github.com/lightdash/lightdash/issues/18208)) ([440409f](https://github.com/lightdash/lightdash/commit/440409f499782a7ba95874c74ab9aa87c3fb9364))
+
 ## [0.2186.1](https://github.com/lightdash/lightdash/compare/0.2186.0...0.2186.1) (2025-11-19)
 
 
