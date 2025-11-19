@@ -672,14 +672,6 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.customDimensions =
                 action.payload;
         },
-
-        setAdditionalMetrics: (
-            state,
-            action: PayloadAction<AdditionalMetric[] | undefined>,
-        ) => {
-            state.unsavedChartVersion.metricQuery.additionalMetrics =
-                action.payload;
-        },
         addAdditionalMetric: (
             state,
             action: PayloadAction<AdditionalMetric>,
