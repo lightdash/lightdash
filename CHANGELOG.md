@@ -1,3 +1,10 @@
+# [0.2184.0](https://github.com/lightdash/lightdash/compare/0.2183.1...0.2184.0) (2025-11-19)
+
+
+### Features
+
+* add dbt-fusion version detection and support ([#18088](https://github.com/lightdash/lightdash/issues/18088)) ([ed4a334](https://github.com/lightdash/lightdash/commit/ed4a3340bd95190f24d07cfd99b356cdc37ed928))
+
 ## [0.2183.1](https://github.com/lightdash/lightdash/compare/0.2183.0...0.2183.1) (2025-11-19)
 
 
