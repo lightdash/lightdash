@@ -81,6 +81,7 @@ const getPaginatedSchedulers = async (
         resourceUuids?: string[];
         destinations?: DestinationType[];
     },
+    includeLatestRun?: boolean,
 ) => {
     const urlParams = new URLSearchParams({
         page: String(paginateArgs.page),
@@ -101,6 +102,7 @@ const getPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
     return lightdashApi<ApiSchedulersResponse['results']>({
@@ -208,6 +210,7 @@ export const usePaginatedSchedulers = ({
     sortBy,
     sortDirection,
     filters,
+    includeLatestRun,
 }: {
     projectUuid: string;
     paginateArgs?: KnexPaginateArgs;
@@ -220,6 +223,7 @@ export const usePaginatedSchedulers = ({
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
     };
+    includeLatestRun?: boolean;
 }) => {
     return useInfiniteQuery<ApiSchedulersResponse['results']>({
         queryKey: [
@@ -230,6 +234,7 @@ export const usePaginatedSchedulers = ({
             sortBy,
             sortDirection,
             filters,
+            includeLatestRun,
         ],
         queryFn: async ({ pageParam = 0 }) => {
             return getPaginatedSchedulers(
@@ -242,6 +247,7 @@ export const usePaginatedSchedulers = ({
                 sortBy,
                 sortDirection,
                 filters,
+                includeLatestRun,
             );
         },
         getNextPageParam: (_lastGroup, groups) => {

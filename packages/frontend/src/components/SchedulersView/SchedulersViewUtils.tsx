@@ -2,6 +2,8 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
+    type SchedulerAndTargets,
+    type SchedulerRun,
     type SchedulerWithLogs,
 } from '@lightdash/common';
 import { Tooltip, type MantineTheme } from '@mantine-8/core';
@@ -19,7 +21,9 @@ import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
-export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
+export type SchedulerItem = SchedulerAndTargets & {
+    latestRun?: SchedulerRun | null;
+};
 export type Log = SchedulerWithLogs['logs'][number];
 
 export type SchedulerColumnName =
