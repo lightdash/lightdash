@@ -1,0 +1,85 @@
+{
+    "definitions": {
+        "LightdashNodeConfig": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashColumnInfo": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashCompiledModelNode": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "allOf": [
+                                {
+                                    "not": { "enum": ["lightdash", "ld", ""] }
+                                },
+                                {
+                                    "pattern": "^[^.]*$"
+                                }
+                            ]
+                        },
+
+                        "meta": {
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        },
+                        "config": {
+                            "$ref": "#/definitions/LightdashNodeConfig"
+                        },
+                        "columns": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/LightdashColumnInfo"
+                            },
+                            "default": {}
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schemas.lightdash.com/lightdash/v20.json"
+}
