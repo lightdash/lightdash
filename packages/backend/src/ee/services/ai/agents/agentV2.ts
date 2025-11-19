@@ -37,7 +37,7 @@ const createAiAgentLogger =
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(20),
-    maxRetries: 3,
+    maxRetries: 6, // Increased for Bedrock rate limits
 };
 
 const getAgentTelemetryConfig = (
