@@ -630,6 +630,8 @@ export enum DbtManifestVersion {
     V10 = 'v10',
     V11 = 'v11',
     V12 = 'v12',
+    // dbt fusion
+    V20 = 'v20', // dbt manifest is the same, but lightdashV20.json allows meta as null
 }
 
 export const getDbtManifestVersion = (
