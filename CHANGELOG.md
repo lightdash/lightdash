@@ -1,3 +1,10 @@
+# [0.2189.0](https://github.com/lightdash/lightdash/compare/0.2188.1...0.2189.0) (2025-11-19)
+
+
+### Features
+
+* show latest SD run status ([#18139](https://github.com/lightdash/lightdash/issues/18139)) ([3d7fea4](https://github.com/lightdash/lightdash/commit/3d7fea43358d82e478973347f95296c71eb5b54d))
+
 ## [0.2188.1](https://github.com/lightdash/lightdash/compare/0.2188.0...0.2188.1) (2025-11-19)
 
 
