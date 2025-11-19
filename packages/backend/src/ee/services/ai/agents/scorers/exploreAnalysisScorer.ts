@@ -1,9 +1,4 @@
-import {
-    ExploreAnalysisEvaluation,
-    getFields,
-    ScorerContext,
-} from '@lightdash/common';
-import { type LanguageModel } from 'ai';
+import { ExploreAnalysisEvaluation, ScorerContext } from '@lightdash/common';
 
 const OPTIMAL_EXPLORE_COUNT = 20;
 const GOOD_EXPLORE_COUNT = 50;
@@ -24,10 +19,9 @@ const MIN_SCORE = 1;
  * Analyzes whether the agent has a focused scope based on explore count and field distribution.
  */
 export async function evaluateExploreAnalysis(
-    _model: LanguageModel,
     context: ScorerContext,
 ): Promise<ExploreAnalysisEvaluation> {
-    const { explores } = context;
+    const { simplifiedExplores: explores } = context;
     const exploreCount = explores.length;
 
     if (exploreCount === 0) {
@@ -40,7 +34,7 @@ export async function evaluateExploreAnalysis(
 
     const exploresWithFieldCounts = explores.map((explore) => ({
         name: explore.label || explore.name,
-        fieldCount: getFields(explore).length,
+        fieldCount: explore.fields.length,
     }));
 
     const largeExplores = exploresWithFieldCounts.filter(

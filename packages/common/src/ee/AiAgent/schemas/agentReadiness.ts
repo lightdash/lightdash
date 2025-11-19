@@ -1,10 +1,24 @@
 import { z } from 'zod';
 import { type ApiSuccess } from '../../../types/api/success';
-import { type Explore } from '../../../types/explore';
+
+export interface SimplifiedField {
+    name: string;
+    label: string | null;
+    description: string | null;
+    aiHint: string | string[] | null;
+}
+
+export interface SimplifiedExplore {
+    name: string;
+    label: string | null;
+    description: string | null;
+    aiHint: string | string[] | null;
+    fields: SimplifiedField[];
+}
 
 export interface ScorerContext {
-    explores: Explore[];
     agentInstructions: string | null;
+    simplifiedExplores: SimplifiedExplore[];
 }
 
 export const ScoreSchema = z
