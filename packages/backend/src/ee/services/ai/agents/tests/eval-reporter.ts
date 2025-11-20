@@ -33,6 +33,8 @@ interface EvalResult {
     responses?: TaskMeta['responses'];
     agentProvider?: TaskMeta['agentProvider'];
     agentModel?: TaskMeta['agentModel'];
+    agentType?: TaskMeta['agentType'];
+    agentTags?: TaskMeta['agentTags'];
 }
 
 export default class EvalHtmlReporter implements Reporter {
@@ -70,7 +72,21 @@ export default class EvalHtmlReporter implements Reporter {
 
         // Only generate report if we have results
         if (this.results.length > 0) {
-            this.generateReport();
+            // Group results by agent type and generate separate reports
+            const specializedResults = this.results.filter(
+                (r) => r.agentType === 'specialized',
+            );
+            const genericResults = this.results.filter(
+                (r) => r.agentType === 'generic',
+            );
+
+            if (specializedResults.length > 0) {
+                this.generateReport(specializedResults, 'specialized');
+            }
+
+            if (genericResults.length > 0) {
+                this.generateReport(genericResults, 'generic');
+            }
         }
     }
 
@@ -118,6 +134,8 @@ export default class EvalHtmlReporter implements Reporter {
                     responses: taskMeta.responses || [],
                     agentProvider: taskMeta.agentProvider,
                     agentModel: taskMeta.agentModel,
+                    agentType: taskMeta.agentType,
+                    agentTags: taskMeta.agentTags,
                 };
                 this.results.push(result);
             } else if (task.type === 'suite' && task.tasks) {
@@ -127,33 +145,33 @@ export default class EvalHtmlReporter implements Reporter {
         }
     }
 
-    private generateReport() {
+    private generateReport(
+        results: EvalResult[],
+        agentType: 'specialized' | 'generic',
+    ) {
         const now = new Date();
         const day = now.getDate();
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
         const hour = now.getHours();
         const minute = now.getMinutes();
-        const filename = `eval-report-${day}-${month}-${year}-at-H${hour}-M${minute}.html`;
+        const filename = `eval-report-${agentType}-${day}-${month}-${year}-at-H${hour}-M${minute}.html`;
         const filepath = path.join(this.outputDir, filename);
 
-        const html = this.generateHtml();
+        const html = EvalHtmlReporter.generateHtml(results, agentType);
         fs.writeFileSync(filepath, html);
 
         console.log(`\n📊 Eval report generated: ${filepath}`);
     }
 
-    private generateHtml(): string {
-        const passCount = this.results.filter(
-            (r) => r.result === 'pass',
-        ).length;
-        const failCount = this.results.filter(
-            (r) => r.result === 'fail',
-        ).length;
-        const skipCount = this.results.filter(
-            (r) => r.result === 'skip',
-        ).length;
-        const totalCount = this.results.length;
+    private static generateHtml(
+        results: EvalResult[],
+        agentType: 'specialized' | 'generic',
+    ): string {
+        const passCount = results.filter((r) => r.result === 'pass').length;
+        const failCount = results.filter((r) => r.result === 'fail').length;
+        const skipCount = results.filter((r) => r.result === 'skip').length;
+        const totalCount = results.length;
         const passRate =
             totalCount > 0 ? ((passCount / totalCount) * 100).toFixed(1) : '0';
 
@@ -164,17 +182,21 @@ export default class EvalHtmlReporter implements Reporter {
 
         // Get agent provider/model from first test result that has it
         const agentProvider =
-            this.results.find((r) => r.agentProvider)?.agentProvider ||
-            'unknown';
+            results.find((r) => r.agentProvider)?.agentProvider || 'unknown';
         const agentModel =
-            this.results.find((r) => r.agentModel)?.agentModel || 'unknown';
+            results.find((r) => r.agentModel)?.agentModel || 'unknown';
+        const agentTags =
+            results.find((r) => r.agentTags && r.agentTags.length > 0)
+                ?.agentTags || [];
+        const tagsDisplay =
+            agentTags.length > 0 ? ` (tags: ${agentTags.join(', ')})` : '';
 
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent Evaluation Report</title>
+    <title>AI Agent Evaluation Report - ${agentType}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -351,9 +373,9 @@ export default class EvalHtmlReporter implements Reporter {
 </head>
 <body>
     <div class="title">
-        <h1>AI Agent Evaluation Report</h1>
+        <h1>AI Agent Evaluation Report - ${agentType}</h1>
         <div class="date">${formattedDate}</div>
-        <div class="model-info">Agent: ${agentProvider} / ${agentModel}</div>
+        <div class="model-info">Agent: ${agentProvider} / ${agentModel}${tagsDisplay}</div>
     </div>
 
     <div class="summary">
@@ -387,7 +409,7 @@ export default class EvalHtmlReporter implements Reporter {
             </tr>
         </thead>
         <tbody>
-                ${this.results
+                ${results
                     .map(
                         (result, index) => `
                 <tr>
@@ -938,5 +960,7 @@ declare module 'vitest' {
         llmToolJudgeResults: ToolJudgeResult[];
         agentProvider: string;
         agentModel: string;
+        agentType?: 'specialized' | 'generic';
+        agentTags?: string[];
     }
 }

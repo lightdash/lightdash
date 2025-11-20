@@ -6,6 +6,7 @@ models:
       Detailed analytics for each healthcare visit, including patient demographics, vital signs,
       conditions, costs, and visit patterns. Enables analysis of care delivery efficiency and outcomes.
     config:
+      tags: ["core"]
       meta:
         primary_key: visit_id
         joins:
@@ -16,43 +17,43 @@ models:
           # Visit volume metrics
           total_visits:
             type: count
-            sql: '1'
+            sql: "1"
             label: "Total Visits"
-          
+
           unique_patients:
             type: count_distinct
             sql: patient_id
             label: "Unique Patients"
-          
+
           # Visit type metrics
           emergency_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - visit_type: "Emergency"
             label: "Emergency Visits"
-          
+
           telemedicine_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - visit_type: "Telemedicine"
             label: "Telemedicine Visits"
-          
+
           chronic_care_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - visit_type: "Chronic Management"
             label: "Chronic Care Visits"
-          
+
           weekend_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - visit_day_of_week: ["Saturday", "Sunday"]
             label: "Weekend Visits"
-          
+
           # Follow-up and care continuity
           follow_up_rate:
             type: number
@@ -60,88 +61,88 @@ models:
             format: percent
             round: 2
             label: "Follow-up Rate"
-          
+
           avg_days_between_visits:
             type: number
             sql: AVG(CASE WHEN days_since_last_visit IS NOT NULL THEN days_since_last_visit END)
             round: 0
             label: "Average Days Between Visits"
-          
+
           # Cost and efficiency metrics
           total_visit_cost:
             type: sum
             sql: visit_cost
             format: usd
             label: "Total Visit Cost"
-          
+
           avg_visit_duration:
             type: average
             sql: duration_minutes
             round: 1
             label: "Average Visit Duration (min)"
-          
+
           total_care_minutes:
             type: sum
             sql: duration_minutes
             label: "Total Care Minutes"
-          
+
           avg_cost_per_minute:
             type: average
             sql: cost_per_minute
             format: usd
             round: 2
             label: "Average Cost per Minute"
-          
+
           # Provider efficiency
           visits_per_provider:
             type: count
-            sql: '1'
+            sql: "1"
             label: "Visits per Provider"
-          
+
           visits_by_plan:
             type: count
-            sql: '1'
+            sql: "1"
             label: "Visits by Plan"
-          
+
           # Clinical metrics
           fever_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - temperature: "> 100.4"
             label: "Fever Visits"
-          
+
           low_oxygen_visits:
             type: count
-            sql: '1'
+            sql: "1"
             filters:
               - oxygen_saturation: "< 95"
             label: "Low Oxygen Visits"
-          
+
           avg_systolic_bp:
             type: average
             sql: blood_pressure_systolic
             round: 0
             label: "Average Systolic BP"
-          
+
           avg_diastolic_bp:
             type: average
             sql: blood_pressure_diastolic
             round: 0
             label: "Average Diastolic BP"
-          
+
           avg_heart_rate:
             type: average
             sql: heart_rate
             round: 0
             label: "Average Heart Rate"
-          
+
           avg_bmi:
             type: average
             sql: bmi
             round: 1
             label: "Average BMI"
-          
+
           # Virtual care metrics
           virtual_visit_rate:
             type: number
@@ -149,11 +150,11 @@ models:
             format: percent
             round: 2
             label: "Virtual Visit Rate"
-            
+
         default_time_dimension:
           field: visit_date
           interval: DAY
-          
+
     columns:
       - name: visit_id
         description: Unique visit identifier
@@ -164,21 +165,21 @@ models:
           meta:
             dimension:
               type: number
-              
+
       - name: patient_id
         description: Reference to patient
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: visit_date
         description: Date of the visit
         config:
           meta:
             dimension:
               type: date
-              
+
       - name: visit_type
         description: Type of visit (Annual Checkup, Sick Visit, Emergency, etc.)
         config:
@@ -194,21 +195,21 @@ models:
                 "Sick Visit": "#FF5722"
                 "Follow-up": "#9C27B0"
                 "Urgent Care": "#FF6F00"
-                  
+
       - name: provider
         description: Healthcare provider who conducted the visit
         config:
           meta:
             dimension:
               type: string
-              
+
       - name: chief_complaint
         description: Primary reason for the visit
         config:
           meta:
             dimension:
               type: string
-              
+
       - name: duration_minutes
         description: Length of visit in minutes
         config:
@@ -226,14 +227,14 @@ models:
                     WHEN ${duration_minutes} <= 60 THEN 'Extended (31-60 min)'
                     ELSE 'Long (>60 min)'
                   END
-                  
+
       - name: follow_up_required
         description: Whether a follow-up visit is needed
         config:
           meta:
             dimension:
               type: boolean
-              
+
       - name: visit_cost
         description: Cost of the visit
         config:
@@ -252,14 +253,14 @@ models:
                     WHEN ${visit_cost} <= 400 THEN 'High Cost ($201-$400)'
                     ELSE 'Very High Cost (>$400)'
                   END
-                  
+
       - name: patient_name
         description: Full name of the patient
         config:
           meta:
             dimension:
               type: string
-              
+
       - name: patient_age
         description: Patient's age at time of visit
         config:
@@ -277,14 +278,14 @@ models:
                     WHEN ${patient_age} BETWEEN 40 AND 64 THEN 'Middle Age'
                     WHEN ${patient_age} >= 65 THEN 'Senior'
                   END
-                  
+
       - name: health_plan
         description: Patient's insurance plan
         config:
           meta:
             dimension:
               type: string
-              
+
       - name: risk_category
         description: Patient's risk classification
         config:
@@ -295,28 +296,28 @@ models:
                 "Low": "#4CAF50"
                 "Medium": "#FF9800"
                 "High": "#F44336"
-              
+
       - name: visit_year
         description: Year of the visit
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: visit_quarter
         description: Quarter of the visit
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: visit_month
         description: Month of the visit
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: visit_day_of_week
         description: Day of week for the visit
         config:
@@ -328,21 +329,21 @@ models:
                 type: boolean
                 label: "Is Weekend"
                 sql: ${visit_day_of_week} IN ('Saturday', 'Sunday')
-                  
+
       - name: blood_pressure_systolic
         description: Systolic blood pressure reading
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: blood_pressure_diastolic
         description: Diastolic blood pressure reading
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: blood_pressure_category
         description: BP classification
         config:
@@ -354,7 +355,7 @@ models:
                 "Elevated": "#FF9800"
                 "Stage 1 Hypertension": "#FF5722"
                 "Stage 2 Hypertension": "#F44336"
-              
+
       - name: heart_rate
         description: Heart rate in beats per minute
         config:
@@ -375,7 +376,7 @@ models:
                   "Bradycardia (<60 bpm)": "#2196F3"
                   "Normal (60-100 bpm)": "#4CAF50"
                   "Tachycardia (>100 bpm)": "#FF5722"
-                  
+
       - name: temperature
         description: Body temperature in Fahrenheit
         config:
@@ -396,14 +397,14 @@ models:
                   "No Fever": "#4CAF50"
                   "Low Grade Fever": "#FF9800"
                   "High Fever": "#F44336"
-                  
+
       - name: bmi
         description: Body Mass Index
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: bmi_category
         description: BMI classification
         config:
@@ -415,7 +416,7 @@ models:
                 "Normal": "#4CAF50"
                 "Overweight": "#FF9800"
                 "Obese": "#F44336"
-              
+
       - name: oxygen_saturation
         description: Blood oxygen saturation percentage
         config:
@@ -436,7 +437,7 @@ models:
                   "Normal (≥95%)": "#4CAF50"
                   "Mild Hypoxia (90-94%)": "#FF9800"
                   "Severe Hypoxia (<90%)": "#F44336"
-                  
+
       - name: glucose_level
         description: Blood glucose level
         config:
@@ -457,7 +458,7 @@ models:
                   "Normal (<100)": "#4CAF50"
                   "Prediabetic (100-125)": "#FF9800"
                   "Diabetic (≥126)": "#F44336"
-                  
+
       - name: active_conditions
         description: Number of conditions at time of visit
         config:
@@ -475,21 +476,21 @@ models:
                     WHEN ${active_conditions} <= 5 THEN 'Moderate (3-5 conditions)'
                     ELSE 'Complex (>5 conditions)'
                   END
-                  
+
       - name: active_chronic_conditions
         description: Number of chronic conditions at visit
         config:
           meta:
             dimension:
               type: number
-              
+
       - name: condition_categories
         description: Categories of active conditions
         config:
           meta:
             dimension:
               type: string
-              
+
       - name: days_since_last_visit
         description: Days between visits
         config:
@@ -508,7 +509,7 @@ models:
                     WHEN ${days_since_last_visit} <= 180 THEN 'Infrequent (91-180 days)'
                     ELSE 'Rare (>180 days)'
                   END
-                  
+
       - name: visit_cost_category
         description: Cost tier of the visit
         config:
@@ -519,7 +520,7 @@ models:
                 "Low Cost": "#4CAF50"
                 "Medium Cost": "#FF9800"
                 "High Cost": "#F44336"
-              
+
       - name: cost_per_minute
         description: Cost efficiency metric
         config:
@@ -527,7 +528,7 @@ models:
             dimension:
               type: number
               format: usd
-              
+
       - name: visit_modality
         description: Virtual or In-Person visit
         config:

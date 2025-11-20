@@ -7,7 +7,7 @@ models:
 
       {{ doc("orders_status") }}
     config:
-      tags: ["ai"]
+      tags: ["core", "ai"]
       meta:
         primary_key: order_id
         spotlight:
@@ -30,17 +30,6 @@ models:
         default_time_dimension:
           field: order_date
           interval: MONTH
-        explores:
-          completed_orders:
-            label: Completed Orders
-            description: Analysis of completed orders with customer information
-            group_label: Sales Analysis
-            joins:
-              - join: customers
-                sql_on: ${customers.customer_id} = ${orders.customer_id}
-                relationship: many-to-one
-            required_filters:
-              - is_completed: "true"
     columns:
       - name: order_id
         tests:
