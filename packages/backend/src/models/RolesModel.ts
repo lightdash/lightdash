@@ -53,8 +53,11 @@ export class RolesModel {
         return this.database;
     }
 
-    private async getOrganizationId(orgUuid: string): Promise<number> {
-        const [orgData] = await this.database('organizations')
+    private async getOrganizationId(
+        orgUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<number> {
+        const [orgData] = await (tx || this.database)('organizations')
             .where('organization_uuid', orgUuid)
             .select('organization_id');
 
@@ -67,8 +70,11 @@ export class RolesModel {
         return orgData.organization_id;
     }
 
-    private async getProjectId(projectUuid: string): Promise<number> {
-        const [projectData] = await this.database(ProjectTableName)
+    private async getProjectId(
+        projectUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<number> {
+        const [projectData] = await (tx || this.database)(ProjectTableName)
             .where('project_uuid', projectUuid)
             .select('project_id');
 
@@ -81,8 +87,11 @@ export class RolesModel {
         return projectData.project_id;
     }
 
-    private async getUserId(userUuid: string): Promise<number> {
-        const [userData] = await this.database('users')
+    private async getUserId(
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<number> {
+        const [userData] = await (tx || this.database)('users')
             .where('user_uuid', userUuid)
             .select('user_id');
 
@@ -118,12 +127,13 @@ export class RolesModel {
     async getRolesByOrganizationUuid(
         organizationUuid: string,
         roleTypeFilter?: string,
+        tx?: Knex.Transaction,
     ): Promise<Role[]> {
         if (roleTypeFilter === 'system') {
             return getSystemRoles();
         }
 
-        const roles = await this.database(RolesTableName)
+        const roles = await (tx || this.database)(RolesTableName)
             .select('*')
             .where('organization_uuid', organizationUuid);
 
@@ -140,12 +150,13 @@ export class RolesModel {
     async getRolesWithScopesByOrganizationUuid(
         organizationUuid: string,
         roleTypeFilter?: string,
+        tx?: Knex.Transaction,
     ): Promise<RoleWithScopes[]> {
         if (roleTypeFilter === 'system') {
             return getSystemRoles();
         }
 
-        const roles = await this.database(RolesTableName)
+        const roles = await (tx || this.database)(RolesTableName)
             .leftJoin(
                 ScopedRolesTableName,
                 `${RolesTableName}.role_uuid`,
@@ -153,7 +164,7 @@ export class RolesModel {
             )
             .select(
                 `${RolesTableName}.*`,
-                this.database.raw(
+                (tx || this.database).raw(
                     `STRING_AGG(${ScopedRolesTableName}.scope_name, ',') as scopes`,
                 ),
             )
@@ -171,14 +182,17 @@ export class RolesModel {
         return [...getSystemRoles(), ...customRoles];
     }
 
-    async getRoleByUuid(roleUuid: string): Promise<Role> {
+    async getRoleByUuid(
+        roleUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<Role> {
         if (isSystemRole(roleUuid)) {
             return getSystemRoles().find(
                 (role) => role.roleUuid === roleUuid,
             ) as Role;
         }
 
-        const [role] = await this.database(RolesTableName)
+        const [role] = await (tx || this.database)(RolesTableName)
             .select('*')
             .where('role_uuid', roleUuid);
 
@@ -189,14 +203,17 @@ export class RolesModel {
         return RolesModel.mapDbRoleToRole(role);
     }
 
-    async getRoleWithScopesByUuid(roleUuid: string): Promise<RoleWithScopes> {
+    async getRoleWithScopesByUuid(
+        roleUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<RoleWithScopes> {
         if (isSystemRole(roleUuid)) {
             return getSystemRoles().find(
                 (role) => role.roleUuid === roleUuid,
             ) as RoleWithScopes;
         }
 
-        const role = await this.database(RolesTableName)
+        const role = await (tx || this.database)(RolesTableName)
             .leftJoin(
                 ScopedRolesTableName,
                 `${RolesTableName}.role_uuid`,
@@ -204,7 +221,7 @@ export class RolesModel {
             )
             .select(
                 `${RolesTableName}.*`,
-                this.database.raw(
+                (tx || this.database).raw(
                     `STRING_AGG(${ScopedRolesTableName}.scope_name, ',') as scopes`,
                 ),
             )
@@ -256,8 +273,8 @@ export class RolesModel {
         return RolesModel.mapDbRoleToRole(updatedRole);
     }
 
-    async deleteRole(roleUuid: string): Promise<void> {
-        const deletedCount = await this.database(RolesTableName)
+    async deleteRole(roleUuid: string, tx?: Knex.Transaction): Promise<void> {
+        const deletedCount = await (tx || this.database)(RolesTableName)
             .where('role_uuid', roleUuid)
             .delete();
 
@@ -269,10 +286,11 @@ export class RolesModel {
     async unassignCustomRoleFromUser(
         userUuid: string,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        const userId = await this.getUserId(userUuid);
+        const userId = await this.getUserId(userUuid, tx);
 
-        const project = await this.database(ProjectTableName)
+        const project = await (tx || this.database)(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid)
             .first();
@@ -283,7 +301,7 @@ export class RolesModel {
             );
         }
 
-        await this.database(ProjectMembershipsTableName)
+        await (tx || this.database)(ProjectMembershipsTableName)
             .where('user_id', userId)
             .where('project_id', project.project_id)
             .update({ role_uuid: null });
@@ -292,9 +310,10 @@ export class RolesModel {
     async getProjectAccessByUserUuid(
         userUuid: string,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<DbProjectMembership[]> {
-        const userId = await this.getUserId(userUuid);
-        const project = await this.database(ProjectTableName)
+        const userId = await this.getUserId(userUuid, tx);
+        const project = await (tx || this.database)(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid)
             .first();
@@ -304,7 +323,9 @@ export class RolesModel {
                 `Project with uuid ${projectUuid} not found`,
             );
         }
-        const projectAccess = await this.database(ProjectMembershipsTableName)
+        const projectAccess = await (tx || this.database)(
+            ProjectMembershipsTableName,
+        )
             .where('user_id', userId)
             .where('project_id', project.project_id)
             .select('*');
@@ -315,8 +336,9 @@ export class RolesModel {
         groupUuid: string,
         projectUuid: string,
         role: ProjectMemberRole,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database('project_group_access')
+        await (tx || this.database)('project_group_access')
             .insert({
                 group_uuid: groupUuid,
                 project_uuid: projectUuid,
@@ -331,8 +353,9 @@ export class RolesModel {
         groupUuid: string,
         projectUuid: string,
         roleUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database('project_group_access')
+        await (tx || this.database)('project_group_access')
             .insert({
                 group_uuid: groupUuid,
                 project_uuid: projectUuid,
@@ -347,14 +370,17 @@ export class RolesModel {
         groupUuid: string,
         roleUuid: string,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        const existingAccess = await this.database('project_group_access')
+        const existingAccess = await (tx || this.database)(
+            'project_group_access',
+        )
             .where('group_uuid', groupUuid)
             .where('project_uuid', projectUuid)
             .first();
 
         if (existingAccess) {
-            await this.database('project_group_access')
+            await (tx || this.database)('project_group_access')
                 .where('group_uuid', groupUuid)
                 .where('project_uuid', projectUuid)
                 .update({
@@ -362,7 +388,7 @@ export class RolesModel {
                     role: ProjectMemberRole.VIEWER,
                 });
         } else {
-            await this.database('project_group_access').insert({
+            await (tx || this.database)('project_group_access').insert({
                 group_uuid: groupUuid,
                 project_uuid: projectUuid,
                 role_uuid: roleUuid,
@@ -374,16 +400,20 @@ export class RolesModel {
     async unassignRoleFromGroup(
         groupUuid: string,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database('project_group_access')
+        await (tx || this.database)('project_group_access')
             .where('group_uuid', groupUuid)
             .where('project_uuid', projectUuid)
             .delete();
     }
 
     // eslint-disable-next-line class-methods-use-this
-    async getProjectAccess(projectUuid: string): Promise<ProjectAccess[]> {
-        const access = await this.database(ProjectMembershipsTableName)
+    async getProjectAccess(
+        projectUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<ProjectAccess[]> {
+        const access = await (tx || this.database)(ProjectMembershipsTableName)
             .join(
                 UserTableName,
                 `${ProjectMembershipsTableName}.user_id`,
@@ -422,8 +452,9 @@ export class RolesModel {
 
     async getGroupProjectAccess(
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<GroupProjectAccess[]> {
-        const access = await this.database('project_group_access')
+        const access = await (tx || this.database)('project_group_access')
             .join(
                 GroupTableName,
                 'project_group_access.group_uuid',
@@ -462,11 +493,12 @@ export class RolesModel {
         projectUuid: string,
         userUuid: string,
         role: ProjectMemberRole,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        const userId = await this.getUserId(userUuid);
-        const projectId = await this.getProjectId(projectUuid);
+        const userId = await this.getUserId(userUuid, tx);
+        const projectId = await this.getProjectId(projectUuid, tx);
 
-        await this.database(ProjectMembershipsTableName)
+        await (tx || this.database)(ProjectMembershipsTableName)
             .insert({
                 project_id: projectId,
                 user_id: userId,
@@ -481,11 +513,12 @@ export class RolesModel {
         projectUuid: string,
         userUuid: string,
         roleUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        const userId = await this.getUserId(userUuid);
-        const projectId = await this.getProjectId(projectUuid);
+        const userId = await this.getUserId(userUuid, tx);
+        const projectId = await this.getProjectId(projectUuid, tx);
 
-        await this.database(ProjectMembershipsTableName)
+        await (tx || this.database)(ProjectMembershipsTableName)
             .insert({
                 project_id: projectId,
                 user_id: userId,
@@ -496,10 +529,13 @@ export class RolesModel {
             .merge(['role_uuid', 'role']);
     }
 
-    async removeUserAccessFromAllProjects(userUuid: string): Promise<number> {
+    async removeUserAccessFromAllProjects(
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<number> {
         // Convert userUuid to user_id since the table uses user_id not user_uuid
-        const userId = await this.getUserId(userUuid);
-        return this.database(ProjectMembershipsTableName)
+        const userId = await this.getUserId(userUuid, tx);
+        return (tx || this.database)(ProjectMembershipsTableName)
             .where('user_id', userId)
             .delete();
     }
@@ -507,11 +543,14 @@ export class RolesModel {
     async removeUserProjectAccess(
         userUuid: string,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
         // Convert userUuid to user_id since the table uses user_id not user_uuid
-        const userId = await this.getUserId(userUuid);
-        const projectId = await this.getProjectId(projectUuid);
-        const deletedCount = await this.database(ProjectMembershipsTableName)
+        const userId = await this.getUserId(userUuid, tx);
+        const projectId = await this.getProjectId(projectUuid, tx);
+        const deletedCount = await (tx || this.database)(
+            ProjectMembershipsTableName,
+        )
             .where('user_id', userId)
             .andWhere('project_id', projectId)
             .delete();
@@ -542,8 +581,9 @@ export class RolesModel {
     async removeScopeFromRole(
         roleUuid: string,
         scopeName: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database(ScopedRolesTableName)
+        await (tx || this.database)(ScopedRolesTableName)
             .where('role_uuid', roleUuid)
             .where('scope_name', scopeName)
             .delete();
@@ -587,39 +627,37 @@ export class RolesModel {
 
     async getOrganizationRoleAssignments(
         orgUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<RoleAssignment[]> {
-        const userAssignments: DbOrganizationRoleAssignment[] =
-            await this.database('organization_memberships')
-                .join(
-                    'users',
-                    'organization_memberships.user_id',
-                    'users.user_id',
-                )
-                .join(
-                    'organizations',
-                    'organization_memberships.organization_id',
-                    'organizations.organization_id',
-                )
-                .leftJoin(
-                    'roles',
-                    'organization_memberships.role_uuid',
-                    'roles.role_uuid',
-                )
-                .select(
-                    `${RolesTableName}.role_uuid as customRoleUuid`,
-                    `${RolesTableName}.name as customRoleName`,
+        const userAssignments: DbOrganizationRoleAssignment[] = await (
+            tx || this.database
+        )('organization_memberships')
+            .join('users', 'organization_memberships.user_id', 'users.user_id')
+            .join(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .leftJoin(
+                'roles',
+                'organization_memberships.role_uuid',
+                'roles.role_uuid',
+            )
+            .select(
+                `${RolesTableName}.role_uuid as customRoleUuid`,
+                `${RolesTableName}.name as customRoleName`,
 
-                    `${RolesTableName}.owner_type as ownerType`,
-                    `${OrganizationMembershipsTableName}.role as roleName`,
-                    'users.user_uuid as assigneeId',
+                `${RolesTableName}.owner_type as ownerType`,
+                `${OrganizationMembershipsTableName}.role as roleName`,
+                'users.user_uuid as assigneeId',
 
-                    this.database.raw(
-                        "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
-                    ),
-                    'organizations.organization_uuid as organizationId',
-                    'organization_memberships.created_at as createdAt',
-                )
-                .where('organizations.organization_uuid', orgUuid);
+                (tx || this.database).raw(
+                    "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
+                ),
+                'organizations.organization_uuid as organizationId',
+                'organization_memberships.created_at as createdAt',
+            )
+            .where('organizations.organization_uuid', orgUuid);
 
         return this.mapOrganizationRoleAssignment(userAssignments);
     }
@@ -628,11 +666,12 @@ export class RolesModel {
         orgUuid: string,
         userUuid: string,
         systemRoleId: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
-        const userId = await this.getUserId(userUuid);
-        const orgId = await this.getOrganizationId(orgUuid);
+        const userId = await this.getUserId(userUuid, tx);
+        const orgId = await this.getOrganizationId(orgUuid, tx);
 
-        await this.database(OrganizationMembershipsTableName)
+        await (tx || this.database)(OrganizationMembershipsTableName)
             .where({
                 organization_id: orgId,
                 user_id: userId,
@@ -643,9 +682,14 @@ export class RolesModel {
             });
     }
 
-    async getOrganizationAdmins(organizationUuid: string): Promise<string[]> {
-        const orgId = await this.getOrganizationId(organizationUuid);
-        const results = await this.database(OrganizationMembershipsTableName)
+    async getOrganizationAdmins(
+        organizationUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<string[]> {
+        const orgId = await this.getOrganizationId(organizationUuid, tx);
+        const results = await (tx || this.database)(
+            OrganizationMembershipsTableName,
+        )
             .where(`${OrganizationMembershipsTableName}.organization_id`, orgId)
             .leftJoin(
                 UserTableName,
