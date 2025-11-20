@@ -4,7 +4,7 @@ import { DashboardTileTypes } from '../../types/dashboard';
 import { AsCodeInternalization } from './abstract';
 import { mergeExisting } from './merge';
 
-export const dashboardAsCodeSchema = z.object({
+const dashboardAsCodeSchema = z.object({
     name: z.string(),
     description: z
         .string()

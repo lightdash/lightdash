@@ -4,7 +4,7 @@ import { ChartType } from '../../types/savedCharts';
 import { AsCodeInternalization } from './abstract';
 import { mergeExisting } from './merge';
 
-export const chartAsCodeSchema = z.object({
+const chartAsCodeSchema = z.object({
     name: z.string(),
     description: z
         .string()
