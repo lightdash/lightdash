@@ -7,6 +7,7 @@ models:
       This model enriches raw campaign data with calculated fields for analysis.
     config:
       meta:
+        tags: ["core"]
         primary_key: campaign_id
         joins:
           - join: marketing_touchpoints

@@ -8,6 +8,7 @@ models:
       including start/end dates and status information. Demonstrates parameter-based
       filtering and analytics.
     config:
+      tags: ["core", "ai"]
       meta:
         primary_key: subscription_id
         joins:

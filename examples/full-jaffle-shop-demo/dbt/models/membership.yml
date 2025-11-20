@@ -2,11 +2,11 @@ version: 2
 models:
   - name: membership
     config:
-      tags: ['ai']
+      tags: ["core", "ai"]
     meta:
       primary_key: id
       required_attributes:
-        is_admin: 'true'
+        is_admin: "true"
       joins:
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}

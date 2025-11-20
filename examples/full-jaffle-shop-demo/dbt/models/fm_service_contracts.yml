@@ -3,7 +3,7 @@ models:
   - name: fm_service_contracts
     description: Service agreements and customer contracts
     config:
-      tags: ["ai", "facilities"]
+      tags: ["core"]
       meta:
         primary_key: contract_id
         joins:
@@ -23,37 +23,37 @@ models:
             unique_count:
               type: count_distinct
               description: Count of unique contracts
-              
+
       - name: building_id
         description: Building reference
         meta:
           dimension:
             type: number
-            
+
       - name: contract_number
         description: Contract reference number
         meta:
           dimension:
             type: string
-            
+
       - name: status
         description: Current status
         meta:
           dimension:
             type: string
-            
+
       - name: contract_type
         description: Type of agreement
         meta:
           dimension:
             type: string
-            
+
       - name: service_level
         description: Service tier
         meta:
           dimension:
             type: string
-            
+
       - name: monthly_recurring_revenue
         description: Monthly revenue
         meta:
@@ -66,7 +66,7 @@ models:
             avg_mrr:
               type: average
               description: Average MRR per contract
-              
+
       - name: annual_contract_value
         description: Annual contract value
         meta:
@@ -79,7 +79,7 @@ models:
             avg_acv:
               type: average
               description: Average ACV
-              
+
       - name: total_work_orders_ytd
         description: Work orders year to date
         meta:
@@ -89,7 +89,7 @@ models:
             total_work_orders:
               type: sum
               description: Total work orders
-              
+
       - name: completed_work_orders_ytd
         description: Completed work orders
         meta:
@@ -99,7 +99,7 @@ models:
             total_completed:
               type: sum
               description: Total completed
-              
+
       - name: completion_rate
         description: Completion percentage
         meta:
@@ -110,7 +110,7 @@ models:
               type: average
               format: percent
               description: Average completion rate
-              
+
       - name: response_time_met_percent
         description: Response SLA compliance
         meta:
@@ -121,7 +121,7 @@ models:
               type: average
               format: percent
               description: Average response SLA met
-              
+
       - name: resolution_time_met_percent
         description: Resolution SLA compliance
         meta:
@@ -132,7 +132,7 @@ models:
               type: average
               format: percent
               description: Average resolution SLA met
-              
+
       - name: customer_satisfaction_score
         description: Customer satisfaction rating
         meta:
@@ -142,7 +142,7 @@ models:
             avg_satisfaction:
               type: average
               description: Average customer satisfaction
-              
+
       - name: sla_compliance_score
         description: Overall SLA compliance
         meta:
@@ -153,7 +153,7 @@ models:
               type: average
               format: percent
               description: Average SLA compliance
-              
+
       - name: total_service_cost_ytd
         description: Total service cost
         meta:
@@ -163,7 +163,7 @@ models:
             total_cost:
               type: sum
               description: Total service cost
-              
+
       - name: profitability_percent
         description: Profitability percentage
         meta:
@@ -174,7 +174,7 @@ models:
               type: average
               format: percent
               description: Average profitability
-              
+
       - name: customer_rating
         description: Customer rating
         meta:
@@ -184,22 +184,21 @@ models:
             avg_rating:
               type: average
               description: Average customer rating
-              
+
       - name: start_date
         description: Contract start date
         meta:
           dimension:
             type: date
-            
+
       - name: end_date
         description: Contract end date
         meta:
           dimension:
             type: date
-            
+
       - name: building_name
         description: Property name
         meta:
           dimension:
             type: string
-

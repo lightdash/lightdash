@@ -1,5 +1,4 @@
 import {
-    ApiCreateAiAgent,
     defineUserAbility,
     LightdashUser,
     OrganizationMemberRole,
@@ -22,6 +21,7 @@ import { AiAgentService } from './ee/services/AiAgentService';
 import knexConfig from './knexfile';
 
 export interface IntegrationTestContext {
+    testProjectUuid: string;
     app: App;
     db: Knex;
     testUser: SessionUser;
@@ -202,6 +202,7 @@ export const setupIntegrationTest =
             db,
             testUser,
             testUserSessionAccount,
+            testProjectUuid: SEED_PROJECT.project_uuid,
             cleanup,
         };
     };

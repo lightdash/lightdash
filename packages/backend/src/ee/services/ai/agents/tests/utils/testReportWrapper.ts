@@ -12,6 +12,8 @@ interface TestReportData {
     llmJudgeResults?: LlmJudgeResult[];
     llmToolJudgeResults?: ToolJudgeResult[];
     agentInfo?: { provider: string; model: string };
+    agentType?: 'specialized' | 'generic';
+    agentTags?: string[];
 }
 
 /**
@@ -69,6 +71,12 @@ export async function withTestReport<T>(
             );
             setTaskMeta(task.meta, 'agentModel', reportData.agentInfo.model);
         }
+        if (reportData.agentType) {
+            setTaskMeta(task.meta, 'agentType', reportData.agentType);
+        }
+        if (reportData.agentTags) {
+            setTaskMeta(task.meta, 'agentTags', reportData.agentTags);
+        }
     }
 }
 
@@ -97,6 +105,8 @@ export class TestReportBuilder {
         responses?: string[];
         toolCalls?: ToolCallWithResult[];
         agentInfo?: { provider: string; model: string };
+        agentType?: 'specialized' | 'generic';
+        agentTags?: string[];
     }) {
         if (config?.prompt) {
             this.data.prompts = [config.prompt];
@@ -116,6 +126,14 @@ export class TestReportBuilder {
 
         if (config?.agentInfo) {
             this.data.agentInfo = config.agentInfo;
+        }
+
+        if (config?.agentType) {
+            this.data.agentType = config.agentType;
+        }
+
+        if (config?.agentTags) {
+            this.data.agentTags = config.agentTags;
         }
     }
 
@@ -154,6 +172,8 @@ export function createTestReport(config?: {
     responses?: string[];
     toolCalls?: ToolCallWithResult[];
     agentInfo?: { provider: string; model: string };
+    agentType?: 'specialized' | 'generic';
+    agentTags?: string[];
 }): TestReportBuilder {
     return new TestReportBuilder(config);
 }
