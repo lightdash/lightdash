@@ -6600,8 +6600,118 @@
                 "required": ["recommendations", "score"],
                 "type": "object"
             },
+            "ExploreMetadataBreakdown": {
+                "properties": {
+                    "fieldStats": {
+                        "properties": {
+                            "withAiHints": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "withLabels": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "withDescriptions": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "total": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "withAiHints",
+                            "withLabels",
+                            "withDescriptions",
+                            "total"
+                        ],
+                        "type": "object"
+                    },
+                    "hasAiHint": {
+                        "type": "boolean"
+                    },
+                    "hasLabel": {
+                        "type": "boolean"
+                    },
+                    "hasDescription": {
+                        "type": "boolean"
+                    },
+                    "completenessPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "score": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fieldStats",
+                    "hasAiHint",
+                    "hasLabel",
+                    "hasDescription",
+                    "completenessPercentage",
+                    "score",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "OverallMetadataMetrics": {
+                "properties": {
+                    "exploreAiHintPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "exploreDescriptionPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldDescriptionPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "exploreAiHintPercentage",
+                    "exploreDescriptionPercentage",
+                    "fieldDescriptionPercentage"
+                ],
+                "type": "object"
+            },
             "MetadataCompletenessEvaluation": {
-                "$ref": "#/components/schemas/ReadinessScoreEvaluation"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ReadinessScoreEvaluation"
+                    },
+                    {
+                        "properties": {
+                            "overallMetrics": {
+                                "$ref": "#/components/schemas/OverallMetadataMetrics"
+                            },
+                            "exploreBreakdown": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ExploreMetadataBreakdown"
+                                },
+                                "type": "array"
+                            },
+                            "overallPercentage": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "overallMetrics",
+                            "exploreBreakdown",
+                            "overallPercentage"
+                        ],
+                        "type": "object"
+                    }
+                ]
             },
             "ExploreAnalysisEvaluation": {
                 "allOf": [
@@ -22586,7 +22696,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2184.0",
+        "version": "0.2185.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
