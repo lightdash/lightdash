@@ -158,7 +158,7 @@ const getValueAsString = (
                 case FilterOperator.NOT_IN_THE_CURRENT:
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
-                    return rule.settings?.unitOfTime.slice(0, -1);
+                    return rule.settings?.unitOfTime?.slice(0, -1) ?? 'day';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                 case FilterOperator.EQUALS:
