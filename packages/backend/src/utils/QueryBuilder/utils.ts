@@ -11,6 +11,7 @@ import {
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
+    Dimension,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -339,7 +340,7 @@ export const getJoinType = (type: DbtModelJoinType = 'left') => {
 };
 
 export const sortMonthName = (
-    dimension: CompiledDimension,
+    dimension: Dimension,
     fieldQuoteChar: string,
     descending: Boolean,
 ) => {
@@ -361,10 +362,10 @@ export const sortMonthName = (
             WHEN ${fieldId} = 'December' THEN 12
             ELSE 0
         END
-        )${descending ? ' DESC' : ''}`;
+    )${descending ? ' DESC' : ''}`;
 };
 export const sortDayOfWeekName = (
-    dimension: CompiledDimension,
+    dimension: Dimension,
     startOfWeek: WeekDay | null | undefined,
     fieldQuoteChar: string,
     descending: Boolean,
@@ -383,6 +384,22 @@ export const sortDayOfWeekName = (
             WHEN ${fieldId} = 'Thursday' THEN ${calculateDayIndex(5)}
             WHEN ${fieldId} = 'Friday' THEN ${calculateDayIndex(6)}
             WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
+            ELSE 0
+        END
+    )${descending ? ' DESC' : ''}`;
+};
+export const sortQuarterName = (
+    dimension: Dimension,
+    fieldQuoteChar: string,
+    descending: boolean,
+) => {
+    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
+    return `(
+        CASE
+            WHEN ${fieldId} = 'Q1' THEN 1
+            WHEN ${fieldId} = 'Q2' THEN 2
+            WHEN ${fieldId} = 'Q3' THEN 3
+            WHEN ${fieldId} = 'Q4' THEN 4
             ELSE 0
         END
     )${descending ? ' DESC' : ''}`;
