@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerRunStatus,
     type SchedulerAndTargets,
     type SchedulerRun,
     type SchedulerWithLogs,
@@ -26,6 +27,12 @@ export type SchedulerItem = SchedulerAndTargets & {
 };
 export type Log = SchedulerWithLogs['logs'][number];
 
+// Type that works for both SchedulerLog and SchedulerRunLog
+export type LogForIcon = {
+    status: SchedulerJobStatus;
+    details?: { error?: string; [key: string]: unknown } | null;
+};
+
 export type SchedulerColumnName =
     | 'name'
     | 'destinations'
@@ -37,7 +44,7 @@ export type SchedulerColumnName =
     | 'deliveryStarted'
     | 'status';
 
-export const getSchedulerIcon = (item: SchedulerItem) => {
+export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
     switch (item.format) {
         case SchedulerFormat.CSV:
             return <IconBox icon={IconCsv} color="indigo.6" />;
@@ -55,7 +62,7 @@ export const getSchedulerIcon = (item: SchedulerItem) => {
     }
 };
 
-export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
+export const getLogStatusIcon = (log: LogForIcon, theme: MantineTheme) => {
     switch (log.status) {
         case SchedulerJobStatus.SCHEDULED:
             return (
@@ -102,12 +109,91 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
     }
 };
 
-export const getSchedulerLink = (item: SchedulerItem, projectUuid: string) => {
+export const getRunStatusIcon = (
+    runStatus: SchedulerRunStatus,
+    theme: MantineTheme,
+) => {
+    switch (runStatus) {
+        case SchedulerRunStatus.SCHEDULED:
+            return (
+                <Tooltip label="Scheduled">
+                    <MantineIcon
+                        icon={IconClockFilled}
+                        color="blue.3"
+                        style={{ color: theme.colors.blue[3] }}
+                    />
+                </Tooltip>
+            );
+        case SchedulerRunStatus.RUNNING:
+            return (
+                <Tooltip label="Running">
+                    <MantineIcon
+                        icon={IconProgress}
+                        color="yellow.6"
+                        style={{ color: theme.colors.yellow[6] }}
+                    />
+                </Tooltip>
+            );
+        case SchedulerRunStatus.COMPLETED:
+            return (
+                <Tooltip label="Completed">
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        color="green.6"
+                        style={{ color: theme.colors.green[6] }}
+                    />
+                </Tooltip>
+            );
+        case SchedulerRunStatus.PARTIAL_FAILURE:
+            return (
+                <Tooltip label="Partial failure - some jobs failed">
+                    <MantineIcon
+                        icon={IconAlertTriangleFilled}
+                        color="orange.6"
+                        style={{ color: theme.colors.orange[6] }}
+                    />
+                </Tooltip>
+            );
+        case SchedulerRunStatus.FAILED:
+            return (
+                <Tooltip label="Failed">
+                    <MantineIcon
+                        icon={IconAlertTriangleFilled}
+                        color="red.6"
+                        style={{ color: theme.colors.red[6] }}
+                    />
+                </Tooltip>
+            );
+        default:
+            return assertUnreachable(
+                runStatus,
+                'Run status type not supported',
+            );
+    }
+};
+
+export const getSchedulerLink = (
+    item: SchedulerItem | SchedulerRun,
+    projectUuid: string,
+) => {
     const paramName =
-        item.thresholds && item.thresholds.length > 0
+        'thresholds' in item && item.thresholds && item.thresholds.length > 0
             ? 'threshold_uuid'
             : 'scheduler_uuid';
 
+    // Handle SchedulerRun (uses resourceType/resourceUuid)
+    if ('resourceType' in item) {
+        const resourcePath =
+            item.resourceType === 'chart'
+                ? `/projects/${projectUuid}/saved/${item.resourceUuid}/view`
+                : `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
+
+        return `${resourcePath}?${paramName}=${item.schedulerUuid}${
+            item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
+        }`;
+    }
+
+    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid)
     return item.savedChartUuid
         ? `/projects/${projectUuid}/saved/${
               item.savedChartUuid

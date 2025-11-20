@@ -1,4 +1,4 @@
-import { SchedulerJobStatus } from '@lightdash/common';
+import { SchedulerRunStatus } from '@lightdash/common';
 import {
     Badge,
     Button,
@@ -18,18 +18,21 @@ type StatusFilterProps = Pick<
     'selectedStatuses' | 'setSelectedStatuses'
 >;
 
-const STATUS_LABELS: Record<SchedulerJobStatus, string> = {
-    [SchedulerJobStatus.SCHEDULED]: 'Scheduled',
-    [SchedulerJobStatus.STARTED]: 'Started',
-    [SchedulerJobStatus.COMPLETED]: 'Completed',
-    [SchedulerJobStatus.ERROR]: 'Error',
+const STATUS_LABELS: Record<SchedulerRunStatus, string> = {
+    [SchedulerRunStatus.COMPLETED]: 'Completed',
+    [SchedulerRunStatus.PARTIAL_FAILURE]: 'Partial Failure',
+    [SchedulerRunStatus.FAILED]: 'Failed',
+    [SchedulerRunStatus.RUNNING]: 'Running',
+    [SchedulerRunStatus.SCHEDULED]: 'Scheduled',
 };
 
 const StatusFilter: FC<StatusFilterProps> = ({
     selectedStatuses,
     setSelectedStatuses,
 }) => {
-    const allStatuses = Object.values(SchedulerJobStatus);
+    const filterableStatuses = Object.values(SchedulerRunStatus).filter(
+        (status) => status !== SchedulerRunStatus.SCHEDULED,
+    );
     const hasSelectedStatuses = selectedStatuses.length > 0;
 
     return (
@@ -38,7 +41,7 @@ const StatusFilter: FC<StatusFilterProps> = ({
                 <Tooltip
                     withinPortal
                     variant="xs"
-                    label="Filter logs by status"
+                    label="Filter runs by status"
                 >
                     <Button
                         h={32}
@@ -88,7 +91,7 @@ const StatusFilter: FC<StatusFilterProps> = ({
 
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
                         <Stack gap="xs">
-                            {allStatuses.map((status) => (
+                            {filterableStatuses.map((status) => (
                                 <Checkbox
                                     key={status}
                                     label={STATUS_LABELS[status]}
