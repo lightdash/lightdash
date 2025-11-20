@@ -31,6 +31,7 @@ export type DownloadHandlerOptions = {
     project?: string;
     languageMap: boolean;
     skipSpaceCreate: boolean;
+    public: boolean;
     includeCharts: boolean;
 };
 
@@ -463,6 +464,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     slugs: string[],
     customPath?: string,
     skipSpaceCreate?: boolean,
+    publicSpaceCreate?: boolean,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
@@ -516,6 +518,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 body: JSON.stringify({
                     ...item,
                     skipSpaceCreate,
+                    publicSpaceCreate,
                 }),
             });
 
@@ -661,6 +664,7 @@ export const uploadHandler = async (
                     chartSlugs,
                     options.path,
                     options.skipSpaceCreate,
+                    options.public,
                 );
             changes = chartChanges;
             chartTotal = total;
@@ -680,6 +684,7 @@ export const uploadHandler = async (
                     options.dashboards,
                     options.path,
                     options.skipSpaceCreate,
+                    options.public,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
