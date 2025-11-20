@@ -1,3 +1,10 @@
+## [0.2189.2](https://github.com/lightdash/lightdash/compare/0.2189.1...0.2189.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* move AI agent message retry logic to dedicated mutation hook ([#18220](https://github.com/lightdash/lightdash/issues/18220)) ([a032eb3](https://github.com/lightdash/lightdash/commit/a032eb337864a7048e83c22ae0d189e5f4b9214b))
+
 ## [0.2189.1](https://github.com/lightdash/lightdash/compare/0.2189.0...0.2189.1) (2025-11-20)
 
 
