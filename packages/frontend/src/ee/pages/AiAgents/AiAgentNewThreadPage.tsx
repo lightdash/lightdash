@@ -94,6 +94,17 @@ const AiAgentNewThreadPage: FC = () => {
                                 </Popover>
                             )}
                         </Group>
+                        {agent.description && (
+                            <Text
+                                size="sm"
+                                c="gray.6"
+                                ta="center"
+                                maw={600}
+                                style={{ whiteSpace: 'pre-wrap' }}
+                            >
+                                {agent.description}
+                            </Text>
+                        )}
                         {agent.tags && (
                             <Group gap="xxs">
                                 {agent.tags.map((tag, i) => (

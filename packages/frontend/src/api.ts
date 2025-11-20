@@ -240,14 +240,10 @@ export const lightdashApiStream = ({
         },
         body,
         signal,
-    })
-        .then((r) => {
-            if (!r.ok) {
-                throw r;
-            }
-            return r;
-        })
-        .catch((err) => {
-            throw handleError(err);
-        });
+    }).then((r) => {
+        if (!r.ok) {
+            throw r;
+        }
+        return r;
+    });
 };

@@ -711,6 +711,49 @@ export const useCreateAgentThreadMessageMutation = (
     });
 };
 
+export const useRetryAiAgentThreadMessageMutation = () => {
+    const { streamMessage } = useAiAgentThreadStreamMutation();
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        void,
+        void,
+        {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        }
+    >({
+        mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
+            streamMessage({
+                projectUuid,
+                agentUuid: agentUuid,
+                threadUuid: threadUuid,
+                messageUuid: messageUuid,
+                refetchThread: () =>
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            threadUuid,
+                        ],
+                    }),
+            }),
+        onSettled: (_, __, { projectUuid, agentUuid, threadUuid }) => {
+            void queryClient.invalidateQueries([
+                AI_AGENTS_KEY,
+                projectUuid,
+                agentUuid,
+                'threads',
+                threadUuid,
+            ]);
+        },
+    });
+};
+
 // Feedback and query management functionality
 const updatePromptFeedback = async (
     projectUuid: string,

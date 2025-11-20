@@ -1960,32 +1960,30 @@ export class SpaceModel {
      * @returns Root space UUID (or itself if it's already a root space)
      */
     async getSpaceRoot(spaceUuid: string): Promise<string> {
-        return this.database.transaction(async (trx) => {
-            const space = await trx(SpaceTableName)
-                .select(['path', 'project_id'])
-                .where('space_uuid', spaceUuid)
-                .first();
+        const space = await this.database(SpaceTableName)
+            .select(['path', 'project_id'])
+            .where('space_uuid', spaceUuid)
+            .first();
 
-            if (!space || !space.path) {
-                throw new NotFoundError(
-                    `Space with uuid ${spaceUuid} does not exist`,
-                );
-            }
+        if (!space || !space.path) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
 
-            const root = await trx(SpaceTableName)
-                .select('space_uuid')
-                .whereRaw('nlevel(path) = 1')
-                .andWhereRaw('path @> ?', [space.path])
-                .andWhere('project_id', space.project_id)
-                .first();
+        const root = await this.database(SpaceTableName)
+            .select('space_uuid')
+            .whereRaw('nlevel(path) = 1')
+            .andWhereRaw('path @> ?', [space.path])
+            .andWhere('project_id', space.project_id)
+            .first();
 
-            if (!root) {
-                throw new NotFoundError(
-                    `Root space for space for ${spaceUuid} not found`,
-                );
-            }
+        if (!root) {
+            throw new NotFoundError(
+                `Root space for space for ${spaceUuid} not found`,
+            );
+        }
 
-            return root.space_uuid;
-        });
+        return root.space_uuid;
     }
 }

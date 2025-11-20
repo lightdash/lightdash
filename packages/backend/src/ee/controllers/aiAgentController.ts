@@ -420,14 +420,29 @@ export class AiAgentController extends BaseController {
 
         // If client disconnects, continue consuming the stream so side-effects complete
         let hasConsumed = false;
-        const handleClientDisconnect = () => {
+        const handleClientDisconnect = (err: Error | undefined) => {
             if (hasConsumed) return;
             hasConsumed = true;
-            Logger.info('Client disconnected, consuming stream');
+            Logger.info(
+                `Client disconnected ${
+                    err ? `with error: ${err.message}` : ''
+                }, consuming stream`,
+            );
+            if (err) {
+                Sentry.captureException(err, {
+                    tags: {
+                        errorType: 'AiAgentStreamError',
+                    },
+                });
+            }
             void stream.consumeStream({
                 onError: (error) => {
                     Logger.error('Error consuming stream');
-                    Sentry.captureException(error);
+                    Sentry.captureException(error, {
+                        tags: {
+                            errorType: 'AiAgentStreamError',
+                        },
+                    });
                 },
             });
         };

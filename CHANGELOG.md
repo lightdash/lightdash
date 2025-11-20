@@ -1,3 +1,67 @@
+# [0.2192.0](https://github.com/lightdash/lightdash/compare/0.2191.2...0.2192.0) (2025-11-20)
+
+
+### Features
+
+* add transaction support to RolesModel methods ([#18252](https://github.com/lightdash/lightdash/issues/18252)) ([3468901](https://github.com/lightdash/lightdash/commit/34689010a52178a5b569ff08ad4695395eeed98b))
+
+## [0.2191.2](https://github.com/lightdash/lightdash/compare/0.2191.1...0.2191.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* improve chart + dashboard schemas ([#18261](https://github.com/lightdash/lightdash/issues/18261)) ([add904b](https://github.com/lightdash/lightdash/commit/add904b8a64cfd3b7a2aa55617b04edfff3eeabf))
+
+## [0.2191.1](https://github.com/lightdash/lightdash/compare/0.2191.0...0.2191.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* CLI option to create public spaces if they dont exist ([#18200](https://github.com/lightdash/lightdash/issues/18200)) ([63c0d20](https://github.com/lightdash/lightdash/commit/63c0d20cd5806ae4e03156372c12a250bb2d1532))
+* remove long sql transaction lock for getSpaceRoot ([#18248](https://github.com/lightdash/lightdash/issues/18248)) ([f1e5590](https://github.com/lightdash/lightdash/commit/f1e55904a44581a097aea77995b0f933198c6f77))
+
+# [0.2191.0](https://github.com/lightdash/lightdash/compare/0.2190.1...0.2191.0) (2025-11-20)
+
+
+### Features
+
+* add description fields to ai agent settings ([#18249](https://github.com/lightdash/lightdash/issues/18249)) ([29fbba0](https://github.com/lightdash/lightdash/commit/29fbba0cf5b4925cf2313c79073037c817076cc7))
+
+## [0.2190.1](https://github.com/lightdash/lightdash/compare/0.2190.0...0.2190.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* add missing fields nowrap for long field names ([#18247](https://github.com/lightdash/lightdash/issues/18247)) ([189507d](https://github.com/lightdash/lightdash/commit/189507d40c4f5ced892e2835c6359a37111b1d90))
+
+# [0.2190.0](https://github.com/lightdash/lightdash/compare/0.2189.3...0.2190.0) (2025-11-20)
+
+
+### Features
+
+* allow embed content via configuration ([#18223](https://github.com/lightdash/lightdash/issues/18223)) ([a31ff14](https://github.com/lightdash/lightdash/commit/a31ff14d48a179e9a560be1a8ff5bc3328db9841))
+
+## [0.2189.3](https://github.com/lightdash/lightdash/compare/0.2189.2...0.2189.3) (2025-11-20)
+
+
+### Bug Fixes
+
+* add fallback value for unitOfTime in filter utils for inTheCurrent/notInTheCurrent ([#18239](https://github.com/lightdash/lightdash/issues/18239)) ([1f19ffd](https://github.com/lightdash/lightdash/commit/1f19ffdc52cd14b20a4603cd72f4c70f2c0c6ba9)), closes [#18197](https://github.com/lightdash/lightdash/issues/18197)
+
+## [0.2189.2](https://github.com/lightdash/lightdash/compare/0.2189.1...0.2189.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* move AI agent message retry logic to dedicated mutation hook ([#18220](https://github.com/lightdash/lightdash/issues/18220)) ([a032eb3](https://github.com/lightdash/lightdash/commit/a032eb337864a7048e83c22ae0d189e5f4b9214b))
+
+## [0.2189.1](https://github.com/lightdash/lightdash/compare/0.2189.0...0.2189.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* add error tagging for AI agent stream errors ([#18219](https://github.com/lightdash/lightdash/issues/18219)) ([d304eb3](https://github.com/lightdash/lightdash/commit/d304eb3acc569a2927de02335dec1735eb2e9401))
+
 # [0.2189.0](https://github.com/lightdash/lightdash/compare/0.2188.1...0.2189.0) (2025-11-19)
 
 

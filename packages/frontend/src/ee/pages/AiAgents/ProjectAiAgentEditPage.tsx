@@ -45,6 +45,7 @@ import { EvalsSetup } from './EvalsSetup';
 
 const formSchema = z.object({
     name: z.string().min(1),
+    description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
@@ -99,6 +100,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
             name: '',
+            description: null,
             integrations: [],
             tags: null,
             instruction: null,
@@ -122,6 +124,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         if (!form.initialized) {
             const values = {
                 name: agent.name,
+                description: agent.description,
                 integrations: agent.integrations,
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
                 instruction: agent.instruction,

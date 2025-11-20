@@ -38,13 +38,15 @@ import {
     rehypeRemoveHeaderLinks,
     useMdEditorStyle,
 } from '../../../../../utils/markdownUtils';
-import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
+import {
+    useRetryAiAgentThreadMessageMutation,
+    useUpdatePromptFeedbackMutation,
+} from '../../hooks/useProjectAiAgents';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
@@ -69,7 +71,7 @@ const AssistantBubbleContent: FC<{
         message.threadUuid,
         message.uuid,
     );
-    const { streamMessage } = useAiAgentThreadStreamMutation();
+    const { mutate: handleRetry } = useRetryAiAgentThreadMessageMutation();
     const mdStyle = useMdEditorStyle();
 
     const isPending = message.status === 'pending';
@@ -95,21 +97,6 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
-
-    const handleRetry = useCallback(() => {
-        void streamMessage({
-            projectUuid,
-            agentUuid,
-            threadUuid: message.threadUuid,
-            messageUuid: message.uuid,
-        });
-    }, [
-        streamMessage,
-        agentUuid,
-        message.threadUuid,
-        message.uuid,
-        projectUuid,
-    ]);
 
     const proposeChangeToolCall = isStreaming
         ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
@@ -171,7 +158,14 @@ const AssistantBubbleContent: FC<{
                                     color="gray.7"
                                 />
                             }
-                            onClick={handleRetry}
+                            onClick={() =>
+                                handleRetry({
+                                    projectUuid,
+                                    agentUuid,
+                                    threadUuid: message.threadUuid,
+                                    messageUuid: message.uuid,
+                                })
+                            }
                         >
                             Try again
                         </Button>

@@ -622,6 +622,7 @@ program
         'Skip space creation if it does not exist',
         false,
     )
+    .option('--public', 'Create new spaces as public instead of private', false)
     .option(
         '--include-charts',
         'Include charts updates when uploading dashboards',
