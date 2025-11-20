@@ -1,3 +1,10 @@
+# [0.2191.0](https://github.com/lightdash/lightdash/compare/0.2190.1...0.2191.0) (2025-11-20)
+
+
+### Features
+
+* add description fields to ai agent settings ([#18249](https://github.com/lightdash/lightdash/issues/18249)) ([29fbba0](https://github.com/lightdash/lightdash/commit/29fbba0cf5b4925cf2313c79073037c817076cc7))
+
 ## [0.2190.1](https://github.com/lightdash/lightdash/compare/0.2190.0...0.2190.1) (2025-11-20)
 
 
