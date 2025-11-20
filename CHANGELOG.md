@@ -1,3 +1,10 @@
+## [0.2190.1](https://github.com/lightdash/lightdash/compare/0.2190.0...0.2190.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* add missing fields nowrap for long field names ([#18247](https://github.com/lightdash/lightdash/issues/18247)) ([189507d](https://github.com/lightdash/lightdash/commit/189507d40c4f5ced892e2835c6359a37111b1d90))
+
 # [0.2190.0](https://github.com/lightdash/lightdash/compare/0.2189.3...0.2190.0) (2025-11-20)
 
 
