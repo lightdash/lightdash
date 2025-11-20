@@ -98,8 +98,38 @@
                         "description": "Tile-specific properties (varies by tile type)",
                         "oneOf": [
                             {
+                                "description": "Properties for a markdown tile",
+                                "additionalProperties": false,
+                                "required": ["title", "content"],
+                                "not": {
+                                    "required": ["chartSlug"]
+                                },
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Title of the markdown tile"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean",
+                                        "description": "Whether to hide the markdown tile title"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "description": "Markdown content to display"
+                                    }
+                                }
+                            },
+                            {
                                 "description": "Properties for a saved chart tile",
                                 "additionalProperties": false,
+                                "required": ["chartSlug"],
+                                "not": {
+                                    "anyOf": [
+                                        { "required": ["content"] },
+                                        { "required": ["savedSqlUuid"] },
+                                        { "required": ["url"] }
+                                    ]
+                                },
                                 "properties": {
                                     "title": {
                                         "type": "string",
@@ -129,31 +159,12 @@
                                         "type": ["string", "null"],
                                         "description": "Type of chart from last version"
                                     }
-                                },
-                                "required": ["chartSlug"]
-                            },
-                            {
-                                "description": "Properties for a markdown tile",
-                                "additionalProperties": false,
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "description": "Title of the markdown tile"
-                                    },
-                                    "hideTitle": {
-                                        "type": "boolean",
-                                        "description": "Whether to hide the markdown tile title"
-                                    },
-                                    "content": {
-                                        "type": "string",
-                                        "description": "Markdown content to display"
-                                    }
-                                },
-                                "required": ["title", "content"]
+                                }
                             },
                             {
                                 "description": "Properties for a SQL chart tile",
                                 "additionalProperties": false,
+                                "required": ["chartSlug", "savedSqlUuid"],
                                 "properties": {
                                     "title": {
                                         "type": "string",
@@ -174,9 +185,12 @@
                                     "savedSqlUuid": {
                                         "type": ["string", "null"],
                                         "description": "UUID of the saved SQL chart (readonly)"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "description": "SQL content (optional, may be stored separately)"
                                     }
-                                },
-                                "required": ["chartName"]
+                                }
                             },
                             {
                                 "description": "Properties for a Loom video tile",
