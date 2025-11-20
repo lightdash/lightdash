@@ -1,3 +1,10 @@
+## [0.2191.2](https://github.com/lightdash/lightdash/compare/0.2191.1...0.2191.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* improve chart + dashboard schemas ([#18261](https://github.com/lightdash/lightdash/issues/18261)) ([add904b](https://github.com/lightdash/lightdash/commit/add904b8a64cfd3b7a2aa55617b04edfff3eeabf))
+
 ## [0.2191.1](https://github.com/lightdash/lightdash/compare/0.2191.0...0.2191.1) (2025-11-20)
 
 
