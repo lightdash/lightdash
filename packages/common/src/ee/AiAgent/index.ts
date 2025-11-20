@@ -593,3 +593,17 @@ export type ApiRevertChangeRequest = {
 };
 
 export type ApiRevertChangeResponse = ApiSuccessEmpty;
+
+export type AgentSummaryContext = {
+    uuid: string;
+    projectUuid: string;
+    name: string;
+    description: string | null;
+    explores: string[];
+    verifiedQuestions: string[];
+    instruction: string | null;
+};
+
+export type AiAgentWithContext = AiAgentSummary & {
+    context: AgentSummaryContext;
+};
