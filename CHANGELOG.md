@@ -1,3 +1,10 @@
+# [0.2190.0](https://github.com/lightdash/lightdash/compare/0.2189.3...0.2190.0) (2025-11-20)
+
+
+### Features
+
+* allow embed content via configuration ([#18223](https://github.com/lightdash/lightdash/issues/18223)) ([a31ff14](https://github.com/lightdash/lightdash/commit/a31ff14d48a179e9a560be1a8ff5bc3328db9841))
+
 ## [0.2189.3](https://github.com/lightdash/lightdash/compare/0.2189.2...0.2189.3) (2025-11-20)
 
 
