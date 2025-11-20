@@ -229,6 +229,10 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     embedding: {
         enabled: false,
+        allowAll: {
+            dashboards: false,
+            charts: false,
+        },
         events: undefined,
     },
     scim: {

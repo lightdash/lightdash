@@ -245,9 +245,9 @@ export class EmbedService extends BaseService {
             encodedSecret,
             user.userUuid,
             data.dashboardUuids,
-            false,
+            this.lightdashConfig.embedding.allowAll.dashboards,
             data.chartUuids,
-            false,
+            this.lightdashConfig.embedding.allowAll.charts,
         );
 
         return this.getConfig(user, projectUuid);
