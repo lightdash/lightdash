@@ -614,6 +614,11 @@ program
         undefined,
     )
     .option(
+        '--nested',
+        'organize downloads in nested folders by project and space (default: flat structure)',
+        false,
+    )
+    .option(
         '--project <project uuid>',
         'specify a project UUID to download',
         parseProjectArgument,
