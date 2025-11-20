@@ -33,6 +33,7 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
                 onClick={handleClick}
                 ml={12}
                 my="xs"
+                noWrap
                 style={{ cursor: 'pointer' }}
             >
                 <MantineIcon
