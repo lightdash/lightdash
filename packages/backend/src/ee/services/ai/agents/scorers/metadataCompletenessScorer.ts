@@ -1,11 +1,10 @@
 import {
-    Explore,
     type ExploreMetadataBreakdown,
     getFields,
     type MetadataCompletenessEvaluation,
     type ScorerContext,
+    SimplifiedExplore,
 } from '@lightdash/common';
-import { type LanguageModel } from 'ai';
 
 const EXCELLENT_THRESHOLD = 90;
 const GOOD_THRESHOLD = 70;
@@ -13,7 +12,7 @@ const FAIR_THRESHOLD = 40;
 const POOR_THRESHOLD = 20;
 // Below 20% is very poor (score 1)
 
-const validString = (value?: string) =>
+const validString = (value?: string | null) =>
     value ? value.trim().length > 0 : false;
 
 const getScore = (percentage: number): Score => {
@@ -28,13 +27,12 @@ const getScore = (percentage: number): Score => {
  * Calculates a completeness score for a single explore based on its metadata
  */
 function calculateExploreCompleteness(
-    explore: Explore,
+    explore: SimplifiedExplore,
 ): ExploreMetadataBreakdown {
     const exploreName = explore.label || explore.name;
-    const fields = getFields(explore);
+    const { fields } = explore;
 
-    const baseTable = explore.tables[explore.baseTable];
-    const hasDescription = validString(baseTable?.description);
+    const hasDescription = validString(explore.description);
     const hasLabel = validString(explore.label);
     let hasAiHint = false;
     if (explore.aiHint) {
@@ -129,10 +127,9 @@ const needsImprovementExplores = (explores: ExploreMetadataBreakdown[]) =>
  * Calculates per-explore scores and aggregates them for an overall assessment.
  */
 export async function evaluateMetadataCompleteness(
-    _model: LanguageModel,
     context: ScorerContext,
 ): Promise<MetadataCompletenessEvaluation> {
-    const { explores } = context;
+    const { simplifiedExplores: explores } = context;
 
     if (explores.length === 0) {
         return {

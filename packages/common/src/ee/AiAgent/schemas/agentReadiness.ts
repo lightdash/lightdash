@@ -1,9 +1,22 @@
 import { z } from 'zod';
 import { type ApiSuccess } from '../../../types/api/success';
-import { type Explore } from '../../../types/explore';
+
+export interface SimplifiedField {
+    name: string;
+    label: string | null;
+    description: string | null;
+    aiHint: string | string[] | null;
+}
+export interface SimplifiedExplore {
+    name: string;
+    label: string | null;
+    description: string | null;
+    aiHint: string | string[] | null;
+    fields: SimplifiedField[];
+}
 
 export interface ScorerContext {
-    explores: Explore[];
+    simplifiedExplores: SimplifiedExplore[];
     agentInstructions: string | null;
 }
 
@@ -73,7 +86,7 @@ export type MetadataCompletenessEvaluation = ReadinessScoreEvaluation & {
 export type ExploreAnalysisEvaluation = ReadinessScoreEvaluation & {
     largeExplores: string[];
 };
-export type InstructionQualityEvaluation = ReadinessScoreEvaluation;
+export type AgentReadinessEvaluation = ReadinessScoreEvaluation;
 
 // Zod schemas for validation (backend only)
 export const ExploreMetadataBreakdownSchema = z.object({
@@ -105,13 +118,13 @@ export const MetadataCompletenessSchema = BaseScorerSchema.extend({
 export const ExploreAnalysisSchema = BaseScorerSchema.extend({
     largeExplores: z.array(z.string()),
 });
-export const InstructionQualitySchema = BaseScorerSchema;
+export const AgentReadinessSchema = BaseScorerSchema;
 
 export interface ReadinessScore {
     overallScore: number;
     metadataCompleteness: MetadataCompletenessEvaluation;
     exploreAnalysis: ExploreAnalysisEvaluation;
-    instructionQuality: InstructionQualityEvaluation;
+    agentReadiness: AgentReadinessEvaluation;
     timestamp: Date;
     projectSnapshot: {
         exploreCount: number;
