@@ -63,6 +63,9 @@ const emptyFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
+// Batch loading configuration - load N charts at a time from top to bottom
+const CHART_BATCH_SIZE = 3;
+
 const DashboardProvider: React.FC<
     React.PropsWithChildren<{
         schedulerFilters?: DashboardFilterRule[] | undefined;
@@ -343,6 +346,9 @@ const DashboardProvider: React.FC<
     // Track which tiles have loaded (to know when all are complete)
     const [loadedTiles, setLoadedTiles] = useState<Set<string>>(new Set());
 
+    // Batch loading state - track current active batch number
+    const [currentBatch, setCurrentBatch] = useState<number>(0);
+
     const addParameterReferences = useCallback(
         (tileUuid: string, references: string[]) => {
             setTileParameterReferences((prev) => ({
@@ -395,6 +401,64 @@ const DashboardProvider: React.FC<
 
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
+
+    // Calculate which batch each tile belongs to based on sorted position (top to bottom)
+    const tileBatchMapping = useMemo(() => {
+        if (!dashboardTiles) return new Map<string, number>();
+
+        // Get chart tiles for the active tab, sorted by position (Y then X)
+        const chartTiles = dashboardTiles
+            .filter(isDashboardChartTileType)
+            .filter((tile) => {
+                if (!activeTab) return true;
+                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
+            })
+            .sort((a, b) => {
+                if (a.y === b.y) return a.x - b.x; // Same row: sort by column
+                return a.y - b.y; // Different row: sort by row
+            });
+
+        // Assign batch numbers based on position (0, 0, 0, 1, 1, 1, 2, 2, 2, ...)
+        const mapping = new Map<string, number>();
+        chartTiles.forEach((tile, index) => {
+            const batchNumber = Math.floor(index / CHART_BATCH_SIZE);
+            mapping.set(tile.uuid, batchNumber);
+        });
+
+        return mapping;
+    }, [dashboardTiles, activeTab]);
+
+    // Automatically increment batch when current batch completes
+    useEffect(() => {
+        if (!dashboardTiles) return;
+
+        // Get all tile UUIDs in the current batch
+        const tilesInCurrentBatch = Array.from(tileBatchMapping.entries())
+            .filter(([, batchNum]) => batchNum === currentBatch)
+            .map(([tileUuid]) => tileUuid);
+
+        // If all tiles in current batch have loaded, move to next batch
+        if (
+            tilesInCurrentBatch.length > 0 &&
+            tilesInCurrentBatch.every((tileUuid) => loadedTiles.has(tileUuid))
+        ) {
+            // Check if there are more batches to load
+            const maxBatch = Math.max(...Array.from(tileBatchMapping.values()));
+            if (currentBatch < maxBatch) {
+                setCurrentBatch((prev) => prev + 1);
+            }
+        }
+    }, [dashboardTiles, tileBatchMapping, currentBatch, loadedTiles]);
+
+    // Helper function to check if a tile can load based on batching
+    const canTileLoad = useCallback(
+        (tileUuid: string): boolean => {
+            const tileBatch = tileBatchMapping.get(tileUuid);
+            if (tileBatch === undefined) return true; // Not a chart tile or not found, allow loading
+            return tileBatch <= currentBatch; // Only load if in current or earlier batch
+        },
+        [tileBatchMapping, currentBatch],
+    );
 
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
@@ -1160,6 +1224,7 @@ const DashboardProvider: React.FC<
         tileNamesById,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
+        canTileLoad,
     };
     return (
         <DashboardContext.Provider value={value}>
