@@ -19,8 +19,7 @@ import StatusFilter from './filters/StatusFilter';
 
 type User = {
     userUuid: string;
-    firstName: string;
-    lastName: string;
+    name: string;
 };
 
 interface LogsTopToolbarProps

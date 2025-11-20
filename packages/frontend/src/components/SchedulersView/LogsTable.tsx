@@ -1,4 +1,8 @@
-import { SchedulerJobStatus } from '@lightdash/common';
+import {
+    SchedulerRunStatus,
+    type SchedulerRun,
+    type SchedulerRunLog,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -20,7 +24,6 @@ import {
     IconSend,
     IconTextCaption,
 } from '@tabler/icons-react';
-import groupBy from 'lodash/groupBy';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -44,7 +47,8 @@ import {
     type DestinationType,
 } from '../../features/scheduler/hooks/useLogsFilters';
 import {
-    useSchedulerLogs,
+    useFetchRunLogs,
+    useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
@@ -55,34 +59,32 @@ import {
     formatTaskName,
     formatTime,
     getLogStatusIcon,
+    getRunStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
-    type Log,
-    type SchedulerItem,
 } from './SchedulersViewUtils';
 
 type LogsTableProps = {
     projectUuid: string;
 };
 
-type LogGroup = {
+type RunGroup = {
     type: 'group';
-    jobGroup: string;
-    scheduler: SchedulerItem;
-    logs: Log[];
-    subRows: LogRow[];
+    run: SchedulerRun;
+    subRows?: RunLogRow[];
+    childLogs?: SchedulerRunLog[];
 };
 
-type LogRow = {
+type RunLogRow = {
     type: 'log';
-    log: Log;
-    scheduler: SchedulerItem;
+    log: SchedulerRunLog;
+    run: SchedulerRun;
 };
 
-type TableRow = LogGroup | LogRow;
+type TableRow = RunGroup | RunLogRow;
 
-const isLogGroup = (row: TableRow): row is LogGroup => row.type === 'group';
-const isLogRow = (row: TableRow): row is LogRow => row.type === 'log';
+const isRunGroup = (row: TableRow): row is RunGroup => row.type === 'group';
+const isRunLogRow = (row: TableRow): row is RunLogRow => row.type === 'log';
 
 const fetchSize = 50;
 
@@ -126,31 +128,31 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
     );
 
     const { data, fetchNextPage, isError, isFetching, isLoading } =
-        useSchedulerLogs({
+        useSchedulerRuns({
             projectUuid,
             paginateArgs: { page: 1, pageSize: fetchSize },
             searchQuery: debouncedSearchAndFilters.search,
-            filters: debouncedSearchAndFilters.filters,
+            sortBy: 'scheduledTime',
+            sortDirection: 'desc',
+            filters: {
+                statuses: debouncedSearchAndFilters.filters.statuses,
+                createdByUserUuids:
+                    debouncedSearchAndFilters.filters.createdByUserUuids,
+                destinations: debouncedSearchAndFilters.filters.destinations,
+            },
         });
 
     // Flatten paginated data
-    const schedulerLogsData = useMemo(() => {
+    const schedulerRunsData = useMemo(() => {
         if (!data?.pages) return undefined;
 
-        const allLogs = data.pages.flatMap((page) => page.data.logs);
-        const firstPage = data.pages[0];
+        const allRuns = data.pages.flatMap((page) => page.data);
 
-        return {
-            schedulers: firstPage?.data.schedulers || [],
-            users: firstPage?.data.users || [],
-            charts: firstPage?.data.charts || [],
-            dashboards: firstPage?.data.dashboards || [],
-            logs: allLogs,
-        };
+        return allRuns;
     }, [data]);
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
-    const totalFetched = schedulerLogsData?.logs.length ?? 0;
+    const totalFetched = schedulerRunsData?.length ?? 0;
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(
@@ -194,10 +196,52 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         name: string;
     } | null>(null);
     const [expanded, setExpanded] = useState<MRT_ExpandedState>({});
+    const [childLogsMap, setChildLogsMap] = useState<
+        Map<string, SchedulerRunLog[]>
+    >(new Map());
 
     const sendNowMutation = useSendNowSchedulerByUuid(
         selectedScheduler?.uuid ?? '',
     );
+
+    const fetchRunLogsMutation = useFetchRunLogs();
+
+    // Fetch child logs when rows are expanded
+    useEffect(() => {
+        const expandedRowIds = Object.keys(expanded).filter(
+            (key) => expanded[key as keyof typeof expanded],
+        );
+
+        expandedRowIds.forEach((rowId) => {
+            const rowIndex = parseInt(rowId, 10);
+            const run = schedulerRunsData?.[rowIndex];
+
+            if (run && !childLogsMap.has(run.runId)) {
+                // Fetch child logs for this run using the hook
+                void fetchRunLogsMutation
+                    .mutateAsync(run.runId)
+                    .then((childLogs) => {
+                        console.log(
+                            `Fetched ${childLogs.length} logs for run ${run.runId}:`,
+                            childLogs.map((l) => ({
+                                task: l.task,
+                                isParent: l.isParent,
+                                status: l.status,
+                                createdAt: l.createdAt,
+                            })),
+                        );
+                        setChildLogsMap((prev) => {
+                            const newMap = new Map(prev);
+                            newMap.set(run.runId, childLogs);
+                            return newMap;
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching child logs:', error);
+                    });
+            }
+        });
+    }, [expanded, schedulerRunsData, childLogsMap, fetchRunLogsMutation]);
 
     const health = useHealth();
     const slack = useGetSlack();
@@ -218,69 +262,50 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         return destinations;
     }, [health.data, organizationHasSlack]);
 
-    // Compute available users from schedulers (only users who created schedulers)
+    // Compute available users from runs (only users who created schedulers)
     const availableUsers = useMemo(() => {
-        const userMap = new Map<
-            string,
-            { userUuid: string; firstName: string; lastName: string }
-        >();
-        schedulerLogsData?.schedulers.forEach((scheduler) => {
-            const user = schedulerLogsData?.users.find(
-                (u) => u.userUuid === scheduler.createdBy,
-            );
-            if (user) {
-                userMap.set(user.userUuid, {
-                    userUuid: user.userUuid,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                });
-            }
+        const userMap = new Map<string, { userUuid: string; name: string }>();
+        schedulerRunsData?.forEach((run) => {
+            userMap.set(run.createdByUserUuid, {
+                userUuid: run.createdByUserUuid,
+                name: run.createdByUserName,
+            });
         });
         return Array.from(userMap.values()).sort((a, b) =>
-            `${a.firstName} ${a.lastName}`.localeCompare(
-                `${b.firstName} ${b.lastName}`,
-            ),
+            a.name.localeCompare(b.name),
         );
-    }, [schedulerLogsData]);
+    }, [schedulerRunsData]);
 
-    const groupedLogData = useMemo<LogGroup[]>(() => {
-        // Logs are already filtered by the backend
-        const logs = schedulerLogsData?.logs ?? [];
+    const runGroupData = useMemo<RunGroup[]>(() => {
+        // Runs are already filtered and sorted by the backend
+        const runs = schedulerRunsData ?? [];
 
-        const grouped = Object.entries(groupBy(logs, 'jobGroup'));
-        return grouped
-            .map(([jobGroup, schedulerLogs]): LogGroup | null => {
-                const schedulerItem = schedulerLogsData?.schedulers.find(
-                    (item) =>
-                        item.schedulerUuid === schedulerLogs[0].schedulerUuid,
-                );
-                if (!schedulerItem) return null;
-
-                // Create sub-rows for each log
-                const subRows: LogRow[] = schedulerLogs.map((log) => ({
+        return runs.map((run): RunGroup => {
+            const childLogs = childLogsMap.get(run.runId);
+            const subRows = childLogs?.map(
+                (log): RunLogRow => ({
                     type: 'log',
                     log,
-                    scheduler: schedulerItem,
-                }));
+                    run,
+                }),
+            );
 
-                return {
-                    type: 'group',
-                    jobGroup,
-                    scheduler: schedulerItem,
-                    logs: schedulerLogs,
-                    subRows,
-                };
-            })
-            .filter((item): item is LogGroup => item !== null);
-    }, [schedulerLogsData]);
+            return {
+                type: 'group',
+                run,
+                subRows,
+                childLogs,
+            };
+        });
+    }, [schedulerRunsData, childLogsMap]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.
     // This issue may be addressed in a future library update.
-    const [tableData, setTableData] = useState<LogGroup[]>([]);
+    const [tableData, setTableData] = useState<RunGroup[]>([]);
     useEffect(() => {
-        setTableData(groupedLogData);
-    }, [groupedLogData]);
+        setTableData(runGroupData);
+    }, [runGroupData]);
 
     const columns: MRT_ColumnDef<TableRow>[] = useMemo(
         () => [
@@ -299,52 +324,32 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                     const rowData = row.original;
 
                     // Only show name for parent rows
-                    if (isLogRow(rowData)) {
+                    if (isRunLogRow(rowData)) {
                         return null;
                     }
 
-                    const { scheduler } = rowData;
-                    const user = schedulerLogsData?.users.find(
-                        (u) => u.userUuid === scheduler.createdBy,
-                    );
-                    const chartOrDashboard = scheduler.savedChartUuid
-                        ? schedulerLogsData?.charts.find(
-                              (chart) =>
-                                  chart.savedChartUuid ===
-                                  scheduler.savedChartUuid,
-                          )
-                        : schedulerLogsData?.dashboards.find(
-                              (dashboard) =>
-                                  dashboard.dashboardUuid ===
-                                  scheduler.dashboardUuid,
-                          );
+                    const { run } = rowData;
 
                     return (
                         <Group wrap="nowrap">
-                            {getSchedulerIcon(scheduler)}
+                            {getSchedulerIcon(run)}
                             <Stack gap="two">
                                 <Anchor
                                     component={Link}
-                                    to={getSchedulerLink(
-                                        scheduler,
-                                        projectUuid,
-                                    )}
+                                    to={getSchedulerLink(run, projectUuid)}
                                     target="_blank"
                                 >
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
                                                 <Text c="gray.5" fz="xs">
-                                                    Schedule type:{' '}
+                                                    Scheduler:{' '}
                                                     <Text
                                                         c="white"
                                                         span
                                                         fz="xs"
                                                     >
-                                                        {scheduler.format ===
-                                                        'csv'
-                                                            ? 'CSV'
-                                                            : 'Image'}
+                                                        {run.schedulerName}
                                                     </Text>
                                                 </Text>
                                                 <Text c="gray.5" fz="xs">
@@ -354,8 +359,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                                         span
                                                         fz="xs"
                                                     >
-                                                        {user?.firstName}{' '}
-                                                        {user?.lastName}
+                                                        {run.createdByUserName}
                                                     </Text>
                                                 </Text>
                                             </Stack>
@@ -370,12 +374,12 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                                 cursor: 'pointer',
                                             }}
                                         >
-                                            {scheduler.name}
+                                            {run.schedulerName}
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
                                 <Text fz="xs" c="gray.6" maw="190px" truncate>
-                                    {chartOrDashboard?.name}
+                                    {run.resourceName}
                                 </Text>
                             </Stack>
                         </Group>
@@ -390,11 +394,13 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const rowData = row.original;
 
-                    if (isLogGroup(rowData)) {
-                        // Parent row: show "All jobs"
+                    if (isRunGroup(rowData)) {
+                        // Parent row: show aggregated counts
+                        const { logCounts } = rowData.run;
                         return (
                             <Text fz="xs" fw={500} c="gray.7">
-                                All jobs
+                                {logCounts.total}{' '}
+                                {logCounts.total === 1 ? 'job' : 'jobs'}
                             </Text>
                         );
                     } else {
@@ -438,13 +444,10 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const rowData = row.original;
 
-                    if (isLogGroup(rowData)) {
-                        const firstLog = rowData.logs[0];
+                    if (isRunGroup(rowData)) {
                         return (
                             <Text fz="xs" c="gray.6">
-                                {firstLog
-                                    ? formatTime(firstLog.scheduledTime)
-                                    : '-'}
+                                {formatTime(rowData.run.scheduledTime)}
                             </Text>
                         );
                     } else {
@@ -470,13 +473,10 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const rowData = row.original;
 
-                    if (isLogGroup(rowData)) {
-                        const firstLog = rowData.logs[0];
+                    if (isRunGroup(rowData)) {
                         return (
                             <Text fz="xs" c="gray.6">
-                                {firstLog
-                                    ? formatTime(firstLog.createdAt)
-                                    : '-'}
+                                {formatTime(rowData.run.createdAt)}
                             </Text>
                         );
                     } else {
@@ -495,25 +495,18 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 size: 90,
                 Cell: ({ row }) => {
                     const rowData = row.original;
-                    const { scheduler } = rowData;
 
                     return (
                         <Group>
-                            {isLogGroup(rowData) ? (
-                                rowData.logs[0] ? (
-                                    getLogStatusIcon(rowData.logs[0], theme)
-                                ) : (
-                                    <Text fz="xs" c="gray.6">
-                                        -
-                                    </Text>
-                                )
-                            ) : (
-                                getLogStatusIcon(rowData.log, theme)
-                            )}
+                            {isRunGroup(rowData)
+                                ? getRunStatusIcon(rowData.run.runStatus, theme)
+                                : getLogStatusIcon(rowData.log, theme)}
 
-                            {isLogGroup(rowData) &&
-                                rowData.logs[0]?.status ===
-                                    SchedulerJobStatus.ERROR && (
+                            {isRunGroup(rowData) &&
+                                (rowData.run.runStatus ===
+                                    SchedulerRunStatus.FAILED ||
+                                    rowData.run.runStatus ===
+                                        SchedulerRunStatus.PARTIAL_FAILURE) && (
                                     <Box
                                         component="div"
                                         onClick={(
@@ -556,8 +549,10 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                                     }
                                                     onClick={() => {
                                                         setSelectedScheduler({
-                                                            uuid: scheduler.schedulerUuid,
-                                                            name: scheduler.name,
+                                                            uuid: rowData.run
+                                                                .schedulerUuid,
+                                                            name: rowData.run
+                                                                .schedulerName,
                                                         });
                                                         setIsConfirmOpen(true);
                                                     }}
@@ -573,14 +568,16 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 },
             },
         ],
-        [schedulerLogsData, projectUuid, theme],
+        [projectUuid, theme],
     );
 
     const table = useMantineReactTable({
         columns,
         data: tableData,
         enableExpanding: true,
-        getSubRows: (row) => (isLogGroup(row) ? row.subRows : undefined),
+        enableExpandAll: false,
+        getSubRows: (row) => (isRunGroup(row) ? row.subRows : undefined),
+        getRowCanExpand: (row) => isRunGroup(row.original),
         enableColumnResizing: false,
         enableRowNumbers: false,
         enablePagination: false,
@@ -699,6 +696,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         displayColumnDefOptions: {
             'mrt-row-expand': {
                 size: 40,
+                header: '',
             },
         },
     });

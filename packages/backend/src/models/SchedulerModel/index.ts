@@ -9,6 +9,7 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerMsTeamsTarget,
@@ -1401,6 +1402,7 @@ export class SchedulerModel {
                 'distinct_runs.created_at',
                 'distinct_runs.details',
                 `${SchedulerTableName}.name as scheduler_name`,
+                `${SchedulerTableName}.format`,
                 this.database.raw(
                     `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
                 ),
@@ -1518,6 +1520,7 @@ export class SchedulerModel {
             run_id: string;
             scheduler_uuid: string;
             scheduler_name: string;
+            format: SchedulerFormat;
             scheduled_time: Date;
             status: SchedulerJobStatus;
             run_status: SchedulerRunStatus; // Computed in SQL
@@ -1560,6 +1563,7 @@ export class SchedulerModel {
                     resourceName: row.resource_name,
                     createdByUserUuid: row.created_by_user_uuid,
                     createdByUserName: row.created_by_user_name,
+                    format: row.format as SchedulerFormat,
                 };
             },
         );
