@@ -62,6 +62,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             context.testUser,
             {
                 name: 'Integration Test Agent',
+                description: null,
                 projectUuid: SEED_PROJECT.project_uuid,
                 tags: ['ai'],
                 integrations: [],

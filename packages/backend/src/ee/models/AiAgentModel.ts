@@ -201,6 +201,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
                     COALESCE(
@@ -324,6 +325,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
                     COALESCE(
@@ -429,6 +431,7 @@ export class AiAgentModel {
         args: Pick<
             ApiCreateAiAgent,
             | 'name'
+            | 'description'
             | 'projectUuid'
             | 'tags'
             | 'integrations'
@@ -451,7 +454,7 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
-                    description: null,
+                    description: args.description ?? null,
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
@@ -522,6 +525,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
@@ -557,6 +561,9 @@ export class AiAgentModel {
                     updated_at: trx.fn.now(),
                     ...(args.tags !== undefined ? { tags: args.tags } : {}),
                     ...(args.name !== undefined ? { name: args.name } : {}),
+                    ...(args.description !== undefined
+                        ? { description: args.description }
+                        : {}),
                     ...(args.imageUrl !== undefined
                         ? { image_url: args.imageUrl }
                         : {}),
@@ -658,6 +665,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
