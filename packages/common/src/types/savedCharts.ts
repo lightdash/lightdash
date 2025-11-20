@@ -124,6 +124,8 @@ export type TreemapChart = {
 export type GaugeSection = {
     min: number;
     max: number;
+    minFieldId?: string;
+    maxFieldId?: string;
     color: string;
 };
 
@@ -131,6 +133,7 @@ export type GaugeChart = {
     selectedField?: string;
     min?: number;
     max?: number;
+    maxFieldId?: string;
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
 };
