@@ -981,6 +981,11 @@ ${styles.bold('Examples:')}
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'lint',
+        )} --path ./chart.yml ${styles.secondary(
+            '-- validates a single chart file',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'lint',
         )} --path ./lightdash ${styles.secondary(
             '-- validates files in a specific directory',
         )}
@@ -996,7 +1001,7 @@ ${styles.bold('Examples:')}
     )
     .option(
         '-p, --path <path>',
-        'Path to search for Lightdash Code files (defaults to current directory)',
+        'Path to a file or directory to lint (defaults to current directory)',
         undefined,
     )
     .option('--verbose', 'Show detailed output', false)

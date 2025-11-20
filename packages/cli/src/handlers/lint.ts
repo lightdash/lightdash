@@ -29,11 +29,29 @@ const validateChartSchema = ajv.compile(chartAsCodeSchema);
 const validateDashboardSchema = ajv.compile(dashboardAsCodeSchema);
 
 /**
- * Find all YAML and JSON files in a directory recursively
+ * Find all YAML and JSON files in a path (file or directory).
+ * If a file path is provided, returns it if it's a .yml/.yaml/.json file.
+ * If a directory path is provided, recursively searches for all such files.
  */
-function findLightdashCodeFiles(dir: string): string[] {
+function findLightdashCodeFiles(inputPath: string): string[] {
     const files: string[] = [];
 
+    // Check if the path is a file or directory
+    const stats = fs.statSync(inputPath);
+
+    if (stats.isFile()) {
+        // Single file case - check if it's a valid extension
+        const isYaml =
+            inputPath.endsWith('.yml') || inputPath.endsWith('.yaml');
+        const isJson = inputPath.endsWith('.json');
+
+        if (isYaml || isJson) {
+            files.push(inputPath);
+        }
+        return files;
+    }
+
+    // Directory case - walk recursively
     function walk(currentPath: string) {
         const entries = fs.readdirSync(currentPath, { withFileTypes: true });
 
@@ -61,7 +79,7 @@ function findLightdashCodeFiles(dir: string): string[] {
         }
     }
 
-    walk(dir);
+    walk(inputPath);
     return files;
 }
 

@@ -88,8 +88,8 @@ export function formatSarifForCli(
 
             // Add clickable file link for IDEs
             if (line) {
-                // Encode the URI properly for file:// protocol
-                const encodedPath = fileUri.replace(/ /g, '%20');
+                // Encode the URI properly for file:// protocol to handle special characters (#, ?, &, spaces, etc.)
+                const encodedPath = encodeURI(fileUri);
                 const fileLink = `file://${encodedPath}:${line}${
                     column ? `:${column}` : ''
                 }`;

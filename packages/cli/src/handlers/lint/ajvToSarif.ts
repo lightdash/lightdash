@@ -219,12 +219,16 @@ export function createSarifReport(results: FileValidationResult[]): SarifLog {
     for (const result of results) {
         for (const error of result.errors) {
             // For additionalProperties errors, append the property name to the path
+            // Handle root-level errors carefully to avoid double slashes (//propertyName)
             let dataPath = error.instancePath || '/';
             if (
                 error.keyword === 'additionalProperties' &&
                 error.params.additionalProperty
             ) {
-                dataPath = `${dataPath}/${error.params.additionalProperty}`;
+                dataPath =
+                    dataPath === '/'
+                        ? `/${error.params.additionalProperty}`
+                        : `${dataPath}/${error.params.additionalProperty}`;
             }
 
             // Determine error location using a two-strategy approach:
@@ -242,7 +246,6 @@ export function createSarifReport(results: FileValidationResult[]): SarifLog {
                 location = result.locationMap.get(dataPath) || null;
             }
             if (!location) {
-                // TODO: not convinced we need this fallback, maybe delete?
                 // Fallback to regex search - primarily for root-level missing required properties
                 location = findLocationForPath(result.fileContent, dataPath);
             }
