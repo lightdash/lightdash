@@ -1,11 +1,5 @@
 # syntax=docker/dockerfile:1.7
 
-# Optimized Multi-Stage Build for PR Previews
-# Uses parallel build stages and cache mounts for maximum caching
-# Okteto uses a cluster of buildkit instances to persist caches across PRs
-# New builds when the cluster scales will have a cold cache, but subsequent
-# builds will warm the cache again.
-
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
