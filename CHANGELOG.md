@@ -1,3 +1,10 @@
+# [0.2193.0](https://github.com/lightdash/lightdash/compare/0.2192.0...0.2193.0) (2025-11-20)
+
+
+### Features
+
+* add lint CLI command ([#18262](https://github.com/lightdash/lightdash/issues/18262)) ([e8a4642](https://github.com/lightdash/lightdash/commit/e8a4642faa8fe0cf5f9a5566f7804e75073c529f))
+
 # [0.2192.0](https://github.com/lightdash/lightdash/compare/0.2191.2...0.2192.0) (2025-11-20)
 
 
