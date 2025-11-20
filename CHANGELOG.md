@@ -1,3 +1,11 @@
+## [0.2191.1](https://github.com/lightdash/lightdash/compare/0.2191.0...0.2191.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* CLI option to create public spaces if they dont exist ([#18200](https://github.com/lightdash/lightdash/issues/18200)) ([63c0d20](https://github.com/lightdash/lightdash/commit/63c0d20cd5806ae4e03156372c12a250bb2d1532))
+* remove long sql transaction lock for getSpaceRoot ([#18248](https://github.com/lightdash/lightdash/issues/18248)) ([f1e5590](https://github.com/lightdash/lightdash/commit/f1e55904a44581a097aea77995b0f933198c6f77))
+
 # [0.2191.0](https://github.com/lightdash/lightdash/compare/0.2190.1...0.2191.0) (2025-11-20)
 
 
