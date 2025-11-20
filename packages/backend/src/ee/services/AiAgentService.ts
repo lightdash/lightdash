@@ -929,6 +929,7 @@ export class AiAgentService {
 
         const agent = await this.aiAgentModel.createAgent({
             name: body.name,
+            description: body.description,
             projectUuid: body.projectUuid,
             organizationUuid,
             tags: body.tags,
@@ -988,6 +989,7 @@ export class AiAgentService {
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
+            description: body.description,
             projectUuid: body.projectUuid,
             organizationUuid,
             tags: body.tags,

@@ -64,6 +64,7 @@ import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
     name: z.string().min(1),
+    description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
@@ -239,6 +240,22 @@ export const AiAgentFormSetup = ({
                                     />
                                 </Tooltip>
                             </Group>
+                            <Textarea
+                                variant="subtle"
+                                label="Description"
+                                description="A brief description of what this agent does and its purpose."
+                                placeholder="Describe what this agent specializes in..."
+                                minRows={3}
+                                maxRows={6}
+                                {...form.getInputProps('description')}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    form.setFieldValue(
+                                        'description',
+                                        value ? value : null,
+                                    );
+                                }}
+                            />
                             <TextInput
                                 style={{ flexGrow: 1 }}
                                 miw={200}
