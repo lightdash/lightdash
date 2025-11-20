@@ -13,7 +13,33 @@ interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     onChange: (value: number | null) => void;
 }
 
-// FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7
+/**
+ * Parses a text input into a number or null.
+ * Returns null for empty strings or invalid formats.
+ */
+function parseNumberInput(text: string): number | null {
+    if (text === '') {
+        return null;
+    }
+    if (/^-?\d+$/.test(text)) {
+        return parseInt(text, 10);
+    }
+    if (/^-?\d+\.\d+$/.test(text)) {
+        return parseFloat(text);
+    }
+    return null;
+}
+
+/**
+ * Number input with debounced onChange to prevent excessive parent updates.
+ *
+ * Flow:
+ * 1. Parent's `value` prop syncs to internal `inputText` state (one-way)
+ * 2. User types → updates `inputText` immediately (for responsive UI)
+ * 3. After 300ms of no typing → parse text → call `onChange` if value changed
+ *
+ * FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7
+ */
 const FilterNumberInput: FC<Props> = ({
     value,
     disabled,
@@ -21,15 +47,17 @@ const FilterNumberInput: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    const [internalValue, setInternalValue] = useState('');
+    // The text currently displayed in the input field
+    const [inputText, setInputText] = useState('');
 
+    // Sync parent's value prop to our input text
     useEffect(() => {
         if (typeof value === 'string') {
-            setInternalValue(value);
+            setInputText(value);
         } else if (typeof value === 'number') {
-            setInternalValue(value.toString());
+            setInputText(value.toString());
         } else if (value === undefined || value === null) {
-            setInternalValue('');
+            setInputText('');
         } else {
             throw new Error(
                 `FilterNumberInput: Invalid value type: ${typeof value}`,
@@ -37,25 +65,26 @@ const FilterNumberInput: FC<Props> = ({
         }
     }, [value]);
 
+    // Parse input text and notify parent if value actually changed
     useDebounce(
         () => {
-            if (internalValue === '') {
-                onChange(null);
-            } else if (/^-?\d+$/.test(internalValue)) {
-                onChange(parseInt(internalValue, 10));
-            } else if (/^-?\d+\.\d+$/.test(internalValue)) {
-                onChange(parseFloat(internalValue));
+            const parsedNumber = parseNumberInput(inputText);
+            const normalizedPropValue = value ?? null;
+
+            // Only notify parent if the parsed value differs from current prop
+            // This prevents infinite loops from unnecessary onChange calls
+            if (parsedNumber !== normalizedPropValue) {
+                onChange(parsedNumber);
             }
         },
         300,
-        [internalValue],
+        [inputText, value, onChange],
     );
 
     const handleInputChange = useCallback(
         (e: ChangeEvent<HTMLInputElement>) => {
-            const newValue = e.target.value;
-
-            setInternalValue(newValue);
+            const inputValue = e.target.value;
+            setInputText(inputValue);
         },
         [],
     );
@@ -68,7 +97,7 @@ const FilterNumberInput: FC<Props> = ({
             placeholder={placeholder}
             {...rest}
             type="number"
-            value={internalValue}
+            value={inputText}
             onChange={handleInputChange}
         />
     );
