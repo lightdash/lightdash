@@ -1,3 +1,10 @@
+# [0.2192.0](https://github.com/lightdash/lightdash/compare/0.2191.2...0.2192.0) (2025-11-20)
+
+
+### Features
+
+* add transaction support to RolesModel methods ([#18252](https://github.com/lightdash/lightdash/issues/18252)) ([3468901](https://github.com/lightdash/lightdash/commit/34689010a52178a5b569ff08ad4695395eeed98b))
+
 ## [0.2191.2](https://github.com/lightdash/lightdash/compare/0.2191.1...0.2191.2) (2025-11-20)
 
 
