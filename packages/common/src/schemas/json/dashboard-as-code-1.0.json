@@ -4,6 +4,7 @@
     "title": "Lightdash Dashboard as Code",
     "description": "Schema for defining Lightdash dashboards in YAML format for version control",
     "type": "object",
+    "additionalProperties": false,
     "required": [
         "name",
         "slug",
@@ -31,7 +32,7 @@
         "slug": {
             "type": "string",
             "description": "Unique identifier slug for this dashboard",
-            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            "pattern": "^[a-z0-9-]+$"
         },
         "spaceSlug": {
             "type": "string",
@@ -52,6 +53,7 @@
             "description": "Array of tiles (charts, markdown, loom videos) positioned on the dashboard",
             "items": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": ["type", "x", "y", "h", "w"],
                 "properties": {
                     "uuid": {
@@ -65,7 +67,7 @@
                     "type": {
                         "type": "string",
                         "description": "Type of dashboard tile",
-                        "enum": ["saved_chart", "markdown", "loom"]
+                        "enum": ["saved_chart", "sql_chart", "markdown", "loom"]
                     },
                     "x": {
                         "type": "number",
@@ -97,6 +99,7 @@
                         "oneOf": [
                             {
                                 "description": "Properties for a saved chart tile",
+                                "additionalProperties": false,
                                 "properties": {
                                     "title": {
                                         "type": "string",
@@ -113,12 +116,25 @@
                                     "chartName": {
                                         "type": "string",
                                         "description": "Name of the chart"
+                                    },
+                                    "savedChartUuid": {
+                                        "type": ["string", "null"],
+                                        "description": "UUID of the saved chart (readonly)"
+                                    },
+                                    "belongsToDashboard": {
+                                        "type": "boolean",
+                                        "description": "Whether this chart belongs to the dashboard"
+                                    },
+                                    "lastVersionChartKind": {
+                                        "type": ["string", "null"],
+                                        "description": "Type of chart from last version"
                                     }
                                 },
                                 "required": ["chartSlug"]
                             },
                             {
                                 "description": "Properties for a markdown tile",
+                                "additionalProperties": false,
                                 "properties": {
                                     "title": {
                                         "type": "string",
@@ -136,7 +152,35 @@
                                 "required": ["title", "content"]
                             },
                             {
+                                "description": "Properties for a SQL chart tile",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Optional custom title for the SQL chart"
+                                    },
+                                    "hideTitle": {
+                                        "type": "boolean",
+                                        "description": "Whether to hide the chart title"
+                                    },
+                                    "chartSlug": {
+                                        "type": "string",
+                                        "description": "Slug of the SQL chart"
+                                    },
+                                    "chartName": {
+                                        "type": "string",
+                                        "description": "Name of the SQL chart"
+                                    },
+                                    "savedSqlUuid": {
+                                        "type": ["string", "null"],
+                                        "description": "UUID of the saved SQL chart (readonly)"
+                                    }
+                                },
+                                "required": ["chartName"]
+                            },
+                            {
                                 "description": "Properties for a Loom video tile",
+                                "additionalProperties": false,
                                 "properties": {
                                     "title": {
                                         "type": "string",
@@ -164,6 +208,7 @@
             "description": "Dashboard tabs for organizing tiles into separate views",
             "items": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": ["uuid", "name", "order"],
                 "properties": {
                     "uuid": {
@@ -186,6 +231,7 @@
         "filters": {
             "type": "object",
             "description": "Dashboard-level filters that can be applied across all tiles",
+            "additionalProperties": false,
             "required": ["dimensions"],
             "properties": {
                 "dimensions": {
@@ -193,8 +239,13 @@
                     "description": "Dimension filters applied to the dashboard",
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "required": ["operator", "target"],
                         "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Optional unique identifier for the filter"
+                            },
                             "operator": {
                                 "type": "string",
                                 "description": "Filter operator determining how values are compared",
@@ -228,6 +279,7 @@
                             "target": {
                                 "type": "object",
                                 "description": "Field to apply the filter to",
+                                "additionalProperties": false,
                                 "required": ["fieldId", "tableName"],
                                 "properties": {
                                     "fieldId": {
@@ -262,6 +314,7 @@
                             "settings": {
                                 "type": "object",
                                 "description": "Additional settings for date/time filters",
+                                "additionalProperties": false,
                                 "properties": {
                                     "unitOfTime": {
                                         "type": "string",
@@ -302,6 +355,7 @@
                                         },
                                         {
                                             "type": "object",
+                                            "additionalProperties": false,
                                             "required": [
                                                 "fieldId",
                                                 "tableName"

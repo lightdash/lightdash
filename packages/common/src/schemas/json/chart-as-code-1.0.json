@@ -4,6 +4,7 @@
     "title": "Lightdash Chart as Code",
     "description": "Schema for defining Lightdash charts in YAML format for version control",
     "type": "object",
+    "additionalProperties": false,
     "required": [
         "name",
         "tableName",
@@ -30,7 +31,7 @@
         "slug": {
             "type": "string",
             "description": "Unique identifier slug for this chart",
-            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            "pattern": "^[a-z0-9-]+$"
         },
         "spaceSlug": {
             "type": "string",
@@ -43,7 +44,7 @@
         "dashboardSlug": {
             "type": ["string", "null"],
             "description": "Optional dashboard slug if this chart is saved within a dashboard",
-            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            "pattern": "^[a-z0-9-]+$"
         },
         "updatedAt": {
             "type": "string",
@@ -58,6 +59,7 @@
         "metricQuery": {
             "type": "object",
             "description": "The query configuration defining what data to fetch",
+            "additionalProperties": false,
             "required": ["exploreName"],
             "properties": {
                 "exploreName": {
@@ -81,96 +83,178 @@
                 "filters": {
                     "type": "object",
                     "description": "Filter rules to apply to the query using 'and'/'or' filter groups",
+                    "additionalProperties": false,
                     "properties": {
                         "dimensions": {
-                            "type": "object",
-                            "description": "Dimension filter group",
-                            "properties": {
-                                "and": {
+                            "oneOf": [
+                                {
                                     "type": "array",
-                                    "description": "Array of filters combined with AND logic",
-                                    "items": {
-                                        "type": "object",
-                                        "required": ["target", "operator"],
-                                        "properties": {
-                                            "target": {
+                                    "description": "Empty dimensions filter array (no filters applied)",
+                                    "maxItems": 0
+                                },
+                                {
+                                    "type": "object",
+                                    "description": "Dimension filter group",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional unique identifier for the filter group"
+                                        },
+                                        "and": {
+                                            "type": "array",
+                                            "description": "Array of filters combined with AND logic",
+                                            "items": {
                                                 "type": "object",
-                                                "required": ["fieldId"],
+                                                "additionalProperties": false,
+                                                "required": [
+                                                    "target",
+                                                    "operator"
+                                                ],
                                                 "properties": {
-                                                    "fieldId": {
+                                                    "id": {
                                                         "type": "string",
-                                                        "description": "Field ID to filter on"
+                                                        "description": "Optional unique identifier for the filter"
+                                                    },
+                                                    "target": {
+                                                        "type": "object",
+                                                        "additionalProperties": false,
+                                                        "required": ["fieldId"],
+                                                        "properties": {
+                                                            "fieldId": {
+                                                                "type": "string",
+                                                                "description": "Field ID to filter on"
+                                                            },
+                                                            "fieldFilterType": {
+                                                                "type": "string",
+                                                                "description": "Filter type hint (e.g., 'date' for date fields)"
+                                                            }
+                                                        }
+                                                    },
+                                                    "operator": {
+                                                        "type": "string",
+                                                        "description": "Filter operator",
+                                                        "enum": [
+                                                            "equals",
+                                                            "notEquals",
+                                                            "isNull",
+                                                            "notNull",
+                                                            "startsWith",
+                                                            "endsWith",
+                                                            "include",
+                                                            "doesNotInclude",
+                                                            "lessThan",
+                                                            "lessThanOrEqual",
+                                                            "greaterThan",
+                                                            "greaterThanOrEqual",
+                                                            "inThePast",
+                                                            "notInThePast",
+                                                            "inTheNext",
+                                                            "inTheCurrent",
+                                                            "notInTheCurrent",
+                                                            "inBetween",
+                                                            "notInBetween"
+                                                        ]
+                                                    },
+                                                    "values": {
+                                                        "type": "array",
+                                                        "description": "Values to filter by"
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean",
+                                                        "description": "Whether this filter is required"
+                                                    },
+                                                    "settings": {
+                                                        "type": "object",
+                                                        "description": "Additional settings for date/time filters",
+                                                        "additionalProperties": false,
+                                                        "properties": {
+                                                            "unitOfTime": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "milliseconds",
+                                                                    "seconds",
+                                                                    "minutes",
+                                                                    "hours",
+                                                                    "days",
+                                                                    "weeks",
+                                                                    "months",
+                                                                    "quarters",
+                                                                    "years"
+                                                                ],
+                                                                "description": "Time unit for relative date filters"
+                                                            },
+                                                            "completed": {
+                                                                "type": "boolean",
+                                                                "description": "For date filters, whether to include completed periods"
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                            },
-                                            "operator": {
-                                                "type": "string",
-                                                "description": "Filter operator",
-                                                "enum": [
-                                                    "equals",
-                                                    "notEquals",
-                                                    "isNull",
-                                                    "notNull",
-                                                    "startsWith",
-                                                    "endsWith",
-                                                    "include",
-                                                    "doesNotInclude",
-                                                    "lessThan",
-                                                    "lessThanOrEqual",
-                                                    "greaterThan",
-                                                    "greaterThanOrEqual",
-                                                    "inThePast",
-                                                    "notInThePast",
-                                                    "inTheNext",
-                                                    "inTheCurrent",
-                                                    "notInTheCurrent",
-                                                    "inBetween",
-                                                    "notInBetween"
-                                                ]
-                                            },
-                                            "values": {
-                                                "type": "array",
-                                                "description": "Values to filter by"
-                                            },
-                                            "required": {
-                                                "type": "boolean",
-                                                "description": "Whether this filter is required"
+                                            }
+                                        },
+                                        "or": {
+                                            "type": "array",
+                                            "description": "Array of filters combined with OR logic",
+                                            "items": {
+                                                "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and/items"
                                             }
                                         }
                                     }
-                                },
-                                "or": {
-                                    "type": "array",
-                                    "description": "Array of filters combined with OR logic",
-                                    "items": {
-                                        "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and/items"
-                                    }
                                 }
-                            }
+                            ]
                         },
                         "metrics": {
-                            "type": "object",
-                            "description": "Metric filter group",
-                            "properties": {
-                                "and": {
-                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and"
+                            "oneOf": [
+                                {
+                                    "type": "array",
+                                    "description": "Empty metrics filter array (no filters applied)",
+                                    "maxItems": 0
                                 },
-                                "or": {
-                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/or"
+                                {
+                                    "type": "object",
+                                    "description": "Metric filter group",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional unique identifier for the filter group"
+                                        },
+                                        "and": {
+                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and"
+                                        },
+                                        "or": {
+                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/or"
+                                        }
+                                    }
                                 }
-                            }
+                            ]
                         },
                         "tableCalculations": {
-                            "type": "object",
-                            "description": "Table calculation filter group",
-                            "properties": {
-                                "and": {
-                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/and"
+                            "oneOf": [
+                                {
+                                    "type": "array",
+                                    "description": "Empty table calculations filter array (no filters applied)",
+                                    "maxItems": 0
                                 },
-                                "or": {
-                                    "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/properties/or"
+                                {
+                                    "type": "object",
+                                    "description": "Table calculation filter group",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional unique identifier for the filter group"
+                                        },
+                                        "and": {
+                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and"
+                                        },
+                                        "or": {
+                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/or"
+                                        }
+                                    }
                                 }
-                            }
+                            ]
                         }
                     }
                 },
@@ -179,6 +263,7 @@
                     "description": "Sort configuration for query results",
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "required": ["fieldId", "descending"],
                         "properties": {
                             "fieldId": {
@@ -202,10 +287,12 @@
                     "description": "Override formatting and display options for existing metrics",
                     "additionalProperties": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "formatOptions": {
                                 "type": "object",
                                 "description": "Formatting configuration for the metric",
+                                "additionalProperties": false,
                                 "properties": {
                                     "type": {
                                         "type": "string",
@@ -235,8 +322,56 @@
                                             "spaceComma"
                                         ],
                                         "description": "Thousands separator style"
+                                    },
+                                    "suffix": {
+                                        "type": "string",
+                                        "description": "Suffix to append to formatted values"
+                                    },
+                                    "prefix": {
+                                        "type": "string",
+                                        "description": "Prefix to prepend to formatted values"
+                                    },
+                                    "compact": {
+                                        "type": "string",
+                                        "enum": [
+                                            "thousands",
+                                            "millions",
+                                            "billions",
+                                            "trillions",
+                                            "kilobytes",
+                                            "megabytes",
+                                            "gigabytes",
+                                            "terabytes",
+                                            "petabytes",
+                                            "kibibytes",
+                                            "mebibytes",
+                                            "gibibytes",
+                                            "tebibytes",
+                                            "pebibytes"
+                                        ],
+                                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
                                     }
                                 }
+                            },
+                            "round": {
+                                "type": "number",
+                                "description": "Number of decimal places (shorthand for formatOptions.round)"
+                            },
+                            "format": {
+                                "type": "string",
+                                "description": "Format string (legacy format specification)"
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Custom label for the metric"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Custom description for the metric"
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "description": "UUID of the metric override"
                             }
                         }
                     }
@@ -246,7 +381,18 @@
                     "description": "Custom calculations to perform on query results (like window functions)",
                     "items": {
                         "type": "object",
-                        "required": ["name", "displayName", "sql"],
+                        "additionalProperties": false,
+                        "required": ["name", "displayName"],
+                        "oneOf": [
+                            {
+                                "required": ["sql"],
+                                "not": { "required": ["template"] }
+                            },
+                            {
+                                "required": ["template"],
+                                "not": { "required": ["sql"] }
+                            }
+                        ],
                         "properties": {
                             "name": {
                                 "type": "string",
@@ -268,6 +414,7 @@
                             "format": {
                                 "type": "object",
                                 "description": "Formatting options for the calculation",
+                                "additionalProperties": false,
                                 "properties": {
                                     "type": {
                                         "type": "string",
@@ -296,6 +443,135 @@
                                             "periodComma",
                                             "spaceComma"
                                         ]
+                                    },
+                                    "suffix": {
+                                        "type": "string",
+                                        "description": "Suffix to append to formatted values"
+                                    },
+                                    "prefix": {
+                                        "type": "string",
+                                        "description": "Prefix to prepend to formatted values"
+                                    },
+                                    "compact": {
+                                        "type": "string",
+                                        "enum": [
+                                            "thousands",
+                                            "millions",
+                                            "billions",
+                                            "trillions",
+                                            "kilobytes",
+                                            "megabytes",
+                                            "gigabytes",
+                                            "terabytes",
+                                            "petabytes",
+                                            "kibibytes",
+                                            "mebibytes",
+                                            "gibibytes",
+                                            "tebibytes",
+                                            "pebibytes"
+                                        ],
+                                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
+                                    }
+                                }
+                            },
+                            "template": {
+                                "type": "object",
+                                "description": "Template-based calculation (alternative to sql)",
+                                "additionalProperties": false,
+                                "required": ["type"],
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "percent_change_from_previous",
+                                            "percent_of_previous_value",
+                                            "percent_of_column_total",
+                                            "rank_in_column",
+                                            "running_total",
+                                            "window_function"
+                                        ],
+                                        "description": "Type of template calculation"
+                                    },
+                                    "fieldId": {
+                                        "type": ["string", "null"],
+                                        "description": "Field ID to apply the template to"
+                                    },
+                                    "orderBy": {
+                                        "type": "array",
+                                        "description": "Fields to order by for window functions",
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "required": ["fieldId"],
+                                            "properties": {
+                                                "fieldId": {
+                                                    "type": "string",
+                                                    "description": "Field ID to order by"
+                                                },
+                                                "order": {
+                                                    "type": ["string", "null"],
+                                                    "enum": [
+                                                        "asc",
+                                                        "desc",
+                                                        null
+                                                    ],
+                                                    "description": "Sort direction"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "partitionBy": {
+                                        "type": "array",
+                                        "description": "Fields to partition by for window functions",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "windowFunction": {
+                                        "type": "string",
+                                        "description": "Window function type (for window_function template)"
+                                    },
+                                    "frame": {
+                                        "type": "object",
+                                        "description": "Frame clause for window functions",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "frameType": {
+                                                "type": "string",
+                                                "description": "Type of frame (ROWS or RANGE)"
+                                            },
+                                            "start": {
+                                                "type": "object",
+                                                "description": "Start boundary of the frame",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "description": "Boundary type"
+                                                    },
+                                                    "offset": {
+                                                        "type": "number",
+                                                        "description": "Offset for PRECEDING/FOLLOWING"
+                                                    }
+                                                }
+                                            },
+                                            "end": {
+                                                "type": "object",
+                                                "description": "End boundary of the frame",
+                                                "additionalProperties": false,
+                                                "required": ["type"],
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string",
+                                                        "description": "Boundary type"
+                                                    },
+                                                    "offset": {
+                                                        "type": "number",
+                                                        "description": "Offset for PRECEDING/FOLLOWING"
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -307,6 +583,7 @@
                     "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)",
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "required": ["name", "label", "sql", "table", "type"],
                         "properties": {
                             "name": {
@@ -345,9 +622,107 @@
                                 "type": "string",
                                 "description": "Name of the base dimension/column this metric aggregates"
                             },
+                            "uuid": {
+                                "type": ["string", "null"],
+                                "description": "Unique identifier for the metric (readonly)"
+                            },
+                            "hidden": {
+                                "type": "boolean",
+                                "description": "Whether the metric is hidden from users"
+                            },
+                            "percentile": {
+                                "type": "number",
+                                "description": "Percentile value for percentile metrics"
+                            },
+                            "index": {
+                                "type": "number",
+                                "description": "Display order index"
+                            },
+                            "filters": {
+                                "type": "array",
+                                "description": "Filters to apply to this metric",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["target", "operator"],
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Optional unique identifier for the filter"
+                                        },
+                                        "target": {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "required": ["fieldRef"],
+                                            "properties": {
+                                                "fieldRef": {
+                                                    "type": "string",
+                                                    "description": "Field reference to filter on (e.g., 'table_name.field_name')"
+                                                }
+                                            }
+                                        },
+                                        "operator": {
+                                            "type": "string",
+                                            "description": "Filter operator",
+                                            "enum": [
+                                                "equals",
+                                                "notEquals",
+                                                "isNull",
+                                                "notNull",
+                                                "startsWith",
+                                                "endsWith",
+                                                "include",
+                                                "doesNotInclude",
+                                                "lessThan",
+                                                "lessThanOrEqual",
+                                                "greaterThan",
+                                                "greaterThanOrEqual",
+                                                "inThePast",
+                                                "notInThePast",
+                                                "inTheNext",
+                                                "inTheCurrent",
+                                                "notInTheCurrent",
+                                                "inBetween",
+                                                "notInBetween"
+                                            ]
+                                        },
+                                        "values": {
+                                            "type": "array",
+                                            "description": "Values to filter by"
+                                        },
+                                        "settings": {
+                                            "type": "object",
+                                            "description": "Additional settings for date/time filters",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "unitOfTime": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "milliseconds",
+                                                        "seconds",
+                                                        "minutes",
+                                                        "hours",
+                                                        "days",
+                                                        "weeks",
+                                                        "months",
+                                                        "quarters",
+                                                        "years"
+                                                    ],
+                                                    "description": "Time unit for relative date filters"
+                                                },
+                                                "completed": {
+                                                    "type": "boolean",
+                                                    "description": "For date filters, whether to include completed periods"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             "formatOptions": {
                                 "type": "object",
                                 "description": "Formatting configuration",
+                                "additionalProperties": false,
                                 "properties": {
                                     "type": {
                                         "type": "string",
@@ -358,6 +733,14 @@
                                             "percent"
                                         ]
                                     },
+                                    "round": {
+                                        "type": "number",
+                                        "description": "Number of decimal places"
+                                    },
+                                    "currency": {
+                                        "type": "string",
+                                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                                    },
                                     "separator": {
                                         "type": "string",
                                         "enum": [
@@ -367,6 +750,34 @@
                                             "periodComma",
                                             "spaceComma"
                                         ]
+                                    },
+                                    "suffix": {
+                                        "type": "string",
+                                        "description": "Suffix to append to formatted values"
+                                    },
+                                    "prefix": {
+                                        "type": "string",
+                                        "description": "Prefix to prepend to formatted values"
+                                    },
+                                    "compact": {
+                                        "type": "string",
+                                        "enum": [
+                                            "thousands",
+                                            "millions",
+                                            "billions",
+                                            "trillions",
+                                            "kilobytes",
+                                            "megabytes",
+                                            "gigabytes",
+                                            "terabytes",
+                                            "petabytes",
+                                            "kibibytes",
+                                            "mebibytes",
+                                            "gibibytes",
+                                            "tebibytes",
+                                            "pebibytes"
+                                        ],
+                                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
                                     }
                                 }
                             }
@@ -385,6 +796,7 @@
         "chartConfig": {
             "type": "object",
             "description": "Visualization configuration for the chart",
+            "additionalProperties": false,
             "required": ["type"],
             "properties": {
                 "type": {
@@ -401,7 +813,7 @@
                     ]
                 },
                 "config": {
-                    "type": "object",
+                    "type": ["object", "null"],
                     "description": "Chart-specific configuration (varies by chart type)"
                 }
             }
@@ -409,6 +821,7 @@
         "tableConfig": {
             "type": "object",
             "description": "Table view configuration",
+            "additionalProperties": false,
             "properties": {
                 "columnOrder": {
                     "type": "array",
@@ -422,6 +835,7 @@
         "pivotConfig": {
             "type": "object",
             "description": "Pivot table configuration",
+            "additionalProperties": false,
             "properties": {
                 "columns": {
                     "type": "array",
