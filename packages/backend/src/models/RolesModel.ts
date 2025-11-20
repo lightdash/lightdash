@@ -310,13 +310,16 @@ export class RolesModel {
 
     async getUserProjectRoles(
         userUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<
         Pick<
             ProjectMemberProfile,
             'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
         >[]
     > {
-        const projectMemberships = await this.database('project_memberships')
+        const projectMemberships = await (tx || this.database)(
+            'project_memberships',
+        )
             .leftJoin(
                 'projects',
                 'project_memberships.project_id',
@@ -767,6 +770,7 @@ export class RolesModel {
                 // Get current memberships for user (as project_uuids)
                 const currentMemberships = await this.getUserProjectRoles(
                     userUuid,
+                    trx,
                 );
                 const currentSet = new Set(
                     currentMemberships.map((m) => m.projectUuid),
