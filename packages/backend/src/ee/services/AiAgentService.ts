@@ -113,6 +113,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { selectBestAgentWithContext } from './ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
@@ -4090,7 +4091,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         let agentConfig: AiAgent | undefined;
 
         try {
-            // Get available agents filtered by access
+            // Ensure we have text content
+            if (!event.text) {
+                Logger.debug('Message has no text content');
+                return;
+            }
+
             const availableAgents = await this.getAvailableAgents(
                 organizationUuid,
                 userUuid,
@@ -4098,7 +4104,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             );
 
             if (availableAgents.length === 0) {
-                // No agents available - show error
                 await say({
                     text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
                     thread_ts: event.ts,
@@ -4109,32 +4114,37 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             if (availableAgents.length === 1) {
                 // Auto-select the only available agent
                 [agentConfig] = availableAgents;
-            }
+            } else {
+                // Multiple agents - use LLM to select the best one
+                const { model } = getModel(this.lightdashConfig.ai.copilot);
 
-            if (availableAgents.length > 1) {
-                // Show selection UI for multiple agents
-                await this.showAgentSelectionUI(
-                    availableAgents,
-                    event.channel,
-                    event.ts,
-                    say,
+                const { agent: selectedAgent, selection } =
+                    await selectBestAgentWithContext(
+                        model,
+                        availableAgents,
+                        event.text,
+                    );
+
+                agentConfig = selectedAgent;
+
+                Logger.info(
+                    `Agent selected by LLM ${JSON.stringify({
+                        agentUuid: selectedAgent.uuid,
+                        agentName: selectedAgent.name,
+                        reasoning: selection.reasoning,
+                        confidence: selection.confidence,
+                        userQuery: event.text,
+                    })}`,
                 );
-                return;
             }
 
-            // At this point, we should have a selected agent (auto-selected)
+            // At this point, we should have a selected agent
             if (!agentConfig) {
                 throw new Error('No agent selected - this should not happen');
             }
 
             // Verify access for the selected agent
             await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
-
-            // Ensure we have text content
-            if (!event.text) {
-                Logger.debug('Message has no text content');
-                return;
-            }
 
             // Create the slack prompt
             [slackPromptUuid, createdThread] = await this.createSlackPrompt({
