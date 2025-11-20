@@ -1,3 +1,10 @@
+## [0.2189.1](https://github.com/lightdash/lightdash/compare/0.2189.0...0.2189.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* add error tagging for AI agent stream errors ([#18219](https://github.com/lightdash/lightdash/issues/18219)) ([d304eb3](https://github.com/lightdash/lightdash/commit/d304eb3acc569a2927de02335dec1735eb2e9401))
+
 # [0.2189.0](https://github.com/lightdash/lightdash/compare/0.2188.1...0.2189.0) (2025-11-19)
 
 
