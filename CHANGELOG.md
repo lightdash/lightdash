@@ -1,3 +1,10 @@
+## [0.2189.3](https://github.com/lightdash/lightdash/compare/0.2189.2...0.2189.3) (2025-11-20)
+
+
+### Bug Fixes
+
+* add fallback value for unitOfTime in filter utils for inTheCurrent/notInTheCurrent ([#18239](https://github.com/lightdash/lightdash/issues/18239)) ([1f19ffd](https://github.com/lightdash/lightdash/commit/1f19ffdc52cd14b20a4603cd72f4c70f2c0c6ba9)), closes [#18197](https://github.com/lightdash/lightdash/issues/18197)
+
 ## [0.2189.2](https://github.com/lightdash/lightdash/compare/0.2189.1...0.2189.2) (2025-11-20)
 
 
