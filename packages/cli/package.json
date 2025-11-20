@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.2192.0",
+    "version": "0.2193.0",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -34,7 +34,8 @@
         "ora": "5.4.1",
         "parse-node-version": "^2.0.0",
         "unique-names-generator": "^4.7.1",
-        "uuid": "^11.0.3"
+        "uuid": "^11.0.3",
+        "yaml": "^2.7.0"
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {

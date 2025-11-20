@@ -23,6 +23,7 @@ import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
+import { lintHandler } from './handlers/lint';
 import { login } from './handlers/login';
 import {
     previewHandler,
@@ -965,6 +966,51 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .action(diagnosticsHandler);
+
+program
+    .command('lint')
+    .description(
+        'Validates Lightdash Code files (charts, dashboards) against JSON schemas',
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold('lint')} ${styles.secondary(
+            '-- validates all Lightdash Code files in current directory',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'lint',
+        )} --path ./chart.yml ${styles.secondary(
+            '-- validates a single chart file',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'lint',
+        )} --path ./lightdash ${styles.secondary(
+            '-- validates files in a specific directory',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'lint',
+        )} --verbose ${styles.secondary('-- shows detailed validation output')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'lint',
+        )} --format json ${styles.secondary(
+            '-- outputs results in SARIF JSON format',
+        )}
+`,
+    )
+    .option(
+        '-p, --path <path>',
+        'Path to a file or directory to lint (defaults to current directory)',
+        undefined,
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .option(
+        '-f, --format <format>',
+        'Output format: cli (default) or json (SARIF format)',
+        'cli',
+    )
+    .action(lintHandler);
 
 const errorHandler = (err: Error) => {
     // Use error message with fallback for safety

@@ -68,6 +68,8 @@ export * from './pivot/derivePivotConfigFromChart';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
+export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
+export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
