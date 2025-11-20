@@ -1,0 +1,25 @@
+name: Documentation
+description: See some docs that need updating? Add an issue here.
+labels: 📖 documentation
+type: Task
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Quick change? Just OPEN A PR!
+              
+              More substantial change? Submit the issue below:
+    - type: input
+      id: docs_link
+      attributes:
+          label: Link to existing docs
+          description: Provide a link to the documentation that needs updating
+          placeholder: https://docs.lightdash.com/...
+    - type: textarea
+      id: changes
+      attributes:
+          label: Changes
+          description: What changes need to be made to the documentation?
+          placeholder: Describe the documentation changes needed
+      validations:
+          required: true

@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an idea for Lightdash!
+labels: ✨ feature-request
+type: Feature
+body:
+    - type: textarea
+      id: description
+      attributes:
+          label: Description
+          description: How would you explain this feature in two lines?
+          placeholder: Brief description of the feature
+      validations:
+          required: true
+    - type: textarea
+      id: problem
+      attributes:
+          label: What problem does this solve?
+          description: Describe the problem that this feature request solves
+          placeholder: Describe the problem or use case this feature addresses
+      validations:
+          required: true
