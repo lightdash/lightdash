@@ -490,6 +490,7 @@ describe('ScimService', () => {
                         roleId: 'custom-role-1-uuid',
                     },
                 ],
+                true, // excludeProjectPreviews
             );
         });
 
@@ -538,6 +539,7 @@ describe('ScimService', () => {
                 mockUser.userUuid,
                 OrganizationMemberRole.VIEWER,
                 [],
+                true, // excludeProjectPreviews
             );
         });
     });

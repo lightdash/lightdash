@@ -4,9 +4,11 @@ import {
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
+    Project,
     ProjectAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     Role,
     RoleAssignment,
     RoleWithScopes,
@@ -308,18 +310,19 @@ export class RolesModel {
             .update({ role_uuid: null });
     }
 
-    async getUserProjectRoles(
+    private async getUserProjectRoles(
         userUuid: string,
         tx?: Knex.Transaction,
     ): Promise<
-        Pick<
-            ProjectMemberProfile,
-            'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-        >[]
+        Array<
+            Pick<
+                ProjectMemberProfile,
+                'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
+            > &
+                Pick<Project, 'type'>
+        >
     > {
-        const projectMemberships = await (tx || this.database)(
-            'project_memberships',
-        )
+        const rows = await (tx || this.database)('project_memberships')
             .leftJoin(
                 'projects',
                 'project_memberships.project_id',
@@ -329,11 +332,12 @@ export class RolesModel {
             .select('*')
             .where('users.user_uuid', userUuid);
 
-        return projectMemberships.map((membership) => ({
-            projectUuid: membership.project_uuid,
-            role: membership.role || ProjectMemberRole.VIEWER,
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            role: row.role || ProjectMemberRole.VIEWER,
             userUuid,
-            roleUuid: membership.role_uuid || undefined,
+            roleUuid: row.role_uuid || undefined,
+            type: row.project_type,
         }));
     }
 
@@ -736,6 +740,7 @@ export class RolesModel {
      * - Organization role is REQUIRED and must be a valid system organization role id (no custom role allowed).
      * - Project roles: adds or updates roles for listed projects; removes memberships for projects not present.
      * - If projectRoles is an empty array, all existing project memberships for the user are removed.
+     * - If excludeProjectPreviews is true, preview projects are excluded from removal operations.
      * All operations are executed within a single transaction.
      */
     async setUserOrgAndProjectRoles(
@@ -743,6 +748,7 @@ export class RolesModel {
         userUuid: string,
         orgRoleId: OrganizationMemberRole,
         projectRoles: Array<{ projectUuid: string; roleId: string }>,
+        excludeProjectPreviews: boolean = false,
         tx?: Knex.Transaction,
     ): Promise<void> {
         const runner = async (trx: Knex.Transaction) => {
@@ -763,59 +769,58 @@ export class RolesModel {
 
             const desiredProjectUuids = new Set<string>(deduped.keys());
 
-            // Fast path: if desired set is empty, remove all memberships
-            if (desiredProjectUuids.size === 0) {
-                await this.removeUserAccessFromAllProjects(userUuid, trx);
-            } else {
-                // Get current memberships for user (as project_uuids)
-                const currentMemberships = await this.getUserProjectRoles(
-                    userUuid,
-                    trx,
-                );
-                const currentSet = new Set(
-                    currentMemberships.map((m) => m.projectUuid),
-                );
+            // Get current memberships for user (as project_uuids)
+            const currentMemberships = await this.getUserProjectRoles(
+                userUuid,
+                trx,
+            );
+            const currentSet = currentMemberships.reduce<string[]>(
+                (acc, m) =>
+                    excludeProjectPreviews && m.type === ProjectType.PREVIEW
+                        ? acc
+                        : [...acc, m.projectUuid],
+                [],
+            );
 
-                // Remove memberships not in desired set
-                const removePromises: Promise<void>[] = [];
-                for (const existingProjectUuid of currentSet) {
-                    if (!desiredProjectUuids.has(existingProjectUuid)) {
-                        removePromises.push(
-                            this.removeUserProjectAccess(
-                                userUuid,
-                                existingProjectUuid,
-                                trx,
-                            ),
-                        );
-                    }
+            // Remove memberships not in desired set
+            const removePromises: Promise<void>[] = [];
+            for (const existingProjectUuid of currentSet) {
+                if (!desiredProjectUuids.has(existingProjectUuid)) {
+                    removePromises.push(
+                        this.removeUserProjectAccess(
+                            userUuid,
+                            existingProjectUuid,
+                            trx,
+                        ),
+                    );
                 }
-                await Promise.all(removePromises);
-
-                // Upsert desired roles
-                const upsertPromises: Promise<void>[] = [];
-                for (const [projectUuid, roleId] of deduped.entries()) {
-                    if (isSystemRole(roleId)) {
-                        upsertPromises.push(
-                            this.upsertSystemRoleProjectAccess(
-                                projectUuid,
-                                userUuid,
-                                roleId as ProjectMemberRole,
-                                trx,
-                            ),
-                        );
-                    } else {
-                        upsertPromises.push(
-                            this.upsertCustomRoleProjectAccess(
-                                projectUuid,
-                                userUuid,
-                                roleId,
-                                trx,
-                            ),
-                        );
-                    }
-                }
-                await Promise.all(upsertPromises);
             }
+            await Promise.all(removePromises);
+
+            // Upsert desired roles
+            const upsertPromises: Promise<void>[] = [];
+            for (const [projectUuid, roleId] of deduped.entries()) {
+                if (isSystemRole(roleId)) {
+                    upsertPromises.push(
+                        this.upsertSystemRoleProjectAccess(
+                            projectUuid,
+                            userUuid,
+                            roleId as ProjectMemberRole,
+                            trx,
+                        ),
+                    );
+                } else {
+                    upsertPromises.push(
+                        this.upsertCustomRoleProjectAccess(
+                            projectUuid,
+                            userUuid,
+                            roleId,
+                            trx,
+                        ),
+                    );
+                }
+            }
+            await Promise.all(upsertPromises);
         };
 
         if (tx) {

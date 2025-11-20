@@ -765,6 +765,7 @@ export class ScimService extends BaseService {
                 userUuid,
                 desiredOrgRoleUuid,
                 desiredProjectRoles,
+                true, // prevent deletion of preview projects roles since SCIM doesn't manage those
             );
         }
     }
