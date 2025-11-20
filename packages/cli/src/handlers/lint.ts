@@ -66,7 +66,19 @@ function findLightdashCodeFiles(dir: string): string[] {
 }
 
 /**
- * Build a map of JSON paths to their line/column positions in the source
+ * Build a map of JSON paths to their line/column positions in the source YAML/JSON file.
+ *
+ * This creates a Map<string, {line, column}> by traversing the YAML Abstract Syntax Tree (AST).
+ * For each YAML node encountered, we store its location keyed by its JSON path (e.g., '/metricQuery/filters').
+ *
+ * IMPORTANT: The map stores locations for ACTUAL YAML KEYS that exist in the file.
+ * It does NOT contain entries for:
+ * - Root path '/' (there's no root key in YAML)
+ * - Missing required properties that don't exist in the file
+ *
+ * @param fileContent - The raw YAML or JSON file content
+ * @param isJson - Whether the file is JSON (true) or YAML (false)
+ * @returns Object containing parsed data and the location map
  */
 function buildLocationMap(
     fileContent: string,
@@ -75,12 +87,12 @@ function buildLocationMap(
     const locationMap: LocationMap = new Map();
 
     if (isJson) {
-        // For JSON, parse normally (we could enhance this later)
+        // For JSON, parse normally (location map not populated - could be enhanced later)
         const data = JSON.parse(fileContent);
         return { data, locationMap };
     }
 
-    // Parse YAML with the 'yaml' package to get source locations
+    // Parse YAML with the 'yaml' package to access the Abstract Syntax Tree (AST)
     const doc = YAML.parseDocument(fileContent);
 
     function traverse(node: YAML.Node | null, jsonPath: string) {

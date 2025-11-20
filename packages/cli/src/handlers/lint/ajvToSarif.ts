@@ -65,7 +65,17 @@ type SarifLocation = {
 };
 
 /**
- * Find the line and column number in YAML content for a given data path
+ * Find the line and column number in YAML content for a given data path using regex-based search.
+ *
+ * This is a FALLBACK strategy used when the locationMap doesn't have an entry for the error path.
+ * Primary use case: root-level missing required properties (dataPath='/' which isn't in locationMap).
+ *
+ * The function uses regex patterns to search through the YAML content and locate:
+ * - Array items by counting '-' markers
+ * - Nested properties within array items
+ * - Simple top-level keys
+ *
+ * Returns line 1, column 1 if no match is found (used for root-level errors).
  */
 function findLocationForPath(
     yamlContent: string,
@@ -217,12 +227,23 @@ export function createSarifReport(results: FileValidationResult[]): SarifLog {
                 dataPath = `${dataPath}/${error.params.additionalProperty}`;
             }
 
-            // Use location map if available, otherwise fall back to regex search
+            // Determine error location using a two-strategy approach:
+            // 1. PRIMARY: Use locationMap (built from YAML AST during parsing)
+            //    - Fast O(1) lookup for ~95% of cases
+            //    - Works for: additional properties, type errors, enum errors, nested errors, array items
+            //    - Works for: nested missing required fields (e.g., missing 'exploreName' in 'metricQuery')
+            //
+            // 2. FALLBACK: Use regex-based search when locationMap lookup fails
+            //    - Needed for: root-level missing required properties (e.g., missing 'name', 'version')
+            //      These have dataPath='/' which doesn't exist in locationMap since it stores actual YAML keys
+            //    - Also provides defensive error handling if AST traversal misses any edge cases
             let location: { line: number; column: number } | null = null;
             if (result.locationMap) {
                 location = result.locationMap.get(dataPath) || null;
             }
             if (!location) {
+                // TODO: not convinced we need this fallback, maybe delete?
+                // Fallback to regex search - primarily for root-level missing required properties
                 location = findLocationForPath(result.fileContent, dataPath);
             }
 
