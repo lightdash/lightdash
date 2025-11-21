@@ -633,6 +633,7 @@ export class CatalogModel {
                 `required_attributes`,
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
+                `${CatalogTableName}.table_name`,
                 `icon`,
                 {
                     search_rank: useWebSearch
@@ -851,30 +852,47 @@ export class CatalogModel {
                     catalogItemsQuery = catalogItemsQuery.andWhereRaw('false');
                 }
             } else if (type === CatalogType.Field) {
-                // Filter fields by allowed (tableName, fieldName) tuples
-                const allowedFields = filteredExplores.flatMap((explore) =>
-                    Object.entries(explore.tables).flatMap(
-                        ([tableName, table]) => [
-                            ...Object.keys(table.dimensions).map(
-                                (dimName): [string, string] => [
-                                    tableName,
-                                    dimName,
-                                ],
+                // Filter fields by allowed (tableName, fieldName) tuples from ALL tables in filtered explores
+                // This includes fields from joined tables, which may be indexed under different cached_explore_uuids
+                const allowedFields = await wrapSentryTransaction(
+                    'CatalogModel.search.allowedFields',
+                    {
+                        filteredExplores: filteredExplores.map(
+                            (explore) => explore.name,
+                        ),
+                    },
+                    async () =>
+                        filteredExplores.flatMap((explore) =>
+                            Object.entries(explore.tables).flatMap(
+                                ([tableName, table]) => {
+                                    const dims = Object.keys(table.dimensions);
+                                    const mets = Object.keys(table.metrics);
+
+                                    return [
+                                        ...dims.map(
+                                            (dimName): [string, string] => [
+                                                tableName,
+                                                dimName,
+                                            ],
+                                        ),
+                                        ...mets.map(
+                                            (metricName): [string, string] => [
+                                                tableName,
+                                                metricName,
+                                            ],
+                                        ),
+                                    ];
+                                },
                             ),
-                            ...Object.keys(table.metrics).map(
-                                (metricName): [string, string] => [
-                                    tableName,
-                                    metricName,
-                                ],
-                            ),
-                        ],
-                    ),
+                        ),
                 );
 
                 catalogItemsQuery = catalogItemsQuery.andWhere(
                     function allowedFieldsFiltering() {
                         if (allowedFields.length > 0) {
                             // Use PostgreSQL's row comparison: (table_name, name) IN (VALUES ...)
+                            // This allows fields from joined tables to be found even if they're indexed
+                            // under a different cached_explore_uuid than the primary explore
                             void this.whereRaw(
                                 `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (VALUES ${allowedFields
                                     .map(() => '(?, ?)')
@@ -938,6 +956,21 @@ export class CatalogModel {
             paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
         );
 
+        // When using filteredExplores, we need to match each field to the correct explore
+        // that contains it, since fields from joined tables may be indexed under different explores
+        const exploreByTableName: Map<string, Explore> | undefined =
+            filteredExplores
+                ? new Map(
+                      filteredExplores.flatMap((explore) => {
+                          const tables = Object.keys(explore.tables);
+                          return tables.map((tableName): [string, Explore] => [
+                              tableName,
+                              explore,
+                          ]);
+                      }),
+                  )
+                : undefined;
+
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
             {
@@ -945,12 +978,26 @@ export class CatalogModel {
             },
             async () =>
                 paginatedCatalogItems.data.map((item) => {
-                    let { explore } = item;
+                    // Use the explore from filteredExplores if available, otherwise use from DB
+                    let explore = exploreByTableName
+                        ? exploreByTableName.get(item.table_name)
+                        : undefined;
+
+                    if (!explore) {
+                        explore = item.explore;
+                    }
+
+                    if (!explore) {
+                        throw new Error(
+                            `Explore not found for field ${item.name} in table ${item.table_name}`,
+                        );
+                    }
+
                     if (changeset) {
                         const exploreWithChanges =
                             ChangesetUtils.applyChangeset(changeset, {
-                                [item.explore.name]: item.explore,
-                            })[item.explore.name] as Explore; // at this point we know the explore is valid
+                                [explore.name]: explore,
+                            })[explore.name] as Explore; // at this point we know the explore is valid
                         explore = exploreWithChanges;
                     }
                     return parseCatalog({

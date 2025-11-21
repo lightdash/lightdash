@@ -44,6 +44,7 @@ export type FindExploresFn = (args: {
         description?: string;
         aiHints?: string[];
         searchRank?: number;
+        joinedTables?: string[] | null;
     }>;
     topMatchingFields?: Array<{
         name: string;
@@ -64,6 +65,7 @@ export type FindFieldFn = (
 ) => Promise<{
     fields: CatalogField[];
     pagination: Pagination | undefined;
+    explore?: Explore;
 }>;
 
 export type FindContentFn = (args: {
