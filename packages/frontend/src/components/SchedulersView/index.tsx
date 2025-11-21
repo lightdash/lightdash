@@ -44,7 +44,6 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     const handleRefresh = async () => {
         await Promise.all([
-            queryClient.invalidateQueries(['schedulerLogs']),
             queryClient.invalidateQueries(['paginatedSchedulers']),
             queryClient.invalidateQueries(['schedulerRuns']),
         ]);
