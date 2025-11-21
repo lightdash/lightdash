@@ -1,3 +1,10 @@
+## [0.2198.4](https://github.com/lightdash/lightdash/compare/0.2198.3...0.2198.4) (2025-11-21)
+
+
+### Bug Fixes
+
+* update Docker COPY source from prod-builder to build-final ([#18276](https://github.com/lightdash/lightdash/issues/18276)) ([1956f86](https://github.com/lightdash/lightdash/commit/1956f8681145b03c2239e7a51b6191bd8f273546))
+
 ## [0.2198.3](https://github.com/lightdash/lightdash/compare/0.2198.2...0.2198.3) (2025-11-21)
 
 
