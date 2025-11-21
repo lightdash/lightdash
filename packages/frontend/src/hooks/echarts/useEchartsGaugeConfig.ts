@@ -133,7 +133,7 @@ const useEchartsGaugeConfig = ({
                 const maxFieldValue = firstRow[section.maxFieldId];
                 if (maxFieldValue) {
                     const maxFromMetric = toNumber(maxFieldValue.value.raw);
-                    if (!isNaN(maxFromMetric)) {
+                    if (!isNaN(maxFromMetric) && maxFromMetric > 0) {
                         effectiveSectionMax = maxFromMetric;
                     }
                 }
