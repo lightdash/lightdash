@@ -1,3 +1,10 @@
+## [0.2199.1](https://github.com/lightdash/lightdash/compare/0.2199.0...0.2199.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* pass agentUuid as prop instead of using useParams ([#18281](https://github.com/lightdash/lightdash/issues/18281)) ([42293b2](https://github.com/lightdash/lightdash/commit/42293b2191656695ee61658b7493bb7310c4fe44))
+
 # [0.2199.0](https://github.com/lightdash/lightdash/compare/0.2198.4...0.2199.0) (2025-11-21)
 
 
