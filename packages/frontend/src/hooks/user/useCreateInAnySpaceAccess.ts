@@ -5,9 +5,12 @@ import { useSpaceSummaries } from '../useSpaces';
 const useCreateInAnySpaceAccess = (
     projectUuid: string | undefined,
     subjectName: 'Dashboard' | 'SavedChart',
+    options?: { enabled?: boolean },
 ): boolean => {
     const { user } = useApp();
-    const spaces = useSpaceSummaries(projectUuid, true);
+    const spaces = useSpaceSummaries(projectUuid, true, {
+        enabled: options?.enabled && !!projectUuid,
+    });
 
     if (!projectUuid) {
         return false;

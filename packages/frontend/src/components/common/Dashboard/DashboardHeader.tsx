@@ -3,7 +3,6 @@ import {
     ResourceViewItemType,
     type Dashboard,
     type FeatureFlags,
-    type SpaceSummary,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -67,7 +66,6 @@ import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
 
 type DashboardHeaderProps = {
-    spaces?: SpaceSummary[];
     dashboard: Dashboard;
     organizationUuid?: string;
     hasDashboardChanged: boolean;
@@ -92,7 +90,6 @@ type DashboardHeaderProps = {
 };
 
 const DashboardHeader = ({
-    spaces = [],
     dashboard,
     organizationUuid,
     hasDashboardChanged,
@@ -313,7 +310,6 @@ const DashboardHeader = ({
                                 type: ResourceViewItemType.DASHBOARD,
                             },
                         ]}
-                        spaces={spaces}
                         isLoading={isMovingDashboardToSpace}
                         onConfirm={async (spaceUuid) => {
                             if (!spaceUuid) {

@@ -10,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -28,11 +27,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const location = useLocation();
 
     const { user } = useApp();
-
-    const userCanCreateDashboards = useCreateInAnySpaceAccess(
-        projectUuid,
-        'Dashboard',
-    );
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -112,17 +106,14 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-
-                        {userCanCreateDashboards && (
-                            <LargeMenuItem
-                                title="Dashboard"
-                                description="Arrange multiple charts into a single view."
-                                onClick={() => setIsCreateDashboardOpen(true)}
-                                icon={IconLayoutDashboard}
-                                data-testid="ExploreMenu/NewDashboardButton"
-                            />
-                        )}
-
+                        <LargeMenuItem
+                            // Users who manage explores should be able to create dashboards in any space
+                            title="Dashboard"
+                            description="Arrange multiple charts into a single view."
+                            onClick={() => setIsCreateDashboardOpen(true)}
+                            icon={IconLayoutDashboard}
+                            data-testid="ExploreMenu/NewDashboardButton"
+                        />
                         <Can
                             I="create"
                             this={subject('Space', {
@@ -158,19 +149,20 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     parentSpaceUuid={null}
                 />
             )}
+            {isCreateDashboardOpen && (
+                <DashboardCreateModal
+                    projectUuid={projectUuid}
+                    opened={isCreateDashboardOpen}
+                    onClose={() => setIsCreateDashboardOpen(false)}
+                    onConfirm={(dashboard) => {
+                        void navigate(
+                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                        );
 
-            <DashboardCreateModal
-                projectUuid={projectUuid}
-                opened={isCreateDashboardOpen}
-                onClose={() => setIsCreateDashboardOpen(false)}
-                onConfirm={(dashboard) => {
-                    void navigate(
-                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                    );
-
-                    setIsCreateDashboardOpen(false);
-                }}
-            />
+                        setIsCreateDashboardOpen(false);
+                    }}
+                />
+            )}
         </>
     );
 });

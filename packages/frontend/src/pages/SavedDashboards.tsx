@@ -9,7 +9,6 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
-import { useSpaceSummaries } from '../hooks/useSpaces';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../providers/App/useApp';
 
@@ -23,9 +22,6 @@ const SavedDashboards = () => {
 
     const { health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const { data: spaces, isInitialLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid);
-    const hasNoSpaces = spaces && spaces.length === 0;
 
     const userCanCreateDashboards = useCreateInAnySpaceAccess(
         projectUuid,
@@ -36,7 +32,7 @@ const SavedDashboards = () => {
         return null;
     }
 
-    if (isInitialLoading || isLoadingSpaces) {
+    if (isInitialLoading) {
         return <LoadingState title="Loading dashboards" />;
     }
 
@@ -67,7 +63,6 @@ const SavedDashboards = () => {
                             <Button
                                 leftIcon={<IconPlus size={18} />}
                                 onClick={handleCreateDashboard}
-                                disabled={hasNoSpaces}
                             >
                                 Create dashboard
                             </Button>
