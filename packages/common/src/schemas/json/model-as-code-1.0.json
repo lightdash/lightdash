@@ -1,0 +1,839 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/model-as-code.json",
+    "title": "Lightdash Model as Code",
+    "description": "Schema for defining Lightdash models in YAML format independent of dbt",
+    "type": "object",
+    "oneOf": [
+        {
+            "description": "Model with SQL query source",
+            "allOf": [
+                {
+                    "$ref": "#/definitions/BaseModel"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "from_sql": {
+                            "type": "string",
+                            "description": "SQL query to use as the model source"
+                        }
+                    },
+                    "required": ["from_sql"],
+                    "not": {
+                        "required": ["from_table"]
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Model with table reference source",
+            "allOf": [
+                {
+                    "$ref": "#/definitions/BaseModel"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "from_table": {
+                            "type": "string",
+                            "description": "Table reference to use as the model source"
+                        }
+                    },
+                    "required": ["from_table"],
+                    "not": {
+                        "required": ["from_sql"]
+                    }
+                }
+            ]
+        }
+    ],
+    "definitions": {
+        "BaseModel": {
+            "type": "object",
+            "required": ["type", "name", "dimensions"],
+            "properties": {
+                "type": {
+                    "enum": ["model", "model/v1beta", "model/v1"],
+                    "description": "Resource type identifier"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Model name (must be unique)"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label for the model"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description of the model"
+                },
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Primary key column(s) for the model"
+                },
+                "order_fields_by": {
+                    "enum": ["INDEX", "LABEL"],
+                    "description": "Strategy for ordering fields in the UI"
+                },
+                "group_label": {
+                    "type": "string",
+                    "description": "Group label for organizing models"
+                },
+                "sql_filter": {
+                    "type": "string",
+                    "description": "SQL filter to apply to all queries"
+                },
+                "sql_where": {
+                    "type": "string",
+                    "description": "Alias for sql_filter"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Required user attributes for accessing this model"
+                },
+                "group_details": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["label"]
+                    },
+                    "description": "Metadata for field groups"
+                },
+                "sets": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "description": "Named sets of fields for quick selection"
+                },
+                "spotlight": {
+                    "type": "object",
+                    "properties": {
+                        "visibility": {
+                            "enum": ["show", "hide"],
+                            "description": "Default visibility in spotlight"
+                        },
+                        "categories": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Categories for organizing models"
+                        }
+                    },
+                    "description": "Spotlight configuration for model discovery"
+                },
+                "default_time_dimension": {
+                    "type": "object",
+                    "required": ["field", "interval"],
+                    "properties": {
+                        "field": {
+                            "type": "string",
+                            "description": "Name of the time dimension field"
+                        },
+                        "interval": {
+                            "$ref": "#/definitions/TimeInterval",
+                            "description": "Default time interval for grouping"
+                        }
+                    },
+                    "description": "Default time dimension for time-series queries"
+                },
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Join"
+                    },
+                    "description": "Join relationships to other models"
+                },
+                "required_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Filter"
+                    },
+                    "description": "Filters that must be applied to all queries"
+                },
+                "default_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Filter"
+                    },
+                    "description": "Default filters (alias for required_filters)"
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/Metric"
+                    },
+                    "description": "Model-level metrics (not tied to a specific dimension)"
+                },
+                "explores": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/Explore"
+                    },
+                    "description": "Additional explores based on this model"
+                },
+                "ai_hint": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Hints for AI-powered query generation"
+                },
+                "parameters": {
+                    "type": "object",
+                    "description": "Dynamic parameters for the model"
+                },
+                "dimensions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Dimension"
+                    },
+                    "description": "Column definitions (required)"
+                }
+            }
+        },
+        "Dimension": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Dimension name (column name)"
+                },
+                "type": {
+                    "enum": [
+                        "string",
+                        "number",
+                        "timestamp",
+                        "date",
+                        "boolean"
+                    ],
+                    "description": "Data type of the dimension"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description"
+                },
+                "sql": {
+                    "type": "string",
+                    "description": "Custom SQL expression for this dimension"
+                },
+                "time_intervals": {
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TimeInterval"
+                            }
+                        },
+                        {
+                            "enum": ["OFF", "default", false, true]
+                        }
+                    ],
+                    "description": "Time intervals to generate for timestamp/date dimensions"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "Hide this dimension from the UI"
+                },
+                "round": {
+                    "type": "number",
+                    "description": "Number of decimal places to round to"
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Format string for displaying values"
+                },
+                "group_label": {
+                    "type": "string",
+                    "description": "Group this dimension belongs to"
+                },
+                "groups": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Groups this dimension belongs to"
+                },
+                "colors": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Color mapping for dimension values"
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["url", "label"],
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "URL templates for dimension values"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Required user attributes for accessing this dimension"
+                },
+                "ai_hint": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Hints for AI-powered query generation"
+                },
+                "tags": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Tags for organizing and filtering dimensions"
+                },
+                "compact": {
+                    "enum": [
+                        "thousands",
+                        "thousand",
+                        "K",
+                        "millions",
+                        "million",
+                        "M",
+                        "billions",
+                        "billion",
+                        "B",
+                        "trillions",
+                        "trillion",
+                        "T",
+                        "kilobytes",
+                        "kilobyte",
+                        "KB",
+                        "KiB",
+                        "kibibytes",
+                        "kibibyte",
+                        "megabytes",
+                        "megabyte",
+                        "MB",
+                        "MiB",
+                        "mebibytes",
+                        "mebibyte",
+                        "gigabytes",
+                        "gigabyte",
+                        "GB",
+                        "GiB",
+                        "gibibytes",
+                        "gibibyte",
+                        "terabytes",
+                        "terabyte",
+                        "TB",
+                        "TiB",
+                        "tebibytes",
+                        "tebibyte",
+                        "petabytes",
+                        "petabyte",
+                        "PB",
+                        "PiB",
+                        "pebibytes",
+                        "pebibyte"
+                    ],
+                    "description": "Compact number format"
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/Metric"
+                    },
+                    "description": "Metrics derived from this dimension"
+                },
+                "additional_dimensions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/AdditionalDimension"
+                    },
+                    "description": "Additional dimensions derived from this dimension"
+                }
+            }
+        },
+        "Metric": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "enum": [
+                        "count",
+                        "count_distinct",
+                        "sum",
+                        "average",
+                        "min",
+                        "max",
+                        "number",
+                        "string",
+                        "date",
+                        "timestamp",
+                        "boolean",
+                        "percentile",
+                        "median",
+                        "percent_of_previous",
+                        "percent_of_total",
+                        "running_total"
+                    ],
+                    "description": "Metric aggregation type"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description"
+                },
+                "sql": {
+                    "type": "string",
+                    "description": "Custom SQL expression for this metric"
+                },
+                "round": {
+                    "type": "number",
+                    "description": "Number of decimal places to round to"
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Format string for displaying values"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "Hide this metric from the UI"
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Filter"
+                    },
+                    "description": "Filters to apply when calculating this metric"
+                },
+                "percentile": {
+                    "type": "number",
+                    "description": "Percentile value (for percentile metrics)"
+                },
+                "show_underlying_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Fields to show when drilling into metric values"
+                },
+                "compact": {
+                    "enum": [
+                        "thousands",
+                        "thousand",
+                        "K",
+                        "millions",
+                        "million",
+                        "M",
+                        "billions",
+                        "billion",
+                        "B",
+                        "trillions",
+                        "trillion",
+                        "T",
+                        "kilobytes",
+                        "kilobyte",
+                        "KB",
+                        "KiB",
+                        "kibibytes",
+                        "kibibyte",
+                        "megabytes",
+                        "megabyte",
+                        "MB",
+                        "MiB",
+                        "mebibytes",
+                        "mebibyte",
+                        "gigabytes",
+                        "gigabyte",
+                        "GB",
+                        "GiB",
+                        "gibibytes",
+                        "gibibyte",
+                        "terabytes",
+                        "terabyte",
+                        "TB",
+                        "TiB",
+                        "tebibytes",
+                        "tebibyte",
+                        "petabytes",
+                        "petabyte",
+                        "PB",
+                        "PiB",
+                        "pebibytes",
+                        "pebibyte"
+                    ],
+                    "description": "Compact number format"
+                },
+                "group_label": {
+                    "type": "string",
+                    "description": "Group this metric belongs to"
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["url", "label"],
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "URL templates for metric values"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "description": "Required user attributes for accessing this metric"
+                },
+                "ai_hint": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Hints for AI-powered query generation"
+                },
+                "tags": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Tags for organizing and filtering metrics"
+                },
+                "default_time_dimension": {
+                    "type": "object",
+                    "required": ["field", "interval"],
+                    "properties": {
+                        "field": {
+                            "type": "string"
+                        },
+                        "interval": {
+                            "$ref": "#/definitions/TimeInterval"
+                        }
+                    },
+                    "description": "Default time dimension for this metric"
+                }
+            }
+        },
+        "AdditionalDimension": {
+            "type": "object",
+            "required": ["type", "sql"],
+            "properties": {
+                "type": {
+                    "enum": [
+                        "string",
+                        "number",
+                        "timestamp",
+                        "date",
+                        "boolean"
+                    ],
+                    "description": "Data type of the additional dimension"
+                },
+                "sql": {
+                    "type": "string",
+                    "description": "SQL expression for this dimension"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "Hide this dimension from the UI"
+                },
+                "round": {
+                    "type": "number",
+                    "description": "Number of decimal places to round to"
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Format string for displaying values"
+                },
+                "group_label": {
+                    "type": "string",
+                    "description": "Group this dimension belongs to"
+                },
+                "colors": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Color mapping for dimension values"
+                }
+            }
+        },
+        "Join": {
+            "type": "object",
+            "required": ["join", "sql_on"],
+            "properties": {
+                "join": {
+                    "type": "string",
+                    "description": "Name of the model to join"
+                },
+                "sql_on": {
+                    "type": "string",
+                    "description": "SQL join condition"
+                },
+                "alias": {
+                    "type": "string",
+                    "description": "Alias for the joined model"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label for the join"
+                },
+                "type": {
+                    "enum": ["inner", "left", "right", "full"],
+                    "description": "Type of SQL join"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "Hide this join from the UI"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Specific fields to include from the joined model"
+                },
+                "always": {
+                    "type": "boolean",
+                    "description": "Always include this join in queries"
+                },
+                "relationship": {
+                    "enum": [
+                        "one-to-one",
+                        "one-to-many",
+                        "many-to-one",
+                        "many-to-many"
+                    ],
+                    "description": "Relationship cardinality"
+                },
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Primary key of the joined model"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description of the join"
+                }
+            }
+        },
+        "Filter": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Filter condition (field: value or field: [values])"
+        },
+        "Explore": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable label for the explore"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description of the explore"
+                },
+                "group_label": {
+                    "type": "string",
+                    "description": "Group this explore belongs to"
+                },
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Join"
+                    },
+                    "description": "Additional joins for this explore"
+                },
+                "required_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Filter"
+                    },
+                    "description": "Filters required for this explore"
+                },
+                "default_filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Filter"
+                    },
+                    "description": "Default filters for this explore"
+                }
+            }
+        },
+        "TimeInterval": {
+            "enum": [
+                "RAW",
+                "YEAR",
+                "QUARTER",
+                "MONTH",
+                "WEEK",
+                "DAY",
+                "HOUR",
+                "MINUTE",
+                "SECOND",
+                "MILLISECOND",
+                "YEAR_NUM",
+                "QUARTER_NUM",
+                "MONTH_NUM",
+                "WEEK_NUM",
+                "DAY_OF_YEAR_NUM",
+                "DAY_OF_MONTH_NUM",
+                "DAY_OF_WEEK_INDEX",
+                "HOUR_OF_DAY_NUM",
+                "MINUTE_OF_HOUR_NUM",
+                "QUARTER_NAME",
+                "MONTH_NAME",
+                "DAY_OF_WEEK_NAME"
+            ],
+            "description": "Time interval for grouping time dimensions"
+        }
+    }
+}
