@@ -1,3 +1,10 @@
+## [0.2198.2](https://github.com/lightdash/lightdash/compare/0.2198.1...0.2198.2) (2025-11-21)
+
+
+### Bug Fixes
+
+* handle missing tool results in AI agent prompt processing ([#18217](https://github.com/lightdash/lightdash/issues/18217)) ([44933ec](https://github.com/lightdash/lightdash/commit/44933ec6b9ba49323ad1e25078e69e344676a07c))
+
 ## [0.2198.1](https://github.com/lightdash/lightdash/compare/0.2198.0...0.2198.1) (2025-11-21)
 
 
