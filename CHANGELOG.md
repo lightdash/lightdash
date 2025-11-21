@@ -1,3 +1,10 @@
+## [0.2193.1](https://github.com/lightdash/lightdash/compare/0.2193.0...0.2193.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* add unified method for setting user org and project roles in SCIM service ([#18255](https://github.com/lightdash/lightdash/issues/18255)) ([dd9adf3](https://github.com/lightdash/lightdash/commit/dd9adf3e9874376c21822904e620f9b5c86537de))
+
 # [0.2193.0](https://github.com/lightdash/lightdash/compare/0.2192.0...0.2193.0) (2025-11-20)
 
 
