@@ -1,3 +1,10 @@
+# [0.2202.0](https://github.com/lightdash/lightdash/compare/0.2201.0...0.2202.0) (2025-11-21)
+
+
+### Features
+
+* link to scheduler history ([#18174](https://github.com/lightdash/lightdash/issues/18174)) ([00c0ca3](https://github.com/lightdash/lightdash/commit/00c0ca316e5c1aaf9d2530b7a1462725d21f4d14))
+
 # [0.2201.0](https://github.com/lightdash/lightdash/compare/0.2200.0...0.2201.0) (2025-11-21)
 
 
