@@ -1,3 +1,10 @@
+# [0.2197.0](https://github.com/lightdash/lightdash/compare/0.2196.0...0.2197.0) (2025-11-21)
+
+
+### Features
+
+* optimize Docker build with multi-stage parallelization and caching ([#18263](https://github.com/lightdash/lightdash/issues/18263)) ([eee2d1b](https://github.com/lightdash/lightdash/commit/eee2d1ba38cd44c8da18c861b49aa0e685909a42))
+
 # [0.2196.0](https://github.com/lightdash/lightdash/compare/0.2195.0...0.2196.0) (2025-11-21)
 
 
