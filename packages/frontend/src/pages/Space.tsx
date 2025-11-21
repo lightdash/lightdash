@@ -36,7 +36,7 @@ import TransferItemsModal from '../components/common/TransferItemsModal/Transfer
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
-import { useSpace, useSpaceSummaries } from '../hooks/useSpaces';
+import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
@@ -85,7 +85,6 @@ const Space: FC = () => {
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
-    const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
 
@@ -413,7 +412,6 @@ const Space: FC = () => {
                                 type: ResourceViewItemType.SPACE,
                             } satisfies ResourceViewSpaceItem,
                         ]}
-                        spaces={spaces ?? []}
                         isLoading={isContentActionLoading}
                         onClose={closeTransferToSpace}
                         onConfirm={async (newSpaceUuid) => {

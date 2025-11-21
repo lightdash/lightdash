@@ -2,22 +2,20 @@ import {
     assertUnreachable,
     ResourceViewItemType,
     type ResourceViewItem,
-    type SpaceSummary,
 } from '@lightdash/common';
 import { Alert, Box, Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
 import SpaceCreationForm from '../SpaceSelector/SpaceCreationForm';
 import SpaceSelector from '../SpaceSelector/SpaceSelector';
-import { type NestableItem } from '../Tree/types';
 
-type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
+type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     items: T;
-    spaces: U;
     isLoading: boolean;
     onConfirm: (spaceUuid: string | null) => void;
 };
@@ -44,19 +42,21 @@ const getItemsText = <T extends ResourceViewItem>(items: T[]) => {
     };
 };
 
-const TransferItemsModal = <
-    R extends ResourceViewItem,
-    T extends Array<R>,
-    U extends Array<NestableItem & Pick<SpaceSummary, 'isPrivate' | 'access'>>,
->({
+const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     projectUuid,
     opened,
     onClose,
     items,
-    spaces,
     onConfirm,
     isLoading,
-}: Props<T, U>) => {
+}: Props<T>) => {
+    // Fetch spaces only when the modal is opened
+    const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
+        projectUuid,
+        true,
+        { enabled: opened },
+    );
+
     const isMovingSingleItem = items.length === 1;
 
     const defaultSpaceUuid = useMemo(() => {
@@ -179,7 +179,11 @@ const TransferItemsModal = <
             }
         >
             <LoadingOverlay
-                visible={createSpaceMutation.isLoading || isLoading}
+                visible={
+                    createSpaceMutation.isLoading ||
+                    isLoading ||
+                    isLoadingSpaces
+                }
             />
 
             {isCreatingNewSpace ? (

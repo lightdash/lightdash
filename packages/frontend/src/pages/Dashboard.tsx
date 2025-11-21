@@ -32,7 +32,6 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
-import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -46,7 +45,6 @@ const Dashboard: FC = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
     const { clearIsEditingDashboardChart, clearDashboardStorage } =
         useDashboardStorage();
@@ -615,7 +613,6 @@ const Dashboard: FC = () => {
                 title={dashboard.name}
                 header={
                     <DashboardHeader
-                        spaces={spaces}
                         dashboard={dashboard}
                         organizationUuid={organization?.organizationUuid}
                         isEditMode={isEditMode}

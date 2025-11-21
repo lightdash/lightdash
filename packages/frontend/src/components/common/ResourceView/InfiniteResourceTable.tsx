@@ -840,7 +840,6 @@ const InfiniteResourceTable = ({
                     onClose={closeTransferItemsModal}
                     projectUuid={filters.projectUuid}
                     items={selectedItems}
-                    spaces={spaces}
                     isLoading={isFetching || isContentBulkActionLoading}
                     onConfirm={async (spaceUuid) => {
                         await handleBulkMoveContent(selectedItems, spaceUuid);
