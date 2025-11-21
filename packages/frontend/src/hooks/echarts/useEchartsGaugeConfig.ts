@@ -94,6 +94,7 @@ const useEchartsGaugeConfig = ({
             maxFieldId,
             showAxisLabels,
             sections,
+            customLabel,
         } = chartConfig.validConfig;
 
         // Get the first row of data
@@ -121,7 +122,8 @@ const useEchartsGaugeConfig = ({
             }
         }
 
-        const fieldLabel = getItemLabelWithoutTableName(fieldItem);
+        const fieldLabel =
+            customLabel || getItemLabelWithoutTableName(fieldItem);
 
         const sectionColors: [number, string][] = [];
         const defaultGapColor = theme.white;
