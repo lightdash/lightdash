@@ -590,6 +590,24 @@ export class AiAgentModel {
                 .returning('*');
 
             // Reset all integrations
+            // we cannot relay on cascade deletes because might run into race condition
+            // delete child records first to avoid unique constraint violations
+            const integrationUuids = await trx(AiAgentIntegrationTableName)
+                .select('ai_agent_integration_uuid')
+                .where('ai_agent_uuid', args.agentUuid);
+
+            if (integrationUuids.length > 0) {
+                await trx(AiAgentSlackIntegrationTableName)
+                    .whereIn(
+                        'ai_agent_integration_uuid',
+                        integrationUuids.map(
+                            (i) => i.ai_agent_integration_uuid,
+                        ),
+                    )
+                    .delete();
+            }
+
+            // Then delete parent integration records
             await trx(AiAgentIntegrationTableName)
                 .where('ai_agent_uuid', args.agentUuid)
                 .delete();
