@@ -48,6 +48,9 @@ const useGaugeChartConfig = (
     const [sections, setSections] = useState<GaugeSection[]>(
         initialChartConfig?.sections ?? [],
     );
+    const [customLabel, setCustomLabel] = useState<string | undefined>(
+        initialChartConfig?.customLabel,
+    );
 
     // Get the effective selected field - use state value or fallback to first available
     const effectiveSelectedField = useMemo(() => {
@@ -77,6 +80,7 @@ const useGaugeChartConfig = (
             maxFieldId,
             showAxisLabels,
             sections,
+            customLabel,
         };
     }, [
         effectiveSelectedField,
@@ -85,6 +89,7 @@ const useGaugeChartConfig = (
         maxFieldId,
         showAxisLabels,
         sections,
+        customLabel,
     ]);
 
     return useMemo(
@@ -104,6 +109,8 @@ const useGaugeChartConfig = (
             setShowAxisLabels,
             sections,
             setSections,
+            customLabel,
+            setCustomLabel,
         }),
         [
             validConfig,
@@ -115,6 +122,7 @@ const useGaugeChartConfig = (
             maxFieldId,
             showAxisLabels,
             sections,
+            customLabel,
         ],
     );
 };
