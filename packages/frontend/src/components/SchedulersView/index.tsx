@@ -11,11 +11,8 @@ import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { useSearchParams } from 'react-router';
-import { useSchedulerLogs } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../hooks/toaster/useToaster';
-import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
-import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import LogsTable from './LogsTable';
 import SchedulersTable from './SchedulersTable';
 import classes from './SchedulersView.module.css';
@@ -27,15 +24,8 @@ enum SchedulersViewTab {
 
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { data, isInitialLoading } = useSchedulerLogs({
-        projectUuid,
-        paginateArgs: { page: 1, pageSize: 1 },
-    });
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
-
-    // Extract data from paginated response
-    const schedulersData = data?.pages?.[0]?.data;
 
     const activeTab =
         searchParams.get('tab') === SchedulersViewTab.RUN_HISTORY
@@ -56,6 +46,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         await Promise.all([
             queryClient.invalidateQueries(['schedulerLogs']),
             queryClient.invalidateQueries(['paginatedSchedulers']),
+            queryClient.invalidateQueries(['schedulerRuns']),
         ]);
 
         showToastSuccess({
@@ -63,9 +54,6 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         });
     };
 
-    if (isInitialLoading) {
-        return <LoadingState title="Loading scheduled deliveries" />;
-    }
     return (
         <Card>
             <Stack gap="sm">
@@ -121,22 +109,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         <SchedulersTable projectUuid={projectUuid} />
                     </Tabs.Panel>
                     <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
-                        {schedulersData &&
-                        schedulersData.schedulers.length > 0 ? (
-                            schedulersData.logs.length > 0 ? (
-                                <LogsTable projectUuid={projectUuid} />
-                            ) : (
-                                <ResourceEmptyState
-                                    title="Scheduled deliveries have not run any jobs as of now"
-                                    description="Check in later or hit the refresh button to see if any jobs have run"
-                                />
-                            )
-                        ) : (
-                            <ResourceEmptyState
-                                title="No scheduled deliveries on this project"
-                                description="Go to a chart or dashboard to set up your first scheduled delivery"
-                            />
-                        )}
+                        <LogsTable projectUuid={projectUuid} />
                     </Tabs.Panel>
                 </Tabs>
             </Stack>

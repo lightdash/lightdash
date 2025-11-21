@@ -97,12 +97,14 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            <SchedulerDeleteModal
-                opened={isDeleting}
-                schedulerUuid={item.schedulerUuid}
-                onConfirm={handleDelete}
-                onClose={handleDelete}
-            />
+            {isDeleting && (
+                <SchedulerDeleteModal
+                    opened={isDeleting}
+                    schedulerUuid={item.schedulerUuid}
+                    onConfirm={handleDelete}
+                    onClose={handleDelete}
+                />
+            )}
             <ConfirmSendNowModal
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}

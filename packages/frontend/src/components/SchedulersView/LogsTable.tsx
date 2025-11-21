@@ -53,7 +53,9 @@ import {
 } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import { useGetSlack } from '../../hooks/slack/useSlack';
+import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
+import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import {
     formatTaskName,
@@ -206,42 +208,47 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
 
     const fetchRunLogsMutation = useFetchRunLogs();
 
-    // Fetch child logs when rows are expanded
-    useEffect(() => {
-        const expandedRowIds = Object.keys(expanded).filter(
-            (key) => expanded[key as keyof typeof expanded],
-        );
+    // Handle row expansion and fetch child logs when needed
+    const handleExpandedChange = useCallback(
+        (
+            updater:
+                | MRT_ExpandedState
+                | ((old: MRT_ExpandedState) => MRT_ExpandedState),
+        ) => {
+            const newExpanded =
+                typeof updater === 'function' ? updater(expanded) : updater;
+            setExpanded(newExpanded);
 
-        expandedRowIds.forEach((rowId) => {
-            const rowIndex = parseInt(rowId, 10);
-            const run = schedulerRunsData?.[rowIndex];
+            // Find newly expanded rows
+            const newlyExpandedRowIds = Object.keys(newExpanded).filter(
+                (key) =>
+                    newExpanded[key as keyof typeof newExpanded] &&
+                    !expanded[key as keyof typeof expanded],
+            );
 
-            if (run && !childLogsMap.has(run.runId)) {
-                // Fetch child logs for this run using the hook
-                void fetchRunLogsMutation
-                    .mutateAsync(run.runId)
-                    .then((childLogs) => {
-                        console.log(
-                            `Fetched ${childLogs.length} logs for run ${run.runId}:`,
-                            childLogs.map((l) => ({
-                                task: l.task,
-                                isParent: l.isParent,
-                                status: l.status,
-                                createdAt: l.createdAt,
-                            })),
-                        );
-                        setChildLogsMap((prev) => {
-                            const newMap = new Map(prev);
-                            newMap.set(run.runId, childLogs);
-                            return newMap;
+            // Fetch logs for newly expanded rows
+            newlyExpandedRowIds.forEach((rowId) => {
+                const rowIndex = parseInt(rowId, 10);
+                const run = schedulerRunsData?.[rowIndex];
+
+                if (run && !childLogsMap.has(run.runId)) {
+                    void fetchRunLogsMutation
+                        .mutateAsync(run.runId)
+                        .then((childLogs) => {
+                            setChildLogsMap((prev) => {
+                                const newMap = new Map(prev);
+                                newMap.set(run.runId, childLogs);
+                                return newMap;
+                            });
+                        })
+                        .catch((error) => {
+                            console.error('Error fetching child logs:', error);
                         });
-                    })
-                    .catch((error) => {
-                        console.error('Error fetching child logs:', error);
-                    });
-            }
-        });
-    }, [expanded, schedulerRunsData, childLogsMap, fetchRunLogsMutation]);
+                }
+            });
+        },
+        [expanded, schedulerRunsData, childLogsMap, fetchRunLogsMutation],
+    );
 
     const health = useHealth();
     const slack = useGetSlack();
@@ -692,7 +699,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
             showAlertBanner: isError,
             showProgressBars: isFetching,
         },
-        onExpandedChange: setExpanded,
+        onExpandedChange: handleExpandedChange,
         displayColumnDefOptions: {
             'mrt-row-expand': {
                 size: 40,
@@ -700,6 +707,19 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
             },
         },
     });
+
+    if (isLoading) {
+        return <LoadingState title="Loading run history" />;
+    }
+
+    if (totalDBRowCount === 0) {
+        return (
+            <ResourceEmptyState
+                title="No scheduled delivery runs yet"
+                description="Scheduled deliveries will appear here once they run. Check back later or hit the refresh button."
+            />
+        );
+    }
 
     return (
         <>
