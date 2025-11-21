@@ -315,7 +315,7 @@ COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
 COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
 COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
 COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
-COPY --from=prod-builder /usr/app /usr/app
+COPY --from=build-final /usr/app /usr/app
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
