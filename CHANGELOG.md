@@ -1,3 +1,10 @@
+## [0.2198.3](https://github.com/lightdash/lightdash/compare/0.2198.2...0.2198.3) (2025-11-21)
+
+
+### Bug Fixes
+
+* validate table calculations on runQuery and alike ([#18213](https://github.com/lightdash/lightdash/issues/18213)) ([b45dcea](https://github.com/lightdash/lightdash/commit/b45dcea06a2f57efe5d80936b57da93ec9faaf9f)), closes [#18199](https://github.com/lightdash/lightdash/issues/18199)
+
 ## [0.2198.2](https://github.com/lightdash/lightdash/compare/0.2198.1...0.2198.2) (2025-11-21)
 
 
