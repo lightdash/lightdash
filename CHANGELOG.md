@@ -1,3 +1,10 @@
+# [0.2196.0](https://github.com/lightdash/lightdash/compare/0.2195.0...0.2196.0) (2025-11-21)
+
+
+### Features
+
+* agent router selects best agent ([#18266](https://github.com/lightdash/lightdash/issues/18266)) ([75441a1](https://github.com/lightdash/lightdash/commit/75441a1a6faad83543144ef76b2f8c56e702d1fe))
+
 # [0.2195.0](https://github.com/lightdash/lightdash/compare/0.2194.0...0.2195.0) (2025-11-21)
 
 
