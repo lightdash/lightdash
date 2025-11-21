@@ -1142,13 +1142,19 @@ export class UnfurlService extends BaseService {
                         code: 2, // Error
                     });
 
+                    // All of these errors are related to connection issues and usually
+                    // arise because the headless browser either crashed while handling the request
+                    // or crash before and can't be reached. We are grouping them togther here
+                    // for a user-friendly error message, but we keep the original error message in the logs.
                     const isConnectionError =
-                        errorMessage.includes('ECONNREFUSED');
+                        errorMessage.includes('ECONNREFUSED') ||
+                        errorMessage.includes('ENOTFOUND') ||
+                        errorMessage.includes('ECONNRESET');
 
                     throw new ScreenshotError(
                         `Screenshot ${errorType}: ${
                             isConnectionError
-                                ? 'There was a connection error while capturing the screenshot. Please contact your admin or support team.'
+                                ? 'There was a connection error while capturing the screenshot. This often indicates a heavy load on the screenshot service and the delivery cannot be completed at this time.'
                                 : errorMessage
                         }`,
                         {
