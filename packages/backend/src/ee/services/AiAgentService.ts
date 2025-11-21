@@ -3918,6 +3918,31 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     }
 
     /**
+     * Post agent confirmation message showing which agent the user is chatting with
+     */
+    private static async postAgentConfirmation(
+        client: WebClient,
+        agentConfig: AiAgent,
+        channelId: string,
+        threadTs: string | undefined,
+        options: {
+            isMultiAgentChannel: boolean;
+            botMentionName?: string;
+        },
+    ): Promise<void> {
+        await client.chat.postMessage({
+            channel: channelId,
+            thread_ts: threadTs,
+            username: agentConfig.name,
+            blocks: getAgentConfirmationBlocks(agentConfig, {
+                isMultiAgentChannel: options.isMultiAgentChannel,
+                botMentionName: options.botMentionName,
+            }),
+            text: `You're now chatting with ${agentConfig.name}`,
+        });
+    }
+
+    /**
      * Check if user has access to an agent and throw ForbiddenError if not
      */
     private async verifyAgentAccess(
@@ -4141,17 +4166,46 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         event.text,
                     );
 
-                agentConfig = selectedAgent;
-
                 Logger.info(
                     `Agent selected by LLM ${JSON.stringify({
                         agentUuid: selectedAgent.uuid,
                         agentName: selectedAgent.name,
                         reasoning: selection.reasoning,
                         confidence: selection.confidence,
-                        userQuery: event.text,
                     })}`,
                 );
+
+                // If confidence is low, show selection UI instead
+                if (selection.confidence === 'low') {
+                    Logger.info(
+                        `Low confidence in agent selection - showing manual selection UI,
+                        ${JSON.stringify({ reasoning: selection.reasoning })},`,
+                    );
+                    await this.showAgentSelectionUI(
+                        availableAgents,
+                        event.channel,
+                        event.ts,
+                        say,
+                    );
+                    return;
+                }
+
+                const botMentionName = context.botUserId
+                    ? `<@${context.botUserId}>`
+                    : undefined;
+
+                await AiAgentService.postAgentConfirmation(
+                    client,
+                    selectedAgent,
+                    event.channel,
+                    event.ts,
+                    {
+                        isMultiAgentChannel: true,
+                        botMentionName,
+                    },
+                );
+
+                agentConfig = selectedAgent;
             }
 
             // At this point, we should have a selected agent
@@ -4375,22 +4429,20 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 });
 
                 // Post confirmation message with agent details
-
-                // Get bot mention name for helpful instructions
                 const botMentionName = context.botUserId
                     ? `<@${context.botUserId}>`
                     : undefined;
 
-                await client.chat.postMessage({
-                    channel: channelId,
-                    thread_ts: threadTs,
-                    username: agentConfig.name,
-                    blocks: getAgentConfirmationBlocks(agentConfig, {
+                await AiAgentService.postAgentConfirmation(
+                    client,
+                    agentConfig,
+                    channelId,
+                    threadTs,
+                    {
                         isMultiAgentChannel,
                         botMentionName,
-                    }),
-                    text: `You're now chatting with ${agentConfig.name}`,
-                });
+                    },
+                );
 
                 // Post the initial "working on it" message
                 const postedMessage = await client.chat.postMessage({
