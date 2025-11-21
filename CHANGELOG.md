@@ -1,3 +1,10 @@
+# [0.2195.0](https://github.com/lightdash/lightdash/compare/0.2194.0...0.2195.0) (2025-11-21)
+
+
+### Features
+
+* get agent summary metadata for search ([#18265](https://github.com/lightdash/lightdash/issues/18265)) ([34ed4fc](https://github.com/lightdash/lightdash/commit/34ed4fc8979e4aacd330c1c6222a799fe5b94e1d))
+
 # [0.2194.0](https://github.com/lightdash/lightdash/compare/0.2193.1...0.2194.0) (2025-11-21)
 
 
