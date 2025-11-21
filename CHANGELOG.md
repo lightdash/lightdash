@@ -1,3 +1,10 @@
+## [0.2199.2](https://github.com/lightdash/lightdash/compare/0.2199.1...0.2199.2) (2025-11-21)
+
+
+### Bug Fixes
+
+* get joined fields/tables when findExplores & findFields ([#18272](https://github.com/lightdash/lightdash/issues/18272)) ([fd08424](https://github.com/lightdash/lightdash/commit/fd0842404037144368a5ce5218f942a3217f8153))
+
 ## [0.2199.1](https://github.com/lightdash/lightdash/compare/0.2199.0...0.2199.1) (2025-11-21)
 
 
