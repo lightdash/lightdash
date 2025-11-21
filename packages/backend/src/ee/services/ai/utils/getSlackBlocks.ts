@@ -508,24 +508,7 @@ export function getAgentConfirmationBlocks(
         },
     ];
 
-    // Add agent image if available
-    if (agent.imageUrl) {
-        blocks[0] = {
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: instructionText,
-            },
-            accessory: {
-                type: 'image',
-                image_url: agent.imageUrl,
-                alt_text: agent.name,
-            },
-        };
-    }
-
-    // Add agent instruction/description if available
-    if (agent.instruction) {
+    if (agent.description) {
         const truncateDescription = (text: string): string => {
             // Slack context elements have a limit of ~3000 chars
             const maxLength = 500;
@@ -534,13 +517,20 @@ export function getAgentConfirmationBlocks(
         };
 
         blocks.push({
-            type: 'context',
-            elements: [
-                {
-                    type: 'mrkdwn',
-                    text: truncateDescription(agent.instruction),
-                },
-            ],
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: truncateDescription(agent.description),
+            },
+            ...(agent.imageUrl
+                ? {
+                      accessory: {
+                          type: 'image',
+                          image_url: agent.imageUrl,
+                          alt_text: agent.name,
+                      },
+                  }
+                : {}),
         });
     }
 
