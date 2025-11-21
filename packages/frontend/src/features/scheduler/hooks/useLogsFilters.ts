@@ -1,5 +1,5 @@
 import { type SchedulerRunStatus } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
 export type DestinationType = 'slack' | 'email' | 'msteams';
@@ -18,6 +18,7 @@ export const useLogsFilters = () => {
     const initialDestinations = searchParams.get('destination')
         ? (searchParams.get('destination')!.split(',') as DestinationType[])
         : [];
+    const initialSchedulerUuid = searchParams.get('schedulerUuid') || '';
 
     const [search, setSearchState] = useState<string>(initialSearch);
     const [selectedStatuses, setSelectedStatusesState] =
@@ -26,6 +27,16 @@ export const useLogsFilters = () => {
         useState<string[]>(initialCreators);
     const [selectedDestinations, setSelectedDestinationsState] =
         useState<DestinationType[]>(initialDestinations);
+    const [selectedSchedulerUuid, setSelectedSchedulerUuidState] =
+        useState<string>(initialSchedulerUuid);
+
+    // Sync state when URL parameters change (e.g., when navigating from status badge)
+    useEffect(() => {
+        const urlSchedulerUuid = searchParams.get('schedulerUuid') || '';
+        if (urlSchedulerUuid !== selectedSchedulerUuid) {
+            setSelectedSchedulerUuidState(urlSchedulerUuid);
+        }
+    }, [searchParams, selectedSchedulerUuid]);
 
     const setSearch = useCallback(
         (newSearch: string) => {
@@ -83,18 +94,34 @@ export const useLogsFilters = () => {
         [searchParams, setSearchParams],
     );
 
+    const setSelectedSchedulerUuid = useCallback(
+        (schedulerUuid: string) => {
+            setSelectedSchedulerUuidState(schedulerUuid);
+            const newParams = new URLSearchParams(searchParams);
+            if (schedulerUuid) {
+                newParams.set('schedulerUuid', schedulerUuid);
+            } else {
+                newParams.delete('schedulerUuid');
+            }
+            setSearchParams(newParams);
+        },
+        [searchParams, setSearchParams],
+    );
+
     const hasActiveFilters = useMemo(() => {
         return (
             search !== '' ||
             selectedStatuses.length > 0 ||
             selectedCreatedByUserUuids.length > 0 ||
-            selectedDestinations.length > 0
+            selectedDestinations.length > 0 ||
+            selectedSchedulerUuid !== ''
         );
     }, [
         search,
         selectedStatuses,
         selectedCreatedByUserUuids,
         selectedDestinations,
+        selectedSchedulerUuid,
     ]);
 
     const resetFilters = useCallback(() => {
@@ -102,6 +129,7 @@ export const useLogsFilters = () => {
         setSelectedStatusesState([]);
         setSelectedCreatedByUserUuidsState([]);
         setSelectedDestinationsState([]);
+        setSelectedSchedulerUuidState('');
 
         // Clear filter-related URL params
         const newParams = new URLSearchParams(searchParams);
@@ -109,6 +137,7 @@ export const useLogsFilters = () => {
         newParams.delete('status');
         newParams.delete('creator');
         newParams.delete('destination');
+        newParams.delete('schedulerUuid');
         setSearchParams(newParams);
     }, [searchParams, setSearchParams]);
 
@@ -117,10 +146,12 @@ export const useLogsFilters = () => {
         selectedStatuses,
         selectedCreatedByUserUuids,
         selectedDestinations,
+        selectedSchedulerUuid,
         setSearch,
         setSelectedStatuses,
         setSelectedCreatedByUserUuids,
         setSelectedDestinations,
+        setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
     };
