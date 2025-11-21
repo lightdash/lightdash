@@ -37,6 +37,7 @@ import {
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
+    validateTableCalculations,
 } from '../utils/validators';
 
 type Dependencies = {
@@ -114,6 +115,15 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.metrics,
         queryTool.customMetrics,
         queryTool.tableCalculations,
+    );
+
+    // Validate table calculations
+    validateTableCalculations(
+        explore,
+        queryTool.tableCalculations,
+        queryTool.queryConfig.dimensions,
+        queryTool.queryConfig.metrics,
+        queryTool.customMetrics,
     );
 };
 
