@@ -178,18 +178,15 @@ RUN pnpm -F @lightdash/common build
 
 # Build warehouses package
 FROM prod-builder AS build-warehouses
-COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
-COPY --from=build-common /usr/app/packages/common/tsconfig*.json ./packages/common/
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/warehouses/tsconfig.json ./packages/warehouses/
 COPY packages/warehouses/src/ ./packages/warehouses/src/
 RUN pnpm -F @lightdash/warehouses build
 
 # Build backend package
 FROM prod-builder AS build-backend
-COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
-COPY --from=build-common /usr/app/packages/common/tsconfig*.json ./packages/common/
-COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
-COPY --from=build-warehouses /usr/app/packages/warehouses/tsconfig*.json ./packages/warehouses/
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
@@ -212,7 +209,7 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
 
 # Build frontend package  
 FROM prod-builder AS build-frontend
-COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""
