@@ -3291,29 +3291,44 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
         const slackifiedMarkdown = slackifyMarkdown(response);
 
-        const newResponse = await this.slackClient.postMessage({
-            organizationUuid: slackPrompt.organizationUuid,
-            text: slackifiedMarkdown,
-            username: agent?.name,
-            channel: slackPrompt.slackChannelId,
-            thread_ts: slackPrompt.slackThreadTs,
-            unfurl_links: false,
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: slackifiedMarkdown,
-                    },
+        const blocks = [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: slackifiedMarkdown,
                 },
-                ...exploreBlocks,
-                ...proposeChangeBlocks,
-                ...referencedArtifactsBlocks,
-                ...followUpToolBlocks,
-                ...feedbackBlocks,
-                ...(historyBlocks || []),
-            ],
-        });
+            },
+            ...exploreBlocks,
+            ...proposeChangeBlocks,
+            ...referencedArtifactsBlocks,
+            ...followUpToolBlocks,
+            ...feedbackBlocks,
+            ...(historyBlocks || []),
+        ];
+
+        let newResponse;
+        try {
+            newResponse = await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: slackifiedMarkdown,
+                username: agent?.name,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                unfurl_links: false,
+                blocks,
+            });
+        } catch (error) {
+            console.error(error);
+            console.dir({ blocks }, { depth: null });
+            Sentry.captureException(error, {
+                tags: {
+                    tag: 'replyToSlackPrompt.postMessage',
+                },
+                extra: { blocks },
+            });
+            throw error;
+        }
 
         await this.aiAgentModel.updateModelResponse({
             promptUuid: slackPrompt.promptUuid,
