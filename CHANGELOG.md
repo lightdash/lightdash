@@ -1,3 +1,10 @@
+# [0.2194.0](https://github.com/lightdash/lightdash/compare/0.2193.1...0.2194.0) (2025-11-21)
+
+
+### Features
+
+* multi-agent slack channel ([#18254](https://github.com/lightdash/lightdash/issues/18254)) ([ae8c2bf](https://github.com/lightdash/lightdash/commit/ae8c2bfb3dac748e92162efea1361c5565d9dd8b)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2193.1](https://github.com/lightdash/lightdash/compare/0.2193.0...0.2193.1) (2025-11-21)
 
 
