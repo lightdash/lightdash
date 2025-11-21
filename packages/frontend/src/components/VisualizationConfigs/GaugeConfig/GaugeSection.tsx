@@ -1,11 +1,20 @@
 import { getItemId, type GaugeSection } from '@lightdash/common';
-import { Accordion, NumberInput, SegmentedControl, Stack } from '@mantine/core';
+import {
+    Accordion,
+    Center,
+    Group,
+    NumberInput,
+    SegmentedControl,
+    Stack,
+    Tooltip,
+} from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
+import { GaugeValueMode } from './types';
 
 export type Props = {
     onClick: () => void;
@@ -28,8 +37,12 @@ const GaugeSectionComponent: FC<Props> = memo(
             numericMetrics,
         } = visualizationConfig;
 
-        const minValueMode = section.minFieldId ? 'metric' : 'fixed';
-        const maxValueMode = section.maxFieldId ? 'metric' : 'fixed';
+        const minValueMode = section.minFieldId
+            ? GaugeValueMode.FIELD
+            : GaugeValueMode.FIXED;
+        const maxValueMode = section.maxFieldId
+            ? GaugeValueMode.FIELD
+            : GaugeValueMode.FIXED;
         const minField = getField(section.minFieldId);
         const maxField = getField(section.maxFieldId);
         const numericMetricsList = Object.values(numericMetrics ?? {});
@@ -52,12 +65,38 @@ const GaugeSectionComponent: FC<Props> = memo(
                 />
                 <Accordion.Panel>
                     <Stack spacing="md">
-                        <Stack spacing="xs">
+                        <Group spacing="xs" align="flex-end">
+                            {minValueMode === GaugeValueMode.FIXED ? (
+                                <NumberInput
+                                    label="Min value"
+                                    description="Set the minimum value for the section"
+                                    value={section.min}
+                                    onChange={(value) =>
+                                        onUpdate(index, { min: Number(value) })
+                                    }
+                                    style={{ flex: 1 }}
+                                />
+                            ) : (
+                                <FieldSelect
+                                    label="Min value"
+                                    description="Select a field to use as the minimum value"
+                                    item={minField}
+                                    items={numericMetricsList}
+                                    onChange={(newValue) => {
+                                        onUpdate(index, {
+                                            minFieldId: newValue
+                                                ? getItemId(newValue)
+                                                : undefined,
+                                        });
+                                    }}
+                                    hasGrouping
+                                    style={{ flex: 1 }}
+                                />
+                            )}
                             <SegmentedControl
                                 value={minValueMode}
                                 onChange={(value) => {
-                                    const newMode = value as 'fixed' | 'metric';
-                                    if (newMode === 'fixed') {
+                                    if (value === GaugeValueMode.FIXED) {
                                         onUpdate(index, {
                                             minFieldId: undefined,
                                         });
@@ -72,43 +111,66 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     }
                                 }}
                                 data={[
-                                    { label: 'Fixed min', value: 'fixed' },
-                                    { label: 'From metric', value: 'metric' },
+                                    {
+                                        label: (
+                                            <Tooltip
+                                                label="Set the maximum value"
+                                                withinPortal
+                                                variant="xs"
+                                            >
+                                                <Center>Value</Center>
+                                            </Tooltip>
+                                        ),
+                                        value: GaugeValueMode.FIXED,
+                                    },
+                                    {
+                                        label: (
+                                            <Tooltip
+                                                label="Select a field to use as the maximum value"
+                                                withinPortal
+                                                variant="xs"
+                                            >
+                                                <Center>Field</Center>
+                                            </Tooltip>
+                                        ),
+                                        value: GaugeValueMode.FIELD,
+                                    },
                                 ]}
-                                fullWidth
                             />
-                            {minValueMode === 'fixed' ? (
+                        </Group>
+
+                        <Group spacing="xs" align="flex-end">
+                            {maxValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
-                                    label="Min Value"
-                                    value={section.min}
+                                    label="Max value"
+                                    description="Set the maximum value for the section"
+                                    value={section.max}
                                     onChange={(value) =>
-                                        onUpdate(index, { min: Number(value) })
+                                        onUpdate(index, { max: Number(value) })
                                     }
+                                    style={{ flex: 1 }}
                                 />
                             ) : (
                                 <FieldSelect
-                                    label="Min Value Metric"
-                                    description="Select a metric to use as the minimum value"
-                                    item={minField}
+                                    label="Max value"
+                                    description="Select a field to use as the maximum value"
+                                    item={maxField}
                                     items={numericMetricsList}
                                     onChange={(newValue) => {
                                         onUpdate(index, {
-                                            minFieldId: newValue
+                                            maxFieldId: newValue
                                                 ? getItemId(newValue)
                                                 : undefined,
                                         });
                                     }}
                                     hasGrouping
+                                    style={{ flex: 1 }}
                                 />
                             )}
-                        </Stack>
-
-                        <Stack spacing="xs">
                             <SegmentedControl
                                 value={maxValueMode}
                                 onChange={(value) => {
-                                    const newMode = value as 'fixed' | 'metric';
-                                    if (newMode === 'fixed') {
+                                    if (value === GaugeValueMode.FIXED) {
                                         onUpdate(index, {
                                             maxFieldId: undefined,
                                         });
@@ -123,36 +185,33 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     }
                                 }}
                                 data={[
-                                    { label: 'Fixed max', value: 'fixed' },
-                                    { label: 'From metric', value: 'metric' },
+                                    {
+                                        label: (
+                                            <Tooltip
+                                                label="Set the maximum value"
+                                                withinPortal
+                                                variant="xs"
+                                            >
+                                                <Center>Value</Center>
+                                            </Tooltip>
+                                        ),
+                                        value: GaugeValueMode.FIXED,
+                                    },
+                                    {
+                                        label: (
+                                            <Tooltip
+                                                label="Select a field to use as the maximum value"
+                                                withinPortal
+                                                variant="xs"
+                                            >
+                                                <Center>Field</Center>
+                                            </Tooltip>
+                                        ),
+                                        value: GaugeValueMode.FIELD,
+                                    },
                                 ]}
-                                fullWidth
                             />
-                            {maxValueMode === 'fixed' ? (
-                                <NumberInput
-                                    label="Max Value"
-                                    value={section.max}
-                                    onChange={(value) =>
-                                        onUpdate(index, { max: Number(value) })
-                                    }
-                                />
-                            ) : (
-                                <FieldSelect
-                                    label="Max Value Metric"
-                                    description="Select a metric to use as the maximum value"
-                                    item={maxField}
-                                    items={numericMetricsList}
-                                    onChange={(newValue) => {
-                                        onUpdate(index, {
-                                            maxFieldId: newValue
-                                                ? getItemId(newValue)
-                                                : undefined,
-                                        });
-                                    }}
-                                    hasGrouping
-                                />
-                            )}
-                        </Stack>
+                        </Group>
                     </Stack>
                 </Accordion.Panel>
             </Accordion.Item>
