@@ -143,12 +143,14 @@ import {
 import {
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
+    getAgentSwitchedConfirmationBlock,
     getArtifactBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getSwitchAgentBlock,
 } from './ai/utils/getSlackBlocks';
 import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
@@ -3239,6 +3241,70 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             slackPrompt.promptUuid,
         );
 
+        // Check if we need to show the switch agent button
+        const slackSettingsForSwitch =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                slackPrompt.organizationUuid,
+            );
+        const isMultiAgentChannelForSwitch =
+            slackSettingsForSwitch?.aiMultiAgentChannelId ===
+            slackPrompt.slackChannelId;
+
+        // Check if this is the latest prompt in the thread
+        const latestPromptUuid =
+            await this.aiAgentModel.getLatestPromptInThread(
+                slackPrompt.threadUuid,
+            );
+        const isLatestPrompt = latestPromptUuid === slackPrompt.promptUuid;
+
+        // Get available agents for switch button
+        let switchAgentBlocks: ReturnType<typeof getSwitchAgentBlock> = [];
+        if (
+            isMultiAgentChannelForSwitch &&
+            isLatestPrompt &&
+            agent &&
+            slackSettingsForSwitch &&
+            user
+        ) {
+            try {
+                const availableAgents = await this.getAvailableAgents(
+                    slackPrompt.organizationUuid,
+                    user.userUuid,
+                    slackSettingsForSwitch,
+                    {
+                        projectType: ProjectType.DEFAULT,
+                    },
+                );
+
+                if (availableAgents.length > 1) {
+                    // Get project names for grouping
+                    const projectUuids = [
+                        ...new Set(availableAgents.map((a) => a.projectUuid)),
+                    ];
+                    const projects = await Promise.all(
+                        projectUuids.map((uuid) =>
+                            this.projectModel.getSummary(uuid),
+                        ),
+                    );
+                    const projectMap = new Map(
+                        projects.map((p) => [p.projectUuid, p.name]),
+                    );
+
+                    switchAgentBlocks = getSwitchAgentBlock(
+                        agent,
+                        availableAgents,
+                        projectMap,
+                    );
+                }
+            } catch (error) {
+                // Silently fail if we can't get available agents
+                Logger.warn(
+                    'Failed to get available agents for switch:',
+                    error,
+                );
+            }
+        }
+
         const feedbackBlocks = getFeedbackBlocks(slackPrompt, threadArtifacts);
         const followUpToolBlocks = getFollowUpToolBlocks(
             slackPrompt,
@@ -3307,6 +3373,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             ...proposeChangeBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
+            ...switchAgentBlocks,
             ...feedbackBlocks,
             ...(historyBlocks || []),
         ];
@@ -4516,6 +4583,270 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
             }
         });
+    }
+
+    public handleSwitchAgentInThread(app: App) {
+        app.action(
+            'switch_agent_in_thread',
+            async ({ ack, body, client, context }) => {
+                await ack();
+
+                if (body.type !== 'block_actions') {
+                    return;
+                }
+
+                const action = body.actions[0];
+                if (
+                    action?.type !== 'static_select' ||
+                    !action.selected_option
+                ) {
+                    return;
+                }
+
+                const { teamId } = context;
+                if (!teamId || !body.user?.id) {
+                    return;
+                }
+
+                try {
+                    // Get the new agent UUID from the dropdown value
+                    const newAgentUuid = action.selected_option.value;
+
+                    if (!newAgentUuid) {
+                        Logger.error('Invalid switch agent value', {
+                            value: action.selected_option.value,
+                        });
+                        return;
+                    }
+
+                    // Extract thread info from the message context
+                    const slackThreadTs =
+                        body.message && 'thread_ts' in body.message
+                            ? body.message.thread_ts
+                            : body.message?.ts;
+
+                    if (!slackThreadTs) {
+                        Logger.error('Could not find thread timestamp');
+                        return;
+                    }
+
+                    const organizationUuid =
+                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                            teamId,
+                        );
+
+                    const slackSettings =
+                        await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                            organizationUuid,
+                        );
+
+                    if (!slackSettings) {
+                        throw new NotFoundError(
+                            `Slack settings not found for organization ${organizationUuid}`,
+                        );
+                    }
+
+                    // Authenticate user
+                    const channelId = body.channel?.id;
+                    if (!channelId) {
+                        return;
+                    }
+
+                    const authResult = await this.handleAiAgentAuth(
+                        slackSettings,
+                        {
+                            userId: body.user.id,
+                            teamId,
+                            threadTs: slackThreadTs,
+                            channelId,
+                            messageId: body.message?.ts || '',
+                        },
+                        async () => {},
+                        client,
+                    );
+
+                    if (!authResult) {
+                        return;
+                    }
+
+                    const { userUuid } = authResult;
+
+                    // Find the thread UUID from the Slack thread timestamp
+                    const threadUuid =
+                        await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                            channelId,
+                            slackThreadTs,
+                        );
+
+                    if (!threadUuid) {
+                        Logger.error('Thread not found for Slack thread', {
+                            channelId,
+                            slackThreadTs,
+                        });
+                        return;
+                    }
+
+                    // Get the thread to find current agent
+                    const thread = await this.aiAgentModel.findThread(
+                        threadUuid,
+                    );
+
+                    if (!thread || !thread.agentUuid) {
+                        Logger.error('Thread or agent not found', {
+                            threadUuid,
+                        });
+                        return;
+                    }
+
+                    const currentAgentUuid = thread.agentUuid;
+
+                    // Get both agents
+                    const [oldAgent, newAgent] = await Promise.all([
+                        this.aiAgentModel.getAgent({
+                            organizationUuid,
+                            agentUuid: currentAgentUuid,
+                        }),
+                        this.aiAgentModel.getAgent({
+                            organizationUuid,
+                            agentUuid: newAgentUuid,
+                        }),
+                    ]);
+
+                    if (!oldAgent || !newAgent) {
+                        Logger.error('Agent not found', {
+                            currentAgentUuid,
+                            newAgentUuid,
+                        });
+                        return;
+                    }
+
+                    // Check if query is currently running
+                    const latestPromptUuid =
+                        await this.aiAgentModel.getLatestPromptInThread(
+                            threadUuid,
+                        );
+
+                    if (latestPromptUuid) {
+                        const slackPrompt =
+                            await this.aiAgentModel.findSlackPrompt(
+                                latestPromptUuid,
+                            );
+
+                        if (slackPrompt) {
+                            // Check if response is complete (has response text)
+                            const isQueryRunning = !slackPrompt.response;
+
+                            // If query is running, cancel it
+                            if (isQueryRunning) {
+                                await this.cancelRunningQuery(
+                                    slackPrompt,
+                                    client,
+                                    oldAgent,
+                                );
+                            }
+                        }
+                    }
+
+                    // Update the thread's agent
+                    await this.aiAgentModel.updateThreadAgent({
+                        threadUuid,
+                        agentUuid: newAgentUuid,
+                    });
+
+                    // Update the message to remove dropdown and show confirmation
+                    if (body.message?.ts) {
+                        const confirmationBlocks =
+                            getAgentSwitchedConfirmationBlock(
+                                newAgent,
+                                oldAgent,
+                            );
+
+                        await client.chat.update({
+                            channel: channelId,
+                            ts: body.message.ts,
+                            text: `✓ Switched to ${newAgent.name}`,
+                            blocks: [
+                                ...body.message.blocks!.filter(
+                                    (block: Block | KnownBlock) =>
+                                        !('block_id' in block) ||
+                                        block.block_id !== 'switch_agent',
+                                ),
+                                ...confirmationBlocks,
+                            ],
+                        });
+                    }
+
+                    // Track analytics
+                    this.analytics.track({
+                        event: 'ai_agent.switched_in_thread',
+                        userId: userUuid,
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: newAgent.projectUuid,
+                            oldAgentId: oldAgent.uuid,
+                            oldAgentName: oldAgent.name,
+                            newAgentId: newAgent.uuid,
+                            newAgentName: newAgent.name,
+                            threadId: threadUuid,
+                            wasCancelled: false, // We'll update this if needed
+                        },
+                    });
+                } catch (e) {
+                    Logger.error('Error switching agent in thread', e);
+                    if (body.user?.id && body.channel?.id) {
+                        try {
+                            await client.chat.postEphemeral({
+                                channel: body.channel.id,
+                                user: body.user.id,
+                                text: '⚠️ Failed to switch agent. Please try again or contact your administrator.',
+                            });
+                        } catch (notifyError) {
+                            Logger.error(
+                                'Failed to send error notification',
+                                notifyError,
+                            );
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    private async cancelRunningQuery(
+        slackPrompt: SlackPrompt,
+        client: WebClient,
+        agent: AiAgent,
+    ): Promise<void> {
+        try {
+            // Update the database to mark as cancelled
+            await this.aiAgentModel.updateModelResponse({
+                promptUuid: slackPrompt.promptUuid,
+                response: '_Query cancelled - agent switched_',
+            });
+
+            // Update the Slack message to show cancellation
+            if (slackPrompt.response_slack_ts) {
+                await client.chat.update({
+                    channel: slackPrompt.slackChannelId,
+                    ts: slackPrompt.response_slack_ts,
+                    text: '🛑 Query cancelled - agent switched',
+                    blocks: [
+                        {
+                            type: 'context',
+                            elements: [
+                                {
+                                    type: 'mrkdwn',
+                                    text: '🛑 Query cancelled - agent switched',
+                                },
+                            ],
+                        },
+                    ],
+                });
+            }
+        } catch (error) {
+            Logger.error('Failed to cancel running query', error);
+            // Don't throw - we still want to proceed with the switch
+        }
     }
 
     private async handleAiAgentAuth(

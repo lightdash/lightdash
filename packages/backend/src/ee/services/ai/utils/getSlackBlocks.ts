@@ -540,3 +540,127 @@ export function getAgentConfirmationBlocks(
 
     return blocks;
 }
+
+export function getSwitchAgentBlock(
+    currentAgent: AiAgent,
+    availableAgents: AiAgent[],
+    projectMap?: Map<string, string>,
+): (Block | KnownBlock)[] {
+    // Filter out the current agent from the list
+    const otherAgents = availableAgents.filter(
+        (agent) => agent.uuid !== currentAgent.uuid,
+    );
+
+    if (otherAgents.length === 0) {
+        return [];
+    }
+
+    const truncateText = (text: string | null, maxLength: number): string => {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return `${text.substring(0, maxLength - 3)}...`;
+    };
+
+    // Group agents by project if projectMap is provided
+    const shouldGroupByProject = projectMap && projectMap.size > 1;
+
+    if (shouldGroupByProject) {
+        // Group agents by projectUuid
+        const agentsByProject = new Map<string, AiAgent[]>();
+        for (const agent of otherAgents) {
+            const { projectUuid } = agent;
+            if (!agentsByProject.has(projectUuid)) {
+                agentsByProject.set(projectUuid, []);
+            }
+            agentsByProject.get(projectUuid)!.push(agent);
+        }
+
+        // Create option groups
+        const optionGroups = Array.from(agentsByProject.entries())
+            .map(([projectUuid, projectAgents]) => {
+                const projectName = projectMap.get(projectUuid) || projectUuid;
+                return {
+                    label: {
+                        type: 'plain_text' as const,
+                        text: truncateText(projectName, 75),
+                    },
+                    options: projectAgents.map((agent) => ({
+                        text: {
+                            type: 'plain_text' as const,
+                            text: truncateText(agent.name, 75),
+                        },
+                        // Only store the new agent UUID - we'll get other data from the message context
+                        value: agent.uuid,
+                    })),
+                };
+            })
+            .sort((a, b) => a.label.text.localeCompare(b.label.text));
+
+        return [
+            {
+                type: 'divider',
+            },
+            {
+                type: 'actions',
+                block_id: 'switch_agent',
+                elements: [
+                    {
+                        type: 'static_select',
+                        action_id: 'switch_agent_in_thread',
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Switch to different agent...',
+                        },
+                        option_groups: optionGroups,
+                    },
+                ],
+            },
+        ];
+    }
+
+    // Fallback to flat list if no projectMap provided or single project
+    return [
+        {
+            type: 'divider',
+        },
+        {
+            type: 'actions',
+            block_id: 'switch_agent',
+            elements: [
+                {
+                    type: 'static_select',
+                    action_id: 'switch_agent_in_thread',
+                    placeholder: {
+                        type: 'plain_text',
+                        text: 'Switch to different agent...',
+                    },
+                    options: otherAgents.map((agent) => ({
+                        text: {
+                            type: 'plain_text',
+                            text: truncateText(agent.name, 75),
+                        },
+                        // Only store the new agent UUID - we'll get other data from the message context
+                        value: agent.uuid,
+                    })),
+                },
+            ],
+        },
+    ];
+}
+
+export function getAgentSwitchedConfirmationBlock(
+    newAgent: AiAgent,
+    oldAgent: AiAgent,
+): (Block | KnownBlock)[] {
+    return [
+        {
+            type: 'context',
+            elements: [
+                {
+                    type: 'mrkdwn',
+                    text: `✓ Switched from *${oldAgent.name}* to *${newAgent.name}* for this conversation`,
+                },
+            ],
+        },
+    ];
+}
