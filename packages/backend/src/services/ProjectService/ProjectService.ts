@@ -5742,8 +5742,8 @@ export class ProjectService extends BaseService {
 
         if (
             account.user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -5752,7 +5752,7 @@ export class ProjectService extends BaseService {
         if (
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
-                'view',
+                'manage',
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {

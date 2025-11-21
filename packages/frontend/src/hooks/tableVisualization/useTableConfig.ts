@@ -242,6 +242,7 @@ const useTableConfig = (
             : {
                   metricQuery: resultsData?.metricQuery,
                   explore: resultsData?.metricQuery?.exploreName,
+                  savedChartUuid,
                   showSubtotals,
                   columnOrder,
                   pivotDimensions,

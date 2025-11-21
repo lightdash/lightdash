@@ -13,8 +13,11 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ExploreType,
     ForbiddenError,
+    MetricQuery,
     NotFoundError,
     ParameterError,
+    QueryExecutionContext,
+    RunQueryTags,
     SavedChart,
     SavedChartDAO,
     SchedulerAndTargets,
@@ -30,6 +33,7 @@ import {
     assertUnreachable,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    formatRawRows,
     generateSlug,
     getTimezoneLabel,
     isChartScheduler,
@@ -64,8 +68,10 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { ProjectService } from '../ProjectService/ProjectService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
@@ -81,6 +87,7 @@ type SavedChartServiceArguments = {
     dashboardModel: DashboardModel;
     catalogModel: CatalogModel;
     permissionsService: PermissionsService;
+    projectService: ProjectService;
 };
 
 export class SavedChartService
@@ -111,6 +118,8 @@ export class SavedChartService
 
     private readonly permissionsService: PermissionsService;
 
+    private readonly projectService: ProjectService;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -125,6 +134,7 @@ export class SavedChartService
         this.dashboardModel = args.dashboardModel;
         this.catalogModel = args.catalogModel;
         this.permissionsService = args.permissionsService;
+        this.projectService = args.projectService;
     }
 
     private async checkUpdateAccess(
@@ -809,6 +819,35 @@ export class SavedChartService
         }
 
         return access;
+    }
+
+    async calculateSubtotals(savedChartUuidOrSlug: string, account: Account) {
+        const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        await this.checkPermissions(account, space, savedChart);
+
+        const explore = await this.projectService.getExplore(
+            account,
+            savedChart.projectUuid,
+            savedChart.metricQuery.exploreName,
+            savedChart.organizationUuid,
+        );
+
+        // Reuse the _calculateSubtotals method passing saved chart's metric query, explore, columnOrder, etc.
+        return this.projectService._calculateSubtotals(
+            account,
+            savedChart.projectUuid,
+            {
+                metricQuery: savedChart.metricQuery,
+                explore: savedChart.metricQuery.exploreName,
+                columnOrder: savedChart.tableConfig?.columnOrder || [],
+                pivotDimensions: savedChart.pivotConfig?.columns || [],
+            },
+            explore,
+            savedChart.organizationUuid,
+        );
     }
 
     async get(

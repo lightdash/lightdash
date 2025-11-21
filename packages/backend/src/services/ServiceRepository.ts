@@ -629,6 +629,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     catalogModel: this.models.getCatalogModel(),
                     permissionsService: this.getPermissionsService(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
