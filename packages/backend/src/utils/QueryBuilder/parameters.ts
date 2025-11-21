@@ -17,6 +17,45 @@ const validateAndSanitizeNumber = (value: unknown): number => {
     return num;
 };
 
+const validateAndSanitizeDate = (value: unknown): string => {
+    // Date must be a string
+    if (typeof value !== 'string') {
+        throw new UnexpectedServerError(
+            `Invalid date parameter: "${value}" is not a string`,
+        );
+    }
+
+    // Validate ISO 8601 date format (YYYY-MM-DD)
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDateRegex.test(value)) {
+        throw new UnexpectedServerError(
+            `Invalid date parameter: "${value}" is not a valid ISO 8601 date (YYYY-MM-DD)`,
+        );
+    }
+
+    // Validate that the date is actually valid (e.g., not Feb 30)
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        throw new UnexpectedServerError(
+            `Invalid date parameter: "${value}" is not a valid ISO 8601 date (YYYY-MM-DD)`,
+        );
+    }
+
+    // Verify the date string matches what Date parsed (catches things like "2025-02-30")
+    const [year, month, day] = value.split('-').map(Number);
+    if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() + 1 !== month ||
+        date.getUTCDate() !== day
+    ) {
+        throw new UnexpectedServerError(
+            `Invalid date parameter: "${value}" is not a valid ISO 8601 date (YYYY-MM-DD)`,
+        );
+    }
+
+    return value;
+};
+
 const escapeParameterValues = (
     parameters: ParametersValuesMap,
     escapeString: (value: string) => string,
@@ -46,12 +85,14 @@ export const safeReplaceParameters = ({
     escapeString,
     quoteChar,
     wrapChar,
+    cast,
 }: {
     sql: string;
     parameterValuesMap: ParametersValuesMap;
     escapeString: (value: string) => string;
     quoteChar: string;
     wrapChar?: string;
+    cast?: 'DATE';
 }) => {
     // Don't allow empty quote char
     if (quoteChar === '') {
@@ -69,6 +110,7 @@ export const safeReplaceParameters = ({
         {
             replacementName: 'parameter',
             throwOnMissing: false,
+            cast,
         },
     );
 };
@@ -144,18 +186,28 @@ export const safeReplaceParametersWithTypes = ({
     // Split parameters by type
     const stringParameters: ParametersValuesMap = {};
     const numberParameters: ParametersValuesMap = {};
+    const dateParameters: ParametersValuesMap = {};
 
     Object.entries(parameterValuesMap).forEach(([key, value]) => {
         const paramDef = parameterDefinitions?.[key];
-        const isNumberType = paramDef?.type === 'number';
+        const paramType = paramDef?.type;
 
-        if (isNumberType) {
+        if (paramType === 'number') {
             // Validate and convert to number to prevent SQL injection
             if (Array.isArray(value)) {
                 numberParameters[key] = value.map(validateAndSanitizeNumber);
             } else {
                 numberParameters[key] = validateAndSanitizeNumber(value);
             }
+        } else if (paramType === 'date') {
+            // Validate date format
+            // Note: We don't support multiple dates
+            if (Array.isArray(value)) {
+                throw new UnexpectedServerError(
+                    `Multiple date values not yet supported for parameter "${key}"`,
+                );
+            }
+            dateParameters[key] = validateAndSanitizeDate(value);
         } else {
             stringParameters[key] = value;
         }
@@ -174,7 +226,20 @@ export const safeReplaceParametersWithTypes = ({
         processedSql = stringResult.replacedSql;
     }
 
-    // Then replace number parameters (without quotes)
+    // Then replace date parameters (with CAST wrapper and quotes)
+    if (Object.keys(dateParameters).length > 0) {
+        const dateResult = safeReplaceParameters({
+            sql: processedSql,
+            parameterValuesMap: dateParameters,
+            escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
+            quoteChar: sqlBuilder.getStringQuoteChar(),
+            wrapChar,
+            cast: 'DATE',
+        });
+        processedSql = dateResult.replacedSql;
+    }
+
+    // Finally replace number parameters (without quotes)
     if (Object.keys(numberParameters).length > 0) {
         const numberResult = unsafeReplaceParametersAsRaw(
             processedSql,

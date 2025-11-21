@@ -91,6 +91,30 @@ models:
         meta:
           dimension:
             type: number
+      - name: date_dim_param_test
+        description: "Example of date based on another dimension"
+        meta:
+          dimension:
+            sql: |
+              CASE
+                WHEN ${TABLE}.order_date <= ${lightdash.parameters.date_dim_parameter}
+                  THEN 'param is greater'
+                WHEN ${TABLE}.order_date >= ${lightdash.parameters.date_dim_parameter}
+                  THEN 'param is smaller'
+              END
+        type: string
+      - name: date_custom_param_test
+        description: "Example of custom date"
+        meta:
+          dimension:
+            sql: |
+              CASE
+                WHEN ${TABLE}.order_date <= ${lightdash.parameters.date_custom_parameter}
+                  THEN 'I feel less than...'
+                WHEN ${TABLE}.order_date >= ${lightdash.parameters.date_custom_parameter}
+                  THEN 'I feel great!!!'
+              END
+        type: string
       - name: order_date
         description: Date (UTC) that the order was placed
         config:

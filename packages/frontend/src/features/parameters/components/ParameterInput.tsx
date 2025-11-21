@@ -1,28 +1,32 @@
 import {
     DimensionType,
     FieldType,
-    getItemId,
     type FilterableItem,
+    formatDate,
+    getItemId,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
+    parseDate,
+    TimeFrames,
 } from '@lightdash/common';
 import {
     Box,
+    type ComboboxItemGroup,
     Group,
     MultiSelect,
     Select,
-    type ComboboxItemGroup,
 } from '@mantine-8/core';
+import { DatePickerInput } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import React, {
+    type FC,
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
-    type FC,
 } from 'react';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -42,6 +46,18 @@ type ParameterInputProps = {
     parameterValues?: ParametersValuesMap;
     disabled?: boolean;
     isError?: boolean;
+};
+
+const parameterDimensionMap: Record<string, DimensionType> = {
+    string: DimensionType.STRING,
+    number: DimensionType.NUMBER,
+    date: DimensionType.DATE,
+};
+
+const getDimensionType = (paramType: string | undefined): DimensionType => {
+    if (!paramType) return DimensionType.STRING;
+
+    return parameterDimensionMap[paramType] || DimensionType.STRING;
 };
 
 export const ParameterInput: FC<ParameterInputProps> = ({
@@ -67,7 +83,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 name: parameter.options_from_dimension.dimension,
                 table: parameter.options_from_dimension.model,
                 fieldType: FieldType.DIMENSION,
-                type: DimensionType.STRING,
+                type: getDimensionType(parameter.type),
                 label:
                     parameter.label ||
                     parameter.options_from_dimension.dimension,
@@ -77,7 +93,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             };
         }
         return undefined;
-    }, [parameter.options_from_dimension, parameter.label]);
+    }, [parameter.options_from_dimension, parameter.label, parameter.type]);
 
     const fieldId = field ? getItemId(field) : undefined;
 
@@ -99,6 +115,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         forceRefresh,
         {
             refetchOnMount: 'always',
+            enabled: parameter.type !== 'date',
         },
         parameterValues,
     );
@@ -144,9 +161,20 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             .filter((n): n is number => !isNaN(n) && isFinite(n));
     }, [value, parameter.type]);
 
+    const currentDateValues = useMemo((): string[] => {
+        if (parameter.type !== 'date' || value == null) return [];
+        // Dates are stored as ISO 8601 strings (YYYY-MM-DD)
+        // Note: Multiple dates not yet supported, but using array for consistency
+        return (Array.isArray(value) ? value : [value]).map(String);
+    }, [value, parameter.type]);
+
     // Use the appropriate array based on parameter type
     const currentValues =
-        parameter.type === 'number' ? currentNumberValues : currentStringValues;
+        parameter.type === 'number'
+            ? currentNumberValues
+            : parameter.type === 'date'
+            ? currentDateValues
+            : currentStringValues;
 
     const optionsData = useMemo(() => {
         const parameterOptions = parameter.options ?? [];
@@ -189,6 +217,19 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                     ]);
                 } else {
                     onParameterChange(paramKey, numValue);
+                }
+            } else if (parameter.type === 'date') {
+                // Validate ISO 8601 date format (YYYY-MM-DD)
+                const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!isoDateRegex.test(trimmedValue)) return;
+
+                // Validate that it's an actual valid date
+                const date = new Date(trimmedValue);
+                if (isNaN(date.getTime())) return;
+
+                // Note: Multiple dates not yet supported
+                if (!parameter.multiple) {
+                    onParameterChange(paramKey, trimmedValue);
                 }
             } else {
                 if (parameter.multiple) {
@@ -396,7 +437,52 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         ],
     );
 
-    // Always render Select or MultiSelect based on parameter.multiple
+    // Render DateInput for date type parameters (single value only - multiple dates not yet supported)
+    if (parameter.type === 'date' && !parameter.multiple) {
+        // Convert current ISO string value to Date object
+        const currentDate =
+            currentDateValues.length > 0
+                ? parseDate(currentDateValues[0], TimeFrames.DAY)
+                : null;
+
+        // Reasonable date range constraints
+        const minDate = new Date(1900, 0, 1); // January 1, 1900
+        const maxDate = new Date(2100, 11, 31); // December 31, 2100
+
+        const defaultValue =
+            typeof parameter.default === 'string'
+                ? new Date(parameter.default)
+                : null;
+
+        return (
+            <DatePickerInput
+                value={currentDate || defaultValue}
+                onChange={(date: Date | null) => {
+                    if (date) {
+                        // Convert Date object to ISO string (YYYY-MM-DD)
+                        const isoString = formatDate(date, TimeFrames.DAY);
+                        onParameterChange(paramKey, isoString);
+                    } else {
+                        onParameterChange(paramKey, null);
+                    }
+                }}
+                firstDayOfWeek={0}
+                size={size}
+                clearable
+                disabled={disabled}
+                error={isError}
+                minDate={minDate}
+                maxDate={maxDate}
+                popoverProps={{
+                    shadow: 'sm',
+                    withinPortal: false,
+                    zIndex: 10000,
+                }}
+            />
+        );
+    }
+
+    // Render Select or MultiSelect for non-date types or multiple date selection
     if (parameter.multiple) {
         return (
             <MultiSelect
