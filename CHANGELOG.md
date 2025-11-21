@@ -1,3 +1,10 @@
+## [0.2199.3](https://github.com/lightdash/lightdash/compare/0.2199.2...0.2199.3) (2025-11-21)
+
+
+### Bug Fixes
+
+* lazy load space queries in the frontend ([#18271](https://github.com/lightdash/lightdash/issues/18271)) ([dd241d4](https://github.com/lightdash/lightdash/commit/dd241d45035c8a5a82774ed2ccf66225f465f985))
+
 ## [0.2199.2](https://github.com/lightdash/lightdash/compare/0.2199.1...0.2199.2) (2025-11-21)
 
 
