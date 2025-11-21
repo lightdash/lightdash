@@ -970,7 +970,7 @@ ${styles.bold('Examples:')}
 program
     .command('lint')
     .description(
-        'Validates Lightdash Code files (charts, dashboards) against JSON schemas',
+        'Validates Lightdash Code files (models, charts, dashboards) against JSON schemas',
     )
     .addHelpText(
         'after',
