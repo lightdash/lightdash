@@ -23,7 +23,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useMemo } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -38,6 +38,7 @@ import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {
     projectUuid: string;
+    agentUuid: string;
     saveChartOptions?: {
         name: string | null;
         description: string | null;
@@ -50,6 +51,7 @@ type Props = {
 
 export const AiChartQuickOptions = ({
     projectUuid,
+    agentUuid,
     saveChartOptions = { name: '', description: '', linkToMessage: true },
     message,
     compiledSql,
@@ -57,7 +59,6 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { agentUuid } = useParams();
 
     const [opened, { open, close }] = useDisclosure(false);
     const [
