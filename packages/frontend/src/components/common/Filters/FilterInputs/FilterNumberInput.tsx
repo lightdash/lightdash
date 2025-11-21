@@ -71,9 +71,14 @@ const FilterNumberInput: FC<Props> = ({
             const parsedNumber = parseNumberInput(inputText);
             const normalizedPropValue = value ?? null;
 
+            const isIntermediateState =
+                inputText.endsWith('.') ||
+                inputText === '-' ||
+                inputText === '.';
+
             // Only notify parent if the parsed value differs from current prop
             // This prevents infinite loops from unnecessary onChange calls
-            if (parsedNumber !== normalizedPropValue) {
+            if (!isIntermediateState && parsedNumber !== normalizedPropValue) {
                 onChange(parsedNumber);
             }
         },
