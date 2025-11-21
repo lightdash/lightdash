@@ -253,7 +253,7 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'dbt run',
         )} -s +mymodel ${styles.secondary(
-            "-- runs mymodel and it's parents and generates .yml",
+            "-- runs mymodel and its parents and generates .yml",
         )}
 `,
     )
