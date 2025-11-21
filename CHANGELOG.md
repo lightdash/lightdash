@@ -1,3 +1,11 @@
+# [0.2200.0](https://github.com/lightdash/lightdash/compare/0.2199.3...0.2200.0) (2025-11-21)
+
+
+### Features
+
+* display tool result output in debug drawer for findExplores & findFields ([#18277](https://github.com/lightdash/lightdash/issues/18277)) ([c46551a](https://github.com/lightdash/lightdash/commit/c46551af95eda20fbff5e402c0500d309813aab4))
+* enable using metrics for gauge min/max ([#18264](https://github.com/lightdash/lightdash/issues/18264)) ([e0a92fd](https://github.com/lightdash/lightdash/commit/e0a92fd577a66cc950a00e16257c27f297b251c8))
+
 ## [0.2199.3](https://github.com/lightdash/lightdash/compare/0.2199.2...0.2199.3) (2025-11-21)
 
 
