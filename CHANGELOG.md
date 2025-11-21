@@ -1,3 +1,10 @@
+# [0.2198.0](https://github.com/lightdash/lightdash/compare/0.2197.0...0.2198.0) (2025-11-21)
+
+
+### Features
+
+* group SD connection errors, improve message ([#18258](https://github.com/lightdash/lightdash/issues/18258)) ([b7253dc](https://github.com/lightdash/lightdash/commit/b7253dc57393436348bb1e992c536cc37217a268))
+
 # [0.2197.0](https://github.com/lightdash/lightdash/compare/0.2196.0...0.2197.0) (2025-11-21)
 
 
