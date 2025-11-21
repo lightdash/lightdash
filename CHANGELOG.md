@@ -1,3 +1,10 @@
+# [0.2199.0](https://github.com/lightdash/lightdash/compare/0.2198.4...0.2199.0) (2025-11-21)
+
+
+### Features
+
+* add chronological sorting for time interval names in pivoted queries ([#18256](https://github.com/lightdash/lightdash/issues/18256)) ([d0436b7](https://github.com/lightdash/lightdash/commit/d0436b781c656fefc990d0e99781c6c545a26b47)), closes [#18245](https://github.com/lightdash/lightdash/issues/18245)
+
 ## [0.2198.4](https://github.com/lightdash/lightdash/compare/0.2198.3...0.2198.4) (2025-11-21)
 
 
