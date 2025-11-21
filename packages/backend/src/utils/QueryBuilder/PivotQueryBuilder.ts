@@ -1,13 +1,23 @@
 import {
     getAggregatedField,
+    isDimension,
+    isField,
     normalizeIndexColumns,
     ParameterError,
-    type PivotConfiguration,
     SortByDirection,
+    TimeFrames,
     VizSortBy,
     WarehouseSqlBuilder,
+    type CompiledDimension,
+    type ItemsMap,
+    type PivotConfiguration,
 } from '@lightdash/common';
-import { applyLimitToSqlQuery } from './utils';
+import {
+    applyLimitToSqlQuery,
+    sortDayOfWeekName,
+    sortMonthName,
+    sortQuarterName,
+} from './utils';
 
 const DEFAULT_PIVOT_ROW_LIMIT = 500;
 
@@ -28,23 +38,57 @@ export class PivotQueryBuilder {
 
     private readonly warehouseSqlBuilder: WarehouseSqlBuilder;
 
+    private readonly itemsMap: ItemsMap;
+
     /**
      * Creates a new PivotQueryBuilder instance.
      * @param sql - The base SQL query to transform
      * @param pivotConfiguration - Configuration defining how to pivot the data
      * @param warehouseSqlBuilder - Database-specific SQL builder for proper quoting and syntax
      * @param limit - Optional row limit for the result set (defaults to 500)
+     * @param itemsMap - Map of field references to field metadata for resolving time intervals
      */
     constructor(
         sql: string,
         pivotConfiguration: PivotConfiguration,
         warehouseSqlBuilder: WarehouseSqlBuilder,
         limit?: number,
+        itemsMap?: ItemsMap,
     ) {
         this.sql = sql;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
+        this.itemsMap = itemsMap ?? {};
+    }
+
+    /**
+     * Resolves sort field reference to SQL expression.
+     * For name-based time intervals, returns CASE statement for chronological order.
+     * @param reference Field reference from sortBy
+     * @param descending Sort direction
+     * @returns SQL sort expression
+     */
+    private resolveSortField(reference: string, descending: boolean): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const field = this.itemsMap[reference];
+
+        if (!field || !isDimension(field)) {
+            return `${q}${reference}${q}${descending ? ' DESC' : ' ASC'}`;
+        }
+
+        const startOfWeek = this.warehouseSqlBuilder.getStartOfWeek();
+
+        switch (field.timeInterval) {
+            case TimeFrames.MONTH_NAME:
+                return sortMonthName(field, q, descending);
+            case TimeFrames.DAY_OF_WEEK_NAME:
+                return sortDayOfWeekName(field, startOfWeek, q, descending);
+            case TimeFrames.QUARTER_NAME:
+                return sortQuarterName(field, q, descending);
+            default:
+                return `${q}${reference}${q}${descending ? ' DESC' : ' ASC'}`;
+        }
     }
 
     /**
@@ -87,9 +131,13 @@ export class PivotQueryBuilder {
     private getOrderBySQL(sortBy: PivotConfiguration['sortBy']): string {
         if (!sortBy?.length) return '';
 
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         return `ORDER BY ${sortBy
-            .map((s) => `${q}${s.reference}${q} ${s.direction}`)
+            .map((s) =>
+                this.resolveSortField(
+                    s.reference,
+                    s.direction === SortByDirection.DESC,
+                ),
+            )
             .join(', ')}`;
     }
 
@@ -182,7 +230,7 @@ export class PivotQueryBuilder {
      * @param q - Quote character for field names
      * @returns ORDER BY clause string for groupBy columns
      */
-    private static buildGroupByOrderBy(
+    private buildGroupByOrderBy(
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
@@ -231,15 +279,15 @@ export class PivotQueryBuilder {
             // Create groups order parts. Note that groups parts should follow the groupsByColumns order rather than sortBy order.
             const groupsOrderByParts = groupByColumns.map((col) => {
                 const sort = sortBy.find((s) => s.reference === col.reference);
-                if (sort) {
-                    const sortDirection =
-                        sort.direction === SortByDirection.DESC
-                            ? ' DESC'
-                            : ' ASC';
-                    return `g.${q}${col.reference}${q}${sortDirection}`;
-                }
-
-                return `g.${q}${col.reference}${q} ASC`;
+                const sortExpr = this.resolveSortField(
+                    col.reference,
+                    sort?.direction === SortByDirection.DESC,
+                );
+                // Prefix with g. table alias
+                return sortExpr.replaceAll(
+                    `${q}${col.reference}${q}`,
+                    `g.${q}${col.reference}${q}`,
+                );
             });
 
             // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
@@ -273,7 +321,7 @@ export class PivotQueryBuilder {
      * @param q - Quote character for field names
      * @returns ORDER BY clause string for row index ordering
      */
-    private static buildRowIndexOrderBy(
+    private buildRowIndexOrderBy(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
@@ -317,9 +365,16 @@ export class PivotQueryBuilder {
                 }
             } else if (isIndexColumn) {
                 // Only include index columns in row ordering
-                orderByParts.push(
-                    `g.${q}${sort.reference}${q}${sortDirection}`,
+                const sortExpr = this.resolveSortField(
+                    sort.reference,
+                    sort.direction === SortByDirection.DESC,
                 );
+                // Prefix with g. table alias
+                const prefixedExpr = sortExpr.replaceAll(
+                    `${q}${sort.reference}${q}`,
+                    `g.${q}${sort.reference}${q}`,
+                );
+                orderByParts.push(prefixedExpr);
             }
             // Skip other column types (like groupBy columns) as they shouldn't affect row ordering
         }
@@ -329,7 +384,15 @@ export class PivotQueryBuilder {
         const sortedReferences = new Set(sortBy.map((s) => s.reference));
         for (const indexCol of indexColumns) {
             if (!sortedReferences.has(indexCol.reference)) {
-                orderByParts.push(`g.${q}${indexCol.reference}${q} ASC`);
+                const sortExpr = this.resolveSortField(
+                    indexCol.reference,
+                    false,
+                );
+                const prefixedExpr = sortExpr.replaceAll(
+                    `${q}${indexCol.reference}${q}`,
+                    `g.${q}${indexCol.reference}${q}`,
+                );
+                orderByParts.push(prefixedExpr);
             }
         }
 
@@ -471,7 +534,7 @@ export class PivotQueryBuilder {
         ];
 
         // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
-        const rowIndexOrderBy = PivotQueryBuilder.buildRowIndexOrderBy(
+        const rowIndexOrderBy = this.buildRowIndexOrderBy(
             indexColumns,
             valuesColumns,
             sortBy,
@@ -479,7 +542,7 @@ export class PivotQueryBuilder {
             q,
         );
 
-        const groupByOrderBy = PivotQueryBuilder.buildGroupByOrderBy(
+        const groupByOrderBy = this.buildGroupByOrderBy(
             groupByColumns,
             valuesColumns,
             sortBy,
