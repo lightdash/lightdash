@@ -75,6 +75,8 @@ const GaugeSectionComponent: FC<Props> = memo(
                                         onUpdate(index, { min: Number(value) })
                                     }
                                     style={{ flex: 1 }}
+                                    precision={2}
+                                    removeTrailingZeros={true}
                                 />
                             ) : (
                                 <FieldSelect
@@ -148,6 +150,8 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     onChange={(value) =>
                                         onUpdate(index, { max: Number(value) })
                                     }
+                                    precision={2}
+                                    removeTrailingZeros={true}
                                     style={{ flex: 1 }}
                                 />
                             ) : (
