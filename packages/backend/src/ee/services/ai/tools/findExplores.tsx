@@ -18,12 +18,16 @@ type Dependencies = {
 };
 
 const generateExploreResponse = ({
+    searchQuery,
     exploreSearchResults,
     topMatchingFields,
-}: Awaited<ReturnType<FindExploresFn>>) => {
+}: Awaited<ReturnType<FindExploresFn>> & { searchQuery: string }) => {
     const searchResultsXml =
         exploreSearchResults && exploreSearchResults.length > 0 ? (
-            <searchResults count={exploreSearchResults.length}>
+            <searchResults
+                searchQuery={searchQuery}
+                count={exploreSearchResults.length}
+            >
                 <note>
                     {exploreSearchResults.length === 1
                         ? 'One explore matched your search. Call findFields for this explore to get all its dimensions and metrics.'
@@ -45,6 +49,20 @@ const generateExploreResponse = ({
                                 ))}
                             </aiHints>
                         )}
+                        {result.joinedTables &&
+                            result.joinedTables.length > 0 && (
+                                <joinedTables
+                                    count={result.joinedTables.length}
+                                >
+                                    <note>
+                                        Fields from these joined tables are
+                                        available when querying this explore
+                                    </note>
+                                    {result.joinedTables.map((tableName) => (
+                                        <table>{tableName}</table>
+                                    ))}
+                                </joinedTables>
+                            )}
                     </alternative>
                 ))}
             </searchResults>
@@ -102,6 +120,7 @@ export const getFindExplores = ({
 
                 return {
                     result: generateExploreResponse({
+                        searchQuery: args.searchQuery,
                         exploreSearchResults,
                         topMatchingFields,
                     }),

@@ -102,9 +102,13 @@ export const parseCatalog = (
         };
     }
 
+    // Find the correct table that contains this field
+    // This is important for fields from joined tables which may not be in the base table
+    const catalogTable = dbCatalog.explore.tables[dbCatalog.table_name];
+
     const dimensionsAndMetrics = [
-        ...Object.values(baseTable.dimensions),
-        ...Object.values(baseTable.metrics),
+        ...Object.values(catalogTable.dimensions),
+        ...Object.values(catalogTable.metrics),
     ];
     // This is the most computationally expensive part of the code
     // Perhaps we should add metadata (requiredAttributes) to the catalog database
@@ -114,10 +118,10 @@ export const parseCatalog = (
     );
     if (!findField) {
         throw new Error(
-            `Field ${dbCatalog.name} not found in explore ${dbCatalog.explore.name}`,
+            `Field ${dbCatalog.name} not found in table ${dbCatalog.table_name} of explore ${dbCatalog.explore.name}`,
         );
     }
-    return parseFieldFromMetricOrDimension(baseTable, findField, {
+    return parseFieldFromMetricOrDimension(catalogTable, findField, {
         label: dbCatalog.label,
         description: dbCatalog.description,
         catalogSearchUuid: dbCatalog.catalog_search_uuid,

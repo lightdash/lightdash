@@ -155,6 +155,7 @@ Configuration Tips:
 - For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
 - Users can switch between visualization types in the UI after creation
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
+- filters can contain filters on fields from joined tables as well as the base table
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({

@@ -6,13 +6,13 @@ export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
 Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.
+IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
-- exploreName: Name of the explore to retrieve
 - searchQuery: Full user query for finding relevant explores
 
 Output:
-- Selected explore with all fields and metadata
+- Selected explore with all fields and metadata (including fields from joined tables)
 - Alternative explores (if multiple matches) with searchRank scores
 - Top matching fields with their explore names and searchRank scores
 `;

@@ -2443,6 +2443,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         description: table.description,
                         aiHints: table.aiHints ?? undefined,
                         searchRank: table.searchRank,
+                        joinedTables: table.joinedTables ?? undefined,
                     }));
 
                 const fieldSearchResults =
@@ -2521,7 +2522,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination };
+                return { fields: catalogFields, pagination, explore };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
