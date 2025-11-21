@@ -1,4 +1,5 @@
 import {
+    AiAgent,
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
@@ -351,4 +352,201 @@ export function getProposeChangeBlocks(
             ],
         },
     ];
+}
+
+export function getAgentSelectionBlocks(
+    agents: AiAgent[],
+    channelId: string,
+    projectMap?: Map<string, string>,
+): (Block | KnownBlock)[] {
+    if (agents.length === 0) {
+        return [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: ':warning: *No AI agents are available in this channel.*\n\nPlease contact your workspace administrator to configure agents.',
+                },
+            },
+        ];
+    }
+
+    const truncateText = (text: string | null, maxLength: number): string => {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return `${text.substring(0, maxLength - 3)}...`;
+    };
+
+    // Group agents by project if projectMap is provided
+    const shouldGroupByProject = projectMap && projectMap.size > 0;
+
+    if (shouldGroupByProject) {
+        // Group agents by projectUuid
+        const agentsByProject = new Map<string, AiAgent[]>();
+        for (const agent of agents) {
+            const { projectUuid } = agent;
+            if (!agentsByProject.has(projectUuid)) {
+                agentsByProject.set(projectUuid, []);
+            }
+            agentsByProject.get(projectUuid)!.push(agent);
+        }
+
+        // Create option groups
+        const optionGroups = Array.from(agentsByProject.entries())
+            .map(([projectUuid, projectAgents]) => {
+                const projectName = projectMap.get(projectUuid) || projectUuid;
+                return {
+                    label: {
+                        type: 'plain_text' as const,
+                        // Slack has a 75 character limit for option group labels
+                        text: truncateText(projectName, 75),
+                    },
+                    options: projectAgents.map((agent) => ({
+                        text: {
+                            type: 'plain_text' as const,
+                            // Slack has a 75 character limit for option text
+                            text: truncateText(agent.name, 75),
+                        },
+                        value: JSON.stringify({
+                            agentUuid: agent.uuid,
+                            channelId,
+                        }),
+                    })),
+                };
+            })
+            .sort((a, b) => a.label.text.localeCompare(b.label.text)); // Sort groups alphabetically
+
+        return [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
+                },
+            },
+            {
+                type: 'actions',
+                block_id: 'agent_selection',
+                elements: [
+                    {
+                        type: 'static_select',
+                        action_id: 'select_agent',
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Choose an agent...',
+                        },
+                        option_groups: optionGroups,
+                    },
+                ],
+            },
+        ];
+    }
+
+    // Fallback to flat list if no projectMap provided
+    return [
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
+            },
+        },
+        {
+            type: 'actions',
+            block_id: 'agent_selection',
+            elements: [
+                {
+                    type: 'static_select',
+                    action_id: 'select_agent',
+                    placeholder: {
+                        type: 'plain_text',
+                        text: 'Choose an agent...',
+                    },
+                    options: agents.map((agent) => ({
+                        text: {
+                            type: 'plain_text',
+                            // Slack has a 75 character limit for option text
+                            text: truncateText(agent.name, 75),
+                        },
+                        value: JSON.stringify({
+                            agentUuid: agent.uuid,
+                            channelId,
+                        }),
+                    })),
+                },
+            ],
+        },
+    ];
+}
+
+export function getAgentConfirmationBlocks(
+    agent: AiAgent,
+    options?: {
+        isMultiAgentChannel?: boolean;
+        botMentionName?: string;
+    },
+): (Block | KnownBlock)[] {
+    const { isMultiAgentChannel = false, botMentionName } = options || {};
+
+    // Create helpful instructions based on channel type
+    // For multi-agent channels, the tip will be shown after the AI response
+    const instructionText = isMultiAgentChannel
+        ? `You're now chatting with *${agent.name}*`
+        : `You're now chatting with *${agent.name}*${
+              botMentionName
+                  ? `, tag ${botMentionName} to ask more questions`
+                  : ', tag the app to ask more questions'
+          }`;
+
+    const blocks: (Block | KnownBlock)[] = [
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: instructionText,
+            },
+        },
+    ];
+
+    // Add agent image if available
+    if (agent.imageUrl) {
+        blocks[0] = {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: instructionText,
+            },
+            accessory: {
+                type: 'image',
+                image_url: agent.imageUrl,
+                alt_text: agent.name,
+            },
+        };
+    }
+
+    // Add agent instruction/description if available
+    if (agent.instruction) {
+        const truncateDescription = (text: string): string => {
+            // Slack context elements have a limit of ~3000 chars
+            const maxLength = 500;
+            if (text.length <= maxLength) return text;
+            return `${text.substring(0, maxLength - 3)}...`;
+        };
+
+        blocks.push({
+            type: 'context',
+            elements: [
+                {
+                    type: 'mrkdwn',
+                    text: truncateDescription(agent.instruction),
+                },
+            ],
+        });
+    }
+
+    blocks.push({
+        type: 'divider',
+    });
+
+    return blocks;
 }

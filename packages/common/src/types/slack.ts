@@ -22,6 +22,7 @@ export type SlackAppCustomSettings = {
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
     aiRequireOAuth?: boolean;
+    aiMultiAgentChannelId?: string;
 };
 
 export type ApiSlackGetInstallationResponse = ApiSuccess<

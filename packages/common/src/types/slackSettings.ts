@@ -13,4 +13,5 @@ export type SlackSettings = {
     aiThreadAccessConsent?: boolean;
     hasRequiredScopes: boolean;
     aiRequireOAuth?: boolean;
+    aiMultiAgentChannelId?: string;
 };

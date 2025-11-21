@@ -13,6 +13,7 @@ export type DbSlackAuthTokens = {
     app_profile_photo_url: string | null;
     ai_thread_access_consent: boolean;
     ai_require_oauth: boolean;
+    ai_multi_agent_channel_id: string | null;
 };
 
 export type CreateDbSlackAuthTokens = Pick<
@@ -25,7 +26,12 @@ export type UpdateDbSlackAuthTokens = Pick<
     'notification_channel' | 'app_profile_photo_url'
 > &
     Partial<
-        Pick<DbSlackAuthTokens, 'ai_thread_access_consent' | 'ai_require_oauth'>
+        Pick<
+            DbSlackAuthTokens,
+            | 'ai_thread_access_consent'
+            | 'ai_require_oauth'
+            | 'ai_multi_agent_channel_id'
+        >
     >;
 
 export type SlackAuthTokensTable = Knex.CompositeTableType<
