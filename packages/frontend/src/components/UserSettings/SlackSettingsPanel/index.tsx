@@ -359,7 +359,7 @@ const SlackSettingsPanel: FC = () => {
                                                 multiline
                                                 variant="xs"
                                                 maw={250}
-                                                label="Select a channel where users can interact with any AI agent. When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
                                             >
                                                 <MantineIcon
                                                     icon={IconHelpCircle}

@@ -42,11 +42,10 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
-    NotImplementedError,
+    ProjectType,
     SlackPrompt,
     ToolName,
     ToolNameSchema,
-    ToolProposeChangeOutput,
     toolProposeChangeOutputSchema,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
@@ -273,10 +272,10 @@ export class AiAgentModel {
 
     async findAllAgents({
         organizationUuid,
-        projectUuid,
+        filter,
     }: {
         organizationUuid: string;
-        projectUuid?: string;
+        filter?: { projectType?: ProjectType; projectUuid?: string };
     }): Promise<AiAgentSummary[]> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -321,6 +320,11 @@ export class AiAgentModel {
             .with('user_access', userAccess)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${AiAgentTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -379,8 +383,18 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
-        if (projectUuid) {
-            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        if (filter?.projectUuid) {
+            void query.where(
+                `${ProjectTableName}.project_uuid`,
+                filter.projectUuid,
+            );
+        }
+
+        if (filter?.projectType) {
+            void query.where(
+                `${ProjectTableName}.project_type`,
+                filter.projectType,
+            );
         }
 
         const rows = await query;
