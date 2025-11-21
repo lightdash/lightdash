@@ -138,6 +138,12 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
             .mockResolvedValue(mockCustomRoles),
         upsertSystemRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
         upsertCustomRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
+        // New unified method used by ScimService to set org and project roles
+        setUserOrgAndProjectRoles: jest.fn().mockResolvedValue(undefined),
+        // Some code paths may still call this directly; keep a mock for safety
+        upsertOrganizationUserRoleAssignment: jest
+            .fn()
+            .mockResolvedValue(undefined),
     } as unknown as RolesModel,
     projectModel: {
         getAllByOrganizationUuid: jest.fn().mockResolvedValue(mockProjects),
