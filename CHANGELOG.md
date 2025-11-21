@@ -1,3 +1,18 @@
+# [0.2201.0](https://github.com/lightdash/lightdash/compare/0.2200.0...0.2201.0) (2025-11-21)
+
+
+### Bug Fixes
+
+* cache spaceroot ([#18259](https://github.com/lightdash/lightdash/issues/18259)) ([b6bd634](https://github.com/lightdash/lightdash/commit/b6bd634cf7621d11bb725e4d5efdd7a04db58965))
+* race condition when updating agents slack integration channels ([#18285](https://github.com/lightdash/lightdash/issues/18285)) ([ec31e38](https://github.com/lightdash/lightdash/commit/ec31e3888510c4f6c3240efb8461cd59c6fefcc3)), closes [#18279](https://github.com/lightdash/lightdash/issues/18279) [#18279](https://github.com/lightdash/lightdash/issues/18279)
+* remove uneeded database calls for schedulers ([#18228](https://github.com/lightdash/lightdash/issues/18228)) ([1f9b438](https://github.com/lightdash/lightdash/commit/1f9b438894378e0e15bd8a0fddb85762f2cb624d))
+
+
+### Features
+
+* display agent selector when agent router confidence is low ([#18273](https://github.com/lightdash/lightdash/issues/18273)) ([be49352](https://github.com/lightdash/lightdash/commit/be493526df81f9ef3f40d2d44d531a778b866a3d))
+* only get non-preview agents for multi-agent slack channels ([#18286](https://github.com/lightdash/lightdash/issues/18286)) ([296ebad](https://github.com/lightdash/lightdash/commit/296ebadc4cfecf37f882b441dc6ac67ae42f45ef))
+
 # [0.2200.0](https://github.com/lightdash/lightdash/compare/0.2199.3...0.2200.0) (2025-11-21)
 
 
