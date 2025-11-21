@@ -1,3 +1,10 @@
+## [0.2198.1](https://github.com/lightdash/lightdash/compare/0.2198.0...0.2198.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* add error handling and logging for Slack message posting ([#18274](https://github.com/lightdash/lightdash/issues/18274)) ([ac28ad2](https://github.com/lightdash/lightdash/commit/ac28ad263d3b447b58018f0ff460db3b4b54bde7))
+
 # [0.2198.0](https://github.com/lightdash/lightdash/compare/0.2197.0...0.2198.0) (2025-11-21)
 
 
