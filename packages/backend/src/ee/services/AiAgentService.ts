@@ -42,6 +42,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
+    ProjectType,
     QueryExecutionContext,
     ReadinessScore,
     ShareUrl,
@@ -571,7 +572,9 @@ export class AiAgentService {
 
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
-            projectUuid,
+            filter: {
+                projectUuid,
+            },
         });
 
         const agentsWithAccess = (
@@ -3842,11 +3845,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
-        options?: { projectUuid?: string },
+        filter?: { projectType?: ProjectType; projectUuid?: string },
     ): Promise<AiAgentWithContext[]> {
         const allAgents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
-            projectUuid: options?.projectUuid,
+            filter,
         });
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
@@ -4142,6 +4145,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 organizationUuid,
                 userUuid,
                 slackSettings,
+                {
+                    projectType: ProjectType.DEFAULT,
+                },
             );
 
             if (availableAgents.length === 0) {
