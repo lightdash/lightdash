@@ -578,6 +578,7 @@ export const AssistantBubble: FC<Props> = memo(
                     projectUuid={projectUuid}
                     artifacts={message.artifacts}
                     toolCalls={message.toolCalls}
+                    toolResults={message.toolResults}
                     isVisualizationAvailable={isArtifactAvailable}
                     isDrawerOpen={isDrawerOpen}
                     onClose={closeDrawer}

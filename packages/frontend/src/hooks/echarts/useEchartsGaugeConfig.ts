@@ -77,6 +77,7 @@ const useEchartsGaugeConfig = ({
             selectedField,
             min = 0,
             max = 100,
+            maxFieldId,
             showAxisLabels,
             sections,
         } = chartConfig.validConfig;
@@ -94,20 +95,71 @@ const useEchartsGaugeConfig = ({
         const rawValue = firstRow[selectedField];
         const numericValue = toNumber(rawValue?.value.raw);
 
+        // Get dynamic max value from metric if configured
+        let effectiveMax = max;
+        if (maxFieldId) {
+            const maxFieldValue = firstRow[maxFieldId];
+            if (maxFieldValue) {
+                const maxFromMetric = toNumber(maxFieldValue.value.raw);
+                if (!isNaN(maxFromMetric) && maxFromMetric > 0) {
+                    effectiveMax = maxFromMetric;
+                }
+            }
+        }
+
         const fieldLabel = getItemLabelWithoutTableName(fieldItem);
 
         const sectionColors: [number, string][] = [];
         const defaultGapColor = theme.white;
 
+        // Resolve dynamic section values from metrics
+        const sectionsWithResolvedValues = sections?.map((section) => {
+            let effectiveSectionMin = section.min;
+            let effectiveSectionMax = section.max;
+
+            // Get dynamic min value from metric if configured
+            if (section.minFieldId) {
+                const minFieldValue = firstRow[section.minFieldId];
+                if (minFieldValue) {
+                    const minFromMetric = toNumber(minFieldValue.value.raw);
+                    if (!isNaN(minFromMetric)) {
+                        effectiveSectionMin = minFromMetric;
+                    }
+                }
+            }
+
+            // Get dynamic max value from metric if configured
+            if (section.maxFieldId) {
+                const maxFieldValue = firstRow[section.maxFieldId];
+                if (maxFieldValue) {
+                    const maxFromMetric = toNumber(maxFieldValue.value.raw);
+                    if (!isNaN(maxFromMetric) && maxFromMetric > 0) {
+                        effectiveSectionMax = maxFromMetric;
+                    }
+                }
+            }
+
+            return {
+                ...section,
+                min: effectiveSectionMin,
+                max: effectiveSectionMax,
+            };
+        });
+
         const valueColor = getValueColor({
             numericValue,
-            sections,
+            sections: sectionsWithResolvedValues,
             primaryColor: theme.colors.blue[6],
         });
 
-        if (sections && sections.length > 0) {
-            const sortedSections = [...sections].sort((a, b) => a.max - b.max);
-            const range = max - min;
+        if (
+            sectionsWithResolvedValues &&
+            sectionsWithResolvedValues.length > 0
+        ) {
+            const sortedSections = [...sectionsWithResolvedValues].sort(
+                (a, b) => a.max - b.max,
+            );
+            const range = effectiveMax - min;
 
             let previousThreshold = 0;
 
@@ -118,14 +170,14 @@ const useEchartsGaugeConfig = ({
                 // Add gap section if there's a gap between previous threshold and current section
                 if (section.min > previousThreshold) {
                     const normalizedGapThreshold =
-                        Math.min(section.min - min, max) / range;
+                        Math.min(section.min - min, effectiveMax) / range;
                     sectionColors.push([
                         normalizedGapThreshold,
                         defaultGapColor,
                     ]);
                 }
                 const normalizedThreshold =
-                    (Math.min(section.max, max) - min) / range;
+                    (Math.min(section.max, effectiveMax) - min) / range;
                 sectionColors.push([normalizedThreshold, section.color]);
                 previousThreshold = normalizedThreshold;
             }
@@ -147,7 +199,7 @@ const useEchartsGaugeConfig = ({
             center: ['50%', '70%'],
             radius: `${radius}%`,
             min: min,
-            max: max,
+            max: effectiveMax,
             splitNumber: 10,
             pointer: {
                 show: false,
@@ -196,7 +248,7 @@ const useEchartsGaugeConfig = ({
                     lineSize *
                     (lineSize > 35 ? (lineSize > 60 ? 1 : 0.75) : 0.5),
                 formatter: function (value): string {
-                    if ([min, max].includes(value)) {
+                    if ([min, effectiveMax].includes(value)) {
                         return formatItemValue(
                             fieldItem,
                             value,

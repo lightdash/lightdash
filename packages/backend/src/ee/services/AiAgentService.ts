@@ -1,13 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    AgentSummaryContext,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
     AiAgentNotFoundError,
+    AiAgentSummary,
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
+    AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
     AiResultType,
@@ -39,6 +42,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
+    ProjectType,
     QueryExecutionContext,
     ReadinessScore,
     ShareUrl,
@@ -110,6 +114,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { selectBestAgentWithContext } from './ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
@@ -136,6 +141,8 @@ import {
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import {
+    getAgentConfirmationBlocks,
+    getAgentSelectionBlocks,
     getArtifactBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
@@ -565,7 +572,9 @@ export class AiAgentService {
 
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
-            projectUuid,
+            filter: {
+                projectUuid,
+            },
         });
 
         const agentsWithAccess = (
@@ -1956,6 +1965,38 @@ export class AiAgentService {
         return this.aiAgentModel.getVerifiedQuestions(agentUuid);
     }
 
+    /**
+     * Private method to get a summary context for an agent.
+     * Assumes all permission checks and validations have been performed by the caller.
+     */
+    private async getAgentSummaryContext(
+        user: SessionUser,
+        agent: AiAgentSummary,
+    ): Promise<AgentSummaryContext> {
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            agent.projectUuid,
+            agent.tags,
+        );
+        const exploreNames = availableExplores.map(
+            (explore) => explore.label || explore.name,
+        );
+
+        const verifiedQuestionsData =
+            await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
+        const verifiedQuestions = verifiedQuestionsData.map((q) => q.question);
+
+        return {
+            uuid: agent.uuid,
+            projectUuid: agent.projectUuid,
+            name: agent.name,
+            description: agent.description,
+            explores: exploreNames,
+            verifiedQuestions,
+            instruction: agent.instruction,
+        };
+    }
+
     async revertChange(
         user: SessionUser,
         {
@@ -2091,18 +2132,26 @@ export class AiAgentService {
             throw new Error('Organization not found');
         }
 
-        const agentSettings =
-            'slackChannelId' in prompt
-                ? await this.aiAgentModel.getAgentBySlackChannelId({
-                      organizationUuid: user.organizationUuid,
-                      slackChannelId: prompt.slackChannelId,
-                  })
-                : await this.aiAgentModel.getAgent({
-                      organizationUuid: prompt.organizationUuid,
-                      agentUuid: prompt.agentUuid!,
-                  });
+        // Priority: Use agentUuid if available (set by multi-agent channel selection or web app)
+        // Fallback: Get agent by slack channel ID for single-agent channels
+        if (prompt.agentUuid) {
+            return this.aiAgentModel.getAgent({
+                organizationUuid: user.organizationUuid,
+                agentUuid: prompt.agentUuid,
+            });
+        }
 
-        return agentSettings;
+        if ('slackChannelId' in prompt) {
+            return this.aiAgentModel.getAgentBySlackChannelId({
+                organizationUuid: user.organizationUuid,
+                slackChannelId: prompt.slackChannelId,
+            });
+        }
+
+        // This should not happen, but handle it anyway
+        throw new Error(
+            'Cannot determine agent: no agentUuid or slackChannelId',
+        );
     }
 
     async retrieveRelevantArtifacts({
@@ -2397,6 +2446,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         description: table.description,
                         aiHints: table.aiHints ?? undefined,
                         searchRank: table.searchRank,
+                        joinedTables: table.joinedTables ?? undefined,
                     }));
 
                 const fieldSearchResults =
@@ -2475,7 +2525,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     (item) => item.type === CatalogType.Field,
                 );
 
-                return { fields: catalogFields, pagination };
+                return { fields: catalogFields, pagination, explore };
             });
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -3245,29 +3295,44 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
         const slackifiedMarkdown = slackifyMarkdown(response);
 
-        const newResponse = await this.slackClient.postMessage({
-            organizationUuid: slackPrompt.organizationUuid,
-            text: slackifiedMarkdown,
-            username: agent?.name,
-            channel: slackPrompt.slackChannelId,
-            thread_ts: slackPrompt.slackThreadTs,
-            unfurl_links: false,
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: slackifiedMarkdown,
-                    },
+        const blocks = [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: slackifiedMarkdown,
                 },
-                ...exploreBlocks,
-                ...proposeChangeBlocks,
-                ...referencedArtifactsBlocks,
-                ...followUpToolBlocks,
-                ...feedbackBlocks,
-                ...(historyBlocks || []),
-            ],
-        });
+            },
+            ...exploreBlocks,
+            ...proposeChangeBlocks,
+            ...referencedArtifactsBlocks,
+            ...followUpToolBlocks,
+            ...feedbackBlocks,
+            ...(historyBlocks || []),
+        ];
+
+        let newResponse;
+        try {
+            newResponse = await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: slackifiedMarkdown,
+                username: agent?.name,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                unfurl_links: false,
+                blocks,
+            });
+        } catch (error) {
+            console.error(error);
+            console.dir({ blocks }, { depth: null });
+            Sentry.captureException(error, {
+                tags: {
+                    tag: 'replyToSlackPrompt.postMessage',
+                },
+                extra: { blocks },
+            });
+            throw error;
+        }
 
         await this.aiAgentModel.updateModelResponse({
             promptUuid: slackPrompt.promptUuid,
@@ -3278,6 +3343,58 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             await this.aiAgentModel.updateSlackResponseTs({
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: newResponse.ts,
+            });
+        }
+
+        // Post helpful tip for multi-agent channel after first AI response
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                slackPrompt.organizationUuid,
+            );
+
+        const isMultiAgentChannel =
+            slackSettings?.aiMultiAgentChannelId === slackPrompt.slackChannelId;
+
+        // Only show tip for the first message in the thread
+        const isFirstMessage = threadMessages.length === 1;
+
+        if (isMultiAgentChannel && isFirstMessage && agent) {
+            // Get bot user ID from Slack client to create proper mention
+            const slackApp = this.slackClient.getApp();
+            let botMention = 'the app';
+
+            if (slackApp) {
+                try {
+                    const authTest = await slackApp.client.auth.test({
+                        token: slackSettings?.token,
+                    });
+                    if (authTest.user_id) {
+                        botMention = `<@${authTest.user_id}>`;
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to get bot user ID for tip message',
+                        error,
+                    );
+                }
+            }
+
+            await this.slackClient.postMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: `💬 To continue this conversation, just tag ${botMention} in this thread!`,
+                channel: slackPrompt.slackChannelId,
+                thread_ts: slackPrompt.slackThreadTs,
+                blocks: [
+                    {
+                        type: 'context',
+                        elements: [
+                            {
+                                type: 'mrkdwn',
+                                text: `💬 *Tip:* To continue this conversation, just tag ${botMention} in this thread!`,
+                            },
+                        ],
+                    },
+                ],
             });
         }
     }
@@ -3721,6 +3838,686 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         });
     }
 
+    /**
+     * Get available agents for a user with their full context, filtered by access if OAuth is required
+     */
+    private async getAvailableAgents(
+        organizationUuid: string,
+        userUuid: string,
+        slackSettings: { aiRequireOAuth?: boolean },
+        filter?: { projectType?: ProjectType; projectUuid?: string },
+    ): Promise<AiAgentWithContext[]> {
+        const allAgents = await this.aiAgentModel.findAllAgents({
+            organizationUuid,
+            filter,
+        });
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
+        let filteredAgents: AiAgentSummary[];
+
+        if (!slackSettings?.aiRequireOAuth) {
+            filteredAgents = allAgents;
+        } else {
+            filteredAgents = await Promise.all(
+                allAgents.map(async (agent) => {
+                    const hasAccess = await this.checkAgentAccess(user, agent);
+                    return hasAccess ? agent : null;
+                }),
+            ).then((results) => results.filter((agent) => agent !== null));
+        }
+        const agentsWithContext = await Promise.all(
+            filteredAgents.map(async (agent) => {
+                const context = await this.getAgentSummaryContext(user, agent);
+                return {
+                    ...agent,
+                    context,
+                };
+            }),
+        );
+
+        return agentsWithContext;
+    }
+
+    /**
+     * Show agent selection UI when multiple agents are available
+     */
+    private async showAgentSelectionUI(
+        availableAgents: AiAgent[],
+        channelId: string,
+        threadTs: string | undefined,
+        say: Function,
+    ): Promise<void> {
+        // Fetch project names for grouping
+        const uniqueProjectUuids = [
+            ...new Set(availableAgents.map((a) => a.projectUuid)),
+        ];
+        const projectMap = new Map<string, string>();
+        await Promise.all(
+            uniqueProjectUuids.map(async (projectUuid) => {
+                try {
+                    const project = await this.projectModel.getSummary(
+                        projectUuid,
+                    );
+                    projectMap.set(projectUuid, project.name);
+                } catch {
+                    // If project fetch fails, use UUID as fallback
+                    projectMap.set(projectUuid, projectUuid);
+                }
+            }),
+        );
+
+        await say({
+            blocks: getAgentSelectionBlocks(
+                availableAgents,
+                channelId,
+                projectMap,
+            ),
+            thread_ts: threadTs,
+        });
+    }
+
+    /**
+     * Post agent confirmation message showing which agent the user is chatting with
+     */
+    private static async postAgentConfirmation(
+        client: WebClient,
+        agentConfig: AiAgent,
+        channelId: string,
+        threadTs: string | undefined,
+        options: {
+            isMultiAgentChannel: boolean;
+            botMentionName?: string;
+        },
+    ): Promise<void> {
+        await client.chat.postMessage({
+            channel: channelId,
+            thread_ts: threadTs,
+            username: agentConfig.name,
+            blocks: getAgentConfirmationBlocks(agentConfig, {
+                isMultiAgentChannel: options.isMultiAgentChannel,
+                botMentionName: options.botMentionName,
+            }),
+            text: `You're now chatting with ${agentConfig.name}`,
+        });
+    }
+
+    /**
+     * Check if user has access to an agent and throw ForbiddenError if not
+     */
+    private async verifyAgentAccess(
+        agentConfig: AiAgent,
+        userUuid: string,
+        slackSettings: { aiRequireOAuth?: boolean },
+    ): Promise<void> {
+        if (!slackSettings?.aiRequireOAuth) {
+            return;
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            agentConfig.organizationUuid,
+        );
+
+        const hasAccess = await this.checkAgentAccess(user, agentConfig);
+        if (!hasAccess) {
+            throw new ForbiddenError();
+        }
+    }
+
+    /**
+     * Handle common error responses for Slack AI agent interactions
+     */
+    private static async handleSlackAgentError(
+        e: unknown,
+        say: Function,
+        threadTs: string | undefined,
+        siteUrl: string,
+    ): Promise<boolean> {
+        // Returns true if error was handled, false if it should be rethrown
+        if (e instanceof AiDuplicateSlackPromptError) {
+            Logger.debug('Failed to create slack prompt:', e);
+            return true;
+        }
+
+        if (e instanceof AiAgentNotFoundError) {
+            Logger.debug('Failed to find ai agent:', e);
+            await say({
+                text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${siteUrl}/ai-agents to configure one.`,
+                thread_ts: threadTs,
+            });
+            return true;
+        }
+
+        if (e instanceof ForbiddenError) {
+            await say({
+                text: `⚠️ You are not authorized to access this agent. Please contact your administrator to get access.`,
+                thread_ts: threadTs,
+            });
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Post initial response message and schedule the AI prompt
+     */
+    private async postInitialResponseAndSchedule(
+        agentConfig: AiAgent,
+        slackPromptUuid: string,
+        userUuid: string,
+        userId: string,
+        threadTs: string | undefined,
+        createdThread: boolean,
+        say: Function,
+    ): Promise<void> {
+        const postedMessage = await say({
+            username: agentConfig.name,
+            thread_ts: threadTs,
+            blocks: [
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: createdThread
+                            ? `Hi <@${userId}>, working on your request now :rocket:`
+                            : `Let me check that for you. One moment! :books:`,
+                    },
+                },
+                {
+                    type: 'divider',
+                },
+                {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'plain_text',
+                            text: `It can take up to 15s to get a response.`,
+                        },
+                        {
+                            type: 'plain_text',
+                            text: `Reference: ${slackPromptUuid}`,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        if (postedMessage.ts) {
+            await this.aiAgentModel.updateSlackResponseTs({
+                promptUuid: slackPromptUuid,
+                responseSlackTs: postedMessage.ts,
+            });
+        }
+
+        await this.schedulerClient.slackAiPrompt({
+            slackPromptUuid,
+            userUuid,
+            projectUuid: agentConfig.projectUuid,
+            organizationUuid: agentConfig.organizationUuid,
+        });
+    }
+
+    public async handleMultiAgentChannelMessage({
+        event,
+        context,
+        say,
+        client,
+    }: SlackEventMiddlewareArgs<'message'> & AllMiddlewareArgs) {
+        // Type guard to ensure we only process GenericMessageEvent with required fields
+        if (
+            event.subtype ||
+            !('user' in event) ||
+            !('text' in event) ||
+            !('channel' in event) ||
+            'bot_id' in event ||
+            'thread_ts' in event ||
+            event.channel_type !== 'channel'
+        ) {
+            return;
+        }
+
+        const { teamId } = context;
+        if (!teamId) {
+            return;
+        }
+
+        // Get organization and settings
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!slackSettings) {
+            return;
+        }
+
+        // Only respond in the designated multi-agent channel
+        if (
+            !slackSettings.aiMultiAgentChannelId ||
+            slackSettings.aiMultiAgentChannelId !== event.channel
+        ) {
+            return;
+        }
+
+        Logger.info(`Got message event in multi-agent channel: ${event.text}`);
+
+        // Handle authentication
+        const authResult = await this.handleAiAgentAuth(
+            slackSettings,
+            {
+                userId: event.user,
+                teamId,
+                threadTs: undefined,
+                channelId: event.channel,
+                messageId: event.ts,
+            },
+            say,
+            client,
+        );
+
+        if (!authResult) {
+            return;
+        }
+
+        const { userUuid } = authResult;
+
+        let slackPromptUuid: string;
+        let createdThread: boolean;
+        let agentConfig: AiAgent | undefined;
+
+        try {
+            // Ensure we have text content
+            if (!event.text) {
+                Logger.debug('Message has no text content');
+                return;
+            }
+
+            const availableAgents = await this.getAvailableAgents(
+                organizationUuid,
+                userUuid,
+                slackSettings,
+                {
+                    projectType: ProjectType.DEFAULT,
+                },
+            );
+
+            if (availableAgents.length === 0) {
+                await say({
+                    text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
+                    thread_ts: event.ts,
+                });
+                return;
+            }
+
+            if (availableAgents.length === 1) {
+                // Auto-select the only available agent
+                [agentConfig] = availableAgents;
+            } else {
+                // Multiple agents - use LLM to select the best one
+                const { model } = getModel(this.lightdashConfig.ai.copilot);
+
+                const { agent: selectedAgent, selection } =
+                    await selectBestAgentWithContext(
+                        model,
+                        availableAgents,
+                        event.text,
+                    );
+
+                Logger.info(
+                    `Agent selected by LLM ${JSON.stringify({
+                        agentUuid: selectedAgent.uuid,
+                        agentName: selectedAgent.name,
+                        reasoning: selection.reasoning,
+                        confidence: selection.confidence,
+                    })}`,
+                );
+
+                // If confidence is low, show selection UI instead
+                if (selection.confidence === 'low') {
+                    Logger.info(
+                        `Low confidence in agent selection - showing manual selection UI,
+                        ${JSON.stringify({ reasoning: selection.reasoning })},`,
+                    );
+                    await this.showAgentSelectionUI(
+                        availableAgents,
+                        event.channel,
+                        event.ts,
+                        say,
+                    );
+                    return;
+                }
+
+                const botMentionName = context.botUserId
+                    ? `<@${context.botUserId}>`
+                    : undefined;
+
+                await AiAgentService.postAgentConfirmation(
+                    client,
+                    selectedAgent,
+                    event.channel,
+                    event.ts,
+                    {
+                        isMultiAgentChannel: true,
+                        botMentionName,
+                    },
+                );
+
+                agentConfig = selectedAgent;
+            }
+
+            // At this point, we should have a selected agent
+            if (!agentConfig) {
+                throw new Error('No agent selected - this should not happen');
+            }
+
+            // Verify access for the selected agent
+            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
+
+            // Create the slack prompt
+            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+                userUuid,
+                projectUuid: agentConfig.projectUuid,
+                slackUserId: event.user,
+                slackChannelId: event.channel,
+                slackThreadTs: undefined,
+                prompt: event.text,
+                promptSlackTs: event.ts,
+                agentUuid: agentConfig.uuid ?? null,
+                threadMessages: undefined,
+            });
+        } catch (e) {
+            const handled = await AiAgentService.handleSlackAgentError(
+                e,
+                say,
+                event.ts,
+                this.lightdashConfig.siteUrl,
+            );
+            if (handled) {
+                return;
+            }
+            throw e;
+        }
+
+        await this.postInitialResponseAndSchedule(
+            agentConfig!,
+            slackPromptUuid,
+            userUuid,
+            event.user,
+            event.ts,
+            createdThread,
+            say,
+        );
+    }
+
+    public handleAgentSelection(app: App) {
+        app.action('select_agent', async ({ ack, body, client, context }) => {
+            await ack();
+
+            if (body.type !== 'block_actions') {
+                return;
+            }
+
+            const action = body.actions[0];
+            if (action?.type !== 'static_select' || !action.selected_option) {
+                return;
+            }
+
+            const { teamId } = context;
+            if (!teamId || !body.user?.id) {
+                return;
+            }
+
+            try {
+                // Parse the selected agent UUID and channel ID from the action value
+                const selectedValue = JSON.parse(action.selected_option.value);
+                const { agentUuid, channelId } = selectedValue;
+
+                if (!agentUuid || !channelId) {
+                    Logger.error('Invalid agent selection value', {
+                        value: action.selected_option.value,
+                    });
+                    return;
+                }
+
+                const organizationUuid =
+                    await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                        teamId,
+                    );
+
+                const slackSettings =
+                    await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                        organizationUuid,
+                    );
+
+                if (!slackSettings) {
+                    throw new NotFoundError(
+                        `Slack settings not found for organization ${organizationUuid}`,
+                    );
+                }
+
+                // Get the thread timestamp (which is the original message timestamp)
+                const threadTs =
+                    body.message && 'thread_ts' in body.message
+                        ? body.message.thread_ts
+                        : body.message?.ts;
+
+                // Authenticate user
+                const authResult = await this.handleAiAgentAuth(
+                    slackSettings,
+                    {
+                        userId: body.user.id,
+                        teamId,
+                        threadTs,
+                        channelId,
+                        messageId: body.message?.ts || '',
+                    },
+                    // Pass a no-op function for say since we'll handle responses ourselves
+                    async () => {},
+                    client,
+                );
+
+                if (!authResult) {
+                    return;
+                }
+
+                const { userUuid } = authResult;
+
+                // Get the selected agent
+                const agentConfig = await this.aiAgentModel.getAgent({
+                    organizationUuid,
+                    agentUuid,
+                });
+
+                // Check user access to the agent
+                if (slackSettings?.aiRequireOAuth) {
+                    const user =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            userUuid,
+                            agentConfig.organizationUuid,
+                        );
+
+                    const hasAccess = await this.checkAgentAccess(
+                        user,
+                        agentConfig,
+                    );
+                    if (!hasAccess) {
+                        await client.chat.postEphemeral({
+                            channel: channelId,
+                            user: body.user.id,
+                            thread_ts: threadTs,
+                            text: '⚠️ You are not authorized to access this agent. Please contact your administrator to get access.',
+                        });
+                        return;
+                    }
+                }
+
+                // Fetch the thread messages to find the original user message
+                const conversationHistory = await client.conversations.replies({
+                    channel: channelId,
+                    ts: threadTs || '',
+                    limit: 10,
+                });
+
+                // Check if we're in the multi-agent channel
+                const isMultiAgentChannel =
+                    slackSettings.aiMultiAgentChannelId === channelId;
+
+                // Find the original user message
+                // In multi-agent channel: first user message (no @mention needed)
+                // In regular channel: first message with @mention
+                const originalMessage = conversationHistory.messages?.find(
+                    (msg) => {
+                        if (msg.user !== body.user.id) return false;
+                        if (!msg.text) return false;
+
+                        if (isMultiAgentChannel) {
+                            // Multi-agent channel: any user message
+                            return true;
+                        }
+                        // Regular channel: must have @mention
+                        return msg.text.includes(`<@${context.botUserId}>`);
+                    },
+                );
+
+                if (!originalMessage || !originalMessage.text) {
+                    Logger.error('Could not find original message in thread', {
+                        threadTs,
+                        channelId,
+                        isMultiAgentChannel,
+                    });
+                    return;
+                }
+
+                // Update the selection message to remove the dropdown
+                if (body.message?.ts) {
+                    try {
+                        await client.chat.update({
+                            channel: channelId,
+                            ts: body.message.ts,
+                            text: `✅ Agent selected: *${agentConfig.name}*`,
+                            blocks: [
+                                {
+                                    type: 'section',
+                                    text: {
+                                        type: 'mrkdwn',
+                                        text: `✅ You selected: *${agentConfig.name}*`,
+                                    },
+                                },
+                            ],
+                        });
+                    } catch (updateError) {
+                        Logger.error(
+                            'Failed to update selection message',
+                            updateError,
+                        );
+                    }
+                }
+
+                // Create the prompt with the selected agent
+                const [slackPromptUuid] = await this.createSlackPrompt({
+                    userUuid,
+                    projectUuid: agentConfig.projectUuid,
+                    slackUserId: body.user.id,
+                    slackChannelId: channelId,
+                    slackThreadTs: threadTs,
+                    prompt: originalMessage.text,
+                    promptSlackTs: originalMessage.ts || '',
+                    agentUuid: agentConfig.uuid,
+                });
+
+                // Post confirmation message with agent details
+                const botMentionName = context.botUserId
+                    ? `<@${context.botUserId}>`
+                    : undefined;
+
+                await AiAgentService.postAgentConfirmation(
+                    client,
+                    agentConfig,
+                    channelId,
+                    threadTs,
+                    {
+                        isMultiAgentChannel,
+                        botMentionName,
+                    },
+                );
+
+                // Post the initial "working on it" message
+                const postedMessage = await client.chat.postMessage({
+                    channel: channelId,
+                    thread_ts: threadTs,
+                    username: agentConfig.name,
+                    blocks: [
+                        {
+                            type: 'section',
+                            text: {
+                                type: 'mrkdwn',
+                                text: `Hi <@${body.user.id}>, working on your request now :rocket:`,
+                            },
+                        },
+                        {
+                            type: 'divider',
+                        },
+                        {
+                            type: 'context',
+                            elements: [
+                                {
+                                    type: 'plain_text',
+                                    text: `It can take up to 15s to get a response.`,
+                                },
+                                {
+                                    type: 'plain_text',
+                                    text: `Reference: ${slackPromptUuid}`,
+                                },
+                            ],
+                        },
+                    ],
+                    text: `Working on your request now...`,
+                });
+
+                if (postedMessage.ts) {
+                    await this.aiAgentModel.updateSlackResponseTs({
+                        promptUuid: slackPromptUuid,
+                        responseSlackTs: postedMessage.ts,
+                    });
+                }
+
+                // Schedule the AI prompt processing
+                await this.schedulerClient.slackAiPrompt({
+                    slackPromptUuid,
+                    userUuid,
+                    projectUuid: agentConfig.projectUuid,
+                    organizationUuid,
+                });
+            } catch (e) {
+                Logger.error('Error handling agent selection', e);
+                // Try to notify the user of the error
+                if (body.user?.id && 'channel' in body && body.channel?.id) {
+                    try {
+                        await client.chat.postEphemeral({
+                            channel: body.channel.id,
+                            user: body.user.id,
+                            text: '⚠️ Something went wrong while selecting the agent. Please try again or contact your administrator.',
+                        });
+                    } catch (notifyError) {
+                        Logger.error(
+                            'Failed to send error notification',
+                            notifyError,
+                        );
+                    }
+                }
+            }
+        });
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -3846,32 +4643,94 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         let slackPromptUuid: string;
         let createdThread: boolean;
-        let name: string | undefined;
         let threadMessages: ThreadMessageContext | undefined;
+        let agentConfig: AiAgent | undefined;
 
         try {
-            const agentConfig =
-                await this.aiAgentModel.getAgentBySlackChannelId({
+            // Check if this is the multi-agent channel AND a new thread
+            const isMultiAgentChannel =
+                slackSettings.aiMultiAgentChannelId === event.channel;
+            const isNewThread = !event.thread_ts;
+
+            if (isMultiAgentChannel && isNewThread) {
+                // Multi-agent channel: Get available agents and handle selection
+                const availableAgents = await this.getAvailableAgents(
                     organizationUuid,
-                    slackChannelId: event.channel,
-                });
-
-            if (slackSettings?.aiRequireOAuth) {
-                const user = await this.userModel.findSessionUserAndOrgByUuid(
                     userUuid,
-                    agentConfig.organizationUuid,
+                    slackSettings,
                 );
 
-                const hasAccess = await this.checkAgentAccess(
-                    user,
-                    agentConfig,
-                );
-                if (!hasAccess) {
-                    throw new ForbiddenError();
+                if (availableAgents.length === 0) {
+                    // No agents available - show error
+                    await say({
+                        text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
+                        thread_ts: event.ts,
+                    });
+                    return;
+                }
+
+                if (availableAgents.length === 1) {
+                    // Auto-select the only available agent
+                    [agentConfig] = availableAgents;
+                }
+
+                if (availableAgents.length > 1) {
+                    // Multiple agents - show selection UI
+                    await this.showAgentSelectionUI(
+                        availableAgents,
+                        event.channel,
+                        event.ts,
+                        say,
+                    );
+                    return;
                 }
             }
 
-            name = agentConfig.name;
+            if (isMultiAgentChannel && !isNewThread && event.thread_ts) {
+                // Multi-agent channel, existing thread: Get agent from thread
+                const threadUuid =
+                    await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                        event.channel,
+                        event.thread_ts,
+                    );
+
+                if (threadUuid) {
+                    const thread = await this.aiAgentModel.findThread(
+                        threadUuid,
+                    );
+                    if (thread?.agentUuid) {
+                        agentConfig = await this.aiAgentModel.getAgent({
+                            organizationUuid,
+                            agentUuid: thread.agentUuid,
+                        });
+                    }
+                }
+
+                if (!agentConfig) {
+                    // Thread exists but no agent assigned - this shouldn't happen
+                    await say({
+                        text: '⚠️ Could not find the agent for this conversation. Please start a new conversation.',
+                        thread_ts: event.ts,
+                    });
+                    return;
+                }
+            }
+
+            if (!isMultiAgentChannel) {
+                // Regular channel: Use existing agent routing by channel ID
+                agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
+                    organizationUuid,
+                    slackChannelId: event.channel,
+                });
+            }
+
+            // At this point, we should have a selected agent
+            if (!agentConfig) {
+                throw new Error('No agent selected - this should not happen');
+            }
+
+            // Verify access for the selected agent
+            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
 
             if (event.thread_ts) {
                 const aiThreadAccessConsent =
@@ -3901,76 +4760,27 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 threadMessages,
             });
         } catch (e) {
-            if (e instanceof AiDuplicateSlackPromptError) {
-                Logger.debug('Failed to create slack prompt:', e);
+            const handled = await AiAgentService.handleSlackAgentError(
+                e,
+                say,
+                event.ts,
+                this.lightdashConfig.siteUrl,
+            );
+            if (handled) {
                 return;
             }
-
-            if (e instanceof AiAgentNotFoundError) {
-                Logger.debug('Failed to find ai agent:', e);
-                await say({
-                    text: `🤔 It seems like there is no AI agent configured for this channel. Please check if the integration is set up correctly or visit ${this.lightdashConfig.siteUrl}/ai-agents to configure one.`,
-                    thread_ts: event.ts,
-                });
-                return;
-            }
-
-            if (e instanceof ForbiddenError) {
-                await say({
-                    text: `⚠️ You are not authorized to access this agent. Please contact your administrator to get access.`,
-                    thread_ts: event.ts,
-                });
-                return;
-            }
-
             throw e;
         }
 
-        const postedMessage = await say({
-            username: name,
-            thread_ts: event.ts,
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: createdThread
-                            ? `Hi <@${event.user}>, working on your request now :rocket:`
-                            : `Let me check that for you. One moment! :books:`,
-                    },
-                },
-                {
-                    type: 'divider',
-                },
-                {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'plain_text',
-                            text: `It can take up to 15s to get a response.`,
-                        },
-                        {
-                            type: 'plain_text',
-                            text: `Reference: ${slackPromptUuid}`,
-                        },
-                    ],
-                },
-            ],
-        });
-
-        if (postedMessage.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPromptUuid,
-                responseSlackTs: postedMessage.ts,
-            });
-        }
-
-        await this.schedulerClient.slackAiPrompt({
+        await this.postInitialResponseAndSchedule(
+            agentConfig!,
             slackPromptUuid,
             userUuid,
-            projectUuid: '', // TODO: add project uuid
-            organizationUuid,
-        });
+            event.user,
+            event.ts,
+            createdThread,
+            say,
+        );
     }
 
     private static processThreadMessages(

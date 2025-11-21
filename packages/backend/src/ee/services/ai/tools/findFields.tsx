@@ -1,6 +1,7 @@
 import {
     CatalogField,
     convertToAiHints,
+    Explore,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
@@ -22,7 +23,14 @@ type Dependencies = {
     pageSize: number;
 };
 
-const renderField = (catalogField: CatalogField) => {
+const renderField = (catalogField: CatalogField, explore?: Explore) => {
+    const isFromJoinedTable =
+        explore &&
+        catalogField.tableName !== explore.baseTable &&
+        explore.joinedTables.some(
+            (join) => join.table === catalogField.tableName,
+        );
+
     const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
     return (
@@ -40,7 +48,16 @@ const renderField = (catalogField: CatalogField) => {
             )}
             searchRank={catalogField.searchRank}
             chartUsage={catalogField.chartUsage}
+            isFromJoinedTable={isFromJoinedTable}
         >
+            {isFromJoinedTable && explore && (
+                <note>
+                    This field is from the "{catalogField.tableName}" table,
+                    which is joined to the "{explore.name}" explore. You can use
+                    this field in queries and filters just like fields from the
+                    base table.
+                </note>
+            )}
             <label>{catalogField.label}</label>
             {aiHints && aiHints.length > 0 ? (
                 <aihints>
@@ -66,6 +83,7 @@ const renderField = (catalogField: CatalogField) => {
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+    explore?: Explore,
 ) => (
     <searchresult
         searchQuery={args.searchQuery}
@@ -74,7 +92,7 @@ const getFieldsText = (
         totalPageCount={args.pagination?.totalPageCount}
         totalResults={args.pagination?.totalResults}
     >
-        {args.fields.map((field) => renderField(field))}
+        {args.fields.map((field) => renderField(field, explore))}
     </searchresult>
 );
 
@@ -99,20 +117,26 @@ export const getFindFields = ({
                 );
 
                 const fieldSearchQueryResults = await Promise.all(
-                    args.fieldSearchQueries.map(async (fieldSearchQuery) => ({
-                        searchQuery: fieldSearchQuery.label,
-                        ...(await findFields({
+                    args.fieldSearchQueries.map(async (fieldSearchQuery) => {
+                        const result = await findFields({
                             table: args.table,
                             fieldSearchQuery,
                             page: args.page ?? 1,
                             pageSize,
-                        })),
-                    })),
+                        });
+                        return {
+                            searchQuery: fieldSearchQuery.label,
+                            ...result,
+                        };
+                    }),
                 );
+
+                // Use explore from the first result (all should have the same explore for the same table)
+                const explore = fieldSearchQueryResults[0]?.explore;
 
                 const fieldsText = fieldSearchQueryResults
                     .map((fieldSearchQueryResult) =>
-                        getFieldsText(fieldSearchQueryResult),
+                        getFieldsText(fieldSearchQueryResult, explore),
                     )
                     .join('\n\n');
 
@@ -122,6 +146,25 @@ export const getFindFields = ({
                     ).toString(),
                     metadata: {
                         status: 'success',
+                        ranking: {
+                            searchQueries: fieldSearchQueryResults.map(
+                                (fieldSearchQueryResult) => ({
+                                    label: fieldSearchQueryResult.searchQuery,
+                                    results: fieldSearchQueryResult.fields.map(
+                                        (field) => ({
+                                            name: field.name,
+                                            label: field.label,
+                                            tableName: field.tableName,
+                                            fieldType: field.fieldType,
+                                            searchRank: field.searchRank,
+                                            chartUsage: field.chartUsage,
+                                        }),
+                                    ),
+                                    pagination:
+                                        fieldSearchQueryResult.pagination,
+                                }),
+                            ),
+                        },
                     },
                 };
             } catch (error) {

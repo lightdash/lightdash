@@ -940,6 +940,7 @@ export class McpService extends BaseService {
                         description: table.description,
                         aiHints: table.aiHints ?? undefined,
                         searchRank: table.searchRank,
+                        joinedTables: table.joinedTables ?? undefined,
                     }));
 
                 const fieldSearchResults =

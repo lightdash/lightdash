@@ -1,0 +1,251 @@
+type: model # or can be model/v1 for a specific version
+name: orders
+label: Orders
+description: |
+  This table has basic information about orders, as well as some derived
+  facts based on payments
+from_sql: SELECT * FROM analytics.orders
+# Alternative:
+# from_table: analytics.orders
+
+# Model-level configuration
+primary_key: order_id
+
+spotlight:
+  categories:
+    - sales
+
+joins:
+  - join: customers
+    sql_on: ${customers.customer_id} = ${orders.customer_id}
+    relationship: many-to-one
+    label: Order Customer
+    description: The customer who placed this order (many orders can belong to one customer)
+
+metrics:
+  completion_percentage:
+    type: number
+    sql: ${total_completed_order_amount}/${total_order_amount}
+    format: percent
+    ai_hint: |
+      Ratio of completed orders to total orders
+      Completion percentage of orders.
+
+default_time_dimension:
+  field: order_date
+  interval: MONTH
+
+explores:
+  completed_orders:
+    label: Completed Orders
+    description: Analysis of completed orders with customer information
+    group_label: Sales Analysis
+    joins:
+      - join: customers
+        sql_on: ${customers.customer_id} = ${orders.customer_id}
+        relationship: many-to-one
+    required_filters:
+      - is_completed: "true"
+
+# Dimensions (columns)
+dimensions:
+  - name: order_id
+    type: number
+    description: This is a unique identifier for an order
+    metrics:
+      unique_order_count:
+        type: count_distinct
+      completed_order_count:
+        label: Completed order count
+        description: Total number of completed orders
+        type: count_distinct
+        filters:
+          - is_completed: "true"
+      completed_or_shipped_order_count:
+        label: Completed or Shipped Order Count
+        type: count_distinct
+        filters:
+          - status:
+              - completed
+              - shipped
+
+  - name: is_completed
+    type: boolean
+    description: Boolean indicating if status is completed
+    metrics:
+      fulfillment_rate:
+        type: average
+        format: percent
+        round: 1
+        sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+        show_underlying_values:
+          - amount
+          - customers.first_name
+      fulfillment_rate_with_format_expression:
+        type: average
+        format: "#,##0.0%"
+        sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+        show_underlying_values:
+          - amount
+          - customers.first_name
+
+  - name: customer_id
+    type: number
+    description: Foreign key to the customers table
+
+  - name: order_date
+    type: date
+    description: Date (UTC) that the order was placed
+    time_intervals: [ "DAY", "WEEK", "MONTH", "YEAR" ]
+    metrics:
+      date_of_first_order:
+        type: min
+      date_of_most_recent_order:
+        type: max
+
+  - name: status
+    type: string
+    description: Status of the order
+    colors:
+      placed: "#e6fa0f"
+      completed: "#00FF00"
+
+  - name: amount
+    type: number
+    description: Total amount (USD) of the order
+    hidden: true
+    metrics:
+      average_order_size:
+        type: average
+        format: usd
+        round: 2
+      total_order_amount:
+        type: sum
+        format: usd
+        round: 2
+        default_time_dimension:
+          field: order_date
+          interval: DAY
+      amount_percent_of_previous:
+        type: percent_of_previous
+        sql: ${total_order_amount}
+        format: "#,##0.00%"
+      amount_percent_of_total:
+        type: percent_of_total
+        sql: ${total_order_amount}
+        format: "#,##0.00%"
+      amount_running_total:
+        type: running_total
+        sql: ${total_order_amount}
+        format: usd
+        round: 2
+      total_completed_order_amount:
+        type: sum
+        format: usd
+        round: 2
+        filters:
+          - is_completed: "true"
+      total_completed_order_amount_eur:
+        type: sum
+        format: eur
+        filters:
+          - is_completed: "true"
+      total_non_completed_order_amount:
+        type: number
+        format: "$#,##0.00"
+        sql: ${total_order_amount}-${total_completed_order_amount}
+
+  - name: order_source
+    type: string
+    description: Channel through which the order was placed
+    colors:
+      website: "#1f77b4"
+      mobile_app: "#ff7f0e"
+      phone: "#2ca02c"
+
+  - name: shipping_method
+    type: string
+    description: Shipping method selected for the order
+    colors:
+      standard: "#d62728"
+      express: "#ff7f0e"
+      overnight: "#2ca02c"
+    metrics:
+      avg_shipping_cost_by_method:
+        type: average
+        sql: shipping_cost
+        format: usd
+        round: 2
+        label: Average Shipping Cost by Method
+      orders_by_shipping_method:
+        type: count_distinct
+        sql: order_id
+        label: Orders by Shipping Method
+
+  - name: estimated_delivery_days
+    type: number
+    description: Expected number of days for order delivery
+    metrics:
+      avg_estimated_delivery:
+        type: average
+        round: 1
+        label: Average Estimated Delivery Days
+      orders_by_delivery_speed:
+        type: count_distinct
+        sql: order_id
+        label: Orders by Delivery Speed
+    additional_dimensions:
+      delivery_speed_tier:
+        type: string
+        label: Delivery Speed Tier
+        sql: |
+          CASE
+            WHEN ${estimated_delivery_days} = 1 THEN 'Same/Next Day'
+            WHEN ${estimated_delivery_days} <= 3 THEN 'Fast (2-3 days)'
+            WHEN ${estimated_delivery_days} <= 5 THEN 'Standard (4-5 days)'
+            WHEN ${estimated_delivery_days} <= 7 THEN 'Extended (6-7 days)'
+            ELSE 'Slow (8+ days)'
+          END
+        colors:
+          "Same/Next Day": "#2ca02c"
+          "Fast (2-3 days)": "#ff7f0e"
+          "Standard (4-5 days)": "#1f77b4"
+          "Extended (6-7 days)": "#ffbb78"
+          "Slow (8+ days)": "#d62728"
+
+  - name: shipping_cost
+    type: number
+    description: Cost of shipping for the order
+    format: usd
+    metrics:
+      total_shipping_revenue:
+        type: sum
+        format: usd
+        label: Total Shipping Revenue
+      avg_shipping_cost:
+        type: average
+        format: usd
+        round: 2
+        label: Average Shipping Cost
+      shipping_cost_vs_order_value:
+        type: number
+        sql: AVG(shipping_cost / NULLIF(amount, 0))
+        format: percent
+        round: 2
+        label: Shipping Cost as % of Order Value
+    additional_dimensions:
+      shipping_cost_tier:
+        type: string
+        label: Shipping Cost Tier
+        sql: |
+          CASE
+          WHEN ${shipping_cost} < 10 THEN 'Low (<$10)'
+          WHEN ${shipping_cost} < 20 THEN 'Medium ($10-$20)'
+          WHEN ${shipping_cost} < 30 THEN 'High ($20-$30)'
+          ELSE 'Premium ($30+)'
+          END
+
+  - name: order_notes
+    type: string
+    description: Additional notes and context about the order
+    hidden: true

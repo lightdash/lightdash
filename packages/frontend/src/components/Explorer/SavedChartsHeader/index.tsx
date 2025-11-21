@@ -72,7 +72,6 @@ import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -163,7 +162,6 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
 
     const { user, health } = useApp();
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
     const updateSavedChart = useUpdateMutation(
@@ -854,7 +852,6 @@ const SavedChartsHeader: FC = () => {
                               ]
                             : []),
                     ]}
-                    spaces={spaces}
                     isLoading={isMovingChart || isContentActionLoading}
                     onClose={transferToSpaceModalHandlers.close}
                     onConfirm={async (newSpaceUuid) => {

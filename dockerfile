@@ -1,7 +1,9 @@
+# syntax=docker/dockerfile:1.7
+
 # -----------------------------
-# Stage 0: install dependencies
+# Stage 0: pnpm setup base
 # -----------------------------
-FROM node:20-bookworm-slim AS base
+FROM node:20-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -11,6 +13,11 @@ RUN corepack prepare pnpm@9.15.5 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
+
+# -----------------------------
+# Stage 1: system dependencies base
+# -----------------------------
+FROM pnpm-base AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -37,7 +44,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
-RUN python3 -m venv /usr/local/dbt1.4 \
+# Use pip cache to speed up subsequent builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m venv /usr/local/dbt1.4 \
     && /usr/local/dbt1.4/bin/pip install \
     "dbt-postgres~=1.4.0" \
     "dbt-redshift~=1.4.0" \
@@ -48,7 +57,8 @@ RUN python3 -m venv /usr/local/dbt1.4 \
     "dbt-clickhouse~=1.4.0" \
     "psycopg2-binary==2.9.6"
 
-RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
+RUN --mount=type=cache,target=/root/.cache/pip \
+    ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && python3 -m venv /usr/local/dbt1.5 \
     && /usr/local/dbt1.5/bin/pip install \
     "dbt-postgres~=1.5.0" \
@@ -134,7 +144,7 @@ EXPOSE 8080
 # -----------------------------
 
 FROM base AS prod-builder
-# Install development dependencies for all
+# Install development dependencies for all packages
 COPY package.json .
 COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
@@ -149,36 +159,44 @@ COPY packages/frontend/package.json ./packages/frontend/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prefer-offline
 
-# Install Sentry CLI if environment variables are set
+# Increase Node.js heap size for TypeScript compilation
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
+    npm install -g @sentry/cli; \
+    fi
+
+# -----------------------------
+# Stage 3: Build packages
+# -----------------------------
+
+# Build common package
+FROM prod-builder AS build-common
+COPY packages/common/tsconfig*.json ./packages/common/
+COPY packages/common/src/ ./packages/common/src/
+RUN pnpm -F @lightdash/common build
+
+# Build warehouses package
+FROM prod-builder AS build-warehouses
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY packages/warehouses/tsconfig.json ./packages/warehouses/
+COPY packages/warehouses/src/ ./packages/warehouses/src/
+RUN pnpm -F @lightdash/warehouses build
+
+# Build backend package
+FROM prod-builder AS build-backend
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
+COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/backend/tsconfig.sentry.json ./packages/backend/
+COPY packages/backend/src/ ./packages/backend/src/
+
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""
 ARG SENTRY_RELEASE_VERSION=""
 ARG SENTRY_FRONTEND_PROJECT=""
 ARG SENTRY_BACKEND_PROJECT=""
 ARG SENTRY_ENVIRONMENT=""
-
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
-    npm install -g @sentry/cli; \
-    fi
-
-# Build common
-COPY packages/common/tsconfig.json ./packages/common/
-COPY packages/common/tsconfig.build.json ./packages/common/
-COPY packages/common/tsconfig.esm.json ./packages/common/
-COPY packages/common/tsconfig.cjs.json ./packages/common/
-COPY packages/common/tsconfig.types.json ./packages/common/
-COPY packages/common/src/ ./packages/common/src/
-RUN pnpm -F @lightdash/common build
-
-# Build warehouses
-COPY packages/warehouses/tsconfig.json ./packages/warehouses/
-COPY packages/warehouses/src/ ./packages/warehouses/src/
-RUN pnpm -F @lightdash/warehouses build
-
-# Build backend
-COPY packages/backend/tsconfig.json ./packages/backend/
-COPY packages/backend/tsconfig.sentry.json ./packages/backend/
-COPY packages/backend/src/ ./packages/backend/src
 
 # Conditionally build backend with sourcemaps if Sentry environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
@@ -189,8 +207,15 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     pnpm -F backend build; \
     fi
 
-# Build frontend
+# Build frontend package  
+FROM prod-builder AS build-frontend
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/frontend ./packages/frontend
+
+ARG SENTRY_AUTH_TOKEN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_RELEASE_VERSION=""
+
 # Build frontend with sourcemaps (Vite generates them by default)
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
     echo "Building frontend with Sentry integration"; \
@@ -200,8 +225,26 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     pnpm -F frontend build; \
     fi
 
-# Process and upload sourcemaps to Sentry if environment variables are set
+# -----------------------------
+# Stage 4: final build assembly
+# -----------------------------
+
+FROM prod-builder AS build-final
+COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
+COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
+COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/
+COPY --from=build-frontend /usr/app/packages/frontend/build/ ./packages/frontend/build/
+
+# Install Sentry CLI and process sourcemaps if environment variables are set
+ARG SENTRY_AUTH_TOKEN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_RELEASE_VERSION=""
+ARG SENTRY_FRONTEND_PROJECT=""
+ARG SENTRY_BACKEND_PROJECT=""
+ARG SENTRY_ENVIRONMENT=""
+
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
+    npm install -g @sentry/cli; \
     echo "Creating Sentry releases and processing sourcemaps"; \
     # Create releases for both projects \
     sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_FRONTEND_PROJECT}"; \
@@ -239,17 +282,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile --prefer-offline
 
 # -----------------------------
-# Stage 3: execution environment for backend
+# Stage 5: execution environment for backend
 # -----------------------------
 
-FROM node:20-bookworm-slim as prod
+FROM pnpm-base as prod
 
 ENV NODE_ENV production
-ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
-RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
 
@@ -273,7 +311,7 @@ COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
 COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
 COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
 COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
-COPY --from=prod-builder /usr/app /usr/app
+COPY --from=build-final /usr/app /usr/app
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \

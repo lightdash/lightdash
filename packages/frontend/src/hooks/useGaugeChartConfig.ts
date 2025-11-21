@@ -39,6 +39,9 @@ const useGaugeChartConfig = (
     );
     const [min, setMin] = useState<number>(initialChartConfig?.min ?? 0);
     const [max, setMax] = useState<number>(initialChartConfig?.max ?? 100);
+    const [maxFieldId, setMaxFieldId] = useState<string | undefined>(
+        initialChartConfig?.maxFieldId,
+    );
     const [showAxisLabels, setShowAxisLabels] = useState<boolean>(
         initialChartConfig?.showAxisLabels ?? false,
     );
@@ -71,10 +74,18 @@ const useGaugeChartConfig = (
             selectedField: effectiveSelectedField,
             min,
             max,
+            maxFieldId,
             showAxisLabels,
             sections,
         };
-    }, [effectiveSelectedField, min, max, showAxisLabels, sections]);
+    }, [
+        effectiveSelectedField,
+        min,
+        max,
+        maxFieldId,
+        showAxisLabels,
+        sections,
+    ]);
 
     return useMemo(
         () => ({
@@ -87,6 +98,8 @@ const useGaugeChartConfig = (
             setMin,
             max,
             setMax,
+            maxFieldId,
+            setMaxFieldId,
             showAxisLabels,
             setShowAxisLabels,
             sections,
@@ -99,6 +112,7 @@ const useGaugeChartConfig = (
             getField,
             min,
             max,
+            maxFieldId,
             showAxisLabels,
             sections,
         ],

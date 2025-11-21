@@ -75,6 +75,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         isSuccess,
     } = useSpaceSummaries(projectUuid, true, {
         staleTime: 0,
+        enabled: modalProps.opened, // Only fetch when modal is open
         select: (data) => {
             // Only get spaces that the user can create dashboards to
             return data.filter((space) =>
@@ -187,6 +188,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 title="Create Dashboard"
                 icon={IconLayoutDashboard}
                 onClose={() => handleClose()}
+                modalRootProps={{ keepMounted: false }}
                 actions={
                     <Group position="right" w="100%">
                         {shouldShowNewSpaceButton && (

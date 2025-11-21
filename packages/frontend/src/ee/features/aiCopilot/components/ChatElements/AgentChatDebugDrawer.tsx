@@ -1,6 +1,7 @@
-import {
-    type AiAgentMessageAssistantArtifact,
-    type AiAgentToolCall,
+import type {
+    AiAgentMessageAssistantArtifact,
+    AiAgentToolCall,
+    AiAgentToolResult,
 } from '@lightdash/common';
 import {
     Box,
@@ -22,6 +23,7 @@ import { useMemo, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import classes from './AgentChatDebugDrawer.module.css';
+import { ToolResults } from './ToolResults';
 
 type Props = {
     isVisualizationAvailable: boolean;
@@ -29,6 +31,7 @@ type Props = {
     onClose: () => void;
     artifacts: AiAgentMessageAssistantArtifact[] | null;
     toolCalls: AiAgentToolCall[] | null;
+    toolResults: AiAgentToolResult[] | null;
     agentUuid: string;
     projectUuid: string;
 };
@@ -52,6 +55,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
     onClose,
     artifacts,
     toolCalls,
+    toolResults,
     agentUuid,
     projectUuid,
 }) => {
@@ -59,6 +63,14 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
     const [expandedToolCalls, setExpandedToolCalls] = useState<
         Record<string, boolean>
     >({});
+
+    // Create a map of toolCallId -> toolResult for quick lookup
+    const toolResultsMap = useMemo(() => {
+        if (!toolResults) return new Map<string, AiAgentToolResult>();
+        return new Map(
+            toolResults.map((result) => [result.toolCallId, result]),
+        );
+    }, [toolResults]);
 
     const { data: artifactData } = useAiAgentArtifact({
         projectUuid: projectUuid,
@@ -94,7 +106,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
             }
             opened={isVisualizationAvailable && isDrawerOpen}
             onClose={onClose}
-            size="md"
+            size="lg"
             position="right"
             styles={{
                 header: {
@@ -208,33 +220,55 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                             </Group>
                                         </Box>
                                         <Collapse in={isExpanded}>
-                                            {argsJson ? (
-                                                <Prism
-                                                    language="json"
-                                                    styles={{
-                                                        code: {
-                                                            fontSize: '11px',
-                                                        },
-                                                    }}
-                                                >
-                                                    {argsJson}
-                                                </Prism>
-                                            ) : (
-                                                <Box
-                                                    p="sm"
-                                                    className={
-                                                        classes.centerText
-                                                    }
-                                                >
-                                                    <Text
-                                                        size="xs"
-                                                        c="dimmed"
-                                                        fs="italic"
+                                            <Stack gap="sm" p="sm">
+                                                {/* Tool Arguments */}
+                                                {argsJson ? (
+                                                    <Box>
+                                                        <Text
+                                                            fw={500}
+                                                            size="xs"
+                                                            c="dark"
+                                                            mb="xs"
+                                                        >
+                                                            Arguments
+                                                        </Text>
+                                                        <Prism
+                                                            language="json"
+                                                            styles={{
+                                                                code: {
+                                                                    fontSize:
+                                                                        '11px',
+                                                                },
+                                                            }}
+                                                        >
+                                                            {argsJson}
+                                                        </Prism>
+                                                    </Box>
+                                                ) : (
+                                                    <Box
+                                                        p="sm"
+                                                        className={
+                                                            classes.centerText
+                                                        }
                                                     >
-                                                        Cannot display arguments
-                                                    </Text>
-                                                </Box>
-                                            )}
+                                                        <Text
+                                                            size="xs"
+                                                            c="dimmed"
+                                                            fs="italic"
+                                                        >
+                                                            Cannot display
+                                                            arguments
+                                                        </Text>
+                                                    </Box>
+                                                )}
+
+                                                <ToolResults
+                                                    toolCall={toolCall}
+                                                    toolResult={toolResultsMap.get(
+                                                        toolCall.toolCallId,
+                                                    )}
+                                                />
+                                            </Stack>
                                         </Collapse>
                                     </Box>
                                 );

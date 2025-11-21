@@ -456,7 +456,6 @@ export class ScimService extends BaseService {
                 organizationUuid,
                 userUuid: dbUser.userUuid,
                 roles: user.roles,
-                currentOrgRole: role,
             });
 
             // verify user email on create if coming from scim
@@ -594,7 +593,6 @@ export class ScimService extends BaseService {
                 organizationUuid,
                 userUuid,
                 roles: user.roles,
-                currentOrgRole: updatedUser.role,
             });
 
             // If setting user to inactive, drop org role to MEMBER and remove project roles
@@ -734,46 +732,40 @@ export class ScimService extends BaseService {
         organizationUuid,
         userUuid,
         roles,
-        currentOrgRole,
     }: {
         organizationUuid: string;
         userUuid: string;
         roles: ScimUser['roles'];
-        currentOrgRole: string | undefined;
     }) {
         if (roles !== undefined && roles.length > 0) {
-            await Promise.all(
-                roles.map(async (role) => {
-                    const { roleUuid, projectUuid } = ScimService.parseRoleId(
-                        role.value,
-                    );
-                    if (projectUuid) {
-                        if (isSystemRole(roleUuid)) {
-                            await this.rolesModel.upsertSystemRoleProjectAccess(
-                                projectUuid,
-                                userUuid,
-                                roleUuid,
-                            );
-                        } else {
-                            await this.rolesModel.upsertCustomRoleProjectAccess(
-                                projectUuid,
-                                userUuid,
-                                roleUuid,
-                            );
-                        }
-                    } else if (
-                        isOrganizationMemberRole(roleUuid) &&
-                        roleUuid !== currentOrgRole
-                    ) {
-                        await this.organizationMemberProfileModel.updateOrganizationMember(
-                            organizationUuid,
-                            userUuid,
-                            {
-                                role: roleUuid,
-                            },
-                        );
-                    }
-                }),
+            // Group roles into organization role and per-project roles
+            const desiredProjectRoles: Array<{
+                projectUuid: string;
+                roleId: string;
+            }> = [];
+            let desiredOrgRoleUuid: OrganizationMemberRole | undefined;
+
+            for (const role of roles) {
+                const { roleUuid, projectUuid } = ScimService.parseRoleId(
+                    role.value,
+                );
+                if (projectUuid) {
+                    desiredProjectRoles.push({ projectUuid, roleId: roleUuid });
+                } else if (isOrganizationMemberRole(roleUuid)) {
+                    desiredOrgRoleUuid = roleUuid;
+                }
+            }
+
+            if (!desiredOrgRoleUuid) {
+                throw new ParameterError('Organization role is required');
+            }
+
+            await this.rolesModel.setUserOrgAndProjectRoles(
+                organizationUuid,
+                userUuid,
+                desiredOrgRoleUuid,
+                desiredProjectRoles,
+                true, // prevent deletion of preview projects roles since SCIM doesn't manage those
             );
         }
     }

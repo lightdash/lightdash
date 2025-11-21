@@ -11,11 +11,17 @@ describe('validateTableCalculations', () => {
     describe('Edge Cases', () => {
         it('should not throw for null or empty tableCalcs array', () => {
             expect(() =>
-                validateTableCalculations(mockOrdersExplore, null, [], null),
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    null,
+                    [],
+                    [],
+                    null,
+                ),
             ).not.toThrow();
 
             expect(() =>
-                validateTableCalculations(mockOrdersExplore, [], [], null),
+                validateTableCalculations(mockOrdersExplore, [], [], [], null),
             ).not.toThrow();
         });
     });
@@ -37,6 +43,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -59,6 +66,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -94,6 +102,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     customMetrics,
                 ),
@@ -102,7 +111,7 @@ describe('validateTableCalculations', () => {
     });
 
     describe('Window Functions', () => {
-        it('should not throw for nillary window function without fieldId', () => {
+        it('should not throw for nullary window function without fieldId', () => {
             const tableCalcs: TableCalcsSchema = [
                 {
                     type: 'window_function',
@@ -124,6 +133,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -144,6 +154,7 @@ describe('validateTableCalculations', () => {
                 },
             ];
 
+            const selectedDimensions = ['orders_customer_name'];
             const selectedMetrics = [
                 'orders_total_revenue',
                 'orders_order_count',
@@ -153,6 +164,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    selectedDimensions,
                     selectedMetrics,
                     null,
                 ),
@@ -179,6 +191,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -212,6 +225,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -244,6 +258,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -272,6 +287,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -296,6 +312,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -318,6 +335,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -341,6 +359,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
@@ -364,10 +383,63 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),
             ).toThrow(/neither in the explore nor in the custom metrics/);
+        });
+
+        it('should throw when partitionBy field is not selected in query', () => {
+            const tableCalcs: TableCalcsSchema = [
+                {
+                    type: 'percent_of_column_total',
+                    name: 'percent_of_total',
+                    displayName: 'Percent of Total',
+                    fieldId: 'orders_total_revenue',
+                    partitionBy: ['orders_customer_name'],
+                },
+            ];
+
+            const selectedMetrics = ['orders_total_revenue'];
+
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    tableCalcs,
+                    [], // orders_customer_name is not selected
+                    selectedMetrics,
+                    null,
+                ),
+            ).toThrow(
+                /uses partitionBy field "orders_customer_name" which is not selected in the query/,
+            );
+        });
+
+        it('should throw when orderBy field is not selected in query', () => {
+            const tableCalcs: TableCalcsSchema = [
+                {
+                    type: 'percent_change_from_previous',
+                    name: 'percent_change',
+                    displayName: 'Percent Change',
+                    fieldId: 'orders_total_revenue',
+                    orderBy: [{ fieldId: 'orders_order_count', order: 'asc' }],
+                },
+            ];
+
+            const selectedMetrics = ['orders_total_revenue']; // orders_order_count is not selected
+
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    tableCalcs,
+                    [],
+                    selectedMetrics,
+                    null,
+                ),
+            ).toThrow(
+                /uses orderBy field "orders_order_count" which is not selected in the query/,
+            );
         });
     });
 
@@ -389,6 +461,7 @@ describe('validateTableCalculations', () => {
                 validateTableCalculations(
                     mockOrdersExplore,
                     tableCalcs,
+                    [],
                     selectedMetrics,
                     null,
                 ),

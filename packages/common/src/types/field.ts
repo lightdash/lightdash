@@ -325,7 +325,7 @@ export enum WindowFunctionType {
     MAX = 'max',
 }
 
-export const nillaryWindowFunctions: WindowFunctionType[] = [
+export const nullaryWindowFunctions: WindowFunctionType[] = [
     WindowFunctionType.ROW_NUMBER,
     WindowFunctionType.PERCENT_RANK,
     WindowFunctionType.CUME_DIST,

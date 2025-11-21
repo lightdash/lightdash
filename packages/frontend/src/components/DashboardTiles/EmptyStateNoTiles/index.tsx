@@ -39,19 +39,21 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const { user } = useApp();
     const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid);
 
+    // Only check permissions when in edit mode (when it's actually needed)
     const userCanCreateDashboard = useCreateInAnySpaceAccess(
         projectUuid,
         'Dashboard',
+        { enabled: isEditMode },
     );
 
     const dashboardEmptyStateTitle = () => {
         switch (emptyContainerType) {
             case 'dashboard':
-                return userCanCreateDashboard
+                return userCanCreateDashboard && isEditMode
                     ? 'Start building your dashboard!'
                     : 'Dashboard is empty.';
             case 'tab':
-                return userCanCreateDashboard
+                return userCanCreateDashboard && isEditMode
                     ? 'Add tiles to this tab'
                     : 'Tab is empty';
             default:

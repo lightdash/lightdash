@@ -1761,6 +1761,7 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfiguration,
                             warehouseSqlBuilder,
                             args.metricQuery.limit,
+                            args.fields,
                         );
 
                         pivotedQuery = pivotQueryBuilder.toSql({

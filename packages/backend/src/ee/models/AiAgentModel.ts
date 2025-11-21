@@ -42,11 +42,10 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
-    NotImplementedError,
+    ProjectType,
     SlackPrompt,
     ToolName,
     ToolNameSchema,
-    ToolProposeChangeOutput,
     toolProposeChangeOutputSchema,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
@@ -61,6 +60,7 @@ import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import {
     AiAgentToolCallTableName,
@@ -272,10 +272,10 @@ export class AiAgentModel {
 
     async findAllAgents({
         organizationUuid,
-        projectUuid,
+        filter,
     }: {
         organizationUuid: string;
-        projectUuid?: string;
+        filter?: { projectType?: ProjectType; projectUuid?: string };
     }): Promise<AiAgentSummary[]> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -320,6 +320,11 @@ export class AiAgentModel {
             .with('user_access', userAccess)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${AiAgentTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -378,8 +383,18 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
-        if (projectUuid) {
-            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        if (filter?.projectUuid) {
+            void query.where(
+                `${ProjectTableName}.project_uuid`,
+                filter.projectUuid,
+            );
+        }
+
+        if (filter?.projectType) {
+            void query.where(
+                `${ProjectTableName}.project_type`,
+                filter.projectType,
+            );
         }
 
         const rows = await query;
@@ -589,6 +604,24 @@ export class AiAgentModel {
                 .returning('*');
 
             // Reset all integrations
+            // we cannot relay on cascade deletes because might run into race condition
+            // delete child records first to avoid unique constraint violations
+            const integrationUuids = await trx(AiAgentIntegrationTableName)
+                .select('ai_agent_integration_uuid')
+                .where('ai_agent_uuid', args.agentUuid);
+
+            if (integrationUuids.length > 0) {
+                await trx(AiAgentSlackIntegrationTableName)
+                    .whereIn(
+                        'ai_agent_integration_uuid',
+                        integrationUuids.map(
+                            (i) => i.ai_agent_integration_uuid,
+                        ),
+                    )
+                    .delete();
+            }
+
+            // Then delete parent integration records
             await trx(AiAgentIntegrationTableName)
                 .where('ai_agent_uuid', args.agentUuid)
                 .delete();
@@ -2783,11 +2816,6 @@ export class AiAgentModel {
         }
     }
 
-    /**
-     * Gets all tool calls and results for a prompt using a single query
-     * @param promptUuid
-     * @returns Array<{toolCall: AiAgentToolCall, toolResult: AiAgentToolResult}>
-     */
     async getToolCallsAndResultsForPrompt(promptUuid: string): Promise<
         Array<{
             toolCall: AiAgentToolCall;
@@ -2797,11 +2825,12 @@ export class AiAgentModel {
         const rows = await this.database(AiAgentToolCallTableName)
             .select<
                 Array<
-                    DbAiAgentToolCall &
-                        Pick<
-                            DbAiAgentToolResult,
-                            'ai_agent_tool_result_uuid' | 'result' | 'metadata'
-                        > & { result_created_at: Date }
+                    DbAiAgentToolCall & {
+                        ai_agent_tool_result_uuid: string | null;
+                        result: string | null;
+                        metadata: Record<string, unknown> | null;
+                        result_created_at: Date | null;
+                    }
                 >
             >(
                 `${AiAgentToolCallTableName}.*`,
@@ -2810,7 +2839,7 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.metadata`,
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
             )
-            .innerJoin(
+            .leftJoin(
                 AiAgentToolResultTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
                 `${AiAgentToolResultTableName}.tool_call_id`,
@@ -2818,31 +2847,33 @@ export class AiAgentModel {
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
-        return rows.map((row) => {
-            const toolCall = {
-                uuid: row.ai_agent_tool_call_uuid,
-                promptUuid: row.ai_prompt_uuid,
-                toolCallId: row.tool_call_id,
-                toolName: row.tool_name,
-                toolArgs: row.tool_args,
-                createdAt: row.created_at,
-            } satisfies AiAgentToolCall;
+        return rows
+            .filter((row) => row.result !== null)
+            .map((row) => {
+                const toolCall = {
+                    uuid: row.ai_agent_tool_call_uuid,
+                    promptUuid: row.ai_prompt_uuid,
+                    toolCallId: row.tool_call_id,
+                    toolName: row.tool_name,
+                    toolArgs: row.tool_args,
+                    createdAt: row.created_at,
+                } satisfies AiAgentToolCall;
 
-            const toolResult = this.parseToolResult({
-                ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid,
-                ai_prompt_uuid: row.ai_prompt_uuid,
-                tool_call_id: row.tool_call_id,
-                tool_name: row.tool_name,
-                result: row.result,
-                metadata: row.metadata,
-                created_at: row.result_created_at,
+                const toolResult = this.parseToolResult({
+                    ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid!,
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    tool_call_id: row.tool_call_id,
+                    tool_name: row.tool_name,
+                    result: row.result!,
+                    metadata: row.metadata!,
+                    created_at: row.result_created_at!,
+                });
+
+                return {
+                    toolCall,
+                    toolResult,
+                };
             });
-
-            return {
-                toolCall,
-                toolResult,
-            };
-        });
     }
 
     async getToolCallsForPrompt(

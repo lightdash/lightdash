@@ -479,39 +479,24 @@ describe('ScimService', () => {
                 organizationUuid: mockUser.organizationUuid,
             });
 
-            // Verify that system role project access was updated
-            expect(
-                rolesModel.upsertSystemRoleProjectAccess,
-            ).toHaveBeenCalledWith(
-                'project-1-uuid',
-                mockUser.userUuid,
-                'admin',
-            );
-
-            // Verify that custom role project access was updated
-            expect(
-                rolesModel.upsertCustomRoleProjectAccess,
-            ).toHaveBeenCalledWith(
-                'project-2-uuid',
-                mockUser.userUuid,
-                'custom-role-1-uuid',
-            );
-
-            // Verify that organization role was updated
-            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
-            expect(
-                organizationMemberProfileModel.updateOrganizationMember,
-            ).toHaveBeenCalledWith(
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
                 mockUser.organizationUuid,
                 mockUser.userUuid,
-                {
-                    role: OrganizationMemberRole.EDITOR,
-                },
+                OrganizationMemberRole.EDITOR,
+                [
+                    { projectUuid: 'project-1-uuid', roleId: 'admin' },
+                    {
+                        projectUuid: 'project-2-uuid',
+                        roleId: 'custom-role-1-uuid',
+                    },
+                ],
+                true, // excludeProjectPreviews
             );
         });
 
-        test('should handle organization-only roles in roles array', async () => {
-            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+        test('should handle organization-only roles in roles array via unified method', async () => {
+            const { organizationMemberProfileModel, rolesModel } =
+                ScimServiceArgumentsMock;
 
             // Create a SCIM user with only organization roles
             const scimUser = {
@@ -548,15 +533,13 @@ describe('ScimService', () => {
                 organizationUuid: mockUser.organizationUuid,
             });
 
-            // Verify that organization role was updated
-            expect(
-                organizationMemberProfileModel.updateOrganizationMember,
-            ).toHaveBeenCalledWith(
+            // Verify unified method called with empty project roles
+            expect(rolesModel.setUserOrgAndProjectRoles).toHaveBeenCalledWith(
                 mockUser.organizationUuid,
                 mockUser.userUuid,
-                {
-                    role: OrganizationMemberRole.VIEWER,
-                },
+                OrganizationMemberRole.VIEWER,
+                [],
+                true, // excludeProjectPreviews
             );
         });
     });

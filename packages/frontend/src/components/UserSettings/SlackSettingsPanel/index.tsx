@@ -27,6 +27,7 @@ import {
     IconDeviceFloppy,
     IconHelpCircle,
     IconRefresh,
+    IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
@@ -42,7 +43,7 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import slackSvg from '../../../svgs/slack.svg';
-import MantineIcon from '../../common/MantineIcon';
+import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
@@ -66,6 +67,7 @@ const formSchema = z.object({
     ),
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
+    aiMultiAgentChannelId: z.string().min(1).optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
@@ -102,6 +104,7 @@ const SlackSettingsPanel: FC = () => {
             slackChannelProjectMappings: [],
             aiThreadAccessConsent: false,
             aiRequireOAuth: false,
+            aiMultiAgentChannelId: undefined,
         },
         validate: zodResolver(formSchema),
     });
@@ -119,6 +122,8 @@ const SlackSettingsPanel: FC = () => {
             aiThreadAccessConsent:
                 slackInstallation.aiThreadAccessConsent ?? false,
             aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
+            aiMultiAgentChannelId:
+                slackInstallation.aiMultiAgentChannelId ?? undefined,
         };
 
         if (form.initialized) {
@@ -339,6 +344,74 @@ const SlackSettingsPanel: FC = () => {
                                                 setFieldValue(
                                                     'aiRequireOAuth',
                                                     event.currentTarget.checked,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
+
+                                    <Stack spacing="xs">
+                                        <Group spacing="two">
+                                            <Title order={6} fw={500}>
+                                                Multi-agent channel
+                                            </Title>
+
+                                            <Tooltip
+                                                multiline
+                                                variant="xs"
+                                                maw={250}
+                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
+                                            <Badge
+                                                color="indigo"
+                                                variant="light"
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconSparkles}
+                                                    />
+                                                }
+                                            >
+                                                Coming soon
+                                            </Badge>
+                                        </Group>
+
+                                        <Text c="dimmed" fz="xs">
+                                            In this channel, users starting a
+                                            thread will see a dropdown to choose
+                                            which AI agent to chat with.
+                                        </Text>
+
+                                        <Select
+                                            size="xs"
+                                            placeholder="Select a channel (optional)"
+                                            searchable
+                                            clearable
+                                            limit={500}
+                                            disabled
+                                            nothingFound="No channels found"
+                                            data={slackChannelOptions}
+                                            rightSection={
+                                                isLoadingSlackChannels ? (
+                                                    <Loader size="xs" />
+                                                ) : null
+                                            }
+                                            {...form.getInputProps(
+                                                'aiMultiAgentChannelId',
+                                            )}
+                                            onSearchChange={(val) => {
+                                                if (
+                                                    responsiveChannelsSearchEnabled
+                                                ) {
+                                                    debounceSetSearch(val);
+                                                }
+                                            }}
+                                            onChange={(value) => {
+                                                setFieldValue(
+                                                    'aiMultiAgentChannelId',
+                                                    value ?? undefined,
                                                 );
                                             }}
                                         />

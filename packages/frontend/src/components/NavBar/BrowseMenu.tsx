@@ -6,7 +6,7 @@ import {
     IconFolders,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
@@ -18,11 +18,15 @@ interface Props {
 }
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    // Track if menu has ever been opened to defer loading spaces
+    const [hasBeenOpened, setHasBeenOpened] = useState(false);
+
     const { data: spaces, isInitialLoading } = useSpaceSummaries(
         projectUuid,
         true,
         {
             select: (data) => data.filter((space) => !space.parentSpaceUuid),
+            enabled: hasBeenOpened,
         },
     );
     const { data: hasMetrics } = useHasMetricsInCatalog({
@@ -37,6 +41,11 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
+            onChange={(opened) => {
+                if (opened && !hasBeenOpened) {
+                    setHasBeenOpened(true);
+                }
+            }}
         >
             <Menu.Target>
                 <Button

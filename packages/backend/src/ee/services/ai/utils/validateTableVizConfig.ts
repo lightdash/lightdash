@@ -55,6 +55,7 @@ export const validateTableVizConfig = (
     validateTableCalculations(
         explore,
         vizTool.tableCalculations,
+        vizTool.vizConfig.dimensions,
         vizTool.vizConfig.metrics,
         vizTool.customMetrics,
     );

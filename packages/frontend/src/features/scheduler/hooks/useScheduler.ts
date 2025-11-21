@@ -12,7 +12,6 @@ import {
     type SchedulerAndTargets,
     type SchedulerRunLog,
     type SchedulerRunStatus,
-    type SchedulerWithLogs,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import {
@@ -33,44 +32,6 @@ const getScheduler = async (uuid: string) =>
         method: 'GET',
         body: undefined,
     });
-
-const getSchedulerLogs = async (
-    projectUuid: string,
-    paginateArgs: KnexPaginateArgs,
-    searchQuery?: string,
-    filters?: {
-        statuses?: SchedulerJobStatus[];
-        createdByUserUuids?: string[];
-        destinations?: DestinationType[];
-    },
-) => {
-    const params = new URLSearchParams({
-        page: paginateArgs.page.toString(),
-        pageSize: paginateArgs.pageSize.toString(),
-    });
-
-    if (searchQuery) {
-        params.set('searchQuery', searchQuery);
-    }
-
-    if (filters?.statuses && filters.statuses.length > 0) {
-        params.set('statuses', filters.statuses.join(','));
-    }
-
-    if (filters?.createdByUserUuids && filters.createdByUserUuids.length > 0) {
-        params.set('createdByUserUuids', filters.createdByUserUuids.join(','));
-    }
-
-    if (filters?.destinations && filters.destinations.length > 0) {
-        params.set('destinations', filters.destinations.join(','));
-    }
-
-    return lightdashApi({
-        url: `/schedulers/${projectUuid}/logs?${params.toString()}`,
-        method: 'GET',
-        body: undefined,
-    }) as unknown as Promise<LogsResponse>;
-};
 
 const getSchedulerRuns = async (
     projectUuid: string,
@@ -226,62 +187,7 @@ export const useScheduler = (
         ...useQueryOptions,
     });
 
-type LogsResponse = {
-    pagination?: {
-        page: number;
-        pageSize: number;
-        totalPageCount: number;
-        totalResults: number;
-    };
-    data: SchedulerWithLogs;
-};
-
 type RunsResponse = ApiSchedulerRunsResponse['results'];
-
-export const useSchedulerLogs = ({
-    projectUuid,
-    paginateArgs,
-    searchQuery,
-    filters,
-}: {
-    projectUuid: string;
-    paginateArgs?: KnexPaginateArgs;
-    searchQuery?: string;
-    filters?: {
-        statuses?: SchedulerJobStatus[];
-        createdByUserUuids?: string[];
-        destinations?: DestinationType[];
-    };
-}) => {
-    return useInfiniteQuery<LogsResponse>({
-        queryKey: [
-            'schedulerLogs',
-            projectUuid,
-            paginateArgs,
-            searchQuery,
-            filters,
-        ],
-        queryFn: async ({ pageParam = 0 }) => {
-            return getSchedulerLogs(
-                projectUuid,
-                {
-                    page: (pageParam as number) + 1,
-                    pageSize: paginateArgs?.pageSize || 10,
-                },
-                searchQuery,
-                filters,
-            );
-        },
-        getNextPageParam: (_lastGroup, groups) => {
-            const currentPage = groups.length - 1;
-            const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
-            return currentPage < totalPages - 1 ? currentPage + 1 : undefined;
-        },
-        keepPreviousData: true,
-        refetchOnWindowFocus: false,
-        enabled: !!projectUuid,
-    });
-};
 
 export const useSchedulerRuns = ({
     projectUuid,

@@ -175,6 +175,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     <ViewSqlButton sql={compiledSql?.query} />
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
+                        agentUuid={agentUuid}
                         saveChartOptions={{
                             name: visualization.title,
                             description: visualization.description ?? null,
