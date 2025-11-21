@@ -114,7 +114,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     {
                                         label: (
                                             <Tooltip
-                                                label="Set the maximum value"
+                                                label="Set the minimum value"
                                                 withinPortal
                                                 variant="xs"
                                             >
