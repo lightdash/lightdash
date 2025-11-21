@@ -33,9 +33,37 @@ export const toolFindFieldsArgsSchema = createToolSchema({
 
 export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
 
+export const findFieldsRankingMetadataSchema = z.object({
+    searchQueries: z.array(
+        z.object({
+            label: z.string(),
+            results: z.array(
+                z.object({
+                    name: z.string(),
+                    label: z.string(),
+                    tableName: z.string(),
+                    fieldType: z.string(),
+                    searchRank: z.number().nullable().optional(),
+                    chartUsage: z.number().nullable().optional(),
+                }),
+            ),
+            pagination: z
+                .object({
+                    page: z.number(),
+                    pageSize: z.number(),
+                    totalResults: z.number(),
+                    totalPageCount: z.number(),
+                })
+                .optional(),
+        }),
+    ),
+});
+
 export const toolFindFieldsOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        ranking: findFieldsRankingMetadataSchema.optional(),
+    }),
 });
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;

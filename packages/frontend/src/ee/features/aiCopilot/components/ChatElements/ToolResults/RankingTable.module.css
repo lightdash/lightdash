@@ -1,0 +1,36 @@
+.tableContainer {
+    background-color: var(--mantine-color-white);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-2);
+}
+
+.table {
+    background-color: var(--mantine-color-white);
+}
+
+.tableHeader {
+    background-color: var(--mantine-color-white);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: var(--mantine-font-weight-500);
+}
+
+.tableRow {
+    transition: background-color 0.15s ease;
+}
+
+.tableRow:hover {
+    background-color: var(--mantine-color-gray-0);
+}
+
+.tableCell {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+}
+
+.tableCellText {
+    font-size: var(--mantine-font-size-xs);
+}
+
+.tableCellTextDimmed {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-gray-6);
+}
