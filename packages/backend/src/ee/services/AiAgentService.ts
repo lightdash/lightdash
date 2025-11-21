@@ -1,13 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    AgentSummaryContext,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
     AiAgentNotFoundError,
+    AiAgentSummary,
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
+    AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
     AiResultType,
@@ -1958,6 +1961,38 @@ export class AiAgentService {
         return this.aiAgentModel.getVerifiedQuestions(agentUuid);
     }
 
+    /**
+     * Private method to get a summary context for an agent.
+     * Assumes all permission checks and validations have been performed by the caller.
+     */
+    private async getAgentSummaryContext(
+        user: SessionUser,
+        agent: AiAgentSummary,
+    ): Promise<AgentSummaryContext> {
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            agent.projectUuid,
+            agent.tags,
+        );
+        const exploreNames = availableExplores.map(
+            (explore) => explore.label || explore.name,
+        );
+
+        const verifiedQuestionsData =
+            await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
+        const verifiedQuestions = verifiedQuestionsData.map((q) => q.question);
+
+        return {
+            uuid: agent.uuid,
+            projectUuid: agent.projectUuid,
+            name: agent.name,
+            description: agent.description,
+            explores: exploreNames,
+            verifiedQuestions,
+            instruction: agent.instruction,
+        };
+    }
+
     async revertChange(
         user: SessionUser,
         {
@@ -3784,32 +3819,47 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     }
 
     /**
-     * Get available agents for a user, filtered by access if OAuth is required
+     * Get available agents for a user with their full context, filtered by access if OAuth is required
      */
     private async getAvailableAgents(
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
-    ): Promise<AiAgent[]> {
+        options?: { projectUuid?: string },
+    ): Promise<AiAgentWithContext[]> {
         const allAgents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
+            projectUuid: options?.projectUuid,
         });
-
-        if (!slackSettings?.aiRequireOAuth) {
-            return allAgents;
-        }
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             userUuid,
             organizationUuid,
         );
 
-        // Check access for all agents in parallel
-        const accessChecks = await Promise.all(
-            allAgents.map((agent) => this.checkAgentAccess(user, agent)),
+        let filteredAgents: AiAgentSummary[];
+
+        if (!slackSettings?.aiRequireOAuth) {
+            filteredAgents = allAgents;
+        } else {
+            filteredAgents = await Promise.all(
+                allAgents.map(async (agent) => {
+                    const hasAccess = await this.checkAgentAccess(user, agent);
+                    return hasAccess ? agent : null;
+                }),
+            ).then((results) => results.filter((agent) => agent !== null));
+        }
+        const agentsWithContext = await Promise.all(
+            filteredAgents.map(async (agent) => {
+                const context = await this.getAgentSummaryContext(user, agent);
+                return {
+                    ...agent,
+                    context,
+                };
+            }),
         );
 
-        return allAgents.filter((agent, index) => accessChecks[index]);
+        return agentsWithContext;
     }
 
     /**
