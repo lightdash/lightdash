@@ -1,4 +1,8 @@
-import { chartAsCodeSchema, dashboardAsCodeSchema } from '@lightdash/common';
+import {
+    chartAsCodeSchema,
+    dashboardAsCodeSchema,
+    modelAsCodeSchema,
+} from '@lightdash/common';
 import type { ErrorObject } from 'ajv';
 import chalk from 'chalk';
 import * as fs from 'fs';
@@ -22,11 +26,12 @@ type FileValidationResult = {
     errors?: ErrorObject[];
     fileContent?: string;
     locationMap?: LocationMap;
-    type?: 'chart' | 'dashboard';
+    type?: 'chart' | 'dashboard' | 'model';
 };
 
 const validateChartSchema = ajv.compile(chartAsCodeSchema);
 const validateDashboardSchema = ajv.compile(dashboardAsCodeSchema);
+const validateModelSchema = ajv.compile(modelAsCodeSchema);
 
 /**
  * Find all YAML and JSON files in a path (file or directory).
@@ -170,9 +175,30 @@ function validateFile(filePath: string): FileValidationResult {
 
         const dataObj = data as {
             version?: number;
+            type?: string;
             metricQuery?: unknown;
             tiles?: unknown;
         };
+
+        // Check if this is a model (has type: "model", "model/v1beta", or "model/v1")
+        if (
+            dataObj.type === 'model' ||
+            dataObj.type === 'model/v1beta' ||
+            dataObj.type === 'model/v1'
+        ) {
+            const valid = validateModelSchema(data);
+            if (!valid && validateModelSchema.errors) {
+                return {
+                    filePath,
+                    valid: false,
+                    errors: validateModelSchema.errors,
+                    fileContent,
+                    locationMap,
+                    type: 'model',
+                };
+            }
+            return { filePath, valid: true, type: 'model' };
+        }
 
         // Check if this is a chart (has version and metricQuery)
         if (dataObj.version === 1 && dataObj.metricQuery && !dataObj.tiles) {
@@ -255,7 +281,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
     const results: FileValidationResult[] = [];
     for (const file of codeFiles) {
         const result = validateFile(file);
-        // Only track Lightdash Code files (views, explores, charts, dashboards)
+        // Only track Lightdash Code files (models, charts, dashboards)
         if (result.type) {
             results.push(result);
         }
@@ -266,7 +292,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
             console.log(chalk.yellow('No Lightdash Code files found.'));
             console.log(
                 chalk.dim(
-                    'Charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
+                    'Models must have type: model (or model/v1, model/v1beta), charts must have version: 1 + metricQuery, dashboards must have version: 1 + tiles',
                 ),
             );
         }
