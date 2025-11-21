@@ -65,9 +65,37 @@ export const toolFindExploresArgsSchema = z.discriminatedUnion('type', [
 
 export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
 
+export const findExploresRankingMetadataSchema = z.object({
+    searchQuery: z.string(),
+    exploreSearchResults: z
+        .array(
+            z.object({
+                name: z.string(),
+                label: z.string(),
+                searchRank: z.number().nullable().optional(),
+                joinedTables: z.array(z.string()).nullable().optional(),
+            }),
+        )
+        .optional(),
+    topMatchingFields: z
+        .array(
+            z.object({
+                name: z.string(),
+                label: z.string(),
+                tableName: z.string(),
+                fieldType: z.string(),
+                searchRank: z.number().nullable().optional(),
+                chartUsage: z.number().nullable().optional(),
+            }),
+        )
+        .optional(),
+});
+
 export const toolFindExploresOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        ranking: findExploresRankingMetadataSchema.optional(),
+    }),
 });
 
 export type ToolFindExploresArgsV1 = z.infer<

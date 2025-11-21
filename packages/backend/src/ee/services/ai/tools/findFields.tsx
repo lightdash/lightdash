@@ -146,6 +146,25 @@ export const getFindFields = ({
                     ).toString(),
                     metadata: {
                         status: 'success',
+                        ranking: {
+                            searchQueries: fieldSearchQueryResults.map(
+                                (fieldSearchQueryResult) => ({
+                                    label: fieldSearchQueryResult.searchQuery,
+                                    results: fieldSearchQueryResult.fields.map(
+                                        (field) => ({
+                                            name: field.name,
+                                            label: field.label,
+                                            tableName: field.tableName,
+                                            fieldType: field.fieldType,
+                                            searchRank: field.searchRank,
+                                            chartUsage: field.chartUsage,
+                                        }),
+                                    ),
+                                    pagination:
+                                        fieldSearchQueryResult.pagination,
+                                }),
+                            ),
+                        },
                     },
                 };
             } catch (error) {

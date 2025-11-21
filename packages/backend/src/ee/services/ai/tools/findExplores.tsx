@@ -126,6 +126,27 @@ export const getFindExplores = ({
                     }),
                     metadata: {
                         status: 'success',
+                        ranking: {
+                            searchQuery: args.searchQuery,
+                            exploreSearchResults: exploreSearchResults?.map(
+                                (result) => ({
+                                    name: result.name,
+                                    label: result.label,
+                                    searchRank: result.searchRank,
+                                    joinedTables: result.joinedTables ?? [],
+                                }),
+                            ),
+                            topMatchingFields: topMatchingFields?.map(
+                                (field) => ({
+                                    name: field.name,
+                                    label: field.label,
+                                    tableName: field.tableName,
+                                    fieldType: field.fieldType,
+                                    searchRank: field.searchRank,
+                                    chartUsage: field.chartUsage,
+                                }),
+                            ),
+                        },
                     },
                 };
             } catch (error) {
