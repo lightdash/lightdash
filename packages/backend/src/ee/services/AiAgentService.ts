@@ -3323,13 +3323,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 blocks,
             });
         } catch (error) {
-            console.error(error);
-            console.dir({ blocks }, { depth: null });
             Sentry.captureException(error, {
                 tags: {
                     tag: 'replyToSlackPrompt.postMessage',
                 },
-                extra: { blocks },
+                extra: { responseLength: slackifiedMarkdown.length },
             });
             throw error;
         }
