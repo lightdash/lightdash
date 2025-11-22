@@ -17,13 +17,13 @@ type Props = {
 };
 
 export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
-    const addDimensionDashboardFilter = useDashboardContext(
-        (c) => c.addDimensionDashboardFilter,
+    const upsertDimensionDashboardFilter = useDashboardContext(
+        (c) => c.upsertDimensionDashboardFilter,
     );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const addFilterCallback = onAddFilter ?? addDimensionDashboardFilter;
+    const addFilterCallback = onAddFilter ?? upsertDimensionDashboardFilter;
     return (
         <>
             <Menu.Divider />
