@@ -129,7 +129,7 @@ const DEFAULT_VALUES_ALERT = {
     notificationFrequency: NotificationFrequency.ONCE,
 };
 
-const MAX_SLACK_CHANNELS = 100000;
+const INITIAL_CHANNELS_LIMIT = 200; // Must match backend INITIAL_CHANNELS_LIMIT
 
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
@@ -555,8 +555,10 @@ const SchedulerForm: FC<Props> = ({
             .concat(privateChannels);
     }, [slackChannelsQuery?.data, privateChannels]);
 
-    let responsiveChannelsSearchEnabled =
-        slackChannels.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channel search if there are more than MAX_SLACK_CHANNELS defined channels
+    // Always enable debounced search to reduce API calls
+    // With the 200 initial channel limit, search is needed to find specific channels
+    const responsiveChannelsSearchEnabled =
+        slackChannels.length >= INITIAL_CHANNELS_LIMIT || search.length > 0;
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
