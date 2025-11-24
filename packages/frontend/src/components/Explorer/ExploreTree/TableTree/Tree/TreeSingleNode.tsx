@@ -20,6 +20,7 @@ import {
     NavLink,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -70,6 +71,7 @@ type Props = {
 };
 
 const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
+    const theme = useMantineTheme();
     const itemsMap = useTableTree((context) => {
         return context.itemsMap;
     });
@@ -153,7 +155,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         return false;
     }, [description, isMissing, item, metricInfo]);
 
-    const bgColor = getItemBgColor(item);
+    const bgColor = getItemBgColor(item, theme);
     const alerts = itemsAlerts?.[getItemId(item)];
     const isFiltered = isField(item) && isFieldFiltered;
     const showFilterAction =

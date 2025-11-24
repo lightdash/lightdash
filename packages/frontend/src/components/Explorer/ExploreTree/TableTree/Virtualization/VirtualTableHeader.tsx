@@ -1,6 +1,6 @@
-import { NavLink, Text } from '@mantine/core';
+import { NavLink, Text, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -18,6 +18,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     item,
     onToggle,
 }) => {
+    const theme = useMantineTheme();
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
 
@@ -32,6 +33,19 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     const handleClosePreview = useCallback(
         () => toggleHover(false),
         [toggleHover],
+    );
+
+    const stickyStyle = useMemo(
+        () => ({
+            top: 0,
+            position: 'sticky' as const,
+            backgroundColor:
+                theme.colorScheme === 'dark'
+                    ? theme.colors.dark[7]
+                    : theme.colors.gray[0],
+            zIndex: 1,
+        }),
+        [theme.colorScheme, theme.colors],
     );
 
     const label = (
@@ -55,12 +69,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onMouseLeave={handleMouseLeave}
             icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
             label={label}
-            style={{
-                top: 0,
-                position: 'sticky',
-                backgroundColor: 'white',
-                zIndex: 1,
-            }}
+            style={stickyStyle}
         >
             {[]}
         </NavLink>
