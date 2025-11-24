@@ -231,6 +231,20 @@ export const getMantineThemeOverride = (overrides?: {
             transitionTimingFunction: 'ease-in-out',
             transitionDuration: 200, // in ms
             chartFont: 'Inter, sans-serif',
+            explorerItemBg: {
+                dimension: {
+                    light: '#d2dbe9',
+                    dark: '#2a3f5f',
+                },
+                metric: {
+                    light: '#e4dad0',
+                    dark: '#4a3929',
+                },
+                calculation: {
+                    light: '#d2dfd7',
+                    dark: '#2a4a2f',
+                },
+            },
         },
 
         globalStyles: (theme) => ({

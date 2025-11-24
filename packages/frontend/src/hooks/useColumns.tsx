@@ -13,6 +13,7 @@ import {
     itemsInMetricQuery,
     renderTemplatedUrl,
     type AdditionalMetric,
+    type AnyType,
     type CustomDimension,
     type Dimension,
     type Field,
@@ -23,7 +24,12 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Tooltip } from '@mantine/core';
+import {
+    Group,
+    Tooltip,
+    useMantineTheme,
+    type MantineTheme,
+} from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
@@ -62,13 +68,25 @@ import { useExplorerQuery } from './useExplorerQuery';
 
 export const getItemBgColor = (
     item: Field | AdditionalMetric | TableCalculation | CustomDimension,
+    // Accept both Mantine v6 and v8 themes during migration
+    theme: MantineTheme | { colorScheme?: string; other?: AnyType },
 ): string => {
-    if (isCustomDimension(item)) return '#d2dbe9';
-    if (isField(item) || isAdditionalMetric(item)) {
-        return isDimension(item) ? '#d2dbe9' : '#e4dad0';
-    } else {
-        return '#d2dfd7';
+    const colorScheme = theme.colorScheme || 'light';
+    const bgColors = theme.other?.explorerItemBg || {
+        dimension: { light: '#d2dbe9', dark: '#2a3f5f' },
+        metric: { light: '#e4dad0', dark: '#4a3929' },
+        calculation: { light: '#d2dfd7', dark: '#2a4a2f' },
+    };
+
+    if (isCustomDimension(item)) {
+        return bgColors.dimension[colorScheme];
     }
+    if (isField(item) || isAdditionalMetric(item)) {
+        return isDimension(item)
+            ? bgColors.dimension[colorScheme]
+            : bgColors.metric[colorScheme];
+    }
+    return bgColors.calculation[colorScheme];
 };
 
 export const formatCellContent = (
@@ -295,6 +313,7 @@ export const getValueCell = (
 };
 
 export const useColumns = (): TableColumn[] => {
+    const theme = useMantineTheme();
     const tableName = useExplorerSelector(selectTableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -531,7 +550,7 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: getItemBgColor(item),
+                        bgColor: getItemBgColor(item, theme),
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -653,5 +672,6 @@ export const useColumns = (): TableColumn[] => {
         exploreData,
         parameters,
         popPreviousFields,
+        theme,
     ]);
 };
