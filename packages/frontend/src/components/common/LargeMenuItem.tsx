@@ -26,11 +26,11 @@ const LargeMenuItem: ReturnType<
                 <Menu.Item<'button'>
                     ref={ref}
                     icon={
-                        <Card p="sm" bg="gray.7" radius="sm">
+                        <Card p="sm" bg="ldGray.7" radius="sm">
                             <MantineIcon
                                 icon={icon}
                                 size="lg"
-                                color="dark.0"
+                                color="ldDark.0"
                                 {...iconProps}
                             />
                         </Card>

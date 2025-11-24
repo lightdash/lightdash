@@ -209,7 +209,7 @@ export const CartesianChartSeries = ({
                               variant="contained"
                               sx={(theme) => ({
                                   root: {
-                                      border: `1px solid ${theme.colors.gray[2]}`,
+                                      border: `1px solid ${theme.colors.ldGray[2]}`,
                                   },
                               })}
                           >

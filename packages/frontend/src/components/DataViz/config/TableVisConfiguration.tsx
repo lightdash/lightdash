@@ -90,7 +90,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         backgroundColor: !columnsConfig[
                                             reference
                                         ].visible
-                                            ? theme.colors.gray[1]
+                                            ? theme.colors.ldGray[1]
                                             : '',
                                         cursor: !columnsConfig[reference]
                                             .visible

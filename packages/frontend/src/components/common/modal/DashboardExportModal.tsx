@@ -290,7 +290,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
 
             <Box
                 sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                     padding: theme.spacing.sm,
                     backgroundColor: theme.white,
                     position: 'sticky',
@@ -349,7 +349,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
             >
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                         padding: theme.spacing.sm,
                     })}
                 >
@@ -357,7 +357,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconLayoutDashboard} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text color="ldDark.7" fw={700} fz="md">
                             Export dashboard
                         </Text>
                     </Group>

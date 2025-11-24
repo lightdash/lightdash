@@ -343,7 +343,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 variant="outline"
                             >
                                 {sortedTabs && sortedTabs?.length > 0 && (
-                                    <Tabs.List bg="gray.0" px="lg">
+                                    <Tabs.List bg="ldGray.0" px="lg">
                                         <ScrollArea
                                             type="hover"
                                             offsetScrollbars

@@ -97,7 +97,7 @@ const FilterGroupDisplay: FC<{
                         rule={rule as AiFilterRule}
                     />
                     {combinator === 'or' && index !== rules.length - 1 && (
-                        <Text fz="xs" color="gray.6" fw={500}>
+                        <Text fz="xs" color="ldGray.6" fw={500}>
                             OR
                         </Text>
                     )}

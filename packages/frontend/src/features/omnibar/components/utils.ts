@@ -21,7 +21,7 @@ import { type SearchResultMap } from '../types/searchResultMap';
 export const getOmnibarItemColor = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
-            return 'gray.7';
+            return 'ldGray.7';
         case SearchItemType.DASHBOARD_TAB:
         case SearchItemType.DASHBOARD:
             return 'green.6';
@@ -32,7 +32,7 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
         case SearchItemType.TABLE:
             return 'cyan.8';
         case SearchItemType.PAGE:
-            return 'gray.7';
+            return 'ldGray.7';
         case SearchItemType.SQL_CHART:
             return 'blue.7';
         default:

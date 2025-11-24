@@ -81,7 +81,7 @@ export const VerifiedArtifactsLayout: FC = () => {
                         className={styles.resizeHandle}
                         style={{
                             width: 1.5,
-                            backgroundColor: theme.colors.gray[2],
+                            backgroundColor: theme.colors.ldGray[2],
                             cursor: 'col-resize',
                             display: 'flex',
                             alignItems: 'center',

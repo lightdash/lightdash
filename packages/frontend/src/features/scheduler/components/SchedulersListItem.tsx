@@ -72,7 +72,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             )}
                         </Text>
 
-                        <Box c="gray.4">
+                        <Box c="ldGray.4">
                             <MantineIcon icon={IconCircleFilled} size={5} />
                         </Box>
 

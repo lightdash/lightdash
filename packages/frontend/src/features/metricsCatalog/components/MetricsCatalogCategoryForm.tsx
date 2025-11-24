@@ -292,7 +292,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 },
                                 tagInput: {
                                     fontWeight: 500,
-                                    color: theme.colors.dark[9],
+                                    color: theme.colors.ldDark[9],
                                 },
                                 tagInputContainer: {
                                     padding: `${theme.spacing.xxs}px ${theme.spacing.xs}px`,

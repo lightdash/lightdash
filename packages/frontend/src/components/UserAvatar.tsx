@@ -18,8 +18,8 @@ export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
                 variant="light"
                 size={theme.spacing.xxl}
                 radius="xl"
-                color="gray.8"
-                bg="gray.3"
+                color="ldGray.8"
+                bg="ldGray.3"
                 sx={{ cursor: 'pointer' }}
                 {...props}
             >

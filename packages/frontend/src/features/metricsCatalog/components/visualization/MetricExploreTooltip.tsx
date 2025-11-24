@@ -88,7 +88,7 @@ const TooltipBadge: FC<{
 }> = ({ value, color = 'indigo', variant = 'default' }) => (
     <Badge
         variant="light"
-        color={variant === 'comparison' ? 'gray.7' : color}
+        color={variant === 'comparison' ? 'ldGray.7' : color}
         radius="md"
         h={24}
         sx={(theme) => ({
@@ -131,7 +131,7 @@ const TooltipContainer: FC<{
         sx={(theme) => ({
             backgroundColor: 'white',
             borderRadius: theme.radius.md,
-            border: `1px solid ${theme.colors.gray[2]}`,
+            border: `1px solid ${theme.colors.ldGray[2]}`,
             boxShadow:
                 '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
             flexDirection: layout,
@@ -202,7 +202,7 @@ const PreviousPeriodTooltip: FC<{
                     size={12}
                     opacity={opacity}
                 />
-                <Text c="gray.8" fz={13} fw={500}>
+                <Text c="ldGray.8" fz={13} fw={500}>
                     {label}
                 </Text>
             </Group>
@@ -263,7 +263,7 @@ const TooltipEntry: FC<{
                 <Group position="apart">
                     <Group spacing={4}>
                         <SquareBadge color={props.color} />
-                        <Text c="gray.8" fz={13} fw={500}>
+                        <Text c="ldGray.8" fz={13} fw={500}>
                             {entryData.label}
                         </Text>
                     </Group>
@@ -284,7 +284,7 @@ const TooltipEntry: FC<{
                                     : 1
                             }
                         /> */}
-                        <Text c="gray.8" fz={13} fw={500}>
+                        <Text c="ldGray.8" fz={13} fw={500}>
                             {entryData.label}
                         </Text>
                     </Group>
@@ -312,11 +312,15 @@ const PercentageChangeFooter: FC<{
         ) * 100;
 
     const changeColor =
-        percentChange > 0 ? 'green.7' : percentChange < 0 ? 'red.7' : 'dark.4';
+        percentChange > 0
+            ? 'green.7'
+            : percentChange < 0
+            ? 'red.7'
+            : 'ldDark.4';
 
     return (
         <Group position="right" spacing={4}>
-            <Text c="gray.7" fz={11} fw={500}>
+            <Text c="ldGray.7" fz={11} fw={500}>
                 Change:
             </Text>
             <Text
@@ -380,10 +384,10 @@ export const MetricExploreTooltip: FC<MetricExploreTooltipProps> = ({
         >
             {showDateLabel && (
                 <>
-                    <Text c="gray.7" fz={13} fw={500}>
+                    <Text c="ldGray.7" fz={13} fw={500}>
                         {dateLabel}
                     </Text>
-                    <Divider color="gray.2" />
+                    <Divider color="ldGray.2" />
                 </>
             )}
 

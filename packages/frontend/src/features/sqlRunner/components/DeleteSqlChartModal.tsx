@@ -44,12 +44,16 @@ export const DeleteSqlChartModal: FC<Props> = ({
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
+                    <MantineIcon
+                        icon={IconChartBar}
+                        size="lg"
+                        color="ldGray.7"
+                    />
                     <Text fw={500}>Delete chart</Text>
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
             })}
         >
             <Stack pt="sm">

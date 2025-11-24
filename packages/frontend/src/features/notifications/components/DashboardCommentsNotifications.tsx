@@ -28,7 +28,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
                 </Text>
             }
         >
-            <Text ta="right" mb="one" fw={500} color="gray.5">
+            <Text ta="right" mb="one" fw={500} color="ldGray.5">
                 {date}
             </Text>
         </Tooltip>
@@ -96,7 +96,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 >
                     <>
                         <NotificationTime createdAt={notification.createdAt} />
-                        <Text c="gray.3">{notification.message} </Text>
+                        <Text c="ldGray.3">{notification.message} </Text>
                     </>
                 </Menu.Item>
             ))}

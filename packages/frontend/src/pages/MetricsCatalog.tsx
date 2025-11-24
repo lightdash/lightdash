@@ -49,7 +49,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
                                 withBorder: true,
                                 sx: (theme: MantineTheme) => ({
                                     '&[data-with-border]': {
-                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                        border: `1px solid ${theme.colors.ldGray[2]}`,
                                     },
                                 }),
                             },

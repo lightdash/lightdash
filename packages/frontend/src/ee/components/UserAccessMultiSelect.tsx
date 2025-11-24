@@ -176,7 +176,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                                 p="2px 4px"
                                 radius="sm"
                                 variant="outline"
-                                color="gray.6"
+                                color="ldGray.6"
                                 fz="8px"
                             >
                                 {user.roleLabel}

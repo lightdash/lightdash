@@ -45,7 +45,7 @@ const StatusFilter: FC<StatusFilterProps> = ({
                 >
                     <Button
                         h={32}
-                        c="gray.7"
+                        c="ldGray.7"
                         fw={500}
                         fz="sm"
                         variant="default"
@@ -85,7 +85,7 @@ const StatusFilter: FC<StatusFilterProps> = ({
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
-                    <Text fz="xs" c="dark.3" fw={600}>
+                    <Text fz="xs" c="ldDark.3" fw={600}>
                         Filter by status:
                     </Text>
 

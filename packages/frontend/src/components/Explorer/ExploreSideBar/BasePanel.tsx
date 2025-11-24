@@ -228,9 +228,9 @@ const BasePanel = () => {
                             {ungroupedExploreLinks}
                             {customUngroupedExplores.length ? (
                                 <>
-                                    <Divider size={0.5} c="gray.5" my="xs" />
+                                    <Divider size={0.5} c="ldGray.5" my="xs" />
 
-                                    <Text fw={500} fz="xs" c="gray.6" mb="xs">
+                                    <Text fw={500} fz="xs" c="ldGray.6" mb="xs">
                                         Virtual Views
                                     </Text>
                                 </>

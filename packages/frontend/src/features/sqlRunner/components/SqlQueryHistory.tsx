@@ -46,7 +46,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                         sx={(theme) => ({
                             padding: theme.spacing.xs,
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[0],
+                                backgroundColor: theme.colors.ldGray[0],
                             },
                         })}
                         onClick={() => {
@@ -62,7 +62,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                                 fz="xs"
                                 fw={500}
                                 w={150}
-                                color={hovered ? 'indigo.7' : 'gray.8'}
+                                color={hovered ? 'indigo.7' : 'ldGray.8'}
                             >
                                 {hovered
                                     ? 'Open in query editor'
@@ -78,7 +78,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             fw={500}
                             mb="xs"
                             sx={(theme) => ({
-                                borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
                             })}
                         >
                             {timeAgo}

@@ -112,7 +112,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                                     : IconLayoutSidebarLeftCollapse
                                             }
                                             stroke={1.8}
-                                            color="gray.7"
+                                            color="ldGray.7"
                                         />
                                     }
                                     onClick={toggleSidebar}

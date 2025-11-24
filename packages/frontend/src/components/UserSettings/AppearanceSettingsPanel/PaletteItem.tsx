@@ -54,7 +54,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 radius="sm"
                 sx={(theme) => ({
                     backgroundColor: theme.white,
-                    borderColor: theme.colors.gray[2],
+                    borderColor: theme.colors.ldGray[2],
                     position: 'relative',
                 })}
                 onMouseEnter={() => setIsHovered(true)}

@@ -35,14 +35,14 @@ export const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
                 <Paper p="xs" withBorder radius="sm">
                     <MantineIcon icon={IconTrash} size="sm" color="red" />
                 </Paper>
-                <Text color="dark.7" fw={500} fz="md">
+                <Text color="ldDark.7" fw={500} fz="md">
                     Delete "{palette.name}" Palette
                 </Text>
             </Group>
         }
         styles={(theme) => ({
             header: {
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
             },
             body: {
                 padding: 0,
@@ -51,7 +51,7 @@ export const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
         size="md"
     >
         <Stack p="md" spacing="xs">
-            <Text size="sm" color="gray.6">
+            <Text size="sm" color="ldGray.6">
                 Are you sure you want to delete this color palette? This action
                 cannot be undone.
             </Text>
@@ -74,7 +74,7 @@ export const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
             p="md"
             spacing="xs"
             sx={(theme) => ({
-                borderTop: `1px solid ${theme.colors.gray[2]}`,
+                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
             })}
         >
             <Button variant="default" size="xs" h={32} onClick={onClose}>

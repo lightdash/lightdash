@@ -108,7 +108,7 @@ export const SqlForm: FC<Props> = ({
                     showPrintMargin={false}
                     isFullScreen={isFullScreen}
                     wrapEnabled={isSoftWrapEnabled}
-                    gutterBackgroundColor={theme.colors.gray['1']}
+                    gutterBackgroundColor={theme.colors.ldGray['1']}
                     {...form.getInputProps('sql')}
                 />
                 <SqlEditorActions

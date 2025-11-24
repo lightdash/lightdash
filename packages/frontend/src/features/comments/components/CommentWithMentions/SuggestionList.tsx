@@ -104,7 +104,7 @@ export const SuggestionList = forwardRef<
                                         color:
                                             index === selectedIndex
                                                 ? theme.colors.blue[6]
-                                                : theme.colors.gray[7],
+                                                : theme.colors.ldGray[7],
                                         opacity: item.disabled ? 0.5 : 1,
                                         cursor: item.disabled
                                             ? 'not-allowed'

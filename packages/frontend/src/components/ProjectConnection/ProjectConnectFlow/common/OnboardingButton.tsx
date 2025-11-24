@@ -31,14 +31,14 @@ const OnboardingButton: FC<React.PropsWithChildren<OnboardingButtonProps>> = ({
             height: theme.spacing['5xl'],
             borderWidth: 1,
             borderStyle: 'solid',
-            borderColor: theme.colors.gray[3],
+            borderColor: theme.colors.ldGray[3],
             paddingLeft: theme.spacing.md,
             paddingRight: theme.spacing.md,
             borderRadius: theme.radius.sm,
 
             '&:hover': {
-                borderColor: theme.colors.gray[4],
-                backgroundColor: theme.colors.gray[0],
+                borderColor: theme.colors.ldGray[4],
+                backgroundColor: theme.colors.ldGray[0],
             },
 
             '&:active': {

@@ -15,7 +15,7 @@ When creating/updating components:
 -   [ ] Check Mantine docs/types for available component props
 -   [ ] Use inline-style component props for styling when available (and follow <=3 props rule; if more than 3 props, use CSS modules)
 -   [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
--   [ ] Theme values('md', 'lg', 'xl', or 'gray.1', 'gray.2', etc) instead of magic numbers
+-   [ ] Theme values('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', etc) instead of magic numbers
 
 ### Quick Migration Guide
 

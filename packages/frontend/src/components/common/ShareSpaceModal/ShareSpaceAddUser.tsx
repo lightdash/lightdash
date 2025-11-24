@@ -198,7 +198,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         </Group>
                     </Tooltip>
 
-                    <Badge size="xs" color="gray.6" radius="xs">
+                    <Badge size="xs" color="ldGray.6" radius="xs">
                         {currentSpaceRoleTitle}
                     </Badge>
                 </Group>

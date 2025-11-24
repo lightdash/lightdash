@@ -53,7 +53,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onClick={onToggle}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
+            icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
             label={label}
             style={{
                 top: 0,

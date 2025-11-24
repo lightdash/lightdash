@@ -253,7 +253,7 @@ export const ConfigTabs: React.FC = memo(() => {
                     <Text
                         pos="absolute"
                         w="330px"
-                        color="gray.5"
+                        color="ldGray.5"
                         sx={{
                             pointerEvents: 'none',
                             zIndex: 100,

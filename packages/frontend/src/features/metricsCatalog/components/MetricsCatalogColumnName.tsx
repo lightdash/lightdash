@@ -211,7 +211,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                             height: 28,
                             flexShrink: 0,
                             borderRadius: '8px',
-                            border: `1px solid ${theme.colors.gray[3]}`,
+                            border: `1px solid ${theme.colors.ldGray[3]}`,
                             ...(!isEmojiIcon(row.original.icon) && {
                                 boxShadow:
                                     '0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
@@ -234,7 +234,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         label={
                             <Group spacing={4}>
                                 <MantineIcon
-                                    color="gray.2"
+                                    color="ldGray.2"
                                     icon={IconTable}
                                     stroke={2.0}
                                 />
@@ -247,7 +247,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}
-                            c="dark.9"
+                            c="ldDark.9"
                             fw={500}
                             fz="sm"
                             lh="150%"

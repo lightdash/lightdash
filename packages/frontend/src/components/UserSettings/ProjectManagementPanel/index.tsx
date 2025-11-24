@@ -288,7 +288,7 @@ const ProjectManagementPanel: FC = () => {
                         <Tabs.List>
                             {TABS.map(({ value, label }) => (
                                 <Tabs.Tab key={value} value={value}>
-                                    <Text color="gray.7" fz={15} fw={500}>
+                                    <Text color="ldGray.7" fz={15} fw={500}>
                                         {label}
                                     </Text>
                                 </Tabs.Tab>

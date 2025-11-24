@@ -93,7 +93,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                           title: 'Charts and Dashboards',
                           action: (
                               <MantineLinkButton
-                                  color="gray.6"
+                                  color="ldGray.6"
                                   compact
                                   variant="subtle"
                                   target="_blank"

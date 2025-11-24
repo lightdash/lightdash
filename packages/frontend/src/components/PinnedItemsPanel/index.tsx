@@ -42,22 +42,24 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         // FIXME: update width with Mantine widths
         <Card
             withBorder
-            sx={(theme) => ({
-                backgroundColor: theme.colors.gray[1],
-            })}
+            sx={(theme) =>
+                console.log({ newTheme: theme }) || {
+                    backgroundColor: theme.colors.ldGray[1],
+                }
+            }
         >
             <Group position="apart">
                 <Group position="center" spacing="xxs" my="xs" ml="xs">
                     <MantineIcon
                         icon={IconPin}
                         size="lg"
-                        color="gray.7"
-                        fill="gray.1"
+                        color="ldGray.7"
+                        fill="ldGray.1"
                     />
-                    <Text fw={600} color="gray.7">
+                    <Text fw={600} color="ldGray.7">
                         No Pinned items.
                     </Text>
-                    <Text color="gray.7">
+                    <Text color="ldGray.7">
                         Pin items to the top of the homepage to guide users to
                         relevant content!
                     </Text>
@@ -67,7 +69,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     target="_blank"
                     variant="subtle"
                     compact
-                    color="gray.6"
+                    color="ldGray.6"
                 >
                     View docs
                 </MantineLinkButton>

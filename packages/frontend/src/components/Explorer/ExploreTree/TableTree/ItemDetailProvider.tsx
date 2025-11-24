@@ -46,7 +46,7 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                         <MantineIcon
                             icon={IconTable}
                             size="lg"
-                            color="gray.7"
+                            color="ldGray.7"
                         />
                         <Text size="md">{itemDetail.label}</Text>
                     </Group>

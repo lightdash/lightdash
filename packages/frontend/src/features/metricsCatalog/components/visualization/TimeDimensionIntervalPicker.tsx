@@ -55,7 +55,11 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             }}
             withinPortal
             rightSection={
-                <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
+                <MantineIcon
+                    color="ldDark.2"
+                    icon={IconChevronDown}
+                    size={12}
+                />
             }
             classNames={{
                 input: classes.input,

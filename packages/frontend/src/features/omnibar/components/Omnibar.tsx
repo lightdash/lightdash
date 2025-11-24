@@ -231,7 +231,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 query ? (
                                     <ActionIcon
                                         onClick={() => setQuery('')}
-                                        color="gray.5"
+                                        color="ldGray.5"
                                     >
                                         <MantineIcon
                                             icon={IconCircleXFilled}

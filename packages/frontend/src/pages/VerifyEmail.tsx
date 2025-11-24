@@ -79,7 +79,7 @@ const VerifyEmailPage: FC = () => {
                         statusLoading={statusLoading}
                     />
                 </Card>
-                <Text color="gray.6" ta="center" px="xs">
+                <Text color="ldGray.6" ta="center" px="xs">
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
                     <Anchor onClick={() => showIntercom()}>

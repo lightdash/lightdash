@@ -4,8 +4,8 @@ export const usePillSelectStyles = createStyles(
     (
         theme,
         {
-            backgroundColor = theme.colors.gray[2],
-            textColor = theme.colors.gray[7],
+            backgroundColor = theme.colors.ldGray[2],
+            textColor = theme.colors.ldGray[7],
             hoverColor,
         }: {
             backgroundColor?: string;

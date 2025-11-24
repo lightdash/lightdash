@@ -109,7 +109,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                     >
                         <Button
                             h={32}
-                            c="gray.7"
+                            c="ldGray.7"
                             fw={500}
                             fz="sm"
                             variant="default"
@@ -123,7 +123,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                                     color={
                                         hasSelectedAgents
                                             ? 'indigo.5'
-                                            : 'gray.5'
+                                            : 'ldGray.5'
                                     }
                                 />
                             }
@@ -143,7 +143,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
-                        <Text fz="xs" c="dark.3" fw={600}>
+                        <Text fz="xs" c="ldDark.3" fw={600}>
                             Filter by AI agents:
                         </Text>
                         {hasSelectedProjects && (
@@ -153,7 +153,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                         )}
 
                         {organizationAiAgents.data?.length === 0 && (
-                            <Text fz="xs" fw={500} c="gray.6">
+                            <Text fz="xs" fw={500} c="ldGray.6">
                                 No agents available.
                             </Text>
                         )}
@@ -203,7 +203,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                                                                         c={
                                                                             isAgentInSelectedProjects
                                                                                 ? undefined
-                                                                                : 'gray.5'
+                                                                                : 'ldGray.5'
                                                                         }
                                                                     >
                                                                         {
@@ -264,7 +264,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                 <Tooltip variant="xs" label="Clear all agent filters">
                     <ActionIcon
                         size="xs"
-                        color="gray.5"
+                        color="ldGray.5"
                         variant="subtle"
                         onClick={() => {
                             setSelectedAgentUuids([]);

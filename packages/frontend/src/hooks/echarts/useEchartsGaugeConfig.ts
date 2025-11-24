@@ -247,7 +247,7 @@ const useEchartsGaugeConfig = ({
                 show: true,
                 lineStyle: {
                     width: lineSize,
-                    color: [[1, theme.colors.gray[2]]],
+                    color: [[1, theme.colors.ldGray[2]]],
                 },
             },
             progress: {

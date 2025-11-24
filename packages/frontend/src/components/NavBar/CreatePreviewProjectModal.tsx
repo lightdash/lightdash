@@ -595,7 +595,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                             </>
                         ) : (
                             <>
-                                <Text color="gray.6">
+                                <Text color="ldGray.6">
                                     This{' '}
                                     <Text span weight={600}>
                                         {projectDetails?.dbtConnection?.type

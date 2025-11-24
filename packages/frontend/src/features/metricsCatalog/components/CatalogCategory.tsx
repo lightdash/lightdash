@@ -72,7 +72,7 @@ export const CatalogCategory: FC<Props> = ({
                         sx={(theme) => ({
                             '&:focus': {
                                 backgroundColor: theme.fn.rgba(
-                                    theme.colors.gray[5],
+                                    theme.colors.ldGray[5],
                                     0.35,
                                 ),
                                 outline: 'none',

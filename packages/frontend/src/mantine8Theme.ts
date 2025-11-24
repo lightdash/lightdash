@@ -103,6 +103,8 @@ export const getMantine8ThemeOverride = (
                         };
                     }
                     if (props.variant === 'subtle') {
+                        console.log(theme);
+
                         return {
                             root: {
                                 '--button-color': theme.colors.gray[7],

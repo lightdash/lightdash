@@ -146,7 +146,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                 {title}
                             </Text>
                             {row.original.description && (
-                                <Text fz="xs" c="gray.6" maw={200} truncate>
+                                <Text fz="xs" c="ldGray.6" maw={200} truncate>
                                     {row.original.description}
                                 </Text>
                             )}
@@ -162,7 +162,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <Text fz="sm" c="gray.7">
+                        <Text fz="sm" c="ldGray.7">
                             {firstName} {lastName}
                         </Text>
                     );
@@ -176,7 +176,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="gray.7">
+                        <Text fz="sm" c="ldGray.7">
                             {date.toLocaleDateString()}
                         </Text>
                     );
@@ -189,7 +189,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 size: 120,
                 Cell: ({ row }) => {
                     return (
-                        <Text fz="sm" c="gray.7">
+                        <Text fz="sm" c="ldGray.7">
                             {row.original.referenceCount}
                         </Text>
                     );
@@ -273,7 +273,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -306,19 +306,19 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn || isFirstColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -337,7 +337,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };
@@ -347,23 +347,23 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="gray.8"
+                c="ldGray.8"
                 style={{
-                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text c="gray.8" fz="xs">
+                    <Text c="ldGray.8" fz="xs">
                         Loading more...
                     </Text>
                 ) : (
                     <Group gap="xs">
-                        <Text fz="xs" c="gray.8">
+                        <Text fz="xs" c="ldGray.8">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="gray.6">
+                        <Text fz="xs" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${artifacts.length} of ${totalResults} loaded)`
                                 : `(${artifacts.length})`}

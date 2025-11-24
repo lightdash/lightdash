@@ -7,7 +7,7 @@ export const themeOverride = getMantineThemeOverride({
                 label: {
                     fontSize: theme.fontSizes.xs,
                     fontWeight: 500,
-                    color: theme.colors.gray['6'],
+                    color: theme.colors.ldGray['6'],
                 },
             }),
             defaultProps: {
@@ -24,7 +24,7 @@ export const themeOverride = getMantineThemeOverride({
                 label: {
                     fontSize: theme.fontSizes.xs,
                     fontWeight: 500,
-                    color: theme.colors.gray['6'],
+                    color: theme.colors.ldGray['6'],
                     paddingLeft: 4,
                 },
             }),
@@ -57,7 +57,7 @@ export const themeOverride = getMantineThemeOverride({
                 label: {
                     fontSize: theme.fontSizes.xs,
                     fontWeight: 500,
-                    color: theme.colors.gray['6'],
+                    color: theme.colors.ldGray['6'],
                     paddingLeft: 4,
                 },
             }),

@@ -64,7 +64,7 @@ export const ColumnCellDisplay: FC = () => {
                         position="right"
                         variant="xs"
                     >
-                        <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
                     </Tooltip>
                 </Group>
                 <Stack gap="xs">
@@ -113,7 +113,7 @@ export const ColumnCellDisplay: FC = () => {
                                             },
                                         );
                                     }}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     variant="light"
                                 >
                                     <MantineIcon

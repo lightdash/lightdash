@@ -67,7 +67,7 @@ const UsersAndGroupsPanel: FC = () => {
                             rel="noreferrer"
                             variant="subtle"
                             size="xs"
-                            color="gray.6"
+                            color="ldGray.6"
                         >
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>

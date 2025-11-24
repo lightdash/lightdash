@@ -369,7 +369,7 @@ const SavedChartsHeader: FC = () => {
                                     dashboardName={savedChart.dashboardName}
                                 />
                                 <Title
-                                    c="dark.6"
+                                    c="ldDark.6"
                                     order={5}
                                     fw={600}
                                     truncate
@@ -380,7 +380,7 @@ const SavedChartsHeader: FC = () => {
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
                                         size="xs"
-                                        color="gray.6"
+                                        color="ldGray.6"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >

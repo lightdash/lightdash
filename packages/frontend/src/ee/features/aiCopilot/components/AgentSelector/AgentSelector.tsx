@@ -66,7 +66,7 @@ export const AgentSelector = ({
                     rightSection={<MantineIcon icon={IconSelector} />}
                     styles={(theme) => ({
                         input: {
-                            borderColor: theme.colors.gray[2],
+                            borderColor: theme.colors.ldGray[2],
                             borderRadius: theme.radius.md,
                             boxShadow: `var(--mantine-shadow-subtle)`,
                             fontSize: theme.fontSizes.xs,

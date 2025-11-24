@@ -46,7 +46,7 @@ const AppearanceColorSettings: FC = () => {
     return (
         <Stack spacing="md">
             <Group position="apart">
-                <Text size="sm" color="gray.6">
+                <Text size="sm" color="ldGray.6">
                     Customize the color palettes used in your charts and
                     visualizations.
                 </Text>

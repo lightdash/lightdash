@@ -172,7 +172,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withSidebarBorder
                 ? {
-                      borderLeft: `1px solid ${theme.colors.gray[3]}`,
+                      borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
                   }
                 : {}),
         },

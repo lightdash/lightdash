@@ -200,7 +200,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     <>
                         {filterRule.required &&
                             (filterRule?.values || []).length > 0 && (
-                                <Text size="xs" color={'gray.7'}>
+                                <Text size="xs" color={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>

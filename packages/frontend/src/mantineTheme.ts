@@ -7,8 +7,8 @@ import {
 
 type ColorTuple = Tuple<string, 10>;
 
-const darkModeColors = {
-    dark: [
+const lightModeColors = {
+    ldDark: [
         '#C9C9C9',
         '#b8b8b8',
         '#828282',
@@ -20,7 +20,35 @@ const darkModeColors = {
         '#1f1f1f',
         '#141414',
     ] as ColorTuple,
-    gray: [
+
+    ldGray: [
+        '#f8f9fa',
+        '#f1f3f5',
+        '#e9ecef',
+        '#dee2e6',
+        '#ced4da',
+        '#adb5bd',
+        '#868e96',
+        '#495057',
+        '#343a40',
+        '#212529',
+    ] as ColorTuple,
+};
+
+const darkModeColors = {
+    ldDark: [
+        '#C9C9C9',
+        '#b8b8b8',
+        '#828282',
+        '#696969',
+        '#424242',
+        '#3b3b3b',
+        '#2e2e2e',
+        '#242424',
+        '#1f1f1f',
+        '#141414',
+    ] as ColorTuple,
+    ldGray: [
         '#2e2e2e',
         '#3b3b3b',
         '#424242',
@@ -50,9 +78,7 @@ export const getMantineThemeOverride = (overrides?: {
         colors:
             overrides?.colorScheme === 'dark'
                 ? darkModeColors
-                : {
-                      offWhite: ['#FDFDFD'],
-                  },
+                : lightModeColors,
 
         spacing: {
             one: rem(1),
@@ -112,16 +138,16 @@ export const getMantineThemeOverride = (overrides?: {
                                 '#151C24',
                             ),
                             borderRadius: theme.radius.md,
-                            color: theme.colors.gray[0],
+                            color: theme.colors.ldGray[0],
                             ...theme.fn.hover({
-                                background: theme.colors.dark[4],
+                                background: theme.colors.ldDark[4],
                             }),
                             '&[data-loading]': {
                                 boxShadow: theme.shadows.subtle,
                             },
                             '&[data-disabled]': {
                                 boxShadow: theme.shadows.subtle,
-                                color: theme.colors.gray[5],
+                                color: theme.colors.ldGray[5],
                             },
                         },
                     }),
@@ -174,7 +200,7 @@ export const getMantineThemeOverride = (overrides?: {
                             },
                             '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
                                 {
-                                    backgroundColor: theme.colors.gray['5'],
+                                    backgroundColor: theme.colors.ldGray['5'],
                                 },
                             '&[data-orientation="vertical"][data-state="visible"] .mantine-ScrollArea-thumb':
                                 {
@@ -185,7 +211,7 @@ export const getMantineThemeOverride = (overrides?: {
                             '&[data-orientation="vertical"] .mantine-ScrollArea-thumb:hover':
                                 {
                                     backgroundColor: theme.fn.darken(
-                                        theme.colors.gray['5'],
+                                        theme.colors.ldGray['5'],
                                         0.1,
                                     ),
                                 },
@@ -209,7 +235,7 @@ export const getMantineThemeOverride = (overrides?: {
 
         globalStyles: (theme) => ({
             'html, body': {
-                backgroundColor: theme.colors.gray[0],
+                backgroundColor: theme.colors.ldGray[0],
             },
 
             body: {

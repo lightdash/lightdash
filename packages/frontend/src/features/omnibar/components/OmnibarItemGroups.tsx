@@ -55,9 +55,9 @@ const OmnibarItemGroups: FC<Props> = ({
                     height: theme.spacing.xxl,
                     paddingLeft: theme.spacing.md,
                     paddingRight: theme.spacing.md,
-                    backgroundColor: theme.colors.gray[0],
+                    backgroundColor: theme.colors.ldGray[0],
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                     },
                 },
                 label: {

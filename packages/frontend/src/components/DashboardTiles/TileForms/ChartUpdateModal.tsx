@@ -151,7 +151,7 @@ const ChartUpdateModal = ({
                                         backgroundColor: 'white',
                                     },
                                     separatorLabel: {
-                                        color: theme.colors.gray[6],
+                                        color: theme.colors.ldGray[6],
                                         fontWeight: 500,
                                     },
                                 })}

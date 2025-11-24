@@ -38,20 +38,20 @@ export default createStyles(
             alignItems: 'center',
             backgroundColor: disabled
                 ? theme.colorScheme === 'dark'
-                    ? theme.colors.dark[5]
-                    : theme.colors.gray[3]
+                    ? theme.colors.ldDark[5]
+                    : theme.colors.ldGray[3]
                 : theme.colorScheme === 'dark'
-                ? theme.colors.dark[7]
+                ? theme.colors.ldDark[7]
                 : variant === 'filled'
                 ? theme.white
-                : theme.colors.gray[1],
+                : theme.colors.ldGray[1],
             color: disabled
                 ? theme.colorScheme === 'dark'
-                    ? theme.colors.dark[1]
-                    : theme.colors.gray[7]
+                    ? theme.colors.ldDark[1]
+                    : theme.colors.ldGray[7]
                 : theme.colorScheme === 'dark'
-                ? theme.colors.dark[0]
-                : theme.colors.gray[7],
+                ? theme.colors.ldDark[0]
+                : theme.colors.ldGray[7],
             height: getSize({ size, sizes }),
             paddingLeft: `calc(${getSize({
                 size,
@@ -72,8 +72,8 @@ export default createStyles(
         defaultValueRemove: {
             color:
                 theme.colorScheme === 'dark'
-                    ? theme.colors.dark[0]
-                    : theme.colors.gray[7],
+                    ? theme.colors.ldDark[0]
+                    : theme.colors.ldGray[7],
             marginLeft: `calc(${getSize({ size, sizes: theme.spacing })} / 6)`,
         },
 

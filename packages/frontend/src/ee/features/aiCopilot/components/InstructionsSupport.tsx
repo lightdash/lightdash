@@ -38,7 +38,7 @@ const InstructionsGuidelinesItem = ({
             >
                 <Group align="center" gap="xs">
                     <MantineIcon icon={icon} size={20} color="gray" />
-                    <Title order={6} c="gray.7" size="xs">
+                    <Title order={6} c="ldGray.7" size="xs">
                         {title}
                     </Title>
                 </Group>
@@ -134,7 +134,7 @@ export const InstructionsTemplates = ({
         {templates.map((template) => (
             <Button
                 style={(theme) => ({
-                    borderColor: theme.colors.gray[2],
+                    borderColor: theme.colors.ldGray[2],
                     borderRadius: theme.radius.lg,
                 })}
                 color="gray"

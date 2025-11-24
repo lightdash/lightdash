@@ -23,19 +23,19 @@ const Section: FC<PropsWithChildren> = ({ children }) => (
 );
 
 const Heading: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="gray.8" fz="sm" fw={600}>
+    <Text c="ldGray.8" fz="sm" fw={600}>
         {children}
     </Text>
 );
 
 const Subheading: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="gray.7" fz={13} fw={600}>
+    <Text c="ldGray.7" fz={13} fw={600}>
         {children}
     </Text>
 );
 
 const Label: FC<PropsWithChildren & TextProps> = ({ children, ...props }) => (
-    <Text fw={500} size="xs" color="gray.6" {...props}>
+    <Text fw={500} size="xs" color="ldGray.6" {...props}>
         {children}
     </Text>
 );

@@ -251,7 +251,7 @@ const SlackSettingsPanel: FC = () => {
                                     size="lg"
                                     src={form.values?.appProfilePhotoUrl}
                                     radius="md"
-                                    bg="gray.1"
+                                    bg="ldGray.1"
                                 />
                                 <TextInput
                                     sx={{ flexGrow: 1 }}

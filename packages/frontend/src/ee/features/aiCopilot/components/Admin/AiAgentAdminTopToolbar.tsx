@@ -177,7 +177,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         </Box>
                     </Group>
                 </Group>
-                <Divider color="gray.2" />
+                <Divider color="ldGray.2" />
             </Box>
         );
     },

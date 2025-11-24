@@ -79,7 +79,7 @@ export const CompactAgentSelector = ({
                             {!hasOneAgent && hasAgents && (
                                 <MantineIcon
                                     icon={IconChevronDown}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     strokeWidth={1.5}
                                 />
                             )}

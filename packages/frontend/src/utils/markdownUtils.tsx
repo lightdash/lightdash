@@ -35,7 +35,7 @@ const HEADER_STYLES = {
 export const mdEditorComponents: React.ComponentProps<
     typeof MDEditor.Markdown
 >['components'] = {
-    hr: () => <Divider color="gray.4" my="sm" />,
+    hr: () => <Divider color="ldGray.4" my="sm" />,
     h1: ({ children }) => (
         <Title order={1} style={HEADER_STYLES}>
             {children}

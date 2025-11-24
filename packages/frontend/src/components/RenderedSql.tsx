@@ -62,7 +62,7 @@ export const RenderedSql = () => {
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
-                <Title order={4} fw={500} color="gray.7">
+                <Title order={4} fw={500} color="ldGray.7">
                     Compiling SQL
                 </Title>
             </Stack>

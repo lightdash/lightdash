@@ -22,7 +22,7 @@ export const UpdatedInfo: FC<{
     partiallyBold?: boolean;
 }> = ({ updatedAt, user, partiallyBold = true }) => {
     return (
-        <Text c="gray.6" fz="xs">
+        <Text c="ldGray.6" fz="xs">
             Last edited{' '}
             {updatedAt && (
                 <>

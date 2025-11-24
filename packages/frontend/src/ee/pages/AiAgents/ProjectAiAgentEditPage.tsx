@@ -238,7 +238,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Group justify="space-between" w="100%">
                             <Button
                                 variant="subtle"
-                                color="gray.4"
+                                color="ldGray.4"
                                 size="xs"
                                 leftSection={
                                     <MantineIcon icon={IconArrowLeft} />
