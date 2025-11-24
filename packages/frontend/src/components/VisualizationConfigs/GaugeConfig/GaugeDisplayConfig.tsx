@@ -56,6 +56,8 @@ export const GaugeDisplayConfig: FC = memo(() => {
                         value={min}
                         onChange={(value) => setMin(Number(value))}
                         placeholder="0"
+                        precision={2}
+                        removeTrailingZeros={true}
                     />
                     <Group spacing="xs" align="flex-end">
                         {maxValueMode === GaugeValueMode.FIXED ? (
@@ -65,6 +67,8 @@ export const GaugeDisplayConfig: FC = memo(() => {
                                 value={max}
                                 onChange={(value) => setMax(Number(value))}
                                 placeholder="100"
+                                precision={2}
+                                removeTrailingZeros={true}
                                 style={{ flex: 1 }}
                             />
                         ) : (

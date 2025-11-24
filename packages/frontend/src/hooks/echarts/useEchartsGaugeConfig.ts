@@ -24,10 +24,12 @@ const getValueColor = ({
     numericValue,
     sections,
     primaryColor,
+    gaugeMax,
 }: {
     numericValue: number;
     sections: GaugeSection[] | undefined;
     primaryColor: string;
+    gaugeMax: number;
 }) => {
     const defaultColours = {
         text: 'black',
@@ -41,6 +43,18 @@ const getValueColor = ({
     // Find the section that contains this value
     const sortedSections = [...sections].sort((a, b) => a.max - b.max);
 
+    // Check edge case where value is above max
+    if (numericValue > gaugeMax) {
+        const lastSection = sortedSections[sortedSections.length - 1];
+        if (lastSection && lastSection.max >= gaugeMax) {
+            return {
+                text: lastSection.color,
+                bar: lastSection.color,
+            };
+        }
+    }
+
+    // If value is in a section, return the section's color
     for (const section of sortedSections) {
         if (numericValue >= section.min && numericValue <= section.max) {
             return {
@@ -150,6 +164,7 @@ const useEchartsGaugeConfig = ({
             numericValue,
             sections: sectionsWithResolvedValues,
             primaryColor: theme.colors.blue[6],
+            gaugeMax: effectiveMax,
         });
 
         if (

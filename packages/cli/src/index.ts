@@ -253,7 +253,7 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'dbt run',
         )} -s +mymodel ${styles.secondary(
-            "-- runs mymodel and it's parents and generates .yml",
+            "-- runs mymodel and its parents and generates .yml",
         )}
 `,
     )
@@ -970,7 +970,7 @@ ${styles.bold('Examples:')}
 program
     .command('lint')
     .description(
-        'Validates Lightdash Code files (charts, dashboards) against JSON schemas',
+        'Validates Lightdash Code files (models, charts, dashboards) against JSON schemas',
     )
     .addHelpText(
         'after',
