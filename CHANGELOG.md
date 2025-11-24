@@ -1,3 +1,15 @@
+# [0.2205.0](https://github.com/lightdash/lightdash/compare/0.2204.0...0.2205.0) (2025-11-24)
+
+
+### Bug Fixes
+
+* allow sql_from if no model_name ([#18302](https://github.com/lightdash/lightdash/issues/18302)) ([b725ee7](https://github.com/lightdash/lightdash/commit/b725ee7d05fa8cf6dab20be80982b31ebec0a556))
+
+
+### Features
+
+* add lightdash model compile + deploy ([#18312](https://github.com/lightdash/lightdash/issues/18312)) ([3111d7b](https://github.com/lightdash/lightdash/commit/3111d7b9acb06f79edf570e0cb36fcba62f9bf77)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2204.0](https://github.com/lightdash/lightdash/compare/0.2203.0...0.2204.0) (2025-11-24)
 
 

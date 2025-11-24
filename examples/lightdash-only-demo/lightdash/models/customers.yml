@@ -1,0 +1,197 @@
+type: model
+name: customers
+label: Customers
+description: Customer information with lifetime value and order history
+sql_from: jaffle.customers
+primary_key: customer_id
+
+spotlight:
+  categories:
+    - customers
+
+metrics:
+  total_customers:
+    type: count_distinct
+    sql: ${customer_id}
+    label: Total Customers
+
+  total_customer_lifetime_value:
+    type: sum
+    sql: ${customer_lifetime_value}
+    format: usd
+    round: 2
+    label: Total Customer Lifetime Value
+
+  average_customer_lifetime_value:
+    type: average
+    sql: ${customer_lifetime_value}
+    format: usd
+    round: 2
+    label: Average Customer Lifetime Value
+
+default_time_dimension:
+  field: created
+  interval: MONTH
+
+dimensions:
+  - name: customer_id
+    type: number
+    sql: ${TABLE}.customer_id
+    description: Unique identifier for each customer
+
+  - name: first_name
+    type: string
+    sql: ${TABLE}.first_name
+    description: Customer's first name
+
+  - name: last_name
+    type: string
+    sql: ${TABLE}.last_name
+    description: Customer's last name
+
+  - name: age
+    type: number
+    sql: ${TABLE}.age
+    description: Customer's age
+    metrics:
+      avg_customer_age:
+        type: average
+        round: 1
+        label: Average Customer Age
+
+    additional_dimensions:
+      age_group:
+        type: string
+        label: Age Group
+        sql: |
+          CASE
+            WHEN ${age} < 25 THEN 'Under 25'
+            WHEN ${age} < 35 THEN '25-34'
+            WHEN ${age} < 45 THEN '35-44'
+            WHEN ${age} < 55 THEN '45-54'
+            WHEN ${age} < 65 THEN '55-64'
+            ELSE '65+'
+          END
+        colors:
+          "Under 25": "#FF6B6B"
+          "25-34": "#4ECDC4"
+          "35-44": "#45B7D1"
+          "45-54": "#FFA07A"
+          "55-64": "#98D8C8"
+          "65+": "#C7CEEA"
+
+  - name: created
+    type: timestamp
+    sql: ${TABLE}.created
+    description: When the customer account was created
+    time_intervals: ["DAY", "WEEK", "MONTH", "QUARTER", "YEAR"]
+
+  - name: first_order
+    type: date
+    sql: ${TABLE}.first_order
+    description: Date of customer's first order
+    time_intervals: ["DAY", "WEEK", "MONTH", "QUARTER", "YEAR"]
+
+  - name: most_recent_order
+    type: date
+    sql: ${TABLE}.most_recent_order
+    description: Date of customer's most recent order
+    time_intervals: ["DAY", "WEEK", "MONTH", "QUARTER", "YEAR"]
+
+  - name: number_of_orders
+    type: number
+    sql: ${TABLE}.number_of_orders
+    description: Total number of orders placed by customer
+    metrics:
+      total_orders_placed:
+        type: sum
+        label: Total Orders Placed
+
+      avg_orders_per_customer:
+        type: average
+        round: 1
+        label: Average Orders per Customer
+
+    additional_dimensions:
+      customer_segment:
+        type: string
+        label: Customer Segment
+        sql: |
+          CASE
+            WHEN ${number_of_orders} = 1 THEN 'One-time'
+            WHEN ${number_of_orders} <= 3 THEN 'Occasional'
+            WHEN ${number_of_orders} <= 10 THEN 'Regular'
+            ELSE 'VIP'
+          END
+        colors:
+          "One-time": "#FF6B6B"
+          "Occasional": "#FFA07A"
+          "Regular": "#4ECDC4"
+          "VIP": "#FFD700"
+
+  - name: customer_lifetime_value
+    type: number
+    sql: ${TABLE}.customer_lifetime_value
+    description: Total value of all orders from this customer
+    format: usd
+    round: 2
+    metrics:
+      median_clv:
+        type: median
+        format: usd
+        round: 2
+        label: Median Customer Lifetime Value
+
+    additional_dimensions:
+      clv_tier:
+        type: string
+        label: Customer Value Tier
+        sql: |
+          CASE
+            WHEN ${customer_lifetime_value} < 100 THEN 'Bronze'
+            WHEN ${customer_lifetime_value} < 500 THEN 'Silver'
+            WHEN ${customer_lifetime_value} < 1000 THEN 'Gold'
+            ELSE 'Platinum'
+          END
+        colors:
+          "Bronze": "#CD7F32"
+          "Silver": "#C0C0C0"
+          "Gold": "#FFD700"
+          "Platinum": "#E5E4E2"
+
+  - name: days_between_created_and_first_order
+    type: number
+    sql: ${TABLE}.days_between_created_and_first_order
+    description: Days from account creation to first order
+    metrics:
+      avg_time_to_first_order:
+        type: average
+        round: 1
+        label: Average Days to First Order
+
+  - name: days_since_last_order
+    type: number
+    sql: ${TABLE}.days_since_last_order
+    description: Days since customer's most recent order
+    metrics:
+      avg_days_since_last_order:
+        type: average
+        round: 1
+        label: Average Days Since Last Order
+
+    additional_dimensions:
+      recency_status:
+        type: string
+        label: Customer Recency Status
+        sql: |
+          CASE
+            WHEN ${days_since_last_order} <= 30 THEN 'Active'
+            WHEN ${days_since_last_order} <= 90 THEN 'At Risk'
+            WHEN ${days_since_last_order} <= 180 THEN 'Lapsed'
+            ELSE 'Churned'
+          END
+        colors:
+          "Active": "#32CD32"
+          "At Risk": "#FFA500"
+          "Lapsed": "#FF6347"
+          "Churned": "#DC143C"

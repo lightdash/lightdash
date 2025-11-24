@@ -90,7 +90,10 @@ flake.lock
 
 
 # Charts as code
-lightdash
+/examples/full-jaffle-shop-demo/dbt/lightdash
+/examples/lightdash
+/lightdash
+
 *storybook.log
 
 # Prometheus

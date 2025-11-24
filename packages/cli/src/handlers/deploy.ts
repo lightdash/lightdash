@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     Explore,
     ExploreError,
+    ParseError,
     Project,
     ProjectType,
     friendlyName,
@@ -131,17 +132,22 @@ const createNewProject = async (
 ): Promise<Project | undefined> => {
     console.error('');
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const context = await getDbtContext({
-        projectDir: absoluteProjectPath,
-        targetPath: options.targetPath,
-    });
-    const dbtName = friendlyName(context.projectName);
 
-    // default project name
-    const defaultProjectName = dbtName;
-    let projectName = defaultProjectName;
+    let defaultProjectName: string = 'My new Lightdash Project'; // TODO: improve
+    try {
+        const context = await getDbtContext({
+            projectDir: absoluteProjectPath,
+            targetPath: options.targetPath,
+        });
+        defaultProjectName = friendlyName(context.projectName);
+    } catch (e) {
+        if (e instanceof ParseError) {
+            // stick with default name
+        }
+    }
 
     // If interactive and no name provided, prompt for project name
+    let projectName = defaultProjectName;
     if (options.create === true && process.env.CI !== 'true') {
         const answers = await inquirer.prompt([
             {
@@ -169,7 +175,7 @@ const createNewProject = async (
         properties: {
             executionId,
             projectName,
-            isDefaultName: dbtName === projectName,
+            isDefaultName: defaultProjectName === projectName,
         },
     });
     try {

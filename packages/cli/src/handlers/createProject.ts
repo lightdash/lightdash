@@ -147,10 +147,6 @@ export const createProject = async (
     const dbtVersion = await getDbtVersion();
 
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const context = await getDbtContext({
-        projectDir: absoluteProjectPath,
-        targetPath: options.targetPath,
-    });
 
     let targetName: string | undefined;
     let credentials: CreateWarehouseCredentials | undefined;
@@ -162,6 +158,10 @@ export const createProject = async (
         );
 
         // Still need to get target name for dbt connection
+        const context = await getDbtContext({
+            projectDir: absoluteProjectPath,
+            targetPath: options.targetPath,
+        });
         GlobalState.debug(
             `> Using profiles dir ${options.profilesDir} and profile ${
                 options.profile || context.profileName
@@ -177,6 +177,10 @@ export const createProject = async (
     } else if (options.warehouseCredentials === false) {
         GlobalState.debug('> Creating project without warehouse credentials');
     } else {
+        const context = await getDbtContext({
+            projectDir: absoluteProjectPath,
+            targetPath: options.targetPath,
+        });
         GlobalState.debug(
             `> Using profiles dir ${options.profilesDir} and profile ${
                 options.profile || context.profileName
