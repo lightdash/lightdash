@@ -351,7 +351,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
-                                    color="ldGray.7"
                                     style={{ flexShrink: 0 }}
                                 />
                             </ActionIcon>
