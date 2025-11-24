@@ -1,0 +1,179 @@
+type: model
+name: orders
+label: Orders
+description: Order transactions with payment details and status
+
+sql_from: jaffle.orders
+
+primary_key: order_id
+
+spotlight:
+  categories:
+    - sales
+
+joins:
+  - join: customers
+    sql_on: ${customers.customer_id} = ${orders.customer_id}
+    relationship: many-to-one
+    label: Customer
+    description: The customer who placed this order
+
+metrics:
+  total_revenue:
+    type: sum
+    sql: ${amount}
+    format: usd
+    round: 2
+    label: Total Revenue
+    description: Sum of all order amounts
+
+  average_order_value:
+    type: average
+    sql: ${amount}
+    format: usd
+    round: 2
+    label: Average Order Value
+    description: Average value of orders
+
+default_time_dimension:
+  field: order_date
+  interval: MONTH
+
+dimensions:
+  - name: order_id
+    type: number
+    sql: ${TABLE}.order_id
+    description: Unique identifier for each order
+    metrics:
+      order_count:
+        type: count_distinct
+        label: Number of Orders
+        description: Total count of orders
+
+      completed_order_count:
+        type: count_distinct
+        label: Completed Orders
+        description: Count of completed orders
+        filters:
+          - is_completed: "true"
+
+  - name: customer_id
+    type: number
+    sql: ${TABLE}.customer_id
+    description: Foreign key to customers table
+
+  - name: order_date
+    type: date
+    sql: ${TABLE}.order_date
+    description: Date the order was placed
+    time_intervals: ["DAY", "WEEK", "MONTH", "QUARTER", "YEAR"]
+    metrics:
+      first_order_date:
+        type: min
+        label: First Order Date
+
+      latest_order_date:
+        type: max
+        label: Latest Order Date
+
+  - name: status
+    type: string
+    sql: ${TABLE}.status
+    description: Current status of the order
+    colors:
+      placed: "#FFA500"
+      shipped: "#1E90FF"
+      completed: "#32CD32"
+      returned: "#DC143C"
+
+  - name: is_completed
+    type: boolean
+    sql: ${TABLE}.is_completed
+    description: Whether the order has been completed
+    metrics:
+      completion_rate:
+        type: average
+        format: percent
+        round: 1
+        label: Order Completion Rate
+        sql: CASE WHEN ${is_completed} THEN 1.0 ELSE 0.0 END
+
+  - name: amount
+    type: number
+    sql: ${TABLE}.amount
+    description: Total amount of the order
+    format: usd
+    round: 2
+    metrics:
+      total_order_amount:
+        type: sum
+        format: usd
+        round: 2
+        label: Total Order Amount
+
+      avg_order_amount:
+        type: average
+        format: usd
+        round: 2
+        label: Average Order Amount
+
+      completed_revenue:
+        type: sum
+        format: usd
+        round: 2
+        label: Completed Revenue
+        description: Revenue from completed orders only
+        filters:
+          - is_completed: "true"
+
+  - name: credit_card_amount
+    type: number
+    sql: ${TABLE}.credit_card_amount
+    description: Amount paid via credit card
+    format: usd
+    round: 2
+    metrics:
+      total_credit_card:
+        type: sum
+        format: usd
+        round: 2
+        label: Total Credit Card Payments
+
+  - name: coupon_amount
+    type: number
+    sql: ${TABLE}.coupon_amount
+    description: Amount discounted via coupon
+    format: usd
+    round: 2
+    metrics:
+      total_discounts:
+        type: sum
+        format: usd
+        round: 2
+        label: Total Coupon Discounts
+
+  - name: bank_transfer_amount
+    type: number
+    sql: ${TABLE}.bank_transfer_amount
+    description: Amount paid via bank transfer
+    format: usd
+    round: 2
+    metrics:
+      total_bank_transfer:
+        type: sum
+        format: usd
+        round: 2
+        label: Total Bank Transfer Payments
+
+  - name: gift_card_amount
+    type: number
+    sql: ${TABLE}.gift_card_amount
+    description: Amount paid via gift card
+    format: usd
+    round: 2
+    metrics:
+      total_gift_card:
+        type: sum
+        format: usd
+        round: 2
+        label: Total Gift Card Payments

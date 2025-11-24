@@ -2,6 +2,7 @@ import {
     attachTypesToModels,
     convertExplores,
     convertLightdashModelsToDbtModels,
+    DbtManifest,
     DbtManifestVersion,
     Explore,
     ExploreError,
@@ -124,6 +125,7 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     // Try lightdash project compile
     let explores: (Explore | ExploreError)[] | null = null;
+    let dbtMetrics: DbtManifest['metrics'] | null = null;
 
     explores = await getExploresFromLightdashYmlProject(
         absoluteProjectPath,
@@ -241,6 +243,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         console.error('');
 
         explores = [...validExplores, ...failedExplores];
+        dbtMetrics = manifest.metrics;
     }
 
     explores.forEach((e) => {
@@ -260,13 +263,15 @@ export const compile = async (options: CompileHandlerOptions) => {
         } ERRORS=${errors}`,
     );
 
+    const metricsCount =
+        dbtMetrics === null ? 0 : Object.values(dbtMetrics.metrics).length;
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {
             executionId,
             explores: explores.length,
             errors,
-            dbtMetrics: 0, // todo: fix reporting
+            dbtMetrics: metricsCount,
             dbtVersion: dbtVersion.verboseVersion,
         },
     });
