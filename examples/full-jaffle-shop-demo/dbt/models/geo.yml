@@ -1,0 +1,92 @@
+models:
+  - name: geo
+    columns:
+      - name: id
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: continent
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: country_name
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: country_code_2_digit
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: state_province_name
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: us_state_code
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: postal_code
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: latitude
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: longitude
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: sales_volume_usd
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              type: sum
+      - name: customer_count
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              type: sum
+      - name: avg_transaction_value_usd
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+              hidden: yes
+      - name: custom_geo_area
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: geo_json_reference_key
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
