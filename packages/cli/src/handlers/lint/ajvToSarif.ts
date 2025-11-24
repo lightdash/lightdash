@@ -7,7 +7,7 @@ type FileValidationResult = {
     errors: ErrorObject[];
     fileContent: string;
     locationMap?: LocationMap;
-    schemaType: 'chart' | 'dashboard';
+    schemaType: 'chart' | 'dashboard' | 'model';
 };
 
 // SARIF 2.1.0 types
