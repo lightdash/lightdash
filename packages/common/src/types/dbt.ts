@@ -82,7 +82,7 @@ type ExploreConfig = {
     joins?: DbtModelJoin[];
 };
 
-type SharedDbtModelLightdashConfig = {
+export type SharedDbtModelLightdashConfig = {
     default_filters?: RequiredFilter[];
     /**
      * @deprecated use default_filters instead
@@ -94,7 +94,7 @@ export type FieldSetDefinition = {
     fields: string[];
 };
 
-type DbtModelLightdashConfig = ExploreConfig &
+export type DbtModelLightdashConfig = ExploreConfig &
     SharedDbtModelLightdashConfig & {
         metrics?: Record<string, DbtModelLightdashMetric>;
         sets?: Record<string, FieldSetDefinition>;
@@ -131,7 +131,7 @@ export type DbtModelGroup = {
 
 export type DbtModelJoinType = 'inner' | 'full' | 'left' | 'right';
 
-type DbtModelJoin = {
+export type DbtModelJoin = {
     join: string;
     sql_on: string;
     alias?: string;
