@@ -67,7 +67,7 @@ const TokenItem: FC<{
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     size="md"
                                 />
                             </Tooltip>
@@ -109,7 +109,7 @@ const TokenItem: FC<{
                                         variant={'transparent'}
                                     >
                                         <MantineIcon
-                                            color={'gray.6'}
+                                            color={'ldGray.6'}
                                             icon={copied ? IconCheck : IconCopy}
                                         />
                                     </ActionIcon>

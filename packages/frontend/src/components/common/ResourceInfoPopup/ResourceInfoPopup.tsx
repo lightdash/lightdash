@@ -40,13 +40,13 @@ export const ResourceInfoPopup: FC<Props> = ({
             withinPortal
         >
             <HoverCard.Target>
-                <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
             </HoverCard.Target>
             <HoverCard.Dropdown maw={300}>
                 <Stack spacing="xs">
                     {viewStats && viewStats > 0 ? (
                         <Stack spacing="two">
-                            <Text fz="xs" fw={600} color="gray.6">
+                            <Text fz="xs" fw={600} color="ldGray.6">
                                 Views:
                             </Text>
                             <Tooltip
@@ -64,7 +64,7 @@ export const ResourceInfoPopup: FC<Props> = ({
 
                     {description && (
                         <Stack spacing="two">
-                            <Text fz="xs" fw={600} color="gray.6">
+                            <Text fz="xs" fw={600} color="ldGray.6">
                                 Description:{' '}
                             </Text>
                             <Text fz="xs" style={{ whiteSpace: 'pre-line' }}>

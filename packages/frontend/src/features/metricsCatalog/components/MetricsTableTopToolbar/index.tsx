@@ -111,7 +111,7 @@ const SortableColumn: FC<{
                     <Box>
                         <ActionIcon
                             size="xs"
-                            color="gray.5"
+                            color="ldGray.5"
                             {...attributes}
                             {...listeners}
                             disabled={column.frozen}
@@ -125,14 +125,14 @@ const SortableColumn: FC<{
                     fz={13}
                     radius="md"
                     fw={500}
-                    color="dark.5"
+                    color="ldDark.5"
                 >
                     {column.name}
                 </Text>
             </Group>
             <ActionIcon
                 size="xs"
-                color="gray.5"
+                color="ldGray.5"
                 sx={{
                     visibility: column.frozen ? 'hidden' : 'visible',
                 }}
@@ -329,12 +329,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 fontSize: theme.fontSizes.sm,
                                 fontWeight: 400,
                                 color: search
-                                    ? theme.colors.gray[8]
-                                    : theme.colors.gray[5],
+                                    ? theme.colors.ldGray[8]
+                                    : theme.colors.ldGray[5],
                                 boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                                 '&:hover': {
-                                    border: `1px solid ${theme.colors.gray[4]}`,
+                                    border: `1px solid ${theme.colors.ldGray[4]}`,
                                 },
                                 '&:focus': {
                                     border: `1px solid ${theme.colors.blue[5]}`,
@@ -348,7 +348,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         icon={
                             <MantineIcon
                                 size="md"
-                                color="gray.6"
+                                color="ldGray.6"
                                 icon={IconSearch}
                             />
                         }
@@ -359,7 +359,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     onClick={clearSearch}
                                     variant="transparent"
                                     size="xs"
-                                    color="gray.5"
+                                    color="ldGray.5"
                                 >
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>
@@ -416,7 +416,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 <ActionIcon
                                     variant="transparent"
                                     size="xs"
-                                    color="gray.5"
+                                    color="ldGray.5"
                                 >
                                     <MantineIcon icon={IconEye} />
                                 </ActionIcon>
@@ -466,7 +466,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     </DndContext>
                                 </Stack>
 
-                                <Divider color="gray.1" />
+                                <Divider color="ldGray.1" />
                                 <Group position="apart" mt={4}>
                                     {canManageSpotlight ? (
                                         <>
@@ -487,7 +487,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     h={28}
                                                     onClick={handleReset}
                                                     sx={(theme) => ({
-                                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                                        border: `1px solid ${theme.colors.ldGray[2]}`,
                                                         boxShadow:
                                                             theme.shadows
                                                                 .subtle,
@@ -531,7 +531,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
                                                 sx={(theme) => ({
-                                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                                    border: `1px solid ${theme.colors.ldGray[2]}`,
                                                     boxShadow:
                                                         theme.shadows.subtle,
                                                 })}
@@ -564,7 +564,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             },
                             indicator: {
                                 borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.gray[2]}`,
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                 backgroundColor: 'white',
                                 boxShadow: theme.shadows.subtle,
                             },

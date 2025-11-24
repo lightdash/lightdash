@@ -164,7 +164,7 @@ const InfiniteResourceTableColumnName = ({
                             )}
                     </Group>
                     {isChartOrDashboard && (
-                        <Text fz={12} color="gray.6">
+                        <Text fz={12} color="ldGray.6">
                             {getResourceTypeName(item)} •{' '}
                             <Tooltip
                                 position="top-start"
@@ -186,7 +186,7 @@ const InfiniteResourceTableColumnName = ({
                                 type="secondary"
                                 withTooltip
                             />
-                            <Text fz={12} color="gray.6">
+                            <Text fz={12} color="ldGray.6">
                                 •
                             </Text>
                             <Group>

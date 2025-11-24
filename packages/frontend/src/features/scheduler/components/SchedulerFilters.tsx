@@ -50,7 +50,7 @@ const FilterSummaryLabel: FC<
     if (isDisabled) {
         return (
             <Text fw={400} span>
-                <Text span color="gray.6">
+                <Text span color="ldGray.6">
                     is any value
                 </Text>
             </Text>
@@ -58,7 +58,7 @@ const FilterSummaryLabel: FC<
     }
     return (
         <Text fw={400} span>
-            <Text span color="gray.7">
+            <Text span color="ldGray.7">
                 {filterSummary?.operator}{' '}
             </Text>
             <Text fw={700} span>
@@ -125,7 +125,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             Invalid filter
                         </Text>
                         <Text fw={400} span>
-                            <Text span color="gray.6">
+                            <Text span color="ldGray.6">
                                 Tried to reference field with unknown id:
                             </Text>
                             <Text span> {dashboardFilter.target.fieldId}</Text>
@@ -206,7 +206,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                                 multiline
                                 w={200}
                             >
-                                <Text fz="xs" color="gray.6" span>
+                                <Text fz="xs" color="ldGray.6" span>
                                     {`Applies to ${tilesWithFilter.length} tiles`}
                                 </Text>
                             </Tooltip>
@@ -214,7 +214,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                     </>
                 </Group>
                 {!isEditing && hasChanged && (
-                    <Text fz="xs" color="gray.6">
+                    <Text fz="xs" color="ldGray.6">
                         Unsaved changes
                     </Text>
                 )}
@@ -440,7 +440,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             0 ? (
                 <Stack mb="sm">
                     {requiredFiltersWithoutValues.length > 0 && (
-                        <Text fz="xs" color="gray.6">
+                        <Text fz="xs" color="ldGray.6">
                             All required filters must have values
                         </Text>
                     )}
@@ -486,7 +486,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                         );
                     })}
                     {savedFiltersNotInDashboard.length > 0 && (
-                        <Text fz="xs" color="gray.6" mt="xs">
+                        <Text fz="xs" color="ldGray.6" mt="xs">
                             The following filters are applied to this scheduled
                             delivery but no longer exist in the dashboard
                         </Text>

@@ -13,13 +13,13 @@ const ResourceAttributeCount: React.FC<{
         <Flex align="center" gap={4}>
             {name ? (
                 <Tooltip withArrow withinPortal label={<Text>{name}</Text>}>
-                    <MantineIcon icon={Icon} color="gray.6" size={14} />
+                    <MantineIcon icon={Icon} color="ldGray.6" size={14} />
                 </Tooltip>
             ) : (
-                <MantineIcon icon={Icon} color="gray.6" size={14} />
+                <MantineIcon icon={Icon} color="ldGray.6" size={14} />
             )}
 
-            <Text size={14} color="gray.6" fz="xs">
+            <Text size={14} color="ldGray.6" fz="xs">
                 {count}
             </Text>
         </Flex>

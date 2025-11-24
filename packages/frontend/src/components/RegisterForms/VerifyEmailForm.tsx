@@ -69,7 +69,7 @@ const VerifyEmailForm: FC<{
         // FIXME: update hardcoded widths with Mantine widths
         <Stack spacing="md" justify="center" align="center" w={300} mx="auto">
             <Title order={3}>Check your inbox!</Title>
-            <Text color="gray.6" ta="center">
+            <Text color="ldGray.6" ta="center">
                 Verify your email address by entering the code we've just sent
                 to <b>{user?.data?.email || 'your email'}</b>
             </Text>
@@ -130,7 +130,7 @@ const VerifyEmailForm: FC<{
                                 >
                                     Submit
                                 </Button>
-                                <Text color="gray.6" ta="center">
+                                <Text color="ldGray.6" ta="center">
                                     Your one-time password expires in{' '}
                                     <b>
                                         {zeroPad(minutes)}:{zeroPad(seconds)}

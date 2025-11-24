@@ -322,7 +322,7 @@ export const CustomBinDimensionModal: FC<{
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                     fw="400"
                                                 >
                                                     &lt;{toProps.value}{' '}
@@ -350,7 +350,7 @@ export const CustomBinDimensionModal: FC<{
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                     fw="400"
                                                 >
                                                     ≥{fromProps.value}{' '}
@@ -362,7 +362,7 @@ export const CustomBinDimensionModal: FC<{
                                                     type="number"
                                                     {...fromProps}
                                                 />
-                                                <Text color="gray.6" fw="400">
+                                                <Text color="ldGray.6" fw="400">
                                                     and above{' '}
                                                 </Text>
                                             </Flex>
@@ -376,7 +376,7 @@ export const CustomBinDimensionModal: FC<{
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                     fw="400"
                                                 >
                                                     ≥{fromProps.value} and &lt;
@@ -389,7 +389,7 @@ export const CustomBinDimensionModal: FC<{
                                                     type="number"
                                                     {...fromProps}
                                                 />
-                                                <Text color="gray.6" fw="400">
+                                                <Text color="ldGray.6" fw="400">
                                                     to{' '}
                                                 </Text>
 

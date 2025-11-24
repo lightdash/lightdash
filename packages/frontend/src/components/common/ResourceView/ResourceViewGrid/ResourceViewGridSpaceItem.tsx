@@ -49,7 +49,9 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             pos="relative"
             p={0}
             withBorder
-            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
+            bg={
+                hovered ? theme.fn.rgba(theme.colors.ldGray[0], 0.5) : undefined
+            }
             h="100%"
         >
             <Group p="md" align="center" spacing="md" noWrap>

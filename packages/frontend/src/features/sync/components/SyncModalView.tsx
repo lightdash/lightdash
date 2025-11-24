@@ -109,7 +109,11 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                             align="center"
                                             justify="space-between"
                                         >
-                                            <Text span size="xs" color="gray.6">
+                                            <Text
+                                                span
+                                                size="xs"
+                                                color="ldGray.6"
+                                            >
                                                 {getHumanReadableCronExpression(
                                                     sync.cron,
                                                     sync.timezone ||
@@ -121,7 +125,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                     <Group mr="lg">
                                         <Tooltip withinPortal label="Sync now">
                                             <ActionIcon
-                                                color="gray.7"
+                                                color="ldGray.7"
                                                 p="xs"
                                                 size="lg"
                                                 disabled={isSendingNowLoading}
@@ -210,10 +214,10 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                         my="sm"
                         pt="md"
                     >
-                        <Text fz="sm" fw={450} c="gray.7">
+                        <Text fz="sm" fw={450} c="ldGray.7">
                             This chart has no Syncs set up yet
                         </Text>
-                        <Text fz="xs" fw={400} c="gray.6">
+                        <Text fz="xs" fw={400} c="ldGray.6">
                             Get started by clicking 'Create new Sync' to
                             seamlessly integrate your chart data with Google
                             Sheets
@@ -225,7 +229,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                 sx={(theme) => ({
                     position: 'sticky',
                     backgroundColor: 'white',
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                     bottom: 0,
                     zIndex: 2,
                     margin: -16, // TODO: is there a way to negate theme values?

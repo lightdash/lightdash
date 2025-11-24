@@ -46,7 +46,7 @@ const TableField: FC<{
                                 <ActionIcon
                                     size={16}
                                     onClick={copy}
-                                    bg="gray.1"
+                                    bg="ldGray.1"
                                 >
                                     <MantineIcon
                                         icon={IconCopy}
@@ -74,7 +74,7 @@ const TableField: FC<{
                     fw={500}
                     p={4}
                     fz={13}
-                    c="gray.7"
+                    c="ldGray.7"
                     sx={{
                         flex: 1,
                     }}
@@ -84,7 +84,7 @@ const TableField: FC<{
                     {field.name}
                 </Highlight>
             </Tooltip>
-            <Text fz={12} c="gray.5">
+            <Text fz={12} c="ldGray.5">
                 {field.type}
             </Text>
         </Group>
@@ -120,7 +120,7 @@ export const TableFields: FC = () => {
         <Stack spacing="xs" h="100%" pt="sm">
             {activeTable ? (
                 <Box px="sm">
-                    <Text fz="sm" fw={600} c="gray.7">
+                    <Text fz="sm" fw={600} c="ldGray.7">
                         {activeTable}
                     </Text>
                     <TextInput
@@ -149,14 +149,14 @@ export const TableFields: FC = () => {
                         styles={(theme) => ({
                             input: {
                                 borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                             },
                         })}
                     />
                 </Box>
             ) : (
                 <Center p="md">
-                    <Text c="gray.4">No table selected</Text>
+                    <Text c="ldGray.4">No table selected</Text>
                 </Center>
             )}
             {isSuccess && tableFields && activeTable && (
@@ -183,7 +183,7 @@ export const TableFields: FC = () => {
             )}
             {isSuccess && !tableFields && (
                 <Center p="sm">
-                    <Text c="gray.4">No results found</Text>
+                    <Text c="ldGray.4">No results found</Text>
                 </Center>
             )}
         </Stack>

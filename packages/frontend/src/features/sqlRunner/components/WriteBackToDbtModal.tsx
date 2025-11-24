@@ -110,7 +110,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                     <MantineIcon
                         icon={IconBrandGithub}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={500}>Write back to dbt</Text>
                     <Tooltip
@@ -121,7 +121,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                         label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
                     >
                         <MantineIcon
-                            color="gray.7"
+                            color="ldGray.7"
                             icon={IconInfoCircle}
                             size={16}
                         />
@@ -129,7 +129,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -150,7 +150,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             <Badge
                                 radius="md"
                                 variant="light"
-                                color="gray.9"
+                                color="ldGray.9"
                                 fz="xs"
                                 leftSection={
                                     <MantineIcon icon={IconBrandGithub} />
@@ -190,7 +190,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Group position="right" w="100%" p="md">
                     <Button
-                        color="gray.7"
+                        color="ldGray.7"
                         onClick={onClose}
                         variant="outline"
                         disabled={isLoadingPullRequest}

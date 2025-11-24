@@ -41,7 +41,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
             spacing="xs"
             sx={(theme) => ({
                 padding: theme.spacing.xs,
-                backgroundColor: theme.colors.gray['0'],
+                backgroundColor: theme.colors.ldGray['0'],
                 borderRadius: theme.radius.sm,
             })}
         >
@@ -54,14 +54,14 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                         mih={isDragging ? '30px' : undefined}
                         bg={
                             droppableSnapshot.isDraggingOver
-                                ? 'gray.1'
+                                ? 'ldGray.1'
                                 : isDragging
-                                ? 'gray.0'
+                                ? 'ldGray.0'
                                 : undefined
                         }
                     >
                         {!isDragging && !hasItems ? (
-                            <Text size="xs" color="gray.6" m="xs" ta="center">
+                            <Text size="xs" color="ldGray.6" m="xs" ta="center">
                                 {placeholder}
                             </Text>
                         ) : null}

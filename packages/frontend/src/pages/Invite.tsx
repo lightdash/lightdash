@@ -55,7 +55,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                             {email}
                         </Text>
                     )}
-                    <Text color="gray.6" ta="center">
+                    <Text color="ldGray.6" ta="center">
                         {`Your teammates ${
                             org?.name ? `at ${org.name}` : ''
                         } are using Lightdash to discover
@@ -68,7 +68,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                     </Button>
                 </Stack>
             </Card>
-            <Text color="gray.6" ta="center">
+            <Text color="ldGray.6" ta="center">
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
                 Ignore this invite link and contact your workspace admin.
@@ -82,7 +82,7 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
         <Card p="xl" radius="xs" withBorder shadow="xs" data-cy="welcome-user">
             <Stack spacing="md" align="center">
                 <Title order={3}>{title}</Title>
-                <Text color="gray.7" ta="center">
+                <Text color="ldGray.7" ta="center">
                     Please check with the person who shared it with you to see
                     if there’s a new link available.
                 </Text>
@@ -195,7 +195,7 @@ const Invite: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text color="gray.5" size="sm" fw={500}>
+                        <Text color="ldGray.5" size="sm" fw={500}>
                             OR
                         </Text>
                     }
@@ -231,7 +231,7 @@ const Invite: FC = () => {
                             </Title>
                             {logins}
                         </Card>
-                        <Text color="gray.6" ta="center">
+                        <Text color="ldGray.6" ta="center">
                             By creating an account, you agree to
                             <br />
                             our{' '}

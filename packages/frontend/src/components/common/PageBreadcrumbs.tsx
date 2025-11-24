@@ -48,7 +48,7 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                     HTMLAttributes<HTMLAnchorElement> = {
                     size: size,
                     fw: item.active ? 600 : 500,
-                    color: item.active ? 'gray.7' : 'gray.6',
+                    color: item.active ? 'ldGray.7' : 'ldGray.6',
                     onClick: item.onClick,
                     sx: {
                         whiteSpace: 'normal',

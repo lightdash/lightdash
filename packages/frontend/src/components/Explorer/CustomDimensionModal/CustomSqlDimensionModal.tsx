@@ -206,7 +206,7 @@ export const CustomSqlDimensionModal: FC<{
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconSql} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text color="ldDark.7" fw={700} fz="md">
                             {isEditing ? 'Edit' : 'Create'} Custom Dimension
                             {item ? (
                                 <Text span fw={400}>

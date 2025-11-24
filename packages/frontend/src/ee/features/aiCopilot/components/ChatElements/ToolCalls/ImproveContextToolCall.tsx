@@ -67,14 +67,14 @@ export const ImproveContextToolCall: FC<ImproveContextToolCallProps> = ({
             <Group gap="xs" align="flex-start" wrap="nowrap">
                 <MantineIcon icon={IconSchool} size="md" color="indigo.6" />
                 <Stack gap="xs" style={{ flex: 1 }}>
-                    <Text fz="xs" fw={500} c="gray.9" lh="normal" m={0}>
+                    <Text fz="xs" fw={500} c="ldGray.9" lh="normal" m={0}>
                         Save instruction to memory?
                     </Text>
 
                     <Text
                         fz="xs"
-                        c="gray.7"
-                        bg="gray.0"
+                        c="ldGray.7"
+                        bg="ldGray.0"
                         p="xs"
                         style={{
                             borderRadius: '4px',

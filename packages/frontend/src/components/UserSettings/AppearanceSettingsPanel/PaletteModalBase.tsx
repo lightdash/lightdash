@@ -80,7 +80,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
             >
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                         padding: theme.spacing.sm,
                     })}
                 >
@@ -88,7 +88,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconPalette} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text color="ldDark.7" fw={700} fz="md">
                             {title}
                         </Text>
                     </Group>
@@ -127,7 +127,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                 h="100%"
                                 mah={320}
                                 sx={(theme) => ({
-                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                    border: `1px solid ${theme.colors.ldGray[2]}`,
                                     borderRadius: theme.radius.md,
                                     overflow: 'scroll',
                                 })}
@@ -141,7 +141,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                     pr={0}
                                     pb="xs"
                                     sx={(theme) => ({
-                                        borderRight: `1px solid ${theme.colors.gray[2]}`,
+                                        borderRight: `1px solid ${theme.colors.ldGray[2]}`,
                                     })}
                                 >
                                     <ScrollArea
@@ -168,7 +168,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                                         label={`#${index + 1}`}
                                                         labelProps={{
                                                             size: 10,
-                                                            color: 'gray.4',
+                                                            color: 'ldGray.4',
                                                         }}
                                                         value={color}
                                                         onChange={(newColor) =>
@@ -222,7 +222,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
 
                     <Box
                         sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
+                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                             padding: theme.spacing.sm,
                             backgroundColor: theme.white,
                             position: 'sticky',

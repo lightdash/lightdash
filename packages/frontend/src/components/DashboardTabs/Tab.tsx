@@ -64,7 +64,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         <Tabs.Tab
                             key={idx}
                             value={tab.uuid}
-                            bg={isActive ? 'white' : 'gray.0'}
+                            bg={isActive ? 'white' : 'ldGray.0'}
                             icon={
                                 isEditMode ? (
                                     <Box {...provided.dragHandleProps} w={'sm'}>
@@ -73,7 +73,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 isHovered ? 'block' : 'none'
                                             }
                                             size="sm"
-                                            color="gray.6"
+                                            color="ldGray.6"
                                             icon={IconGripVertical}
                                         />
                                     </Box>
@@ -159,7 +159,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 ref={ref}
                                 order={6}
                                 fw={500}
-                                color="gray.7"
+                                color="ldGray.7"
                                 truncate
                                 maw={`calc(${
                                     100 / (sortedTabs?.length || 1)

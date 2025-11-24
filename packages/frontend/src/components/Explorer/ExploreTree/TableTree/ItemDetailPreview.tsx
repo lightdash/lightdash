@@ -52,7 +52,7 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
             disallowedElements={['img']}
             style={{
                 fontSize: theme.fontSizes.sm,
-                color: theme.colors.gray[7],
+                color: theme.colors.ldGray[7],
             }}
         />
     );
@@ -92,7 +92,7 @@ export const ItemDetailPreview: FC<{
             {metricInfo && (
                 <>
                     <Group spacing="xs" position="apart">
-                        <Text fz="sm" fw={500} c="dark.7">
+                        <Text fz="sm" fw={500} c="ldDark.7">
                             {metricInfo.name}
                         </Text>
                         <Badge
@@ -124,8 +124,8 @@ export const ItemDetailPreview: FC<{
                     <Stack spacing="xs">
                         {metricInfo && (
                             <>
-                                <Divider color="gray.2" />
-                                <Text fz="xs" fw={500} c="dark.7">
+                                <Divider color="ldGray.2" />
+                                <Text fz="xs" fw={500} c="ldDark.7">
                                     Description
                                 </Text>
                             </>
@@ -150,10 +150,10 @@ export const ItemDetailPreview: FC<{
             )}
             {metricInfo && (
                 <>
-                    <Divider color="gray.2" />
+                    <Divider color="ldGray.2" />
                     <Stack spacing="xs">
                         <Group spacing="xs" align="center" position="apart">
-                            <Text fz="xs" fw={500} c="dark.7">
+                            <Text fz="xs" fw={500} c="ldDark.7">
                                 SQL
                             </Text>
                             <Tooltip
@@ -192,8 +192,8 @@ export const ItemDetailPreview: FC<{
                         {metricInfo.filters &&
                             metricInfo.filters.length > 0 && (
                                 <>
-                                    <Divider color="gray.2" />
-                                    <Text fz="xs" fw={500} c="dark.7">
+                                    <Divider color="ldGray.2" />
+                                    <Text fz="xs" fw={500} c="ldDark.7">
                                         Filters
                                     </Text>
                                     {metricInfo.filters.map((filter) => {

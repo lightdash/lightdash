@@ -113,7 +113,7 @@ const ListCollapse: FC<React.PropsWithChildren<ListCollapseProps>> = ({
                 position="apart"
                 spacing="sm"
                 noWrap
-                bg={hovered || isOpen ? theme.colors.gray[0] : undefined}
+                bg={hovered || isOpen ? theme.colors.ldGray[0] : undefined}
                 sx={{ cursor: 'pointer' }}
                 onClick={toggle}
             >
@@ -123,7 +123,7 @@ const ListCollapse: FC<React.PropsWithChildren<ListCollapseProps>> = ({
                     </Avatar>
                     <Text fw={600} fz="sm">
                         {label}{' '}
-                        <Text fw={400} span c="gray.6">
+                        <Text fw={400} span c="ldGray.6">
                             ({accessCount})
                         </Text>
                     </Text>
@@ -236,7 +236,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                     sharedUser.email,
                                 )}
                                 {isSessionUser ? (
-                                    <Text fw={400} span c="gray.6">
+                                    <Text fw={400} span c="ldGray.6">
                                         {' '}
                                         (you)
                                     </Text>
@@ -249,7 +249,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                 ProjectMemberRole.ADMIN) ? (
                             <Badge
                                 size="xs"
-                                color="gray.6"
+                                color="ldGray.6"
                                 radius="xs"
                                 mr={'xs'}
                             >
@@ -612,7 +612,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         <Stack spacing={'xs'}>
             {(accessByType.organisation.length > 0 ||
                 accessByType.project.length > 0) && (
-                <Text fw={400} span c="gray.6">
+                <Text fw={400} span c="ldGray.6">
                     Inherited access
                 </Text>
             )}
@@ -648,7 +648,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             )}
             {space.access.length > 0 && (
                 <>
-                    <Text fw={400} span c="gray.6">
+                    <Text fw={400} span c="ldGray.6">
                         Group access
                     </Text>
                     <GroupsAccessList
@@ -662,7 +662,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             )}
             {accessByType.direct.length > 0 && (
                 <>
-                    <Text fw={400} span c="gray.6">
+                    <Text fw={400} span c="ldGray.6">
                         User access
                     </Text>
                     <UserAccessList

@@ -169,7 +169,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                         />
                                         <Text
                                             size="sm"
-                                            c="dark.7"
+                                            c="ldDark.7"
                                             flex="1"
                                             mt={2}
                                         >
@@ -181,7 +181,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             <Text
                                                 component="span"
                                                 fw={600}
-                                                c="dark.7"
+                                                c="ldDark.7"
                                             >
                                                 "{form.values.prompt.trim()}"
                                             </Text>
@@ -193,7 +193,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             <MantineIcon
                                                 icon={IconCornerDownLeft}
                                                 size={16}
-                                                color="gray.5"
+                                                color="ldGray.5"
                                             />
                                         </Box>
                                     </PolymorphicGroupButton>
@@ -202,8 +202,8 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                             <ActionIcon
                                 color={
                                     !form.values.prompt.trim()
-                                        ? 'gray.7'
-                                        : 'gray.9'
+                                        ? 'ldGray.7'
+                                        : 'ldGray.9'
                                 }
                                 type="submit"
                                 disabled={!form.values.prompt.trim()}
@@ -220,8 +220,8 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
             </Box>
             {canManageAgents && (
                 <>
-                    <Divider color="gray.2" />
-                    <Box bg="gray.0" px="md" py="5px">
+                    <Divider color="ldGray.2" />
+                    <Box bg="ldGray.0" px="md" py="5px">
                         <Group
                             flex={1}
                             justify={
@@ -247,7 +247,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                     >
                                         <Group gap={2}>
                                             {isTrial && (
-                                                <Text size="xs" c="gray.8">
+                                                <Text size="xs" c="ldGray.8">
                                                     You are trialing the AI
                                                     Agents feature.
                                                 </Text>
@@ -265,7 +265,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             color="violet.5"
                                             fill="violet.5"
                                         />
-                                        <Text size="xs" c="gray.8">
+                                        <Text size="xs" c="ldGray.8">
                                             You are trialing the AI Agents
                                             feature.
                                         </Text>
@@ -278,7 +278,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                 variant="subtle"
                                 leftSection={
                                     <MantineIcon
-                                        color="gray.7"
+                                        color="ldGray.7"
                                         icon={IconSettings}
                                         strokeWidth={1.5}
                                     />

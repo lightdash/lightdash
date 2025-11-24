@@ -147,7 +147,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                 <MantineIcon
                     icon={IconChevronLeft}
                     size={12}
-                    color="dark.4"
+                    color="ldDark.4"
                     strokeWidth={1.8}
                 />
             </ActionIcon>
@@ -184,7 +184,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                         >
                             <Text
                                 span
-                                c="dark.4"
+                                c="ldDark.4"
                                 fz={14}
                                 fw={500}
                                 maw={200}
@@ -217,7 +217,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                 <MantineIcon
                     icon={IconChevronRight}
                     size={12}
-                    color="dark.4"
+                    color="ldDark.4"
                     strokeWidth={1.8}
                 />
             </ActionIcon>

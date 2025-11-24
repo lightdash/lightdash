@@ -71,7 +71,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
             >
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     })}
                     px="xl"
                     py="md"
@@ -83,7 +83,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 <MantineIcon icon={icon} size="md" />
                             </Paper>
                         ) : null}
-                        <Text color="gray.9" fw={700} fz="md">
+                        <Text color="ldGray.9" fw={700} fz="md">
                             {title}
                         </Text>
                     </Group>
@@ -111,7 +111,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 {actions ? (
                     <Flex
                         sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
+                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                             position: 'sticky',
                             bottom: 0,
                             width: '100%',

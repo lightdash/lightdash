@@ -49,7 +49,7 @@ export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
             }
             onClose={onClose}
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -75,7 +75,7 @@ export const SchedulerDeleteModal: FC<DashboardDeleteModalProps> = ({
                 position="right"
                 p="md"
                 sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                 })}
             >
                 <Button onClick={onClose} color="dark" variant="outline">

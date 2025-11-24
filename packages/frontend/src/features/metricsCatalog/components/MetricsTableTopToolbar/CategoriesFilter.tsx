@@ -65,7 +65,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                     >
                         <Button
                             h={32}
-                            c="gray.7"
+                            c="ldGray.7"
                             fw={500}
                             fz="sm"
                             variant="default"
@@ -79,7 +79,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                     color={
                                         hasSelectedCategories
                                             ? 'indigo.5'
-                                            : 'gray.5'
+                                            : 'ldGray.5'
                                     }
                                 />
                             }
@@ -88,14 +88,14 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                 root: {
                                     border: hasSelectedCategories
                                         ? `1px solid ${theme.colors.indigo[2]}`
-                                        : `1px dashed ${theme.colors.gray[3]}`,
+                                        : `1px dashed ${theme.colors.ldGray[3]}`,
                                     backgroundColor: hasSelectedCategories
                                         ? theme.colors.indigo[0]
                                         : undefined,
                                     textOverflow: 'ellipsis',
                                     boxShadow: theme.shadows.subtle,
                                     '&:hover': {
-                                        backgroundColor: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.ldGray[0],
                                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                                     },
                                 },
@@ -110,12 +110,12 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack spacing={4}>
-                        <Text fz="xs" c="dark.3" fw={600}>
+                        <Text fz="xs" c="ldDark.3" fw={600}>
                             Filter by categories:
                         </Text>
 
                         {categories?.length === 0 && (
-                            <Text fz="xs" fw={500} c="gray.6">
+                            <Text fz="xs" fw={500} c="ldGray.6">
                                 No categories added yet. Click on the category
                                 cells to assign categories to your metrics.
                             </Text>
@@ -138,7 +138,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                         },
                                         input: {
                                             borderRadius: theme.radius.sm,
-                                            border: `1px solid ${theme.colors.gray[4]}`,
+                                            border: `1px solid ${theme.colors.ldGray[4]}`,
                                         },
                                         label: {
                                             paddingLeft: theme.spacing.xs,
@@ -181,7 +181,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                     },
                                     input: {
                                         borderRadius: theme.radius.sm,
-                                        border: `1px solid ${theme.colors.gray[4]}`,
+                                        border: `1px solid ${theme.colors.ldGray[4]}`,
                                     },
                                     label: {
                                         paddingLeft: theme.spacing.xs,
@@ -216,7 +216,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 <Tooltip variant="xs" label="Clear all categories">
                     <ActionIcon
                         size="xs"
-                        color="gray.5"
+                        color="ldGray.5"
                         onClick={() => {
                             setSelectedCategories([]);
                         }}

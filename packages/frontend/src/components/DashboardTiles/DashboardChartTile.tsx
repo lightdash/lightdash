@@ -917,7 +917,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             >
                                 <HoverCard.Dropdown>
                                     <Stack spacing="xs" align="flex-start">
-                                        <Text color="gray.7" fw={500}>
+                                        <Text color="ldGray.7" fw={500}>
                                             Dashboard filter
                                             {appliedFilterRules.length > 1
                                                 ? 's'
@@ -955,7 +955,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     <Badge
                                                         key={filterRule.id}
                                                         variant="outline"
-                                                        color="gray.4"
+                                                        color="ldGray.4"
                                                         radius="sm"
                                                         size="lg"
                                                         fz="xs"
@@ -1014,7 +1014,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Text color="gray.7" fw={500} mb="xs">
+                                        <Text color="ldGray.7" fw={500} mb="xs">
                                             Parameters
                                         </Text>
                                         <Stack
@@ -1028,7 +1028,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 <Text
                                                     key={key}
                                                     size="xs"
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                 >
                                                     <Text span fw={600}>
                                                         {parameterDefinitions[
@@ -1064,12 +1064,20 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Text size="xs" color="gray.6" fw={600}>
+                                        <Text
+                                            size="xs"
+                                            color="ldGray.6"
+                                            fw={600}
+                                        >
                                             Warehouse execution time:{' '}
                                             {initialQueryExecutionMs}
                                             ms
                                         </Text>
-                                        <Text size="xs" color="gray.6" fw={600}>
+                                        <Text
+                                            size="xs"
+                                            color="ldGray.6"
+                                            fw={600}
+                                        >
                                             Total time:{' '}
                                             {resultsData.totalClientFetchTimeMs}
                                             ms

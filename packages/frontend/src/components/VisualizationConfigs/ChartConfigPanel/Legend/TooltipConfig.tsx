@@ -165,7 +165,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         maw={350}
                         variant="xs"
                         multiline
-                        label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}. 
+                        label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
                                     Click here to read more about this on our docs."
                     >
                         <MantineIcon
@@ -184,14 +184,14 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                 </Group>
 
                 <Collapse in={show}>
-                    {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip 
+                    {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
                     we show some text, by giving position absolute, it is placed on top of the editor*/}
                     {tooltipValue?.length === 0 ? (
                         <Text
                             ml="xxs"
                             pos="absolute"
                             width="400px"
-                            color="gray.5"
+                            color="ldGray.5"
                             sx={{
                                 pointerEvents: 'none',
                                 zIndex: getDefaultZIndex('overlay'),

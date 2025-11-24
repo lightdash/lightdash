@@ -131,7 +131,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                 c={
                                     isOneAtLeastFetching
                                         ? 'transparent'
-                                        : 'gray.7'
+                                        : 'ldGray.7'
                                 }
                             >
                                 Every{' '}

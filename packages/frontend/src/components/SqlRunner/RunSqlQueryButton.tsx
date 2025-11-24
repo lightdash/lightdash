@@ -46,7 +46,7 @@ const RunSqlQueryButton: FC<{
                     style={(theme) => ({
                         flex: 1,
                         borderRight: !disabled
-                            ? `1px solid ${rgba(theme.colors.gray[5], 0.6)}`
+                            ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
                             : undefined,
 
                         ...(onLimitChange !== undefined && {

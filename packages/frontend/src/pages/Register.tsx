@@ -110,7 +110,7 @@ const Register: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text color="gray.5" size="sm" fw={500}>
+                        <Text color="ldGray.5" size="sm" fw={500}>
                             OR
                         </Text>
                     }
@@ -135,7 +135,7 @@ const Register: FC = () => {
                     </Title>
                     {logins}
                 </Card>
-                <Text color="gray.6" ta="center">
+                <Text color="ldGray.6" ta="center">
                     By creating an account, you agree to
                     <br />
                     our{' '}

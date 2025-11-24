@@ -80,7 +80,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                         <Group spacing="two">
                                             <Group noWrap spacing="two">
                                                 <MantineIcon
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                     icon={IconFolder}
                                                 />
                                                 <RouterNavLink
@@ -91,7 +91,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                         </Text>
                                                     }
                                                     p={0}
-                                                    c="gray.6"
+                                                    c="ldGray.6"
                                                     sx={{
                                                         '&:hover': {
                                                             backgroundColor:
@@ -103,13 +103,13 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                             {chart.dashboardUuid && (
                                                 <Group noWrap spacing="two">
                                                     <Text
-                                                        color="gray.6"
+                                                        color="ldGray.6"
                                                         mr="two"
                                                     >
                                                         {'/'}
                                                     </Text>
                                                     <MantineIcon
-                                                        color="gray.6"
+                                                        color="ldGray.6"
                                                         icon={
                                                             IconLayoutDashboard
                                                         }
@@ -124,7 +124,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                             </Text>
                                                         }
                                                         p={0}
-                                                        c="gray.6"
+                                                        c="ldGray.6"
                                                         sx={{
                                                             '&:hover': {
                                                                 backgroundColor:

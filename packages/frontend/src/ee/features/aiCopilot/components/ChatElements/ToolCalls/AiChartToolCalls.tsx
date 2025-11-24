@@ -101,7 +101,11 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                                         }
                                         mt="xs"
                                         title={
-                                            <Text fw={400} size="xs" c="gray.7">
+                                            <Text
+                                                fw={400}
+                                                size="xs"
+                                                c="ldGray.7"
+                                            >
                                                 {texts[toolName]}
                                             </Text>
                                         }

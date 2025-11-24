@@ -31,5 +31,5 @@ export const TableFieldIcon: FC<{
         }
     }, [fieldType]);
 
-    return <MantineIcon icon={Icon} color="gray.5" />;
+    return <MantineIcon icon={Icon} color="ldGray.5" />;
 });

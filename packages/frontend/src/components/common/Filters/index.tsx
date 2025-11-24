@@ -218,14 +218,14 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             spacing="xs"
                             pl="xs"
                             sx={(theme) => ({
-                                border: `1px solid ${theme.colors.gray[2]}`,
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                 borderRadius: theme.radius.sm,
                             })}
                         >
                             <MantineIcon icon={IconAlertCircle} />
                             <Text color="dimmed" fz="xs">
                                 Tried to reference field with unknown id:{' '}
-                                <Text span fw={500} c="gray.7">
+                                <Text span fw={500} c="ldGray.7">
                                     {rule.target.fieldId}
                                 </Text>
                             </Text>

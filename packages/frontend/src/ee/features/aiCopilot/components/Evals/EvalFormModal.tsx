@@ -339,7 +339,10 @@ export const EvalFormModal: FC<Props> = ({
                                             <MantineIcon icon={IconTrash} />
                                         </ActionIcon>
                                     </Group>
-                                    <Divider variant="dashed" color="gray.3" />
+                                    <Divider
+                                        variant="dashed"
+                                        color="ldGray.3"
+                                    />
                                 </>
                             ))}
                         </Stack>

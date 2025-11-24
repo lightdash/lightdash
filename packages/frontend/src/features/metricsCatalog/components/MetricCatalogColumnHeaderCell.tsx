@@ -17,7 +17,7 @@ export const MetricCatalogColumnHeaderCell = ({
                 <Text
                     fz="xs"
                     fw={600}
-                    color="dark.3"
+                    color="ldDark.3"
                     sx={{
                         userSelect: 'none',
                     }}

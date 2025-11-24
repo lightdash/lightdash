@@ -35,10 +35,10 @@ export const CollapsablePaper = ({
                                 icon={icon}
                                 size="sm"
                                 strokeWidth={1.2}
-                                color={'gray.6'}
+                                color={'ldGray.6'}
                             />
                         )}
-                        <Title order={6} c={'gray.6'} size="xs">
+                        <Title order={6} c={'ldGray.6'} size="xs">
                             {title}
                         </Title>
                     </Group>
@@ -47,7 +47,7 @@ export const CollapsablePaper = ({
                         <MantineIcon
                             icon={IconSelector}
                             size={12}
-                            color="gray.6"
+                            color="ldGray.6"
                         />
                     </Group>
                 </Group>

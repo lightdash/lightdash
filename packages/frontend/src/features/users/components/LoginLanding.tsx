@@ -282,7 +282,7 @@ const Login: FC<{}> = () => {
                                         labelPosition="center"
                                         label={
                                             <Text
-                                                color="gray.5"
+                                                color="ldGray.5"
                                                 size="sm"
                                                 fw={500}
                                             >

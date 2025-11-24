@@ -152,7 +152,7 @@ export const AgentChatInput = ({
                             bottom: 12,
                             right: 12,
                         }}
-                        color="dark.5"
+                        color="ldDark.5"
                         disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {

@@ -67,7 +67,9 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 margin: 0,
                 alignItems: 'center',
                 borderRadius: theme.radius.sm,
-                backgroundColor: hovered ? theme.colors.gray[1] : 'transparent',
+                backgroundColor: hovered
+                    ? theme.colors.ldGray[1]
+                    : 'transparent',
                 border: `2px solid ${
                     isSelected ? theme.colors.blue[6] : 'transparent'
                 }`,
@@ -111,7 +113,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     <Highlight
                         fz="13px"
                         w="auto"
-                        c="gray.7"
+                        c="ldGray.7"
                         lineClamp={2}
                         highlight={searchString}
                         highlightColor="yellow"
@@ -136,9 +138,9 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         target="_blank"
                         compact
                         sx={(theme) => ({
-                            backgroundColor: theme.colors.gray[8],
+                            backgroundColor: theme.colors.ldGray[8],
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[9],
+                                backgroundColor: theme.colors.ldGray[9],
                             },
                         })}
                         onClick={(e) => e.stopPropagation()}

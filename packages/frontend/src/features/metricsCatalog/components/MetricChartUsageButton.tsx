@@ -57,14 +57,14 @@ export const MetricChartUsageButton = ({
             <Button
                 size="xs"
                 compact
-                color="gray.6"
+                color="ldGray.6"
                 variant="subtle"
                 disabled={!hasChartsUsage}
                 onClick={handleChartUsageClick}
                 leftIcon={<BarChart />}
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
-                c="dark.4"
+                c="ldDark.4"
                 fw={500}
                 sx={{
                     '&[data-disabled]': {

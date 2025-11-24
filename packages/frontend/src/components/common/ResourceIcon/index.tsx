@@ -36,7 +36,7 @@ export const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'lg',
-    bg = 'gray.0',
+    bg = 'ldGray.0',
     ...mantineIconProps
 }) => (
     <Paper

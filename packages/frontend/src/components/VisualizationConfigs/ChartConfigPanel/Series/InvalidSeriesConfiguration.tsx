@@ -4,7 +4,7 @@ import React, { type FC } from 'react';
 const InvalidSeriesConfiguration: FC<{ itemId: string }> = ({ itemId }) => {
     return (
         <Stack>
-            <Text color="gray.6">
+            <Text color="ldGray.6">
                 <span
                     style={{
                         width: '100%',

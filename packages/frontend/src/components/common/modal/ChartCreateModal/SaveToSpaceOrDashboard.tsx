@@ -443,7 +443,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 position="right"
                 w="100%"
                 sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                     bottom: 0,
                     padding: theme.spacing.md,
                 })}

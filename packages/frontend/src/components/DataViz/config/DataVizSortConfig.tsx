@@ -18,7 +18,7 @@ const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
             break;
     }
 
-    return icon ? <MantineIcon color="gray.6" icon={icon} /> : null;
+    return icon ? <MantineIcon color="ldGray.6" icon={icon} /> : null;
 };
 
 type Props = {

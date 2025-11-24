@@ -236,7 +236,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
         <Stack
             spacing="sm"
             sx={(theme) => ({
-                backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
+                backgroundColor: theme.fn.lighten(theme.colors.ldGray[0], 0.7),
             })}
             h="100%"
             style={{ flex: 1 }}

@@ -57,7 +57,7 @@ const NavItemIcon = ({
     item: Item | AdditionalMetric;
 }) => {
     return isMissing ? (
-        <MantineIcon icon={IconAlertTriangle} color="gray.7" />
+        <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />
     ) : (
         <FieldIcon item={item} color={getFieldIconColor(item)} size="md" />
     );
@@ -349,7 +349,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <ActionIcon onClick={handleFilterClick}>
                                 <MantineIcon
                                     icon={IconFilter}
-                                    color="gray.7"
+                                    color="ldGray.7"
                                     style={{ flexShrink: 0 }}
                                 />
                             </ActionIcon>

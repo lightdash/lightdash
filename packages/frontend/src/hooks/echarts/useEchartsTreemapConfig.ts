@@ -73,7 +73,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         let levels = groupFieldIds?.map((fieldId, index) => ({
             itemStyle: {
                 borderColor:
-                    theme.colors.gray[index % theme.colors.gray.length],
+                    theme.colors.ldGray[index % theme.colors.ldGray.length],
                 borderRadius: 4,
             },
         }));
@@ -142,7 +142,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                     const segmentColor =
                         typeof color === 'string'
                             ? color
-                            : theme.colors.gray[6];
+                            : theme.colors.ldGray[6];
                     const header = formatTooltipHeader(name);
                     const divider = getTooltipDivider();
                     const sizeMetricDisplay = getStyledMetricDisplay(

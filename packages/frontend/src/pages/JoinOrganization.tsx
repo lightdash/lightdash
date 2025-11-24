@@ -105,7 +105,7 @@ const JoinOrganizationPage: FC = () => {
                             <Title order={3} ta="center">
                                 Join a workspace
                             </Title>
-                            <Text color="gray.6" ta="center">
+                            <Text color="ldGray.6" ta="center">
                                 The workspaces below are open to anyone with a{' '}
                                 <Text span fw={600}>
                                     @{emailDomain}:
@@ -119,7 +119,7 @@ const JoinOrganizationPage: FC = () => {
                                             <Avatar
                                                 size="md"
                                                 radius="xl"
-                                                color="gray.6"
+                                                color="ldGray.6"
                                             >
                                                 {org.name[0]?.toUpperCase()}
                                             </Avatar>
@@ -154,10 +154,10 @@ const JoinOrganizationPage: FC = () => {
                         sx={(theme) =>
                             disabled
                                 ? {
-                                      color: theme.colors.gray[6],
+                                      color: theme.colors.ldGray[6],
                                       '&:hover': {
                                           textDecoration: 'none',
-                                          color: theme.colors.gray[6],
+                                          color: theme.colors.ldGray[6],
                                       },
                                   }
                                 : {}

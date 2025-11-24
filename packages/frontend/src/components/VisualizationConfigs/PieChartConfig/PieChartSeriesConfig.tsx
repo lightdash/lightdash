@@ -90,8 +90,8 @@ export const Series: FC = () => {
                                         ref={droppableProvided.innerRef}
                                         bg={
                                             droppableSnapshot.isDraggingOver
-                                                ? 'gray.1'
-                                                : 'gray.0'
+                                                ? 'ldGray.1'
+                                                : 'ldGray.0'
                                         }
                                         p="xs"
                                     >

@@ -171,7 +171,7 @@ const InfiniteResourceTable = ({
 
                 return space ? (
                     <Anchor
-                        color="gray.7"
+                        color="ldGray.7"
                         component={Link}
                         to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
                         onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
@@ -193,7 +193,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} color="gray.7">
+                        <Text fz={12} fw={500} color="ldGray.7">
                             -
                         </Text>
                     );
@@ -398,7 +398,7 @@ const InfiniteResourceTable = ({
         mantinePaperProps: {
             shadow: undefined,
             sx: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -452,19 +452,19 @@ const InfiniteResourceTable = ({
             const canResize = props.column.getCanResize();
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -514,7 +514,7 @@ const InfiniteResourceTable = ({
                         td: {
                             backgroundColor: isSelected
                                 ? theme.colors.blue[1]
-                                : theme.colors.gray[0],
+                                : theme.colors.ldGray[0],
                             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                         },
 
@@ -545,7 +545,7 @@ const InfiniteResourceTable = ({
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
                 sx: {
@@ -581,13 +581,13 @@ const InfiniteResourceTable = ({
                                             fontSize: inputTheme.fontSizes.sm,
                                             fontWeight: 400,
                                             color: search
-                                                ? inputTheme.colors.gray[8]
-                                                : inputTheme.colors.gray[5],
+                                                ? inputtheme.colors.ldGray[8]
+                                                : inputtheme.colors.ldGray[5],
                                             boxShadow:
                                                 inputTheme.shadows.subtle,
-                                            border: `1px solid ${inputTheme.colors.gray[3]}`,
+                                            border: `1px solid ${inputtheme.colors.ldGray[3]}`,
                                             '&:hover': {
-                                                border: `1px solid ${inputTheme.colors.gray[4]}`,
+                                                border: `1px solid ${inputtheme.colors.ldGray[4]}`,
                                             },
                                             '&:focus': {
                                                 border: `1px solid ${inputTheme.colors.blue[5]}`,
@@ -601,7 +601,7 @@ const InfiniteResourceTable = ({
                                     icon={
                                         <MantineIcon
                                             size="md"
-                                            color="gray.6"
+                                            color="ldGray.6"
                                             icon={IconSearch}
                                         />
                                     }
@@ -612,7 +612,7 @@ const InfiniteResourceTable = ({
                                                 onClick={clearSearch}
                                                 variant="transparent"
                                                 size="xs"
-                                                color="gray.5"
+                                                color="ldGray.5"
                                             >
                                                 <MantineIcon icon={IconX} />
                                             </ActionIcon>
@@ -664,7 +664,7 @@ const InfiniteResourceTable = ({
                             </Button>
                         ) : null}
                     </Group>
-                    <Divider color="gray.2" />
+                    <Divider color="ldGray.2" />
                 </Box>
             );
         },
@@ -673,9 +673,9 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                color="gray.8"
+                color="ldGray.8"
                 sx={{
-                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
@@ -687,7 +687,7 @@ const InfiniteResourceTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fw={400} color="gray.6">
+                        <Text fw={400} color="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -728,7 +728,7 @@ const InfiniteResourceTable = ({
         },
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />

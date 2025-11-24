@@ -332,7 +332,7 @@ const TableCalculationModal: FC<Props> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconCalculator} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text color="ldDark.7" fw={700} fz="md">
                             {tableCalculation ? 'Edit' : 'Create'} Table
                             Calculation
                             {tableCalculation ? (

@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 
 // FIXME: these colors are coming from the mantine's default theme.
+// TODO: use mantine theme and new ldGray
 // We should use the theme from the app instead.
 export const TABLE_HEADER_BG = DEFAULT_THEME.colors.gray[0];
 

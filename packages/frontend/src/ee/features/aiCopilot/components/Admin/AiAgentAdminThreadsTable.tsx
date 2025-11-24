@@ -194,7 +194,7 @@ const AiAgentAdminThreadsTable = ({
             size: 300,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconTextCaption} color="gray.6" />
+                    <MantineIcon icon={IconTextCaption} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -225,7 +225,7 @@ const AiAgentAdminThreadsTable = ({
             size: 170,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRobotFace} color="gray.6" />
+                    <MantineIcon icon={IconRobotFace} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -242,7 +242,7 @@ const AiAgentAdminThreadsTable = ({
                             <Text
                                 fz="sm"
                                 fw={500}
-                                c="gray.7"
+                                c="ldGray.7"
                                 truncate
                                 maw={220}
                             >
@@ -260,7 +260,7 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconBox} color="gray.6" />
+                    <MantineIcon icon={IconBox} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -268,7 +268,7 @@ const AiAgentAdminThreadsTable = ({
                 const thread = row.original;
 
                 return (
-                    <Text c="gray.9" fz="sm" fw={400}>
+                    <Text c="ldGray.9" fz="sm" fw={400}>
                         {thread.project.name}
                     </Text>
                 );
@@ -281,7 +281,7 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconUser} color="gray.6" />
+                    <MantineIcon icon={IconUser} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -293,7 +293,7 @@ const AiAgentAdminThreadsTable = ({
                         variant="xs"
                         label={thread.user.email}
                     >
-                        <Text c="gray.9" fz="sm" fw={400}>
+                        <Text c="ldGray.9" fz="sm" fw={400}>
                             {thread.user.name}
                         </Text>
                     </Tooltip>
@@ -308,7 +308,7 @@ const AiAgentAdminThreadsTable = ({
             size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconRadar} color="gray.6" />
+                    <MantineIcon icon={IconRadar} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -361,7 +361,7 @@ const AiAgentAdminThreadsTable = ({
                                 {label}
                             </Anchor>
                         ) : (
-                            <Text fz="xs" c="gray.7" fw={500}>
+                            <Text fz="xs" c="ldGray.7" fw={500}>
                                 {label}
                             </Text>
                         )}
@@ -377,7 +377,7 @@ const AiAgentAdminThreadsTable = ({
             size: 125,
             Header: ({ column }) => (
                 <Group gap="two" wrap="nowrap">
-                    <MantineIcon icon={IconMessages} color="gray.6" />
+                    <MantineIcon icon={IconMessages} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -394,7 +394,7 @@ const AiAgentAdminThreadsTable = ({
             size: 140,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClick} color="gray.6" />
+                    <MantineIcon icon={IconClick} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
@@ -407,7 +407,7 @@ const AiAgentAdminThreadsTable = ({
                         feedbackSummary.downvotes === 0 ? (
                             <MantineIcon
                                 icon={IconCircleDotted}
-                                color="gray.6"
+                                color="ldGray.6"
                             />
                         ) : (
                             <Group gap="sm">
@@ -457,14 +457,14 @@ const AiAgentAdminThreadsTable = ({
             enableEditing: false,
             Header: ({ column }) => (
                 <Group gap="two">
-                    <MantineIcon icon={IconClock} color="gray.6" />
+                    <MantineIcon icon={IconClock} color="ldGray.6" />
                     {column.columnDef.header}
                 </Group>
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Text fz="sm" c="gray.7">
+                    <Text fz="sm" c="ldGray.7">
                         {new Date(thread.createdAt).toLocaleDateString()}
                     </Text>
                 );
@@ -497,7 +497,7 @@ const AiAgentAdminThreadsTable = ({
         mantinePaperProps: {
             shadow: undefined,
             sx: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -548,19 +548,19 @@ const AiAgentAdminThreadsTable = ({
             const canResize = props.column.getCanResize();
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -601,7 +601,7 @@ const AiAgentAdminThreadsTable = ({
                         td: {
                             backgroundColor: isSelected
                                 ? theme.colors.indigo[0]
-                                : theme.colors.gray[0],
+                                : theme.colors.ldGray[0],
 
                             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                         },
@@ -631,7 +631,7 @@ const AiAgentAdminThreadsTable = ({
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
                 sx: {
@@ -666,23 +666,23 @@ const AiAgentAdminThreadsTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                color="gray.8"
+                color="ldGray.8"
                 style={{
-                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text c="gray.8" fz="xs">
+                    <Text c="ldGray.8" fz="xs">
                         Loading more...
                     </Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="gray.8">
+                        <Text fz="xs" c="ldGray.8">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="gray.6">
+                        <Text fz="xs" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -693,7 +693,7 @@ const AiAgentAdminThreadsTable = ({
         ),
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />

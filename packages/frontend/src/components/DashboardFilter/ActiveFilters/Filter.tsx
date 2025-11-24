@@ -39,7 +39,7 @@ const useDashboardFilterStyles = createStyles((theme) => ({
     inactiveFilter: {
         borderStyle: 'dashed',
         borderWidth: '1px',
-        borderColor: theme.fn.rgba(theme.colors.gray[5], 0.7),
+        borderColor: theme.fn.rgba(theme.colors.ldGray[5], 0.7),
         backgroundColor: theme.fn.rgba(theme.white, 0.7),
     },
 }));
@@ -322,14 +322,18 @@ const Filter: FC<Props> = ({
                                             </Text>
                                         </Tooltip>
                                         {filterRule?.disabled ? (
-                                            <Text span color="gray.6" truncate>
+                                            <Text
+                                                span
+                                                color="ldGray.6"
+                                                truncate
+                                            >
                                                 is any value
                                             </Text>
                                         ) : (
                                             <>
                                                 <Text
                                                     span
-                                                    color="gray.7"
+                                                    color="ldGray.7"
                                                     truncate
                                                 >
                                                     {filterRuleLabels?.operator}{' '}
