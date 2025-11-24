@@ -1,0 +1,15 @@
+name: Lightdash Only Demo
+version: "1.0"
+
+warehouse:
+  type: postgres
+
+spotlight:
+  default_visibility: show
+  categories:
+    sales:
+      label: Sales & Orders
+      color: blue
+    customers:
+      label: Customer Analytics
+      color: green
