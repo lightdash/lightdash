@@ -1,28 +1,19 @@
 import {
+    isCustomDimension,
     isDimension,
     isMetric,
     isTableCalculation,
     MapChartLocationType,
     MapChartMapType,
 } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select, TextInput } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
-export const MapFieldsConfig: FC = memo(() => {
+export const Layout: FC = memo(() => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
-
-    console.log(
-        'MapFieldsConfig - visualizationConfig:',
-        visualizationConfig?.chartType,
-    );
-    console.log(
-        'MapFieldsConfig - itemsMap:',
-        Object.keys(itemsMap || {}).length,
-        'fields',
-    );
 
     // Get all available fields for selection (dimensions, metrics, and table calculations)
     const availableFields = useMemo(() => {
@@ -32,6 +23,7 @@ export const MapFieldsConfig: FC = memo(() => {
             .filter(
                 ([_, item]) =>
                     isDimension(item) ||
+                    isCustomDimension(item) ||
                     isMetric(item) ||
                     isTableCalculation(item),
             )
@@ -47,7 +39,6 @@ export const MapFieldsConfig: FC = memo(() => {
     }, [itemsMap]);
 
     if (!isMapVisualizationConfig(visualizationConfig)) {
-        console.log('MapFieldsConfig - Not a map visualization config');
         return null;
     }
 
@@ -55,6 +46,7 @@ export const MapFieldsConfig: FC = memo(() => {
         chartConfig: {
             validConfig,
             setMapType,
+            setCustomGeoJsonUrl,
             setLocationType,
             setLatitudeFieldId,
             setLongitudeFieldId,
@@ -63,15 +55,17 @@ export const MapFieldsConfig: FC = memo(() => {
         },
     } = visualizationConfig;
 
-    console.log('MapFieldsConfig - availableFields:', availableFields.length);
-    console.log('MapFieldsConfig - current config:', validConfig);
-
     const mapTypeOptions = [
         { value: MapChartMapType.WORLD, label: 'World' },
         { value: MapChartMapType.EUROPE, label: 'Europe' },
         { value: MapChartMapType.USA, label: 'USA' },
         { value: MapChartMapType.UK, label: 'United Kingdom' },
         { value: MapChartMapType.NORWAY, label: 'Norway' },
+        {
+            value: MapChartMapType.BEEF_CUTS,
+            label: 'Beef Cuts (France) - SVG Test',
+        },
+        { value: MapChartMapType.CUSTOM, label: 'Custom GeoJSON URL' },
     ];
 
     const locationTypeOptions = [
@@ -79,8 +73,7 @@ export const MapFieldsConfig: FC = memo(() => {
             value: MapChartLocationType.LAT_LONG,
             label: 'Latitude/Longitude',
         },
-        { value: MapChartLocationType.COUNTRY, label: 'Country' },
-        { value: MapChartLocationType.REGION, label: 'Region/State' },
+        { value: MapChartLocationType.REGION, label: 'Region' },
     ];
 
     const locationType =
@@ -100,6 +93,20 @@ export const MapFieldsConfig: FC = memo(() => {
                     }
                     mb="md"
                 />
+                {validConfig.mapType === MapChartMapType.CUSTOM && (
+                    <TextInput
+                        label="Custom Map URL"
+                        description="URL to a GeoJSON/TopoJSON/SVG file (e.g., https://example.com/map.json or /my-map.svg)"
+                        placeholder="https://example.com/map.json or /my-map.svg"
+                        value={validConfig.customGeoJsonUrl || ''}
+                        onChange={(e) =>
+                            setCustomGeoJsonUrl(
+                                e.currentTarget.value || undefined,
+                            )
+                        }
+                        mb="md"
+                    />
+                )}
                 <Select
                     label="Location Type"
                     description="How to specify locations on the map"
@@ -144,24 +151,11 @@ export const MapFieldsConfig: FC = memo(() => {
                     </>
                 )}
 
-                {(locationType === MapChartLocationType.COUNTRY ||
-                    locationType === MapChartLocationType.REGION) && (
+                {locationType === MapChartLocationType.REGION && (
                     <Select
-                        label={
-                            locationType === MapChartLocationType.COUNTRY
-                                ? 'Country Field'
-                                : 'Region/State Field'
-                        }
-                        description={
-                            locationType === MapChartLocationType.COUNTRY
-                                ? 'Select the field containing country names or codes'
-                                : 'Select the field containing region/state names or codes (e.g., US state codes)'
-                        }
-                        placeholder={
-                            locationType === MapChartLocationType.COUNTRY
-                                ? 'Select country field'
-                                : 'Select region field'
-                        }
+                        label="Region Field"
+                        description="Select the field containing region names (e.g., country names, state codes, or custom region identifiers)"
+                        placeholder="Select region field"
                         data={availableFields}
                         value={validConfig.locationFieldId || null}
                         onChange={(value) =>

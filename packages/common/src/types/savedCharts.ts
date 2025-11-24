@@ -146,16 +146,18 @@ export enum MapChartMapType {
     EUROPE = 'europe',
     UK = 'uk',
     NORWAY = 'norway',
+    BEEF_CUTS = 'beef_cuts',
+    CUSTOM = 'custom',
 }
 
 export enum MapChartLocationType {
-    COUNTRY = 'country',
-    REGION = 'region',
     LAT_LONG = 'lat_long',
+    REGION = 'region',
 }
 
 export type MapChart = {
     mapType?: MapChartMapType;
+    customGeoJsonUrl?: string;
     locationType?: MapChartLocationType;
     // Lat/Long fields
     latitudeFieldId?: string;
@@ -165,6 +167,10 @@ export type MapChart = {
     // Common fields
     valueFieldId?: string;
     showLegend?: boolean;
+    // Region color gradient (low, mid, high)
+    colorRangeLow?: string;
+    colorRangeMid?: string;
+    colorRangeHigh?: string;
 };
 
 export enum FunnelChartDataInput {
