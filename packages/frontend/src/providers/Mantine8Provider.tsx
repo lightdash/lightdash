@@ -2,6 +2,7 @@ import {
     MantineProvider as MantineProviderBase,
     type MantineThemeOverride,
 } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { type FC } from 'react';
 
 import { getMantine8ThemeOverride } from '../mantine8Theme';
@@ -17,10 +18,12 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     theme = getMantine8ThemeOverride(),
     themeOverride = {},
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+
     return (
         <MantineProviderBase
             theme={{ ...theme, ...themeOverride }}
-            forceColorScheme="light"
+            forceColorScheme={colorScheme}
             classNamesPrefix="mantine-8"
         >
             {children}
