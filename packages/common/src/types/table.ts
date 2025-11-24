@@ -16,7 +16,15 @@ export type TableBase = {
     label: string; // Friendly name
     originalName?: string; // Original name from dbt, without alias
     description?: string; // Optional description of table
+    /*
+        @deprecated
+
+        TODO: database and schema can be deleted
+     */
     database: string;
+    /*
+        @deprecated
+     */
     schema: string;
     sqlTable: string; // The sql identifier for the table
     primaryKey?: string[];
