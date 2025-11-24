@@ -125,6 +125,7 @@ export * from './types/organizationMemberProfile';
 export * from './types/organizationWarehouseCredentials';
 export * from './types/paginateResults';
 export * from './types/parameters';
+export * from './types/periodOverPeriodComparison';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';

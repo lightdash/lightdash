@@ -285,6 +285,7 @@ export type InfiniteQueryResults = Partial<
         | 'totalResults'
         | 'initialQueryExecutionMs'
         | 'pivotDetails'
+        | 'columns'
     >
 > & {
     projectUuid?: string;
@@ -541,6 +542,7 @@ export const useInfiniteQueryResults = (
             totalResults: fetchedPages[0]?.totalResults,
             initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
             pivotDetails: fetchedPages[0]?.pivotDetails,
+            columns: fetchedPages[0]?.columns,
             hasFetchedAllRows,
             rows: fetchedRows,
             isFetchingRows,
