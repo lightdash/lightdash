@@ -4,54 +4,15 @@
     "title": "Lightdash Model as Code",
     "description": "Schema for defining Lightdash models in YAML format independent of dbt",
     "type": "object",
-    "oneOf": [
+    "allOf": [
         {
-            "description": "Model with SQL query source",
-            "allOf": [
-                {
-                    "$ref": "#/definitions/BaseModel"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "from_sql": {
-                            "type": "string",
-                            "description": "SQL query to use as the model source"
-                        }
-                    },
-                    "required": ["from_sql"],
-                    "not": {
-                        "required": ["from_table"]
-                    }
-                }
-            ]
-        },
-        {
-            "description": "Model with table reference source",
-            "allOf": [
-                {
-                    "$ref": "#/definitions/BaseModel"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "from_table": {
-                            "type": "string",
-                            "description": "Table reference to use as the model source"
-                        }
-                    },
-                    "required": ["from_table"],
-                    "not": {
-                        "required": ["from_sql"]
-                    }
-                }
-            ]
+            "$ref": "#/definitions/BaseModel"
         }
     ],
     "definitions": {
         "BaseModel": {
             "type": "object",
-            "required": ["type", "name", "dimensions"],
+            "required": ["type", "name", "dimensions", "sql_from"],
             "properties": {
                 "type": {
                     "enum": ["model", "model/v1beta", "model/v1"],
@@ -60,6 +21,10 @@
                 "name": {
                     "type": "string",
                     "description": "Model name (must be unique)"
+                },
+                "sql_from": {
+                    "type": "string",
+                    "description": "SQL query or table reference to use as the model source (e.g., 'SELECT * FROM schema.table' or 'schema.table')"
                 },
                 "label": {
                     "type": "string",
@@ -249,7 +214,7 @@
         },
         "Dimension": {
             "type": "object",
-            "required": ["name", "type"],
+            "required": ["name", "type", "sql"],
             "properties": {
                 "name": {
                     "type": "string",
@@ -275,7 +240,7 @@
                 },
                 "sql": {
                     "type": "string",
-                    "description": "Custom SQL expression for this dimension"
+                    "description": "SQL expression for this dimension (required)"
                 },
                 "time_intervals": {
                     "oneOf": [
@@ -487,7 +452,7 @@
                 },
                 "sql": {
                     "type": "string",
-                    "description": "Custom SQL expression for this metric"
+                    "description": "SQL expression for this metric (optional - defaults to parent dimension)"
                 },
                 "round": {
                     "type": "number",
@@ -744,20 +709,6 @@
                         "many-to-many"
                     ],
                     "description": "Relationship cardinality"
-                },
-                "primary_key": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ],
-                    "description": "Primary key of the joined model"
                 },
                 "description": {
                     "type": "string",
