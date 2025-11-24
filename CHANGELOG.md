@@ -1,3 +1,10 @@
+## [0.2202.1](https://github.com/lightdash/lightdash/compare/0.2202.0...0.2202.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* Don't emit onChange if user is in middle of typing ([#18292](https://github.com/lightdash/lightdash/issues/18292)) ([3fe9df1](https://github.com/lightdash/lightdash/commit/3fe9df1b70068c3bf57187e1dde248c68f01fe49))
+
 # [0.2202.0](https://github.com/lightdash/lightdash/compare/0.2201.0...0.2202.0) (2025-11-21)
 
 
