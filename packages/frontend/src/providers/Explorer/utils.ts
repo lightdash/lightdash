@@ -11,6 +11,7 @@ const DEFAULTS = {
     [ChartType.FUNNEL]: () => ({}),
     [ChartType.TREEMAP]: () => ({}),
     [ChartType.GAUGE]: () => ({}),
+    [ChartType.MAP]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
 };
 

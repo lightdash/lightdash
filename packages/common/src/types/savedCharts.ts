@@ -24,6 +24,7 @@ export enum ChartKind {
     CUSTOM = 'custom',
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
+    MAP = 'map',
 }
 
 export enum ChartType {
@@ -35,6 +36,7 @@ export enum ChartType {
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
     CUSTOM = 'custom',
+    MAP = 'map',
 }
 
 export enum ComparisonFormatTypes {
@@ -136,6 +138,33 @@ export type GaugeChart = {
     maxFieldId?: string;
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
+};
+
+export enum MapChartMapType {
+    USA = 'USA',
+    WORLD = 'world',
+    EUROPE = 'europe',
+    UK = 'uk',
+    NORWAY = 'norway',
+}
+
+export enum MapChartLocationType {
+    COUNTRY = 'country',
+    REGION = 'region',
+    LAT_LONG = 'lat_long',
+}
+
+export type MapChart = {
+    mapType?: MapChartMapType;
+    locationType?: MapChartLocationType;
+    // Lat/Long fields
+    latitudeFieldId?: string;
+    longitudeFieldId?: string;
+    // Country/Region field
+    locationFieldId?: string;
+    // Common fields
+    valueFieldId?: string;
+    showLegend?: boolean;
 };
 
 export enum FunnelChartDataInput {
@@ -416,6 +445,11 @@ export type GaugeChartConfig = {
     config?: GaugeChart;
 };
 
+export type MapChartConfig = {
+    type: ChartType.MAP;
+    config?: MapChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
@@ -424,7 +458,8 @@ export type ChartConfig =
     | FunnelChartConfig
     | TableChartConfig
     | TreemapChartConfig
-    | GaugeChartConfig;
+    | GaugeChartConfig
+    | MapChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -676,6 +711,8 @@ export const getChartKind = (
             return ChartKind.TREEMAP;
         case ChartType.GAUGE:
             return ChartKind.GAUGE;
+        case ChartType.MAP:
+            return ChartKind.MAP;
         default:
             return assertUnreachable(
                 chartType,

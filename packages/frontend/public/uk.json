@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "properties": {"name": "London", "code": "LDN"}, "geometry": {"type": "Point", "coordinates": [-0.1276, 51.5074]}},
+    {"type": "Feature", "properties": {"name": "South East", "code": "SE"}, "geometry": {"type": "Point", "coordinates": [-0.7522, 51.2362]}},
+    {"type": "Feature", "properties": {"name": "South West", "code": "SW"}, "geometry": {"type": "Point", "coordinates": [-3.5339, 50.7184]}},
+    {"type": "Feature", "properties": {"name": "East of England", "code": "EE"}, "geometry": {"type": "Point", "coordinates": [0.4691, 52.2405]}},
+    {"type": "Feature", "properties": {"name": "East Midlands", "code": "EM"}, "geometry": {"type": "Point", "coordinates": [-1.0000, 52.8383]}},
+    {"type": "Feature", "properties": {"name": "West Midlands", "code": "WM"}, "geometry": {"type": "Point", "coordinates": [-2.0476, 52.4862]}},
+    {"type": "Feature", "properties": {"name": "North West", "code": "NW"}, "geometry": {"type": "Point", "coordinates": [-2.5479, 53.7632]}},
+    {"type": "Feature", "properties": {"name": "North East", "code": "NE"}, "geometry": {"type": "Point", "coordinates": [-1.6170, 54.9783]}},
+    {"type": "Feature", "properties": {"name": "Yorkshire and the Humber", "code": "YH"}, "geometry": {"type": "Point", "coordinates": [-1.0873, 53.9576]}},
+    {"type": "Feature", "properties": {"name": "Scotland", "code": "SCT"}, "geometry": {"type": "Point", "coordinates": [-4.2026, 56.4907]}},
+    {"type": "Feature", "properties": {"name": "Wales", "code": "WLS"}, "geometry": {"type": "Point", "coordinates": [-3.7837, 52.1307]}},
+    {"type": "Feature", "properties": {"name": "Northern Ireland", "code": "NIR"}, "geometry": {"type": "Point", "coordinates": [-6.4923, 54.7877]}}
+  ]
+}

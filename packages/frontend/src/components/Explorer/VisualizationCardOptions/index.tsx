@@ -17,6 +17,7 @@ import {
     IconCode,
     IconFilter,
     IconGauge,
+    IconMap,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -32,6 +33,7 @@ import {
     isCustomVisualizationConfig,
     isFunnelVisualizationConfig,
     isGaugeVisualizationConfig,
+    isMapVisualizationConfig,
     isPieVisualizationConfig,
     isTableVisualizationConfig,
     isTreemapVisualizationConfig,
@@ -176,6 +178,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Gauge',
                     icon: <MantineIcon icon={IconGauge} color="gray" />,
+                };
+            case ChartType.MAP:
+                return {
+                    text: 'Map',
+                    icon: <MantineIcon icon={IconMap} color="gray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -399,6 +406,23 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Gauge
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isMapVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconMap} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.MAP);
+                    }}
+                >
+                    Map
                 </Menu.Item>
 
                 <Menu.Item
