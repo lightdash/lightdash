@@ -60,6 +60,7 @@ export const getMantine8ThemeOverride = (
     ({
         ...legacyTheme,
         ...overrides,
+        colors,
         fontFamily: `Inter, ${legacyTheme.fontFamily}`,
         headings: {
             fontFamily: `Inter, ${legacyTheme.fontFamily}`,
