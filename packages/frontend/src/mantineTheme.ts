@@ -2,7 +2,37 @@ import {
     rem,
     type ColorScheme,
     type MantineThemeOverride,
+    type Tuple,
 } from '@mantine/core';
+
+type ColorTuple = Tuple<string, 10>;
+
+const darkModeColors = {
+    dark: [
+        '#C9C9C9',
+        '#b8b8b8',
+        '#828282',
+        '#696969',
+        '#424242',
+        '#3b3b3b',
+        '#2e2e2e',
+        '#242424',
+        '#1f1f1f',
+        '#141414',
+    ] as ColorTuple,
+    gray: [
+        '#2e2e2e',
+        '#3b3b3b',
+        '#424242',
+        '#4a4a4a',
+        '#5a5a5a',
+        '#6e6e6e',
+        '#8a8a8a',
+        '#a8a8a8',
+        '#c4c4c4',
+        '#d9d9d9',
+    ] as ColorTuple,
+};
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;
@@ -17,9 +47,12 @@ export const getMantineThemeOverride = (overrides?: {
         // Without it things look a little darker than before.
         black: '#111418',
 
-        colors: {
-            offWhite: ['#FDFDFD'],
-        },
+        colors:
+            overrides?.colorScheme === 'dark'
+                ? darkModeColors
+                : {
+                      offWhite: ['#FDFDFD'],
+                  },
 
         spacing: {
             one: rem(1),
