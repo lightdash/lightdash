@@ -1,3 +1,10 @@
+# [0.2204.0](https://github.com/lightdash/lightdash/compare/0.2203.0...0.2204.0) (2025-11-24)
+
+
+### Features
+
+* add linting for lightdash model file ([#18283](https://github.com/lightdash/lightdash/issues/18283)) ([6e0646a](https://github.com/lightdash/lightdash/commit/6e0646a9b71735e41786112d7f32d9bbc4c2f9a9))
+
 # [0.2203.0](https://github.com/lightdash/lightdash/compare/0.2202.1...0.2203.0) (2025-11-24)
 
 
