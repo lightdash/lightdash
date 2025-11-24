@@ -678,9 +678,6 @@ export const convertTable = (
         throw new ParseError(`${message} ${duplicatedNames}`);
     }
 
-    if (!model.relation_name) {
-        throw new Error(`Model "${model.name}" has no table relation`);
-    }
     const groupDetails: Record<string, GroupType> = {};
     if (meta.group_details) {
         Object.entries(meta.group_details).forEach(([key, data]) => {
@@ -696,6 +693,9 @@ export const convertTable = (
     }
 
     const sqlTable = meta.sql_from || model.relation_name;
+    if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
+        throw new Error(`Model "${model.name}" is missing a table reference.`);
+    }
     return {
         name: model.name,
         label: tableLabel,

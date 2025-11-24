@@ -1,3 +1,29 @@
+# [0.2204.0](https://github.com/lightdash/lightdash/compare/0.2203.0...0.2204.0) (2025-11-24)
+
+
+### Features
+
+* add linting for lightdash model file ([#18283](https://github.com/lightdash/lightdash/issues/18283)) ([6e0646a](https://github.com/lightdash/lightdash/commit/6e0646a9b71735e41786112d7f32d9bbc4c2f9a9))
+
+# [0.2203.0](https://github.com/lightdash/lightdash/compare/0.2202.1...0.2203.0) (2025-11-24)
+
+
+### Bug Fixes
+
+* handle gauge values above max in color calculation ([#18289](https://github.com/lightdash/lightdash/issues/18289)) ([ce89df5](https://github.com/lightdash/lightdash/commit/ce89df50456e6f7dc9e5187fa49b29a24bd4a73f))
+
+
+### Features
+
+* support decimal values in gauge number inputs ([#18288](https://github.com/lightdash/lightdash/issues/18288)) ([1d52837](https://github.com/lightdash/lightdash/commit/1d5283799448dd978cb706ab8220747ece27e663))
+
+## [0.2202.1](https://github.com/lightdash/lightdash/compare/0.2202.0...0.2202.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* Don't emit onChange if user is in middle of typing ([#18292](https://github.com/lightdash/lightdash/issues/18292)) ([3fe9df1](https://github.com/lightdash/lightdash/commit/3fe9df1b70068c3bf57187e1dde248c68f01fe49))
+
 # [0.2202.0](https://github.com/lightdash/lightdash/compare/0.2201.0...0.2202.0) (2025-11-21)
 
 
