@@ -873,7 +873,7 @@ const MetricsVisualization: FC<Props> = ({
                         label={timeDimensionTooltipLabel}
                         disabled={!timeDimensionTooltipLabel}
                     >
-                        <Text fw={500} c="gray.7" fz={14}>
+                        <Text fw={500} c="ldGray.7" fz={14}>
                             Date ({capitalize(timeDimensionBaseField.interval)})
                         </Text>
                     </Tooltip>

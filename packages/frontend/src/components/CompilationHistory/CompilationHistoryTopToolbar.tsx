@@ -24,11 +24,11 @@ export const CompilationHistoryTopToolbar: FC<
             py="md"
             wrap="nowrap"
             style={(theme) => ({
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
             })}
         >
             <Group gap="xs" wrap="nowrap">
-                <MantineIcon icon={IconFilter} color="gray" />
+                <MantineIcon icon={IconFilter} color="ldGray" />
                 <CompilationSourceFilter
                     selectedSource={selectedSource}
                     setSelectedSource={setSelectedSource}

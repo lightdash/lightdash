@@ -45,8 +45,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     target="_blank"
                     fz="sm"
                     fw={500}
-                    bg="gray.0"
-                    c="gray.7"
+                    bg="ldGray.0"
+                    c="ldGray.7"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -68,7 +68,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
                     <MantineIcon
                         icon={IconArrowRight}
-                        color="gray.7"
+                        color="ldGray.7"
                         size="sm"
                         strokeWidth={2.0}
                     />
@@ -94,8 +94,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     target="_blank"
                     fz="sm"
                     fw={500}
-                    bg="gray.0"
-                    c="gray.7"
+                    bg="ldGray.0"
+                    c="ldGray.7"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -119,7 +119,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
                     <MantineIcon
                         icon={IconArrowRight}
-                        color="gray.7"
+                        color="ldGray.7"
                         size="sm"
                         strokeWidth={2.0}
                     />
@@ -162,8 +162,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     type="button"
                     fz="sm"
                     fw={500}
-                    bg="gray.0"
-                    c="gray.7"
+                    bg="ldGray.0"
+                    c="ldGray.7"
                     td="none"
                     classNames={{
                         root: styles.contentLink,

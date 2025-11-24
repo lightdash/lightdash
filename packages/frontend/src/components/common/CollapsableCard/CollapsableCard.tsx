@@ -33,7 +33,7 @@ const useStyles = createStyles((theme) => ({
     activeCardHeading: {
         cursor: 'pointer',
         '&:hover': {
-            backgroundColor: theme.fn.rgba(theme.colors.gray[1], 0.5),
+            backgroundColor: theme.fn.rgba(theme.colors.ldGray[1], 0.5),
         },
     },
 }));

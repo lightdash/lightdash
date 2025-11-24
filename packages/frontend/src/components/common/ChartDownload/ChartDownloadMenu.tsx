@@ -103,7 +103,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                             disabled={disabled}
                         >
-                            <MantineIcon icon={IconShare2} color="gray" />
+                            <MantineIcon icon={IconShare2} />
                         </ActionIcon>
                     </Popover.Target>
 

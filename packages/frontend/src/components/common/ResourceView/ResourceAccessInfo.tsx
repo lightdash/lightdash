@@ -37,7 +37,7 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
 
     const styles = useMemo(() => {
         return {
-            color: type === 'primary' ? 'gray.7' : 'gray.6',
+            color: type === 'primary' ? 'ldGray.7' : 'ldGray.6',
             size: type === 'primary' ? 14 : 12,
         };
     }, [type]);

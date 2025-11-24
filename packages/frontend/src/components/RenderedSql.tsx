@@ -1,4 +1,4 @@
-import { Alert, Loader, Stack, Title } from '@mantine/core';
+import { Alert, Loader, Stack, Title, useMantineTheme } from '@mantine/core';
 import Editor, {
     type BeforeMount,
     type EditorProps,
@@ -9,8 +9,8 @@ import { useParams } from 'react-router';
 import { format } from 'sql-formatter';
 import { getLanguage } from '../features/sqlRunner/store/sqlRunnerSlice';
 import {
+    getLightdashMonacoTheme,
     getMonacoLanguage,
-    LIGHTDASH_THEME,
     MONACO_DEFAULT_OPTIONS,
     registerMonacoLanguage,
 } from '../features/sqlRunner/utils/monaco';
@@ -23,6 +23,7 @@ const MONACO_READ_ONLY: EditorProps['options'] = {
 };
 
 export const RenderedSql = () => {
+    const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const language = useMemo(
@@ -34,10 +35,15 @@ export const RenderedSql = () => {
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
             registerMonacoLanguage(monaco, language);
-            monaco.editor.defineTheme('lightdash', {
+            monaco.editor.defineTheme('lightdash-light', {
                 base: 'vs',
                 inherit: true,
-                ...LIGHTDASH_THEME,
+                ...getLightdashMonacoTheme('light'),
+            });
+            monaco.editor.defineTheme('lightdash-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                ...getLightdashMonacoTheme('dark'),
             });
         },
         [language],
@@ -62,7 +68,7 @@ export const RenderedSql = () => {
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
-                <Title order={4} fw={500} color="gray.7">
+                <Title order={4} fw={500} color="ldGray.7">
                     Compiling SQL
                 </Title>
             </Stack>
@@ -111,7 +117,11 @@ export const RenderedSql = () => {
             beforeMount={beforeMount}
             value={formattedSql}
             options={MONACO_READ_ONLY}
-            theme="lightdash"
+            theme={
+                theme.colorScheme === 'dark'
+                    ? 'lightdash-dark'
+                    : 'lightdash-light'
+            }
         />
     );
 };

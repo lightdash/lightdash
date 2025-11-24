@@ -216,7 +216,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         () => ({
             shadow: undefined,
             sx: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -387,19 +387,19 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 props.table.getVisibleLeafColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastVisibleColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -439,7 +439,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 },
                 '&:hover': {
                     td: {
-                        backgroundColor: theme.colors.gray[0],
+                        backgroundColor: theme.colors.ldGray[0],
                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
@@ -471,12 +471,12 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                     borderRight: isLastVisibleColumn
                         ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                        : `1px solid ${theme.colors.ldGray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows
                     borderBottom:
                         isLastRow && hasScroll
                             ? 'none'
-                            : `1px solid ${theme.colors.gray[2]}`,
+                            : `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
@@ -504,7 +504,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     metricCatalogView={metricCatalogView}
                     table={table}
                 />
-                <Divider color="gray.2" />
+                <Divider color="ldGray.2" />
             </Box>
         ),
         renderBottomToolbar: () => (
@@ -512,9 +512,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                color="gray.8"
+                color="ldGray.8"
                 sx={{
-                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
@@ -526,7 +526,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fw={400} color="gray.6">
+                        <Text fw={400} color="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}
@@ -561,7 +561,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         },
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
@@ -656,7 +656,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             metricCatalogView={metricCatalogView}
                             table={table}
                         />
-                        <Divider color="gray.2" />
+                        <Divider color="ldGray.2" />
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
                         <ReactFlowProvider>

@@ -84,14 +84,14 @@ const TreeItem: React.FC<Props> = ({
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
                         size="lg"
-                        color="gray.6"
+                        color="ldGray.6"
                     />
                 </ActionIcon>
             )}
 
             <MantineIcon
                 icon={IconFolder}
-                color="gray.7"
+                color="ldGray.7"
                 size="lg"
                 stroke={1.5}
                 style={{ flexShrink: 0 }}

@@ -48,7 +48,7 @@ const UserListItem: FC<{
                 {firstName + ' ' + lastName}
 
                 {isYou && (
-                    <Text fw={400} span c="gray.6">
+                    <Text fw={400} span c="ldGray.6">
                         {' '}
                         (you)
                     </Text>

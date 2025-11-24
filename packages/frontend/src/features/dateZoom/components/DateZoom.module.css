@@ -11,8 +11,6 @@
     top: -6px;
     left: -6px;
     z-index: 1;
-    color: var(--mantine-color-gray-6);
-    background-color: var(--mantine-color-white);
 }
 
 /* Active date zoom button with blue border */

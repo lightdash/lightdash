@@ -1,6 +1,14 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Menu,
+    Tabs,
+    Title,
+    Tooltip,
+    useMantineColorScheme,
+} from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import {
     IconCopy,
@@ -38,6 +46,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     handleDuplicateTab,
     setDeletingTab,
 }) => {
+    const { colorScheme } = useMantineColorScheme();
     const { hovered: isHovered, ref: hoverRef } = useHover();
     const { ref, isTruncated } = useIsTruncated();
 
@@ -64,7 +73,13 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         <Tabs.Tab
                             key={idx}
                             value={tab.uuid}
-                            bg={isActive ? 'white' : 'gray.0'}
+                            bg={
+                                isActive
+                                    ? colorScheme === 'dark'
+                                        ? undefined
+                                        : 'white'
+                                    : 'ldGray.0'
+                            }
                             icon={
                                 isEditMode ? (
                                     <Box {...provided.dragHandleProps} w={'sm'}>
@@ -73,7 +88,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 isHovered ? 'block' : 'none'
                                             }
                                             size="sm"
-                                            color="gray.6"
+                                            color="ldGray.6"
                                             icon={IconGripVertical}
                                         />
                                     </Box>
@@ -159,7 +174,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 ref={ref}
                                 order={6}
                                 fw={500}
-                                color="gray.7"
+                                color="ldGray.7"
                                 truncate
                                 maw={`calc(${
                                     100 / (sortedTabs?.length || 1)

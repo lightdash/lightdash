@@ -88,7 +88,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     style={(theme) => ({
                         flex: 1,
                         borderRight: isValidQuery
-                            ? `1px solid ${rgba(theme.colors.gray[5], 0.6)}`
+                            ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
                             : undefined,
                         borderTopRightRadius: 0,
                         borderBottomRightRadius: 0,

@@ -6,8 +6,8 @@ export const useLegendDoubleClickTooltip = () => {
     return {
         tooltip: {
             show: true,
-            backgroundColor: theme.colors.gray[9],
-            borderColor: theme.colors.gray[9],
+            backgroundColor: theme.colors.ldGray[9],
+            borderColor: 'red',
             borderWidth: 0,
             borderRadius: 4,
             textStyle: {

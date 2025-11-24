@@ -132,7 +132,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 size: 260,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTextCaption} color="gray.6" />
+                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -144,7 +144,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                                 {group.name}
                             </Text>
                             {group.members.length > 0 && (
-                                <Text fz="xs" c="gray.6">
+                                <Text fz="xs" c="ldGray.6">
                                     {`${group.members.length} member${
                                         group.members.length !== 1 ? 's' : ''
                                     }`}
@@ -161,7 +161,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 size: 400,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUsers} color="gray.6" />
+                        <MantineIcon icon={IconUsers} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -174,7 +174,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                             mah={55}
                             style={{
                                 overflow: 'auto',
-                                border: `1px solid ${theme.colors.gray[2]}`,
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                 borderRadius: theme.radius.xs,
                                 padding: theme.spacing.xxs,
                             }}
@@ -183,19 +183,19 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                                 <Badge
                                     key={member.userUuid}
                                     variant="filled"
-                                    color="gray.2"
+                                    color="ldGray.2"
                                     radius="xs"
                                     style={{ textTransform: 'none' }}
                                     px="xxs"
                                 >
-                                    <Text fz="xs" fw={400} c="gray.8">
+                                    <Text fz="xs" fw={400} c="ldGray.8">
                                         {member.email}
                                     </Text>
                                 </Badge>
                             ))}
                         </Group>
                     ) : (
-                        <Text fz="sm" c="gray.6" fs="italic">
+                        <Text fz="sm" c="ldGray.6" fs="italic">
                             No members
                         </Text>
                     );
@@ -251,7 +251,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -279,19 +279,19 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -304,7 +304,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };
@@ -321,7 +321,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         ),
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />

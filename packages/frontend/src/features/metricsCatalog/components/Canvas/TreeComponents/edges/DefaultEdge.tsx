@@ -23,7 +23,9 @@ const DefaultEdge: FC<EdgeProps> = ({
             {...props}
             path={edgePath}
             style={{
-                stroke: selected ? theme.colors.blue[4] : theme.colors.gray[3],
+                stroke: selected
+                    ? theme.colors.blue[4]
+                    : theme.colors.ldGray[3],
             }}
         />
     );

@@ -74,7 +74,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
                         <MantineIcon
                             display={isHovered && hasReorder ? 'block' : 'none'}
                             size="sm"
-                            color="gray.6"
+                            color="ldGray.6"
                             icon={IconGripVertical}
                         />
                     </Box>
@@ -212,7 +212,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                             transform="uppercase"
                             fz="xs"
                             fw="bold"
-                            color="gray.6"
+                            color="ldGray.6"
                         >
                             {group.name}
                         </Text>

@@ -54,9 +54,9 @@ const DropdownComponentOverride = ({
                 p="xxs"
                 sx={(theme) => ({
                     cursor: 'pointer',
-                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                     },
                 })}
                 onClick={() =>
@@ -177,7 +177,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     backgroundColor: 'black',
                     color: 'white',
                     '&:hover': {
-                        backgroundColor: 'gray.8',
+                        backgroundColor: 'ldGray.8',
                     },
                 })}
                 onClick={() => {
@@ -216,7 +216,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 sx={(theme) => ({
                     // Make it look disabled
                     input: {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                         cursor: 'not-allowed',
                         pointerEvents: 'none',
                     },

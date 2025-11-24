@@ -14,7 +14,7 @@ export const LockedDashboardModal: FC<Pick<ModalProps, 'opened'>> = ({
         onClose={() => {}}
         styles={(theme) => ({
             content: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 boxShadow: 'none',
             },
         })}

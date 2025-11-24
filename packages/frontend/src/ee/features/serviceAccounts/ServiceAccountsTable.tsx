@@ -34,12 +34,12 @@ const TableRow: FC<{
         <Badge
             key={scope}
             variant="filled"
-            color="gray.2"
+            color="ldGray.2"
             radius="xs"
             sx={{ textTransform: 'none' }}
             px="xxs"
         >
-            <Text fz="xs" fw={400} color="gray.8">
+            <Text fz="xs" fw={400} color="ldGray.8">
                 {scope}
             </Text>
         </Badge>
@@ -79,7 +79,7 @@ const TableRow: FC<{
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="gray.6"
+                                color="ldGray.6"
                                 size="md"
                             />
                         </Tooltip>

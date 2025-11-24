@@ -1,4 +1,11 @@
-import { Badge, em, getBreakpointValue, Group, Text } from '@mantine/core';
+import {
+    Badge,
+    em,
+    getBreakpointValue,
+    Group,
+    Text,
+    useMantineColorScheme,
+} from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
@@ -11,6 +18,7 @@ type Props = {
 };
 
 const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
+    const { colorScheme } = useMantineColorScheme();
     const os = useOs();
 
     return (
@@ -41,14 +49,22 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 borderRadius: theme.radius.sm,
                 cursor: 'pointer',
                 transition: 'all 100ms ease',
-                backgroundColor: theme.colors.dark[4],
-                '&:hover': { backgroundColor: theme.colors.dark[3] },
+                backgroundColor:
+                    colorScheme === 'dark'
+                        ? theme.colors.ldDark[8]
+                        : theme.colors.ldDark[4],
+                '&:hover': {
+                    backgroundColor:
+                        colorScheme === 'dark'
+                            ? theme.colors.ldDark[7]
+                            : theme.colors.ldDark[3],
+                },
                 overflow: 'hidden',
             })}
         >
             <MantineIcon
                 icon={IconSearch}
-                color="dark.0"
+                color="ldDark.0"
                 style={{ flexShrink: 0 }}
             />
 
@@ -59,7 +75,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                     top: 1,
                     userSelect: 'none',
                 }}
-                color="dark.0"
+                color="ldDark.0"
                 size="xs"
                 truncate
             >
@@ -68,7 +84,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
 
             <Badge
                 fw={600}
-                color="dark.0"
+                color="ldDark.0"
                 radius="sm"
                 style={{ flexShrink: 0, userSelect: 'none' }}
             >

@@ -60,7 +60,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                                 <MantineIcon
                                     icon={IconTable}
                                     size="lg"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                 />
                             }
                             label={
@@ -82,7 +82,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="gray.7"
+                                            color="ldGray.7"
                                             size="lg"
                                         />
                                     </Anchor>
@@ -102,7 +102,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         position="relative"
                         p="md"
                         sx={(theme) => ({
-                            backgroundColor: theme.colors.gray[0],
+                            backgroundColor: theme.colors.ldGray[0],
                             maxHeight: 200,
                             overflow: 'auto',
                         })}
@@ -147,7 +147,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     return (
         <NavLink
             role="listitem"
-            icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
+            icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
             onClick={onClick}
             onMouseEnter={() => toggleHover(true)}
             onMouseLeave={() => toggleHover(false)}

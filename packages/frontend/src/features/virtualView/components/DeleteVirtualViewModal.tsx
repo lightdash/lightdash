@@ -27,12 +27,12 @@ export const DeleteVirtualViewModal = ({
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconTrash} size="lg" color="gray.7" />
+                    <MantineIcon icon={IconTrash} size="lg" color="ldGray.7" />
                     <Text fw={500}>Delete virtual view</Text>
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
             })}
         >
             <Stack pt="sm">

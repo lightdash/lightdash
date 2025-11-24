@@ -140,11 +140,11 @@ export const CatalogMetadata: FC = () => {
                     radius="xl"
                     styles={(theme) => ({
                         root: {
-                            border: `1px solid ${theme.colors.gray[1]}`,
+                            border: `1px solid ${theme.colors.ldGray[1]}`,
                         },
                         placeholder: {
-                            color: theme.colors.gray[7],
-                            backgroundColor: 'white',
+                            color: theme.colors.ldGray[7],
+                            backgroundColor: theme.colors.background[0],
                         },
                     })}
                 >
@@ -188,7 +188,7 @@ export const CatalogMetadata: FC = () => {
             <LoadingOverlay
                 loaderProps={{
                     size: 'sm',
-                    color: 'gray.7',
+                    color: 'ldGray.7',
                     pos: 'absolute',
                     variant: 'dots',
                 }}
@@ -201,7 +201,7 @@ export const CatalogMetadata: FC = () => {
                 defaultValue="overview"
                 styles={(theme) => ({
                     tabsList: {
-                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
                     },
                     panel: {
                         paddingTop: theme.spacing.xl,
@@ -214,11 +214,11 @@ export const CatalogMetadata: FC = () => {
                         fontSize: theme.fontSizes.sm,
                         fontWeight: 500,
                         '&[data-active="true"]': {
-                            color: theme.colors.gray[9],
+                            color: theme.colors.ldGray[9],
                         },
 
                         '&:not([data-active])': {
-                            color: theme.colors.gray[6],
+                            color: theme.colors.ldGray[6],
                         },
                     },
                 })}
@@ -235,8 +235,8 @@ export const CatalogMetadata: FC = () => {
                                 styles={(theme) => ({
                                     placeholder: {
                                         fontSize: theme.fontSizes.xs,
-                                        color: theme.colors.gray[7],
-                                        backgroundColor: theme.colors.gray[1],
+                                        color: theme.colors.ldGray[7],
+                                        backgroundColor: theme.colors.ldGray[1],
                                     },
                                 })}
                             >
@@ -262,9 +262,9 @@ export const CatalogMetadata: FC = () => {
                                 <Box
                                     sx={(theme) => ({
                                         padding: theme.spacing.sm,
-                                        border: `1px solid ${theme.colors.gray[3]}`,
+                                        border: `1px solid ${theme.colors.ldGray[3]}`,
                                         borderRadius: theme.radius.sm,
-                                        backgroundColor: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.ldGray[0],
                                         fontSize: theme.fontSizes.sm,
                                     })}
                                 >
@@ -287,11 +287,11 @@ export const CatalogMetadata: FC = () => {
                                     color={colors.gray[5]}
                                     icon={IconDatabase}
                                 />
-                                <Text fw={500} fz={13} c="gray.7">
+                                <Text fw={500} fz={13} c="ldGray.7">
                                     Source
                                 </Text>
                             </Group>
-                            <Text fw={500} fz={13} c="gray.7">
+                            <Text fw={500} fz={13} c="ldGray.7">
                                 {metadata?.source}
                             </Text>
                         </Group>
@@ -302,7 +302,7 @@ export const CatalogMetadata: FC = () => {
                                     color={colors.gray[5]}
                                     icon={IconLink}
                                 />
-                                <Text fw={500} fz={13} c="gray.7">
+                                <Text fw={500} fz={13} c="ldGray.7">
                                     Joins
                                 </Text>
                             </Group>
@@ -326,7 +326,7 @@ export const CatalogMetadata: FC = () => {
                                         metadata?.joinedTables &&
                                         metadata.joinedTables.length > 0
                                             ? 'blue'
-                                            : 'gray.7'
+                                            : 'ldGray.7'
                                     }
                                     truncate
                                 >
@@ -375,8 +375,8 @@ export const CatalogMetadata: FC = () => {
                 bottom={0}
                 left={0}
                 sx={(theme) => ({
-                    backgroundColor: theme.colors.gray[0],
-                    border: `1px solid ${theme.colors.gray[4]}`,
+                    backgroundColor: theme.colors.ldGray[0],
+                    border: `1px solid ${theme.colors.ldGray[4]}`,
                     borderLeft: 0,
                     borderRight: 0,
                 })}
@@ -387,15 +387,15 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
-                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    backgroundColor: theme.colors.background[0],
+                                    border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
                                 })}
                             >
                                 <MantineIcon icon={IconCornerDownLeft} />
                             </Paper>
-                            <Text fz="xs" fw={500} c="gray.6">
+                            <Text fz="xs" fw={500} c="ldGray.6">
                                 Select Table
                             </Text>
                         </Group>
@@ -404,8 +404,8 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
-                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    backgroundColor: theme.colors.background[0],
+                                    border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
                                 })}
@@ -416,15 +416,15 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
-                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    backgroundColor: theme.colors.background[0],
+                                    border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
                                 })}
                             >
                                 <MantineIcon icon={IconArrowUp} />
                             </Paper>
-                            <Text fz="xs" fw={500} c="gray.6">
+                            <Text fz="xs" fw={500} c="ldGray.6">
                                 Navigate
                             </Text>
                         </Group>
@@ -432,9 +432,9 @@ export const CatalogMetadata: FC = () => {
                     <Button
                         size="sm"
                         sx={(theme) => ({
-                            backgroundColor: theme.colors.gray[8],
+                            backgroundColor: theme.colors.ldGray[8],
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[9],
+                                backgroundColor: theme.colors.ldGray[9],
                             },
                         })}
                         onClick={() => {

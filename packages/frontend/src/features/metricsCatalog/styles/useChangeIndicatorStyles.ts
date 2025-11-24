@@ -13,9 +13,9 @@ export const useChangeIndicatorStyles = createStyles((theme) => {
             color: theme.colors.red[9],
         },
         neutral: {
-            border: `1px solid ${theme.colors.gray[2]}`,
+            border: `1px solid ${theme.colors.ldGray[2]}`,
             background: '#F8F9FA',
-            color: theme.colors.gray[7],
+            color: theme.colors.ldGray[7],
         },
     };
 });

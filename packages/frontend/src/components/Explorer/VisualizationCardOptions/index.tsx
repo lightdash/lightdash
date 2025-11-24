@@ -83,7 +83,7 @@ const VisualizationCardOptions: FC = memo(() => {
                         icon: (
                             <MantineIcon
                                 icon={IconChartAreaLine}
-                                color="gray"
+                                color="ldGray"
                             />
                         ),
                     };
@@ -99,7 +99,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             icon: (
                                 <MantineIcon
                                     icon={IconChartArea}
-                                    color="gray"
+                                    color="ldGray"
                                 />
                             ),
                         };
@@ -109,7 +109,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             icon: (
                                 <MantineIcon
                                     icon={IconChartLine}
-                                    color="gray"
+                                    color="ldGray"
                                 />
                             ),
                         };
@@ -122,7 +122,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                       <MantineIcon
                                           icon={IconChartBar}
                                           style={{ rotate: '90deg' }}
-                                          color="gray"
+                                          color="ldGray"
                                       />
                                   ),
                               }
@@ -131,7 +131,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                   icon: (
                                       <MantineIcon
                                           icon={IconChartBar}
-                                          color="gray"
+                                          color="ldGray"
                                       />
                                   ),
                               };
@@ -141,7 +141,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             icon: (
                                 <MantineIcon
                                     icon={IconChartDots}
-                                    color="gray"
+                                    color="ldGray"
                                 />
                             ),
                         };
@@ -155,32 +155,36 @@ const VisualizationCardOptions: FC = memo(() => {
             case ChartType.TABLE:
                 return {
                     text: 'Table',
-                    icon: <MantineIcon icon={IconTable} color="gray" />,
+                    icon: <MantineIcon icon={IconTable} color="ldGray" />,
                 };
             case ChartType.BIG_NUMBER:
                 return {
                     text: 'Big value',
-                    icon: <MantineIcon icon={IconSquareNumber1} color="gray" />,
+                    icon: (
+                        <MantineIcon icon={IconSquareNumber1} color="ldGray" />
+                    ),
                 };
             case ChartType.PIE:
                 return {
                     text: 'Pie chart',
-                    icon: <MantineIcon icon={IconChartPie} color="gray" />,
+                    icon: <MantineIcon icon={IconChartPie} color="ldGray" />,
                 };
             case ChartType.FUNNEL:
                 return {
                     text: 'Funnel chart',
-                    icon: <MantineIcon icon={IconFilter} color="gray" />,
+                    icon: <MantineIcon icon={IconFilter} color="ldGray" />,
                 };
             case ChartType.TREEMAP:
                 return {
                     text: 'Treemap',
-                    icon: <MantineIcon icon={IconChartTreemap} color="gray" />,
+                    icon: (
+                        <MantineIcon icon={IconChartTreemap} color="ldGray" />
+                    ),
                 };
             case ChartType.GAUGE:
                 return {
                     text: 'Gauge',
-                    icon: <MantineIcon icon={IconGauge} color="gray" />,
+                    icon: <MantineIcon icon={IconGauge} color="ldGray" />,
                 };
             case ChartType.MAP:
                 return {
@@ -190,7 +194,7 @@ const VisualizationCardOptions: FC = memo(() => {
             case ChartType.CUSTOM:
                 return {
                     text: 'Custom',
-                    icon: <MantineIcon icon={IconCode} color="gray" />,
+                    icon: <MantineIcon icon={IconCode} color="ldGray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -217,7 +221,7 @@ const VisualizationCardOptions: FC = memo(() => {
                     disabled={disabled}
                     leftIcon={selectedChartType.icon}
                     rightIcon={
-                        <MantineIcon icon={IconChevronDown} color="gray" />
+                        <MantineIcon icon={IconChevronDown} color="ldGray" />
                     }
                     data-testid="VisualizationCardOptions"
                 >

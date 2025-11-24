@@ -187,7 +187,7 @@ const FixValidationErrorModal: FC<{
                 </Anchor>
             </Text>
 
-            <Text mt="xs" mb="xs" color="gray.7" size="xs">
+            <Text mt="xs" mb="xs" color="ldGray.7" size="xs">
                 You can rename the missing dimension by renaming the affected
                 field or model using the drop down below.
             </Text>
@@ -330,7 +330,7 @@ const FixValidationErrorModal: FC<{
                         </Group>
                     </Tooltip>
                 ) : (
-                    <Text mt="xs" size="xs" color="gray.7">
+                    <Text mt="xs" size="xs" color="ldGray.7">
                         This {renameType} is not used in any other charts.
                     </Text>
                 )}
@@ -384,10 +384,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     sx={{
                         borderBottomWidth: 1,
                         borderBottomStyle: 'solid',
-                        borderBottomColor: theme.colors.gray[3],
+                        borderBottomColor: theme.colors.ldGray[3],
                     }}
                 >
-                    <Text fw={500} fz="xs" c="gray.6">
+                    <Text fw={500} fz="xs" c="ldGray.6">
                         {!!data?.length
                             ? `Last validated at: ${formatTime(
                                   data[0].createdAt,
@@ -439,7 +439,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     ) : (
                         <Group position="center" spacing="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
-                            <Text fw={500} c="gray.7">
+                            <Text fw={500} c="ldGray.7">
                                 No validation errors found
                             </Text>
                         </Group>

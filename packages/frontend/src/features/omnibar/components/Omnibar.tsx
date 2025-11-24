@@ -12,6 +12,7 @@ import {
     rem,
     Stack,
     Transition,
+    useMantineColorScheme,
     useMantineTheme,
 } from '@mantine/core';
 import {
@@ -59,6 +60,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
     const theme = useMantineTheme();
+    const { colorScheme } = useMantineColorScheme();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
@@ -199,7 +201,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 )}
             </Transition>
 
-            <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+            <MantineProvider inherit theme={{ colorScheme }}>
                 <Modal
                     withCloseButton={false}
                     size={`calc(${rem(PAGE_CONTENT_WIDTH)} - ${
@@ -231,7 +233,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 query ? (
                                     <ActionIcon
                                         onClick={() => setQuery('')}
-                                        color="gray.5"
+                                        color="ldGray.5"
                                     >
                                         <MantineIcon
                                             icon={IconCircleXFilled}

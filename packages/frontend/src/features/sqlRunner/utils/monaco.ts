@@ -1,4 +1,5 @@
 import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
+import type { ColorScheme } from '@mantine/core';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -74,29 +75,63 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
     }
 };
 
-export const LIGHTDASH_THEME = {
-    rules: [
-        { token: '', foreground: '333333' },
-        { token: 'keyword', foreground: '7262FF', fontStyle: 'bold' },
-        { token: 'operator.sql', foreground: '#24cf62', fontStyle: 'bold' },
-        { token: 'number', foreground: '098658' },
-        { token: 'string', foreground: 'A31515' },
-        { token: 'delimiter', foreground: 'A31515' },
-        { token: 'identifier', foreground: '001080' },
-        { token: 'comment', foreground: '008000', fontStyle: 'italic' },
-    ],
-    colors: {
-        'editor.background': '#FFFFFF',
-        'editor.foreground': '#333333',
-        'editor.lineHighlightBackground': '#f8f8f8',
-        'editor.lineHighlight': '#e0e0e0',
-        'editorCursor.foreground': '#7262FF',
-        'editorWhitespace.foreground': '#efefef',
-        'editor.selectionBackground': '#E6E3FF',
-        'editor.selectionForeground': '#333333',
-        'editor.wordHighlightBackground': '#bcfeff',
-        'editor.selectionHighlightBorder': '#7262FF',
-    },
+export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
+    if (colorScheme === 'dark') {
+        return {
+            rules: [
+                { token: '', foreground: 'd4d4d4' },
+                { token: 'keyword', foreground: '569cd6', fontStyle: 'bold' },
+                {
+                    token: 'operator.sql',
+                    foreground: 'd4d4d4',
+                    fontStyle: 'bold',
+                },
+                { token: 'number', foreground: 'b5cea8' },
+                { token: 'string', foreground: 'ce9178' },
+                { token: 'delimiter', foreground: 'ce9178' },
+                { token: 'identifier', foreground: '9cdcfe' },
+                { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+            ],
+            colors: {
+                'editor.background': '#25262b',
+                'editor.foreground': '#d4d4d4',
+                'editor.lineHighlightBackground': '#2a2a2a',
+                'editor.lineHighlight': '#2a2a2a',
+                'editorCursor.foreground': '#569cd6',
+                'editorWhitespace.foreground': '#3b3b3b',
+                'editor.selectionBackground': '#264f78',
+                'editor.selectionForeground': '#ffffff',
+                'editor.wordHighlightBackground': '#575757',
+                'editor.selectionHighlightBorder': '#569cd6',
+            },
+        };
+    }
+
+    // Light theme (default)
+    return {
+        rules: [
+            { token: '', foreground: '333333' },
+            { token: 'keyword', foreground: '7262FF', fontStyle: 'bold' },
+            { token: 'operator.sql', foreground: '#24cf62', fontStyle: 'bold' },
+            { token: 'number', foreground: '098658' },
+            { token: 'string', foreground: 'A31515' },
+            { token: 'delimiter', foreground: 'A31515' },
+            { token: 'identifier', foreground: '001080' },
+            { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+        ],
+        colors: {
+            'editor.background': '#FFFFFF',
+            'editor.foreground': '#333333',
+            'editor.lineHighlightBackground': '#f8f8f8',
+            'editor.lineHighlight': '#e0e0e0',
+            'editorCursor.foreground': '#7262FF',
+            'editorWhitespace.foreground': '#efefef',
+            'editor.selectionBackground': '#E6E3FF',
+            'editor.selectionForeground': '#333333',
+            'editor.wordHighlightBackground': '#bcfeff',
+            'editor.selectionHighlightBorder': '#7262FF',
+        },
+    };
 };
 
 export const registerCustomCompletionProvider = (

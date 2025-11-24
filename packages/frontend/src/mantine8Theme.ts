@@ -11,18 +11,14 @@ import {
     Textarea,
     TextInput,
     type ButtonVariant,
+    type DefaultMantineColor,
+    type MantineColorsTuple,
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
+import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
-import { getMantineThemeOverride as getLegacyTheme } from './mantineTheme';
-
-const { colors, components, ...legacyTheme } = getLegacyTheme();
-const {
-    Button: _Button,
-    ScrollArea: _ScrollArea,
-    ...legacyComponentsTheme
-} = components;
+import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
 
 declare module '@mantine-8/core' {
     export interface ButtonProps {
@@ -35,31 +31,48 @@ declare module '@mantine-8/core' {
          */
         delayedMessage?: string;
     }
+
+    export interface MantineThemeColorsOverride {
+        colors: Record<ExtendedCustomColors, MantineColorsTuple>;
+    }
 }
+
+type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
 
 const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
         fontWeight: 500,
         fontSize: 14,
-        '--input-bd': theme.colors.gray[2],
+        '--input-bd': theme.colors.ldGray[2],
         borderRadius: theme.radius.md,
         boxShadow: theme.shadows.subtle,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        color: theme.colors.dark[7],
+        color: theme.colors.ldDark[7],
     },
     label: {
         fontWeight: 500,
-        color: theme.colors.gray[7],
+        color: theme.colors.ldGray[7],
         marginBottom: theme.spacing.xxs,
     },
 });
 
 export const getMantine8ThemeOverride = (
+    colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
-) =>
-    ({
+) => {
+    const { colors, components, ...legacyTheme } =
+        getMantine6ThemeOverride(colorScheme);
+
+    const {
+        Button: _Button,
+        ScrollArea: _ScrollArea,
+        ...legacyComponentsTheme
+    } = components;
+
+    return {
         ...legacyTheme,
         ...overrides,
+        colors,
         fontFamily: `Inter, ${legacyTheme.fontFamily}`,
         headings: {
             fontFamily: `Inter, ${legacyTheme.fontFamily}`,
@@ -75,7 +88,7 @@ export const getMantine8ThemeOverride = (
             Card: Card.extend({
                 styles: (theme) => ({
                     root: {
-                        borderColor: theme.colors.gray[2],
+                        borderColor: theme.colors.ldGray[2],
                     },
                 }),
             }),
@@ -84,10 +97,10 @@ export const getMantine8ThemeOverride = (
                     props.variant === 'outline'
                         ? {
                               root: {
-                                  border: `1px solid ${theme.colors.gray[2]}`,
-                                  color: theme.colors.gray[7],
+                                  border: `1px solid ${theme.colors.ldGray[2]}`,
+                                  color: theme.colors.ldGray[7],
                                   '&:hover': {
-                                      backgroundColor: theme.colors.gray[1],
+                                      backgroundColor: theme.colors.ldGray[1],
                                   },
                               },
                           }
@@ -98,24 +111,24 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'compact-outline') {
                         return {
                             root: {
-                                '--button-bd': `1px solid ${theme.colors.gray[2]}`,
+                                '--button-bd': `1px solid ${theme.colors.ldGray[2]}`,
                             },
                         };
                     }
                     if (props.variant === 'subtle') {
                         return {
                             root: {
-                                '--button-color': theme.colors.gray[7],
-                                '--button-hover': theme.colors.gray[1],
+                                '--button-color': theme.colors.ldGray[7],
+                                '--button-hover': theme.colors.ldGray[1],
                             },
                         };
                     }
                     if (props.variant === 'dark') {
                         return {
                             root: {
-                                '--button-bg': theme.colors.dark[9],
-                                '--button-hover': theme.colors.dark[5],
-                                '--button-color': theme.colors.gray[0],
+                                '--button-bg': theme.colors.ldDark[9],
+                                '--button-hover': theme.colors.ldDark[8],
+                                '--button-color': theme.colors.ldDark[0],
                                 '--button-bd': `none`,
                             },
                         };
@@ -136,7 +149,7 @@ export const getMantine8ThemeOverride = (
             ScrollArea: ScrollArea.extend({
                 styles: (theme) => ({
                     thumb: {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.ldGray[3],
                     },
                     scrollbar: {
                         backgroundColor: `transparent`,
@@ -167,7 +180,7 @@ export const getMantine8ThemeOverride = (
                     withBorder: true,
                     styles: (theme: MantineTheme) => ({
                         root: {
-                            borderColor: theme.colors.gray[2],
+                            borderColor: theme.colors.ldGray[2],
                         },
                     }),
                 },
@@ -222,7 +235,7 @@ export const getMantine8ThemeOverride = (
             Modal: Modal.extend({
                 styles: () => ({
                     header: {
-                        borderBottom: `1px solid var(--mantine-color-gray-4)`,
+                        borderBottom: `1px solid var(--mantine-color-ldGray-4)`,
                         paddingBottom: 'var(--mantine-spacing-sm)',
                     },
                     body: {
@@ -232,4 +245,5 @@ export const getMantine8ThemeOverride = (
             }),
             ...overrides?.components,
         },
-    } satisfies MantineThemeOverride);
+    } satisfies MantineThemeOverride;
+};

@@ -11,7 +11,7 @@ import { CustomRolesDeleteModal } from './CustomRolesDeleteModal';
 
 const useStyles = createStyles((theme) => ({
     scopeDescription: {
-        color: theme.colors.dark[2],
+        color: theme.colors.ldDark[2],
     },
     row: {
         '& td': {

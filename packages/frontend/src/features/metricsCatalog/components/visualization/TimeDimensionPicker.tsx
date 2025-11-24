@@ -23,7 +23,7 @@ const FieldItem = forwardRef<
     }
 >(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Text fz="sm" c="dark.8" fw={500}>
+        <Text fz="sm" c="ldDark.8" fw={500}>
             {label}
         </Text>
     </Box>
@@ -61,7 +61,11 @@ export const TimeDimensionPicker: FC<Props> = ({
             itemComponent={FieldItem}
             classNames={classes}
             rightSection={
-                <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
+                <MantineIcon
+                    color="ldDark.2"
+                    icon={IconChevronDown}
+                    size={12}
+                />
             }
         />
     );

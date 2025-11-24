@@ -37,7 +37,7 @@ export const AccordionControl: FC<Props> = ({
             sx={(theme) => ({
                 borderRadius: theme.radius.sm,
                 '&:hover': {
-                    backgroundColor: theme.colors.gray[0],
+                    backgroundColor: theme.colors.ldGray[0],
                 },
             })}
         >

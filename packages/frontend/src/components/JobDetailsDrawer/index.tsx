@@ -54,14 +54,14 @@ const statusInfo = (status: string, theme: MantineTheme) => {
             };
         case 'SKIPPED':
             return {
-                background: theme.colors.gray['1'],
-                color: theme.colors.gray['6'],
+                background: theme.colors.ldGray['1'],
+                color: theme.colors.ldGray['6'],
                 fontStyle: 'italic',
             };
         default:
             return {
-                background: theme.colors.gray['1'],
-                color: theme.colors.gray['9'],
+                background: theme.colors.ldGray['1'],
+                color: theme.colors.ldGray['9'],
             };
     }
 };
@@ -173,7 +173,7 @@ const JobDetailsDrawer: FC = () => {
                             {jobStatusLabel(activeJob.jobStatus)}
                         </Title>
                         {hasSteps && (
-                            <Text c="gray.6" fz="sm" fw={500}>{`${
+                            <Text c="ldGray.6" fz="sm" fw={500}>{`${
                                 runningStepsInfo(activeJob.steps)
                                     .completedStepsMessage
                             } steps complete - ${durationSince(

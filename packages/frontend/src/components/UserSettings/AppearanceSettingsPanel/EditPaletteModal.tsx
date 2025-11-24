@@ -26,6 +26,7 @@ export const EditPaletteModal: FC<EditPaletteModalProps> = ({
             uuid: palette.colorPaletteUuid,
             name: values.name,
             colors: values.colors,
+            darkColors: values.darkColors,
         });
     };
 
@@ -43,6 +44,7 @@ export const EditPaletteModal: FC<EditPaletteModalProps> = ({
             initialValues={{
                 name: palette.name,
                 colors: palette.colors,
+                darkColors: palette.darkColors || undefined,
             }}
             title={`Edit "${palette.name}" Palette`}
             submitButtonText="Save changes"

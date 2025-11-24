@@ -82,7 +82,7 @@ const BigNumberText: FC<
     return (
         <Text
             ref={ref}
-            c="gray.9"
+            c="ldGray.9"
             ta="center"
             fw={500}
             {...textProps}
@@ -299,7 +299,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     >
                         <Text
                             fz={labelFontSize}
-                            c="gray.6"
+                            c="ldGray.6"
                             fw={500}
                             ta="center"
                             lineClamp={labelLineClamp}
@@ -380,7 +380,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             <BigNumberText
                                 span
                                 fz={comparisonFontSize}
-                                c="gray.6"
+                                c="ldGray.6"
                                 fw={400}
                                 lineClamp={1}
                             >

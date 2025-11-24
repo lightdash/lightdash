@@ -9,6 +9,7 @@ import {
     getTooltipDivider,
     getTooltipStyle,
 } from '@lightdash/common';
+import { GRAY_9 } from '@lightdash/common/src/visualizations/helpers/styles/themeColors';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
 import { useMemo } from 'react';
@@ -73,7 +74,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         let levels = groupFieldIds?.map((fieldId, index) => ({
             itemStyle: {
                 borderColor:
-                    theme.colors.gray[index % theme.colors.gray.length],
+                    theme.colors.ldGray[index % theme.colors.ldGray.length],
                 borderRadius: 4,
             },
         }));
@@ -104,6 +105,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             visualMin,
             visualMax,
             itemStyle: {
+                borderColor: 'transparent',
                 gapWidth: 4,
                 borderRadius: 4,
             },
@@ -112,6 +114,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 height: 30,
                 formatter: '{b}',
                 padding: [4, 8],
+                color: GRAY_9,
             },
             label: {
                 show: true,
@@ -142,7 +145,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                     const segmentColor =
                         typeof color === 'string'
                             ? color
-                            : theme.colors.gray[6];
+                            : theme.colors.ldGray[6];
                     const header = formatTooltipHeader(name);
                     const divider = getTooltipDivider();
                     const sizeMetricDisplay = getStyledMetricDisplay(

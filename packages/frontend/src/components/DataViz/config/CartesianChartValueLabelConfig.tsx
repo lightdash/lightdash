@@ -40,7 +40,9 @@ const ValueLabelIcon: FC<{
             icon = IconClearAll;
     }
 
-    return <MantineIcon color={position ? 'dark.0' : 'gray.4'} icon={icon} />;
+    return (
+        <MantineIcon color={position ? 'ldDark.0' : 'ldGray.4'} icon={icon} />
+    );
 };
 
 type Props = {
@@ -87,19 +89,19 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
                 },
                 input: {
                     fontWeight: 500,
-                    borderColor: theme.colors.gray[2],
+                    borderColor: theme.colors.ldGray[2],
                 },
                 item: {
                     '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
+                        color: theme.colors.ldGray[7],
                         fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
+                        backgroundColor: theme.colors.ldGray[2],
                     },
                     '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.ldGray[3],
                     },
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                     },
                 },
             })}

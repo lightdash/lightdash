@@ -25,14 +25,14 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                     <MantineIcon
                         icon={IconTableExport}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={600}>Export Data</Text>
                 </Group>
             }
             styles={(theme) => ({
                 header: {
-                    borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
                 },
                 body: { padding: 0 },
             })}
@@ -43,7 +43,7 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                     <Group
                         position="right"
                         sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.gray[4]}`,
+                            borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                             bottom: 0,
                             padding: theme.spacing.md,
                         })}

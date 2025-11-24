@@ -19,6 +19,7 @@ import {
     HoverCard,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine-8/core';
 import { IconCode } from '@tabler/icons-react';
 import { lighten } from 'polished';
@@ -50,6 +51,7 @@ const MetricDimensionItem: FC<{
     customMetric,
     onWriteBackCustomMetric,
 }) => {
+    const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { track } = useTracking();
@@ -77,7 +79,7 @@ const MetricDimensionItem: FC<{
         displayName = friendlyName(fieldId);
     }
 
-    const backgroundColor = lighten(0.05, getItemBgColor(field));
+    const backgroundColor = lighten(0.05, getItemBgColor(field, theme));
     const iconColor = type === 'dimension' ? 'blue.9' : 'yellow.9';
 
     const description = isField(field) ? field.description : undefined;

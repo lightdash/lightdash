@@ -35,7 +35,7 @@ export const SearchFilter = ({
                 placeholder={placeholder}
                 value={search ?? ''}
                 leftSection={
-                    <MantineIcon size="md" color="gray.6" icon={IconSearch} />
+                    <MantineIcon size="md" color="ldGray.6" icon={IconSearch} />
                 }
                 onChange={(e) => setSearch(e.target.value)}
                 rightSection={
@@ -44,7 +44,7 @@ export const SearchFilter = ({
                             onClick={() => setSearch('')}
                             variant="transparent"
                             size="xs"
-                            color="gray.5"
+                            color="ldGray.5"
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>

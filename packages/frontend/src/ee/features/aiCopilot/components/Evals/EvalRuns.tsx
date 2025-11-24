@@ -92,7 +92,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                             variant="dot"
                             size="sm"
                             radius="sm"
-                            c="gray.7"
+                            c="ldGray.7"
                             style={{ border: 'none' }}
                         >
                             {evalStatus.label}
@@ -115,7 +115,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                         <Tooltip label="No assessments available">
                             <MantineIcon
                                 icon={IconCircleDotted}
-                                color="gray.6"
+                                color="ldGray.6"
                             />
                         </Tooltip>
                     ) : (
@@ -172,7 +172,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 </Text>
                             }
                         >
-                            <Text fz="sm" c="gray.6">
+                            <Text fz="sm" c="ldGray.6">
                                 {createdAt}
                             </Text>
                         </Tooltip>
@@ -200,7 +200,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                               .format('mm[m]ss[s]')
                         : '-';
                     return (
-                        <Text fz="sm" c="gray.6">
+                        <Text fz="sm" c="ldGray.6">
                             {runDuration}
                         </Text>
                     );
@@ -232,7 +232,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -254,19 +254,19 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn || isFirstColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -285,7 +285,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };
@@ -302,7 +302,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
 
     return (
         <Stack gap="xs">
-            <Title order={5} c="gray.9" fw={500}>
+            <Title order={5} c="ldGray.9" fw={500}>
                 Previous Runs
             </Title>
 

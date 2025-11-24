@@ -313,7 +313,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                                         <MantineIcon
                                             icon={IconClock}
                                             size={16}
-                                            color="gray.6"
+                                            color="ldGray.6"
                                         />
                                     </Box>
                                 </Tooltip>
@@ -348,7 +348,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         mantinePaperProps: {
             shadow: undefined,
             sx: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -391,19 +391,19 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             const canResize = props.column.getCanResize();
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -427,7 +427,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                     cursor: 'pointer',
                     '&:hover': {
                         td: {
-                            backgroundColor: theme.colors.gray[0],
+                            backgroundColor: theme.colors.ldGray[0],
                             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                         },
                     },
@@ -439,12 +439,12 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                 p="sm"
                 fz="xs"
                 fw={500}
-                c="gray.8"
+                c="ldGray.8"
                 style={{
-                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
-                <Text fz="xs" c="gray.8">
+                <Text fz="xs" c="ldGray.8">
                     {allChanges.length} change
                     {allChanges.length !== 1 ? 's' : ''} found
                 </Text>
@@ -490,7 +490,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         return (
             <Box p="xl" style={{ textAlign: 'center' }}>
                 <Loader size="lg" />
-                <Text mt="md" c="gray.6">
+                <Text mt="md" c="ldGray.6">
                     Loading changesets...
                 </Text>
             </Box>
@@ -515,7 +515,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
     if (!changesets || changesets.changes.length === 0) {
         return (
             <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="gray.6">No active changesets found.</Text>
+                <Text c="ldGray.6">No active changesets found.</Text>
             </Box>
         );
     }
@@ -524,7 +524,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
     if (allChanges.length === 0) {
         return (
             <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="gray.6">No changes found in active changesets.</Text>
+                <Text c="ldGray.6">No changes found in active changesets.</Text>
             </Box>
         );
     }
@@ -534,7 +534,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             <Group justify="space-between" align="flex-start">
                 <Stack gap="xs">
                     <Title order={5}>Changesets</Title>
-                    <Text c="gray.6" fz="sm">
+                    <Text c="ldGray.6" fz="sm">
                         Track changes to your project over time. Changesets are
                         updates to your Lightdash Semantic Layer.
                     </Text>

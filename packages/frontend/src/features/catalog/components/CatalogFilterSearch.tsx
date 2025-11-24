@@ -64,12 +64,12 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
                     px="xs"
                     fz="sm"
                     sx={(theme) => ({
-                        border: `1px solid ${theme.colors.gray[3]}`,
+                        border: `1px solid ${theme.colors.ldGray[3]}`,
                         borderRight: 'none',
                         borderTopLeftRadius: theme.radius.md,
                         borderBottomLeftRadius: theme.radius.md,
                         backgroundColor: theme.fn.lighten(
-                            theme.colors.gray[1],
+                            theme.colors.ldGray[1],
                             0.8,
                         ),
                     })}
@@ -77,19 +77,19 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
                     onBlurCapture={closePopover}
                 >
                     <Group spacing="two">
-                        <Text c={filter ? 'gray.8' : 'gray.6'} fw={450}>
+                        <Text c={filter ? 'ldGray.8' : 'ldGray.6'} fw={450}>
                             {activeFilterLabel}
                         </Text>
-                        <MantineIcon color="gray.6" icon={IconChevronDown} />
+                        <MantineIcon color="ldGray.6" icon={IconChevronDown} />
                     </Group>
                 </UnstyledButton>
             </Popover.Target>
             <Popover.Dropdown p={0}>
                 <Stack spacing="xs">
-                    <Text p="xs" pb={0} fw={400} c="gray.6" fz={11}>
+                    <Text p="xs" pb={0} fw={400} c="ldGray.6" fz={11}>
                         Search by:{' '}
                     </Text>
-                    <Divider color="gray.2" />
+                    <Divider color="ldGray.2" />
                 </Stack>
 
                 <Stack spacing={0}>
@@ -106,16 +106,16 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
                             }}
                             sx={(theme) => ({
                                 '&:hover': {
-                                    backgroundColor: theme.colors.gray[1],
+                                    backgroundColor: theme.colors.ldGray[1],
                                 },
                             })}
                         >
                             <Group spacing="two">
                                 <MantineIcon
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     icon={IconBookmark}
                                 />
-                                <Text c="gray.7">{label}</Text>
+                                <Text c="ldGray.7">{label}</Text>
                             </Group>
                         </UnstyledButton>
                     ))}

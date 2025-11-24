@@ -44,6 +44,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineColorScheme,
 } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
@@ -95,6 +96,7 @@ import {
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
@@ -243,6 +245,8 @@ const ValidDashboardChartTile: FC<{
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
 
     const { health } = useApp();
+    const { data: org } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
 
     const {
         ref: measureRef,
@@ -287,6 +291,18 @@ const ValidDashboardChartTile: FC<{
         ],
     );
 
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && org?.chartDarkColors) {
+            return org.chartDarkColors;
+        }
+        return org?.chartColors ?? chart.colorPalette;
+    }, [
+        colorScheme,
+        org?.chartColors,
+        org?.chartDarkColors,
+        chart.colorPalette,
+    ]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -303,7 +319,7 @@ const ValidDashboardChartTile: FC<{
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
-            colorPalette={chart.colorPalette}
+            colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
             parameters={
@@ -346,6 +362,8 @@ const ValidDashboardChartTileMinimal: FC<{
     setEchartsRef,
 }) => {
     const { health } = useApp();
+    const { data: org } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
 
@@ -388,6 +406,18 @@ const ValidDashboardChartTileMinimal: FC<{
         ],
     );
 
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && org?.chartDarkColors) {
+            return org.chartDarkColors;
+        }
+        return org?.chartColors ?? chart.colorPalette;
+    }, [
+        colorScheme,
+        org?.chartColors,
+        org?.chartDarkColors,
+        chart.colorPalette,
+    ]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -404,7 +434,7 @@ const ValidDashboardChartTileMinimal: FC<{
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
-            colorPalette={chart.colorPalette}
+            colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
             parameters={
@@ -917,7 +947,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             >
                                 <HoverCard.Dropdown>
                                     <Stack spacing="xs" align="flex-start">
-                                        <Text color="gray.7" fw={500}>
+                                        <Text color="ldGray.7" fw={500}>
                                             Dashboard filter
                                             {appliedFilterRules.length > 1
                                                 ? 's'
@@ -955,7 +985,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     <Badge
                                                         key={filterRule.id}
                                                         variant="outline"
-                                                        color="gray.4"
+                                                        color="ldGray.4"
                                                         radius="sm"
                                                         size="lg"
                                                         fz="xs"
@@ -966,22 +996,37 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                             color: 'black',
                                                         }}
                                                     >
-                                                        <Text fw={600} span>
+                                                        <Text
+                                                            fw={600}
+                                                            span
+                                                            color="foreground.0"
+                                                        >
                                                             {
                                                                 filterRuleLabels.field
                                                             }
                                                             :
                                                         </Text>{' '}
                                                         {filterRule.disabled ? (
-                                                            <>is any value</>
+                                                            <Text
+                                                                color="foreground.0"
+                                                                span
+                                                            >
+                                                                is any value
+                                                            </Text>
                                                         ) : (
                                                             <>
-                                                                {
-                                                                    filterRuleLabels.operator
-                                                                }{' '}
+                                                                <Text
+                                                                    span
+                                                                    color="foreground.0"
+                                                                >
+                                                                    {
+                                                                        filterRuleLabels.operator
+                                                                    }
+                                                                </Text>{' '}
                                                                 <Text
                                                                     fw={600}
                                                                     span
+                                                                    color="foreground.0"
                                                                 >
                                                                     {
                                                                         filterRuleLabels.value
@@ -1014,7 +1059,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Text color="gray.7" fw={500} mb="xs">
+                                        <Text color="ldGray.7" fw={500} mb="xs">
                                             Parameters
                                         </Text>
                                         <Stack
@@ -1028,7 +1073,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 <Text
                                                     key={key}
                                                     size="xs"
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                 >
                                                     <Text span fw={600}>
                                                         {parameterDefinitions[
@@ -1064,12 +1109,20 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Text size="xs" color="gray.6" fw={600}>
+                                        <Text
+                                            size="xs"
+                                            color="ldGray.6"
+                                            fw={600}
+                                        >
                                             Warehouse execution time:{' '}
                                             {initialQueryExecutionMs}
                                             ms
                                         </Text>
-                                        <Text size="xs" color="gray.6" fw={600}>
+                                        <Text
+                                            size="xs"
+                                            color="ldGray.6"
+                                            fw={600}
+                                        >
                                             Total time:{' '}
                                             {resultsData.totalClientFetchTimeMs}
                                             ms

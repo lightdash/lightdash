@@ -64,7 +64,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                     <Tooltip withinPortal variant="xs" label={tooltipLabel}>
                         <Button
                             h={32}
-                            c="gray.7"
+                            c="ldGray.7"
                             fw={500}
                             fz="sm"
                             variant="default"
@@ -78,7 +78,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                                     color={
                                         hasSelectedProjects
                                             ? 'indigo.5'
-                                            : 'gray.5'
+                                            : 'ldGray.5'
                                     }
                                 />
                             }
@@ -101,7 +101,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
                         <Group gap="two">
-                            <Text fz="xs" c="dark.3" fw={600}>
+                            <Text fz="xs" c="ldDark.3" fw={600}>
                                 Filter by projects:
                             </Text>
                             <Tooltip
@@ -109,14 +109,14 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                                 label="Showing projects with agents only"
                             >
                                 <MantineIcon
-                                    color="gray.5"
+                                    color="ldGray.5"
                                     icon={IconHelpCircle}
                                 />
                             </Tooltip>
                         </Group>
 
                         {projectsWithAgents?.length === 0 && (
-                            <Text fz="xs" fw={500} c="gray.6">
+                            <Text fz="xs" fw={500} c="ldGray.6">
                                 No projects with agents available.
                             </Text>
                         )}
@@ -171,7 +171,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                 <Tooltip variant="xs" label="Clear all project filters">
                     <ActionIcon
                         size="xs"
-                        color="gray.5"
+                        color="ldGray.5"
                         variant="subtle"
                         onClick={() => {
                             setSelectedProjectUuids([]);

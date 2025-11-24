@@ -1,8 +1,7 @@
-import { MantineProvider } from '@mantine/core';
+import { MantineProvider, type MantineTheme } from '@mantine/core';
 import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
-import { getMantineThemeOverride } from '../../../../../mantineTheme';
 import type { FlattenedTreeData } from './types';
 import VirtualTreeItem from './VirtualTreeItem';
 
@@ -13,10 +12,10 @@ interface VirtualizedTreeListProps {
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
 }
 
-const themeOverride = getMantineThemeOverride({
+const themeOverride = {
     components: {
         NavLink: {
-            styles: (theme, _params) => ({
+            styles: (theme: MantineTheme) => ({
                 root: {
                     height: theme.spacing.xxl,
                     padding: `0 ${theme.spacing.sm}`,
@@ -28,7 +27,7 @@ const themeOverride = getMantineThemeOverride({
             }),
         },
     },
-});
+};
 
 /**
  * Virtualized tree list using @tanstack/react-virtual

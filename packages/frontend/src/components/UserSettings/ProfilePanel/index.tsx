@@ -152,7 +152,7 @@ const ProfilePanel: FC = () => {
                             <MantineIcon
                                 size="lg"
                                 icon={IconAlertCircle}
-                                color="gray.6"
+                                color="ldGray.6"
                             />
                         )
                     }

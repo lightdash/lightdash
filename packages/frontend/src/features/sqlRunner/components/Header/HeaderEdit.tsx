@@ -164,7 +164,7 @@ export const HeaderEdit: FC = () => {
                 px="md"
                 py="xs"
                 sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
                 })}
             >
                 <Group position="apart">
@@ -175,7 +175,7 @@ export const HeaderEdit: FC = () => {
                                 spaceUuid={savedSqlChart.space.uuid}
                                 spaceName={savedSqlChart.space.name}
                             />
-                            <Title c="dark.6" order={5} fw={600}>
+                            <Title c="ldDark.6" order={5} fw={600}>
                                 {savedSqlChart.name}
                             </Title>
                             <ActionIcon

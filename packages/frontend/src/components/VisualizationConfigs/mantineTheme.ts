@@ -1,74 +1,76 @@
+import { type ColorScheme } from '@mantine/styles';
 import { getMantineThemeOverride } from '../../mantineTheme';
 
-export const themeOverride = getMantineThemeOverride({
-    components: {
-        Select: {
-            styles: (theme) => ({
-                label: {
-                    fontSize: theme.fontSizes.xs,
-                    fontWeight: 500,
-                    color: theme.colors.gray['6'],
+export const getVizConfigThemeOverride = (colorScheme: ColorScheme) =>
+    getMantineThemeOverride(colorScheme, {
+        components: {
+            Select: {
+                styles: (theme) => ({
+                    label: {
+                        fontSize: theme.fontSizes.xs,
+                        fontWeight: 500,
+                        color: theme.colors.ldGray['6'],
+                    },
+                }),
+                defaultProps: {
+                    size: 'xs',
                 },
-            }),
-            defaultProps: {
-                size: 'xs',
             },
-        },
-        TextInput: {
-            defaultProps: {
-                size: 'xs',
-            },
-        },
-        Switch: {
-            styles: (theme) => ({
-                label: {
-                    fontSize: theme.fontSizes.xs,
-                    fontWeight: 500,
-                    color: theme.colors.gray['6'],
-                    paddingLeft: 4,
+            TextInput: {
+                defaultProps: {
+                    size: 'xs',
                 },
-            }),
-            defaultProps: {
-                size: 'xs',
             },
-        },
-        SegmentedControl: {
-            defaultProps: {
-                size: 'xs',
-            },
-        },
-        Button: {
-            defaultProps: {
-                size: 'xs',
-            },
-        },
-        CloseButton: {
-            defaultProps: {
-                size: 'xs',
-            },
-        },
-        NumberInput: {
-            defaultProps: {
-                size: 'xs',
-            },
-        },
-        Checkbox: {
-            styles: (theme) => ({
-                label: {
-                    fontSize: theme.fontSizes.xs,
-                    fontWeight: 500,
-                    color: theme.colors.gray['6'],
-                    paddingLeft: 4,
+            Switch: {
+                styles: (theme) => ({
+                    label: {
+                        fontSize: theme.fontSizes.xs,
+                        fontWeight: 500,
+                        color: theme.colors.ldGray['6'],
+                        paddingLeft: 4,
+                    },
+                }),
+                defaultProps: {
+                    size: 'xs',
                 },
-            }),
-            defaultProps: {
-                size: 'xs',
+            },
+            SegmentedControl: {
+                defaultProps: {
+                    size: 'xs',
+                },
+            },
+            Button: {
+                defaultProps: {
+                    size: 'xs',
+                },
+            },
+            CloseButton: {
+                defaultProps: {
+                    size: 'xs',
+                },
+            },
+            NumberInput: {
+                defaultProps: {
+                    size: 'xs',
+                },
+            },
+            Checkbox: {
+                styles: (theme) => ({
+                    label: {
+                        fontSize: theme.fontSizes.xs,
+                        fontWeight: 500,
+                        color: theme.colors.ldGray['6'],
+                        paddingLeft: 4,
+                    },
+                }),
+                defaultProps: {
+                    size: 'xs',
+                },
+            },
+            ActionIcon: {
+                defaultProps: {
+                    size: 'sm',
+                },
             },
         },
-        ActionIcon: {
-            defaultProps: {
-                size: 'sm',
-            },
-        },
-    },
-});
+    });

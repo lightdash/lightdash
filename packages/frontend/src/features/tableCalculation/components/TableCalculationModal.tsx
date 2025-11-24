@@ -324,7 +324,7 @@ const TableCalculationModal: FC<Props> = ({
             >
                 <Modal.Header
                     sx={(themeProps) => ({
-                        borderBottom: `1px solid ${themeProps.colors.gray[2]}`,
+                        borderBottom: `1px solid ${themeProps.colors.ldGray[2]}`,
                         padding: themeProps.spacing.sm,
                     })}
                 >
@@ -332,7 +332,7 @@ const TableCalculationModal: FC<Props> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconCalculator} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text fw={700} fz="md">
                             {tableCalculation ? 'Edit' : 'Create'} Table
                             Calculation
                             {tableCalculation ? (
@@ -433,7 +433,7 @@ const TableCalculationModal: FC<Props> = ({
                                     radius="xs"
                                     styles={{
                                         panel: {
-                                            borderColor: colors.gray[2],
+                                            borderColor: colors.ldGray[2],
                                             borderWidth: 1,
                                             borderStyle: 'solid',
                                             borderTop: 'none',
@@ -523,9 +523,9 @@ const TableCalculationModal: FC<Props> = ({
 
                     <Box
                         sx={(themeProps) => ({
-                            borderTop: `1px solid ${themeProps.colors.gray[2]}`,
+                            borderTop: `1px solid ${themeProps.colors.ldGray[2]}`,
                             padding: themeProps.spacing.sm,
-                            backgroundColor: themeProps.white,
+                            backgroundColor: themeProps.colors.background,
                             position: 'sticky',
                             bottom: 0,
                             width: '100%',

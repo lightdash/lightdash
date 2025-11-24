@@ -51,7 +51,7 @@ const DeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
             </p>
 
             <Alert color="red">
-                <Text size="sm" color="gray.9">
+                <Text size="sm" color="ldGray.9">
                     <strong>This will permanently delete:</strong>
                 </Text>
                 <ul style={{ paddingLeft: '1rem' }}>

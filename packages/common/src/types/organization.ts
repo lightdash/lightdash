@@ -23,6 +23,11 @@ export type Organization = {
     chartColors?: string[];
 
     /**
+     * The default dark color palette for all projects in the organization
+     */
+    chartDarkColors?: string[];
+
+    /**
      * The active color palette uuid for all projects in the organization
      */
     colorPaletteUuid?: string;
@@ -151,6 +156,7 @@ export type OrganizationColorPalette = {
     organizationUuid: string;
     name: string;
     colors: string[];
+    darkColors: string[] | null;
     createdAt: Date;
 };
 
@@ -161,12 +167,14 @@ export type OrganizationColorPaletteWithIsActive = OrganizationColorPalette & {
 export type CreateColorPalette = {
     name: string;
     colors: string[];
+    darkColors?: string[];
 };
 
 export type UpdateColorPalette = {
     uuid: string;
     name?: string;
     colors?: string[];
+    darkColors?: string[];
 };
 
 export type ApiColorPaletteResponse = {

@@ -114,7 +114,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="gray.6"
+                                                color="ldGray.6"
                                                 size="sm"
                                             />
                                         </Tooltip>

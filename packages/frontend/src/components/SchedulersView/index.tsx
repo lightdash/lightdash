@@ -83,7 +83,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             >
                                 <MantineIcon
                                     icon={IconRefresh}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     stroke={2}
                                 />
                             </ActionIcon>

@@ -132,18 +132,23 @@ export const MetricExploreComparison: FC<Props> = ({
                                     border:
                                         query.comparison === comparison.type
                                             ? `1px solid ${theme.colors.indigo[5]}`
-                                            : `1px solid ${theme.colors.gray[2]}`,
+                                            : `1px solid ${theme.colors.ldGray[2]}`,
                                 },
                                 '&:hover': {
-                                    backgroundColor: theme.colors.gray[0],
+                                    backgroundColor:
+                                        theme.colorScheme === 'dark'
+                                            ? theme.colors.ldDark[8]
+                                            : theme.colors.ldGray[0],
                                 },
                                 backgroundColor:
                                     query.comparison === comparison.type
-                                        ? theme.fn.lighten(
-                                              theme.colors.gray[1],
-                                              0.3,
-                                          )
-                                        : 'white',
+                                        ? theme.colorScheme === 'dark'
+                                            ? theme.colors.ldDark[7]
+                                            : theme.fn.lighten(
+                                                  theme.colors.ldGray[1],
+                                                  0.3,
+                                              )
+                                        : theme.colors.background[0],
                             })}
                             onClick={() =>
                                 handleComparisonChange(comparison.type)
@@ -158,7 +163,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                             />
                                         </Paper>
 
-                                        <Text color="dark.8" fw={500}>
+                                        <Text color="dimmed" fw={500}>
                                             {comparison.label}
                                         </Text>
                                     </Group>
@@ -204,7 +209,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 metricsWithTimeDimensionsQuery.isLoading ? (
                                                     <Loader
                                                         size="xs"
-                                                        color="gray.5"
+                                                        color="ldGray.5"
                                                     />
                                                 ) : undefined
                                             }
@@ -217,11 +222,11 @@ export const MetricExploreComparison: FC<Props> = ({
                                             }}
                                         />
                                     ) : (
-                                        <Text span c="gray.7" fz={13}>
+                                        <Text span c="ldGray.7" fz={13}>
                                             Only metrics with a time dimension
                                             defined in the .yml can be compared.{' '}
                                             <Anchor
-                                                c="gray.9"
+                                                c="ldGray.9"
                                                 fw={500}
                                                 target="_blank"
                                                 href="https://docs.lightdash.com/guides/metrics-catalog/#configuring-default-time-settings-in-yml"

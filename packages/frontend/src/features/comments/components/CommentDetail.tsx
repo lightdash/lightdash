@@ -46,7 +46,7 @@ export const CommentDetail: FC<Props> = ({
         <Box ref={ref}>
             <Grid columns={20}>
                 <Grid.Col span={2}>
-                    <Avatar radius="xl" size="sm">
+                    <Avatar radius="xl" size="sm" color="ldGray.6">
                         {getNameInitials(comment.user.name)}
                     </Avatar>
                 </Grid.Col>

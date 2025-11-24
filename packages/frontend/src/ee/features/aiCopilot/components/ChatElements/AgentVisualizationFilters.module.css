@@ -1,11 +1,15 @@
 .filterButton {
-    background-color: white;
+    @mixin light {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-background-0);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldDark-3);
+        background-color: var(--mantine-color-ldDark-8);
+        border: 1px solid var(--mantine-color-ldDark-7);
+    }
     cursor: default;
-    border: 1px solid var(--mantine-color-gray-3);
-}
-
-.filterButton:hover {
-    background-color: white;
 }
 
 .filterButton:active {

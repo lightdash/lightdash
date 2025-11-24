@@ -35,7 +35,11 @@ const SchedulersModal: FC<
             title={
                 isThresholdAlert ? (
                     <Group spacing="xs">
-                        <MantineIcon icon={IconBell} size="lg" color="gray.7" />
+                        <MantineIcon
+                            icon={IconBell}
+                            size="lg"
+                            color="ldGray.7"
+                        />
                         <Text fw={600}>Alerts</Text>
                         <DocumentationHelpButton
                             href="https://docs.lightdash.com/guides/how-to-create-alerts"
@@ -45,7 +49,11 @@ const SchedulersModal: FC<
                     </Group>
                 ) : (
                     <Group spacing="xs">
-                        <MantineIcon icon={IconSend} size="lg" color="gray.7" />
+                        <MantineIcon
+                            icon={IconSend}
+                            size="lg"
+                            color="ldGray.7"
+                        />
                         <Text fw={600}>Scheduled deliveries</Text>
                         <DocumentationHelpButton
                             href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
@@ -56,7 +64,7 @@ const SchedulersModal: FC<
                 )
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >

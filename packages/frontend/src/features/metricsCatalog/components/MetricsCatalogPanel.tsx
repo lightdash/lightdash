@@ -95,7 +95,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 </Button>
             </Popover.Target>
             <Popover.Dropdown
-                bg="dark.6"
+                bg="ldDark.6"
                 c="white"
                 p={16}
                 sx={{
@@ -117,7 +117,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text size={13} c="gray.3">
+                    <Text size={13} c="ldGray.3">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog
@@ -132,8 +132,8 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         <Button
                             variant="outline"
                             radius="md"
-                            bg="dark.4"
-                            c="gray.0"
+                            bg="ldDark.4"
+                            c="ldGray.0"
                             hidden={true}
                             disabled={true}
                             sx={(theme) => ({
@@ -141,7 +141,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                                 border: 'none',
                                 flexGrow: 1,
                                 '&:hover': {
-                                    backgroundColor: theme.colors.dark[5],
+                                    backgroundColor: theme.colors.ldDark[5],
                                 },
                             })}
                         >
@@ -379,12 +379,11 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     const headerButtonStyles: ButtonProps['style'] = {
         borderRadius: theme.radius.md,
-        backgroundColor: '#FAFAFA',
-        border: `1px solid ${theme.colors.gray[2]}`,
+        border: `1px solid ${theme.colors.ldGray[2]}`,
         padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
-        color: theme.colors.gray[7],
+        color: theme.colors.ldGray[7],
     };
 
     return (
@@ -392,7 +391,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             <Group position="apart">
                 <Box>
                     <Group spacing="xs">
-                        <Text color="gray.8" weight={600} size="xl">
+                        <Text color="ldGray.8" weight={600} size="xl">
                             Metrics Catalog
                         </Text>
                         <Tooltip
@@ -429,7 +428,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             </Badge>
                         </Tooltip>
                     </Group>
-                    <Text color="gray.6" size="sm" weight={400}>
+                    <Text color="ldGray.6" size="sm" weight={400}>
                         Browse all Metrics & KPIs across this project
                     </Text>
                 </Box>
@@ -441,7 +440,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             leftIcon={
                                 <MantineIcon
                                     size="sm"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                     icon={IconRefresh}
                                 />
                             }
@@ -455,7 +454,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             leftIcon={
                                 <MantineIcon
                                     size="sm"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                     icon={IconRefresh}
                                 />
                             }

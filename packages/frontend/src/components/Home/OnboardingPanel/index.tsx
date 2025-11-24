@@ -35,7 +35,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
             <Title order={3}>
                 {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
             </Title>
-            <Text color="gray.7">
+            <Text color="ldGray.7">
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
             </Text>
@@ -49,7 +49,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                             <Title order={5} fw={500} ta="center">
                                 {step.title}
                             </Title>
-                            <Text size="sm" color="gray.6" ta="center">
+                            <Text size="sm" color="ldGray.6" ta="center">
                                 {step.description}
                             </Text>
                         </Card>

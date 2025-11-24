@@ -59,7 +59,7 @@ const CompilationHistory: FC<CompilationHistoryProps> = ({ projectUuid }) => {
                             >
                                 <MantineIcon
                                     icon={IconRefresh}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     stroke={2}
                                 />
                             </ActionIcon>

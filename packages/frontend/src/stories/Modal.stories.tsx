@@ -34,7 +34,7 @@ export const Default: Story = {
                     Are you sure you want to delete space <b>"Jaffle Shop"</b>?
                 </Text>
                 <Alert color="red">
-                    <Text size="sm" color="gray.9">
+                    <Text size="sm" color="ldGray.9">
                         <strong>This will permanently delete:</strong>
                     </Text>
                     <ul style={{ paddingLeft: '1rem' }}>

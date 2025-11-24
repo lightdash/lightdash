@@ -126,7 +126,7 @@ export const AiAgentsAdminLayout = () => {
                                         </Button>
                                     )}
                             </Group>
-                            <Text c="gray.6" size="sm" fw={400}>
+                            <Text c="ldGray.6" size="sm" fw={400}>
                                 {activeTab === 'threads'
                                     ? 'View and manage AI Agents threads'
                                     : 'View and manage AI Agents'}
@@ -147,7 +147,7 @@ export const AiAgentsAdminLayout = () => {
                                 bg="orange.0"
                                 title="AI Features Currently Disabled for All Users"
                             >
-                                <Text c="gray.7" size="xs">
+                                <Text c="ldGray.7" size="xs">
                                     AI features on the homepage and navbar are
                                     turned off. Users cannot interact with AI
                                     Agents until you re-enable this feature
@@ -230,7 +230,7 @@ export const AiAgentsAdminLayout = () => {
                             className={styles.resizeHandle}
                             style={{
                                 width: 2,
-                                backgroundColor: theme.colors.gray[3],
+                                backgroundColor: theme.colors.ldGray[3],
                                 cursor: 'col-resize',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -273,7 +273,7 @@ export const AiAgentsAdminLayout = () => {
                 centered
                 styles={{
                     header: {
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                         padding: theme.spacing.md,
                     },
                 }}

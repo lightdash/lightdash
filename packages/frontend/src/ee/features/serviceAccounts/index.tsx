@@ -48,7 +48,7 @@ export function ServiceAccountsPage() {
                     icon={
                         <MantineIcon
                             icon={IconUsersGroup}
-                            color="gray.6"
+                            color="ldGray.6"
                             stroke={1}
                             size="5xl"
                         />

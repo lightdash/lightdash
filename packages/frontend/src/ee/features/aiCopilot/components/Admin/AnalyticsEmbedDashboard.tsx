@@ -9,7 +9,7 @@ export const AnalyticsEmbedDashboard: FC = () => {
     if (!embedData) {
         return (
             <Paper h={450}>
-                <Text c="gray.6">Unable to load analytics dashboard</Text>
+                <Text c="ldGray.6">Unable to load analytics dashboard</Text>
             </Paper>
         );
     }

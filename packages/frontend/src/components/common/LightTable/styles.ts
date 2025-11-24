@@ -4,7 +4,7 @@ import { darken, rgba } from 'polished';
 import { CELL_HEIGHT } from './constants';
 import { CellType, SectionType } from './types';
 
-const getBorderColor = (theme: MantineTheme) => theme.colors.gray[3];
+const getBorderColor = (theme: MantineTheme) => theme.colors.ldGray[3];
 const getShadowColor = (theme: MantineTheme) => rgba(theme.black, 0.075);
 
 export const useTableStyles = createStyles((theme) => {
@@ -29,7 +29,7 @@ export const useTableStyles = createStyles((theme) => {
                 boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
                 '&:hover': {
                     boxShadow: `inset -1px -1px 0 0 ${borderColor} !important`,
-                    backgroundColor: theme.colors.gray[1],
+                    backgroundColor: theme.colors.ldGray[1],
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             },
@@ -207,7 +207,7 @@ export const useTableRowStyles = createStyles<
     string,
     { sectionType: SectionType; index: number }
 >((theme, { sectionType, index }) => {
-    const rowHoverBackground = rgba(theme.colors.gray[0], 0.5);
+    const rowHoverBackground = rgba(theme.colors.ldGray[0], 0.5);
 
     const getStickySectionStyles = () => {
         switch (sectionType) {
@@ -235,7 +235,7 @@ export const useTableRowStyles = createStyles<
 
     return {
         root: {
-            backgroundColor: theme.white,
+            backgroundColor: theme.colors.background[0],
 
             ':hover':
                 sectionType === SectionType.Body
@@ -273,10 +273,19 @@ export const useTableCellStyles = createStyles<
             withBackground = false,
         },
     ) => {
-        const cellHeadBackground = theme.colors.gray[0];
-        const selectedDefaultBackground = theme.colors.blue[2];
-        const selectedDefaultBorder = theme.colors.blue[4];
-        const copyingBackground = theme.colors.blue[3];
+        const cellHeadBackground = theme.colors.ldGray[0];
+        const selectedDefaultBackground =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[9]
+                : theme.colors.blue[2];
+        const selectedDefaultBorder =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[5]
+                : theme.colors.blue[4];
+        const copyingBackground =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[8]
+                : theme.colors.blue[3];
         const withBackgroundSelected = withBackground
             ? darken(0.05, withBackground)
             : undefined;
@@ -328,7 +337,7 @@ export const useTableCellStyles = createStyles<
                 fontWeight: cellType === CellType.Head ? 500 : 400,
                 fontSize: 13,
 
-                color: theme.colors.gray[9],
+                color: theme.colors.ldGray[9],
 
                 backgroundColor:
                     cellType === CellType.Head ? cellHeadBackground : undefined,

@@ -12,9 +12,6 @@ export default defineConfig({
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
     plugins: [svgrPlugin(), dts({ rollupTypes: true })],
-    css: {
-        transformer: 'lightningcss',
-    },
     build: {
         outDir: 'sdk/dist',
         emptyOutDir: true,
