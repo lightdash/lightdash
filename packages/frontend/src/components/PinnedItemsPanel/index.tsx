@@ -42,11 +42,9 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         // FIXME: update width with Mantine widths
         <Card
             withBorder
-            sx={(theme) =>
-                console.log({ newTheme: theme }) || {
-                    backgroundColor: theme.colors.ldGray[1],
-                }
-            }
+            sx={(theme) => ({
+                backgroundColor: theme.colors.ldGray[1],
+            })}
         >
             <Group position="apart">
                 <Group position="center" spacing="xxs" my="xs" ml="xs">

@@ -581,13 +581,13 @@ const InfiniteResourceTable = ({
                                             fontSize: inputTheme.fontSizes.sm,
                                             fontWeight: 400,
                                             color: search
-                                                ? inputtheme.colors.ldGray[8]
-                                                : inputtheme.colors.ldGray[5],
+                                                ? inputTheme.colors.ldGray[8]
+                                                : inputTheme.colors.ldGray[5],
                                             boxShadow:
                                                 inputTheme.shadows.subtle,
-                                            border: `1px solid ${inputtheme.colors.ldGray[3]}`,
+                                            border: `1px solid ${inputTheme.colors.ldGray[3]}`,
                                             '&:hover': {
-                                                border: `1px solid ${inputtheme.colors.ldGray[4]}`,
+                                                border: `1px solid ${inputTheme.colors.ldGray[4]}`,
                                             },
                                             '&:focus': {
                                                 border: `1px solid ${inputTheme.colors.blue[5]}`,
