@@ -62,7 +62,8 @@ models:
             dimension:
               type: number
             metrics:
-              type: sum
+              sales_volume_sum:
+                type: sum
       - name: customer_count
         description: ""
         config:
@@ -70,7 +71,8 @@ models:
             dimension:
               type: number
             metrics:
-              type: sum
+              customer_count_sum:
+                type: sum
       - name: avg_transaction_value_usd
         description: ""
         config:
