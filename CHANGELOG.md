@@ -1,3 +1,10 @@
+# [0.2206.0](https://github.com/lightdash/lightdash/compare/0.2205.0...0.2206.0) (2025-11-25)
+
+
+### Features
+
+* add custom label option to gauge charts ([#18290](https://github.com/lightdash/lightdash/issues/18290)) ([1f15b4e](https://github.com/lightdash/lightdash/commit/1f15b4e0dd2c747be901af07a21dc181d359dc22))
+
 # [0.2205.0](https://github.com/lightdash/lightdash/compare/0.2204.0...0.2205.0) (2025-11-24)
 
 
