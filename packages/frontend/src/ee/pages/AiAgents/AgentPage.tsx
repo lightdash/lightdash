@@ -239,7 +239,6 @@ const AgentPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: 'white',
                 }}
             >
                 <Loader color="gray" />

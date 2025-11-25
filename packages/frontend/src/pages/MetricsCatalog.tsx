@@ -70,7 +70,6 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
                     withCenteredContent
                     withXLargePaddedContent
                     withLargeContent
-                    backgroundColor="#FAFAFA"
                 >
                     <MetricsCatalogPanel
                         metricCatalogView={metricCatalogView}

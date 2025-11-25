@@ -18,6 +18,7 @@ import {
     Text,
     Title,
     Tooltip,
+    useMantineColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -111,6 +112,8 @@ const SavedChartsHeader: FC = () => {
     const spaceUuid = useSearchParams('fromSpace');
 
     const { data: project } = useProject(projectUuid);
+
+    const { colorScheme } = useMantineColorScheme();
 
     const { mutate: promoteChart } = usePromoteMutation();
     const {
@@ -369,7 +372,11 @@ const SavedChartsHeader: FC = () => {
                                     dashboardName={savedChart.dashboardName}
                                 />
                                 <Title
-                                    c="ldDark.6"
+                                    c={
+                                        colorScheme === 'dark'
+                                            ? 'ldDark.0'
+                                            : 'ldDark.6'
+                                    }
                                     order={5}
                                     fw={600}
                                     truncate

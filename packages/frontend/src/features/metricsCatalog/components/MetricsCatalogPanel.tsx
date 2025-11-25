@@ -379,7 +379,6 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     const headerButtonStyles: ButtonProps['style'] = {
         borderRadius: theme.radius.md,
-        backgroundColor: '#FAFAFA',
         border: `1px solid ${theme.colors.ldGray[2]}`,
         padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
         fontSize: theme.fontSizes.sm,

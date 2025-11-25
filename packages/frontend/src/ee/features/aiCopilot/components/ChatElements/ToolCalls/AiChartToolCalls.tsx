@@ -86,7 +86,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                                         radius="sm"
                                         bullet={
                                             <Paper
-                                                bg="white"
+                                                bg="ldGray.0"
                                                 p="two"
                                                 radius="sm"
                                                 shadow="subtle"
