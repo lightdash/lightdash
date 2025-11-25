@@ -14,7 +14,14 @@ import {
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
 } from '@lightdash/common';
-import { Box, Center, Group, Stack, Text } from '@mantine-8/core';
+import {
+    Box,
+    Center,
+    Group,
+    Stack,
+    Text,
+    useMantineColorScheme,
+} from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
@@ -62,6 +69,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
 }) => {
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
+
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && organization?.chartDarkColors) {
+            return organization.chartDarkColors;
+        }
+        return organization?.chartColors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, organization?.chartColors, organization?.chartDarkColors]);
+
     const { metricQuery, fields } = queryExecutionHandle.data.query;
     const tableName = metricQuery?.exploreName;
     const { data: explore } = useExplore(tableName);
@@ -120,7 +136,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const defaultChartType =
         chartConfig.type === AiResultType.QUERY_RESULT
-            ? chartConfig.chartConfig?.defaultVizType ?? 'table'
+            ? (chartConfig.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
     const handleChartConfigChange = useCallback(
@@ -182,9 +198,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     health?.pivotTable.maxColumnLimit ?? 60
                 }
                 initialPivotDimensions={groupByDimensions}
-                colorPalette={
-                    organization?.chartColors ?? ECHARTS_DEFAULT_COLORS
-                }
+                colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={(
                     e: EchartsSeriesClickEvent,

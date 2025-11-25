@@ -23,6 +23,11 @@ export type Organization = {
     chartColors?: string[];
 
     /**
+     * The default dark color palette for all projects in the organization
+     */
+    chartDarkColors?: string[];
+
+    /**
      * The active color palette uuid for all projects in the organization
      */
     colorPaletteUuid?: string;

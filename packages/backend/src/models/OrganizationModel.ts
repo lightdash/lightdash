@@ -190,11 +190,13 @@ export class OrganizationModel {
     static mapDBObjectToOrganization(
         data: DbOrganization,
         palette?: DbOrganizationColorPalette['colors'],
+        darkPalette?: DbOrganizationColorPalette['dark_colors'],
     ): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
             chartColors: palette ?? undefined,
+            chartDarkColors: darkPalette ?? undefined,
             defaultProjectUuid: data.default_project_uuid
                 ? data.default_project_uuid
                 : undefined,
@@ -233,6 +235,7 @@ export class OrganizationModel {
             return OrganizationModel.mapDBObjectToOrganization(
                 org,
                 this.lightdashConfig.appearance.overrideColorPalette,
+                undefined,
             );
         }
 
@@ -245,6 +248,7 @@ export class OrganizationModel {
         return OrganizationModel.mapDBObjectToOrganization(
             org,
             palette?.colors,
+            palette?.dark_colors,
         );
     }
 
@@ -264,7 +268,11 @@ export class OrganizationModel {
             })),
         );
 
-        return OrganizationModel.mapDBObjectToOrganization(org);
+        return OrganizationModel.mapDBObjectToOrganization(
+            org,
+            undefined,
+            undefined,
+        );
     }
 
     async update(
@@ -298,10 +306,15 @@ export class OrganizationModel {
             return OrganizationModel.mapDBObjectToOrganization(
                 org,
                 palette.colors,
+                palette.dark_colors,
             );
         }
 
-        return OrganizationModel.mapDBObjectToOrganization(org);
+        return OrganizationModel.mapDBObjectToOrganization(
+            org,
+            undefined,
+            undefined,
+        );
     }
 
     async deleteOrgAndUsers(
