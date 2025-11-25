@@ -127,8 +127,8 @@ export const getMantine8ThemeOverride = (
                         return {
                             root: {
                                 '--button-bg': theme.colors.ldDark[9],
-                                '--button-hover': theme.colors.ldDark[5],
-                                '--button-color': theme.colors.ldGray[0],
+                                '--button-hover': theme.colors.ldDark[8],
+                                '--button-color': theme.colors.ldDark[0],
                                 '--button-bd': `none`,
                             },
                         };

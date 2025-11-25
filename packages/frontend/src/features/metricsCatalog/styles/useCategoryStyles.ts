@@ -32,6 +32,10 @@ export const useCategoryStyles = createStyles(
                 cursor: 'pointer',
                 boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
                 outline: 'none',
+                filter:
+                    theme.colorScheme === 'dark'
+                        ? 'brightness(0.5) contrast(2)'
+                        : 'none',
                 '&:focus': {
                     outline: `2px solid ${focusOutlineColor}`,
                     outlineOffset: '2px',

@@ -164,7 +164,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         </Tooltip>
 
                         <Button
-                            color="ldGray.9"
+                            variant="darkPrimary"
                             size="xs"
                             compact
                             onClick={handleSave}
@@ -217,7 +217,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 borderRadius: theme.radius.md,
                 outline: 'none',
                 '&:focus, &:hover': {
-                    backgroundColor: '#F8F9FA',
+                    backgroundColor: theme.colors.ldGray[0],
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             })}

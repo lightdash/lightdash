@@ -87,11 +87,17 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                             styles={(theme) => ({
                                 root: {
                                     border: hasSelectedCategories
-                                        ? `1px solid ${theme.colors.indigo[2]}`
-                                        : `1px dashed ${theme.colors.ldGray[3]}`,
-                                    backgroundColor: hasSelectedCategories
-                                        ? theme.colors.indigo[0]
-                                        : undefined,
+                                        ? `1px solid`
+                                        : `1px dashed`,
+                                    borderColor:
+                                        theme.colorScheme === 'dark'
+                                            ? theme.colors.ldGray[3]
+                                            : theme.colors.indigo[2],
+                                    backgroundColor:
+                                        hasSelectedCategories &&
+                                        theme.colorScheme === 'light'
+                                            ? theme.colors.indigo[0]
+                                            : undefined,
                                     textOverflow: 'ellipsis',
                                     boxShadow: theme.shadows.subtle,
                                     '&:hover': {

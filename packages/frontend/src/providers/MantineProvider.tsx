@@ -55,7 +55,10 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 withGlobalStyles={withGlobalStyles}
                 withNormalizeCSS={withNormalizeCSS}
                 withCSSVariables={withCSSVariables}
-                theme={{ ...theme, ...themeOverride }}
+                theme={{
+                    ...theme,
+                    ...themeOverride,
+                }}
             >
                 {children}
 
