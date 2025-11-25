@@ -100,7 +100,7 @@ export const AgentChatInput = ({
                 <Paper
                     px="sm"
                     py={rem(4)}
-                    bg={alpha('var(--mantine-color-ldGray-1)', 0.5)}
+                    bg={alpha('var(--mantine-color-gray-1)', 0.5)}
                     mx="md"
                     style={{
                         borderTopLeftRadius: rem(12),
@@ -152,7 +152,7 @@ export const AgentChatInput = ({
                             bottom: 12,
                             right: 12,
                         }}
-                        color="ldDark.5"
+                        color="dark.5"
                         disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {
@@ -172,7 +172,7 @@ export const AgentChatInput = ({
                 <Paper
                     px="sm"
                     py={rem(4)}
-                    bg={alpha('var(--mantine-color-ldGray-1)', 0.5)}
+                    bg={alpha('var(--mantine-color-gray-1)', 0.5)}
                     mx="md"
                     style={{
                         borderTopLeftRadius: 0,

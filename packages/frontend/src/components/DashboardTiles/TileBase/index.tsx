@@ -114,8 +114,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 h="100%"
                 direction="column"
                 p="md"
-                bg="white"
                 radius="sm"
+                bg="background.0"
                 shadow={isEditMode ? 'xs' : undefined}
                 sx={(theme) => {
                     let border = `1px solid ${theme.colors.ldGray[1]}`;
@@ -146,7 +146,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     style={{
                         alignItems: 'flex-start',
-                        backgroundColor: 'white',
                         zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
                         borderRadius: '5px',
                     }}

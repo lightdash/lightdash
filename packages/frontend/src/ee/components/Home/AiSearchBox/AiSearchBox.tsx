@@ -200,11 +200,6 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                 }
                             />
                             <ActionIcon
-                                color={
-                                    !form.values.prompt.trim()
-                                        ? 'ldGray.7'
-                                        : 'ldGray.9'
-                                }
                                 type="submit"
                                 disabled={!form.values.prompt.trim()}
                                 classNames={{
