@@ -1,5 +1,6 @@
 import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
+import { scaleSqrt } from 'd3-scale';
 import * as echarts from 'echarts';
 import { type EChartsOption } from 'echarts';
 import { useEffect, useMemo, useState } from 'react';
@@ -300,6 +301,18 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
         console.log('loading map', mapKey);
 
+        // Create d3 scale for scatter point sizing
+        const scatterValues = scatterData.map((d) => d.value[2]);
+        const sizeScale =
+            scatterValues.length > 0
+                ? scaleSqrt()
+                      .domain([
+                          Math.min(...scatterValues, 0),
+                          Math.max(...scatterValues, 1),
+                      ])
+                      .range([3, 30])
+                : () => 3;
+
         // Check if this is a pre-projected map (Albers) that needs identity projection
         const isPreProjected =
             mapType === MapChartLocation.USA ||
@@ -314,6 +327,18 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         if (isLatLong) {
             // Scatter plot on map for lat/long
             return {
+                toolbox: {
+                    show: true,
+                    orient: 'vertical',
+                    left: 'right',
+                    top: 'top',
+                    feature: {
+                        restore: {
+                            show: true,
+                            title: 'Reset Zoom',
+                        },
+                    },
+                },
                 geo: {
                     map: mapKey,
                     roam: true,
@@ -334,16 +359,14 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         coordinateSystem: 'geo',
                         data: scatterData,
                         symbolSize: (val: number[]) => {
-                            // Scale point size based on value
-                            return Math.max(
-                                4,
-                                Math.min(20, (val[2] as number) / 10),
-                            );
+                            // Use d3 sqrt scale for proportional circle sizing
+                            return sizeScale(val[2] as number);
                         },
                         itemStyle: {
                             color: theme.colors.blue[6],
-                            shadowBlur: 10,
-                            shadowColor: 'rgba(0, 0, 0, 0.3)',
+                            opacity: 0.5,
+                            borderColor: theme.colors.blue[6],
+                            borderWidth: 2,
                         },
                         emphasis: {
                             itemStyle: {
@@ -367,6 +390,18 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         } else {
             // Choropleth map for regions/countries
             return {
+                toolbox: {
+                    show: true,
+                    orient: 'vertical',
+                    left: 'right',
+                    top: 'top',
+                    feature: {
+                        restore: {
+                            show: true,
+                            title: 'Reset Zoom',
+                        },
+                    },
+                },
                 tooltip: {
                     trigger: 'item',
                     formatter: (params: any) => {
