@@ -10,7 +10,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
     const description =
-        locationType === MapChartType.REGION
+        locationType === MapChartType.AREA
             ? 'Query metrics and dimensions with region data.'
             : 'Query metrics and dimensions with latitude/longitude data.';
 
@@ -45,11 +45,16 @@ type SimpleMapProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleMap: FC<SimpleMapProps> = memo((props) => {
-    const { chartRef, isLoading, visualizationConfig } =
+    const { chartRef, isLoading, visualizationConfig, resultsData } =
         useVisualizationContext();
     const mapOptions = useEchartsMapConfig({
         isInDashboard: props.isInDashboard,
     });
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+    }, [resultsData]);
 
     console.log(
         'SimpleMap render - isLoading:',
