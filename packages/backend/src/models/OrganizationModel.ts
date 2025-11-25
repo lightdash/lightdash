@@ -371,6 +371,7 @@ export class OrganizationModel {
                 organization_uuid: organizationUuid,
                 name: data.name,
                 colors: data.colors,
+                dark_colors: data.darkColors || null,
             })
             .returning('*');
 
@@ -407,6 +408,7 @@ export class OrganizationModel {
             .update({
                 name: data.name,
                 colors: data.colors,
+                dark_colors: data.darkColors,
             })
             .returning('*');
 
@@ -470,6 +472,7 @@ export class OrganizationModel {
             organizationUuid: palette.organization_uuid,
             name: palette.name,
             colors: palette.colors,
+            darkColors: palette.dark_colors,
             createdAt: palette.created_at,
         };
     }

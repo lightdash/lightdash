@@ -151,6 +151,7 @@ export type OrganizationColorPalette = {
     organizationUuid: string;
     name: string;
     colors: string[];
+    darkColors: string[] | null;
     createdAt: Date;
 };
 
@@ -161,12 +162,14 @@ export type OrganizationColorPaletteWithIsActive = OrganizationColorPalette & {
 export type CreateColorPalette = {
     name: string;
     colors: string[];
+    darkColors?: string[];
 };
 
 export type UpdateColorPalette = {
     uuid: string;
     name?: string;
     colors?: string[];
+    darkColors?: string[];
 };
 
 export type ApiColorPaletteResponse = {

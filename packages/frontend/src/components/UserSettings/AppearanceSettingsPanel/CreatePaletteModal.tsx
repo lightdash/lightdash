@@ -38,6 +38,7 @@ export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
         createColorPalette.mutate({
             name: values.name,
             colors: values.colors,
+            darkColors: values.darkColors,
         });
     };
 

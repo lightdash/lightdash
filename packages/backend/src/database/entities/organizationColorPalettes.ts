@@ -13,7 +13,7 @@ export type DbOrganizationColorPalette = {
 
 export type DbOrganizationColorPaletteIn = Pick<
     DbOrganizationColorPalette,
-    'name' | 'colors' | 'organization_uuid'
+    'name' | 'colors' | 'organization_uuid' | 'dark_colors'
 >;
 
 export type DbOrganizationColorPaletteUpdate = Partial<
