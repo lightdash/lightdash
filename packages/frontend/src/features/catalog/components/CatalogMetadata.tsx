@@ -144,7 +144,7 @@ export const CatalogMetadata: FC = () => {
                         },
                         placeholder: {
                             color: theme.colors.ldGray[7],
-                            backgroundColor: 'white',
+                            backgroundColor: theme.colors.background,
                         },
                     })}
                 >
@@ -387,7 +387,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
+                                    backgroundColor: theme.colors.background,
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
@@ -404,7 +404,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
+                                    backgroundColor: theme.colors.background,
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
@@ -416,7 +416,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: 'white',
+                                    backgroundColor: theme.colors.background,
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,

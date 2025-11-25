@@ -100,7 +100,8 @@ export const SuggestionList = forwardRef<
                                         fontSize: theme.fontSizes.xs,
                                         fontWeight: 400,
                                         textAlign: 'left',
-                                        backgroundColor: 'white',
+                                        backgroundColor:
+                                            theme.colors.background,
                                         color:
                                             index === selectedIndex
                                                 ? theme.colors.blue[6]

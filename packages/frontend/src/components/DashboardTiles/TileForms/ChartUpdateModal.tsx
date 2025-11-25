@@ -148,7 +148,8 @@ const ChartUpdateModal = ({
                                     separator: {
                                         position: 'sticky',
                                         top: 0,
-                                        backgroundColor: 'white',
+                                        backgroundColor:
+                                            theme.colors.background,
                                     },
                                     separatorLabel: {
                                         color: theme.colors.ldGray[6],

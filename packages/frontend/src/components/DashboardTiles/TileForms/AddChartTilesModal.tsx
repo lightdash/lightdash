@@ -264,13 +264,13 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                             separator: {
                                 position: 'sticky',
                                 top: 0,
-                                backgroundColor: 'white',
+                                backgroundColor: theme.colors.background,
                                 zIndex: getDefaultZIndex('modal'),
                             },
                             separatorLabel: {
                                 color: theme.colors.ldGray[6],
                                 fontWeight: 500,
-                                backgroundColor: 'white',
+                                backgroundColor: theme.colors.background,
                             },
                             item: {
                                 paddingTop: 4,
