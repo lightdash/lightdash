@@ -1,7 +1,7 @@
 .refreshItem {
     font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-gray-6);
-    border-top: 1px solid var(--mantine-color-gray-2);
+    color: var(--mantine-color-ldGray-6);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
     cursor: pointer;
     width: 100%;

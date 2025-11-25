@@ -262,7 +262,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 cursor: 'pointer',
                 backgroundColor:
                     selectedArtifactVersionUuid === row.original.versionUuid
-                        ? 'var(--mantine-color-gray-1)'
+                        ? 'var(--mantine-color-ldGray-1)'
                         : undefined,
             },
         }),

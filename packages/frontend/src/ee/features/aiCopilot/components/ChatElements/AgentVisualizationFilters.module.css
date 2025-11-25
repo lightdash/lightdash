@@ -1,7 +1,7 @@
 .filterButton {
     background-color: white;
     cursor: default;
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .filterButton:hover {

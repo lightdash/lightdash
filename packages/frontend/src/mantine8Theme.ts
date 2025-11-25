@@ -235,7 +235,7 @@ export const getMantine8ThemeOverride = (
             Modal: Modal.extend({
                 styles: () => ({
                     header: {
-                        borderBottom: `1px solid var(--mantine-color-gray-4)`,
+                        borderBottom: `1px solid var(--mantine-color-ldGray-4)`,
                         paddingBottom: 'var(--mantine-spacing-sm)',
                     },
                     body: {

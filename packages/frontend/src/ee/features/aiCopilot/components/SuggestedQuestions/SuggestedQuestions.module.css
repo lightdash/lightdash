@@ -6,7 +6,7 @@
     border-radius: var(--mantine-radius-md);
     transition: background-color 0.15s ease;
     display: block;
-    color: var(--mantine-color-gray-7);
+    color: var(--mantine-color-ldGray-7);
 }
 
 .questionCard:hover {
@@ -14,5 +14,5 @@
 }
 
 .questionCard:hover:not(:disabled) {
-    background-color: var(--mantine-color-gray-0);
+    background-color: var(--mantine-color-ldGray-0);
 }

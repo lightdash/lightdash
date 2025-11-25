@@ -3,12 +3,12 @@
     align-items: center;
     border-radius: var(--mantine-radius-md);
     border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
     padding: var(--mantine-spacing-xs);
     padding-left: calc(var(--mantine-spacing-xl) - var(--mantine-spacing-md));
     background-color: light-dark(
         var(--mantine-color-white),
-        var(--mantine-color-dark-5)
+        var(--mantine-color-ldDark-5)
     );
     margin-bottom: var(--mantine-spacing-xs);
 }
@@ -22,6 +22,9 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-1));
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldDark-1)
+    );
     cursor: grab;
 }

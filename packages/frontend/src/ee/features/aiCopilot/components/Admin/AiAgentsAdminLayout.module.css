@@ -3,11 +3,11 @@
 }
 
 .resizeHandle:hover {
-    background-color: var(--mantine-color-gray-2) !important;
+    background-color: var(--mantine-color-ldGray-2) !important;
 }
 
 .resizeHandle[data-resize-handle-state='drag'] {
-    background-color: var(--mantine-color-gray-3) !important;
+    background-color: var(--mantine-color-ldGray-3) !important;
 }
 
 .threadsTable {

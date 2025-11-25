@@ -35,7 +35,7 @@
     visibility: hidden;
     background-color: var(--mantine-color-white);
     border-radius: var(--mantine-radius-sm);
-    border: 1px solid var(--mantine-color-gray-2);
+    border: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
 }
 
@@ -44,7 +44,7 @@
 }
 
 .actionIcon {
-    background-color: var(--mantine-color-dark-5);
+    background-color: var(--mantine-color-ldDark-5);
     box-sizing: content-box;
     width: 36px;
     height: 36px;
@@ -60,11 +60,11 @@
 
 .paperRoot {
     overflow: hidden;
-    border-color: var(--mantine-color-gray-3) !important;
+    border-color: var(--mantine-color-ldGray-3) !important;
 }
 
 .adminSettingsButtonLabel {
-    color: var(--mantine-color-gray-7);
+    color: var(--mantine-color-ldGray-7);
 }
 
 .adminSettingsButtonSection {

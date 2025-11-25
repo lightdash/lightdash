@@ -21,7 +21,7 @@
 }
 
 .trendPillNeutral {
-    color: var(--mantine-color-gray-7);
-    background-color: var(--mantine-color-gray-0);
-    border-color: var(--mantine-color-gray-3);
+    color: var(--mantine-color-ldGray-7);
+    background-color: var(--mantine-color-ldGray-0);
+    border-color: var(--mantine-color-ldGray-3);
 }

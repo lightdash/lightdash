@@ -75,13 +75,13 @@
 }
 
 .title {
-    color: var(--mantine-color-gray-8);
+    color: var(--mantine-color-ldGray-8);
     line-height: 1.4;
     transition: color 0.12s ease;
 }
 
 .artifactButton:hover .title {
-    color: var(--mantine-color-gray-9);
+    color: var(--mantine-color-ldGray-9);
 }
 
 .artifactButton[data-artifact-open='true'] .title {

@@ -1,5 +1,5 @@
 .segmentedControl {
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-ldGray-3);
     background: var(--mantine-color-white);
     box-shadow: var(--mantine-shadow-subtle);
 }
@@ -12,5 +12,5 @@
 .label {
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
-    color: var(--mantine-color-gray-7);
+    color: var(--mantine-color-ldGray-7);
 }
