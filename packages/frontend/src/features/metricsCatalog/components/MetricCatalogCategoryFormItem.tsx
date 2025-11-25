@@ -85,12 +85,12 @@ const EditPopover: FC<EditPopoverProps> = ({
         >
             <Popover.Target>
                 <ActionIcon
-                    sx={{
+                    sx={(theme) => ({
                         visibility: hovered || opened ? 'visible' : 'hidden',
                         '&:hover': {
-                            backgroundColor: 'white',
+                            backgroundColor: theme.colors.background,
                         },
-                    }}
+                    })}
                     size="sm"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();

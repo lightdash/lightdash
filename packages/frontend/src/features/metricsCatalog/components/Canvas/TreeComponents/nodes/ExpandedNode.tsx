@@ -134,7 +134,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
             fz={14}
             sx={(theme) => ({
                 '&[data-with-border]': {
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background,
                     borderRadius: theme.radius.md,
                     border: `1px solid ${
                         selected ? theme.colors.blue[5] : theme.colors.ldGray[3]

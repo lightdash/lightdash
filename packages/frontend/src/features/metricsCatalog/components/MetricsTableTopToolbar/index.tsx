@@ -565,7 +565,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             indicator: {
                                 borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.ldGray[2]}`,
-                                backgroundColor: 'white',
+                                backgroundColor: theme.colors.background,
                                 boxShadow: theme.shadows.subtle,
                             },
                         })}
