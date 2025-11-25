@@ -206,14 +206,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             <Stack w="100%" spacing={0}>
                 <ScrollArea {...props}>
                     {searchedMaxResults ? (
-                        <Text
-                            color="dimmed"
-                            size="xs"
-                            px="sm"
-                            pt="xs"
-                            pb="xxs"
-                            bg="white"
-                        >
+                        <Text color="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
                             Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
                             {search ? 'Continue' : 'Start'} typing...
                         </Text>

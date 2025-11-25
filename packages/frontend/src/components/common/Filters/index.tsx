@@ -61,6 +61,7 @@ const getInvalidFilterRules = (
     }, []);
 
 const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
+    // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -246,7 +247,16 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                 ))}
 
             {isEditMode && (
-                <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
+                <Box
+                    pos="relative"
+                    sx={(theme) => ({
+                        zIndex: 2,
+                        backgroundColor:
+                            theme.colorScheme === 'dark'
+                                ? theme.colors.dark[6]
+                                : 'white',
+                    })}
+                >
                     {!isOpen ? (
                         <Group align="center" position="apart" sx={{ flex: 1 }}>
                             <Button
