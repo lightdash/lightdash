@@ -1,4 +1,5 @@
 import {
+    getItemId,
     isCustomDimension,
     isDimension,
     isMetric,
@@ -6,10 +7,17 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Select, TextInput } from '@mantine/core';
+import {
+    SegmentedControl,
+    Select,
+    Stack,
+    Switch,
+    TextInput,
+} from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 
 export const Layout: FC = memo(() => {
@@ -19,23 +27,13 @@ export const Layout: FC = memo(() => {
     const availableFields = useMemo(() => {
         if (!itemsMap) return [];
 
-        return Object.entries(itemsMap)
-            .filter(
-                ([_, item]) =>
-                    isDimension(item) ||
-                    isCustomDimension(item) ||
-                    isMetric(item) ||
-                    isTableCalculation(item),
-            )
-            .map(([fieldId, item]) => ({
-                value: fieldId,
-                label:
-                    'label' in item
-                        ? item.label
-                        : 'displayName' in item
-                        ? item.displayName
-                        : item.name,
-            }));
+        return Object.values(itemsMap).filter(
+            (item) =>
+                isDimension(item) ||
+                isCustomDimension(item) ||
+                isMetric(item) ||
+                isTableCalculation(item),
+        );
     }, [itemsMap]);
 
     if (!isMapVisualizationConfig(visualizationConfig)) {
@@ -65,118 +63,176 @@ export const Layout: FC = memo(() => {
             value: MapChartLocation.BEEF_CUTS,
             label: 'Beef Cuts (France) - SVG Test',
         },
-        { value: MapChartLocation.CUSTOM, label: 'Custom GeoJSON URL' },
     ];
 
     const locationTypeOptions = [
         {
             value: MapChartType.SCATTER,
-            label: 'Scatter plot',
+            label: 'Scatter',
         },
-        { value: MapChartType.AREA, label: 'Area map' },
+        { value: MapChartType.AREA, label: 'Area' },
     ];
 
     const locationType = validConfig.locationType || MapChartType.SCATTER;
+    const isCustomMap = validConfig.mapType === MapChartLocation.CUSTOM;
+
+    // Get selected field objects
+    const latitudeField = itemsMap
+        ? validConfig.latitudeFieldId
+            ? itemsMap[validConfig.latitudeFieldId]
+            : undefined
+        : undefined;
+    const longitudeField = itemsMap
+        ? validConfig.longitudeFieldId
+            ? itemsMap[validConfig.longitudeFieldId]
+            : undefined
+        : undefined;
+    const locationField = itemsMap
+        ? validConfig.locationFieldId
+            ? itemsMap[validConfig.locationFieldId]
+            : undefined
+        : undefined;
+    const valueField = itemsMap
+        ? validConfig.valueFieldId
+            ? itemsMap[validConfig.valueFieldId]
+            : undefined
+        : undefined;
 
     return (
-        <Config>
-            <Config.Section>
-                <Config.Heading>Map Configuration</Config.Heading>
+        <Stack>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Location</Config.Heading>
 
-                <Select
-                    label="Location"
-                    description="How to specify locations on the map"
-                    data={mapTypeOptions}
-                    value={validConfig.mapType || MapChartLocation.WORLD}
-                    onChange={(value) =>
-                        setMapType((value as MapChartLocation) || undefined)
-                    }
-                    mb="md"
-                />
-                {validConfig.mapType === MapChartLocation.CUSTOM && (
+                    <Select
+                        label="Map region"
+                        disabled={isCustomMap}
+                        data={mapTypeOptions}
+                        value={validConfig.mapType || MapChartLocation.WORLD}
+                        onChange={(value) =>
+                            setMapType((value as MapChartLocation) || undefined)
+                        }
+                    />
+
+                    <Switch
+                        label="Custom map"
+                        checked={isCustomMap}
+                        onChange={(e) => {
+                            if (e.currentTarget.checked) {
+                                setMapType(MapChartLocation.CUSTOM);
+                            } else {
+                                setMapType(MapChartLocation.WORLD);
+                                setCustomGeoJsonUrl(undefined);
+                            }
+                        }}
+                        mt="sm"
+                    />
+                </Config.Section>
+                {isCustomMap && (
                     <TextInput
-                        label="Custom Map URL"
-                        description="URL to a GeoJSON/TopoJSON/SVG file (e.g., https://example.com/map.json or /my-map.svg)"
-                        placeholder="https://example.com/map.json or /my-map.svg"
+                        label="Map URL"
+                        placeholder="https://example.com/map.json"
                         value={validConfig.customGeoJsonUrl || ''}
                         onChange={(e) =>
                             setCustomGeoJsonUrl(
                                 e.currentTarget.value || undefined,
                             )
                         }
-                        mb="md"
                     />
                 )}
+            </Config>
 
-                <Select
-                    label="Map Type"
-                    description="Choose how data is displayed on the map"
-                    data={locationTypeOptions}
-                    value={locationType}
-                    onChange={(value) =>
-                        setLocationType((value as MapChartType) || undefined)
-                    }
-                    mb="md"
-                />
-
-                {locationType === MapChartType.SCATTER && (
-                    <>
-                        <Select
-                            label="Latitude Field"
-                            description="Select the field containing latitude values (-90 to 90)"
-                            placeholder="Select latitude field"
-                            data={availableFields}
-                            value={validConfig.latitudeFieldId || null}
-                            onChange={(value) =>
-                                setLatitudeFieldId(value || undefined)
-                            }
-                            searchable
-                            clearable
-                            mb="md"
-                        />
-                        <Select
-                            label="Longitude Field"
-                            description="Select the field containing longitude values (-180 to 180)"
-                            placeholder="Select longitude field"
-                            data={availableFields}
-                            value={validConfig.longitudeFieldId || null}
-                            onChange={(value) =>
-                                setLongitudeFieldId(value || undefined)
-                            }
-                            searchable
-                            clearable
-                            mb="md"
-                        />
-                    </>
-                )}
-
-                {locationType === MapChartType.AREA && (
-                    <Select
-                        label="Region Field"
-                        description="Select the field containing region names (e.g., country names, state codes, or custom region identifiers)"
-                        placeholder="Select region field"
-                        data={availableFields}
-                        value={validConfig.locationFieldId || null}
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Map Type</Config.Heading>
+                    <SegmentedControl
+                        data={locationTypeOptions}
+                        value={locationType}
                         onChange={(value) =>
-                            setLocationFieldId(value || undefined)
+                            setLocationType(
+                                (value as MapChartType) || undefined,
+                            )
                         }
-                        searchable
-                        clearable
-                        mb="md"
+                        fullWidth
                     />
-                )}
+                </Config.Section>
+            </Config>
 
-                <Select
-                    label="Value Field (Optional)"
-                    description="Select a field to determine the size/intensity of locations on the map"
-                    placeholder="Select value field"
-                    data={availableFields}
-                    value={validConfig.valueFieldId || null}
-                    onChange={(value) => setValueFieldId(value || undefined)}
-                    searchable
-                    clearable
-                />
-            </Config.Section>
-        </Config>
+            {locationType === MapChartType.SCATTER && (
+                <Config>
+                    <Config.Section>
+                        <FieldSelect
+                            label="Latitude field"
+                            description="Field containing latitude values (-90 to 90)"
+                            placeholder="Select latitude field"
+                            item={latitudeField}
+                            items={availableFields}
+                            onChange={(newField) =>
+                                setLatitudeFieldId(
+                                    newField ? getItemId(newField) : undefined,
+                                )
+                            }
+                            hasGrouping
+                            clearable
+                        />
+                        <FieldSelect
+                            label="Longitude field"
+                            description="Field containing longitude values (-180 to 180)"
+                            placeholder="Select longitude field"
+                            item={longitudeField}
+                            items={availableFields}
+                            onChange={(newField) =>
+                                setLongitudeFieldId(
+                                    newField ? getItemId(newField) : undefined,
+                                )
+                            }
+                            hasGrouping
+                            clearable
+                        />
+                    </Config.Section>
+                </Config>
+            )}
+
+            {locationType === MapChartType.AREA && (
+                <Config>
+                    <Config.Section>
+                        <FieldSelect
+                            label="Region field"
+                            description="Field containing region names (e.g., country, state)"
+                            placeholder="Select region field"
+                            item={locationField}
+                            items={availableFields}
+                            onChange={(newField) =>
+                                setLocationFieldId(
+                                    newField ? getItemId(newField) : undefined,
+                                )
+                            }
+                            hasGrouping
+                            clearable
+                        />
+                    </Config.Section>
+                </Config>
+            )}
+
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Value</Config.Heading>
+                    <FieldSelect
+                        label="Value field (optional)"
+                        description="Field to determine size/intensity"
+                        placeholder="Select value field"
+                        item={valueField}
+                        items={availableFields}
+                        onChange={(newField) =>
+                            setValueFieldId(
+                                newField ? getItemId(newField) : undefined,
+                            )
+                        }
+                        hasGrouping
+                        clearable
+                    />
+                </Config.Section>
+            </Config>
+        </Stack>
     );
 });

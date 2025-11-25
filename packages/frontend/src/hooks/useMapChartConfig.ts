@@ -5,7 +5,7 @@ import {
     type ItemsMap,
     type MapChart,
 } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 // Default colors for the region color gradient
 export const DEFAULT_MAP_COLORS = {
@@ -32,7 +32,7 @@ type MapChartConfig = {
 
 const useMapChartConfig = (
     initialConfig: MapChart | undefined,
-    _itemsMap: ItemsMap | undefined,
+    itemsMap: ItemsMap | undefined,
 ): MapChartConfig => {
     const [mapType, setMapTypeState] = useState<MapChartLocation | undefined>(
         initialConfig?.mapType ?? MapChartLocation.WORLD,
@@ -42,7 +42,7 @@ const useMapChartConfig = (
     >(initialConfig?.customGeoJsonUrl);
     const [locationType, setLocationTypeState] = useState<
         MapChartType | undefined
-    >(initialConfig?.locationType ?? MapChartType.LAT_LONG);
+    >(initialConfig?.locationType ?? MapChartType.SCATTER);
     const [latitudeFieldId, setLatitudeFieldIdState] = useState<
         string | undefined
     >(initialConfig?.latitudeFieldId);
@@ -64,6 +64,59 @@ const useMapChartConfig = (
     const [colorRangeHigh, setColorRangeHighState] = useState<
         string | undefined
     >(initialConfig?.colorRangeHigh);
+
+    // Auto-fill latitude/longitude fields when switching to scatter mode
+    useEffect(() => {
+        if (
+            locationType === MapChartType.SCATTER &&
+            itemsMap &&
+            (!latitudeFieldId || !longitudeFieldId)
+        ) {
+            const items = Object.entries(itemsMap);
+
+            // Try to find latitude field if not set
+            if (!latitudeFieldId) {
+                const latField = items.find(([_, item]) => {
+                    const name = (
+                        'label' in item
+                            ? item.label
+                            : 'displayName' in item
+                            ? item.displayName
+                            : 'name' in item
+                            ? item.name
+                            : ''
+                    ).toLowerCase();
+                    return name === 'latitude' || name === 'lat';
+                });
+                if (latField) {
+                    setLatitudeFieldIdState(latField[0]);
+                }
+            }
+
+            // Try to find longitude field if not set
+            if (!longitudeFieldId) {
+                const lonField = items.find(([_, item]) => {
+                    const name = (
+                        'label' in item
+                            ? item.label
+                            : 'displayName' in item
+                            ? item.displayName
+                            : 'name' in item
+                            ? item.name
+                            : ''
+                    ).toLowerCase();
+                    return (
+                        name === 'longitude' ||
+                        name === 'lon' ||
+                        name === 'long'
+                    );
+                });
+                if (lonField) {
+                    setLongitudeFieldIdState(lonField[0]);
+                }
+            }
+        }
+    }, [locationType, itemsMap, latitudeFieldId, longitudeFieldId]);
 
     const validConfig: MapChart = useMemo(() => {
         return {
@@ -94,7 +147,7 @@ const useMapChartConfig = (
     const defaultConfig: MapChart = useMemo(() => {
         return {
             mapType: MapChartLocation.WORLD,
-            locationType: MapChartType.LAT_LONG,
+            locationType: MapChartType.SCATTER,
             colorRangeLow: DEFAULT_MAP_COLORS.low,
             colorRangeMid: DEFAULT_MAP_COLORS.mid,
             colorRangeHigh: DEFAULT_MAP_COLORS.high,
