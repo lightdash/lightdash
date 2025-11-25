@@ -10,7 +10,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, useMantineColorScheme } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -69,7 +69,15 @@ type Props = {
 const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
     const dispatch = useExplorerDispatch();
+
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && org?.chartDarkColors) {
+            return org.chartDarkColors;
+        }
+        return org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, org?.chartColors, org?.chartDarkColors]);
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -261,7 +269,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}
-                colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
+                colorPalette={colorPalette}
                 tableCalculationsMetadata={tableCalculationsMetadata}
                 parameters={query.data?.usedParametersValues}
                 containerWidth={containerWidth}
