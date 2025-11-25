@@ -13,6 +13,7 @@ import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import ReactJson from 'react-json-view';
 import { type ProjectCompileLog } from '../../hooks/useProjectCompileLogs';
+import { useRjvTheme } from '../../hooks/useRjvTheme';
 import MantineIcon from '../common/MantineIcon';
 
 type CompilationLogDrawerProps = {
@@ -26,6 +27,7 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
     onClose,
     log,
 }) => {
+    const theme = useRjvTheme();
     return (
         <Drawer
             opened={opened}
@@ -69,6 +71,7 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
                     {log && (
                         <Box>
                             <ReactJson
+                                theme={theme}
                                 src={log as Record<string, unknown>}
                                 enableClipboard={false}
                                 displayDataTypes={false}

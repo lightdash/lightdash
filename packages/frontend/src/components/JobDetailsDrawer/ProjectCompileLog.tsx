@@ -3,6 +3,7 @@ import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import ReactJson from 'react-json-view';
 import { useProjectCompileLogByJob } from '../../hooks/useProjectCompileLogs';
+import { useRjvTheme } from '../../hooks/useRjvTheme';
 import MantineIcon from '../common/MantineIcon';
 import { CollapsablePaper } from './../common/CollapsablePaper';
 
@@ -19,6 +20,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
         projectUuid,
         jobUuid,
     });
+    const theme = useRjvTheme();
 
     if (!compileLog) {
         return null;
@@ -43,6 +45,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
         >
             <Box>
                 <ReactJson
+                    theme={theme}
                     style={{ fontSize: '12px' }}
                     src={compileLog}
                     enableClipboard={true}
