@@ -62,10 +62,12 @@ const darkModeColors = {
     ] as ColorTuple,
 };
 
-export const getMantineThemeOverride = (overrides?: {
-    colorScheme?: ColorScheme;
-    components?: Partial<MantineThemeOverride['components']>;
-}) =>
+export const getMantineThemeOverride = (
+    colorScheme: ColorScheme,
+    overrides?: {
+        components?: Partial<MantineThemeOverride['components']>;
+    },
+) =>
     ({
         ...overrides,
 
@@ -75,10 +77,7 @@ export const getMantineThemeOverride = (overrides?: {
         // Without it things look a little darker than before.
         black: '#111418',
 
-        colors:
-            overrides?.colorScheme === 'dark'
-                ? darkModeColors
-                : lightModeColors,
+        colors: colorScheme === 'dark' ? darkModeColors : lightModeColors,
 
         spacing: {
             one: rem(1),

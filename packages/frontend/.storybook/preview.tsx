@@ -8,7 +8,7 @@ import Mantine8Provider from '../src/providers/Mantine8Provider';
 // All stories will have the Mantine theme applied
 const ThemeWrapper = (props: { children: React.ReactNode }) => (
     <MantineProvider
-        theme={getMantineThemeOverride()}
+        theme={getMantineThemeOverride('light')}
         withGlobalStyles
         withNormalizeCSS
     >

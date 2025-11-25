@@ -1,5 +1,9 @@
-import { MantineProvider, type MantineTheme } from '@mantine/core';
-import { type FC } from 'react';
+import {
+    MantineProvider,
+    type MantineTheme,
+    useMantineColorScheme,
+} from '@mantine/core';
+import { type FC, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../components/common/Page/Page';
 import { MetricsCatalogPanel } from '../features/metricsCatalog';
@@ -14,17 +18,21 @@ type MetricsCatalogProps = {
 const MetricsCatalog: FC<MetricsCatalogProps> = ({
     metricCatalogView = MetricCatalogView.LIST,
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const theme = useMemo(
+        () => getMantineThemeOverride(colorScheme),
+        [colorScheme],
+    );
+
     return (
         <Provider store={store}>
             <MantineProvider
                 theme={{
                     // TODO: Introduce Inter as a font in the theme globally
-                    ...getMantineThemeOverride(),
-                    fontFamily: `Inter, ${
-                        getMantineThemeOverride().fontFamily
-                    }`,
+                    ...theme,
+                    fontFamily: `Inter, ${theme.fontFamily}`,
                     components: {
-                        ...getMantineThemeOverride().components,
+                        ...theme.components,
                         Tooltip: {
                             defaultProps: {
                                 openDelay: 200,
@@ -47,9 +55,9 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
                                 radius: 'md',
                                 shadow: 'subtle',
                                 withBorder: true,
-                                sx: (theme: MantineTheme) => ({
+                                sx: (t: MantineTheme) => ({
                                     '&[data-with-border]': {
-                                        border: `1px solid ${theme.colors.ldGray[2]}`,
+                                        border: `1px solid ${t.colors.ldGray[2]}`,
                                     },
                                 }),
                             },
