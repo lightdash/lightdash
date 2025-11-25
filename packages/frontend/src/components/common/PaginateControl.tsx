@@ -24,11 +24,11 @@ const PaginateControl: FC<PaginateControlProps> = ({
         <Group {...rest}>
             <Text color="ldGray.7" size="xs">
                 Page{' '}
-                <Text span fw={600} color="black">
+                <Text span fw={600}>
                     {currentPage}
                 </Text>{' '}
                 of{' '}
-                <Text span fw={600} color="black">
+                <Text span fw={600}>
                     {totalPages}
                 </Text>
             </Text>

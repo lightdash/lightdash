@@ -248,6 +248,17 @@ export const getMantineThemeOverride = (
         },
 
         globalStyles: (theme) => ({
+            ':root': {
+                '--table-selected-bg':
+                    theme.colorScheme === 'dark'
+                        ? theme.colors.blue[9]
+                        : '#ECF6FE',
+                '--table-selected-border':
+                    theme.colorScheme === 'dark'
+                        ? theme.colors.blue[5]
+                        : '#4170CB',
+            },
+
             'html, body': {
                 backgroundColor: theme.colors.ldGray[0],
             },

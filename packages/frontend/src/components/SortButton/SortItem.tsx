@@ -66,7 +66,6 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 {...draggableProps}
                 noWrap
                 position="apart"
-                bg="white"
                 pl="xs"
                 pr="xxs"
                 py="two"
