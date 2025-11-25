@@ -216,7 +216,7 @@ export const EvalRunDetails: FC<Props> = ({
                 style: {
                     cursor: isClickable ? 'pointer' : 'default',
                     backgroundColor: selected
-                        ? 'var(--mantine-color-gray-1)'
+                        ? 'var(--mantine-color-ldGray-1)'
                         : undefined,
                 },
             };

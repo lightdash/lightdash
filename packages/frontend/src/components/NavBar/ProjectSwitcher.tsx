@@ -490,7 +490,7 @@ const ProjectSwitcher = () => {
                             styles={{
                                 input: {
                                     backgroundColor: 'transparent',
-                                    border: `1px solid var(--mantine-color-dark-4)`,
+                                    border: `1px solid var(--mantine-color-ldDark-4)`,
                                     '&:focus': {
                                         borderColor:
                                             'var(--mantine-color-blue-6)',
