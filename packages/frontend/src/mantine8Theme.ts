@@ -11,18 +11,14 @@ import {
     Textarea,
     TextInput,
     type ButtonVariant,
+    type DefaultMantineColor,
+    type MantineColorsTuple,
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
+import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
-import { getMantineThemeOverride as getLegacyTheme } from './mantineTheme';
-
-const { colors, components, ...legacyTheme } = getLegacyTheme();
-const {
-    Button: _Button,
-    ScrollArea: _ScrollArea,
-    ...legacyComponentsTheme
-} = components;
+import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
 
 declare module '@mantine-8/core' {
     export interface ButtonProps {
@@ -35,7 +31,13 @@ declare module '@mantine-8/core' {
          */
         delayedMessage?: string;
     }
+
+    export interface MantineThemeColorsOverride {
+        colors: Record<ExtendedCustomColors, MantineColorsTuple>;
+    }
 }
+
+type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
 
 const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
@@ -55,9 +57,19 @@ const subtleInputStyles = (theme: MantineTheme) => ({
 });
 
 export const getMantine8ThemeOverride = (
+    colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
-) =>
-    ({
+) => {
+    const { colors, components, ...legacyTheme } =
+        getMantine6ThemeOverride(colorScheme);
+
+    const {
+        Button: _Button,
+        ScrollArea: _ScrollArea,
+        ...legacyComponentsTheme
+    } = components;
+
+    return {
         ...legacyTheme,
         ...overrides,
         colors,
@@ -235,4 +247,5 @@ export const getMantine8ThemeOverride = (
             }),
             ...overrides?.components,
         },
-    } satisfies MantineThemeOverride);
+    } satisfies MantineThemeOverride;
+};
