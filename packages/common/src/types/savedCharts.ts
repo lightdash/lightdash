@@ -140,7 +140,7 @@ export type GaugeChart = {
     sections?: GaugeSection[];
 };
 
-export enum MapChartMapType {
+export enum MapChartLocation {
     USA = 'USA',
     USA_COUNTIES = 'USA_COUNTIES',
     WORLD = 'world',
@@ -150,15 +150,15 @@ export enum MapChartMapType {
     CUSTOM = 'custom',
 }
 
-export enum MapChartLocationType {
-    LAT_LONG = 'lat_long',
-    REGION = 'region',
+export enum MapChartType {
+    SCATTER = 'scatter',
+    AREA = 'area',
 }
 
 export type MapChart = {
-    mapType?: MapChartMapType;
+    mapType?: MapChartLocation;
     customGeoJsonUrl?: string;
-    locationType?: MapChartLocationType;
+    locationType?: MapChartType;
     // Lat/Long fields
     latitudeFieldId?: string;
     longitudeFieldId?: string;

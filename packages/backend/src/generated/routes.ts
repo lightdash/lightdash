@@ -4277,22 +4277,22 @@ const models: TsoaRoute.Models = {
         enums: ['map'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MapChartMapType: {
+    MapChartLocation: {
         dataType: 'refEnum',
         enums: [
             'USA',
+            'USA_COUNTIES',
             'world',
             'europe',
-            'uk',
             'norway',
             'beef_cuts',
             'custom',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MapChartLocationType: {
+    MapChartType: {
         dataType: 'refEnum',
-        enums: ['country', 'region', 'lat_long'],
+        enums: ['scatter', 'area'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapChart: {
@@ -4300,14 +4300,17 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                colorRangeHigh: { dataType: 'string' },
+                colorRangeMid: { dataType: 'string' },
+                colorRangeLow: { dataType: 'string' },
                 showLegend: { dataType: 'boolean' },
                 valueFieldId: { dataType: 'string' },
                 locationFieldId: { dataType: 'string' },
                 longitudeFieldId: { dataType: 'string' },
                 latitudeFieldId: { dataType: 'string' },
-                locationType: { ref: 'MapChartLocationType' },
+                locationType: { ref: 'MapChartType' },
                 customGeoJsonUrl: { dataType: 'string' },
-                mapType: { ref: 'MapChartMapType' },
+                mapType: { ref: 'MapChartLocation' },
             },
             validators: {},
         },
@@ -6698,11 +6701,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -6771,7 +6774,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                chartUsage:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -6794,7 +6797,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                searchRank:
+                                                                                                chartUsage:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -6956,11 +6959,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -7040,7 +7043,7 @@ const models: TsoaRoute.Models = {
                                                                                                 'nestedObjectLiteral',
                                                                                             nestedProperties:
                                                                                                 {
-                                                                                                    chartUsage:
+                                                                                                    searchRank:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7063,7 +7066,7 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    searchRank:
+                                                                                                    chartUsage:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7141,11 +7144,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,

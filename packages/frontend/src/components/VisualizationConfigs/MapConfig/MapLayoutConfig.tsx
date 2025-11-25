@@ -3,8 +3,8 @@ import {
     isDimension,
     isMetric,
     isTableCalculation,
-    MapChartLocationType,
-    MapChartMapType,
+    MapChartLocation,
+    MapChartType,
 } from '@lightdash/common';
 import { Select, TextInput } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
@@ -56,44 +56,44 @@ export const Layout: FC = memo(() => {
     } = visualizationConfig;
 
     const mapTypeOptions = [
-        { value: MapChartMapType.WORLD, label: 'World' },
-        { value: MapChartMapType.EUROPE, label: 'Europe' },
-        { value: MapChartMapType.USA, label: 'USA' },
-        { value: MapChartMapType.USA_COUNTIES, label: 'USA Counties' },
-        { value: MapChartMapType.NORWAY, label: 'Norway' },
+        { value: MapChartLocation.WORLD, label: 'World' },
+        { value: MapChartLocation.EUROPE, label: 'Europe' },
+        { value: MapChartLocation.USA, label: 'USA' },
+        { value: MapChartLocation.USA_COUNTIES, label: 'USA Counties' },
+        { value: MapChartLocation.NORWAY, label: 'Norway' },
         {
-            value: MapChartMapType.BEEF_CUTS,
+            value: MapChartLocation.BEEF_CUTS,
             label: 'Beef Cuts (France) - SVG Test',
         },
-        { value: MapChartMapType.CUSTOM, label: 'Custom GeoJSON URL' },
+        { value: MapChartLocation.CUSTOM, label: 'Custom GeoJSON URL' },
     ];
 
     const locationTypeOptions = [
         {
-            value: MapChartLocationType.LAT_LONG,
-            label: 'Latitude/Longitude',
+            value: MapChartType.SCATTER,
+            label: 'Scatter plot',
         },
-        { value: MapChartLocationType.REGION, label: 'Region' },
+        { value: MapChartType.AREA, label: 'Area map' },
     ];
 
-    const locationType =
-        validConfig.locationType || MapChartLocationType.LAT_LONG;
+    const locationType = validConfig.locationType || MapChartType.SCATTER;
 
     return (
         <Config>
             <Config.Section>
                 <Config.Heading>Map Configuration</Config.Heading>
+
                 <Select
-                    label="Map Type"
-                    description="Select the geographic region to display"
+                    label="Location"
+                    description="How to specify locations on the map"
                     data={mapTypeOptions}
-                    value={validConfig.mapType || MapChartMapType.WORLD}
+                    value={validConfig.mapType || MapChartLocation.WORLD}
                     onChange={(value) =>
-                        setMapType((value as MapChartMapType) || undefined)
+                        setMapType((value as MapChartLocation) || undefined)
                     }
                     mb="md"
                 />
-                {validConfig.mapType === MapChartMapType.CUSTOM && (
+                {validConfig.mapType === MapChartLocation.CUSTOM && (
                     <TextInput
                         label="Custom Map URL"
                         description="URL to a GeoJSON/TopoJSON/SVG file (e.g., https://example.com/map.json or /my-map.svg)"
@@ -107,20 +107,19 @@ export const Layout: FC = memo(() => {
                         mb="md"
                     />
                 )}
+
                 <Select
-                    label="Location Type"
-                    description="How to specify locations on the map"
+                    label="Map Type"
+                    description="Choose how data is displayed on the map"
                     data={locationTypeOptions}
                     value={locationType}
                     onChange={(value) =>
-                        setLocationType(
-                            (value as MapChartLocationType) || undefined,
-                        )
+                        setLocationType((value as MapChartType) || undefined)
                     }
                     mb="md"
                 />
 
-                {locationType === MapChartLocationType.LAT_LONG && (
+                {locationType === MapChartType.SCATTER && (
                     <>
                         <Select
                             label="Latitude Field"
@@ -151,7 +150,7 @@ export const Layout: FC = memo(() => {
                     </>
                 )}
 
-                {locationType === MapChartLocationType.REGION && (
+                {locationType === MapChartType.AREA && (
                     <Select
                         label="Region Field"
                         description="Select the field containing region names (e.g., country names, state codes, or custom region identifiers)"

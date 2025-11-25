@@ -1,7 +1,7 @@
 import {
     ChartType,
-    MapChartLocationType,
-    MapChartMapType,
+    MapChartLocation,
+    MapChartType,
     type ItemsMap,
     type MapChart,
 } from '@lightdash/common';
@@ -18,9 +18,9 @@ type MapChartConfig = {
     chartType: ChartType.MAP;
     validConfig: MapChart;
     defaultConfig: MapChart;
-    setMapType: (mapType: MapChartMapType | undefined) => void;
+    setMapType: (mapType: MapChartLocation | undefined) => void;
     setCustomGeoJsonUrl: (url: string | undefined) => void;
-    setLocationType: (locationType: MapChartLocationType | undefined) => void;
+    setLocationType: (locationType: MapChartType | undefined) => void;
     setLatitudeFieldId: (fieldId: string | undefined) => void;
     setLongitudeFieldId: (fieldId: string | undefined) => void;
     setLocationFieldId: (fieldId: string | undefined) => void;
@@ -34,15 +34,15 @@ const useMapChartConfig = (
     initialConfig: MapChart | undefined,
     _itemsMap: ItemsMap | undefined,
 ): MapChartConfig => {
-    const [mapType, setMapTypeState] = useState<MapChartMapType | undefined>(
-        initialConfig?.mapType ?? MapChartMapType.WORLD,
+    const [mapType, setMapTypeState] = useState<MapChartLocation | undefined>(
+        initialConfig?.mapType ?? MapChartLocation.WORLD,
     );
     const [customGeoJsonUrl, setCustomGeoJsonUrlState] = useState<
         string | undefined
     >(initialConfig?.customGeoJsonUrl);
     const [locationType, setLocationTypeState] = useState<
-        MapChartLocationType | undefined
-    >(initialConfig?.locationType ?? MapChartLocationType.LAT_LONG);
+        MapChartType | undefined
+    >(initialConfig?.locationType ?? MapChartType.LAT_LONG);
     const [latitudeFieldId, setLatitudeFieldIdState] = useState<
         string | undefined
     >(initialConfig?.latitudeFieldId);
@@ -93,8 +93,8 @@ const useMapChartConfig = (
 
     const defaultConfig: MapChart = useMemo(() => {
         return {
-            mapType: MapChartMapType.WORLD,
-            locationType: MapChartLocationType.LAT_LONG,
+            mapType: MapChartLocation.WORLD,
+            locationType: MapChartType.LAT_LONG,
             colorRangeLow: DEFAULT_MAP_COLORS.low,
             colorRangeMid: DEFAULT_MAP_COLORS.mid,
             colorRangeHigh: DEFAULT_MAP_COLORS.high,
@@ -102,7 +102,7 @@ const useMapChartConfig = (
     }, []);
 
     const setMapType = useCallback(
-        (newMapType: MapChartMapType | undefined) => {
+        (newMapType: MapChartLocation | undefined) => {
             setMapTypeState(newMapType);
         },
         [],
@@ -113,7 +113,7 @@ const useMapChartConfig = (
     }, []);
 
     const setLocationType = useCallback(
-        (newLocationType: MapChartLocationType | undefined) => {
+        (newLocationType: MapChartType | undefined) => {
             setLocationTypeState(newLocationType);
         },
         [],

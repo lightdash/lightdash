@@ -1,4 +1,4 @@
-import { MapChartLocationType, MapChartMapType } from '@lightdash/common';
+import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import * as echarts from 'echarts';
 import { type EChartsOption } from 'echarts';
@@ -23,7 +23,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         return visualizationConfig.chartConfig;
     }, [visualizationConfig]);
 
-    const mapType = chartConfig?.validConfig?.mapType || MapChartMapType.WORLD;
+    const mapType = chartConfig?.validConfig?.mapType || MapChartLocation.WORLD;
     const customGeoJsonUrl = chartConfig?.validConfig?.customGeoJsonUrl;
 
     console.log(
@@ -35,7 +35,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
     // Generate a unique map key for custom maps
     const mapKey = useMemo(() => {
-        if (mapType === MapChartMapType.CUSTOM && customGeoJsonUrl) {
+        if (mapType === MapChartLocation.CUSTOM && customGeoJsonUrl) {
             return `custom_${customGeoJsonUrl}`;
         }
         return mapType;
@@ -45,14 +45,14 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
     // Load and register maps
     useEffect(() => {
-        const loadMap = async (type: MapChartMapType, customUrl?: string) => {
+        const loadMap = async (type: MapChartLocation, customUrl?: string) => {
             const key = customUrl ? `custom_${customUrl}` : type;
             if (mapsLoaded.has(key)) {
                 return;
             }
 
             let url: string;
-            if (type === MapChartMapType.CUSTOM && customUrl) {
+            if (type === MapChartLocation.CUSTOM && customUrl) {
                 // Use backend proxy for external URLs to bypass CORS
                 // Check if the URL is external (starts with http:// or https://)
                 const isExternalUrl =
@@ -73,19 +73,19 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
             } else {
                 let fileName: string;
                 switch (type) {
-                    case MapChartMapType.USA:
+                    case MapChartLocation.USA:
                         fileName = 'us-states-albers.json';
                         break;
-                    case MapChartMapType.USA_COUNTIES:
+                    case MapChartLocation.USA_COUNTIES:
                         fileName = 'us-counties-albers.json';
                         break;
-                    case MapChartMapType.EUROPE:
+                    case MapChartLocation.EUROPE:
                         fileName = 'europe.json';
                         break;
-                    case MapChartMapType.NORWAY:
+                    case MapChartLocation.NORWAY:
                         fileName = 'norway.topojson';
                         break;
-                    case MapChartMapType.BEEF_CUTS:
+                    case MapChartLocation.BEEF_CUTS:
                         fileName = 'beef.svg';
                         break;
                     default:
@@ -192,7 +192,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
         // Only pass customGeoJsonUrl if the mapType is CUSTOM
         const urlToLoad =
-            mapType === MapChartMapType.CUSTOM ? customGeoJsonUrl : undefined;
+            mapType === MapChartLocation.CUSTOM ? customGeoJsonUrl : undefined;
         console.log(
             'useEffect loadMap - mapType:',
             mapType,
@@ -235,7 +235,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
         // Check if we're using lat/long or region-based location
         const isLatLong =
-            !locationType || locationType === MapChartLocationType.LAT_LONG;
+            !locationType || locationType === MapChartType.SCATTER;
 
         // Transform data based on location type
         let scatterData: Array<{
@@ -302,8 +302,8 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
         // Check if this is a pre-projected map (Albers) that needs identity projection
         const isPreProjected =
-            mapType === MapChartMapType.USA ||
-            mapType === MapChartMapType.USA_COUNTIES;
+            mapType === MapChartLocation.USA ||
+            mapType === MapChartLocation.USA_COUNTIES;
         const projection = isPreProjected
             ? {
                   project: (point: [number, number]) => point,
@@ -406,7 +406,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                 ],
             };
         }
-    }, [chartConfig, resultsData, mapKey, mapsLoaded, theme]);
+    }, [chartConfig, resultsData, mapKey, mapsLoaded, theme, mapType]);
 
     console.log('eChartsOption', eChartsOption);
     return eChartsOption ? { eChartsOption } : undefined;

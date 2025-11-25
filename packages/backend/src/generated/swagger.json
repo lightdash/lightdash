@@ -4677,24 +4677,33 @@
                 "enum": ["map"],
                 "type": "string"
             },
-            "MapChartMapType": {
+            "MapChartLocation": {
                 "enum": [
                     "USA",
+                    "USA_COUNTIES",
                     "world",
                     "europe",
-                    "uk",
                     "norway",
                     "beef_cuts",
                     "custom"
                 ],
                 "type": "string"
             },
-            "MapChartLocationType": {
-                "enum": ["country", "region", "lat_long"],
+            "MapChartType": {
+                "enum": ["scatter", "area"],
                 "type": "string"
             },
             "MapChart": {
                 "properties": {
+                    "colorRangeHigh": {
+                        "type": "string"
+                    },
+                    "colorRangeMid": {
+                        "type": "string"
+                    },
+                    "colorRangeLow": {
+                        "type": "string"
+                    },
                     "showLegend": {
                         "type": "boolean"
                     },
@@ -4711,13 +4720,13 @@
                         "type": "string"
                     },
                     "locationType": {
-                        "$ref": "#/components/schemas/MapChartLocationType"
+                        "$ref": "#/components/schemas/MapChartType"
                     },
                     "customGeoJsonUrl": {
                         "type": "string"
                     },
                     "mapType": {
-                        "$ref": "#/components/schemas/MapChartMapType"
+                        "$ref": "#/components/schemas/MapChartLocation"
                     }
                 },
                 "type": "object"
@@ -7469,30 +7478,17 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -7562,8 +7558,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -7607,12 +7603,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -7661,8 +7657,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },

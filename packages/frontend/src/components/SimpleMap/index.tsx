@@ -1,4 +1,4 @@
-import { MapChartLocationType } from '@lightdash/common';
+import { MapChartType } from '@lightdash/common';
 import { IconMap } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useEffect, type FC } from 'react';
@@ -8,11 +8,9 @@ import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
-const EmptyChart: FC<{ locationType?: MapChartLocationType }> = ({
-    locationType,
-}) => {
+const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
     const description =
-        locationType === MapChartLocationType.REGION
+        locationType === MapChartType.REGION
             ? 'Query metrics and dimensions with region data.'
             : 'Query metrics and dimensions with latitude/longitude data.';
 
