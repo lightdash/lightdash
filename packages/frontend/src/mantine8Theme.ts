@@ -43,15 +43,15 @@ const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
         fontWeight: 500,
         fontSize: 14,
-        '--input-bd': theme.colors.gray[2],
+        '--input-bd': theme.colors.ldGray[2],
         borderRadius: theme.radius.md,
         boxShadow: theme.shadows.subtle,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        color: theme.colors.dark[7],
+        color: theme.colors.ldDark[7],
     },
     label: {
         fontWeight: 500,
-        color: theme.colors.gray[7],
+        color: theme.colors.ldGray[7],
         marginBottom: theme.spacing.xxs,
     },
 });
@@ -88,7 +88,7 @@ export const getMantine8ThemeOverride = (
             Card: Card.extend({
                 styles: (theme) => ({
                     root: {
-                        borderColor: theme.colors.gray[2],
+                        borderColor: theme.colors.ldGray[2],
                     },
                 }),
             }),
@@ -97,10 +97,10 @@ export const getMantine8ThemeOverride = (
                     props.variant === 'outline'
                         ? {
                               root: {
-                                  border: `1px solid ${theme.colors.gray[2]}`,
-                                  color: theme.colors.gray[7],
+                                  border: `1px solid ${theme.colors.ldGray[2]}`,
+                                  color: theme.colors.ldGray[7],
                                   '&:hover': {
-                                      backgroundColor: theme.colors.gray[1],
+                                      backgroundColor: theme.colors.ldGray[1],
                                   },
                               },
                           }
@@ -111,26 +111,24 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'compact-outline') {
                         return {
                             root: {
-                                '--button-bd': `1px solid ${theme.colors.gray[2]}`,
+                                '--button-bd': `1px solid ${theme.colors.ldGray[2]}`,
                             },
                         };
                     }
                     if (props.variant === 'subtle') {
-                        console.log(theme);
-
                         return {
                             root: {
-                                '--button-color': theme.colors.gray[7],
-                                '--button-hover': theme.colors.gray[1],
+                                '--button-color': theme.colors.ldGray[7],
+                                '--button-hover': theme.colors.ldGray[1],
                             },
                         };
                     }
                     if (props.variant === 'dark') {
                         return {
                             root: {
-                                '--button-bg': theme.colors.dark[9],
-                                '--button-hover': theme.colors.dark[5],
-                                '--button-color': theme.colors.gray[0],
+                                '--button-bg': theme.colors.ldDark[9],
+                                '--button-hover': theme.colors.ldDark[5],
+                                '--button-color': theme.colors.ldGray[0],
                                 '--button-bd': `none`,
                             },
                         };
@@ -151,7 +149,7 @@ export const getMantine8ThemeOverride = (
             ScrollArea: ScrollArea.extend({
                 styles: (theme) => ({
                     thumb: {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.ldGray[3],
                     },
                     scrollbar: {
                         backgroundColor: `transparent`,
@@ -182,7 +180,7 @@ export const getMantine8ThemeOverride = (
                     withBorder: true,
                     styles: (theme: MantineTheme) => ({
                         root: {
-                            borderColor: theme.colors.gray[2],
+                            borderColor: theme.colors.ldGray[2],
                         },
                     }),
                 },

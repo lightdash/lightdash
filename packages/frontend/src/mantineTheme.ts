@@ -69,6 +69,7 @@ export const getMantineThemeOverride = (
     },
 ) =>
     ({
+        colorScheme,
         ...overrides,
 
         focusRing: 'auto',
