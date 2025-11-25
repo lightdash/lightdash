@@ -4,7 +4,14 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Badge, Flex, Group, Tooltip, type FlexProps } from '@mantine/core';
+import {
+    Badge,
+    Flex,
+    Group,
+    Tooltip,
+    useMantineTheme,
+    type FlexProps,
+} from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
@@ -12,11 +19,7 @@ import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
-import {
-    TABLE_HEADER_BG,
-    Table as TableStyled,
-    Tr,
-} from '../../common/Table/Table.styles';
+import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
 import { useVirtualTable } from '../hooks/useVirtualTable';
 
 type TableProps = {
@@ -40,6 +43,7 @@ export const ChartDataTable = ({
     thSortConfig,
     onTHClick,
 }: TableProps) => {
+    const theme = useMantineTheme();
     const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
         useVirtualTable({ columnNames, rows, config: columnsConfig });
 
@@ -84,11 +88,13 @@ export const ChartDataTable = ({
                                                     ? {
                                                           cursor: 'pointer',
                                                           backgroundColor:
-                                                              TABLE_HEADER_BG,
+                                                              theme.colors
+                                                                  .ldGray[0],
                                                       }
                                                     : {
                                                           backgroundColor:
-                                                              TABLE_HEADER_BG,
+                                                              theme.colors
+                                                                  .ldGray[0],
                                                       }
                                             }
                                         >

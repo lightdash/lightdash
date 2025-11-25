@@ -5,18 +5,20 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
+import {
+    Badge,
+    Flex,
+    Group,
+    useMantineTheme,
+    type FlexProps,
+} from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
-import {
-    TABLE_HEADER_BG,
-    Table as TableStyled,
-    Tr,
-} from '../../common/Table/Table.styles';
+import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
 import { useTableDataModel } from '../hooks/useTableDataModel';
 
 type TableProps<T extends IResultsRunner> = {
@@ -34,6 +36,7 @@ export const Table = <T extends IResultsRunner>({
     thSortConfig,
     onTHClick,
 }: TableProps<T>) => {
+    const theme = useMantineTheme();
     const {
         tableWrapperRef,
         getColumnsCount,
@@ -85,11 +88,13 @@ export const Table = <T extends IResultsRunner>({
                                                 ? {
                                                       cursor: 'pointer',
                                                       backgroundColor:
-                                                          TABLE_HEADER_BG,
+                                                          theme.colors
+                                                              .ldGray[0],
                                                   }
                                                 : {
                                                       backgroundColor:
-                                                          TABLE_HEADER_BG,
+                                                          theme.colors
+                                                              .ldGray[0],
                                                   }
                                         }
                                     >
