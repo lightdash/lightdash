@@ -8,6 +8,31 @@ import {
 type ColorTuple = Tuple<string, 10>;
 
 const lightModeColors = {
+    background: [
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+    ] as ColorTuple,
+    foreground: [
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+    ] as ColorTuple,
+
     ldDark: [
         '#C9C9C9',
         '#b8b8b8',
@@ -36,6 +61,31 @@ const lightModeColors = {
 };
 
 const darkModeColors = {
+    background: [
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+        '#1A1B1E',
+    ] as ColorTuple,
+    foreground: [
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+        '#FEFEFE',
+    ] as ColorTuple,
+
     ldDark: [
         '#C9C9C9',
         '#b8b8b8',
