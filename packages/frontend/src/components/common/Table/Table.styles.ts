@@ -47,7 +47,6 @@ export const TableContainer = styled.div<
 export const Table = styled.table<{ $showFooter?: boolean }>`
     border-spacing: 0;
     font-size: 14px;
-    //background-color: var(--mantine-color-ldGray1);
     width: 100%;
     border-radius: 4px;
 

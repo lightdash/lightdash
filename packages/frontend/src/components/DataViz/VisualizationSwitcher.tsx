@@ -21,9 +21,12 @@ type VisualizationActionIconProps = {
 
 const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
     ({ chartKind, label, onClick, selected }) => {
-        const { colors } = useMantineTheme();
-        const ICON_SELECTED_COLOR = colors.violet[6];
-        const ICON_UNSELECTED_COLOR = colors.gray[7];
+        const { colors, colorScheme } = useMantineTheme();
+        const ICON_SELECTED_COLOR =
+            colorScheme === 'light' ? colors.violet[6] : colors.violet[2];
+        const ICON_SELECTED_BG_COLOR =
+            colorScheme === 'light' ? colors.violet[0] : colors.violet[6];
+        const ICON_UNSELECTED_COLOR = colors.ldGray[9];
 
         return (
             <Tooltip variant="xs" label={label} withinPortal>
@@ -44,8 +47,8 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
                             shadow={selected ? 'sm' : 'none'}
                             sx={(theme) => ({
                                 backgroundColor: selected
-                                    ? theme.colors.violet[0]
-                                    : 'white',
+                                    ? ICON_SELECTED_BG_COLOR
+                                    : theme.colors.ldGray[0],
                                 '&[data-with-border]': {
                                     borderColor: selected
                                         ? ICON_SELECTED_COLOR

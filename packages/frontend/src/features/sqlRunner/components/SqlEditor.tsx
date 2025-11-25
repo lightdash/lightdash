@@ -1,4 +1,4 @@
-import { Center, Loader } from '@mantine/core';
+import { Center, Loader, useMantineTheme } from '@mantine/core';
 import Editor, {
     useMonaco,
     type BeforeMount,
@@ -21,8 +21,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
 import {
     generateTableCompletions,
+    getLightdashMonacoTheme,
     getMonacoLanguage,
-    LIGHTDASH_THEME,
     MONACO_DEFAULT_OPTIONS,
     registerCustomCompletionProvider,
     registerMonacoLanguage,
@@ -47,6 +47,7 @@ export const SqlEditor: FC<{
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
+    const theme = useMantineTheme();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -114,10 +115,15 @@ export const SqlEditor: FC<{
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
             registerMonacoLanguage(monaco, language);
-            monaco.editor.defineTheme('lightdash', {
+            monaco.editor.defineTheme('lightdash-light', {
                 base: 'vs',
                 inherit: true,
-                ...LIGHTDASH_THEME,
+                ...getLightdashMonacoTheme('light'),
+            });
+            monaco.editor.defineTheme('lightdash-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                ...getLightdashMonacoTheme('dark'),
             });
         },
         [language],
@@ -286,7 +292,11 @@ export const SqlEditor: FC<{
             value={sql}
             onChange={onChange}
             options={MONACO_DEFAULT_OPTIONS}
-            theme="lightdash"
+            theme={
+                theme.colorScheme === 'dark'
+                    ? 'lightdash-dark'
+                    : 'lightdash-light'
+            }
         />
     );
 };

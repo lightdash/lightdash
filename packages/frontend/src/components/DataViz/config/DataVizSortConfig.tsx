@@ -53,9 +53,9 @@ const SortItem = forwardRef<
 export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     const { colors } = useMantineTheme();
     const { classes, cx } = usePillSelectStyles({
-        backgroundColor: colors.gray[2],
-        textColor: colors.gray[7],
-        hoverColor: colors.gray[3],
+        backgroundColor: colors.ldGray[2],
+        textColor: colors.ldGray[7],
+        hoverColor: colors.ldGray[3],
     });
 
     const selectOptions = [
