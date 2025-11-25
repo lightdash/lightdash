@@ -52,7 +52,7 @@ export const CustomSqlDimensionModal: FC<{
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
     const theme = useMantineTheme();
-    const { colors } = theme;
+    const { colors, colorScheme } = theme;
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
 
@@ -198,7 +198,7 @@ export const CustomSqlDimensionModal: FC<{
             >
                 <Modal.Header
                     sx={(themeProps) => ({
-                        borderBottom: `1px solid ${themeProps.colors.gray[2]}`,
+                        borderBottom: `1px solid ${themeProps.colors.ldGray[2]}`,
                         padding: themeProps.spacing.sm,
                     })}
                 >
@@ -206,7 +206,7 @@ export const CustomSqlDimensionModal: FC<{
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconSql} size="sm" />
                         </Paper>
-                        <Text color="ldDark.7" fw={700} fz="md">
+                        <Text fw={700} fz="md">
                             {isEditing ? 'Edit' : 'Create'} Custom Dimension
                             {item ? (
                                 <Text span fw={400}>
@@ -264,14 +264,18 @@ export const CustomSqlDimensionModal: FC<{
                             </Group>
                             <Box
                                 sx={{
-                                    border: `1px solid ${colors.gray[2]}`,
+                                    border: `1px solid ${colors.ldGray[2]}`,
                                     borderRadius: theme.radius.sm,
                                 }}
                             >
                                 <SqlEditor
                                     mode="sql"
                                     placeholder="Enter SQL"
-                                    theme="github"
+                                    theme={
+                                        colorScheme === 'dark'
+                                            ? 'tomorrow_night'
+                                            : 'github'
+                                    }
                                     width="100%"
                                     maxLines={Infinity}
                                     minLines={isExpanded ? 25 : 8}
@@ -284,7 +288,7 @@ export const CustomSqlDimensionModal: FC<{
                                     enableBasicAutocompletion
                                     showPrintMargin={false}
                                     wrapEnabled={true}
-                                    gutterBackgroundColor={colors.gray['1']}
+                                    gutterBackgroundColor={colors.ldGray[0]}
                                     {...form.getInputProps('sql')}
                                 />
                             </Box>
@@ -293,9 +297,9 @@ export const CustomSqlDimensionModal: FC<{
 
                     <Box
                         sx={(themeProps) => ({
-                            borderTop: `1px solid ${themeProps.colors.gray[2]}`,
+                            borderTop: `1px solid ${themeProps.colors.ldGray[2]}`,
                             padding: themeProps.spacing.sm,
-                            backgroundColor: themeProps.white,
+                            backgroundColor: themeProps.colors.background,
                             position: 'sticky',
                             bottom: 0,
                             width: '100%',
