@@ -142,9 +142,9 @@ export type GaugeChart = {
 
 export enum MapChartMapType {
     USA = 'USA',
+    USA_COUNTIES = 'USA_COUNTIES',
     WORLD = 'world',
     EUROPE = 'europe',
-    UK = 'uk',
     NORWAY = 'norway',
     BEEF_CUTS = 'beef_cuts',
     CUSTOM = 'custom',

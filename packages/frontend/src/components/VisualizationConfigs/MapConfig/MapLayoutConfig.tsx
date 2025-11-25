@@ -59,7 +59,7 @@ export const Layout: FC = memo(() => {
         { value: MapChartMapType.WORLD, label: 'World' },
         { value: MapChartMapType.EUROPE, label: 'Europe' },
         { value: MapChartMapType.USA, label: 'USA' },
-        { value: MapChartMapType.UK, label: 'United Kingdom' },
+        { value: MapChartMapType.USA_COUNTIES, label: 'USA Counties' },
         { value: MapChartMapType.NORWAY, label: 'Norway' },
         {
             value: MapChartMapType.BEEF_CUTS,

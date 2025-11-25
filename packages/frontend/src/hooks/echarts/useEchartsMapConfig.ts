@@ -74,13 +74,13 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                 let fileName: string;
                 switch (type) {
                     case MapChartMapType.USA:
-                        fileName = 'usa.json';
+                        fileName = 'us-states-albers.json';
+                        break;
+                    case MapChartMapType.USA_COUNTIES:
+                        fileName = 'us-counties-albers.json';
                         break;
                     case MapChartMapType.EUROPE:
                         fileName = 'europe.json';
-                        break;
-                    case MapChartMapType.UK:
-                        fileName = 'uk.json';
                         break;
                     case MapChartMapType.NORWAY:
                         fileName = 'norway.topojson';
@@ -300,12 +300,24 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
         console.log('loading map', mapKey);
 
+        // Check if this is a pre-projected map (Albers) that needs identity projection
+        const isPreProjected =
+            mapType === MapChartMapType.USA ||
+            mapType === MapChartMapType.USA_COUNTIES;
+        const projection = isPreProjected
+            ? {
+                  project: (point: [number, number]) => point,
+                  unproject: (point: [number, number]) => point,
+              }
+            : undefined;
+
         if (isLatLong) {
             // Scatter plot on map for lat/long
             return {
                 geo: {
                     map: mapKey,
                     roam: true,
+                    projection,
                     itemStyle: {
                         areaColor: '#f3f3f3',
                         borderColor: '#999',
@@ -380,6 +392,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         type: 'map',
                         map: mapKey,
                         roam: true,
+                        projection,
                         data: regionData,
                         emphasis: {
                             label: {
