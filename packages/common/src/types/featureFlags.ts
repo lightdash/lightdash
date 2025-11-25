@@ -56,6 +56,11 @@ export enum FeatureFlags {
     UseSqlPivotResults = 'use-sql-pivot-results',
 
     /**
+     * Enable map chart type visualization
+     */
+    Maps = 'maps',
+
+    /**
      * Enable the unused content dashboard showing least viewed charts and dashboards
      */
     UnusedContentDashboard = 'unused-content-dashboard',

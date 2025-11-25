@@ -7,12 +7,8 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// Default colors for the region color gradient
-export const DEFAULT_MAP_COLORS = {
-    low: '#228be6', // blue
-    mid: '#fab005', // yellow
-    high: '#fa5252', // red
-};
+// Default colors for the region color gradient (2 colors by default)
+export const DEFAULT_MAP_COLORS = ['#228be6', '#fa5252']; // blue to red
 
 type MapChartConfig = {
     chartType: ChartType.MAP;
@@ -25,9 +21,16 @@ type MapChartConfig = {
     setLongitudeFieldId: (fieldId: string | undefined) => void;
     setLocationFieldId: (fieldId: string | undefined) => void;
     setValueFieldId: (fieldId: string | undefined) => void;
-    setColorRangeLow: (color: string | undefined) => void;
-    setColorRangeMid: (color: string | undefined) => void;
-    setColorRangeHigh: (color: string | undefined) => void;
+    setColorRange: (colors: string[]) => void;
+    addColor: () => void;
+    removeColor: (index: number) => void;
+    updateColor: (index: number, color: string) => void;
+    setShowLegend: (show: boolean) => void;
+    setDefaultZoom: (zoom: number | undefined) => void;
+    setDefaultCenterLat: (lat: number | undefined) => void;
+    setDefaultCenterLon: (lon: number | undefined) => void;
+    setMinBubbleSize: (size: number | undefined) => void;
+    setMaxBubbleSize: (size: number | undefined) => void;
 };
 
 const useMapChartConfig = (
@@ -55,15 +58,27 @@ const useMapChartConfig = (
     const [valueFieldId, setValueFieldIdState] = useState<string | undefined>(
         initialConfig?.valueFieldId,
     );
-    const [colorRangeLow, setColorRangeLowState] = useState<string | undefined>(
-        initialConfig?.colorRangeLow,
+    const [colorRange, setColorRangeState] = useState<string[]>(
+        initialConfig?.colorRange ?? DEFAULT_MAP_COLORS,
     );
-    const [colorRangeMid, setColorRangeMidState] = useState<string | undefined>(
-        initialConfig?.colorRangeMid,
+    const [showLegend, setShowLegendState] = useState<boolean>(
+        initialConfig?.showLegend ?? false,
     );
-    const [colorRangeHigh, setColorRangeHighState] = useState<
-        string | undefined
-    >(initialConfig?.colorRangeHigh);
+    const [defaultZoom, setDefaultZoomState] = useState<number | undefined>(
+        initialConfig?.defaultZoom,
+    );
+    const [defaultCenterLat, setDefaultCenterLatState] = useState<
+        number | undefined
+    >(initialConfig?.defaultCenterLat);
+    const [defaultCenterLon, setDefaultCenterLonState] = useState<
+        number | undefined
+    >(initialConfig?.defaultCenterLon);
+    const [minBubbleSize, setMinBubbleSizeState] = useState<number | undefined>(
+        initialConfig?.minBubbleSize,
+    );
+    const [maxBubbleSize, setMaxBubbleSizeState] = useState<number | undefined>(
+        initialConfig?.maxBubbleSize,
+    );
 
     // Auto-fill latitude/longitude fields when switching to scatter mode
     useEffect(() => {
@@ -127,9 +142,13 @@ const useMapChartConfig = (
             longitudeFieldId,
             locationFieldId,
             valueFieldId,
-            colorRangeLow,
-            colorRangeMid,
-            colorRangeHigh,
+            colorRange,
+            showLegend,
+            defaultZoom,
+            defaultCenterLat,
+            defaultCenterLon,
+            minBubbleSize,
+            maxBubbleSize,
         };
     }, [
         mapType,
@@ -139,18 +158,20 @@ const useMapChartConfig = (
         longitudeFieldId,
         locationFieldId,
         valueFieldId,
-        colorRangeLow,
-        colorRangeMid,
-        colorRangeHigh,
+        colorRange,
+        showLegend,
+        defaultZoom,
+        defaultCenterLat,
+        defaultCenterLon,
+        minBubbleSize,
+        maxBubbleSize,
     ]);
 
     const defaultConfig: MapChart = useMemo(() => {
         return {
             mapType: MapChartLocation.WORLD,
             locationType: MapChartType.SCATTER,
-            colorRangeLow: DEFAULT_MAP_COLORS.low,
-            colorRangeMid: DEFAULT_MAP_COLORS.mid,
-            colorRangeHigh: DEFAULT_MAP_COLORS.high,
+            colorRange: DEFAULT_MAP_COLORS,
         };
     }, []);
 
@@ -188,16 +209,57 @@ const useMapChartConfig = (
         setValueFieldIdState(fieldId);
     }, []);
 
-    const setColorRangeLow = useCallback((color: string | undefined) => {
-        setColorRangeLowState(color);
+    const setColorRange = useCallback((colors: string[]) => {
+        setColorRangeState(colors);
     }, []);
 
-    const setColorRangeMid = useCallback((color: string | undefined) => {
-        setColorRangeMidState(color);
+    const addColor = useCallback(() => {
+        setColorRangeState((prev) => {
+            if (prev.length >= 5) return prev;
+            // Add a color in the middle (default to a yellow-ish color)
+            const newColors = [...prev];
+            newColors.splice(prev.length - 1, 0, '#fab005');
+            return newColors;
+        });
     }, []);
 
-    const setColorRangeHigh = useCallback((color: string | undefined) => {
-        setColorRangeHighState(color);
+    const removeColor = useCallback((index: number) => {
+        setColorRangeState((prev) => {
+            if (prev.length <= 2) return prev;
+            return prev.filter((_, i) => i !== index);
+        });
+    }, []);
+
+    const updateColor = useCallback((index: number, color: string) => {
+        setColorRangeState((prev) => {
+            const newColors = [...prev];
+            newColors[index] = color;
+            return newColors;
+        });
+    }, []);
+
+    const setShowLegend = useCallback((show: boolean) => {
+        setShowLegendState(show);
+    }, []);
+
+    const setDefaultZoom = useCallback((zoom: number | undefined) => {
+        setDefaultZoomState(zoom);
+    }, []);
+
+    const setDefaultCenterLat = useCallback((lat: number | undefined) => {
+        setDefaultCenterLatState(lat);
+    }, []);
+
+    const setDefaultCenterLon = useCallback((lon: number | undefined) => {
+        setDefaultCenterLonState(lon);
+    }, []);
+
+    const setMinBubbleSize = useCallback((size: number | undefined) => {
+        setMinBubbleSizeState(size);
+    }, []);
+
+    const setMaxBubbleSize = useCallback((size: number | undefined) => {
+        setMaxBubbleSizeState(size);
     }, []);
 
     return {
@@ -211,9 +273,16 @@ const useMapChartConfig = (
         setLongitudeFieldId,
         setLocationFieldId,
         setValueFieldId,
-        setColorRangeLow,
-        setColorRangeMid,
-        setColorRangeHigh,
+        setColorRange,
+        addColor,
+        removeColor,
+        updateColor,
+        setShowLegend,
+        setDefaultZoom,
+        setDefaultCenterLat,
+        setDefaultCenterLon,
+        setMinBubbleSize,
+        setMaxBubbleSize,
     };
 };
 

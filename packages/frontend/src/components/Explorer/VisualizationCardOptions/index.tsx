@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
@@ -22,6 +23,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -50,6 +52,7 @@ const VisualizationCardOptions: FC = memo(() => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
+    const isMapsEnabled = useFeatureFlagEnabled(FeatureFlags.Maps);
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
 
     const cartesianConfig = useMemo(() => {
@@ -408,22 +411,24 @@ const VisualizationCardOptions: FC = memo(() => {
                     Gauge
                 </Menu.Item>
 
-                <Menu.Item
-                    disabled={disabled}
-                    color={
-                        isMapVisualizationConfig(visualizationConfig)
-                            ? 'blue'
-                            : undefined
-                    }
-                    icon={<MantineIcon icon={IconMap} />}
-                    onClick={() => {
-                        setStacking(undefined);
-                        setCartesianType(undefined);
-                        setChartType(ChartType.MAP);
-                    }}
-                >
-                    Map
-                </Menu.Item>
+                {isMapsEnabled && (
+                    <Menu.Item
+                        disabled={disabled}
+                        color={
+                            isMapVisualizationConfig(visualizationConfig)
+                                ? 'blue'
+                                : undefined
+                        }
+                        icon={<MantineIcon icon={IconMap} />}
+                        onClick={() => {
+                            setStacking(undefined);
+                            setCartesianType(undefined);
+                            setChartType(ChartType.MAP);
+                        }}
+                    >
+                        Map
+                    </Menu.Item>
+                )}
 
                 <Menu.Item
                     disabled={disabled}

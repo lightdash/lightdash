@@ -9,7 +9,8 @@ renamed as (
     select
         name,
         longitude as lon,
-        latitude as lat
+        latitude as lat,
+        volume
 
     from source
 

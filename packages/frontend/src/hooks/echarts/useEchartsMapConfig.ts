@@ -26,13 +26,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
     const mapType = chartConfig?.validConfig?.mapType || MapChartLocation.WORLD;
     const customGeoJsonUrl = chartConfig?.validConfig?.customGeoJsonUrl;
 
-    console.log(
-        'useEchartsMapConfig - mapType:',
-        mapType,
-        'customGeoJsonUrl:',
-        customGeoJsonUrl,
-    );
-
     // Generate a unique map key for custom maps
     const mapKey = useMemo(() => {
         if (mapType === MapChartLocation.CUSTOM && customGeoJsonUrl) {
@@ -40,8 +33,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         }
         return mapType;
     }, [mapType, customGeoJsonUrl]);
-
-    console.log('useEchartsMapConfig - mapKey:', mapKey);
 
     // Load and register maps
     useEffect(() => {
@@ -62,13 +53,9 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                     url = `/api/v1/geojson-proxy?url=${encodeURIComponent(
                         customUrl,
                     )}`;
-                    console.log(
-                        `Loading custom map from ${customUrl} via proxy`,
-                    );
                 } else {
                     // For relative paths (like /my-map.json), fetch directly
                     url = customUrl;
-                    console.log(`Loading custom map from ${url}`);
                 }
             } else {
                 let fileName: string;
@@ -82,18 +69,11 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                     case MapChartLocation.EUROPE:
                         fileName = 'europe.json';
                         break;
-                    case MapChartLocation.NORWAY:
-                        fileName = 'norway.topojson';
-                        break;
-                    case MapChartLocation.BEEF_CUTS:
-                        fileName = 'beef.svg';
-                        break;
                     default:
                         fileName = 'world.json';
                         break;
                 }
                 url = `/${fileName}`;
-                console.log(`Loading ${type} map from ${url}`);
             }
 
             try {
@@ -114,8 +94,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                     // Direct SVG file (local or CORS-enabled remote)
                     const svgString = await response.text();
                     mapData = { svg: svgString };
-                    console.log(`SVG map data loaded successfully (direct)`);
-                    console.log('SVG length:', svgString.length);
                 } else {
                     // JSON response (GeoJSON, TopoJSON, or proxy response)
                     const data = await response.json();
@@ -133,10 +111,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         // ECharts requires SVG to be passed as { svg: svgString }
                         const svgString = data.__svg__ as string;
                         mapData = { svg: svgString };
-                        console.log(
-                            `SVG map data loaded successfully (via proxy)`,
-                        );
-                        console.log('SVG length:', svgString.length);
                     } else if (
                         typeof data === 'object' &&
                         data !== null &&
@@ -157,61 +131,67 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         const geoJson = topojson.feature(
                             topology,
                             topology.objects[firstObjectKey],
-                        );
+                        ) as GeoJSON.FeatureCollection;
+
+                        // ECharts requires each feature to have a 'name' property for region matching
+                        // If features don't have 'name', use the first property value as name
+                        if (geoJson.features) {
+                            geoJson.features.forEach((feature) => {
+                                if (
+                                    feature.properties &&
+                                    !feature.properties.name
+                                ) {
+                                    const propKeys = Object.keys(
+                                        feature.properties,
+                                    );
+                                    if (propKeys.length > 0) {
+                                        feature.properties.name = String(
+                                            feature.properties[propKeys[0]],
+                                        );
+                                    }
+                                }
+                            });
+                        }
                         mapData = geoJson as unknown as Record<string, unknown>;
-                        console.log(
-                            `TopoJSON converted to GeoJSON successfully`,
-                        );
-                        console.log('Object key used:', firstObjectKey);
-                        console.log(
-                            'Features count:',
-                            (geoJson as any).features?.length,
-                        );
                     } else {
                         // Regular GeoJSON
-                        mapData = data as Record<string, unknown>;
-                        console.log(`GeoJSON loaded successfully`);
-                        console.log('GeoJSON type:', (mapData as any).type);
-                        console.log(
-                            'Features count:',
-                            (mapData as any).features?.length,
-                        );
+                        // Also ensure 'name' property exists for region matching
+                        const geoJson = data as GeoJSON.FeatureCollection;
+                        if (geoJson.features) {
+                            geoJson.features.forEach((feature) => {
+                                if (
+                                    feature.properties &&
+                                    !feature.properties.name
+                                ) {
+                                    const propKeys = Object.keys(
+                                        feature.properties,
+                                    );
+                                    if (propKeys.length > 0) {
+                                        feature.properties.name = String(
+                                            feature.properties[propKeys[0]],
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                        mapData = geoJson as unknown as Record<string, unknown>;
                     }
                 }
 
                 echarts.registerMap(key, mapData as any);
                 setMapsLoaded((prev) => new Set(prev).add(key));
-                console.log(`Map registered successfully as "${key}"`);
-            } catch (error) {
-                console.error(`Failed to load map from ${url}:`, error);
-                console.error(
-                    'External URLs are proxied through the backend to bypass CORS restrictions',
-                );
-            }
+            } catch (error) {}
         };
 
         // Only pass customGeoJsonUrl if the mapType is CUSTOM
         const urlToLoad =
             mapType === MapChartLocation.CUSTOM ? customGeoJsonUrl : undefined;
-        console.log(
-            'useEffect loadMap - mapType:',
-            mapType,
-            'urlToLoad:',
-            urlToLoad,
-        );
+
         void loadMap(mapType, urlToLoad);
     }, [mapType, customGeoJsonUrl, mapsLoaded]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         const isMapLoaded = mapsLoaded.has(mapKey);
-        console.log(
-            'useEchartsMapConfig - chartConfig:',
-            !!chartConfig,
-            'mapKey:',
-            mapKey,
-            'mapLoaded:',
-            isMapLoaded,
-        );
         if (!chartConfig || !isMapLoaded) return;
 
         const {
@@ -220,18 +200,14 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
             longitudeFieldId,
             locationFieldId,
             valueFieldId,
-            colorRangeLow,
-            colorRangeMid,
-            colorRangeHigh,
+            colorRange,
+            showLegend,
+            defaultZoom,
+            defaultCenterLat,
+            defaultCenterLon,
+            minBubbleSize,
+            maxBubbleSize,
         } = chartConfig.validConfig || {};
-
-        console.log('Creating map options with fields:', {
-            locationType,
-            latitudeFieldId,
-            longitudeFieldId,
-            locationFieldId,
-            valueFieldId,
-        });
 
         // Check if we're using lat/long or region-based location
         const isLatLong =
@@ -240,7 +216,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         // Transform data based on location type
         let scatterData: Array<{
             value: [number, number, number];
-            itemStyle: { color: string };
             rowData?: Record<string, any>;
         }> = [];
 
@@ -267,9 +242,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                                 number,
                                 number,
                             ],
-                            itemStyle: {
-                                color: colorPalette[0],
-                            },
                             rowData: row,
                         };
                     })
@@ -295,15 +267,13 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         };
                     })
                     .filter((d): d is NonNullable<typeof d> => d !== null);
-
-                console.log('Region data for map:', regionData);
             }
         }
 
-        console.log('loading map', mapKey);
-
         // Create d3 scale for scatter point sizing
         const scatterValues = scatterData.map((d) => d.value[2]);
+        const bubbleSizeMin = minBubbleSize ?? 5;
+        const bubbleSizeMax = maxBubbleSize ?? 20;
         const sizeScale =
             scatterValues.length > 0
                 ? scaleSqrt()
@@ -311,8 +281,8 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                           Math.min(...scatterValues, 0),
                           Math.max(...scatterValues, 1),
                       ])
-                      .range([3, 30])
-                : () => 3;
+                      .range([bubbleSizeMin, bubbleSizeMax])
+                : () => bubbleSizeMin;
 
         // Check if this is a pre-projected map (Albers) that needs identity projection
         const isPreProjected =
@@ -325,8 +295,27 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
               }
             : undefined;
 
+        // Clamp zoom to valid range (1-10)
+        const clampedZoom = defaultZoom
+            ? Math.min(10, Math.max(1, defaultZoom))
+            : undefined;
+
         if (isLatLong) {
             // Scatter plot on map for lat/long
+            // Calculate min/max values for scatter data (reuse scatterValues from sizeScale)
+            const scatterMin = Math.min(...scatterValues, 0);
+            const scatterMax = Math.max(...scatterValues, 1);
+
+            // Get value field label for legend
+            const valueFieldLabel =
+                valueFieldId && itemsMap?.[valueFieldId]
+                    ? 'label' in itemsMap[valueFieldId]
+                        ? itemsMap[valueFieldId].label
+                        : 'name' in itemsMap[valueFieldId]
+                        ? (itemsMap[valueFieldId] as { name: string }).name
+                        : undefined
+                    : undefined;
+
             return {
                 toolbox: {
                     show: true,
@@ -340,10 +329,53 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         },
                     },
                 },
+                visualMap: valueFieldId
+                    ? (() => {
+                          if (showLegend) {
+                              return {
+                                  type: 'continuous' as const,
+                                  min: scatterMin,
+                                  max: scatterMax,
+                                  text: ['High', valueFieldLabel || 'Low'],
+                                  realtime: false,
+                                  calculable: false,
+                                  orient: 'horizontal' as const,
+                                  left: 'center',
+                                  bottom: '5%',
+                                  dimension: 2, // Use the 3rd value (index 2) which is the value
+                                  seriesIndex: 0, // Target the scatter series
+                                  inRange: {
+                                      color: colorRange || DEFAULT_MAP_COLORS,
+                                  },
+                              };
+                          }
+                          return {
+                              type: 'continuous' as const,
+                              show: false,
+                              min: scatterMin,
+                              max: scatterMax,
+                              dimension: 2,
+                              seriesIndex: 0, // Target the scatter series
+                              inRange: {
+                                  color: colorRange || DEFAULT_MAP_COLORS,
+                              },
+                          };
+                      })()
+                    : undefined,
                 geo: {
                     map: mapKey,
                     roam: true,
                     projection,
+                    zoom: clampedZoom,
+                    scaleLimit: {
+                        min: 1,
+                        max: 10,
+                    },
+                    center:
+                        defaultCenterLon !== undefined &&
+                        defaultCenterLat !== undefined
+                            ? [defaultCenterLon, defaultCenterLat]
+                            : undefined,
                     itemStyle: {
                         areaColor: '#f3f3f3',
                         borderColor: '#999',
@@ -360,17 +392,24 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         coordinateSystem: 'geo',
                         data: scatterData,
                         symbolSize: (val: number[]) => {
-                            // If no value field, use small fixed size
-                            if (!valueFieldId) return 4;
+                            // If no value field, use min bubble size
+                            if (!valueFieldId) return bubbleSizeMin;
                             // Use d3 sqrt scale for proportional circle sizing
                             return sizeScale(val[2] as number);
                         },
-                        itemStyle: {
-                            color: colorPalette[0],
-                            opacity: 0.5,
-                            borderColor: colorPalette[0],
-                            borderWidth: 2,
-                        },
+                        itemStyle: valueFieldId
+                            ? {
+                                  // Color will be set by visualMap based on value
+                                  opacity: 0.7,
+                                  borderWidth: 1,
+                              }
+                            : {
+                                  // No value field - use static color
+                                  color: colorPalette[0],
+                                  opacity: 0.4,
+                                  borderColor: colorPalette[0],
+                                  borderWidth: 2,
+                              },
                         emphasis: {
                             itemStyle: {
                                 borderColor: '#fff',
@@ -468,26 +507,58 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         return `${params.name}<br/>Value: ${params.value || 0}`;
                     },
                 },
-                visualMap: {
-                    min: Math.min(...regionData.map((d) => d.value), 0),
-                    max: Math.max(...regionData.map((d) => d.value), 1),
-                    text: ['High', 'Low'],
-                    realtime: false,
-                    calculable: false,
-                    inRange: {
-                        color: [
-                            colorRangeLow || DEFAULT_MAP_COLORS.low,
-                            colorRangeMid || DEFAULT_MAP_COLORS.mid,
-                            colorRangeHigh || DEFAULT_MAP_COLORS.high,
-                        ],
-                    },
-                },
+                visualMap: (() => {
+                    // Get the value field label for the legend
+                    const valueFieldLabel =
+                        valueFieldId && itemsMap?.[valueFieldId]
+                            ? 'label' in itemsMap[valueFieldId]
+                                ? itemsMap[valueFieldId].label
+                                : 'name' in itemsMap[valueFieldId]
+                                ? (itemsMap[valueFieldId] as { name: string })
+                                      .name
+                                : undefined
+                            : undefined;
+
+                    if (showLegend) {
+                        return {
+                            min: Math.min(...regionData.map((d) => d.value), 0),
+                            max: Math.max(...regionData.map((d) => d.value), 1),
+                            text: ['High', valueFieldLabel || 'Low'],
+                            realtime: false,
+                            calculable: false,
+                            orient: 'horizontal' as const,
+                            left: 'center',
+                            bottom: '5%',
+                            inRange: {
+                                color: colorRange || DEFAULT_MAP_COLORS,
+                            },
+                        };
+                    }
+                    return {
+                        show: false,
+                        min: Math.min(...regionData.map((d) => d.value), 0),
+                        max: Math.max(...regionData.map((d) => d.value), 1),
+                        inRange: {
+                            color: colorRange || DEFAULT_MAP_COLORS,
+                        },
+                    };
+                })(),
                 series: [
                     {
                         type: 'map',
                         map: mapKey,
                         roam: true,
                         projection,
+                        zoom: clampedZoom,
+                        scaleLimit: {
+                            min: 1,
+                            max: 10,
+                        },
+                        center:
+                            defaultCenterLon !== undefined &&
+                            defaultCenterLat !== undefined
+                                ? [defaultCenterLon, defaultCenterLat]
+                                : undefined,
                         data: regionData,
                         emphasis: {
                             label: {
@@ -511,7 +582,6 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         itemsMap,
     ]);
 
-    console.log('eChartsOption', eChartsOption);
     return eChartsOption ? { eChartsOption } : undefined;
 };
 

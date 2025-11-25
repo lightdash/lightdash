@@ -8,6 +8,7 @@ import {
     MapChartType,
 } from '@lightdash/common';
 import {
+    Group,
     SegmentedControl,
     Select,
     Stack,
@@ -58,11 +59,6 @@ export const Layout: FC = memo(() => {
         { value: MapChartLocation.EUROPE, label: 'Europe' },
         { value: MapChartLocation.USA, label: 'USA' },
         { value: MapChartLocation.USA_COUNTIES, label: 'USA Counties' },
-        { value: MapChartLocation.NORWAY, label: 'Norway' },
-        {
-            value: MapChartLocation.BEEF_CUTS,
-            label: 'Beef Cuts (France) - SVG Test',
-        },
     ];
 
     const locationTypeOptions = [
@@ -104,16 +100,6 @@ export const Layout: FC = memo(() => {
                 <Config.Section>
                     <Config.Heading>Location</Config.Heading>
 
-                    <Select
-                        label="Map region"
-                        disabled={isCustomMap}
-                        data={mapTypeOptions}
-                        value={validConfig.mapType || MapChartLocation.WORLD}
-                        onChange={(value) =>
-                            setMapType((value as MapChartLocation) || undefined)
-                        }
-                    />
-
                     <Switch
                         label="Custom map"
                         checked={isCustomMap}
@@ -127,19 +113,34 @@ export const Layout: FC = memo(() => {
                         }}
                         mt="sm"
                     />
+
+                    {isCustomMap ? (
+                        <TextInput
+                            label="Map URL"
+                            placeholder="https://example.com/map.json"
+                            value={validConfig.customGeoJsonUrl || ''}
+                            onChange={(e) =>
+                                setCustomGeoJsonUrl(
+                                    e.currentTarget.value || undefined,
+                                )
+                            }
+                        />
+                    ) : (
+                        <Select
+                            label="Map region"
+                            disabled={isCustomMap}
+                            data={mapTypeOptions}
+                            value={
+                                validConfig.mapType || MapChartLocation.WORLD
+                            }
+                            onChange={(value) =>
+                                setMapType(
+                                    (value as MapChartLocation) || undefined,
+                                )
+                            }
+                        />
+                    )}
                 </Config.Section>
-                {isCustomMap && (
-                    <TextInput
-                        label="Map URL"
-                        placeholder="https://example.com/map.json"
-                        value={validConfig.customGeoJsonUrl || ''}
-                        onChange={(e) =>
-                            setCustomGeoJsonUrl(
-                                e.currentTarget.value || undefined,
-                            )
-                        }
-                    />
-                )}
             </Config>
 
             <Config>
@@ -161,34 +162,38 @@ export const Layout: FC = memo(() => {
             {locationType === MapChartType.SCATTER && (
                 <Config>
                     <Config.Section>
-                        <FieldSelect
-                            label="Latitude field"
-                            description="Field containing latitude values (-90 to 90)"
-                            placeholder="Select latitude field"
-                            item={latitudeField}
-                            items={availableFields}
-                            onChange={(newField) =>
-                                setLatitudeFieldId(
-                                    newField ? getItemId(newField) : undefined,
-                                )
-                            }
-                            hasGrouping
-                            clearable
-                        />
-                        <FieldSelect
-                            label="Longitude field"
-                            description="Field containing longitude values (-180 to 180)"
-                            placeholder="Select longitude field"
-                            item={longitudeField}
-                            items={availableFields}
-                            onChange={(newField) =>
-                                setLongitudeFieldId(
-                                    newField ? getItemId(newField) : undefined,
-                                )
-                            }
-                            hasGrouping
-                            clearable
-                        />
+                        <Group spacing="md" grow>
+                            <FieldSelect
+                                label="Latitude"
+                                placeholder="Select field"
+                                item={latitudeField}
+                                items={availableFields}
+                                onChange={(newField) =>
+                                    setLatitudeFieldId(
+                                        newField
+                                            ? getItemId(newField)
+                                            : undefined,
+                                    )
+                                }
+                                hasGrouping
+                                clearable
+                            />
+                            <FieldSelect
+                                label="Longitude"
+                                placeholder="Select field"
+                                item={longitudeField}
+                                items={availableFields}
+                                onChange={(newField) =>
+                                    setLongitudeFieldId(
+                                        newField
+                                            ? getItemId(newField)
+                                            : undefined,
+                                    )
+                                }
+                                hasGrouping
+                                clearable
+                            />
+                        </Group>
                     </Config.Section>
                 </Config>
             )}
@@ -198,8 +203,7 @@ export const Layout: FC = memo(() => {
                     <Config.Section>
                         <FieldSelect
                             label="Region field"
-                            description="Field containing region names (e.g., country, state)"
-                            placeholder="Select region field"
+                            placeholder="Select field"
                             item={locationField}
                             items={availableFields}
                             onChange={(newField) =>
@@ -219,8 +223,7 @@ export const Layout: FC = memo(() => {
                     <Config.Heading>Value</Config.Heading>
                     <FieldSelect
                         label="Value field (optional)"
-                        description="Field to determine size/intensity"
-                        placeholder="Select value field"
+                        placeholder="Select field"
                         item={valueField}
                         items={availableFields}
                         onChange={(newField) =>

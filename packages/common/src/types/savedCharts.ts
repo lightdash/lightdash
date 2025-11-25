@@ -145,8 +145,6 @@ export enum MapChartLocation {
     USA_COUNTIES = 'USA_COUNTIES',
     WORLD = 'world',
     EUROPE = 'europe',
-    NORWAY = 'norway',
-    BEEF_CUTS = 'beef_cuts',
     CUSTOM = 'custom',
 }
 
@@ -167,10 +165,15 @@ export type MapChart = {
     // Common fields
     valueFieldId?: string;
     showLegend?: boolean;
-    // Region color gradient (low, mid, high)
-    colorRangeLow?: string;
-    colorRangeMid?: string;
-    colorRangeHigh?: string;
+    // Color range (array of 2-5 colors for gradient)
+    colorRange?: string[];
+    // Default view settings
+    defaultZoom?: number;
+    defaultCenterLat?: number;
+    defaultCenterLon?: number;
+    // Scatter bubble size settings (for lat/long maps)
+    minBubbleSize?: number;
+    maxBubbleSize?: number;
 };
 
 export enum FunnelChartDataInput {
