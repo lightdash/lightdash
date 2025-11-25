@@ -396,7 +396,6 @@ export const ContentPanel: FC = () => {
                     radius={0}
                     px="md"
                     py={6}
-                    bg="ldGray.1"
                     sx={(theme) => ({
                         borderWidth: '0 0 1px 1px',
                         borderStyle: 'solid',
@@ -577,6 +576,10 @@ export const ContentPanel: FC = () => {
                                 borderStyle: 'solid',
                                 borderColor: theme.colors.ldGray[3],
                                 overflow: 'auto',
+                                backgroundColor:
+                                    theme.colorScheme === 'dark'
+                                        ? theme.colors.dark[6]
+                                        : 'white',
                             })}
                         >
                             <Box
@@ -744,7 +747,6 @@ export const ContentPanel: FC = () => {
                     <Box
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
-                        bg="ldGray.1"
                         h={15}
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',

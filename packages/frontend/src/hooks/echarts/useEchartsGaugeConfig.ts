@@ -126,7 +126,7 @@ const useEchartsGaugeConfig = ({
             customLabel || getItemLabelWithoutTableName(fieldItem);
 
         const sectionColors: [number, string][] = [];
-        const defaultGapColor = theme.white;
+        const defaultGapColor = 'transparent';
 
         // Resolve dynamic section values from metrics
         const sectionsWithResolvedValues = sections?.map((section) => {
@@ -260,6 +260,7 @@ const useEchartsGaugeConfig = ({
             },
             axisLabel: {
                 show: showAxisLabels ?? false,
+                color: theme.colors.ldGray[9],
                 fontSize: detailsFontSize / 4,
                 distance:
                     lineSize *
@@ -280,6 +281,7 @@ const useEchartsGaugeConfig = ({
                 show: true,
                 offsetCenter: [0, '-25%'],
                 fontSize: tileFontSize,
+                color: theme.colors.ldGray[9],
             },
             detail: {
                 valueAnimation: true,
@@ -316,7 +318,10 @@ const useEchartsGaugeConfig = ({
                 itemStyle: {
                     color: 'transparent', // we only want the border
                     borderWidth: Math.max(lineSize * 0.06, 2),
-                    borderColor: 'white',
+                    borderColor:
+                        theme.colorScheme === 'light'
+                            ? 'white'
+                            : theme.colors.dark[6],
                 },
             },
             data: [
