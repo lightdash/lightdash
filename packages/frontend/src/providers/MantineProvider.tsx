@@ -5,8 +5,9 @@ import {
     type MantineThemeOverride,
 } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { type FC, useEffect, useMemo, useState } from 'react';
+import { type FC, useEffect, useMemo } from 'react';
 
+import { useLocalStorage } from '@mantine-8/hooks';
 import { getMantineThemeOverride } from '../mantineTheme';
 
 type Props = {
@@ -27,7 +28,10 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     themeOverride = {},
     notificationsLimit,
 }) => {
-    const [colorScheme, setColorScheme] = useState<ColorScheme>('light');
+    const [colorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
+        key: 'color-scheme',
+        defaultValue: 'light',
+    });
 
     const theme = useMemo(
         () => getMantineThemeOverride(colorScheme),
