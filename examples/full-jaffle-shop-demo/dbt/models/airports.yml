@@ -1,0 +1,17 @@
+version: 2
+models:
+  - name: airports
+    description: |
+      # World Airports
+
+      This table contains location data for airports around the world,
+      including their names and geographic coordinates.
+    columns:
+      - name: name
+        description: Airport name
+
+      - name: lon
+        description: Longitude coordinate (-180 to 180)
+
+      - name: lat
+        description: Latitude coordinate (-90 to 90)

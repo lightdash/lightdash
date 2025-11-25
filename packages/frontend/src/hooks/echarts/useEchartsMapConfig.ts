@@ -1,5 +1,4 @@
 import { MapChartLocation, MapChartType } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
 import { scaleSqrt } from 'd3-scale';
 import * as echarts from 'echarts';
 import { type EChartsOption } from 'echarts';
@@ -15,8 +14,8 @@ type Args = {
 };
 
 const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
-    const { visualizationConfig, resultsData } = useVisualizationContext();
-    const theme = useMantineTheme();
+    const { visualizationConfig, resultsData, colorPalette, itemsMap } =
+        useVisualizationContext();
     const [mapsLoaded, setMapsLoaded] = useState<Set<string>>(new Set());
 
     const chartConfig = useMemo(() => {
@@ -242,6 +241,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
         let scatterData: Array<{
             value: [number, number, number];
             itemStyle: { color: string };
+            rowData?: Record<string, any>;
         }> = [];
 
         let regionData: Array<{ name: string; value: number }> = [];
@@ -268,8 +268,9 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                                 number,
                             ],
                             itemStyle: {
-                                color: theme.colors.blue[6],
+                                color: colorPalette[0],
                             },
+                            rowData: row,
                         };
                     })
                     .filter((d): d is NonNullable<typeof d> => d !== null);
@@ -359,13 +360,15 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                         coordinateSystem: 'geo',
                         data: scatterData,
                         symbolSize: (val: number[]) => {
+                            // If no value field, use small fixed size
+                            if (!valueFieldId) return 4;
                             // Use d3 sqrt scale for proportional circle sizing
                             return sizeScale(val[2] as number);
                         },
                         itemStyle: {
-                            color: theme.colors.blue[6],
+                            color: colorPalette[0],
                             opacity: 0.5,
-                            borderColor: theme.colors.blue[6],
+                            borderColor: colorPalette[0],
                             borderWidth: 2,
                         },
                         emphasis: {
@@ -381,7 +384,64 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                     formatter: (params: any) => {
                         if (params.seriesType === 'scatter') {
                             const [lon, lat, value] = params.value;
-                            return `Lat: ${lat}<br/>Lon: ${lon}<br/>Value: ${value}`;
+                            const rowData = params.data?.rowData;
+
+                            let tooltipLines: string[] = [];
+
+                            // Add value field first if present
+                            if (valueFieldId && itemsMap) {
+                                const valueItem = itemsMap[valueFieldId];
+                                const valueLabel = valueItem
+                                    ? 'label' in valueItem
+                                        ? valueItem.label
+                                        : 'name' in valueItem
+                                        ? valueItem.name
+                                        : 'Value'
+                                    : 'Value';
+                                tooltipLines.push(`${valueLabel}: ${value}`);
+                            }
+
+                            // Add additional fields (up to 2)
+                            if (rowData && itemsMap) {
+                                const usedFieldIds = new Set([
+                                    latitudeFieldId,
+                                    longitudeFieldId,
+                                    valueFieldId,
+                                ]);
+
+                                const additionalFields = Object.keys(rowData)
+                                    .filter(
+                                        (fieldId) => !usedFieldIds.has(fieldId),
+                                    )
+                                    .slice(0, 2);
+
+                                additionalFields.forEach((fieldId) => {
+                                    const item = itemsMap[fieldId];
+                                    const fieldValue =
+                                        rowData[fieldId]?.value?.formatted ||
+                                        rowData[fieldId]?.value?.raw;
+                                    if (item && fieldValue !== undefined) {
+                                        const label =
+                                            'label' in item
+                                                ? item.label
+                                                : 'name' in item
+                                                ? item.name
+                                                : fieldId;
+                                        tooltipLines.push(
+                                            `${label}: ${fieldValue}`,
+                                        );
+                                    }
+                                });
+                            }
+
+                            // Add lat/lon at the end, smaller and truncated
+                            const latTrunc = Number(lat).toFixed(4);
+                            const lonTrunc = Number(lon).toFixed(4);
+                            tooltipLines.push(
+                                `<span style="font-size: 0.85em; opacity: 0.7;">Lat: ${latTrunc}, Lon: ${lonTrunc}</span>`,
+                            );
+
+                            return tooltipLines.join('<br/>');
                         }
                         return params.name;
                     },
@@ -434,14 +494,22 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
                                 show: true,
                             },
                             itemStyle: {
-                                areaColor: theme.colors.blue[4],
+                                areaColor: colorPalette[0],
                             },
                         },
                     },
                 ],
             };
         }
-    }, [chartConfig, resultsData, mapKey, mapsLoaded, theme, mapType]);
+    }, [
+        chartConfig,
+        resultsData,
+        mapKey,
+        mapsLoaded,
+        colorPalette,
+        mapType,
+        itemsMap,
+    ]);
 
     console.log('eChartsOption', eChartsOption);
     return eChartsOption ? { eChartsOption } : undefined;
