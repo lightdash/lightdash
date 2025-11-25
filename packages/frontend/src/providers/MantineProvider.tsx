@@ -33,7 +33,6 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
         () => getMantineThemeOverride(colorScheme),
         [colorScheme],
     );
-    console.log({ colorScheme, theme, themeOverride });
 
     const toggleColorScheme = (value?: ColorScheme) => {
         setColorScheme(value || (colorScheme === 'dark' ? 'light' : 'dark'));

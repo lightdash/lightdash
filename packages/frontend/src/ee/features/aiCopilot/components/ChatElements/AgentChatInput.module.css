@@ -1,12 +1,25 @@
 .backdropBackground {
     backdrop-filter: blur(20px);
-    background-color: rgba(255, 255, 255, 0.9);
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-white), 0.1);
+    }
+
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-8), 0.1);
+    }
+
     border-top-left-radius: var(--mantine-radius-lg);
     border-top-right-radius: var(--mantine-radius-lg);
 }
 
 .input {
-    background-color: rgba(255, 255, 255, 0.3) !important;
+    @mixin light {
+        background-color: alpha(var(--mantine-color-white), 0.3);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-8), 0.3);
+    }
 
     --input-bd-focus: var(--mantine-color-ldGray-7);
     &:focus {

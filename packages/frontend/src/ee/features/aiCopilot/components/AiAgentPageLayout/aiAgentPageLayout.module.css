@@ -1,5 +1,10 @@
 .panelGroup {
-    background-color: white;
+    @mixin light {
+        background-color: white;
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
 }
 
 .sidebar {
@@ -20,7 +25,6 @@
 }
 
 .chat {
-    background-color: white;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -31,7 +35,6 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    background-color: white;
     padding: var(--mantine-spacing-md);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
 }

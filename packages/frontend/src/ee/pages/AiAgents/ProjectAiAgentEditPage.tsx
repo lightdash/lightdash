@@ -365,6 +365,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 pr={0}
                 pb={0}
                 mih={`calc(100vh - ${navbarHeight}px)`}
+                bg="ldGray.0"
             >
                 <Box>
                     {activeTab === 'setup' && (

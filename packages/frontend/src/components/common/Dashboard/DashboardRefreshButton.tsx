@@ -146,7 +146,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         <MantineIcon
                             icon={IconRefresh}
                             color={
-                                isOneAtLeastFetching ? 'transparent' : 'black'
+                                isOneAtLeastFetching ? 'transparent' : undefined
                             }
                         />
                     </Button>

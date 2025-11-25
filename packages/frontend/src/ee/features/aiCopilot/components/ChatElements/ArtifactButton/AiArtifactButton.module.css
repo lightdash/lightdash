@@ -9,35 +9,48 @@
     transition: all 0.12s ease;
     outline: none;
 
-    background: var(--mantine-color-white);
+    @mixin light {
+        background: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-indigo-1);
+    }
+    @mixin dark {
+        background: var(--mantine-color-dark-7);
+        border: 1px solid var(--mantine-color-ldGray-2);
+    }
     box-shadow: var(--mantine-shadow-subtle);
-    border: 1px solid var(--mantine-color-indigo-1);
 }
 
 .artifactButton:hover {
-    background: #f8faff;
-    box-shadow: var(--mantine-shadow-subtle);
-}
-
-.artifactButton:active {
-    background: var(--mantine-color-indigo-0);
+    @mixin light {
+        background: #f8faff;
+    }
+    @mixin dark {
+        background: var(--mantine-color-dark-6);
+    }
     box-shadow: var(--mantine-shadow-subtle);
 }
 
 .artifactButton[data-artifact-open='true'] {
-    background: #f8faff;
-    border: 1px solid var(--mantine-color-indigo-1);
+    @mixin light {
+        background: #f8faff;
+        border: 1px solid var(--mantine-color-indigo-1);
+    }
+    @mixin dark {
+        background: var(--mantine-color-dark-6);
+        border: 1px solid var(--mantine-color-ldGray-2);
+    }
     box-shadow: var(--mantine-shadow-subtle);
 }
 
 .artifactButton[data-artifact-open='true']:hover {
-    background: #f8faff;
-    border-color: var(--mantine-color-indigo-1);
-}
-
-.artifactButton[data-artifact-open='true']:active {
-    background: #f8faff;
-    box-shadow: var(--mantine-shadow-subtle);
+    @mixin light {
+        background: #f8faff;
+        border-color: var(--mantine-color-indigo-1);
+    }
+    @mixin dark {
+        background: var(--mantine-color-dark-5);
+        border-color: var(--mantine-color-ldGray-2);
+    }
 }
 
 .artifactButton[data-loading='true'] {

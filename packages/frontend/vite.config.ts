@@ -42,9 +42,6 @@ export default defineConfig({
             },
         }),
     ],
-    css: {
-        transformer: 'lightningcss',
-    },
     optimizeDeps: {
         exclude: ['@lightdash/common'],
     },
