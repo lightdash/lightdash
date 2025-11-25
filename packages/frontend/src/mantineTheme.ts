@@ -87,16 +87,16 @@ const darkModeColors = {
     ] as ColorTuple,
 
     ldDark: [
-        '#C9C9C9',
+        '#f5f5f5',
+        '#e8e8e8',
+        '#d1d1d1',
         '#b8b8b8',
-        '#828282',
-        '#696969',
-        '#424242',
-        '#3b3b3b',
-        '#2e2e2e',
+        '#9e9e9e',
+        '#858585',
+        '#6c6c6c',
+        '#545454',
+        '#3c3c3c',
         '#242424',
-        '#1f1f1f',
-        '#141414',
     ] as ColorTuple,
     ldGray: [
         '#2e2e2e',
@@ -180,24 +180,18 @@ export const getMantineThemeOverride = (
                 variants: {
                     darkPrimary: (theme) => ({
                         root: {
-                            border: `1px solid #414E62`,
-                            boxShadow: '0px 0px 0px 1px #151C24',
-                            background: theme.fn.linearGradient(
-                                180,
-                                '#202B37',
-                                '#151C24',
-                            ),
+                            background: `var(--mantine-color-ldDark-9)`,
                             borderRadius: theme.radius.md,
-                            color: theme.colors.ldGray[0],
+                            color: `var(--mantine-color-ldDark-0)`,
                             ...theme.fn.hover({
-                                background: theme.colors.ldDark[4],
+                                background: `var(--mantine-color-ldDark-8)`,
                             }),
                             '&[data-loading]': {
                                 boxShadow: theme.shadows.subtle,
                             },
                             '&[data-disabled]': {
                                 boxShadow: theme.shadows.subtle,
-                                color: theme.colors.ldGray[5],
+                                color: `var(--mantine-color-ldDark-5)`,
                             },
                         },
                     }),
@@ -211,9 +205,19 @@ export const getMantineThemeOverride = (
                 }),
             },
 
+            Popover: {
+                defaultProps: {
+                    withinPortal: true,
+                    radius: 'md',
+                    shadow: 'md',
+                },
+            },
+
             Tooltip: {
                 defaultProps: {
                     withArrow: true,
+                    withinPortal: true,
+                    multiline: true,
                 },
                 variants: {
                     xs: (theme) => ({
@@ -229,6 +233,14 @@ export const getMantineThemeOverride = (
                     // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
                     // It could be made a less-magic number once we migrate
                     yOffset: 140,
+                },
+            },
+
+            Paper: {
+                defaultProps: {
+                    radius: 'md',
+                    shadow: 'subtle',
+                    withBorder: true,
                 },
             },
 
@@ -346,4 +358,4 @@ export const getMantineThemeOverride = (
                 to: { opacity: 1 },
             },
         }),
-    } satisfies MantineThemeOverride);
+    }) satisfies MantineThemeOverride;

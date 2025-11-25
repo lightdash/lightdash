@@ -388,8 +388,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                 </Group>
                 <Group spacing="xs">
                     <Badge
-                        bg="#F8F9FC"
-                        c="#363F72"
+                        bg="ldGray.1"
+                        c="ldGray.8"
                         radius={6}
                         py="sm"
                         px="xs"

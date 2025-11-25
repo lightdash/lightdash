@@ -57,7 +57,6 @@ export const MetricChartUsageButton = ({
             <Button
                 size="xs"
                 compact
-                color="ldGray.6"
                 variant="subtle"
                 disabled={!hasChartsUsage}
                 onClick={handleChartUsageClick}
@@ -70,6 +69,7 @@ export const MetricChartUsageButton = ({
                     '&[data-disabled]': {
                         backgroundColor: 'transparent',
                         fontWeight: 400,
+                        color: `var(--mantine-color-ldDark-7)`,
                     },
                 }}
                 styles={(theme) => ({
