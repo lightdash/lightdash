@@ -5,7 +5,7 @@ import {
     type MantineThemeOverride,
 } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { type FC, useEffect, useState } from 'react';
+import { type FC, useEffect, useMemo, useState } from 'react';
 
 import { getMantineThemeOverride } from '../mantineTheme';
 
@@ -29,7 +29,11 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const [colorScheme, setColorScheme] = useState<ColorScheme>('light');
 
-    const theme = getMantineThemeOverride(colorScheme);
+    const theme = useMemo(
+        () => getMantineThemeOverride(colorScheme),
+        [colorScheme],
+    );
+    console.log({ colorScheme, theme, themeOverride });
 
     const toggleColorScheme = (value?: ColorScheme) => {
         setColorScheme(value || (colorScheme === 'dark' ? 'light' : 'dark'));
