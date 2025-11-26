@@ -44,6 +44,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineColorScheme,
 } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
@@ -95,6 +96,7 @@ import {
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
@@ -149,7 +151,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -243,6 +245,8 @@ const ValidDashboardChartTile: FC<{
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
 
     const { health } = useApp();
+    const { data: org } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
 
     const {
         ref: measureRef,
@@ -287,6 +291,18 @@ const ValidDashboardChartTile: FC<{
         ],
     );
 
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && org?.chartDarkColors) {
+            return org.chartDarkColors;
+        }
+        return org?.chartColors ?? chart.colorPalette;
+    }, [
+        colorScheme,
+        org?.chartColors,
+        org?.chartDarkColors,
+        chart.colorPalette,
+    ]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -303,7 +319,7 @@ const ValidDashboardChartTile: FC<{
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
-            colorPalette={chart.colorPalette}
+            colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
             parameters={
@@ -346,6 +362,8 @@ const ValidDashboardChartTileMinimal: FC<{
     setEchartsRef,
 }) => {
     const { health } = useApp();
+    const { data: org } = useOrganization();
+    const { colorScheme } = useMantineColorScheme();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
 
@@ -388,6 +406,18 @@ const ValidDashboardChartTileMinimal: FC<{
         ],
     );
 
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && org?.chartDarkColors) {
+            return org.chartDarkColors;
+        }
+        return org?.chartColors ?? chart.colorPalette;
+    }, [
+        colorScheme,
+        org?.chartColors,
+        org?.chartDarkColors,
+        chart.colorPalette,
+    ]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -404,7 +434,7 @@ const ValidDashboardChartTileMinimal: FC<{
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
-            colorPalette={chart.colorPalette}
+            colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
             parameters={
@@ -1389,7 +1419,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? chart.chartConfig.config.showTableNames ?? false
+                        ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
@@ -1661,7 +1691,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true
                     }
                     chartName={title || chart.name}
