@@ -126,7 +126,7 @@ const DEFAULT_VALUES_ALERT = {
             value: 0,
         },
     ],
-    notificationFrequency: NotificationFrequency.ONCE,
+    notificationFrequency: NotificationFrequency.ALWAYS,
 };
 
 const MAX_SLACK_CHANNELS = 100000;
