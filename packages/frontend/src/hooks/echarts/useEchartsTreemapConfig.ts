@@ -9,6 +9,7 @@ import {
     getTooltipDivider,
     getTooltipStyle,
 } from '@lightdash/common';
+import { GRAY_9 } from '@lightdash/common/src/visualizations/helpers/styles/themeColors';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
 import { useMemo } from 'react';
@@ -104,6 +105,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             visualMin,
             visualMax,
             itemStyle: {
+                borderColor: 'transparent',
                 gapWidth: 4,
                 borderRadius: 4,
             },
@@ -112,6 +114,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 height: 30,
                 formatter: '{b}',
                 padding: [4, 8],
+                color: GRAY_9,
             },
             label: {
                 show: true,

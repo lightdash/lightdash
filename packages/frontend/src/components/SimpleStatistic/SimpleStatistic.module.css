@@ -6,6 +6,9 @@
     border-radius: 100px;
     border: 1px solid;
     font-weight: 500;
+    @mixin dark {
+        filter: brightness(0.5) contrast(2);
+    }
 }
 
 .trendPillUp {

@@ -1,4 +1,10 @@
-import { GRAY_0, GRAY_1, GRAY_3, GRAY_7, WHITE } from './themeColors';
+import {
+    GRAY_0,
+    GRAY_1,
+    GRAY_3,
+    GRAY_7,
+    TOOLTIP_BACKGROUND,
+} from './themeColors';
 
 /**
  * Helper to convert style object to CSS string
@@ -21,7 +27,7 @@ export const getTooltipStyle = () => ({
     borderColor: GRAY_3,
     borderWidth: 1,
     borderRadius: 8,
-    backgroundColor: WHITE,
+    backgroundColor: TOOLTIP_BACKGROUND,
     appendToBody: true,
     textStyle: {
         color: GRAY_7,
