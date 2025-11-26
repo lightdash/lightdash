@@ -3,10 +3,8 @@ import {
     isDimension,
     isPreviousPeriodableTimeDimension,
     isSupportedPeriodOverPeriodGranularity,
-    periodOverPeriodGranularityLabels,
     timeFrameConfigs,
     TimeFrames,
-    validPeriodOverPeriodGranularities,
     type Dimension,
     type ItemsMap,
 } from '@lightdash/common';
@@ -39,6 +37,20 @@ type Props = {
     disabled: boolean;
 };
 
+// Granularity order from finest to coarsest (lower index = finer)
+const GRANULARITY_ORDER: TimeFrames[] = [
+    TimeFrames.DAY,
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+];
+
+const getGranularityRank = (granularity: TimeFrames): number => {
+    const index = GRANULARITY_ORDER.indexOf(granularity);
+    return index === -1 ? Infinity : index;
+};
+
 const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
     const [opened, setOpened] = useState(false);
     const dispatch = useExplorerDispatch();
@@ -46,14 +58,32 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
     const selectedDimensions = useExplorerSelector(selectDimensions);
 
     // Find all time dimensions that can be used for PoP from selected dimensions
+    // Filter out coarser granularities when finer ones exist
     const availableTimeDimensions = useMemo(() => {
         if (!itemsMap || !selectedDimensions) return [];
 
-        return selectedDimensions
+        const allTimeDimensions = selectedDimensions
             .map((dimId) => itemsMap[dimId])
             .filter((item): item is Dimension =>
                 isPreviousPeriodableTimeDimension(item),
             );
+
+        if (allTimeDimensions.length <= 1) return allTimeDimensions;
+
+        // Find the finest granularity among all selected time dimensions
+        const finestRank = Math.min(
+            ...allTimeDimensions.map((dim) =>
+                getGranularityRank(dim.timeInterval as TimeFrames),
+            ),
+        );
+
+        // Only include dimensions that match the finest granularity
+        // (exclude coarser ones like Year when Month is also selected)
+        return allTimeDimensions.filter(
+            (dim) =>
+                getGranularityRank(dim.timeInterval as TimeFrames) ===
+                finestRank,
+        );
     }, [itemsMap, selectedDimensions]);
 
     const hasTimeDimensions = availableTimeDimensions.length > 0;
@@ -72,30 +102,26 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
         periodOverPeriod?.periodOffset ?? 1,
     );
 
-    // Track selected granularity
-    const [selectedGranularity, setSelectedGranularity] = useState<TimeFrames>(
-        periodOverPeriod?.granularity ?? TimeFrames.DAY,
-    );
-
-    // Helper function to get default granularity based on dimension's timeInterval
-    const getDefaultGranularity = useCallback(
-        (timeInterval: TimeFrames | null): TimeFrames => {
-            if (!timeInterval) return TimeFrames.DAY;
-            if (isSupportedPeriodOverPeriodGranularity(timeInterval)) {
-                return timeInterval;
-            }
-            // Otherwise return the timeInterval itself
-            return TimeFrames.DAY;
-        },
-        [],
-    );
-
     // Get the selected dimension object
     const selectedDimensionObj = useMemo(() => {
         if (!selectedTimeDimension || !itemsMap) return null;
         const dim = itemsMap[selectedTimeDimension];
         return isDimension(dim) ? dim : null;
     }, [selectedTimeDimension, itemsMap]);
+
+    // Granularity is derived from the selected time dimension's timeInterval
+    // For previous period comparison, it must match the dimension's granularity
+    const selectedGranularity = useMemo(() => {
+        if (!selectedDimensionObj?.timeInterval) return null;
+        if (
+            isSupportedPeriodOverPeriodGranularity(
+                selectedDimensionObj.timeInterval,
+            )
+        ) {
+            return selectedDimensionObj.timeInterval;
+        }
+        return null;
+    }, [selectedDimensionObj]);
 
     // Get granularity label for selected dimension
     const granularityLabel = useMemo(() => {
@@ -132,25 +158,13 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
         dispatch(explorerActions.requestQueryExecution());
         setSelectedTimeDimension(null);
         setPeriodOffset(1);
-        setSelectedGranularity(TimeFrames.DAY);
         setOpened(false);
     }, [dispatch]);
 
-    // Handle time dimension change and update granularity accordingly
-    const handleTimeDimensionChange = useCallback(
-        (value: string | null) => {
-            setSelectedTimeDimension(value);
-            if (value && itemsMap) {
-                const dim = itemsMap[value];
-                if (isDimension(dim)) {
-                    setSelectedGranularity(
-                        getDefaultGranularity(dim.timeInterval ?? null),
-                    );
-                }
-            }
-        },
-        [itemsMap, getDefaultGranularity],
-    );
+    // Handle time dimension change
+    const handleTimeDimensionChange = useCallback((value: string | null) => {
+        setSelectedTimeDimension(value);
+    }, []);
 
     // Reset selected dimension when popover opens
     const handleOpenChange = useCallback(
@@ -163,23 +177,15 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                         `${periodOverPeriod.field.table}.${periodOverPeriod.field.name}`,
                     );
                     setPeriodOffset(periodOverPeriod.periodOffset ?? 1);
-                    setSelectedGranularity(
-                        periodOverPeriod.granularity ?? null,
-                    );
                 } else if (availableTimeDimensions.length > 0) {
                     setSelectedTimeDimension(
                         getItemId(availableTimeDimensions[0]),
                     );
                     setPeriodOffset(1);
-                    setSelectedGranularity(
-                        getDefaultGranularity(
-                            availableTimeDimensions[0].timeInterval ?? null,
-                        ),
-                    );
                 }
             }
         },
-        [periodOverPeriod, availableTimeDimensions, getDefaultGranularity],
+        [periodOverPeriod, availableTimeDimensions],
     );
 
     const selectData = useMemo(
@@ -189,16 +195,6 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                 label: dim.label || dim.name,
             })),
         [availableTimeDimensions],
-    );
-
-    // Granularity options for the select
-    const granularityOptions = useMemo(
-        () =>
-            validPeriodOverPeriodGranularities.map((granularity) => ({
-                value: granularity,
-                label: periodOverPeriodGranularityLabels[granularity],
-            })),
-        [],
     );
 
     const buttonLabel = periodOverPeriod ? 'Period comparison' : 'Compare';
@@ -300,23 +296,10 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                             },
                                         }}
                                     />
-                                    <Group noWrap pl="28px">
-                                        <Select
-                                            label="Granularity"
-                                            placeholder="Select granularity"
-                                            data={granularityOptions}
-                                            value={selectedGranularity}
-                                            onChange={(value) =>
-                                                setSelectedGranularity(
-                                                    value as TimeFrames,
-                                                )
-                                            }
-                                            size="xs"
-                                        />
-
+                                    <Group noWrap spacing="xs" pl="28px">
                                         <NumberInput
                                             label="Period offset"
-                                            placeholder="Enter period offset"
+                                            placeholder="Enter offset"
                                             value={periodOffset}
                                             onChange={(value) => {
                                                 if (
@@ -329,7 +312,12 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                             }}
                                             min={1}
                                             size="xs"
+                                            w={100}
                                         />
+
+                                        <Text size="xs" fw={500} mt="md">
+                                            {granularityLabel}(s)
+                                        </Text>
                                     </Group>
                                     <Radio
                                         value="rolling"
