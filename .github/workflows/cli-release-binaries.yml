@@ -13,7 +13,7 @@ on:
 jobs:
   check-cli-changes:
     name: Check if CLI files changed
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
     outputs:
@@ -62,7 +62,7 @@ jobs:
     name: Build macOS CLI Binaries
     needs: check-cli-changes
     if: needs.check-cli-changes.outputs.should_build == 'true'
-    runs-on: macos-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
     steps:
@@ -195,7 +195,7 @@ jobs:
   update-homebrew-formula:
     name: Update Homebrew Formula
     needs: build-macos-binaries
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
     steps:

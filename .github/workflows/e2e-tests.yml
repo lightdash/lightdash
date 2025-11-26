@@ -8,7 +8,7 @@ jobs:
     files-changed:
         if: github.ref != 'refs/heads/main'
         name: Detect what files changed
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         # Map a step output to a job output
         outputs:
             frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
@@ -39,7 +39,7 @@ jobs:
                   echo "perf=${{ contains(steps.PR.outputs.pr_body, 'test-perf') }}" >> "$GITHUB_OUTPUT"
     prepare-preview:
         # Only trigger for correct environment and status
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.backend == 'true'  || needs.files-changed.outputs.timezone == 'true'
         needs: files-changed
         outputs:
@@ -54,7 +54,7 @@ jobs:
     api-tests:
         if: needs.files-changed.outputs.backend == 'true'
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         name: API tests
         steps:
@@ -98,7 +98,7 @@ jobs:
                   CYPRESS_TZ: 'UTC'
 
     build-cypress-e2e-image:
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         name: Build cypress e2e image
         permissions:
             contents: read
@@ -106,27 +106,25 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+            - name: Setup Blacksmith Builder
+              uses: useblacksmith/setup-docker-builder@v1
             - name: GitHub Registry Login
               uses: docker/login-action@v3
               with:
                   registry: ghcr.io
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
-            - uses: docker/build-push-action@v5
+            - uses: useblacksmith/build-push-action@v2
               with:
                   file: ./packages/e2e/dockerfile
                   context: .
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
                   tags: ghcr.io/lightdash/lightdash-cypress-e2e:latest
                   push: true
 
     app-tests:
         if: needs.files-changed.outputs.frontend == 'true'
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         container:
             image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -192,7 +190,7 @@ jobs:
     perf-tests:
         if: needs.files-changed.outputs.perf == 'true'
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: [files-changed, prepare-preview]
         container:
             image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -250,7 +248,7 @@ jobs:
     timezone-tests:
         if: needs.files-changed.outputs.timezone == 'true'
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         container:
             image: ghcr.io/lightdash/lightdash-cypress-e2e:latest

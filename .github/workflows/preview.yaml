@@ -17,7 +17,7 @@ permissions:
   
 jobs:
   preview:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Context
         uses: okteto/context@latest

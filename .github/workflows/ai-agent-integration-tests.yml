@@ -19,7 +19,7 @@ permissions:
 
 jobs:
     setup:
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         services:
             postgres:
                 image: pgvector/pgvector:pg16
@@ -112,7 +112,7 @@ jobs:
                   key: ai-agent-setup-${{ github.sha }}
 
     ai-agent-tests:
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: setup
         strategy:
             matrix:
