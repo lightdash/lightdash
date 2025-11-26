@@ -117,7 +117,6 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             width: '100%',
                             zIndex: 10,
                         })}
-                        bg="white"
                         px="xl"
                         py="md"
                         justify="flex-end"

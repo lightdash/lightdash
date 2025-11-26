@@ -22,6 +22,7 @@ import {
     Textarea,
     TextInput,
     Tooltip,
+    useMantineColorScheme,
 } from '@mantine/core';
 import {
     IconExternalLink,
@@ -197,6 +198,7 @@ type Props = {
 
 const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const { user } = useApp();
+    const { colorScheme } = useMantineColorScheme();
 
     const { isInitialLoading: isLoadingProjects, data: projects } =
         useProjects();
@@ -391,7 +393,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const branches = useBranches(selectedProjectUuid);
 
     return (
-        <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+        <MantineProvider inherit theme={{ colorScheme }}>
             <Modal
                 size="lg"
                 opened={isOpened}

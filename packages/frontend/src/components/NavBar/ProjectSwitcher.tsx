@@ -42,7 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 
 const MENU_TEXT_PROPS = {
-    c: 'ldGray.1',
+    c: 'gray.1',
     fz: 'xs',
     fw: 500,
 };
@@ -78,7 +78,7 @@ const GroupHeader: FC<{
         >
             <Group spacing="xs" position="apart" noWrap>
                 <Group spacing="xs" noWrap>
-                    <Text {...MENU_TEXT_PROPS} fw={600} c="ldGray.4">
+                    <Text {...MENU_TEXT_PROPS} fw={600} c="gray.4">
                         {title}
                     </Text>
                     <Badge
@@ -97,7 +97,7 @@ const GroupHeader: FC<{
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size="sm"
-                    color="ldGray.5"
+                    color="gray.5"
                 />
             </Group>
         </UnstyledButton>
@@ -139,7 +139,7 @@ const ProjectItem: FC<{
                         truncate
                         maw={350}
                         fw={isActive ? 600 : 500}
-                        c={isActive ? 'ldGray.5' : 'inherit'}
+                        c={isActive ? 'gray.5' : 'inherit'}
                     >
                         {item.name}
                     </Highlight>
@@ -461,11 +461,11 @@ const ProjectSwitcher = () => {
                     <Box
                         pos="sticky"
                         top={0}
-                        bg="ldGray.9"
+                        bg="gray.9"
                         p="sm"
                         sx={(theme) => ({
-                            boxShadow: `0 2px 8px ${theme.colors.ldGray[9]}`,
-                            borderBottom: `1px solid ${theme.colors.ldDark[4]}`,
+                            boxShadow: `0 2px 8px ${theme.colors.gray[9]}`,
+                            borderBottom: `1px solid ${theme.colors.dark[4]}`,
                         })}
                     >
                         <TextInput
@@ -490,7 +490,7 @@ const ProjectSwitcher = () => {
                             styles={{
                                 input: {
                                     backgroundColor: 'transparent',
-                                    border: `1px solid var(--mantine-color-ldDark-4)`,
+                                    border: `1px solid var(--mantine-color-dark-4)`,
                                     '&:focus': {
                                         borderColor:
                                             'var(--mantine-color-blue-6)',
@@ -594,7 +594,7 @@ const ProjectSwitcher = () => {
                                         <MantineIcon
                                             icon={IconSearch}
                                             size="lg"
-                                            color="ldGray.5"
+                                            color="gray.5"
                                         />
                                         <Text {...MENU_TEXT_PROPS}>
                                             {debouncedSearchQuery.length >= 2
@@ -610,10 +610,10 @@ const ProjectSwitcher = () => {
                         <Box
                             pos="sticky"
                             bottom={0}
-                            bg="ldGray.9"
+                            bg="gray.9"
                             sx={(theme) => ({
                                 // fixes scroll overlap
-                                boxShadow: `0 4px ${theme.colors.ldGray[9]}`,
+                                boxShadow: `0 4px ${theme.colors.gray[9]}`,
                             })}
                         >
                             {(baseProjects.length > 0 ||

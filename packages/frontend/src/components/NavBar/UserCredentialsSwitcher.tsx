@@ -1,4 +1,11 @@
-import { ActionIcon, MantineProvider, Menu, Text, Title } from '@mantine/core';
+import {
+    ActionIcon,
+    MantineProvider,
+    Menu,
+    Text,
+    Title,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,6 +31,7 @@ const routesThatNeedWarehouseCredentials = [
 
 const UserCredentialsSwitcher = () => {
     const { user } = useApp();
+    const theme = useMantineTheme();
     const location = useLocation();
     const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
         useState(false);
@@ -183,7 +191,10 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Dropdown>
             </Menu>
             {isCreatingCredentials && (
-                <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+                <MantineProvider
+                    inherit
+                    theme={{ colorScheme: theme.colorScheme }}
+                >
                     <CreateCredentialsModal
                         opened={isCreatingCredentials}
                         title={

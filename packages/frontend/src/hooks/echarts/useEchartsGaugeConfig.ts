@@ -25,14 +25,16 @@ const getValueColor = ({
     sections,
     primaryColor,
     gaugeMax,
+    foregroundColor,
 }: {
     numericValue: number;
     sections: GaugeSection[] | undefined;
     primaryColor: string;
     gaugeMax: number;
+    foregroundColor: string;
 }) => {
     const defaultColours = {
-        text: 'black',
+        text: foregroundColor,
         bar: primaryColor,
     };
     if (!sections || sections.length === 0) {
@@ -163,6 +165,7 @@ const useEchartsGaugeConfig = ({
         });
 
         const valueColor = getValueColor({
+            foregroundColor: theme.colors.foreground[0],
             numericValue,
             sections: sectionsWithResolvedValues,
             primaryColor: theme.colors.blue[6],
