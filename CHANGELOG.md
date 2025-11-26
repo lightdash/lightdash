@@ -1,3 +1,10 @@
+# [0.2207.0](https://github.com/lightdash/lightdash/compare/0.2206.1...0.2207.0) (2025-11-26)
+
+
+### Features
+
+* add pop on explorer ([#18308](https://github.com/lightdash/lightdash/issues/18308)) ([09e4d44](https://github.com/lightdash/lightdash/commit/09e4d44bdb07e938e0e7c5633ffd571740cbfcd6))
+
 ## [0.2206.1](https://github.com/lightdash/lightdash/compare/0.2206.0...0.2206.1) (2025-11-26)
 
 
