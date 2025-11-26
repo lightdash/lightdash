@@ -1,5 +1,6 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    type ApiDuplicateTabResponse,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -11,6 +12,7 @@ import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
@@ -257,42 +259,30 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     };
 
-    const handleConfirmDuplicateTab = (name: string) => {
-        if (tabToDuplicate) {
-            const lastOrd =
-                dashboardTabs.length > 0
-                    ? Math.max(...dashboardTabs.map((t) => t.order ?? 0))
-                    : -1;
-            const newTab = {
-                name: name,
-                uuid: uuid4(),
-                isDefault: false,
-                order: lastOrd + 1,
-            };
+    const handleConfirmDuplicateTab = async (name: string) => {
+        if (tabToDuplicate && dashboardUuid) {
+            try {
+                // Call backend to duplicate tab with charts
+                const response =
+                    await lightdashApi<ApiDuplicateTabResponse['results']>({
+                        url: `/dashboards/${dashboardUuid}/tabs/${tabToDuplicate.uuid}/duplicate`,
+                        method: 'POST',
+                        body: JSON.stringify({ name }),
+                    });
 
-            setDashboardTabs((currentTabs) => [...currentTabs, newTab]);
-            handleChangeTab(newTab);
-            setHaveTabsChanged(true);
-
-            // Duplicate tiles from the original tab
-            const tilesToDuplicate = dashboardTiles?.filter(
-                (tile) => tile.tabUuid === tabToDuplicate.uuid,
-            );
-
-            if (tilesToDuplicate && tilesToDuplicate.length > 0) {
-                const duplicatedTiles = tilesToDuplicate.map((tile) => ({
-                    ...tile,
-                    uuid: uuid4(),
-                    tabUuid: newTab.uuid,
-                }));
-
-                // Directly add tiles to the dashboard without using handleAddTiles
-                // to avoid automatic assignment to current active tab
+                // Update local state with the new tab and tiles
+                setDashboardTabs((currentTabs) => [...currentTabs, response.tab]);
                 setDashboardTiles((currentTiles) => [
                     ...(currentTiles ?? []),
-                    ...duplicatedTiles,
+                    ...response.tiles,
                 ]);
+
+                handleChangeTab(response.tab);
+                setHaveTabsChanged(true);
                 setHaveTilesChanged(true);
+            } catch (error) {
+                console.error('Failed to duplicate tab:', error);
+                // Error will be handled by the API client
             }
         }
         setDuplicatingTab(false);

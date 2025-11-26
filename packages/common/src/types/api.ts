@@ -62,6 +62,7 @@ import {
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
     type DashboardSummary,
+    type DashboardTab,
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
@@ -680,6 +681,18 @@ export type ApiAiGenerateCustomVizResponse = {
     results: string;
 };
 
+export type ApiDuplicateTabRequest = {
+    name: string;
+};
+
+export type ApiDuplicateTabResponse = {
+    status: 'ok';
+    results: {
+        tab: DashboardTab;
+        tiles: Dashboard['tiles'];
+    };
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -764,6 +777,7 @@ type ApiResults =
     | ApiCreateProjectResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
+    | ApiDuplicateTabResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']

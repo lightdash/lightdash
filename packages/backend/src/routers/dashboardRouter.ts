@@ -147,6 +147,30 @@ dashboardRouter.post(
 );
 
 dashboardRouter.post(
+    '/:dashboardUuid/tabs/:tabUuid/duplicate',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await req.services
+                    .getDashboardService()
+                    .duplicateTab(
+                        req.user!,
+                        req.params.dashboardUuid,
+                        req.params.tabUuid,
+                        req.body.name,
+                    ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.post(
     '/availableFilters',
     allowApiKeyAuthentication,
     isAuthenticated,
