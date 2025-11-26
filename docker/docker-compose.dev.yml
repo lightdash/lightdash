@@ -95,6 +95,13 @@ x-lightdash-environment: &lightdash-environment
     TURBO_TOKEN: ${TURBO_TOKEN}
     TURBO_TEAM: ${TURBO_TEAM}
     TURBO_API: ${TURBO_API}
+    EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST}
+    EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT}
+    EMAIL_SMTP_SECURE: ${EMAIL_SMTP_SECURE}
+    EMAIL_SMTP_USE_AUTH: ${EMAIL_SMTP_USE_AUTH}
+    EMAIL_SMTP_ALLOW_INVALID_CERT: ${EMAIL_SMTP_ALLOW_INVALID_CERT}
+    EMAIL_SMTP_SENDER_NAME: ${EMAIL_SMTP_SENDER_NAME}
+    EMAIL_SMTP_SENDER_EMAIL: ${EMAIL_SMTP_SENDER_EMAIL}
 
 x-lightdash-base: &lightdash-base
     build: *lightdash-build
@@ -185,3 +192,14 @@ services:
             - '--web.console.templates=/etc/prometheus/consoles'
             - '--storage.tsdb.retention.time=200h'
             - '--web.enable-lifecycle'
+
+    mailpit:
+        image: axllent/mailpit:latest
+        restart: unless-stopped
+        ports:
+            - '8025:8025'
+            - '1025:1025'
+        environment:
+            MP_MAX_MESSAGES: 5000
+            MP_SMTP_AUTH_ACCEPT_ANY: 1
+            MP_SMTP_AUTH_ALLOW_INSECURE: 1
