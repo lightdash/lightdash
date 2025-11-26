@@ -20,6 +20,7 @@ import {
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
+import { type PeriodOverPeriodComparison } from './periodOverPeriodComparison';
 
 export interface AdditionalMetric {
     label?: string;
@@ -73,6 +74,7 @@ export type MetricQuery = {
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
+    periodOverPeriod?: PeriodOverPeriodComparison;
 };
 export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledTableCalculations: CompiledTableCalculation[];
@@ -171,6 +173,7 @@ export type MetricQueryRequest = {
     metadata?: MetricQuery['metadata'];
     timezone?: string;
     metricOverrides?: MetricOverrides;
+    periodOverPeriod?: PeriodOverPeriodComparison;
 };
 
 export type QueryWarning = {

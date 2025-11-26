@@ -260,6 +260,8 @@ export interface ExplorerReduceState {
         unpivotedQueryArgs: QueryResultsProps | null;
         queryUuidHistory: string[];
         unpivotedQueryUuidHistory: string[];
+        // Flag to trigger a query execution from components (works regardless of auto-fetch setting)
+        pendingFetch: boolean;
     };
     fromDashboard?: string;
     isExploreFromHere?: boolean;

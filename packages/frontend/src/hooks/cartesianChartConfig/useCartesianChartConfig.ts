@@ -387,6 +387,7 @@ const useCartesianChartConfig = ({
             showAxisTicks: show,
         }));
     }, []);
+
     const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];

@@ -138,6 +138,7 @@ export type GaugeChart = {
     maxFieldId?: string;
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
+    customLabel?: string;
 };
 
 export enum MapChartLocation {

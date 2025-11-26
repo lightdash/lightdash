@@ -3137,11 +3137,53 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreviousPeriod: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                periodOffset: { dataType: 'double' },
+                granularity: { ref: 'TimeFrames', required: true },
+                type: {
+                    dataType: 'enum',
+                    enums: ['previousPeriod'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PeriodOverPeriodComparison: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'PreviousPeriod' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        field: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                table: { dataType: 'string', required: true },
+                                name: { dataType: 'string', required: true },
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -4246,6 +4288,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                customLabel: { dataType: 'string' },
                 sections: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'GaugeSection' },
@@ -14603,6 +14646,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                 metricOverrides: { ref: 'MetricOverrides' },
                 timezone: { dataType: 'string' },
                 metadata: {
@@ -21167,6 +21211,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                periodOverPeriod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PeriodOverPeriodComparison' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -21189,6 +21240,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         dateZoom: { ref: 'DateZoom' },
                         query: {

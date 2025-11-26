@@ -180,6 +180,12 @@ export const selectTimezone = createSelector(
     (metricQuery) => metricQuery.timezone,
 );
 
+// Period over period selector
+export const selectPeriodOverPeriod = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.periodOverPeriod,
+);
+
 // Chart config selector
 export const selectChartConfig = createSelector(
     [selectUnsavedChartVersion],
@@ -216,6 +222,11 @@ export const selectQueryUuidHistory = createSelector(
 export const selectUnpivotedQueryUuidHistory = createSelector(
     [selectQueryExecution],
     (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
+);
+
+export const selectPendingFetch = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.pendingFetch,
 );
 
 // Navigation context selectors

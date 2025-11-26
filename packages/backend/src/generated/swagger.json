@@ -3488,8 +3488,54 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "PreviousPeriod": {
+                "properties": {
+                    "periodOffset": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["previousPeriod"],
+                        "nullable": false
+                    }
+                },
+                "required": ["granularity", "type"],
+                "type": "object"
+            },
+            "PeriodOverPeriodComparison": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PreviousPeriod"
+                    },
+                    {
+                        "properties": {
+                            "field": {
+                                "properties": {
+                                    "table": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["table", "name"],
+                                "type": "object"
+                            }
+                        },
+                        "required": ["field"],
+                        "type": "object"
+                    }
+                ]
+            },
             "MetricQuery": {
                 "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -4635,6 +4681,9 @@
             },
             "GaugeChart": {
                 "properties": {
+                    "customLabel": {
+                        "type": "string"
+                    },
                     "sections": {
                         "items": {
                             "$ref": "#/components/schemas/GaugeSection"
@@ -15105,6 +15154,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
                     },
@@ -21673,6 +21725,9 @@
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
                     }
                 },
                 "required": [
@@ -21698,6 +21753,9 @@
                     },
                     {
                         "properties": {
+                            "periodOverPeriod": {
+                                "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                            },
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
                             },
@@ -22898,7 +22956,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2204.0",
+        "version": "0.2207.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

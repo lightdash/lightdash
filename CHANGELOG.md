@@ -1,3 +1,36 @@
+# [0.2207.0](https://github.com/lightdash/lightdash/compare/0.2206.1...0.2207.0) (2025-11-26)
+
+
+### Features
+
+* add pop on explorer ([#18308](https://github.com/lightdash/lightdash/issues/18308)) ([09e4d44](https://github.com/lightdash/lightdash/commit/09e4d44bdb07e938e0e7c5633ffd571740cbfcd6))
+
+## [0.2206.1](https://github.com/lightdash/lightdash/compare/0.2206.0...0.2206.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* take pivotDetails into consideration when calculating min/max values for reference lines ([#18337](https://github.com/lightdash/lightdash/issues/18337)) ([c3fe513](https://github.com/lightdash/lightdash/commit/c3fe5131b10208242304b0fe56a187bf9ff33e1a))
+
+# [0.2206.0](https://github.com/lightdash/lightdash/compare/0.2205.0...0.2206.0) (2025-11-25)
+
+
+### Features
+
+* add custom label option to gauge charts ([#18290](https://github.com/lightdash/lightdash/issues/18290)) ([1f15b4e](https://github.com/lightdash/lightdash/commit/1f15b4e0dd2c747be901af07a21dc181d359dc22))
+
+# [0.2205.0](https://github.com/lightdash/lightdash/compare/0.2204.0...0.2205.0) (2025-11-24)
+
+
+### Bug Fixes
+
+* allow sql_from if no model_name ([#18302](https://github.com/lightdash/lightdash/issues/18302)) ([b725ee7](https://github.com/lightdash/lightdash/commit/b725ee7d05fa8cf6dab20be80982b31ebec0a556))
+
+
+### Features
+
+* add lightdash model compile + deploy ([#18312](https://github.com/lightdash/lightdash/issues/18312)) ([3111d7b](https://github.com/lightdash/lightdash/commit/3111d7b9acb06f79edf570e0cb36fcba62f9bf77)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2204.0](https://github.com/lightdash/lightdash/compare/0.2203.0...0.2204.0) (2025-11-24)
 
 
