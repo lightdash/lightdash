@@ -9,9 +9,10 @@ import {
     Stack,
     Switch,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCamera, IconPlus, IconX } from '@tabler/icons-react';
+import { IconLockAccess, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
@@ -282,15 +283,21 @@ export const Display: FC = memo(() => {
                             precision={2}
                         />
                     </Group>
-                    <Button
-                        variant="light"
-                        leftIcon={<IconCamera size={16} />}
-                        mt="sm"
-                        fullWidth
-                        onClick={handleCaptureCurrentView}
+                    <Tooltip
+                        label="Set the default view of the map to the current zoom and center"
+                        withinPortal
+                        position="bottom"
                     >
-                        Capture current view
-                    </Button>
+                        <Button
+                            variant="light"
+                            leftIcon={<IconLockAccess size={16} />}
+                            mt="sm"
+                            fullWidth
+                            onClick={handleCaptureCurrentView}
+                        >
+                            Lock current view
+                        </Button>
+                    </Tooltip>
                 </Config.Section>
             </Config>
         </Stack>
