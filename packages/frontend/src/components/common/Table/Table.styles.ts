@@ -97,6 +97,17 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         box-shadow: inset 1px 0 0 0 rgba(17, 20, 24, 0.15);
     }
 
+    /* Add bottom border to last row to close the table */
+    tbody tr:last-child td {
+        box-shadow: inset 0 1px 0 0 rgba(17, 20, 24, 0.15),
+                    inset 0 -1px 0 0 rgba(17, 20, 24, 0.15) !important;
+    }
+
+    tbody tr:last-child td:not(:first-child) {
+        box-shadow: inset 1px 1px 0 0 rgba(17, 20, 24, 0.15),
+                    inset 0 -1px 0 0 rgba(17, 20, 24, 0.15) !important;
+    }
+
     /* FIXME: everything above this line is copied from blueprint's table css */
 
     thead {
