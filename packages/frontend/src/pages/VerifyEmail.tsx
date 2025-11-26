@@ -3,7 +3,6 @@ import {
     Box,
     Button,
     Card,
-    Image,
     Modal,
     Stack,
     Text,
@@ -14,13 +13,13 @@ import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import Page from '../components/common/Page/Page';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import useApp from '../providers/App/useApp';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const VerificationSuccess: FC<{
     isOpen: boolean;
@@ -66,13 +65,9 @@ const VerifyEmailPage: FC = () => {
     return (
         <Page title="Verify your email" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
-                    width={130}
-                    mx="auto"
-                    my="lg"
-                />
+                <Box mx="auto" my="lg">
+                    <LightdashLogo />
+                </Box>
                 <Card p="xl" radius="xs" withBorder shadow="xs">
                     <VerifyEmailForm
                         emailStatusData={data}
