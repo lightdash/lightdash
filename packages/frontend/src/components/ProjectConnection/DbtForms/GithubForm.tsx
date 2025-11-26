@@ -294,7 +294,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         (savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
         savedProject?.dbtConnection?.personal_access_token !== undefined
             ? 'personal_access_token'
-            : 'installation_id');
+            : githubConfig?.enabled
+              ? 'installation_id'
+              : 'personal_access_token');
 
     useEffect(() => {
         if (formAuthorizationMethod !== authorizationMethod) {
@@ -305,6 +307,8 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const isInstallationValid =
         githubConfig?.enabled && authorizationMethod === 'installation_id';
 
+    const isOAuthAvailable = githubConfig?.enabled;
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -313,8 +317,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         name="dbt.authorization_method"
                         {...form.getInputProps('dbt.authorization_method')}
                         defaultValue={
+                            // If OAuth is not available for new projects, default to personal_access_token
                             // If installation is not valid, we still show personal_access_token on existing saved projects
-                            isInstallationValid || savedProject === undefined
+                            isInstallationValid ||
+                            (savedProject === undefined && isOAuthAvailable)
                                 ? 'installation_id'
                                 : 'personal_access_token'
                         }
@@ -329,6 +335,16 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                         Click here to use another account
                                     </Anchor>
                                 </Text>
+                            ) : !isOAuthAvailable ? (
+                                <Text>
+                                    OAuth requires organization-level GitHub integration.{' '}
+                                    <Anchor
+                                        href="/generalSettings/integrations"
+                                        target="_blank"
+                                    >
+                                        Set this up in Settings → Integrations
+                                    </Anchor>
+                                </Text>
                             ) : undefined
                         }
                         w={isInstallationValid ? '90%' : '100%'}
@@ -337,6 +353,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             {
                                 value: 'installation_id',
                                 label: 'OAuth (recommended)',
+                                disabled: !isOAuthAvailable,
                             },
                             {
                                 value: 'personal_access_token',
