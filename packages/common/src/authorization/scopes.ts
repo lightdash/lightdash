@@ -517,6 +517,20 @@ const scopes: Scope[] = [
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
+    {
+        name: 'view:SourceCode',
+        description: 'View source code for explores and models',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:SourceCode',
+        description: 'Create pull requests to update source code',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
 
     // Sharing Scopes
     {

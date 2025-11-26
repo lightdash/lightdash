@@ -128,32 +128,6 @@ export class GitIntegrationController extends BaseController {
     }
 
     /**
-     * Get a file from the git repository for editing
-     * @summary Get file
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Get('/files')
-    @OperationId('GetGitFile')
-    async getFile(
-        @Path() projectUuid: string,
-        @Query() filePath: string,
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .getFileForEditing(req.user!, projectUuid, filePath),
-        };
-    }
-
-    /**
      * Get the YAML file for an explore's base table
      * @summary Get explore file
      */
