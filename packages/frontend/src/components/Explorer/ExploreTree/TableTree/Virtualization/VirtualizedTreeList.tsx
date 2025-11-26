@@ -11,6 +11,7 @@ interface VirtualizedTreeListProps {
     onToggleTable: (tableName: string) => void;
     onToggleGroup: (groupKey: string) => void;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
+    onRemoveMissingField: (fieldId: string, isDimension: boolean) => void;
 }
 
 const themeOverride = getMantineThemeOverride({
@@ -39,6 +40,7 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
     onToggleTable,
     onToggleGroup,
     onSelectedFieldChange,
+    onRemoveMissingField,
 }) => {
     const { items, sectionContexts } = data;
     const parentRef = useRef<HTMLDivElement>(null);
@@ -156,6 +158,7 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                                     onSelectedFieldChange={
                                         onSelectedFieldChange
                                     }
+                                    onRemoveMissingField={onRemoveMissingField}
                                 />
                             </div>
                         );

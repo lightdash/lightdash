@@ -38,6 +38,7 @@ import VirtualizedTreeList from './TableTree/Virtualization/VirtualizedTreeList'
 type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
+    onRemoveMissingField: (fieldId: string, isDimension: boolean) => void;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -45,6 +46,7 @@ type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
+    onRemoveMissingField,
 }) => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -237,6 +239,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 onToggleTable={toggleTable}
                 onToggleGroup={toggleGroup}
                 onSelectedFieldChange={onSelectedFieldChange}
+                onRemoveMissingField={onRemoveMissingField}
             />
         </>
     );

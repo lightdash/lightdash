@@ -76,6 +76,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         [dispatch],
     );
 
+    const removeFieldCallback = useCallback(
+        (fieldId: string, _isDimension: boolean) => {
+            // Always remove the field, regardless of dimension type
+            dispatch(explorerActions.removeField(fieldId));
+        },
+        [dispatch],
+    );
+
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
     );
@@ -236,6 +244,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     <ExploreTree
                         explore={explore}
                         onSelectedFieldChange={toggleActiveField}
+                        onRemoveMissingField={removeFieldCallback}
                     />
                 </ItemDetailProvider>
 

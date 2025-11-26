@@ -12,6 +12,7 @@ interface VirtualTreeItemProps {
     onToggleTable: (tableName: string) => void;
     onToggleGroup: (groupKey: string) => void;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
+    onRemoveMissingField: (fieldId: string, isDimension: boolean) => void;
 }
 
 /**
@@ -24,6 +25,7 @@ const VirtualTreeItemComponent: FC<VirtualTreeItemProps> = ({
     onToggleTable,
     onToggleGroup,
     onSelectedFieldChange,
+    onRemoveMissingField,
 }) => {
     switch (item.type) {
         case 'table-header':
@@ -39,7 +41,7 @@ const VirtualTreeItemComponent: FC<VirtualTreeItemProps> = ({
             return (
                 <VirtualMissingField
                     item={item}
-                    onRemove={onSelectedFieldChange}
+                    onRemove={onRemoveMissingField}
                 />
             );
         case 'tree-node':
