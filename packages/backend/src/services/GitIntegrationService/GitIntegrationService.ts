@@ -894,11 +894,10 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         exploreName: string,
     ): Promise<{ content: string; sha: string; filePath: string }> {
-        // TODO: Needs permissions applied correctly
         if (
             user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
+                'view',
+                subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -941,50 +940,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             hostDomain,
         });
 
-        return { content, sha, filePath: fullPath };
-    }
-
-    /**
-     * Get a file from the git repository for editing
-     */
-    async getFileForEditing(
-        user: SessionUser,
-        projectUuid: string,
-        filePath: string,
-    ): Promise<{ content: string; sha: string; filePath: string }> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const { owner, repo, branch, path, type, hostDomain } =
-            await this.getProjectRepo(projectUuid);
-
-        const gitProps = await this.getGitProps(user, projectUuid, '"');
-
-        const fullPath = GitIntegrationService.removeExtraSlashes(
-            `${path}/${filePath}`,
-        );
-
-        const getFileContent =
-            type === DbtProjectType.GITHUB
-                ? GithubClient.getFileContent
-                : GitlabClient.getFileContent;
-
-        const { content, sha } = await getFileContent({
-            fileName: fullPath,
-            owner,
-            repo,
-            branch,
-            token: gitProps.token,
-            hostDomain,
+        this.analytics.track({
+            event: 'source_code.viewed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                exploreName,
+                filePath: fullPath,
+                fileSize: content.length,
+                gitProvider: type,
+            },
         });
 
         return { content, sha, filePath: fullPath };
@@ -1005,7 +971,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         if (
             user.ability.cannot(
                 'manage',
-                subject('CustomSql', {
+                subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1069,6 +1035,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `Successfully created pull request #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
         );
 
+        // Keep backwards compatible event for existing analytics
         this.analytics.track({
             event: 'write_back.created',
             userId: user.userUuid,
@@ -1077,6 +1044,19 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 projectId: projectUuid,
                 organizationId: user.organizationUuid!,
                 context: QueryExecutionContext.EXPLORE,
+            },
+        });
+
+        // New event with additional details
+        this.analytics.track({
+            event: 'source_code.pull_request_created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                filePath,
+                fileSize: newContent.length,
+                gitProvider: gitProps.type,
             },
         });
 
