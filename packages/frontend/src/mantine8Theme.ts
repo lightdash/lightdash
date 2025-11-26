@@ -47,7 +47,7 @@ const subtleInputStyles = (theme: MantineTheme) => ({
         borderRadius: theme.radius.md,
         boxShadow: theme.shadows.subtle,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        color: theme.colors.ldDark[7],
+        color: theme.colors.ldGray[7],
     },
     label: {
         fontWeight: 500,
