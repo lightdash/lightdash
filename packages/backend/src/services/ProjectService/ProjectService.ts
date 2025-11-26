@@ -3065,6 +3065,21 @@ export class ProjectService extends BaseService {
                     },
                     async () => {
                         try {
+                            // Log the username used for the warehouse client (avoid logging secrets)
+                            try {
+                                const executingUser =
+                                    (warehouseClient.credentials as any)
+                                        .user ??
+                                    (warehouseClient.credentials as any)
+                                        .username ??
+                                    'unknown';
+                                this.logger.debug(
+                                    `Running warehouse query as user: ${executingUser} (type: ${warehouseClient.credentials.type})`,
+                                );
+                            } catch (e) {
+                                // ignore logging errors
+                            }
+
                             const { result } = await measureTime(
                                 () =>
                                     warehouseClient.runQuery(
