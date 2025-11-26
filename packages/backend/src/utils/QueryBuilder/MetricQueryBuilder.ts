@@ -90,6 +90,48 @@ export type BuildQueryProps = {
     timezone: string;
 };
 
+/**
+ * Creates the correct "interval X granularity" syntax for each warehouse type.
+ * Different warehouses have different syntaxes for date interval arithmetic.
+ *
+ * @param adapterType - The warehouse adapter type
+ * @param value - The interval value (e.g., 1, 2, 7)
+ * @param granularity - The time granularity (e.g., 'day', 'week', 'month', 'year')
+ * @returns The warehouse-specific interval syntax
+ */
+export function getIntervalSyntax(
+    adapterType: SupportedDbtAdapter,
+    value: number,
+    granularity: string,
+): string {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            // BigQuery uses INTERVAL with the format: INTERVAL value granularity
+            return `INTERVAL ${value} ${granularity}`;
+        case SupportedDbtAdapter.DATABRICKS:
+            // Databricks uses INTERVAL with the format: INTERVAL value granularity
+            return `INTERVAL ${value} ${granularity}`;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            // Snowflake uses INTERVAL with the format: INTERVAL 'value granularity'
+            return `INTERVAL '${value} ${granularity}'`;
+        case SupportedDbtAdapter.REDSHIFT:
+            // Redshift uses INTERVAL with the format: INTERVAL 'value granularity'
+            return `INTERVAL '${value} ${granularity}'`;
+        case SupportedDbtAdapter.POSTGRES:
+            // Postgres uses INTERVAL with the format: INTERVAL 'value granularity'
+            return `INTERVAL '${value} ${granularity}'`;
+        case SupportedDbtAdapter.TRINO:
+            // Trino uses INTERVAL with the format: INTERVAL 'value' granularity
+            return `INTERVAL '${value}' ${granularity}`;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            // ClickHouse uses INTERVAL with the format: INTERVAL value granularity
+            return `INTERVAL ${value} ${granularity}`;
+        default:
+            // Default to standard SQL interval syntax
+            return `INTERVAL ${value} ${granularity}`;
+    }
+}
+
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
@@ -1238,13 +1280,17 @@ export class MetricQueryBuilder {
                         ...[...joins, `LEFT JOIN ${popMinMaxCteName} ON TRUE`],
                         `WHERE ${
                             popField.compiledSql
-                        } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
-                            periodOverPeriod.periodOffset || 1
-                        } ${periodOverPeriod.granularity} AND ${
+                        } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - ${getIntervalSyntax(
+                            adapterType,
+                            periodOverPeriod.periodOffset || 1,
+                            periodOverPeriod.granularity,
+                        )} AND ${
                             popField.compiledSql
-                        } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
-                            periodOverPeriod.periodOffset || 1
-                        } ${periodOverPeriod.granularity}`,
+                        } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - ${getIntervalSyntax(
+                            adapterType,
+                            periodOverPeriod.periodOffset || 1,
+                            periodOverPeriod.granularity,
+                        )}`,
                     ];
                     ctes.push(
                         `${popKeysCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
@@ -1415,13 +1461,17 @@ export class MetricQueryBuilder {
                     ],
                     `WHERE ${
                         popField.compiledSql
-                    } >= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
-                        periodOverPeriod.periodOffset || 1
-                    } ${periodOverPeriod.granularity}${stringQuoteChar} AND ${
+                    } >= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - ${getIntervalSyntax(
+                        adapterType,
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                    )} AND ${
                         popField.compiledSql
-                    } <= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
-                        periodOverPeriod.periodOffset || 1
-                    } ${periodOverPeriod.granularity}${stringQuoteChar}`,
+                    } <= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - ${getIntervalSyntax(
+                        adapterType,
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                    )}`,
                     dimensionGroupBy,
                 ];
                 ctes.push(
@@ -1528,9 +1578,11 @@ export class MetricQueryBuilder {
                                     // join on PoP field with interval diff
                                     return `( ${unaffectedMetricsCteName}.${alias} = ${
                                         popMetricCte.name
-                                    }.${alias} + INTERVAL ${
-                                        periodOverPeriod.periodOffset || 1
-                                    } ${periodOverPeriod.granularity})`;
+                                    }.${alias} + ${getIntervalSyntax(
+                                        adapterType,
+                                        periodOverPeriod.periodOffset || 1,
+                                        periodOverPeriod.granularity,
+                                    )})`;
                                 }
                                 // default to joining on all dimensions
                                 return `( ${unaffectedMetricsCteName}.${alias} = ${popMetricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${popMetricCte.name}.${alias} IS NULL ) )`;
@@ -2003,13 +2055,17 @@ export class MetricQueryBuilder {
                 ...[`LEFT JOIN ${popMinMaxCteName} ON TRUE`],
                 `WHERE ${
                     popField.compiledSql
-                } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
-                    periodOverPeriod.periodOffset || 1
-                } ${periodOverPeriod.granularity} AND ${
+                } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - ${getIntervalSyntax(
+                    adapterType,
+                    periodOverPeriod.periodOffset || 1,
+                    periodOverPeriod.granularity,
+                )} AND ${
                     popField.compiledSql
-                } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
-                    periodOverPeriod.periodOffset || 1
-                } ${periodOverPeriod.granularity}`,
+                } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - ${getIntervalSyntax(
+                    adapterType,
+                    periodOverPeriod.periodOffset || 1,
+                    periodOverPeriod.granularity,
+                )}`,
                 dimensionsSQL.groupBySQL,
             ];
 
@@ -2040,9 +2096,11 @@ export class MetricQueryBuilder {
                             `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
                         ) {
                             // Join on pop field with interval difference
-                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} + INTERVAL ${
-                                periodOverPeriod.periodOffset || 1
-                            } ${periodOverPeriod.granularity})`;
+                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} + ${getIntervalSyntax(
+                                adapterType,
+                                periodOverPeriod.periodOffset || 1,
+                                periodOverPeriod.granularity,
+                            )})`;
                         }
                         // Default to joining on all dimensions
                         return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
