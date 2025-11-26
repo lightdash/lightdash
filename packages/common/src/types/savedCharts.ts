@@ -154,6 +154,14 @@ export enum MapChartType {
     AREA = 'area',
 }
 
+export enum MapTileBackground {
+    NONE = 'none',
+    OPENSTREETMAP = 'openstreetmap',
+    LIGHT = 'light',
+    DARK = 'dark',
+    SATELLITE = 'satellite',
+}
+
 export type MapChart = {
     mapType?: MapChartLocation;
     customGeoJsonUrl?: string;
@@ -175,6 +183,8 @@ export type MapChart = {
     // Scatter bubble size settings (for lat/long maps)
     minBubbleSize?: number;
     maxBubbleSize?: number;
+    // Tile background
+    tileBackground?: MapTileBackground;
 };
 
 export enum FunnelChartDataInput {

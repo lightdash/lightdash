@@ -591,4 +591,5 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
     return eChartsOption ? { eChartsOption } : undefined;
 };
 
+// ts-unused-exports:disable-next-line
 export default useEchartsMapConfig;

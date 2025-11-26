@@ -1,4 +1,8 @@
-import { ECHARTS_DEFAULT_COLORS, MapChartType } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    MapChartType,
+    MapTileBackground,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -6,6 +10,7 @@ import {
     Group,
     NumberInput,
     RangeSlider,
+    Select,
     Stack,
     Switch,
     Text,
@@ -144,6 +149,7 @@ export const Display: FC = memo(() => {
             setDefaultCenterLon,
             setMinBubbleSize,
             setMaxBubbleSize,
+            setTileBackground,
         },
     } = visualizationConfig;
 
@@ -213,6 +219,36 @@ export const Display: FC = memo(() => {
                             }
                         />
                     </Config.Group>
+                </Config.Section>
+            </Config>
+
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Background</Config.Heading>
+                    <Select
+                        data={[
+                            { value: MapTileBackground.NONE, label: 'None' },
+                            {
+                                value: MapTileBackground.OPENSTREETMAP,
+                                label: 'OpenStreetMap',
+                            },
+                            { value: MapTileBackground.LIGHT, label: 'Light' },
+                            { value: MapTileBackground.DARK, label: 'Dark' },
+                            {
+                                value: MapTileBackground.SATELLITE,
+                                label: 'Satellite',
+                            },
+                        ]}
+                        value={
+                            validConfig.tileBackground ??
+                            MapTileBackground.OPENSTREETMAP
+                        }
+                        onChange={(value) =>
+                            setTileBackground(
+                                (value as MapTileBackground) || undefined,
+                            )
+                        }
+                    />
                 </Config.Section>
             </Config>
 
