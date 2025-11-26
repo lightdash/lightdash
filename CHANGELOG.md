@@ -1,3 +1,10 @@
+## [0.2209.2](https://github.com/lightdash/lightdash/compare/0.2209.1...0.2209.2) (2025-11-26)
+
+
+### Bug Fixes
+
+* handle empty metrics object in dbt manifest ([#18355](https://github.com/lightdash/lightdash/issues/18355)) ([4e12b00](https://github.com/lightdash/lightdash/commit/4e12b001c3885874cd4d2d260140b6490a0b9b05))
+
 ## [0.2209.1](https://github.com/lightdash/lightdash/compare/0.2209.0...0.2209.1) (2025-11-26)
 
 
