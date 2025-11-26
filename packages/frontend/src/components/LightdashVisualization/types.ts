@@ -215,6 +215,26 @@ export type VisualizationConfigGaugeProps =
         itemsMap: ItemsMap | undefined;
     };
 
+// Map
+
+import type useMapChartConfig from '../../hooks/useMapChartConfig';
+
+export type VisualizationConfigMap = {
+    chartType: ChartType.MAP;
+    chartConfig: ReturnType<typeof useMapChartConfig>;
+};
+
+export const isMapVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigMap => {
+    return visualizationConfig?.chartType === ChartType.MAP;
+};
+
+export type VisualizationConfigMapProps =
+    VisualizationConfigCommon<VisualizationConfigMap> & {
+        itemsMap: ItemsMap | undefined;
+    };
+
 // Union of all visualization configs
 
 export type VisualizationConfig =
@@ -225,4 +245,5 @@ export type VisualizationConfig =
     | VisualizationConfigTable
     | VisualizationConfigTreemap
     | VisualizationConfigGauge
+    | VisualizationConfigMap
     | VisualizationCustomConfigType;

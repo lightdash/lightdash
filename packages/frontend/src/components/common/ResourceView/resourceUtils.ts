@@ -43,6 +43,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Big number';
                 case ChartKind.CUSTOM:
                     return 'Custom visualization';
+                case ChartKind.MAP:
+                    return 'Map';
                 default:
                     return assertUnreachable(
                         item.data.chartKind,

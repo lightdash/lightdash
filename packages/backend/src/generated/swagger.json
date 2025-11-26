@@ -1631,7 +1631,8 @@
                     "funnel",
                     "custom",
                     "treemap",
-                    "gauge"
+                    "gauge",
+                    "map"
                 ],
                 "type": "string"
             },
@@ -4721,6 +4722,85 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "ChartType.MAP": {
+                "enum": ["map"],
+                "type": "string"
+            },
+            "MapChartLocation": {
+                "enum": ["USA", "USA_COUNTIES", "world", "europe", "custom"],
+                "type": "string"
+            },
+            "MapChartType": {
+                "enum": ["scatter", "area"],
+                "type": "string"
+            },
+            "MapChart": {
+                "properties": {
+                    "maxBubbleSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "minBubbleSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultCenterLon": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultCenterLat": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultZoom": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "colorRange": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "valueFieldId": {
+                        "type": "string"
+                    },
+                    "locationFieldId": {
+                        "type": "string"
+                    },
+                    "longitudeFieldId": {
+                        "type": "string"
+                    },
+                    "latitudeFieldId": {
+                        "type": "string"
+                    },
+                    "locationType": {
+                        "$ref": "#/components/schemas/MapChartType"
+                    },
+                    "customGeoJsonUrl": {
+                        "type": "string"
+                    },
+                    "mapType": {
+                        "$ref": "#/components/schemas/MapChartLocation"
+                    }
+                },
+                "type": "object"
+            },
+            "MapChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/MapChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.MAP"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -4746,6 +4826,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
                     }
                 ]
             },
@@ -7453,17 +7536,30 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -7471,10 +7567,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -7483,8 +7579,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -7533,8 +7629,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -7578,12 +7674,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -7591,10 +7687,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -7603,8 +7699,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -7632,8 +7728,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -13269,7 +13365,8 @@
                     "funnel",
                     "treemap",
                     "gauge",
-                    "custom"
+                    "custom",
+                    "map"
                 ],
                 "type": "string"
             },
@@ -17529,22 +17626,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -19940,6 +20037,23 @@
                 },
                 "required": ["enabled"],
                 "type": "object"
+            },
+            "SvgResponse": {
+                "properties": {
+                    "__isSvg__": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    },
+                    "__svg__": {
+                        "type": "string"
+                    }
+                },
+                "required": ["__isSvg__", "__svg__"],
+                "type": "object"
+            },
+            "GeoJsonResponse": {
+                "$ref": "#/components/schemas/Record_string.unknown_"
             },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
@@ -22842,7 +22956,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2206.0",
+        "version": "0.2207.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33887,6 +34001,54 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/geojson-proxy": {
+            "get": {
+                "operationId": "getGeoJson",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SvgResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/GeoJsonResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Proxies external GeoJSON/TopoJSON/SVG files to bypass CORS restrictions",
+                "tags": ["Map"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the URL of the GeoJSON or SVG file to fetch",
+                        "in": "query",
+                        "name": "url",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores": {

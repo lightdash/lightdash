@@ -10,6 +10,7 @@ import {
     IconCode,
     IconFilter,
     IconGauge,
+    IconMap,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -43,6 +44,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconSquareNumber1;
         case ChartKind.CUSTOM:
             return IconCode;
+        case ChartKind.MAP:
+            return IconMap;
         default:
             return assertUnreachable(
                 chartKind,
