@@ -1238,15 +1238,13 @@ export class MetricQueryBuilder {
                         ...[...joins, `LEFT JOIN ${popMinMaxCteName} ON TRUE`],
                         `WHERE ${
                             popField.compiledSql
-                        } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                        } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
                             periodOverPeriod.periodOffset || 1
-                        } ${
-                            periodOverPeriod.granularity
-                        }${stringQuoteChar} AND ${
+                        } ${periodOverPeriod.granularity} AND ${
                             popField.compiledSql
-                        } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                        } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
                             periodOverPeriod.periodOffset || 1
-                        } ${periodOverPeriod.granularity}${stringQuoteChar}`,
+                        } ${periodOverPeriod.granularity}`,
                     ];
                     ctes.push(
                         `${popKeysCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
@@ -1417,11 +1415,11 @@ export class MetricQueryBuilder {
                     ],
                     `WHERE ${
                         popField.compiledSql
-                    } >= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                    } >= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
                         periodOverPeriod.periodOffset || 1
                     } ${periodOverPeriod.granularity}${stringQuoteChar} AND ${
                         popField.compiledSql
-                    } <= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                    } <= ${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
                         periodOverPeriod.periodOffset || 1
                     } ${periodOverPeriod.granularity}${stringQuoteChar}`,
                     dimensionGroupBy,
@@ -1530,11 +1528,9 @@ export class MetricQueryBuilder {
                                     // join on PoP field with interval diff
                                     return `( ${unaffectedMetricsCteName}.${alias} = ${
                                         popMetricCte.name
-                                    }.${alias} + INTERVAL ${stringQuoteChar}${
+                                    }.${alias} + INTERVAL ${
                                         periodOverPeriod.periodOffset || 1
-                                    } ${
-                                        periodOverPeriod.granularity
-                                    }${stringQuoteChar})`;
+                                    } ${periodOverPeriod.granularity})`;
                                 }
                                 // default to joining on all dimensions
                                 return `( ${unaffectedMetricsCteName}.${alias} = ${popMetricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${popMetricCte.name}.${alias} IS NULL ) )`;
@@ -2007,13 +2003,13 @@ export class MetricQueryBuilder {
                 ...[`LEFT JOIN ${popMinMaxCteName} ON TRUE`],
                 `WHERE ${
                     popField.compiledSql
-                } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                } >= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar} - INTERVAL ${
                     periodOverPeriod.periodOffset || 1
-                } ${periodOverPeriod.granularity}${stringQuoteChar} AND ${
+                } ${periodOverPeriod.granularity} AND ${
                     popField.compiledSql
-                } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${stringQuoteChar}${
+                } <= ${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar} - INTERVAL ${
                     periodOverPeriod.periodOffset || 1
-                } ${periodOverPeriod.granularity}${stringQuoteChar}`,
+                } ${periodOverPeriod.granularity}`,
                 dimensionsSQL.groupBySQL,
             ];
 
@@ -2044,11 +2040,9 @@ export class MetricQueryBuilder {
                             `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
                         ) {
                             // Join on pop field with interval difference
-                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} + INTERVAL ${stringQuoteChar}${
+                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} + INTERVAL ${
                                 periodOverPeriod.periodOffset || 1
-                            } ${
-                                periodOverPeriod.granularity
-                            }${stringQuoteChar})`;
+                            } ${periodOverPeriod.granularity})`;
                         }
                         // Default to joining on all dimensions
                         return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
