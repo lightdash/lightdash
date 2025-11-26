@@ -180,7 +180,9 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
                 echarts.registerMap(key, mapData as any);
                 setMapsLoaded((prev) => new Set(prev).add(key));
-            } catch (error) {}
+            } catch (error) {
+                console.error('Failed to load map:', key, error);
+            }
         };
 
         // Only pass customGeoJsonUrl if the mapType is CUSTOM
@@ -192,7 +194,11 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         const isMapLoaded = mapsLoaded.has(mapKey);
-        if (!chartConfig || !isMapLoaded) return;
+        // Double-check that ECharts actually has the map registered
+        // This prevents the "Cannot read properties of undefined (reading 'regions')" error
+        // that can occur due to timing issues between React state updates and ECharts registration
+        const isMapRegistered = echarts.getMap(mapKey) != null;
+        if (!chartConfig || !isMapLoaded || !isMapRegistered) return;
 
         const {
             locationType,
