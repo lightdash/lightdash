@@ -379,16 +379,40 @@ const maxDate = (a: number | string, b: string) => {
     return dateA > dateB ? a : b;
 };
 
+/**
+ * Get actual column names for a field ID from pivotDetails.
+ * For backend pivoting, rows have pivot column names (e.g., "payments_total_revenue_any_bank_transfer")
+ * instead of field IDs (e.g., "payments_total_revenue").
+ * This helper maps field IDs to their actual column names in the pivoted data.
+ */
+const getColumnNamesForField = (
+    fieldId: string,
+    pivotDetails: InfiniteQueryResults['pivotDetails'],
+): string[] => {
+    if (!pivotDetails?.valuesColumns) return [fieldId];
+
+    const columnNames = pivotDetails.valuesColumns
+        .filter((col) => col.referenceField === fieldId)
+        .map((col) => col.pivotColumnName);
+
+    return columnNames.length > 0 ? columnNames : [fieldId];
+};
+
 export const getMinAndMaxValues = (
     series: string[] | undefined,
     rows: ResultRow[],
+    pivotDetails?: InfiniteQueryResults['pivotDetails'],
 ): (string | number)[] => {
     if (!series || series.length === 0) return [];
 
     let rawValues = [];
     for (const s of series) {
-        for (const row of rows) {
-            rawValues.push(row[s]?.value.raw);
+        // Get the actual column names to look up (handles backend pivoting)
+        const columnNames = getColumnNamesForField(s, pivotDetails);
+        for (const columnName of columnNames) {
+            for (const row of rows) {
+                rawValues.push(row[columnName]?.value.raw);
+            }
         }
     }
 
@@ -438,6 +462,7 @@ const getMinAndMaxReferenceLines = (
     rows: ResultRow[] | undefined,
     series: Series[] | undefined,
     items: ItemsMap,
+    pivotDetails?: InfiniteQueryResults['pivotDetails'],
 ) => {
     if (rows === undefined || series === undefined) return {};
     // Skip method if there are no reference lines
@@ -550,14 +575,17 @@ const getMinAndMaxReferenceLines = (
     const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
         leftAxisFieldYIds,
         rows,
+        pivotDetails,
     );
     const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
         rightAxisYFieldIds,
         rows,
+        pivotDetails,
     );
     const [minValueX, maxValueX] = getMinAndMaxValues(
         bottomAxisXFieldIds,
         rows,
+        pivotDetails,
     );
 
     const [minReferenceLineX, maxReferenceLineX] =
@@ -1221,11 +1249,12 @@ const getEchartAxes = ({
         : getLineChartGridStyle();
 
     // There is no Top x axis when no flipped
-    // Use hashFieldReference to get the same hash used in series encoding (includes pivot values)
+    // Use base field ID for itemsMap lookups (axis formatting).
+    // For min/max value lookups, pivotDetails maps these to actual column names.
     const topAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 1)
-              .map((s) => hashFieldReference(s.encode.yRef))
+              .map((s) => s.encode.yRef.field)
         : undefined;
 
     const topAxisXId = topAxisXFieldIds?.[0] || undefined;
@@ -1233,7 +1262,7 @@ const getEchartAxes = ({
     const bottomAxisXFieldIds = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => hashFieldReference(s.encode.yRef))
+              .map((s) => s.encode.yRef.field)
         : [];
 
     const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
@@ -1254,14 +1283,14 @@ const getEchartAxes = ({
             : []
         : validCartesianConfig.eChartsConfig.series
               ?.filter((serie) => serie.yAxisIndex === 0)
-              .map((s) => hashFieldReference(s.encode.yRef));
+              .map((s) => s.encode.yRef.field);
 
     const leftAxisYId = leftAxisYFieldIds?.[0] || yAxisItemId;
 
     // There is no right Y axis when flipped
     const rightAxisYFieldIds = validCartesianConfig.eChartsConfig.series
         ?.filter((serie) => serie.yAxisIndex === 1)
-        .map((s) => hashFieldReference(s.encode.yRef));
+        .map((s) => s.encode.yRef.field);
 
     const rightAxisYId =
         rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
@@ -1309,6 +1338,7 @@ const getEchartAxes = ({
         resultsData?.rows,
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
+        resultsData?.pivotDetails,
     );
     const bottomAxisExtraConfig = getWeekAxisConfig(
         bottomAxisXId,
