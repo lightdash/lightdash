@@ -236,7 +236,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                 DbtManifestVersion.V12,
             ].includes(manifestVersion)
                 ? []
-                : Object.values(manifest.metrics),
+                : Object.values(manifest.metrics || {}),
             warehouseSqlBuilder,
             lightdashProjectConfig,
         );
@@ -264,7 +264,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     );
 
     const metricsCount =
-        dbtMetrics === null ? 0 : Object.values(dbtMetrics.metrics).length;
+        dbtMetrics === null ? 0 : Object.values(dbtMetrics).length;
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {
