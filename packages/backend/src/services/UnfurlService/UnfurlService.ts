@@ -696,33 +696,52 @@ export class UnfurlService extends BaseService {
                     const { browserEndpoint } =
                         this.lightdashConfig.headlessBrowser;
 
-                    browser = await playwright.chromium.connectOverCDP(
-                        browserEndpoint,
-                        {
-                            timeout: 1000 * 60 * 30, // 30 minutes
-                            logger: {
-                                isEnabled() {
-                                    return true;
-                                },
-                                log: (name, severity, message, args): void => {
-                                    const logMessage = `[${name}] ${message} ${JSON.stringify(
-                                        args,
-                                    )}`;
-                                    switch (severity) {
-                                        case 'warning':
-                                            this.logger.warn(logMessage);
-                                            break;
-                                        case 'error':
-                                            this.logger.error(logMessage);
-                                            break;
-                                        default:
-                                            this.logger.debug(logMessage);
-                                            break;
-                                    }
+                    this.logger.debug(
+                        `Attempting to connect to headless browser at: ${browserEndpoint}`,
+                    );
+
+                    try {
+                        browser = await playwright.chromium.connectOverCDP(
+                            browserEndpoint,
+                            {
+                                timeout: 30000, // 30 seconds for initial connection
+                                logger: {
+                                    isEnabled() {
+                                        return true;
+                                    },
+                                    log: (name, severity, message, args): void => {
+                                        const logMessage = `[${name}] ${message} ${JSON.stringify(
+                                            args,
+                                        )}`;
+                                        switch (severity) {
+                                            case 'warning':
+                                                this.logger.warn(logMessage);
+                                                break;
+                                            case 'error':
+                                                this.logger.error(logMessage);
+                                                break;
+                                            default:
+                                                this.logger.debug(logMessage);
+                                                break;
+                                        }
+                                    },
                                 },
                             },
-                        },
-                    );
+                        );
+                        this.logger.debug(
+                            'Successfully connected to headless browser',
+                        );
+                    } catch (connectionError) {
+                        const connectionErrorMessage =
+                            getErrorMessage(connectionError);
+                        this.logger.error(
+                            `Failed to connect to headless browser at ${browserEndpoint}: ${connectionErrorMessage}`,
+                        );
+                        // Re-throw with enhanced error message
+                        throw new Error(
+                            `Unable to connect to headless browser service at ${browserEndpoint}. ${connectionErrorMessage}`,
+                        );
+                    }
 
                     page = await browser.newPage({
                         viewport:
@@ -1088,14 +1107,19 @@ export class UnfurlService extends BaseService {
                         // Following error messages were taken from the Playwright source code
                         errorMessage.includes('Protocol error') ||
                         errorMessage.includes('ECONNREFUSED') ||
+                        errorMessage.includes('ECONNRESET') ||
+                        errorMessage.includes('ETIMEDOUT') ||
+                        errorMessage.includes('EHOSTUNREACH') ||
+                        errorMessage.includes('ENOTFOUND') ||
                         errorMessage.includes('Target crashed') ||
                         errorMessage.includes(
                             'Target page, context or browser has been closed',
-                        );
+                        ) ||
+                        errorMessage.includes('Unable to connect to headless browser service');
 
                     if (isRetryableError && retries) {
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            `Retrying (${SCREENSHOT_RETRIES - retries}/${SCREENSHOT_RETRIES}): unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
                                 e,
                             )}`,
                         );
@@ -1149,19 +1173,31 @@ export class UnfurlService extends BaseService {
                     const isConnectionError =
                         errorMessage.includes('ECONNREFUSED') ||
                         errorMessage.includes('ENOTFOUND') ||
-                        errorMessage.includes('ECONNRESET');
+                        errorMessage.includes('ECONNRESET') ||
+                        errorMessage.includes('ETIMEDOUT') ||
+                        errorMessage.includes('EHOSTUNREACH') ||
+                        errorMessage.includes('Unable to connect to headless browser service');
+
+                    // Provide more specific error message for connection issues
+                    let userFriendlyMessage: string;
+                    if (isConnectionError) {
+                        const { browserEndpoint } =
+                            this.lightdashConfig.headlessBrowser;
+                        userFriendlyMessage = `Unable to connect to the screenshot service at ${browserEndpoint}. Please verify that the headless browser service is running and accessible. This may indicate that the service is down, unreachable, or experiencing issues.`;
+                    } else {
+                        userFriendlyMessage = errorMessage;
+                    }
 
                     throw new ScreenshotError(
-                        `Screenshot ${errorType}: ${
-                            isConnectionError
-                                ? 'There was a connection error while capturing the screenshot. This often indicates a heavy load on the screenshot service and the delivery cannot be completed at this time.'
-                                : errorMessage
-                        }`,
+                        `Screenshot ${errorType}: ${userFriendlyMessage}`,
                         {
                             url,
                             lightdashPage,
                             context,
                             originalError: errorMessage,
+                            browserEndpoint:
+                                this.lightdashConfig.headlessBrowser
+                                    .browserEndpoint,
                         },
                     );
                 } finally {
