@@ -243,7 +243,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         console.error('');
 
         explores = [...validExplores, ...failedExplores];
-        dbtMetrics = manifest.metrics;
+        dbtMetrics = manifest.metrics ?? null;
     }
 
     explores.forEach((e) => {
@@ -264,7 +264,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     );
 
     const metricsCount =
-        dbtMetrics === null ? 0 : Object.values(dbtMetrics).length;
+        dbtMetrics == null ? 0 : Object.values(dbtMetrics).length;
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {
