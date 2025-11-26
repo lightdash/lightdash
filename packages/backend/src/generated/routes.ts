@@ -6861,6 +6861,13 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
+                                                                                                tableName:
+                                                                                                    {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required:
+                                                                                                            true,
+                                                                                                    },
                                                                                                 fieldType:
                                                                                                     {
                                                                                                         dataType:
@@ -6874,13 +6881,6 @@ const models: TsoaRoute.Models = {
                                                                                                     required:
                                                                                                         true,
                                                                                                 },
-                                                                                                tableName:
-                                                                                                    {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required:
-                                                                                                            true,
-                                                                                                    },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -6910,7 +6910,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                searchRank:
+                                                                                                joinedTables:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -6918,7 +6918,11 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'double',
+                                                                                                                        'array',
+                                                                                                                    array: {
+                                                                                                                        dataType:
+                                                                                                                            'string',
+                                                                                                                    },
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -6933,7 +6937,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                joinedTables:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -6941,11 +6945,7 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'array',
-                                                                                                                    array: {
-                                                                                                                        dataType:
-                                                                                                                            'string',
-                                                                                                                    },
+                                                                                                                        'double',
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -7130,6 +7130,13 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
+                                                                                                    tableName:
+                                                                                                        {
+                                                                                                            dataType:
+                                                                                                                'string',
+                                                                                                            required:
+                                                                                                                true,
+                                                                                                        },
                                                                                                     fieldType:
                                                                                                         {
                                                                                                             dataType:
@@ -7143,13 +7150,6 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
-                                                                                                    tableName:
-                                                                                                        {
-                                                                                                            dataType:
-                                                                                                                'string',
-                                                                                                            required:
-                                                                                                                true,
-                                                                                                        },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -19397,6 +19397,19 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 installationId: { dataType: 'string' },
                 enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGitFileContent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                filePath: { dataType: 'string', required: true },
+                sha: { dataType: 'string', required: true },
+                content: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -40694,6 +40707,214 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listBranches',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_getFile: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        filePath: {
+            in: 'query',
+            name: 'filePath',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/git-integration/files',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype.getFile,
+        ),
+
+        async function GitIntegrationController_getFile(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGitIntegrationController_getFile,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getFile',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_getFileForExplore: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        exploreName: {
+            in: 'path',
+            name: 'exploreName',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/git-integration/explores/:exploreName/files',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype.getFileForExplore,
+        ),
+
+        async function GitIntegrationController_getFileForExplore(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGitIntegrationController_getFileForExplore,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getFileForExplore',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_createPullRequestForFileChange: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: { dataType: 'string', required: true },
+                title: { dataType: 'string', required: true },
+                originalSha: { dataType: 'string', required: true },
+                content: { dataType: 'string', required: true },
+                filePath: { dataType: 'string', required: true },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/git-integration/pull-requests/file-change',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype.createPullRequestForFileChange,
+        ),
+
+        async function GitIntegrationController_createPullRequestForFileChange(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGitIntegrationController_createPullRequestForFileChange,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createPullRequestForFileChange',
                     controller,
                     response,
                     next,

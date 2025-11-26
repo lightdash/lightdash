@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     ApiErrorPayload,
+    ApiGitFileContent,
     CustomDimension,
     PullRequestCreated,
 } from '@lightdash/common';
@@ -12,6 +13,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -122,6 +124,99 @@ export class GitIntegrationController extends BaseController {
             results: await this.services
                 .getGitIntegrationService()
                 .getBranches(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * Get a file from the git repository for editing
+     * @summary Get file
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/files')
+    @OperationId('GetGitFile')
+    async getFile(
+        @Path() projectUuid: string,
+        @Query() filePath: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .getFileForEditing(req.user!, projectUuid, filePath),
+        };
+    }
+
+    /**
+     * Get the YAML file for an explore's base table
+     * @summary Get explore file
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/explores/{exploreName}/files')
+    @OperationId('GetGitFileForExplore')
+    async getFileForExplore(
+        @Path() projectUuid: string,
+        @Path() exploreName: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .getFileForExplore(req.user!, projectUuid, exploreName),
+        };
+    }
+
+    /**
+     * Create a pull request with arbitrary file changes
+     * @summary Create file PR
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/pull-requests/file-change')
+    @OperationId('CreatePullRequestForFileChange')
+    async createPullRequestForFileChange(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            filePath: string;
+            content: string;
+            originalSha: string;
+            title: string;
+            description: string;
+        },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestWithFileChange(
+                    req.user!,
+                    projectUuid,
+                    body.filePath,
+                    body.content,
+                    body.originalSha,
+                    body.title,
+                    body.description,
+                ),
         };
     }
 }
