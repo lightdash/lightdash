@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiGitFileContent,
     CustomDimension,
+    ForbiddenError,
     PullRequestCreated,
 } from '@lightdash/common';
 import {
@@ -21,6 +22,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -144,6 +146,9 @@ export class GitIntegrationController extends BaseController {
         @Path() exploreName: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
+        if (!lightdashConfig.editYamlInUi.enabled) {
+            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
+        }
         this.setStatus(200);
         return {
             status: 'ok',
@@ -177,6 +182,9 @@ export class GitIntegrationController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        if (!lightdashConfig.editYamlInUi.enabled) {
+            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
+        }
         this.setStatus(200);
         return {
             status: 'ok',

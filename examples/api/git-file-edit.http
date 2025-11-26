@@ -14,13 +14,6 @@ Content-Type: application/json
 GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/explores/organizations/files
 
 
-### Get a file by path (if you know the exact path)
-# This fetches the file content and SHA which you'll need for the PR
-# Replace the filePath with a real file path in your dbt project
-GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/files?
-    filePath=models/staging/customers.yml
-
-
 ### Create a pull request with file changes
 # Use the SHA from the GET /files response above
 # This creates a new branch, commits the file change, and opens a PR
