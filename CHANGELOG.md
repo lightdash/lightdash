@@ -1,3 +1,10 @@
+## [0.2209.3](https://github.com/lightdash/lightdash/compare/0.2209.2...0.2209.3) (2025-11-26)
+
+
+### Bug Fixes
+
+* improve warehouse-specific date interval handling for comparisons ([#18360](https://github.com/lightdash/lightdash/issues/18360)) ([82a5191](https://github.com/lightdash/lightdash/commit/82a5191abec4d9aa0740ac239e969681baecf143))
+
 ## [0.2209.2](https://github.com/lightdash/lightdash/compare/0.2209.1...0.2209.2) (2025-11-26)
 
 
