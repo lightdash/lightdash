@@ -112,6 +112,40 @@ export const useTableStyles = createStyles((theme) => {
                     boxShadow: 'none !important',
                 },
             },
+
+            /* Virtual padding rows (used for virtualized scrolling) should have no borders */
+            '.virtual-padding-row, .virtual-padding-row > *': {
+                boxShadow: 'none !important',
+                '&:hover': {
+                    boxShadow: 'none !important',
+                },
+            },
+
+            /* When virtual padding row exists, ensure the last data row has no bottom border */
+            '> tbody:last-child > *:nth-last-child(2):not(.virtual-padding-row) > *': {
+                boxShadow: `inset -1px 0 0 0 ${borderColor}`,
+                '&:hover': {
+                    boxShadow: `inset -1px 0 0 0 ${borderColor} !important`,
+                },
+            },
+
+            /* Last data row, last cell when virtual padding exists */
+            '> tbody:last-child > *:nth-last-child(2):not(.virtual-padding-row) > *:last-child':
+                {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none !important',
+                    },
+                },
+
+            /* Last data row, first cell when virtual padding exists */
+            '> tbody:last-child > *:nth-last-child(2):not(.virtual-padding-row) > *:first-child':
+                {
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none !important',
+                    },
+                },
         },
     };
 });

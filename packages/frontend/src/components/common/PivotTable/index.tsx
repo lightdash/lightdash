@@ -77,7 +77,7 @@ const VirtualizedArea: FC<{
     height: number;
 }> = ({ cellCount, height }) => {
     return (
-        <Table.Row index={-1}>
+        <Table.Row index={-1} className="virtual-padding-row">
             {[...Array(cellCount)].map((_, index) => (
                 <Table.Cell key={index} h={height} />
             ))}
