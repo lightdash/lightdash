@@ -8,7 +8,7 @@ jobs:
     files-changed:
         if: github.ref != 'refs/heads/main'
         name: Detect what files changed
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         # Map a step output to a job output
         outputs:
             cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
@@ -33,7 +33,7 @@ jobs:
         # Only trigger for correct environment and status and if CLI files changed
         if: needs.files-changed.outputs.cli == 'true'
         needs: files-changed
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         outputs:
             url: ${{ github.event.deployment_status.environment_url }}
         steps:
@@ -49,7 +49,7 @@ jobs:
     # We don't need to install dbt dependencies for this.
     cli-tests-without-dbt:
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         name: CLI tests without dbt
         steps:
@@ -86,7 +86,7 @@ jobs:
     # For commands like preview, validate, etc.
     cli-tests:
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         name: CLI tests
         steps:
@@ -158,7 +158,7 @@ jobs:
     # like the --select flag, or dbt generate
     cli-dbt-tests:
         timeout-minutes: 30
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: prepare-preview
         strategy:
             fail-fast: false
@@ -239,7 +239,7 @@ jobs:
     # Cleanup job to drop all schemas created during tests
     cleanup-schemas:
         if: always()
-        runs-on: ubuntu-latest
+        runs-on: blacksmith-4vcpu-ubuntu-2404
         needs: [cli-tests-without-dbt, cli-tests, cli-dbt-tests]
         name: Cleanup test schemas
         steps:
