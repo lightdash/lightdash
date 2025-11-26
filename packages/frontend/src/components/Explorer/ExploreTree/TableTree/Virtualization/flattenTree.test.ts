@@ -125,7 +125,11 @@ function createSectionNodeMaps(
         if (Object.keys(dimensionsMap).length > 0) {
             maps.set(
                 `${tableName}-dimensions`,
-                getNodeMapFromItemsMap(dimensionsMap, table.groupDetails),
+                getNodeMapFromItemsMap(
+                    dimensionsMap,
+                    table.groupDetails,
+                    table.orderFieldsBy,
+                ),
             );
         }
 
@@ -136,7 +140,11 @@ function createSectionNodeMaps(
         if (Object.keys(metricsMap).length > 0) {
             maps.set(
                 `${tableName}-metrics`,
-                getNodeMapFromItemsMap(metricsMap, table.groupDetails),
+                getNodeMapFromItemsMap(
+                    metricsMap,
+                    table.groupDetails,
+                    table.orderFieldsBy,
+                ),
             );
         }
 
@@ -150,7 +158,11 @@ function createSectionNodeMaps(
             );
             maps.set(
                 `${tableName}-custom-metrics`,
-                getNodeMapFromItemsMap(customMetricsMap, table.groupDetails),
+                getNodeMapFromItemsMap(
+                    customMetricsMap,
+                    table.groupDetails,
+                    table.orderFieldsBy,
+                ),
             );
         }
     });
