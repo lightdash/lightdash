@@ -1,3 +1,10 @@
+## [0.2209.1](https://github.com/lightdash/lightdash/compare/0.2209.0...0.2209.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* add warehouse-specific interval syntax for date arithmetic ([#18348](https://github.com/lightdash/lightdash/issues/18348)) ([b369460](https://github.com/lightdash/lightdash/commit/b3694609b49e837978ba8c885977ce50612daf2d))
+
 # [0.2209.0](https://github.com/lightdash/lightdash/compare/0.2208.0...0.2209.0) (2025-11-26)
 
 
