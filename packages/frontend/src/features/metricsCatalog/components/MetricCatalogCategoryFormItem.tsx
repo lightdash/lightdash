@@ -88,7 +88,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     sx={(theme) => ({
                         visibility: hovered || opened ? 'visible' : 'hidden',
                         '&:hover': {
-                            backgroundColor: theme.colors.background,
+                            backgroundColor: theme.colors.background[0],
                         },
                     })}
                     size="sm"

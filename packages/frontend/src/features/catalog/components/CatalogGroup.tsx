@@ -105,7 +105,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     sx={(theme) => ({
                         border: `1px solid ${theme.colors.ldGray[2]}`,
                         borderRadius: theme.radius.md,
-                        backgroundColor: theme.colors.background,
+                        backgroundColor: theme.colors.background[0],
                     })}
                 >
                     {children}
