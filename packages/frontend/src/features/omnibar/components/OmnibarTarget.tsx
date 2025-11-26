@@ -1,4 +1,11 @@
-import { Badge, em, getBreakpointValue, Group, Text } from '@mantine/core';
+import {
+    Badge,
+    em,
+    getBreakpointValue,
+    Group,
+    Text,
+    useMantineColorScheme,
+} from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
@@ -11,6 +18,7 @@ type Props = {
 };
 
 const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
+    const { colorScheme } = useMantineColorScheme();
     const os = useOs();
 
     return (
@@ -41,8 +49,16 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
                 borderRadius: theme.radius.sm,
                 cursor: 'pointer',
                 transition: 'all 100ms ease',
-                backgroundColor: theme.colors.ldDark[4],
-                '&:hover': { backgroundColor: theme.colors.ldDark[3] },
+                backgroundColor:
+                    colorScheme === 'dark'
+                        ? theme.colors.ldDark[8]
+                        : theme.colors.ldDark[4],
+                '&:hover': {
+                    backgroundColor:
+                        colorScheme === 'dark'
+                            ? theme.colors.ldDark[7]
+                            : theme.colors.ldDark[3],
+                },
                 overflow: 'hidden',
             })}
         >
