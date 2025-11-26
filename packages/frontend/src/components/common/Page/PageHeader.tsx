@@ -22,6 +22,7 @@ const PageHeader: FC<Props> = ({ cardProps, children }) => {
              * FIXME: This shadow should be sourced from Mantine's theme config;
              * Once migration from Blueprint is complete, address default shadow
              */
+            withBorder={false}
             shadow="0 0 0 1px #bec1c426"
             radius="unset"
             sx={{ zIndex: 1 }}

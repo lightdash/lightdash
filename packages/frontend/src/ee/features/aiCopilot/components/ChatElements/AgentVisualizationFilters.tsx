@@ -47,9 +47,6 @@ const FilterRuleDisplay: FC<{
                     cursor: 'default',
                     pointerEvents: 'none',
                 },
-                inner: {
-                    color: 'black',
-                },
                 label: {
                     maxWidth: '100%',
                 },
