@@ -1,3 +1,10 @@
+# [0.2209.0](https://github.com/lightdash/lightdash/compare/0.2208.0...0.2209.0) (2025-11-26)
+
+
+### Features
+
+* map charts ([#18301](https://github.com/lightdash/lightdash/issues/18301)) ([0589e8d](https://github.com/lightdash/lightdash/commit/0589e8df0d13aa60c99711fd5674eaf7a75b2677))
+
 # [0.2208.0](https://github.com/lightdash/lightdash/compare/0.2207.0...0.2208.0) (2025-11-26)
 
 
