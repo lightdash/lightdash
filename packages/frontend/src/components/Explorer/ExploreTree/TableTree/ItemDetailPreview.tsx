@@ -53,6 +53,7 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
             style={{
                 fontSize: theme.fontSizes.sm,
                 color: theme.colors.ldGray[7],
+                backgroundColor: 'transparent',
             }}
         />
     );

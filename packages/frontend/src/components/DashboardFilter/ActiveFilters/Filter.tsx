@@ -6,9 +6,9 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
-    CloseButton,
     createStyles,
     Indicator,
     Popover,
@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconGripVertical } from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -29,9 +29,6 @@ import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 
 const useDashboardFilterStyles = createStyles((theme) => ({
-    root: {
-        backgroundColor: 'white',
-    },
     unsetRequiredFilter: {
         borderStyle: 'solid',
         borderWidth: '3px',
@@ -40,7 +37,7 @@ const useDashboardFilterStyles = createStyles((theme) => ({
         borderStyle: 'dashed',
         borderWidth: '1px',
         borderColor: theme.fn.rgba(theme.colors.ldGray[5], 0.7),
-        backgroundColor: theme.fn.rgba(theme.white, 0.7),
+        backgroundColor: theme.fn.rgba(theme.colors.background[0], 0.7),
     },
 }));
 
@@ -242,7 +239,7 @@ const Filter: FC<Props> = ({
                                         ? 'outline'
                                         : 'default'
                                 }
-                                className={`${classes.root} ${
+                                className={`${
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
@@ -255,7 +252,6 @@ const Filter: FC<Props> = ({
                                     isDraggable && (
                                         <MantineIcon
                                             icon={IconGripVertical}
-                                            color="gray"
                                             cursor="grab"
                                             size="sm"
                                         />
@@ -263,16 +259,18 @@ const Filter: FC<Props> = ({
                                 }
                                 rightIcon={
                                     (isEditMode || isTemporary) && (
-                                        <CloseButton
-                                            size="sm"
+                                        <ActionIcon
                                             onClick={onRemove}
-                                        />
+                                            size="xs"
+                                        >
+                                            <MantineIcon
+                                                size="sm"
+                                                icon={IconX}
+                                            />
+                                        </ActionIcon>
                                     )
                                 }
                                 styles={{
-                                    inner: {
-                                        color: 'black',
-                                    },
                                     label: {
                                         maxWidth: '800px',
                                         whiteSpace: 'nowrap',
