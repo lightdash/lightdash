@@ -97,6 +97,11 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         box-shadow: inset 1px 0 0 0 rgba(17, 20, 24, 0.15);
     }
 
+    /* Hide borders on virtualization padding rows */
+    tr.virtualized-padding-row td.virtualized-padding-cell {
+        box-shadow: none !important;
+    }
+
     /* FIXME: everything above this line is copied from blueprint's table css */
 
     thead {

@@ -34,10 +34,11 @@ export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     padding,
 }) => {
     return (
-        <tr>
+        <tr className="virtualized-padding-row">
             {[...Array(cellCount)].map((_, index) => (
                 <td
                     key={index}
+                    className="virtualized-padding-cell"
                     style={{
                         height: `${padding}px`,
                     }}
