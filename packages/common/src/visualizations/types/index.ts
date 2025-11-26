@@ -117,6 +117,8 @@ export type VizPieChartDisplay = {
 export type VizTableDisplay = {
     // TODO: split table display config out of table config
     // On vis column config, visible, label and frozen, at least seem like display options
+    mergeConsecutiveDuplicates?: boolean; // Enable/disable visual row merging
+    mergeColumns?: string[]; // Which columns to merge consecutive duplicate values
 };
 
 export type PivotIndexColum = { reference: string; type: VizIndexType };

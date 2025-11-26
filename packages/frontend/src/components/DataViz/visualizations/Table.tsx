@@ -3,6 +3,7 @@ import {
     type IResultsRunner,
     type RawResultRow,
     type VizColumnsConfig,
+    type VizTableDisplay,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
@@ -25,6 +26,7 @@ type TableProps<T extends IResultsRunner> = {
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
+    display?: VizTableDisplay;
 };
 
 export const Table = <T extends IResultsRunner>({
@@ -33,6 +35,7 @@ export const Table = <T extends IResultsRunner>({
     flexProps,
     thSortConfig,
     onTHClick,
+    display,
 }: TableProps<T>) => {
     const {
         tableWrapperRef,
@@ -40,6 +43,7 @@ export const Table = <T extends IResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
+        tableModel,
     } = useTableDataModel({
         config: {
             columns: columnsConfig,
@@ -49,6 +53,7 @@ export const Table = <T extends IResultsRunner>({
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
+    const rowSpanMap = tableModel.getRowSpanMap(display);
 
     return (
         <Flex
@@ -149,6 +154,12 @@ export const Table = <T extends IResultsRunner>({
                                             | RawResultRow[0]
                                             | undefined;
 
+                                        const spanKey = `${cell.column.id}-${index}`;
+                                        const spanInfo = rowSpanMap.get(spanKey);
+
+                                        // Skip cells that are part of a merged group
+                                        if (spanInfo?.skip) return null;
+
                                         return (
                                             <BodyCell
                                                 key={cell.id}
@@ -162,6 +173,7 @@ export const Table = <T extends IResultsRunner>({
                                                         ''
                                                     ).length > SMALL_TEXT_LENGTH
                                                 }
+                                                rowSpan={spanInfo?.rowspan || 1}
                                             >
                                                 {cell.getIsPlaceholder()
                                                     ? null

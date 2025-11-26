@@ -726,6 +726,11 @@ export const ContentPanel: FC = () => {
                                                                             ?.columns ??
                                                                         {}
                                                                     }
+                                                                    display={
+                                                                        activeConfigs
+                                                                            .tableConfig
+                                                                            ?.display
+                                                                    }
                                                                     flexProps={{
                                                                         mah: '100%',
                                                                     }}

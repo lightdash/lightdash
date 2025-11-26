@@ -57,6 +57,15 @@ export const tableVisSlice = createSlice({
                 columns[reference].visible = visible;
             }
         },
+        updateDisplay: (
+            state,
+            action: PayloadAction<Partial<VizTableDisplay>>,
+        ) => {
+            state.display = {
+                ...state.display,
+                ...action.payload,
+            };
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
@@ -86,5 +95,5 @@ export const tableVisSlice = createSlice({
     },
 });
 
-export const { updateFieldLabel, updateColumnVisibility } =
+export const { updateFieldLabel, updateColumnVisibility, updateDisplay } =
     tableVisSlice.actions;

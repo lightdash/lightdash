@@ -1,7 +1,10 @@
 import {
     ChartKind,
     type AllVizChartConfig,
+    type CartesianChartDisplay,
     type PivotChartLayout,
+    type VizPieChartDisplay,
+    type VizTableDisplay,
 } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '../../../features/sqlRunner/store';
@@ -134,16 +137,26 @@ export const selectCompleteConfigByKind = createSelector(
                 type: chartKind,
                 metadata: metadata,
                 columns: fieldConfig as NonNullable<TableVizState['columns']>,
-                display: display,
-            };
+                display: display as VizTableDisplay | undefined,
+            } satisfies AllVizChartConfig;
         }
 
+        if (chartKind === ChartKind.PIE) {
+            return {
+                type: chartKind,
+                metadata: metadata,
+                fieldConfig: fieldConfig as PivotChartLayout,
+                display: display as VizPieChartDisplay | undefined,
+            } satisfies AllVizChartConfig;
+        }
+
+        // ChartKind.VERTICAL_BAR or ChartKind.LINE
         return {
             type: chartKind,
             metadata: metadata,
             fieldConfig: fieldConfig as PivotChartLayout,
-            display: display,
-        };
+            display: display as CartesianChartDisplay | undefined,
+        } satisfies AllVizChartConfig;
     },
 );
 

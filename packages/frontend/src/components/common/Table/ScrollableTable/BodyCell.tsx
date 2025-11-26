@@ -27,7 +27,7 @@ import { type CellContextMenuProps } from '../types';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 
-interface CommonBodyCellProps {
+export interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
     index: number;
     isNumericItem: boolean;
@@ -40,6 +40,7 @@ interface CommonBodyCellProps {
     isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
+    rowSpan?: number;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -56,6 +57,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     style,
     tooltipContent,
     minimal = false,
+    rowSpan,
 }) => {
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();
@@ -155,6 +157,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     typeof displayValue === 'string' &&
                     displayValue.includes('\n')
                 }
+                rowSpan={rowSpan}
                 onClick={canHaveMenu ? toggleMenu : undefined}
                 onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
                 onMouseLeave={

@@ -114,5 +114,6 @@ export const useTableDataModel = ({
         getTableData,
         paddingTop,
         paddingBottom,
+        tableModel,
     };
 };

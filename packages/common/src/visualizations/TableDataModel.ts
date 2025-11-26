@@ -11,6 +11,11 @@ import {
 } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
 
+export type RowSpanInfo = {
+    rowspan: number;
+    skip: boolean;
+};
+
 export class TableDataModel {
     private readonly resultsRunner: IResultsRunner;
 
@@ -145,5 +150,69 @@ export class TableDataModel {
             },
             tableData: undefined,
         };
+    }
+
+    /**
+     * Calculates rowspan information for visual cell merging
+     * Returns a map of cell keys to rowspan info
+     */
+    public getRowSpanMap(display?: VizTableDisplay): Map<string, RowSpanInfo> {
+        const rowSpanMap = new Map<string, RowSpanInfo>();
+
+        // Return empty map if feature is disabled or no columns configured
+        if (!display?.mergeConsecutiveDuplicates || !display?.mergeColumns) {
+            return rowSpanMap;
+        }
+
+        const rows = this.getRows();
+        const columnsToMerge = display.mergeColumns;
+
+        // For each column that should be merged
+        columnsToMerge.forEach((columnId) => {
+            let spanStart = 0;
+            let spanCount = 1;
+            let currentValue = rows[0]?.[columnId];
+
+            // Iterate through rows to detect consecutive duplicates
+            for (let i = 1; i <= rows.length; i++) {
+                const nextValue = i < rows.length ? rows[i][columnId] : null;
+                const valuesMatch =
+                    i < rows.length &&
+                    currentValue === nextValue &&
+                    currentValue !== null &&
+                    currentValue !== undefined;
+
+                if (valuesMatch) {
+                    // Continue the span
+                    spanCount++;
+                } else {
+                    // End the span
+                    if (spanCount > 1) {
+                        // Set rowspan for the first cell in the group
+                        const spanKey = `${columnId}-${spanStart}`;
+                        rowSpanMap.set(spanKey, {
+                            rowspan: spanCount,
+                            skip: false,
+                        });
+
+                        // Mark subsequent cells as skip
+                        for (let j = spanStart + 1; j < spanStart + spanCount; j++) {
+                            const skipKey = `${columnId}-${j}`;
+                            rowSpanMap.set(skipKey, {
+                                rowspan: 0,
+                                skip: true,
+                            });
+                        }
+                    }
+
+                    // Start a new span
+                    spanStart = i;
+                    spanCount = 1;
+                    currentValue = nextValue;
+                }
+            }
+        });
+
+        return rowSpanMap;
     }
 }

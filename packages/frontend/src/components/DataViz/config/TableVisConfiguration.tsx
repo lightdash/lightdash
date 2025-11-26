@@ -1,7 +1,13 @@
 import { type VizColumn } from '@lightdash/common';
-import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
+import {
+    ActionIcon,
+    MultiSelect,
+    ScrollArea,
+    Switch,
+    TextInput,
+} from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -11,6 +17,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { TableFieldIcon } from '../Icons';
 import {
     updateColumnVisibility,
+    updateDisplay,
     updateFieldLabel,
 } from '../store/tableVisSlice';
 
@@ -20,6 +27,18 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
     const columnsConfig = useVizSelector(
         (state) => state.tableVisConfig.columns,
     );
+    const display = useVizSelector((state) => state.tableVisConfig.display);
+
+    // Get visible columns for merge column selection
+    const visibleColumnOptions = useMemo(() => {
+        if (!columnsConfig) return [];
+        return Object.keys(columnsConfig)
+            .filter((ref) => columnsConfig[ref].visible)
+            .map((ref) => ({
+                value: ref,
+                label: columnsConfig[ref].label,
+            }));
+    }, [columnsConfig]);
 
     if (!columnsConfig) {
         return null;
@@ -35,6 +54,43 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
             mb="md"
         >
             <Config>
+                <Config.Section>
+                    <Config.Heading>Display</Config.Heading>
+
+                    <Switch
+                        label="Merge consecutive duplicate values"
+                        description="Visually merge cells with consecutive duplicate values in selected columns"
+                        checked={display?.mergeConsecutiveDuplicates ?? false}
+                        onChange={(e) =>
+                            dispatch(
+                                updateDisplay({
+                                    mergeConsecutiveDuplicates:
+                                        e.currentTarget.checked,
+                                }),
+                            )
+                        }
+                    />
+
+                    {display?.mergeConsecutiveDuplicates && (
+                        <MultiSelect
+                            label="Columns to merge"
+                            description="Select which columns should have consecutive duplicates merged"
+                            placeholder="Select columns..."
+                            data={visibleColumnOptions}
+                            value={display?.mergeColumns ?? []}
+                            onChange={(value) =>
+                                dispatch(
+                                    updateDisplay({
+                                        mergeColumns: value,
+                                    }),
+                                )
+                            }
+                            searchable
+                            clearable
+                        />
+                    )}
+                </Config.Section>
+
                 <Config.Section>
                     <Config.Heading>Column labels</Config.Heading>
 
