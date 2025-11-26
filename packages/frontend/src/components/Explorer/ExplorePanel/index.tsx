@@ -6,7 +6,7 @@ import {
     getMetrics,
 } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Stack, Text } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconCode, IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import {
     memo,
     useCallback,
@@ -40,6 +40,8 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import ExploreYamlModal from '../ExploreYamlModal';
+import { useIsGitProject } from '../WriteBackModal/hooks';
 import { VisualizationConfigPortalId } from './constants';
 
 interface ExplorePanelProps {
@@ -52,9 +54,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
+    const [isViewSourceOpen, setIsViewSourceOpen] = useState(false);
     const [, startTransition] = useTransition();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isGitProject = useIsGitProject(projectUuid ?? '');
 
     const activeTableName = useExplorerSelector(selectTableName);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -138,6 +142,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const handleDeleteVirtualView = useCallback(() => {
         setIsDeleteVirtualViewOpen(true);
+    }, []);
+
+    const handleViewSourceCode = useCallback(() => {
+        setIsViewSourceOpen(true);
     }, []);
 
     const breadcrumbs = useMemo(() => {
@@ -230,6 +238,38 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </Menu>
                         </Can>
                     )}
+                    {explore.type !== ExploreType.VIRTUAL &&
+                        isGitProject &&
+                        explore.ymlPath && (
+                            <Can
+                                I="view"
+                                this={subject('SourceCode', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <Menu withArrow offset={-2}>
+                                    <Menu.Target>
+                                        <ActionIcon variant="transparent">
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={handleViewSourceCode}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                View source code
+                                            </Text>
+                                        </Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
+                            </Can>
+                        )}
                 </Group>
 
                 <ItemDetailProvider>
@@ -254,6 +294,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
+                    />
+                )}
+                {isViewSourceOpen && projectUuid && activeTableName && (
+                    <ExploreYamlModal
+                        opened={isViewSourceOpen}
+                        onClose={() => setIsViewSourceOpen(false)}
+                        projectUuid={projectUuid}
+                        exploreName={activeTableName}
                     />
                 )}
             </Stack>
