@@ -1,12 +1,14 @@
 import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { scaleSqrt } from 'd3-scale';
-import * as echarts from 'echarts';
+import * as echarts5 from 'echarts';
 import { type EChartsOption } from 'echarts';
+import * as echarts6 from 'echarts-6';
 import { useEffect, useMemo, useState } from 'react';
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import useHealth from '../health/useHealth';
 import { DEFAULT_MAP_COLORS } from '../useMapChartConfig';
 
 type Args = {
@@ -17,6 +19,12 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
     const { visualizationConfig, resultsData, colorPalette, itemsMap } =
         useVisualizationContext();
     const [mapsLoaded, setMapsLoaded] = useState<Set<string>>(new Set());
+    const healthQuery = useHealth();
+    const useEcharts6 = healthQuery.data?.echarts6.enabled ?? false;
+
+    // Select the correct echarts instance based on health config
+    // This must match what echarts-for-react uses internally
+    const echarts = useEcharts6 ? echarts6 : echarts5;
 
     const chartConfig = useMemo(() => {
         if (!isMapVisualizationConfig(visualizationConfig)) return;
@@ -188,7 +196,7 @@ const useEchartsMapConfig = ({ isInDashboard: _isInDashboard }: Args) => {
             mapType === MapChartLocation.CUSTOM ? customGeoJsonUrl : undefined;
 
         void loadMap(mapType, urlToLoad);
-    }, [mapType, customGeoJsonUrl, mapsLoaded]);
+    }, [mapType, customGeoJsonUrl, mapsLoaded, echarts]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         const isMapLoaded = mapsLoaded.has(mapKey);
