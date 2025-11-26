@@ -672,8 +672,11 @@ export class UserService extends BaseService {
                 identities.map((identity) => identity.userUuid),
             );
             if (identitiesUsers.length > 1) {
-                this.logger.warn(
+                this.logger.error(
                     `Multiple openid identities found with the same email ${openIdUser.openId.email}`,
+                );
+                throw new AuthorizationError(
+                    'Multiple accounts found with this email address. Please contact your administrator to resolve this account conflict.',
                 );
             } else if (identitiesUsers.length === 1) {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
