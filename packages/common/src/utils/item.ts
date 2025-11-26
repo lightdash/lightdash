@@ -23,6 +23,7 @@ import {
     isAdditionalMetric,
     type AdditionalMetric,
 } from '../types/metricQuery';
+import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 
 export const isNumericType = (
     type: DimensionType | MetricType | TableCalculationType,
@@ -59,16 +60,30 @@ export const getItemId = (
     return `${item.table}_${item.name.replaceAll('.', '__')}`;
 };
 
-export const getItemLabelWithoutTableName = (item: Item) => {
+export const getItemLabelWithoutTableName = (
+    item: Item,
+    parameters?: Record<string, unknown>,
+) => {
     if (isCustomDimension(item)) return item.name;
-    return isField(item) || isAdditionalMetric(item)
+
+    let label = isField(item) || isAdditionalMetric(item)
         ? `${item.label}`
         : item.displayName;
+
+    // Interpolate parameters in label if present
+    if (parameters && label.includes('${')) {
+        label = evaluateConditionalFormatExpression(label, parameters);
+    }
+
+    return label;
 };
 
-export const getItemLabel = (item: Item) =>
+export const getItemLabel = (
+    item: Item,
+    parameters?: Record<string, unknown>,
+) =>
     (isField(item) ? `${item.tableLabel} ` : '') +
-    getItemLabelWithoutTableName(item);
+    getItemLabelWithoutTableName(item, parameters);
 
 export function getItemType(
     item: ItemsMap[string] | AdditionalMetric,

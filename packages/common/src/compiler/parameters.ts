@@ -64,6 +64,40 @@ export const getParameterReferencesFromSqlAndFormat = (
     );
 };
 
+/**
+ * Extracts and combines parameter references from SQL, format strings, and labels
+ * @param compiledSql - The compiled SQL to extract parameters from
+ * @param format - Optional format string to extract parameters from
+ * @param label - Optional label string to extract parameters from
+ * @returns An array of unique parameter names from all sources
+ */
+export const getParameterReferencesFromSqlFormatAndLabel = (
+    compiledSql: string,
+    format?: string,
+    label?: string,
+): string[] => {
+    const sqlParameterReferences = getParameterReferences(compiledSql);
+
+    const formatParameterReferences =
+        format && typeof format === 'string'
+            ? getParameterReferences(format, parameterReferencePattern)
+            : [];
+
+    const labelParameterReferences =
+        label && typeof label === 'string'
+            ? getParameterReferences(label, parameterReferencePattern)
+            : [];
+
+    // Combine and deduplicate parameter references from all sources
+    return Array.from(
+        new Set([
+            ...sqlParameterReferences,
+            ...formatParameterReferences,
+            ...labelParameterReferences,
+        ]),
+    );
+};
+
 export const validateParameterReferences = (
     tableName: string,
     parameterReferences: string[],

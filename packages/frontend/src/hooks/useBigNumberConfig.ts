@@ -201,10 +201,10 @@ const useBigNumberConfig = (
 
         return item
             ? shouldShowTableName
-                ? getItemLabel(item)
-                : getItemLabelWithoutTableName(item)
+                ? getItemLabel(item, parameters)
+                : getItemLabelWithoutTableName(item, parameters)
             : selectedField && friendlyName(selectedField);
-    }, [item, selectedField, showTableNamesInLabel]);
+    }, [item, selectedField, showTableNamesInLabel, parameters]);
 
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined

@@ -112,11 +112,18 @@ type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
           >;
 };
 
-const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
+const getLabelFromField = (
+    fields: ItemsMap,
+    key: string | undefined,
+    parameters?: ParametersValuesMap,
+) => {
     const item = key ? fields[key] : undefined;
 
     if (item) {
-        return getDateGroupLabel(item) || getItemLabelWithoutTableName(item);
+        return (
+            getDateGroupLabel(item) ||
+            getItemLabelWithoutTableName(item, parameters)
+        );
     } else if (key) {
         return friendlyName(key);
     } else {
@@ -765,7 +772,7 @@ const getPivotSeries = ({
         dimensions: [
             {
                 name: xFieldHash,
-                displayName: getLabelFromField(itemsMap, xFieldHash),
+                displayName: getLabelFromField(itemsMap, xFieldHash, parameters),
             },
             {
                 name: yFieldHash,
@@ -775,6 +782,7 @@ const getPivotSeries = ({
                         ? `[${pivotLabel}] ${getLabelFromField(
                               itemsMap,
                               series.encode.yRef.field,
+                              parameters,
                           )}`
                         : pivotLabel,
             },
@@ -883,11 +891,11 @@ const getSimpleSeries = ({
     dimensions: [
         {
             name: xFieldHash,
-            displayName: getLabelFromField(itemsMap, xFieldHash),
+            displayName: getLabelFromField(itemsMap, xFieldHash, parameters),
         },
         {
             name: yFieldHash,
-            displayName: getLabelFromField(itemsMap, yFieldHash),
+            displayName: getLabelFromField(itemsMap, yFieldHash, parameters),
         },
     ],
     tooltip: {
@@ -1598,7 +1606,10 @@ const getEchartAxes = ({
                               : xAxisConfiguration?.[0]?.name ||
                                 (xAxisItem
                                     ? getDateGroupLabel(xAxisItem) ||
-                                      getItemLabelWithoutTableName(xAxisItem)
+                                      getItemLabelWithoutTableName(
+                                          xAxisItem,
+                                          parameters,
+                                      )
                                     : undefined),
                           nameLocation: 'center',
                           nameTextStyle: getAxisTitleStyle(),
@@ -1698,7 +1709,10 @@ const getEchartAxes = ({
                               ? yAxisConfiguration?.[0]?.name ||
                                 (yAxisItem
                                     ? getDateGroupLabel(yAxisItem) ||
-                                      getItemLabelWithoutTableName(yAxisItem)
+                                      getItemLabelWithoutTableName(
+                                          yAxisItem,
+                                          parameters,
+                                      )
                                     : undefined)
                               : getAxisName({
                                     isAxisTheSameForAllSeries,

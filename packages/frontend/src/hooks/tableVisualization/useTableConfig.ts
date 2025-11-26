@@ -1,6 +1,7 @@
 import {
     convertFormattedValue,
     getItemLabel,
+    getItemLabelWithoutTableName,
     isCustomDimension,
     isDimension,
     isField,
@@ -118,12 +119,12 @@ const useTableConfig = (
             const item = itemsMap[fieldId];
 
             if (isField(item) && !showTableNames) {
-                return item.label;
+                return getItemLabelWithoutTableName(item, parameters);
             } else {
-                return getItemLabel(item);
+                return getItemLabel(item, parameters);
             }
         },
-        [itemsMap, showTableNames],
+        [itemsMap, showTableNames, parameters],
     );
 
     const getFieldLabelOverride = useCallback(
