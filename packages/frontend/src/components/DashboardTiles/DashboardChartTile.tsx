@@ -996,22 +996,37 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                             color: 'black',
                                                         }}
                                                     >
-                                                        <Text fw={600} span>
+                                                        <Text
+                                                            fw={600}
+                                                            span
+                                                            color="foreground.0"
+                                                        >
                                                             {
                                                                 filterRuleLabels.field
                                                             }
                                                             :
                                                         </Text>{' '}
                                                         {filterRule.disabled ? (
-                                                            <>is any value</>
+                                                            <Text
+                                                                color="foreground.0"
+                                                                span
+                                                            >
+                                                                is any value
+                                                            </Text>
                                                         ) : (
                                                             <>
-                                                                {
-                                                                    filterRuleLabels.operator
-                                                                }{' '}
+                                                                <Text
+                                                                    span
+                                                                    color="foreground.0"
+                                                                >
+                                                                    {
+                                                                        filterRuleLabels.operator
+                                                                    }
+                                                                </Text>{' '}
                                                                 <Text
                                                                     fw={600}
                                                                     span
+                                                                    color="foreground.0"
                                                                 >
                                                                     {
                                                                         filterRuleLabels.value

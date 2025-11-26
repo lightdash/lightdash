@@ -135,15 +135,20 @@ export const MetricExploreComparison: FC<Props> = ({
                                             : `1px solid ${theme.colors.ldGray[2]}`,
                                 },
                                 '&:hover': {
-                                    backgroundColor: theme.colors.ldGray[0],
+                                    backgroundColor:
+                                        theme.colorScheme === 'dark'
+                                            ? theme.colors.ldDark[8]
+                                            : theme.colors.ldGray[0],
                                 },
                                 backgroundColor:
                                     query.comparison === comparison.type
-                                        ? theme.fn.lighten(
-                                              theme.colors.ldGray[1],
-                                              0.3,
-                                          )
-                                        : 'white',
+                                        ? theme.colorScheme === 'dark'
+                                            ? theme.colors.ldDark[7]
+                                            : theme.fn.lighten(
+                                                  theme.colors.ldGray[1],
+                                                  0.3,
+                                              )
+                                        : theme.colors.background[0],
                             })}
                             onClick={() =>
                                 handleComparisonChange(comparison.type)
@@ -158,7 +163,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                             />
                                         </Paper>
 
-                                        <Text color="ldDark.8" fw={500}>
+                                        <Text color="dimmed" fw={500}>
                                             {comparison.label}
                                         </Text>
                                     </Group>

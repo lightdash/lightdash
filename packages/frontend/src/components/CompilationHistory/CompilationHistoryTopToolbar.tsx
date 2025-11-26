@@ -28,7 +28,7 @@ export const CompilationHistoryTopToolbar: FC<
             })}
         >
             <Group gap="xs" wrap="nowrap">
-                <MantineIcon icon={IconFilter} color="gray" />
+                <MantineIcon icon={IconFilter} color="ldGray" />
                 <CompilationSourceFilter
                     selectedSource={selectedSource}
                     setSelectedSource={setSelectedSource}

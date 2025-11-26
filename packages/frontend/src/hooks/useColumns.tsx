@@ -211,27 +211,26 @@ const formatImageCell = (
     const row = needsRowContext
         ? info.row
               .getAllCells()
-              .reduce<Record<string, Record<string, ResultValue>>>(
-                  (acc, rowCell) => {
-                      const cellItem = rowCell.column.columnDef.meta?.item;
-                      const rowCellValue = rowCell.getValue();
+              .reduce<
+                  Record<string, Record<string, ResultValue>>
+              >((acc, rowCell) => {
+                  const cellItem = rowCell.column.columnDef.meta?.item;
+                  const rowCellValue = rowCell.getValue();
 
-                      // Handle both ResultRow and RawResultRow formats
-                      const cellResultValue = isResultValue(rowCellValue)
-                          ? (rowCellValue as { value: ResultValue }).value
-                          : {
-                                raw: rowCellValue,
-                                formatted: String(rowCellValue),
-                            };
+                  // Handle both ResultRow and RawResultRow formats
+                  const cellResultValue = isResultValue(rowCellValue)
+                      ? (rowCellValue as { value: ResultValue }).value
+                      : {
+                            raw: rowCellValue,
+                            formatted: String(rowCellValue),
+                        };
 
-                      if (cellItem && isField(cellItem) && cellResultValue) {
-                          acc[cellItem.table] = acc[cellItem.table] || {};
-                          acc[cellItem.table][cellItem.name] = cellResultValue;
-                      }
-                      return acc;
-                  },
-                  {},
-              )
+                  if (cellItem && isField(cellItem) && cellResultValue) {
+                      acc[cellItem.table] = acc[cellItem.table] || {};
+                      acc[cellItem.table][cellItem.name] = cellResultValue;
+                  }
+                  return acc;
+              }, {})
         : {};
 
     try {
@@ -613,7 +612,7 @@ export const useColumns = (): TableColumn[] => {
                             item: popItem,
                             draggable: false,
                             frozen: false,
-                            bgColor: getItemBgColor(popItem), // Light gray background to indicate PoP column
+                            bgColor: getItemBgColor(popItem, theme), // Light gray background to indicate PoP column
                             isReadOnly: true, // Computed column, not editable
                         },
                     },

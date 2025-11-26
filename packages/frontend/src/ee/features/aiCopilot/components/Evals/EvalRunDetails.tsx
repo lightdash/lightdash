@@ -173,7 +173,7 @@ export const EvalRunDetails: FC<Props> = ({
                         result.assessment?.passed,
                     );
                     return isEvalRunning ? (
-                        <Badge w={68} variant="white" color="gray">
+                        <Badge w={68} variant="transparent" color="gray">
                             {result.status === 'assessing' ? (
                                 <Loader size={12} color="gray" />
                             ) : (
@@ -181,7 +181,10 @@ export const EvalRunDetails: FC<Props> = ({
                             )}
                         </Badge>
                     ) : (
-                        <Badge color={assessmentConfig.color} variant="white">
+                        <Badge
+                            color={assessmentConfig.color}
+                            variant="transparent"
+                        >
                             {assessmentConfig.label}
                         </Badge>
                     );

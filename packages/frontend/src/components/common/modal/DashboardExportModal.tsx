@@ -97,7 +97,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
 }) => {
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
-        typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
+        (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
     >(CUSTOM_WIDTH_OPTIONS[1].value);
     const location = useLocation();
     const exportDashboardMutation = useExportDashboard();
@@ -292,7 +292,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
                 sx={(theme) => ({
                     borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                     padding: theme.spacing.sm,
-                    backgroundColor: theme.white,
+                    backgroundColor: theme.colors.background[0],
                     position: 'sticky',
                     bottom: 0,
                     width: '100%',

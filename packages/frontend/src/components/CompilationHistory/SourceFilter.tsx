@@ -37,7 +37,7 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
                 >
                     <Button
                         h={32}
-                        c="ldGray.7"
+                        c="foreground.0"
                         fw={500}
                         fz="sm"
                         variant="default"

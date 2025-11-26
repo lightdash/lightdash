@@ -42,7 +42,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             backgroundColor:
                 theme.colorScheme === 'dark'
                     ? theme.colors.dark[7]
-                    : theme.colors.gray[0],
+                    : theme.colors.background[0],
             zIndex: 1,
         }),
         [theme.colorScheme, theme.colors],
