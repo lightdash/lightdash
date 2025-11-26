@@ -1149,6 +1149,16 @@ export class AiAgentService {
             );
         }
 
+        // Check if prompt already has a response (prevent duplicate processing)
+        if (prompt.response !== null) {
+            Logger.warn(
+                `Prompt ${prompt.promptUuid} already has a response, skipping duplicate stream request`,
+            );
+            throw new Error(
+                'This message has already been processed. Please refresh to see the response.',
+            );
+        }
+
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             threadMessages,
             {

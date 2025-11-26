@@ -1,5 +1,5 @@
 import { Center, Loader } from '@mantine-8/core';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -56,10 +56,38 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
 
     const isStreaming = useAiAgentThreadStreaming(threadUuid!);
+    const lastStreamingStopTimeRef = useRef<number>(0);
+    const STREAMING_COOLDOWN_MS = 3000; // 3 second cooldown after streaming stops
+
+    // Track when streaming stops to prevent immediate polling restart
+    useEffect(() => {
+        if (!isStreaming && lastStreamingStopTimeRef.current === 0) {
+            // Streaming just stopped
+            lastStreamingStopTimeRef.current = Date.now();
+        } else if (isStreaming) {
+            // Reset when streaming starts again
+            lastStreamingStopTimeRef.current = 0;
+        }
+    }, [isStreaming]);
 
     useEffect(() => {
         if (!isPending) return;
         if (isStreaming) return;
+
+        // Prevent polling from starting immediately after streaming completes
+        const timeSinceStreamingStopped =
+            Date.now() - lastStreamingStopTimeRef.current;
+        if (
+            lastStreamingStopTimeRef.current > 0 &&
+            timeSinceStreamingStopped < STREAMING_COOLDOWN_MS
+        ) {
+            // Schedule a single refetch after cooldown period
+            const cooldownTimer = setTimeout(() => {
+                void refetch();
+            }, STREAMING_COOLDOWN_MS - timeSinceStreamingStopped);
+
+            return () => clearTimeout(cooldownTimer);
+        }
 
         const interval = setInterval(() => {
             void refetch();
