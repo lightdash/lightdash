@@ -131,19 +131,35 @@ export const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-const parseCell = (cell: AnyType) => {
+const parseCell = (cell: AnyType, columnType?: string) => {
     if (cell instanceof Date) {
+        // For DATE types, convert to YYYY-MM-DD string to avoid timezone conversion issues
+        if (columnType && normaliseSnowflakeType(columnType) === SnowflakeTypes.DATE) {
+            const year = cell.getUTCFullYear();
+            const month = String(cell.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(cell.getUTCDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
         return new Date(cell);
     }
 
     return cell;
 };
 
-const parseRow = (row: Record<string, AnyType>) =>
-    Object.fromEntries(
-        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
+const parseRow = (row: Record<string, AnyType>, columns?: Column[]) => {
+    const columnTypeMap = columns
+        ? new Map(columns.map((col) => [col.getName(), col.getType()]))
+        : undefined;
+
+    return Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [
+            name,
+            parseCell(value, columnTypeMap?.get(name)),
+        ]),
     );
-const parseRows = (rows: Record<string, AnyType>[]) => rows.map(parseRow);
+};
+const parseRows = (rows: Record<string, AnyType>[], columns?: Column[]) =>
+    rows.map((row) => parseRow(row, columns));
 
 export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
     readonly type = WarehouseTypes.SNOWFLAKE;
@@ -479,6 +495,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             queryId,
         });
 
+        const columns = statement.getColumns() as Column[] | undefined;
         const rows: TFormattedRow[] = [];
 
         await new Promise<void>((resolve, reject) => {
@@ -491,7 +508,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     reject(err);
                 })
                 .on('data', (row) => {
-                    const parsedRow = parseRow(row);
+                    const parsedRow = parseRow(row, columns);
                     const formattedRow = rowFormatter
                         ? rowFormatter(parsedRow)
                         : (parsedRow as TFormattedRow);
@@ -737,13 +754,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     }
 
                     const fields = this.getFieldsFromStatement(stmt);
+                    const columns = stmt.getColumns() as Column[] | undefined;
 
                     pipeline(
                         stmt.streamRows(),
                         new Transform({
                             objectMode: true,
                             transform(chunk, encoding, callback) {
-                                callback(null, parseRow(chunk));
+                                callback(null, parseRow(chunk, columns));
                             },
                         }),
                         new Writable({
@@ -786,9 +804,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(err);
                     }
                     if (data) {
+                        const columns = stmt.getColumns() as Column[] | undefined;
                         resolve({
                             fields: this.getFieldsFromStatement(stmt),
-                            rows: parseRows(data),
+                            rows: parseRows(data, columns),
                         });
                     } else {
                         reject(
