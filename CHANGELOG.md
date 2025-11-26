@@ -1,3 +1,10 @@
+# [0.2208.0](https://github.com/lightdash/lightdash/compare/0.2207.0...0.2208.0) (2025-11-26)
+
+
+### Features
+
+* get finest rank when multiple selected time dims on pop ([#18343](https://github.com/lightdash/lightdash/issues/18343)) ([9b4e498](https://github.com/lightdash/lightdash/commit/9b4e498f4973900bb61ae4fe40bf96afa032bbd2))
+
 # [0.2207.0](https://github.com/lightdash/lightdash/compare/0.2206.1...0.2207.0) (2025-11-26)
 
 
