@@ -13,10 +13,10 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Box,
     Button,
     Card,
     Divider,
-    Image,
     PasswordInput,
     Stack,
     Text,
@@ -30,12 +30,12 @@ import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
+import LightdashLogo from '../../../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
-import LightdashLogo from '../../../svgs/lightdash-black.svg';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,
@@ -200,13 +200,9 @@ const Login: FC<{}> = () => {
 
     return (
         <>
-            <Image
-                src={LightdashLogo}
-                alt="lightdash logo"
-                width={130}
-                mx="auto"
-                my="lg"
-            />
+            <Box mx="auto" my="lg">
+                <LightdashLogo />
+            </Box>
             <Card p="xl" radius="xs" withBorder shadow="xs">
                 <Title order={3} ta="center" mb="md">
                     Sign in

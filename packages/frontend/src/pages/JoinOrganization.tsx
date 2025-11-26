@@ -2,10 +2,10 @@ import { getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
+    Box,
     Button,
     Card,
     Group,
-    Image,
     Stack,
     Text,
     Title,
@@ -13,6 +13,7 @@ import {
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -21,7 +22,6 @@ import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
 import useApp from '../providers/App/useApp';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
@@ -93,13 +93,9 @@ const JoinOrganizationPage: FC = () => {
                 </Stack>
             ) : (
                 <Stack w={400} mt="4xl">
-                    <Image
-                        src={LightdashLogo}
-                        alt="lightdash logo"
-                        width={130}
-                        mx="auto"
-                        my="lg"
-                    />
+                    <Box mx="auto" my="lg">
+                        <LightdashLogo />
+                    </Box>
                     <Card p="xl" radius="xs" withBorder shadow="xs">
                         <Stack justify="center" spacing="md" mb="xs">
                             <Title order={3} ta="center">

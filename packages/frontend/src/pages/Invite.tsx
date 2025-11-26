@@ -7,10 +7,10 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Box,
     Button,
     Card,
     Divider,
-    Image,
     Stack,
     Text,
     Title,
@@ -19,6 +19,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import Page from '../components/common/Page/Page';
@@ -29,7 +30,6 @@ import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useInviteLink } from '../hooks/useInviteLink';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 
 interface WelcomeCardProps {
     email: string | undefined;
@@ -208,13 +208,9 @@ const Invite: FC = () => {
     return (
         <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
-                    width={130}
-                    mx="auto"
-                    my="lg"
-                />
+                <Box mx="auto" my="lg">
+                    <LightdashLogo />
+                </Box>
                 {inviteLinkQuery.error ? (
                     <ErrorCard
                         title={

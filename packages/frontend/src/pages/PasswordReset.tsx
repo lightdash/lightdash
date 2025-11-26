@@ -1,9 +1,9 @@
 import {
     Anchor,
+    Box,
     Button,
     Card,
     Center,
-    Image,
     PasswordInput,
     Stack,
     Text,
@@ -12,6 +12,7 @@ import {
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -20,7 +21,6 @@ import {
     usePasswordResetMutation,
 } from '../hooks/usePasswordReset';
 import useApp from '../providers/App/useApp';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 
 type ResetPasswordForm = { password: string };
 
@@ -45,13 +45,9 @@ const PasswordReset: FC = () => {
         <Page title="Reset password" withCenteredContent withNavbar={false}>
             {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="4xl">
-                <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
-                    width={130}
-                    mx="auto"
-                    my="lg"
-                />
+                <Box mx="auto" my="lg">
+                    <LightdashLogo />
+                </Box>
                 <Card p="xl" radius="xs" withBorder shadow="xs">
                     {error ? (
                         <ErrorState error={error.error} hasMarginTop={false} />
