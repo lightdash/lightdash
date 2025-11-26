@@ -144,7 +144,7 @@ export const CatalogMetadata: FC = () => {
                         },
                         placeholder: {
                             color: theme.colors.ldGray[7],
-                            backgroundColor: theme.colors.background,
+                            backgroundColor: theme.colors.background[0],
                         },
                     })}
                 >
@@ -387,7 +387,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.background,
+                                    backgroundColor: theme.colors.background[0],
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
@@ -404,7 +404,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.background,
+                                    backgroundColor: theme.colors.background[0],
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,
@@ -416,7 +416,7 @@ export const CatalogMetadata: FC = () => {
                             <Paper
                                 withBorder
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.background,
+                                    backgroundColor: theme.colors.background[0],
                                     border: `1px solid ${theme.colors.ldGray[9]}`,
                                     borderRadius: theme.radius.sm,
                                     padding: 4,

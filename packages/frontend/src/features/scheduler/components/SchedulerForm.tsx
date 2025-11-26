@@ -637,7 +637,7 @@ const SchedulerForm: FC<Props> = ({
                 <Tabs.Panel value="setup" mt="md">
                     <Stack
                         sx={(theme) => ({
-                            backgroundColor: theme.colors.background,
+                            backgroundColor: theme.colors.background[0],
                             paddingRight: theme.spacing.xl,
                         })}
                         spacing="xl"

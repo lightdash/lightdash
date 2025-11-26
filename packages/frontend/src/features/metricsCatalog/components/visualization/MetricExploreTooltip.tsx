@@ -129,7 +129,7 @@ const TooltipContainer: FC<{
         p="sm"
         spacing="xs"
         sx={(theme) => ({
-            backgroundColor: theme.colors.background,
+            backgroundColor: theme.colors.background[0],
             borderRadius: theme.radius.md,
             border: `1px solid ${theme.colors.ldGray[2]}`,
             boxShadow:

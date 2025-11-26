@@ -235,7 +235,7 @@ export const useTableRowStyles = createStyles<
 
     return {
         root: {
-            backgroundColor: theme.white,
+            backgroundColor: theme.colors.background[0],
 
             ':hover':
                 sectionType === SectionType.Body
@@ -274,9 +274,18 @@ export const useTableCellStyles = createStyles<
         },
     ) => {
         const cellHeadBackground = theme.colors.ldGray[0];
-        const selectedDefaultBackground = theme.colors.blue[2];
-        const selectedDefaultBorder = theme.colors.blue[4];
-        const copyingBackground = theme.colors.blue[3];
+        const selectedDefaultBackground =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[9]
+                : theme.colors.blue[2];
+        const selectedDefaultBorder =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[5]
+                : theme.colors.blue[4];
+        const copyingBackground =
+            theme.colorScheme === 'dark'
+                ? theme.colors.blue[8]
+                : theme.colors.blue[3];
         const withBackgroundSelected = withBackground
             ? darken(0.05, withBackground)
             : undefined;
