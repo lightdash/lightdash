@@ -428,6 +428,25 @@ export const renameChartConfigType = (
                     ) as CustomVis['spec'],
                 },
             };
+        case ChartType.MAP:
+            return {
+                ...chartConfig,
+                config: {
+                    ...chartConfig.config,
+                    latitudeFieldId: replaceOptionalId(
+                        chartConfig.config?.latitudeFieldId,
+                    ),
+                    longitudeFieldId: replaceOptionalId(
+                        chartConfig.config?.longitudeFieldId,
+                    ),
+                    locationFieldId: replaceOptionalId(
+                        chartConfig.config?.locationFieldId,
+                    ),
+                    valueFieldId: replaceOptionalId(
+                        chartConfig.config?.valueFieldId,
+                    ),
+                },
+            };
 
         default:
             assertUnreachable(

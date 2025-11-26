@@ -15,6 +15,7 @@ import {
     selectIsEditMode,
     selectIsExploreFromHere,
     selectIsResultsExpanded,
+    selectPendingFetch,
     selectSavedChart,
     selectUnsavedChartVersion,
     useExplorerDispatch,
@@ -106,7 +107,17 @@ export const useExplorerQueryEffects = ({
         isExploreFromHere,
     ]);
 
-    // Effect 2: Setup unpivoted query args when needed
+    // Effect 2: Handle explicit query execution requests (works regardless of auto-fetch setting)
+    const pendingFetch = useExplorerSelector(selectPendingFetch);
+
+    useEffect(() => {
+        if (pendingFetch) {
+            runQuery();
+            dispatch(explorerActions.clearPendingFetch());
+        }
+    }, [pendingFetch, runQuery, dispatch]);
+
+    // Effect 3: Setup unpivoted query args when needed
     useEffect(() => {
         if (!validQueryArgs) {
             dispatch(explorerActions.setUnpivotedQueryArgs(null));

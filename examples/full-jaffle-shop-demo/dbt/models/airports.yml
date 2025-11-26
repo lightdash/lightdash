@@ -1,0 +1,27 @@
+version: 2
+models:
+  - name: airports
+    description: |
+      # World Airports
+
+      This table contains location data for airports around the world,
+      including their names, geographic coordinates, and passenger volume.
+    columns:
+      - name: name
+        description: Airport name
+
+      - name: lon
+        description: Longitude coordinate (-180 to 180)
+
+      - name: lat
+        description: Latitude coordinate (-90 to 90)
+
+      - name: volume
+        description: Annual passenger volume (0 for airports without volume data)
+        config:
+          meta:
+            metrics:
+              total_passenger_volume:
+                type: sum
+                label: Total passenger volume
+                description: Sum of annual passenger volume across airports

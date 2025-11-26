@@ -7,6 +7,7 @@ import { toNumber } from 'lodash';
 import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { hashFieldReference } from '../../types/savedCharts';
+import { TimeFrames } from '../../types/timeFrames';
 import { formatItemValue } from '../../utils/formatting';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import {
@@ -22,6 +23,76 @@ import {
     getTooltipDivider,
 } from './styles/tooltipStyles';
 import { getFormattedValue } from './valueFormatter';
+
+/**
+ * Compute a previous period date based on the current date, granularity, and offset
+ */
+const computePreviousPeriodDate = (
+    currentDateStr: string | number,
+    granularity: string,
+    periodOffset: number,
+): string | null => {
+    try {
+        const currentDate = new Date(currentDateStr);
+        if (Number.isNaN(currentDate.getTime())) return null;
+
+        const previousDate = new Date(currentDate);
+
+        switch (granularity.toUpperCase()) {
+            case TimeFrames.DAY:
+                previousDate.setDate(previousDate.getDate() - periodOffset);
+                break;
+            case TimeFrames.WEEK:
+                previousDate.setDate(previousDate.getDate() - periodOffset * 7);
+                break;
+            case TimeFrames.MONTH:
+                previousDate.setMonth(previousDate.getMonth() - periodOffset);
+                break;
+            case TimeFrames.QUARTER:
+                previousDate.setMonth(
+                    previousDate.getMonth() - periodOffset * 3,
+                );
+                break;
+            case TimeFrames.YEAR:
+                previousDate.setFullYear(
+                    previousDate.getFullYear() - periodOffset,
+                );
+                break;
+            default:
+                return null;
+        }
+
+        // Format based on granularity
+        const options: Intl.DateTimeFormatOptions = { timeZone: 'UTC' };
+        switch (granularity.toUpperCase()) {
+            case TimeFrames.DAY:
+                options.year = 'numeric';
+                options.month = 'short';
+                options.day = 'numeric';
+                break;
+            case TimeFrames.WEEK:
+                options.year = 'numeric';
+                options.month = 'short';
+                options.day = 'numeric';
+                break;
+            case TimeFrames.MONTH:
+                options.year = 'numeric';
+                options.month = 'short';
+                break;
+            case TimeFrames.QUARTER:
+            case TimeFrames.YEAR:
+                options.year = 'numeric';
+                break;
+            default:
+                options.year = 'numeric';
+                options.month = 'short';
+        }
+
+        return previousDate.toLocaleDateString(undefined, options);
+    } catch {
+        return null;
+    }
+};
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -679,21 +750,66 @@ export const buildCartesianTooltipFormatter =
                     pivotDim ??
                     '';
 
+                // For period-over-period series, use the base field's format
+                // (strip _previous suffix to find the base field)
+                let effectiveFormatKey = formatKey as string;
+                if (
+                    effectiveFormatKey.endsWith('_previous') &&
+                    seriesOption?.periodOverPeriodMetadata
+                ) {
+                    const baseFieldKey = effectiveFormatKey.replace(
+                        /_previous$/,
+                        '',
+                    );
+                    // Use base field format if it exists in itemsMap
+                    if (itemsMap[baseFieldKey]) {
+                        effectiveFormatKey = baseFieldKey;
+                    }
+                }
+
                 const formattedValue = getFormattedValue(
                     valueForFormat,
-                    formatKey as string,
+                    effectiveFormatKey,
                     itemsMap,
                     undefined,
                     pivotValuesColumnsMap,
                     parameters,
                 );
 
+                // For period-over-period series, compute and display the actual previous date
+                let displaySeriesName = seriesName || '';
+                if (seriesOption?.periodOverPeriodMetadata) {
+                    const { periodOffset, granularity } =
+                        seriesOption.periodOverPeriodMetadata;
+                    // Get the current x-axis value (date)
+                    const currentDate = param.axisValue ?? param.name;
+                    if (currentDate) {
+                        const previousDateStr = computePreviousPeriodDate(
+                            currentDate,
+                            granularity,
+                            periodOffset,
+                        );
+                        if (previousDateStr) {
+                            // Extract base metric name from dimensions or series name
+                            const baseMetricName =
+                                seriesOption.dimensions?.[1]?.displayName
+                                    ?.replace(/\s*\(Previous.*\)$/, '')
+                                    ?.trim() ||
+                                (seriesName || '').replace(
+                                    /\s*\(Previous.*\)$/,
+                                    '',
+                                );
+                            displaySeriesName = `${baseMetricName} (${previousDateStr})`;
+                        }
+                    }
+                }
+
                 const colorIndicator = formatColorIndicator(
                     extractColor(marker),
                 );
                 return formatCartesianTooltipRow(
                     colorIndicator,
-                    seriesName || '',
+                    displaySeriesName,
                     formatTooltipValue(formattedValue),
                 );
             })

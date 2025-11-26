@@ -24,6 +24,7 @@ export enum ChartKind {
     CUSTOM = 'custom',
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
+    MAP = 'map',
 }
 
 export enum ChartType {
@@ -35,6 +36,7 @@ export enum ChartType {
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
     CUSTOM = 'custom',
+    MAP = 'map',
 }
 
 export enum ComparisonFormatTypes {
@@ -137,6 +139,42 @@ export type GaugeChart = {
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
     customLabel?: string;
+};
+
+export enum MapChartLocation {
+    USA = 'USA',
+    USA_COUNTIES = 'USA_COUNTIES',
+    WORLD = 'world',
+    EUROPE = 'europe',
+    CUSTOM = 'custom',
+}
+
+export enum MapChartType {
+    SCATTER = 'scatter',
+    AREA = 'area',
+}
+
+export type MapChart = {
+    mapType?: MapChartLocation;
+    customGeoJsonUrl?: string;
+    locationType?: MapChartType;
+    // Lat/Long fields
+    latitudeFieldId?: string;
+    longitudeFieldId?: string;
+    // Country/Region field
+    locationFieldId?: string;
+    // Common fields
+    valueFieldId?: string;
+    showLegend?: boolean;
+    // Color range (array of 2-5 colors for gradient)
+    colorRange?: string[];
+    // Default view settings
+    defaultZoom?: number;
+    defaultCenterLat?: number;
+    defaultCenterLon?: number;
+    // Scatter bubble size settings (for lat/long maps)
+    minBubbleSize?: number;
+    maxBubbleSize?: number;
 };
 
 export enum FunnelChartDataInput {
@@ -417,6 +455,11 @@ export type GaugeChartConfig = {
     config?: GaugeChart;
 };
 
+export type MapChartConfig = {
+    type: ChartType.MAP;
+    config?: MapChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
@@ -425,7 +468,8 @@ export type ChartConfig =
     | FunnelChartConfig
     | TableChartConfig
     | TreemapChartConfig
-    | GaugeChartConfig;
+    | GaugeChartConfig
+    | MapChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -677,6 +721,8 @@ export const getChartKind = (
             return ChartKind.TREEMAP;
         case ChartType.GAUGE:
             return ChartKind.GAUGE;
+        case ChartType.MAP:
+            return ChartKind.MAP;
         default:
             return assertUnreachable(
                 chartType,

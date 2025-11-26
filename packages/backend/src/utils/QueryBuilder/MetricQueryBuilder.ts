@@ -25,6 +25,7 @@ import {
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
+    isMetric,
     isNonAggregateMetric,
     isPostCalculationMetric,
     ItemsMap,
@@ -88,6 +89,87 @@ export type BuildQueryProps = {
     pivotConfiguration?: PivotConfiguration;
     timezone: string;
 };
+
+/**
+ * Creates the correct interval syntax for date arithmetic operations with comparison across different warehouse types.
+ * For BigQuery, always uses DATE_ADD/DATE_SUB functions.
+ *
+ * @param adapterType - The warehouse adapter type
+ * @param column - The column name to apply the interval to
+ * @param columnWithInterval - The column to apply the interval to
+ * @param operator - The comparison operator ('=', '>=', '<=')
+ * @param value - The interval value (e.g., 1, 2, 7)
+ * @param granularity - The time granularity (e.g., 'day', 'week', 'month', 'year')
+ * @param isAdd - Whether to add (true) or subtract (false) the interval
+ * @returns The warehouse-specific interval syntax with comparison
+ */
+export function getIntervalSyntax(
+    adapterType: SupportedDbtAdapter,
+    column: string,
+    columnWithInterval: string,
+    operator: '=' | '>=' | '<=',
+    value: number,
+    granularity: string,
+    isAdd: boolean = true,
+): string {
+    const operation = isAdd ? 'ADD' : 'SUB';
+
+    let intervalExpression: string;
+
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            // BigQuery always uses DATE_ADD/DATE_SUB
+            intervalExpression = `DATE_${operation}(DATE(${columnWithInterval}), INTERVAL ${value} ${granularity})`;
+            break;
+        case SupportedDbtAdapter.DATABRICKS:
+            // Databricks uses standard interval arithmetic
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL ${value} ${granularity}`;
+            break;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            // Snowflake uses DATEADD function
+            intervalExpression = `DATEADD(${granularity}, ${
+                isAdd ? value : -value
+            }, ${columnWithInterval})`;
+            break;
+        case SupportedDbtAdapter.REDSHIFT:
+            // Redshift uses standard interval arithmetic
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL '${value} ${granularity}'`;
+            break;
+        case SupportedDbtAdapter.POSTGRES:
+            // Postgres uses standard interval arithmetic
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL '${value} ${granularity}'`;
+            break;
+        case SupportedDbtAdapter.TRINO:
+            // Trino uses standard interval arithmetic
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL '${value}' ${granularity}`;
+            break;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            // ClickHouse uses date arithmetic functions
+            const func = isAdd ? 'date_add' : 'date_sub';
+            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${value} ${granularity})`;
+            break;
+        default:
+            // Default to standard SQL interval syntax
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL ${value} ${granularity}`;
+            break;
+    }
+
+    return `${
+        adapterType === SupportedDbtAdapter.BIGQUERY
+            ? `DATE(${column})`
+            : column
+    } ${operator} ${intervalExpression}`;
+}
 
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
@@ -942,8 +1024,12 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const { metrics, filters } = compiledMetricQuery;
+        const { metrics, filters, periodOverPeriod } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
+        const adapterType: SupportedDbtAdapter =
+            warehouseSqlBuilder.getAdapterType();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         // Find tables that potentially have metric inflation and tables without relationship value
         const { tablesWithMetricInflation, joinWithoutRelationship } =
@@ -1026,6 +1112,7 @@ export class MetricQueryBuilder {
         const warnings: QueryWarning[] = [];
         const ctes: string[] = [];
         const metricCtes: Array<{ name: string; metrics: string[] }> = [];
+        const popMetricCtes: Array<{ name: string; metrics: string[] }> = [];
         let finalSelectParts: Array<string | undefined> | undefined;
 
         // We can't handle deduplication for joins without relationship type
@@ -1183,6 +1270,133 @@ export class MetricQueryBuilder {
                     name: metricsCteName,
                     metrics: metricsInCte.map((metric) => getItemId(metric)),
                 });
+
+                if (periodOverPeriod?.field) {
+                    const popFieldId = getItemId(periodOverPeriod?.field);
+                    /**
+                     * CTE to get min and max date in deduplicated keys
+                     */
+                    const popMinMaxCteName = `cte_pop_min_max_${snakeCaseName(
+                        tableName,
+                    )}`;
+                    const popMinMaxCteParts = [
+                        `SELECT`,
+                        [
+                            `MIN(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                            `MAX(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                        ].join(',\n'),
+                        `FROM ${keysCteName}`,
+                    ];
+                    ctes.push(
+                        `${popMinMaxCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                            popMinMaxCteParts,
+                        )}\n)`,
+                    );
+
+                    /**
+                     * CTE to deduplicate PoP keys
+                     * Filters are PoP specific rather than metric query filters
+                     */
+                    const popKeysCteName = `cte_pop_keys_${snakeCaseName(
+                        tableName,
+                    )}`;
+                    const popField = getDimensionFromId(
+                        popFieldId,
+                        explore,
+                        adapterType,
+                        startOfWeek,
+                    );
+                    const popKeysCteParts = [
+                        `SELECT DISTINCT`,
+                        [
+                            ...Object.values(dimensionSelects),
+                            ...table.primaryKey.map(
+                                (pk) =>
+                                    `  ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk} AS ${fieldQuoteChar}pk_${pk}${fieldQuoteChar}`,
+                            ),
+                        ].join(',\n'),
+                        sqlFrom,
+                        ...[...joins, `LEFT JOIN ${popMinMaxCteName} ON TRUE`],
+                        `WHERE ${getIntervalSyntax(
+                            adapterType,
+                            popField.compiledSql,
+                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                            '>=',
+                            periodOverPeriod.periodOffset || 1,
+                            periodOverPeriod.granularity,
+                            false,
+                        )} AND ${getIntervalSyntax(
+                            adapterType,
+                            popField.compiledSql,
+                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                            '<=',
+                            periodOverPeriod.periodOffset || 1,
+                            periodOverPeriod.granularity,
+                            false,
+                        )}`,
+                    ];
+                    ctes.push(
+                        `${popKeysCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                            popKeysCteParts,
+                        )}\n)`,
+                    );
+
+                    /**
+                     * CTE to calculate PoP metrics
+                     * - Include dimensions via alias
+                     * - Only join keys table and metrics table
+                     * - No filters needed
+                     */
+                    const popJoinTable = replaceUserAttributesRaw(
+                        table.sqlTable,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                    );
+                    const popMetricsCteName = `cte_pop_metrics_${snakeCaseName(
+                        table.name,
+                    )}`;
+                    const popMetricsCteParts = [
+                        `SELECT`,
+                        [
+                            ...dimensionAlias.map(
+                                (alias) => `  ${popKeysCteName}.${alias}`,
+                            ),
+                            ...metricsInCte.map(
+                                (metric) =>
+                                    `  ${
+                                        metric.compiledSql
+                                    } AS ${fieldQuoteChar}${getItemId(
+                                        metric,
+                                    )}_previous${fieldQuoteChar}`,
+                            ),
+                        ].join(',\n'),
+                        `FROM ${popKeysCteName}`,
+                        `LEFT JOIN ${popJoinTable} AS ${fieldQuoteChar}${
+                            table.name
+                        }${fieldQuoteChar} ON ${table.primaryKey
+                            .map(
+                                (pk) =>
+                                    `${popKeysCteName}.${fieldQuoteChar}pk_${pk}${fieldQuoteChar} = ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk}`,
+                            )
+                            .join(' AND ')}\n`,
+                        dimensionAlias.length > 0
+                            ? `GROUP BY ${dimensionAlias
+                                  .map((val, i) => i + 1)
+                                  .join(',')}`
+                            : undefined,
+                    ];
+                    ctes.push(
+                        `${popMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                            popMetricsCteParts,
+                        )}\n)`,
+                    );
+                    popMetricCtes.push({
+                        name: popMetricsCteName,
+                        metrics: metricsInCte.map(
+                            (metric) => `${getItemId(metric)}_previous`,
+                        ),
+                    });
+                }
             }
         });
         if (ctes.length > 0) {
@@ -1230,6 +1444,96 @@ export class MetricQueryBuilder {
                 Object.keys(dimensionSelects).length > 0 ||
                 !!dimensionFilters;
 
+            if (hasUnaffectedCte) {
+                ctes.push(
+                    `${unaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        unaffectedMetricsCteParts,
+                    )}\n)`,
+                );
+            }
+            // Create PoP CTEs for unaffected metrics
+            const popUnaffectedMetricsCteName = `cte_pop_unaffected`;
+            if (periodOverPeriod?.field && hasUnaffectedCte) {
+                const popFieldId = getItemId(periodOverPeriod?.field);
+
+                /**
+                 * CTE to get min and max date in unaffected metrics
+                 */
+                const popUnaffectedMinMaxCteName = `cte_pop_unaffected_min_max`;
+                const popUnaffectedMinMaxCteParts = [
+                    `SELECT`,
+                    [
+                        `MIN(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                        `MAX(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                    ].join(',\n'),
+                    `FROM ${unaffectedMetricsCteName}`,
+                ];
+                ctes.push(
+                    `${popUnaffectedMinMaxCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        popUnaffectedMinMaxCteParts,
+                    )}\n)`,
+                );
+
+                const popField = getDimensionFromId(
+                    popFieldId,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+                /**
+                 * CTE for PoP unaffected metrics
+                 * Filters are PoP specific rather than metric query filters
+                 */
+                const popUnaffectedMetricsCteParts = [
+                    'SELECT',
+                    [
+                        ...Object.values(dimensionSelects),
+                        ...unaffectedMetrics.map(
+                            (metric) =>
+                                `  ${
+                                    metric.compiledSql
+                                } AS ${fieldQuoteChar}${getItemId(
+                                    metric,
+                                )}_previous${fieldQuoteChar}`,
+                        ),
+                    ].join(',\n'),
+                    sqlFrom,
+                    ...[
+                        ...joins,
+                        `LEFT JOIN ${popUnaffectedMinMaxCteName} ON TRUE`,
+                    ],
+                    `WHERE ${getIntervalSyntax(
+                        adapterType,
+                        popField.compiledSql,
+                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                        '>=',
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                        false,
+                    )} AND ${getIntervalSyntax(
+                        adapterType,
+                        popField.compiledSql,
+                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                        '<=',
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                        false,
+                    )}`,
+                    dimensionGroupBy,
+                ];
+                ctes.push(
+                    `${popUnaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        popUnaffectedMetricsCteParts,
+                    )}\n)`,
+                );
+                popMetricCtes.push({
+                    name: popUnaffectedMetricsCteName,
+                    metrics: unaffectedMetrics.map(
+                        (metric) => `${getItemId(metric)}_previous`,
+                    ),
+                });
+            }
+
             const finalMetricSelects = [
                 ...metricsWithCteReferences.map((metric) => {
                     // For metrics with cross-table references, replace metric references with CTE references
@@ -1260,6 +1564,19 @@ export class MetricQueryBuilder {
                                 `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
                         ),
                 ),
+                ...popMetricCtes.flatMap<string>((metricCte) =>
+                    metricCte.metrics
+                        // excludes metrics only used for references
+                        .filter((metric) =>
+                            metricsObjects.find(
+                                (m) => metric === `${getItemId(m)}_previous`,
+                            ),
+                        )
+                        .map(
+                            (metricName) =>
+                                `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
+                        ),
+                ),
             ];
 
             /**
@@ -1271,11 +1588,6 @@ export class MetricQueryBuilder {
              *   - when there are dimensions, use INNER JOIN on all dimensions (+ or null)
              */
             if (hasUnaffectedCte) {
-                ctes.push(
-                    `${unaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
-                        unaffectedMetricsCteParts,
-                    )}\n)`,
-                );
                 finalSelectParts = [
                     `SELECT`,
                     [
@@ -1292,6 +1604,44 @@ export class MetricQueryBuilder {
                                 (alias) =>
                                     `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
                             )
+                            .join(' AND ')}`;
+                    }),
+                    ...popMetricCtes.map((popMetricCte) => {
+                        if (Object.keys(dimensionSelects).length === 0) {
+                            return ``; // no need to join on PoP metrics
+                        }
+                        return `INNER JOIN ${
+                            popMetricCte.name
+                        } ON ${dimensionAlias
+                            .map((alias) => {
+                                const popFieldId = periodOverPeriod
+                                    ? getItemId(periodOverPeriod?.field)
+                                    : undefined;
+                                if (
+                                    periodOverPeriod &&
+                                    alias ===
+                                        `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
+                                ) {
+                                    // join on PoP field with interval diff
+                                    const popField = getDimensionFromId(
+                                        popFieldId!,
+                                        explore,
+                                        adapterType,
+                                        startOfWeek,
+                                    );
+                                    return `( ${getIntervalSyntax(
+                                        adapterType,
+                                        `${unaffectedMetricsCteName}.${alias}`,
+                                        `${popMetricCte.name}.${alias}`,
+                                        '=',
+                                        periodOverPeriod.periodOffset || 1,
+                                        periodOverPeriod.granularity,
+                                        true,
+                                    )})`;
+                                }
+                                // default to joining on all dimensions
+                                return `( ${unaffectedMetricsCteName}.${alias} = ${popMetricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${popMetricCte.name}.${alias} IS NULL ) )`;
+                            })
                             .join(' AND ')}`;
                     }),
                 ];
@@ -1695,6 +2045,131 @@ export class MetricQueryBuilder {
         if (experimentalMetricsCteSQL.finalSelectParts) {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
+        } else if (compiledMetricQuery.periodOverPeriod?.field) {
+            // 1. Wrap finalSelectParts as a CTE
+            // 2. Generate pop CTEs based on this CTE
+            // 3. Create new finalSelectParts that joins everything
+
+            const { periodOverPeriod } = compiledMetricQuery;
+            const fieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            const stringQuoteChar =
+                this.args.warehouseSqlBuilder.getStringQuoteChar();
+            const adapterType: SupportedDbtAdapter =
+                this.args.warehouseSqlBuilder.getAdapterType();
+            const startOfWeek = this.args.warehouseSqlBuilder.getStartOfWeek();
+
+            // Wrap current finalSelectParts as base CTE
+            const baseCteName = 'base_metrics';
+            ctes.push(
+                MetricQueryBuilder.wrapAsCte(baseCteName, finalSelectParts),
+            );
+
+            const popFieldId = getItemId(periodOverPeriod.field);
+
+            // Create pop_min_max CTE to get date range
+            const popMinMaxCteName = 'pop_min_max';
+            const popMinMaxCteParts = [
+                `SELECT`,
+                [
+                    `MIN(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                    `MAX(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                ].join(',\n'),
+                `FROM ${baseCteName}`,
+            ];
+            ctes.push(
+                `${popMinMaxCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    popMinMaxCteParts,
+                )}\n)`,
+            );
+
+            // Create pop CTE with previous period data
+            const popCteName = 'pop_metrics';
+            const popField = getDimensionFromId(
+                popFieldId,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
+
+            // Build pop CTE with same structure as base but filtered for previous period
+            const popCteParts = [
+                `SELECT\n${[
+                    ...Object.values(dimensionsSQL.selects),
+                    ...metricsSQL.selects.map((select) =>
+                        // rename metric to include pop prefix
+                        select.replace(
+                            new RegExp(`${fieldQuoteChar}$`),
+                            `_previous${fieldQuoteChar}`,
+                        ),
+                    ),
+                ].join(',\n')}`,
+                sqlFrom,
+                joins.joinSQL,
+                ...dimensionsSQL.joins,
+                ...[`LEFT JOIN ${popMinMaxCteName} ON TRUE`],
+                `WHERE ${getIntervalSyntax(
+                    adapterType,
+                    popField.compiledSql,
+                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                    '>=',
+                    periodOverPeriod.periodOffset || 1,
+                    periodOverPeriod.granularity,
+                    false,
+                )} AND ${getIntervalSyntax(
+                    adapterType,
+                    popField.compiledSql,
+                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                    '<=',
+                    periodOverPeriod.periodOffset || 1,
+                    periodOverPeriod.granularity,
+                    false,
+                )}`,
+                dimensionsSQL.groupBySQL,
+            ];
+
+            ctes.push(
+                `${popCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    popCteParts,
+                )}\n)`,
+            );
+
+            // Create new finalSelectParts that joins base CTE with pop CTE
+            const popMetricSelects = compiledMetricQuery.metrics.map(
+                (metricId) =>
+                    `  ${popCteName}.${fieldQuoteChar}${metricId}_previous${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}_previous${fieldQuoteChar}`,
+            );
+            // Get dimension aliases from dimensionSelects
+            const dimensionAlias = Object.keys(dimensionsSQL.selects).map(
+                (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+            );
+            // With dimensions: join on dimensions with interval adjustment for pop field
+            finalSelectParts = [
+                `SELECT`,
+                [`  ${baseCteName}.*`, ...popMetricSelects].join(',\n'),
+                `FROM ${baseCteName}`,
+                `INNER JOIN ${popCteName} ON ${dimensionAlias
+                    .map((alias) => {
+                        if (
+                            alias ===
+                            `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
+                        ) {
+                            // Join on pop field with interval difference
+                            return `( ${getIntervalSyntax(
+                                adapterType,
+                                `${baseCteName}.${alias}`,
+                                `${popCteName}.${alias}`,
+                                '=',
+                                periodOverPeriod.periodOffset || 1,
+                                periodOverPeriod.granularity,
+                                true,
+                            )})`;
+                        }
+                        // Default to joining on all dimensions
+                        return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
+                    })
+                    .join(' AND ')}`,
+            ];
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 

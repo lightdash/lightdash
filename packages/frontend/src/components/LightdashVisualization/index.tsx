@@ -8,6 +8,7 @@ import CustomVisualization from '../CustomVisualization';
 import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
 import SimpleGauge from '../SimpleGauge';
+import SimpleMap from '../SimpleMap';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
@@ -150,6 +151,16 @@ const LightdashVisualization = memo(
                 case ChartType.GAUGE:
                     return (
                         <SimpleGauge
+                            className={className}
+                            isInDashboard={isDashboard}
+                            $shouldExpand
+                            data-testid={props['data-testid']}
+                            {...props}
+                        />
+                    );
+                case ChartType.MAP:
+                    return (
+                        <SimpleMap
                             className={className}
                             isInDashboard={isDashboard}
                             $shouldExpand

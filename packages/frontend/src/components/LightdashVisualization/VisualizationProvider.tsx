@@ -44,6 +44,7 @@ import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
 import VisualizationGaugeConfig from './VisualizationConfigGauge';
+import VisualizationMapConfig from './VisualizationConfigMap';
 import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationTreemapConfig from './VisualizationConfigTreemap';
@@ -448,6 +449,24 @@ const VisualizationProvider: FC<
                         </Context.Provider>
                     )}
                 </VisualizationGaugeConfig>
+            );
+        case ChartType.MAP:
+            return (
+                <VisualizationMapConfig
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                    parameters={parameters}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationMapConfig>
             );
         case ChartType.TABLE:
             return (

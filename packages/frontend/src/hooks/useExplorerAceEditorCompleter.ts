@@ -24,6 +24,7 @@ import {
     selectTableCalculations,
     selectTableName,
     useExplorerSelector,
+    selectPeriodOverPeriod,
 } from '../features/explorer/store';
 import { useExplore } from './useExplore';
 
@@ -95,6 +96,7 @@ export const useTableCalculationAceEditorCompleter = (): {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const periodOverPeriod = useExplorerSelector(selectPeriodOverPeriod);
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
@@ -130,7 +132,19 @@ export const useTableCalculationAceEditorCompleter = (): {
                         ...customMetrics.filter(
                             (customMetric) => customMetric.table === table.name,
                         ),
-                    ].filter((field) => activeFields.has(getItemId(field))),
+                    ]
+                        .filter((field) => activeFields.has(getItemId(field)))
+                        .reduce<Metric[]>((acc2, metric) => {
+                            acc2.push(metric);
+                            if (periodOverPeriod) {
+                                acc2.push({
+                                    ...metric,
+                                    name: `${metric.name}_previous`,
+                                    label: `${metric.label} (previous)`,
+                                });
+                            }
+                            return acc2;
+                        }, []),
                     'Metric',
                 ),
                 ...mapFieldsToCompletions(
@@ -166,6 +180,7 @@ export const useTableCalculationAceEditorCompleter = (): {
         activeFields,
         customDimensions,
         tableCalculations,
+        periodOverPeriod,
     ]);
 
     useEffect(() => {

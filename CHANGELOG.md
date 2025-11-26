@@ -1,3 +1,59 @@
+## [0.2209.4](https://github.com/lightdash/lightdash/compare/0.2209.3...0.2209.4) (2025-11-26)
+
+
+### Bug Fixes
+
+* race condition on map rendering ([#18361](https://github.com/lightdash/lightdash/issues/18361)) ([121b409](https://github.com/lightdash/lightdash/commit/121b4097f8333663e2395dab1ae92fe157fde989))
+
+## [0.2209.3](https://github.com/lightdash/lightdash/compare/0.2209.2...0.2209.3) (2025-11-26)
+
+
+### Bug Fixes
+
+* improve warehouse-specific date interval handling for comparisons ([#18360](https://github.com/lightdash/lightdash/issues/18360)) ([82a5191](https://github.com/lightdash/lightdash/commit/82a5191abec4d9aa0740ac239e969681baecf143))
+
+## [0.2209.2](https://github.com/lightdash/lightdash/compare/0.2209.1...0.2209.2) (2025-11-26)
+
+
+### Bug Fixes
+
+* handle empty metrics object in dbt manifest ([#18355](https://github.com/lightdash/lightdash/issues/18355)) ([4e12b00](https://github.com/lightdash/lightdash/commit/4e12b001c3885874cd4d2d260140b6490a0b9b05))
+
+## [0.2209.1](https://github.com/lightdash/lightdash/compare/0.2209.0...0.2209.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* add warehouse-specific interval syntax for date arithmetic ([#18348](https://github.com/lightdash/lightdash/issues/18348)) ([b369460](https://github.com/lightdash/lightdash/commit/b3694609b49e837978ba8c885977ce50612daf2d))
+
+# [0.2209.0](https://github.com/lightdash/lightdash/compare/0.2208.0...0.2209.0) (2025-11-26)
+
+
+### Features
+
+* map charts ([#18301](https://github.com/lightdash/lightdash/issues/18301)) ([0589e8d](https://github.com/lightdash/lightdash/commit/0589e8df0d13aa60c99711fd5674eaf7a75b2677))
+
+# [0.2208.0](https://github.com/lightdash/lightdash/compare/0.2207.0...0.2208.0) (2025-11-26)
+
+
+### Features
+
+* get finest rank when multiple selected time dims on pop ([#18343](https://github.com/lightdash/lightdash/issues/18343)) ([9b4e498](https://github.com/lightdash/lightdash/commit/9b4e498f4973900bb61ae4fe40bf96afa032bbd2))
+
+# [0.2207.0](https://github.com/lightdash/lightdash/compare/0.2206.1...0.2207.0) (2025-11-26)
+
+
+### Features
+
+* add pop on explorer ([#18308](https://github.com/lightdash/lightdash/issues/18308)) ([09e4d44](https://github.com/lightdash/lightdash/commit/09e4d44bdb07e938e0e7c5633ffd571740cbfcd6))
+
+## [0.2206.1](https://github.com/lightdash/lightdash/compare/0.2206.0...0.2206.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* take pivotDetails into consideration when calculating min/max values for reference lines ([#18337](https://github.com/lightdash/lightdash/issues/18337)) ([c3fe513](https://github.com/lightdash/lightdash/commit/c3fe5131b10208242304b0fe56a187bf9ff33e1a))
+
 # [0.2206.0](https://github.com/lightdash/lightdash/compare/0.2205.0...0.2206.0) (2025-11-25)
 
 

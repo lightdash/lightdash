@@ -181,31 +181,52 @@ export const mergeExistingAndExpectedSeries = ({
             if (existingValidSeriesIds.includes(expectedSeriesId)) {
                 return [...acc];
             }
+
+            // For _previous fields, inherit chart properties from the base field's series
+            let seriesToAdd = expectedSeries;
+            const yRefField = expectedSeries.encode.yRef.field;
+            if (yRefField && yRefField.endsWith('_previous')) {
+                const baseFieldId = yRefField.replace(/_previous$/, '');
+                const baseSeries = acc.find(
+                    (series) => series.encode.yRef.field === baseFieldId,
+                );
+                if (baseSeries) {
+                    seriesToAdd = {
+                        ...expectedSeries,
+                        type: baseSeries.type,
+                        areaStyle: baseSeries.areaStyle,
+                        smooth: baseSeries.smooth,
+                        showSymbol: baseSeries.showSymbol,
+                        yAxisIndex: baseSeries.yAxisIndex,
+                    };
+                }
+            }
+
             // Add series to the end of its group
             if (
-                expectedSeries.encode.yRef.pivotValues &&
-                expectedSeries.encode.yRef.pivotValues.length > 0
+                seriesToAdd.encode.yRef.pivotValues &&
+                seriesToAdd.encode.yRef.pivotValues.length > 0
             ) {
                 // Find a series with the same field to inherit properties like yAxisIndex
                 const seriesInSameGroup = acc.find(
                     (series) =>
-                        expectedSeries.encode.yRef.field ===
+                        seriesToAdd.encode.yRef.field ===
                         series.encode.yRef.field,
                 );
 
                 // Inherit yAxisIndex from existing series with same field
                 const seriesWithInheritedProps = seriesInSameGroup
                     ? {
-                          ...expectedSeries,
+                          ...seriesToAdd,
                           yAxisIndex: seriesInSameGroup.yAxisIndex,
                       }
-                    : expectedSeries;
+                    : seriesToAdd;
 
                 const lastSeriesInGroupIndex = acc
                     .reverse()
                     .findIndex(
                         (series) =>
-                            expectedSeries.encode.yRef.field ===
+                            seriesToAdd.encode.yRef.field ===
                             series.encode.yRef.field,
                     );
                 if (lastSeriesInGroupIndex >= 0) {
@@ -221,7 +242,7 @@ export const mergeExistingAndExpectedSeries = ({
                 return [...acc.reverse(), seriesWithInheritedProps];
             }
             // Add series to the end
-            return [...acc, expectedSeries];
+            return [...acc, seriesToAdd];
         },
         existingValidSeries,
     );

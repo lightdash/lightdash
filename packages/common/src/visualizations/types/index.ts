@@ -354,6 +354,19 @@ export type EChartsSeries = {
     itemStyle?: {
         borderRadius?: number | number[];
         color?: string;
+        opacity?: number;
+    };
+    lineStyle?: {
+        type?: 'solid' | 'dashed' | 'dotted';
+        width?: number;
+        color?: string;
+        opacity?: number;
+    };
+    // Metadata for period-over-period comparison series
+    periodOverPeriodMetadata?: {
+        siblingSeriesIndex: number;
+        periodOffset: number;
+        granularity: string;
     };
 };
 

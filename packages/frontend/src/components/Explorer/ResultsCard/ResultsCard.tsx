@@ -1,27 +1,33 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Popover } from '@mantine/core';
+import { FeatureFlags, getItemMap } from '@lightdash/common';
+import { ActionIcon, Group, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
     explorerActions,
+    selectAdditionalMetrics,
     selectColumnOrder,
     selectIsEditMode,
     selectIsResultsExpanded,
     selectMetricQuery,
     selectSavedChart,
     selectSorts,
+    selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import AddColumnButton from '../../AddColumnButton';
 import ExportSelector from '../../ExportSelector';
+import PeriodOverPeriodButton from '../../PeriodOverPeriodButton';
 import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
@@ -41,8 +47,26 @@ const ResultsCard: FC = memo(() => {
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const columnOrder = useExplorerSelector(selectColumnOrder);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
 
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
+
+    // Get explore data to build itemsMap for PeriodOverPeriodButton
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+
+    const itemsMap = useMemo(() => {
+        if (exploreData) {
+            return getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+            );
+        }
+        return undefined;
+    }, [exploreData, additionalMetrics, tableCalculations]);
     const totalResults = queryResults.totalResults;
 
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -85,6 +109,10 @@ const ResultsCard: FC = memo(() => {
         [getDownloadQueryUuid],
     );
 
+    const showPeriodOverPeriod = useFeatureFlagEnabled(
+        FeatureFlags.PeriodOverPeriod,
+    );
+
     return (
         <CollapsableCard
             title="Results"
@@ -92,11 +120,17 @@ const ResultsCard: FC = memo(() => {
             onToggle={toggleCard}
             disabled={!tableName}
             headerElement={
-                <>
+                <Group noWrap spacing="xs">
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
-                </>
+                    {showPeriodOverPeriod && (
+                        <PeriodOverPeriodButton
+                            itemsMap={itemsMap}
+                            disabled={!isEditMode}
+                        />
+                    )}
+                </Group>
             }
             rightHeaderElement={
                 projectUuid &&

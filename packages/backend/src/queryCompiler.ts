@@ -290,7 +290,17 @@ export const compileMetricQuery = ({
     availableParameters,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-    const validFieldIds = [...metricQuery.dimensions, ...metricQuery.metrics];
+
+    const validFieldIds = [
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics.reduce<string[]>((acc2, metric) => {
+            acc2.push(metric);
+            if (metricQuery.periodOverPeriod) {
+                acc2.push(`${metric}_previous`);
+            }
+            return acc2;
+        }, []),
+    ];
 
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
         (additionalMetric) =>

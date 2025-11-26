@@ -1,0 +1,977 @@
+id,continent,country_name,country_code_2_digit,state_province_name,us_state_code,postal_code,latitude,longitude,sales_volume_usd,customer_count,avg_transaction_value_usd,custom_geo_area,geo_json_reference_key
+1,North America,United States,US,California,CA,90210,34.0881,-118.2854,152345,715,213.07,West Coast,ref-us-ca-LA
+2,North America,United States,US,New York,NY,10001,40.7011,-74.0538,248901,1185,210.04,North East,ref-us-ny-NYC
+3,Europe,Germany,DE,Bavaria,,80331,48.1522,11.5977,109500,520,210.58,Western Europe,ref-de-by-MUN
+4,Asia,Japan,JP,Tokyo,,100-0001,35.7105,139.6999,301200,1400,215.14,East Asia,ref-jp-tko
+5,North America,Canada,CA,Ontario,ON,M5V 2E9,43.6401,-79.3755,121750,580,209.91,North America,ref-ca-on-TOR
+6,South America,Brazil,BR,São Paulo,,01310-100,-23.5098,-46.6501,178400,850,209.88,South America,ref-br-sp-SAO
+7,Europe,France,FR,Île-de-France,,75001,48.8355,2.3789,79900,380,210.26,Western Europe,ref-fr-idf-PAR
+8,Oceania,Australia,AU,New South Wales,NSW,2000,-33.8299,151.1895,76500,365,209.59,ANZ,ref-au-nsw-SYD
+9,North America,United States,US,Texas,TX,73301,30.2985,-97.7122,96100,450,213.56,South,ref-us-tx-AUS
+10,North America,United States,US,Florida,FL,33139,25.7901,-80.2215,131500,625,210.40,South,ref-us-fl-MIA
+11,Europe,United Kingdom,GB,England,ENG,SW1A 0AA,51.5205,-0.1011,91000,430,211.63,Western Europe,ref-uk-eng-LON
+12,Europe,Norway,NO,Oslo,,0150,59.9011,10.7895,44500,210,211.90,Nordics,ref-no-osl
+13,Asia,India,IN,Maharashtra,,400001,19.1001,72.9105,202100,950,212.74,South Asia,ref-in-mh-MUM
+14,Africa,South Africa,ZA,Western Cape,,8001,-33.9015,18.4509,61300,290,211.38,Sub-Saharan Africa,ref-za-wc-CPT
+15,North America,Mexico,MX,Mexico City,,06000,19.4501,-99.1011,161000,760,211.84,LATAM,ref-mx-mxc
+16,North America,United States,US,California,CA,90210,34.0599,-118.2501,155000,730,212.33,West Coast,ref-us-ca-LA
+17,North America,United States,US,New York,NY,10001,40.7305,-74.0309,245500,1170,209.83,North East,ref-us-ny-NYC
+18,Europe,Germany,DE,Bavaria,,80331,48.1601,11.5899,112000,530,211.32,Western Europe,ref-de-by-MUN
+19,Asia,Japan,JP,Osaka,,530-0001,34.6988,135.5001,198000,920,215.22,East Asia,ref-jp-osk
+20,North America,Canada,CA,Quebec,QC,H2Y 2E7,45.5015,-73.5701,95000,460,206.52,North America,ref-ca-qc-MON
+21,South America,Brazil,BR,Rio de Janeiro,,20000-000,-22.9011,-43.2015,130000,610,213.11,South America,ref-br-rj-RIO
+22,Europe,France,FR,Occitanie,,31000,43.6001,1.4405,55000,260,211.54,Western Europe,ref-fr-occ-TOU
+23,Oceania,Australia,AU,Victoria,VIC,3000,-37.8105,144.9601,65000,310,209.68,ANZ,ref-au-vic-MEL
+24,North America,United States,US,Illinois,IL,60601,41.8805,-87.6201,180000,850,211.76,Midwest,ref-us-il-CHI
+25,North America,United States,US,Washington,WA,98101,47.6001,-122.3305,140000,670,208.96,West Coast,ref-us-wa-SEA
+26,Europe,United Kingdom,GB,Scotland,S1 1AA,EH1 1RE,55.9501,-3.1805,40000,190,210.53,Western Europe,ref-uk-sct-EDI
+27,Asia,India,IN,Delhi,,110001,28.6105,77.2001,165000,780,211.54,South Asia,ref-in-dl-DEL
+28,Africa,Nigeria,NG,Lagos,,100001,6.5205,3.3701,35000,160,218.75,Sub-Saharan Africa,ref-ng-lg-LAG
+29,Europe,Spain,ES,Madrid,,28001,40.4105,-3.7001,70000,330,212.12,Southern Europe,ref-es-mad
+30,North America,Mexico,MX,Jalisco,,44100,20.6605,-103.3401,85000,400,212.50,LATAM,ref-mx-jal-GUA
+31,North America,United States,US,California,CA,90001,34.0150,-118.3000,151111,700,215.87,West Coast,ref-us-ca-LA
+32,North America,United States,US,New York,NY,10002,40.7100,-73.9900,249999,1200,208.33,North East,ref-us-ny-NYC
+33,Europe,Germany,DE,Bavaria,,80332,48.1400,11.5800,110100,525,209.71,Western Europe,ref-de-by-MUN
+34,Asia,Japan,JP,Tokyo,,100-0002,35.6900,139.7000,300000,1390,215.83,East Asia,ref-jp-tko
+35,North America,Canada,CA,Ontario,ON,M5V 2F0,43.6600,-79.3900,120000,570,210.53,North America,ref-ca-on-TOR
+36,South America,Brazil,BR,São Paulo,,01310-101,-23.5600,-46.6400,180000,860,209.30,South America,ref-br-sp-SAO
+37,Europe,France,FR,Île-de-France,,75002,48.8600,2.3600,80000,385,207.79,Western Europe,ref-fr-idf-PAR
+38,Oceania,Australia,AU,New South Wales,NSW,2001,-33.8700,151.2100,75000,350,214.29,ANZ,ref-au-nsw-SYD
+39,North America,United States,US,Texas,TX,73302,30.2700,-97.7400,95000,440,215.91,South,ref-us-tx-AUS
+40,North America,United States,US,Florida,FL,33140,25.7700,-80.1900,130000,620,209.68,South,ref-us-fl-MIA
+41,Europe,United Kingdom,GB,England,ENG,SW1A 0AB,51.5010,-0.1250,90000,420,214.29,Western Europe,ref-uk-eng-LON
+42,Europe,Norway,NO,Oslo,,0151,59.9140,10.7530,45000,215,209.30,Nordics,ref-no-osl
+43,Asia,India,IN,Maharashtra,,400002,19.0770,72.8780,200000,940,212.77,South Asia,ref-in-mh-MUM
+44,Africa,South Africa,ZA,Western Cape,,8002,-33.9250,18.4250,60000,280,214.29,Sub-Saharan Africa,ref-za-wc-CPT
+45,North America,Mexico,MX,Mexico City,,06001,19.4330,-99.1340,160000,750,213.33,LATAM,ref-mx-mxc
+46,North America,United States,US,Arizona,AZ,85001,33.4500,-112.0700,110000,510,215.69,West Coast,ref-us-az
+47,North America,United States,US,Georgia,GA,30301,33.7500,-84.3900,140000,660,212.12,South,ref-us-ga
+48,Europe,Italy,IT,Lazio,,00100,41.9000,12.5000,75000,355,211.27,Southern Europe,ref-it-laz
+49,Asia,China,CN,Beijing,,100000,39.9000,116.3900,250000,1190,210.08,East Asia,ref-cn-bjn
+50,South America,Argentina,AR,Buenos Aires,,1000,-34.6000,-58.3800,90000,425,211.76,South America,ref-ar-bue
+51,North America,United States,US,California,CA,90211,34.0781,-118.2754,153345,720,212.98,West Coast,ref-us-ca-LA
+52,North America,United States,US,New York,NY,10003,40.7101,-74.0438,247901,1190,208.32,North East,ref-us-ny-NYC
+53,Europe,Germany,DE,Bavaria,,80333,48.1622,11.6077,108500,515,210.68,Western Europe,ref-de-by-MUN
+54,Asia,Japan,JP,Tokyo,,100-0003,35.7005,139.7099,302200,1405,215.09,East Asia,ref-jp-tko
+55,North America,Canada,CA,Ontario,ON,M5V 2F1,43.6501,-79.3655,122750,585,209.83,North America,ref-ca-on-TOR
+56,South America,Brazil,BR,São Paulo,,01310-102,-23.5198,-46.6601,177400,845,209.94,South America,ref-br-sp-SAO
+57,Europe,France,FR,Île-de-France,,75003,48.8455,2.3889,78900,375,210.40,Western Europe,ref-fr-idf-PAR
+58,Oceania,Australia,AU,New South Wales,NSW,2002,-33.8399,151.1995,77500,370,209.46,ANZ,ref-au-nsw-SYD
+59,North America,United States,US,Texas,TX,73303,30.3085,-97.7222,97100,455,213.41,South,ref-us-tx-AUS
+60,North America,United States,US,Florida,FL,33141,25.8001,-80.2315,132500,630,210.32,South,ref-us-fl-MIA
+61,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5305,-0.1111,92000,435,211.49,Western Europe,ref-uk-eng-LON
+62,Europe,Norway,NO,Oslo,,0152,59.9211,10.7995,43500,205,212.20,Nordics,ref-no-osl
+63,Asia,India,IN,Maharashtra,,400003,19.1101,72.9205,203100,955,212.67,South Asia,ref-in-mh-MUM
+64,Africa,South Africa,ZA,Western Cape,,8003,-33.9115,18.4609,62300,295,211.19,Sub-Saharan Africa,ref-za-wc-CPT
+65,North America,Mexico,MX,Mexico City,,06002,19.4601,-99.1111,162000,765,211.76,LATAM,ref-mx-mxc
+66,North America,United States,US,Arizona,AZ,85002,33.4600,-112.0800,111000,515,215.53,West Coast,ref-us-az
+67,North America,United States,US,Georgia,GA,30302,33.7600,-84.4000,141000,665,211.97,South,ref-us-ga
+68,Europe,Italy,IT,Lazio,,00101,41.9100,12.5100,76000,360,211.11,Southern Europe,ref-it-laz
+69,Asia,China,CN,Beijing,,100001,39.9100,116.4000,251000,1195,210.04,East Asia,ref-cn-bjn
+70,South America,Argentina,AR,Buenos Aires,,1001,-34.6100,-58.3900,91000,430,211.63,South America,ref-ar-bue
+71,North America,United States,US,California,CA,90212,34.0981,-118.2954,154345,725,212.89,West Coast,ref-us-ca-LA
+72,North America,United States,US,New York,NY,10004,40.7201,-74.0538,246901,1180,209.24,North East,ref-us-ny-NYC
+73,Europe,Germany,DE,Bavaria,,80334,48.1722,11.6177,107500,510,210.78,Western Europe,ref-de-by-MUN
+74,Asia,Japan,JP,Tokyo,,100-0004,35.7205,139.7199,303200,1410,215.04,East Asia,ref-jp-tko
+75,North America,Canada,CA,Ontario,ON,M5V 2F2,43.6601,-79.3855,123750,590,209.75,North America,ref-ca-on-TOR
+76,South America,Brazil,BR,São Paulo,,01310-103,-23.5298,-46.6701,176400,840,209.98,South America,ref-br-sp-SAO
+77,Europe,France,FR,Île-de-France,,75004,48.8555,2.3989,77900,370,210.54,Western Europe,ref-fr-idf-PAR
+78,Oceania,Australia,AU,New South Wales,NSW,2003,-33.8499,151.2095,78500,375,209.33,ANZ,ref-au-nsw-SYD
+79,North America,United States,US,Texas,TX,73304,30.3185,-97.7322,98100,460,213.26,South,ref-us-tx-AUS
+80,North America,United States,US,Florida,FL,33142,25.8101,-80.2415,133500,635,210.24,South,ref-us-fl-MIA
+81,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5405,-0.1211,93000,440,211.36,Western Europe,ref-uk-eng-LON
+82,Europe,Norway,NO,Oslo,,0153,59.9311,10.8095,42500,200,212.50,Nordics,ref-no-osl
+83,Asia,India,IN,Maharashtra,,400004,19.1201,72.9305,204100,960,212.60,South Asia,ref-in-mh-MUM
+84,Africa,South Africa,ZA,Western Cape,,8004,-33.9215,18.4709,63300,300,211.00,Sub-Saharan Africa,ref-za-wc-CPT
+85,North America,Mexico,MX,Mexico City,,06003,19.4701,-99.1211,163000,770,211.69,LATAM,ref-mx-mxc
+86,North America,United States,US,Arizona,AZ,85003,33.4700,-112.0900,112000,520,215.38,West Coast,ref-us-az
+87,North America,United States,US,Georgia,GA,30303,33.7700,-84.4100,142000,670,211.94,South,ref-us-ga
+88,Europe,Italy,IT,Lazio,,00102,41.9200,12.5200,77000,365,210.96,Southern Europe,ref-it-laz
+89,Asia,China,CN,Beijing,,100002,39.9200,116.4100,252000,1200,210.00,East Asia,ref-cn-bjn
+90,South America,Argentina,AR,Buenos Aires,,1002,-34.6200,-58.4000,92000,435,211.49,South America,ref-ar-bue
+91,North America,United States,US,California,CA,90213,34.0681,-118.2654,155345,735,212.39,West Coast,ref-us-ca-LA
+92,North America,United States,US,New York,NY,10005,40.7301,-74.0638,245901,1175,209.28,North East,ref-us-ny-NYC
+93,Europe,Germany,DE,Bavaria,,80335,48.1822,11.6277,106500,505,210.89,Western Europe,ref-de-by-MUN
+94,Asia,Japan,JP,Tokyo,,100-0005,35.7305,139.7299,304200,1415,215.00,East Asia,ref-jp-tko
+95,North America,Canada,CA,Ontario,ON,M5V 2F3,43.6701,-79.3955,124750,595,209.66,North America,ref-ca-on-TOR
+96,South America,Brazil,BR,São Paulo,,01310-104,-23.5398,-46.6801,175400,835,210.06,South America,ref-br-sp-SAO
+97,Europe,France,FR,Île-de-France,,75005,48.8655,2.4089,76900,365,210.68,Western Europe,ref-fr-idf-PAR
+98,Oceania,Australia,AU,New South Wales,NSW,2004,-33.8599,151.2195,79500,380,209.21,ANZ,ref-au-nsw-SYD
+99,North America,United States,US,Texas,TX,73305,30.3285,-97.7422,99100,465,213.12,South,ref-us-tx-AUS
+100,North America,United States,US,Florida,FL,33143,25.8201,-80.2515,134500,640,210.16,South,ref-us-fl-MIA
+101,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5505,-0.1311,94000,445,211.24,Western Europe,ref-uk-eng-LON
+102,Europe,Norway,NO,Oslo,,0154,59.9411,10.8195,41500,195,212.82,Nordics,ref-no-osl
+103,Asia,India,IN,Maharashtra,,400005,19.1301,72.9405,205100,965,212.54,South Asia,ref-in-mh-MUM
+104,Africa,South Africa,ZA,Western Cape,,8005,-33.9315,18.4809,64300,305,210.82,Sub-Saharan Africa,ref-za-wc-CPT
+105,North America,Mexico,MX,Mexico City,,06004,19.4801,-99.1311,164000,775,211.61,LATAM,ref-mx-mxc
+106,North America,United States,US,Arizona,AZ,85004,33.4800,-112.1000,113000,525,215.24,West Coast,ref-us-az
+107,North America,United States,US,Georgia,GA,30304,33.7800,-84.4200,143000,675,211.85,South,ref-us-ga
+108,Europe,Italy,IT,Lazio,,00103,41.9300,12.5300,78000,370,210.81,Southern Europe,ref-it-laz
+109,Asia,China,CN,Beijing,,100003,39.9300,116.4200,253000,1205,210.00,East Asia,ref-cn-bjn
+110,South America,Argentina,AR,Buenos Aires,,1003,-34.6300,-58.4100,93000,440,211.36,South America,ref-ar-bue
+111,North America,United States,US,California,CA,90214,34.0881,-118.2854,156345,740,211.28,West Coast,ref-us-ca-LA
+112,North America,United States,US,New York,NY,10006,40.7401,-74.0738,244901,1170,209.32,North East,ref-us-ny-NYC
+113,Europe,Germany,DE,Bavaria,,80336,48.1922,11.6377,105500,500,211.00,Western Europe,ref-de-by-MUN
+114,Asia,Japan,JP,Tokyo,,100-0006,35.7405,139.7399,305200,1420,214.93,East Asia,ref-jp-tko
+115,North America,Canada,CA,Ontario,ON,M5V 2F4,43.6801,-79.4055,125750,600,209.58,North America,ref-ca-on-TOR
+116,South America,Brazil,BR,São Paulo,,01310-105,-23.5498,-46.6901,174400,830,210.12,South America,ref-br-sp-SAO
+117,Europe,France,FR,Île-de-France,,75006,48.8755,2.4189,75900,360,210.83,Western Europe,ref-fr-idf-PAR
+118,Oceania,Australia,AU,New South Wales,NSW,2005,-33.8699,151.2295,80500,385,209.09,ANZ,ref-au-nsw-SYD
+119,North America,United States,US,Texas,TX,73306,30.3385,-97.7522,100100,470,213.00,South,ref-us-tx-AUS
+120,North America,United States,US,Florida,FL,33144,25.8301,-80.2615,135500,645,210.08,South,ref-us-fl-MIA
+121,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5605,-0.1411,95000,450,211.11,Western Europe,ref-uk-eng-LON
+122,Europe,Norway,NO,Oslo,,0155,59.9511,10.8295,40500,190,213.16,Nordics,ref-no-osl
+123,Asia,India,IN,Maharashtra,,400006,19.1401,72.9505,206100,970,212.47,South Asia,ref-in-mh-MUM
+124,Africa,South Africa,ZA,Western Cape,,8006,-33.9415,18.4909,65300,310,210.65,Sub-Saharan Africa,ref-za-wc-CPT
+125,North America,Mexico,MX,Mexico City,,06005,19.4901,-99.1411,165000,780,211.54,LATAM,ref-mx-mxc
+126,North America,United States,US,Arizona,AZ,85005,33.4900,-112.1100,114000,530,215.09,West Coast,ref-us-az
+127,North America,United States,US,Georgia,GA,30305,33.7900,-84.4300,144000,680,211.76,South,ref-us-ga
+128,Europe,Italy,IT,Lazio,,00104,41.9400,12.5400,79000,375,210.67,Southern Europe,ref-it-laz
+129,Asia,China,CN,Beijing,,100004,39.9400,116.4300,254000,1210,210.08,East Asia,ref-cn-bjn
+130,South America,Argentina,AR,Buenos Aires,,1004,-34.6400,-58.4200,94000,445,211.24,South America,ref-ar-bue
+131,North America,United States,US,California,CA,90215,34.0981,-118.2954,157345,745,211.20,West Coast,ref-us-ca-LA
+132,North America,United States,US,New York,NY,10007,40.7501,-74.0838,243901,1165,209.36,North East,ref-us-ny-NYC
+133,Europe,Germany,DE,Bavaria,,80337,48.2022,11.6477,104500,495,211.11,Western Europe,ref-de-by-MUN
+134,Asia,Japan,JP,Tokyo,,100-0007,35.7505,139.7499,306200,1425,214.88,East Asia,ref-jp-tko
+135,North America,Canada,CA,Ontario,ON,M5V 2F5,43.6901,-79.4155,126750,605,209.50,North America,ref-ca-on-TOR
+136,South America,Brazil,BR,São Paulo,,01310-106,-23.5598,-46.7001,173400,825,210.18,South America,ref-br-sp-SAO
+137,Europe,France,FR,Île-de-France,,75007,48.8855,2.4289,74900,355,210.99,Western Europe,ref-fr-idf-PAR
+138,Oceania,Australia,AU,New South Wales,NSW,2006,-33.8799,151.2395,81500,390,208.97,ANZ,ref-au-nsw-SYD
+139,North America,United States,US,Texas,TX,73307,30.3485,-97.7622,101100,475,212.84,South,ref-us-tx-AUS
+140,North America,United States,US,Florida,FL,33145,25.8401,-80.2715,136500,650,210.00,South,ref-us-fl-MIA
+141,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5705,-0.1511,96000,455,210.99,Western Europe,ref-uk-eng-LON
+142,Europe,Norway,NO,Oslo,,0156,59.9611,10.8395,39500,185,213.51,Nordics,ref-no-osl
+143,Asia,India,IN,Maharashtra,,400007,19.1501,72.9605,207100,975,212.41,South Asia,ref-in-mh-MUM
+144,Africa,South Africa,ZA,Western Cape,,8007,-33.9515,18.5009,66300,315,210.48,Sub-Saharan Africa,ref-za-wc-CPT
+145,North America,Mexico,MX,Mexico City,,06006,19.5001,-99.1511,166000,785,211.46,LATAM,ref-mx-mxc
+146,North America,United States,US,Arizona,AZ,85006,33.5000,-112.1200,115000,535,214.95,West Coast,ref-us-az
+147,North America,United States,US,Georgia,GA,30306,33.8000,-84.4400,145000,685,211.68,South,ref-us-ga
+148,Europe,Italy,IT,Lazio,,00105,41.9500,12.5500,80000,380,210.53,Southern Europe,ref-it-laz
+149,Asia,China,CN,Beijing,,100005,39.9500,116.4400,255000,1215,209.88,East Asia,ref-cn-bjn
+150,South America,Argentina,AR,Buenos Aires,,1005,-34.6500,-58.4300,95000,450,211.11,South America,ref-ar-bue
+151,North America,United States,US,California,CA,90216,34.0581,-118.2554,158345,750,211.13,West Coast,ref-us-ca-LA
+152,North America,United States,US,New York,NY,10008,40.7601,-74.0938,242901,1160,209.40,North East,ref-us-ny-NYC
+153,Europe,Germany,DE,Bavaria,,80338,48.2122,11.6577,103500,490,211.22,Western Europe,ref-de-by-MUN
+154,Asia,Japan,JP,Tokyo,,100-0008,35.7605,139.7599,307200,1430,214.83,East Asia,ref-jp-tko
+155,North America,Canada,CA,Ontario,ON,M5V 2F6,43.7001,-79.4255,127750,610,209.43,North America,ref-ca-on-TOR
+156,South America,Brazil,BR,São Paulo,,01310-107,-23.5698,-46.7101,172400,820,210.24,South America,ref-br-sp-SAO
+157,Europe,France,FR,Île-de-France,,75008,48.8955,2.4389,73900,350,211.14,Western Europe,ref-fr-idf-PAR
+158,Oceania,Australia,AU,New South Wales,NSW,2007,-33.8899,151.2495,82500,395,208.86,ANZ,ref-au-nsw-SYD
+159,North America,United States,US,Texas,TX,73308,30.3585,-97.7722,102100,480,212.71,South,ref-us-tx-AUS
+160,North America,United States,US,Florida,FL,33146,25.8501,-80.2815,137500,655,209.92,South,ref-us-fl-MIA
+161,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5805,-0.1611,97000,460,210.87,Western Europe,ref-uk-eng-LON
+162,Europe,Norway,NO,Oslo,,0157,59.9711,10.8495,38500,180,213.89,Nordics,ref-no-osl
+163,Asia,India,IN,Maharashtra,,400008,19.1601,72.9705,208100,980,212.35,South Asia,ref-in-mh-MUM
+164,Africa,South Africa,ZA,Western Cape,,8008,-33.9615,18.5109,67300,320,210.31,Sub-Saharan Africa,ref-za-wc-CPT
+165,North America,Mexico,MX,Mexico City,,06007,19.5101,-99.1611,167000,790,211.39,LATAM,ref-mx-mxc
+166,North America,United States,US,Arizona,AZ,85007,33.5100,-112.1300,116000,540,214.81,West Coast,ref-us-az
+167,North America,United States,US,Georgia,GA,30307,33.8100,-84.4500,146000,690,211.59,South,ref-us-ga
+168,Europe,Italy,IT,Lazio,,00106,41.9600,12.5600,81000,385,210.39,Southern Europe,ref-it-laz
+169,Asia,China,CN,Beijing,,100006,39.9600,116.4500,256000,1220,209.84,East Asia,ref-cn-bjn
+170,South America,Argentina,AR,Buenos Aires,,1006,-34.6600,-58.4400,96000,455,210.99,South America,ref-ar-bue
+171,North America,United States,US,California,CA,90217,34.0481,-118.2454,159345,755,211.05,West Coast,ref-us-ca-LA
+172,North America,United States,US,New York,NY,10009,40.7701,-74.1038,241901,1155,209.44,North East,ref-us-ny-NYC
+173,Europe,Germany,DE,Bavaria,,80339,48.2222,11.6677,102500,485,211.34,Western Europe,ref-de-by-MUN
+174,Asia,Japan,JP,Tokyo,,100-0009,35.7705,139.7699,308200,1435,214.77,East Asia,ref-jp-tko
+175,North America,Canada,CA,Ontario,ON,M5V 2F7,43.7101,-79.4355,128750,615,209.35,North America,ref-ca-on-TOR
+176,South America,Brazil,BR,São Paulo,,01310-108,-23.5798,-46.7201,171400,815,210.31,South America,ref-br-sp-SAO
+177,Europe,France,FR,Île-de-France,,75009,48.9055,2.4489,72900,345,211.30,Western Europe,ref-fr-idf-PAR
+178,Oceania,Australia,AU,New South Wales,NSW,2008,-33.8999,151.2595,83500,400,208.75,ANZ,ref-au-nsw-SYD
+179,North America,United States,US,Texas,TX,73309,30.3685,-97.7822,103100,485,212.58,South,ref-us-tx-AUS
+180,North America,United States,US,Florida,FL,33147,25.8601,-80.2915,138500,660,209.85,South,ref-us-fl-MIA
+181,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.5905,-0.1711,98000,465,210.75,Western Europe,ref-uk-eng-LON
+182,Europe,Norway,NO,Oslo,,0158,59.9811,10.8595,37500,175,214.29,Nordics,ref-no-osl
+183,Asia,India,IN,Maharashtra,,400009,19.1701,72.9805,209100,985,212.28,South Asia,ref-in-mh-MUM
+184,Africa,South Africa,ZA,Western Cape,,8009,-33.9715,18.5209,68300,325,210.15,Sub-Saharan Africa,ref-za-wc-CPT
+185,North America,Mexico,MX,Mexico City,,06008,19.5201,-99.1711,168000,795,211.32,LATAM,ref-mx-mxc
+186,North America,United States,US,Arizona,AZ,85008,33.5200,-112.1400,117000,545,214.68,West Coast,ref-us-az
+187,North America,United States,US,Georgia,GA,30308,33.8200,-84.4600,147000,695,211.51,South,ref-us-ga
+188,Europe,Italy,IT,Lazio,,00107,41.9700,12.5700,82000,390,210.26,Southern Europe,ref-it-laz
+189,Asia,China,CN,Beijing,,100007,39.9700,116.4600,257000,1225,209.80,East Asia,ref-cn-bjn
+190,South America,Argentina,AR,Buenos Aires,,1007,-34.6700,-58.4500,97000,460,210.87,South America,ref-ar-bue
+191,North America,United States,US,California,CA,90218,34.0381,-118.2354,160345,760,210.98,West Coast,ref-us-ca-LA
+192,North America,United States,US,New York,NY,10010,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+193,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+194,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+195,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+196,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+197,Europe,France,FR,Île-de-France,,75010,48.9155,2.4589,71900,340,211.47,Western Europe,ref-fr-idf-PAR
+198,Oceania,Australia,AU,New South Wales,NSW,2009,-33.9099,151.2695,84500,405,208.64,ANZ,ref-au-nsw-SYD
+199,North America,United States,US,Texas,TX,73310,30.3785,-97.7922,104100,490,212.45,South,ref-us-tx-AUS
+200,North America,United States,US,Florida,FL,33148,25.8701,-80.3015,139500,665,209.77,South,ref-us-fl-MIA
+201,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6005,-0.1811,99000,470,210.64,Western Europe,ref-uk-eng-LON
+202,Europe,Norway,NO,Oslo,,0159,59.9911,10.8695,36500,170,214.71,Nordics,ref-no-osl
+203,Asia,India,IN,Maharashtra,,400010,19.1801,72.9905,210100,990,212.22,South Asia,ref-in-mh-MUM
+204,Africa,South Africa,ZA,Western Cape,,8010,-33.9815,18.5309,69300,330,210.00,Sub-Saharan Africa,ref-za-wc-CPT
+205,North America,Mexico,MX,Mexico City,,06009,19.5301,-99.1811,169000,800,211.25,LATAM,ref-mx-mxc
+206,North America,United States,US,Arizona,AZ,85009,33.5300,-112.1500,118000,550,214.55,West Coast,ref-us-az
+207,North America,United States,US,Georgia,GA,30309,33.8300,-84.4700,148000,700,211.43,South,ref-us-ga
+208,Europe,Italy,IT,Lazio,,00108,41.9800,12.5800,83000,395,210.13,Southern Europe,ref-it-laz
+209,Asia,China,CN,Beijing,,100008,39.9800,116.4700,258000,1230,209.76,East Asia,ref-cn-bjn
+210,South America,Argentina,AR,Buenos Aires,,1008,-34.6800,-58.4600,98000,465,210.75,South America,ref-ar-bue
+211,North America,United States,US,California,CA,90219,34.0281,-118.2254,161345,765,210.91,West Coast,ref-us-ca-LA
+212,North America,United States,US,New York,NY,10011,40.7901,-74.1238,239901,1145,209.52,North East,ref-us-ny-NYC
+213,Europe,Germany,DE,Bavaria,,80341,48.2422,11.6877,100500,475,211.58,Western Europe,ref-de-by-MUN
+214,Asia,Japan,JP,Tokyo,,100-0011,35.7905,139.7899,310200,1445,214.67,East Asia,ref-jp-tko
+215,North America,Canada,CA,Ontario,ON,M5V 2F9,43.7301,-79.4555,130750,625,209.20,North America,ref-ca-on-TOR
+216,South America,Brazil,BR,São Paulo,,01310-110,-23.5998,-46.7401,169400,805,210.43,South America,ref-br-sp-SAO
+217,Europe,France,FR,Île-de-France,,75011,48.9255,2.4689,70900,335,211.64,Western Europe,ref-fr-idf-PAR
+218,Oceania,Australia,AU,New South Wales,NSW,2010,-33.9199,151.2795,85500,410,208.54,ANZ,ref-au-nsw-SYD
+219,North America,United States,US,Texas,TX,73311,30.3885,-97.8022,105100,495,212.32,South,ref-us-tx-AUS
+220,North America,United States,US,Florida,FL,33149,25.8801,-80.3115,140500,670,209.70,South,ref-us-fl-MIA
+221,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6105,-0.1911,100000,475,210.53,Western Europe,ref-uk-eng-LON
+222,Europe,Norway,NO,Oslo,,0160,60.0011,10.8795,35500,165,215.15,Nordics,ref-no-osl
+223,Asia,India,IN,Maharashtra,,400011,19.1901,73.0005,211100,995,212.16,South Asia,ref-in-mh-MUM
+224,Africa,South Africa,ZA,Western Cape,,8011,-33.9915,18.5409,70300,335,209.85,Sub-Saharan Africa,ref-za-wc-CPT
+225,North America,Mexico,MX,Mexico City,,06010,19.5401,-99.1911,170000,805,211.18,LATAM,ref-mx-mxc
+226,North America,United States,US,Arizona,AZ,85010,33.5400,-112.1600,119000,555,214.41,West Coast,ref-us-az
+227,North America,United States,US,Georgia,GA,30310,33.8400,-84.4800,149000,705,211.35,South,ref-us-ga
+228,Europe,Italy,IT,Lazio,,00109,41.9900,12.5900,84000,400,210.00,Southern Europe,ref-it-laz
+229,Asia,China,CN,Beijing,,100009,39.9900,116.4800,259000,1235,209.72,East Asia,ref-cn-bjn
+230,South America,Argentina,AR,Buenos Aires,,1009,-34.6900,-58.4700,99000,470,210.64,South America,ref-ar-bue
+231,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+232,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+233,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+234,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+235,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+236,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+237,Europe,France,FR,Île-de-France,,75012,48.9355,2.4789,69900,330,211.82,Western Europe,ref-fr-idf-PAR
+238,Oceania,Australia,AU,New South Wales,NSW,2011,-33.9299,151.2895,86500,415,208.43,ANZ,ref-au-nsw-SYD
+239,North America,United States,US,Texas,TX,73312,30.3985,-97.8122,106100,500,212.20,South,ref-us-tx-AUS
+240,North America,United States,US,Florida,FL,33150,25.8901,-80.3215,141500,675,209.63,South,ref-us-fl-MIA
+241,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6205,-0.2011,101000,480,210.42,Western Europe,ref-uk-eng-LON
+242,Europe,Norway,NO,Oslo,,0161,60.0111,10.8895,34500,160,215.62,Nordics,ref-no-osl
+243,Asia,India,IN,Maharashtra,,400012,19.2001,73.0105,212100,1000,212.10,South Asia,ref-in-mh-MUM
+244,Africa,South Africa,ZA,Western Cape,,8012,-34.0015,18.5509,71300,340,209.71,Sub-Saharan Africa,ref-za-wc-CPT
+245,North America,Mexico,MX,Mexico City,,06011,19.5501,-99.2011,171000,810,211.11,LATAM,ref-mx-mxc
+246,North America,United States,US,Arizona,AZ,85011,33.5500,-112.1700,120000,560,214.29,West Coast,ref-us-az
+247,North America,United States,US,Georgia,GA,30311,33.8500,-84.4900,150000,710,211.27,South,ref-us-ga
+248,Europe,Italy,IT,Lazio,,00110,42.0000,12.6000,85000,405,209.88,Southern Europe,ref-it-laz
+249,Asia,China,CN,Beijing,,100010,40.0000,116.4900,260000,1240,209.68,East Asia,ref-cn-bjn
+250,South America,Argentina,AR,Buenos Aires,,1010,-34.7000,-58.4800,100000,475,210.53,South America,ref-ar-bue
+251,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+252,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+253,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+254,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+255,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+256,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+257,Europe,France,FR,Île-de-France,,75013,48.9455,2.4889,68900,325,211.85,Western Europe,ref-fr-idf-PAR
+258,Oceania,Australia,AU,New South Wales,NSW,2012,-33.9399,151.2995,87500,420,208.33,ANZ,ref-au-nsw-SYD
+259,North America,United States,US,Texas,TX,73313,30.4085,-97.8222,107100,505,212.08,South,ref-us-tx-AUS
+260,North America,United States,US,Florida,FL,33151,25.9001,-80.3315,142500,680,209.56,South,ref-us-fl-MIA
+261,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6305,-0.2111,102000,485,210.31,Western Europe,ref-uk-eng-LON
+262,Europe,Norway,NO,Oslo,,0162,60.0211,10.8995,33500,155,216.13,Nordics,ref-no-osl
+263,Asia,India,IN,Maharashtra,,400013,19.2101,73.0205,213100,1005,212.04,South Asia,ref-in-mh-MUM
+264,Africa,South Africa,ZA,Western Cape,,8013,-34.0115,18.5609,72300,345,209.57,Sub-Saharan Africa,ref-za-wc-CPT
+265,North America,Mexico,MX,Mexico City,,06012,19.5601,-99.2111,172000,815,210.92,LATAM,ref-mx-mxc
+266,North America,United States,US,Arizona,AZ,85012,33.5600,-112.1800,121000,565,214.16,West Coast,ref-us-az
+267,North America,United States,US,Georgia,GA,30312,33.8600,-84.5000,151000,715,211.19,South,ref-us-ga
+268,Europe,Italy,IT,Lazio,,00111,42.0100,12.6100,86000,410,209.76,Southern Europe,ref-it-laz
+269,Asia,China,CN,Beijing,,100011,40.0100,116.5000,261000,1245,209.64,East Asia,ref-cn-bjn
+270,South America,Argentina,AR,Buenos Aires,,1011,-34.7100,-58.4900,101000,480,210.42,South America,ref-ar-bue
+271,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+272,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+273,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+274,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+275,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+276,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+277,Europe,France,FR,Île-de-France,,75014,48.9555,2.4989,67900,320,212.19,Western Europe,ref-fr-idf-PAR
+278,Oceania,Australia,AU,New South Wales,NSW,2013,-33.9499,151.3095,88500,425,208.24,ANZ,ref-au-nsw-SYD
+279,North America,United States,US,Texas,TX,73314,30.4185,-97.8322,108100,510,211.96,South,ref-us-tx-AUS
+280,North America,United States,US,Florida,FL,33152,25.9101,-80.3415,143500,685,209.49,South,ref-us-fl-MIA
+281,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6405,-0.2211,103000,490,210.20,Western Europe,ref-uk-eng-LON
+282,Europe,Norway,NO,Oslo,,0163,60.0311,10.9095,32500,150,216.67,Nordics,ref-no-osl
+283,Asia,India,IN,Maharashtra,,400014,19.2201,73.0305,214100,1010,211.98,South Asia,ref-in-mh-MUM
+284,Africa,South Africa,ZA,Western Cape,,8014,-34.0215,18.5709,73300,350,209.43,Sub-Saharan Africa,ref-za-wc-CPT
+285,North America,Mexico,MX,Mexico City,,06013,19.5701,-99.2211,173000,820,210.98,LATAM,ref-mx-mxc
+286,North America,United States,US,Arizona,AZ,85013,33.5700,-112.1900,122000,570,214.04,West Coast,ref-us-az
+287,North America,United States,US,Georgia,GA,30313,33.8700,-84.5100,152000,720,211.11,South,ref-us-ga
+288,Europe,Italy,IT,Lazio,,00112,42.0200,12.6200,87000,415,209.64,Southern Europe,ref-it-laz
+289,Asia,China,CN,Beijing,,100012,40.0200,116.5100,262000,1250,209.60,East Asia,ref-cn-bjn
+290,South America,Argentina,AR,Buenos Aires,,1012,-34.7200,-58.5000,102000,485,210.31,South America,ref-ar-bue
+291,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+292,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+293,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+294,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+295,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+296,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+297,Europe,France,FR,Île-de-France,,75015,48.9655,2.5089,66900,315,212.38,Western Europe,ref-fr-idf-PAR
+298,Oceania,Australia,AU,New South Wales,NSW,2014,-33.9599,151.3195,89500,430,208.14,ANZ,ref-au-nsw-SYD
+299,North America,United States,US,Texas,TX,73315,30.4285,-97.8422,109100,515,211.84,South,ref-us-tx-AUS
+300,North America,United States,US,Florida,FL,33153,25.9201,-80.3515,144500,690,209.42,South,ref-us-fl-MIA
+301,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6505,-0.2311,104000,495,210.10,Western Europe,ref-uk-eng-LON
+302,Europe,Norway,NO,Oslo,,0164,60.0411,10.9195,31500,145,217.24,Nordics,ref-no-osl
+303,Asia,India,IN,Maharashtra,,400015,19.2301,73.0405,215100,1015,211.92,South Asia,ref-in-mh-MUM
+304,Africa,South Africa,ZA,Western Cape,,8015,-34.0315,18.5809,74300,355,209.30,Sub-Saharan Africa,ref-za-wc-CPT
+305,North America,Mexico,MX,Mexico City,,06014,19.5801,-99.2311,174000,825,210.91,LATAM,ref-mx-mxc
+306,North America,United States,US,Arizona,AZ,85014,33.5800,-112.2000,123000,575,213.91,West Coast,ref-us-az
+307,North America,United States,US,Georgia,GA,30314,33.8800,-84.5200,153000,725,211.03,South,ref-us-ga
+308,Europe,Italy,IT,Lazio,,00113,42.0300,12.6300,88000,420,209.52,Southern Europe,ref-it-laz
+309,Asia,China,CN,Beijing,,100013,40.0300,116.5200,263000,1255,209.56,East Asia,ref-cn-bjn
+310,South America,Argentina,AR,Buenos Aires,,1013,-34.7300,-58.5100,103000,490,210.20,South America,ref-ar-bue
+311,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+312,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+313,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+314,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+315,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+316,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+317,Europe,France,FR,Île-de-France,,75016,48.9755,2.5189,65900,310,212.58,Western Europe,ref-fr-idf-PAR
+318,Oceania,Australia,AU,New South Wales,NSW,2015,-33.9699,151.3295,90500,435,208.05,ANZ,ref-au-nsw-SYD
+319,North America,United States,US,Texas,TX,73316,30.4385,-97.8522,110100,520,211.73,South,ref-us-tx-AUS
+320,North America,United States,US,Florida,FL,33154,25.9301,-80.3615,145500,695,209.35,South,ref-us-fl-MIA
+321,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6605,-0.2411,105000,500,210.00,Western Europe,ref-uk-eng-LON
+322,Europe,Norway,NO,Oslo,,0165,60.0511,10.9295,30500,140,217.86,Nordics,ref-no-osl
+323,Asia,India,IN,Maharashtra,,400016,19.2401,73.0505,216100,1020,211.86,South Asia,ref-in-mh-MUM
+324,Africa,South Africa,ZA,Western Cape,,8016,-34.0415,18.5909,75300,360,209.17,Sub-Saharan Africa,ref-za-wc-CPT
+325,North America,Mexico,MX,Mexico City,,06015,19.5901,-99.2411,175000,830,210.84,LATAM,ref-mx-mxc
+326,North America,United States,US,Arizona,AZ,85015,33.5900,-112.2100,124000,580,213.79,West Coast,ref-us-az
+327,North America,United States,US,Georgia,GA,30315,33.8900,-84.5300,154000,730,210.96,South,ref-us-ga
+328,Europe,Italy,IT,Lazio,,00114,42.0400,12.6400,89000,425,209.41,Southern Europe,ref-it-laz
+329,Asia,China,CN,Beijing,,100014,40.0400,116.5300,264000,1260,209.52,East Asia,ref-cn-bjn
+330,South America,Argentina,AR,Buenos Aires,,1014,-34.7400,-58.5200,104000,495,210.10,South America,ref-ar-bue
+331,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+332,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+333,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+334,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+335,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+336,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+337,Europe,France,FR,Île-de-France,,75017,48.9855,2.5289,64900,305,212.79,Western Europe,ref-fr-idf-PAR
+338,Oceania,Australia,AU,New South Wales,NSW,2016,-33.9799,151.3395,91500,440,207.95,ANZ,ref-au-nsw-SYD
+339,North America,United States,US,Texas,TX,73317,30.4485,-97.8622,111100,525,211.62,South,ref-us-tx-AUS
+340,North America,United States,US,Florida,FL,33155,25.9401,-80.3715,146500,700,209.29,South,ref-us-fl-MIA
+341,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6705,-0.2511,106000,505,209.90,Western Europe,ref-uk-eng-LON
+342,Europe,Norway,NO,Oslo,,0166,60.0611,10.9395,29500,135,218.52,Nordics,ref-no-osl
+343,Asia,India,IN,Maharashtra,,400017,19.2501,73.0605,217100,1025,211.80,South Asia,ref-in-mh-MUM
+344,Africa,South Africa,ZA,Western Cape,,8017,-34.0515,18.6009,76300,365,209.04,Sub-Saharan Africa,ref-za-wc-CPT
+345,North America,Mexico,MX,Mexico City,,06016,19.6001,-99.2511,176000,835,210.78,LATAM,ref-mx-mxc
+346,North America,United States,US,Arizona,AZ,85016,33.6000,-112.2200,125000,585,213.68,West Coast,ref-us-az
+347,North America,United States,US,Georgia,GA,30316,33.9000,-84.5400,155000,735,210.88,South,ref-us-ga
+348,Europe,Italy,IT,Lazio,,00115,42.0500,12.6500,90000,430,209.30,Southern Europe,ref-it-laz
+349,Asia,China,CN,Beijing,,100015,40.0500,116.5400,265000,1265,209.49,East Asia,ref-cn-bjn
+350,South America,Argentina,AR,Buenos Aires,,1015,-34.7500,-58.5300,105000,500,210.00,South America,ref-ar-bue
+351,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+352,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+353,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+354,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+355,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+356,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+357,Europe,France,FR,Île-de-France,,75018,48.9955,2.5389,63900,300,213.00,Western Europe,ref-fr-idf-PAR
+358,Oceania,Australia,AU,New South Wales,NSW,2017,-33.9899,151.3495,92500,445,207.87,ANZ,ref-au-nsw-SYD
+359,North America,United States,US,Texas,TX,73318,30.4585,-97.8722,112100,530,211.51,South,ref-us-tx-AUS
+360,North America,United States,US,Florida,FL,33156,25.9501,-80.3815,147500,705,209.22,South,ref-us-fl-MIA
+361,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6805,-0.2611,107000,510,209.80,Western Europe,ref-uk-eng-LON
+362,Europe,Norway,NO,Oslo,,0167,60.0711,10.9495,28500,130,219.23,Nordics,ref-no-osl
+363,Asia,India,IN,Maharashtra,,400018,19.2601,73.0705,218100,1030,211.75,South Asia,ref-in-mh-MUM
+364,Africa,South Africa,ZA,Western Cape,,8018,-34.0615,18.6109,77300,370,208.92,Sub-Saharan Africa,ref-za-wc-CPT
+365,North America,Mexico,MX,Mexico City,,06017,19.6101,-99.2611,177000,840,210.71,LATAM,ref-mx-mxc
+366,North America,United States,US,Arizona,AZ,85017,33.6100,-112.2300,126000,590,213.56,West Coast,ref-us-az
+367,North America,United States,US,Georgia,GA,30317,33.9100,-84.5500,156000,740,210.81,South,ref-us-ga
+368,Europe,Italy,IT,Lazio,,00116,42.0600,12.6600,91000,435,209.20,Southern Europe,ref-it-laz
+369,Asia,China,CN,Beijing,,100016,40.0600,116.5500,266000,1270,209.45,East Asia,ref-cn-bjn
+370,South America,Argentina,AR,Buenos Aires,,1016,-34.7600,-58.5400,106000,505,209.90,South America,ref-ar-bue
+371,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+372,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+373,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+374,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+375,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+376,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+377,Europe,France,FR,Île-de-France,,75019,49.0055,2.5489,62900,295,213.22,Western Europe,ref-fr-idf-PAR
+378,Oceania,Australia,AU,New South Wales,NSW,2018,-33.9999,151.3595,93500,450,207.78,ANZ,ref-au-nsw-SYD
+379,North America,United States,US,Texas,TX,73319,30.4685,-97.8822,113100,535,211.40,South,ref-us-tx-AUS
+380,North America,United States,US,Florida,FL,33157,25.9601,-80.3915,148500,710,209.15,South,ref-us-fl-MIA
+381,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6905,-0.2711,108000,515,209.71,Western Europe,ref-uk-eng-LON
+382,Europe,Norway,NO,Oslo,,0168,60.0811,10.9595,27500,125,220.00,Nordics,ref-no-osl
+383,Asia,India,IN,Maharashtra,,400019,19.2701,73.0805,219100,1035,211.69,South Asia,ref-in-mh-MUM
+384,Africa,South Africa,ZA,Western Cape,,8019,-34.0715,18.6209,78300,375,208.80,Sub-Saharan Africa,ref-za-wc-CPT
+385,North America,Mexico,MX,Mexico City,,06018,19.6201,-99.2711,178000,845,210.65,LATAM,ref-mx-mxc
+386,North America,United States,US,Arizona,AZ,85018,33.6200,-112.2400,127000,595,213.45,West Coast,ref-us-az
+387,North America,United States,US,Georgia,GA,30318,33.9200,-84.5600,157000,745,210.74,South,ref-us-ga
+388,Europe,Italy,IT,Lazio,,00117,42.0700,12.6700,92000,440,209.09,Southern Europe,ref-it-laz
+389,Asia,China,CN,Beijing,,100017,40.0700,116.5600,267000,1275,209.41,East Asia,ref-cn-bjn
+390,South America,Argentina,AR,Buenos Aires,,1017,-34.7700,-58.5500,107000,510,209.80,South America,ref-ar-bue
+391,North America,United States,US,California,CA,90228,34.0381,-118.2354,162345,770,210.84,West Coast,ref-us-ca-LA
+392,North America,United States,US,New York,NY,10020,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+393,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+394,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+395,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+396,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+397,Europe,France,FR,Île-de-France,,75010,48.9155,2.4589,71900,340,211.47,Western Europe,ref-fr-idf-PAR
+398,Oceania,Australia,AU,New South Wales,NSW,2009,-33.9099,151.2695,84500,405,208.64,ANZ,ref-au-nsw-SYD
+399,North America,United States,US,Texas,TX,73310,30.3785,-97.7922,104100,490,212.45,South,ref-us-tx-AUS
+400,North America,United States,US,Florida,FL,33148,25.8701,-80.3015,139500,665,209.77,South,ref-us-fl-MIA
+401,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6005,-0.1811,99000,470,210.64,Western Europe,ref-uk-eng-LON
+402,Europe,Norway,NO,Oslo,,0159,59.9911,10.8695,36500,170,214.71,Nordics,ref-no-osl
+403,Asia,India,IN,Maharashtra,,400010,19.1801,72.9905,210100,990,212.22,South Asia,ref-in-mh-MUM
+404,Africa,South Africa,ZA,Western Cape,,8010,-33.9815,18.5309,69300,330,210.00,Sub-Saharan Africa,ref-za-wc-CPT
+405,North America,Mexico,MX,Mexico City,,06009,19.5301,-99.1811,169000,800,211.25,LATAM,ref-mx-mxc
+406,North America,United States,US,Arizona,AZ,85009,33.5300,-112.1500,118000,550,214.55,West Coast,ref-us-az
+407,North America,United States,US,Georgia,GA,30309,33.8300,-84.4700,148000,700,211.43,South,ref-us-ga
+408,Europe,Italy,IT,Lazio,,00108,41.9800,12.5800,83000,395,210.13,Southern Europe,ref-it-laz
+409,Asia,China,CN,Beijing,,100008,39.9800,116.4700,258000,1230,209.76,East Asia,ref-cn-bjn
+410,South America,Argentina,AR,Buenos Aires,,1008,-34.6800,-58.4600,98000,465,210.75,South America,ref-ar-bue
+411,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+412,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+413,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+414,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+415,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+416,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+417,Europe,France,FR,Île-de-France,,75012,48.9355,2.4789,69900,330,211.82,Western Europe,ref-fr-idf-PAR
+418,Oceania,Australia,AU,New South Wales,NSW,2011,-33.9299,151.2895,86500,415,208.43,ANZ,ref-au-nsw-SYD
+419,North America,United States,US,Texas,TX,73312,30.3985,-97.8122,106100,500,212.20,South,ref-us-tx-AUS
+420,North America,United States,US,Florida,FL,33150,25.8901,-80.3215,141500,675,209.63,South,ref-us-fl-MIA
+421,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6205,-0.2011,101000,480,210.42,Western Europe,ref-uk-eng-LON
+422,Europe,Norway,NO,Oslo,,0161,60.0111,10.8895,34500,160,215.62,Nordics,ref-no-osl
+423,Asia,India,IN,Maharashtra,,400012,19.2001,73.0105,212100,1000,212.10,South Asia,ref-in-mh-MUM
+424,Africa,South Africa,ZA,Western Cape,,8012,-34.0015,18.5509,71300,340,209.71,Sub-Saharan Africa,ref-za-wc-CPT
+425,North America,Mexico,MX,Mexico City,,06011,19.5501,-99.2011,171000,810,211.11,LATAM,ref-mx-mxc
+426,North America,United States,US,Arizona,AZ,85011,33.5500,-112.1700,120000,560,214.29,West Coast,ref-us-az
+427,North America,United States,US,Georgia,GA,30311,33.8500,-84.4900,150000,710,211.27,South,ref-us-ga
+428,Europe,Italy,IT,Lazio,,00110,42.0000,12.6000,85000,405,209.88,Southern Europe,ref-it-laz
+429,Asia,China,CN,Beijing,,100010,40.0000,116.4900,260000,1240,209.68,East Asia,ref-cn-bjn
+430,South America,Argentina,AR,Buenos Aires,,1010,-34.7000,-58.4800,100000,475,210.53,South America,ref-ar-bue
+431,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+432,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+433,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+434,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+435,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+436,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+437,Europe,France,FR,Île-de-France,,75013,48.9455,2.4889,68900,325,211.85,Western Europe,ref-fr-idf-PAR
+438,Oceania,Australia,AU,New South Wales,NSW,2012,-33.9399,151.2995,87500,420,208.33,ANZ,ref-au-nsw-SYD
+439,North America,United States,US,Texas,TX,73313,30.4085,-97.8222,107100,505,212.08,South,ref-us-tx-AUS
+440,North America,United States,US,Florida,FL,33151,25.9001,-80.3315,142500,680,209.56,South,ref-us-fl-MIA
+441,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6305,-0.2111,102000,485,210.31,Western Europe,ref-uk-eng-LON
+442,Europe,Norway,NO,Oslo,,0162,60.0211,10.8995,33500,155,216.13,Nordics,ref-no-osl
+443,Asia,India,IN,Maharashtra,,400013,19.2101,73.0205,213100,1005,212.04,South Asia,ref-in-mh-MUM
+444,Africa,South Africa,ZA,Western Cape,,8013,-34.0115,18.5609,72300,345,209.57,Sub-Saharan Africa,ref-za-wc-CPT
+445,North America,Mexico,MX,Mexico City,,06012,19.5601,-99.2111,172000,815,210.92,LATAM,ref-mx-mxc
+446,North America,United States,US,Arizona,AZ,85012,33.5600,-112.1800,121000,565,214.16,West Coast,ref-us-az
+447,North America,United States,US,Georgia,GA,30312,33.8600,-84.5000,151000,715,211.19,South,ref-us-ga
+448,Europe,Italy,IT,Lazio,,00111,42.0100,12.6100,86000,410,209.76,Southern Europe,ref-it-laz
+449,Asia,China,CN,Beijing,,100011,40.0100,116.5000,261000,1245,209.64,East Asia,ref-cn-bjn
+450,South America,Argentina,AR,Buenos Aires,,1011,-34.7100,-58.4900,101000,480,210.42,South America,ref-ar-bue
+451,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+452,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+453,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+454,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+455,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+456,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+457,Europe,France,FR,Île-de-France,,75014,48.9555,2.4989,67900,320,212.19,Western Europe,ref-fr-idf-PAR
+458,Oceania,Australia,AU,New South Wales,NSW,2013,-33.9499,151.3095,88500,425,208.24,ANZ,ref-au-nsw-SYD
+459,North America,United States,US,Texas,TX,73314,30.4185,-97.8322,108100,510,211.96,South,ref-us-tx-AUS
+460,North America,United States,US,Florida,FL,33152,25.9101,-80.3415,143500,685,209.49,South,ref-us-fl-MIA
+461,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6405,-0.2211,103000,490,210.20,Western Europe,ref-uk-eng-LON
+462,Europe,Norway,NO,Oslo,,0163,60.0311,10.9095,32500,150,216.67,Nordics,ref-no-osl
+463,Asia,India,IN,Maharashtra,,400014,19.2201,73.0305,214100,1010,211.98,South Asia,ref-in-mh-MUM
+464,Africa,South Africa,ZA,Western Cape,,8014,-34.0215,18.5709,73300,350,209.43,Sub-Saharan Africa,ref-za-wc-CPT
+465,North America,Mexico,MX,Mexico City,,06013,19.5701,-99.2211,173000,820,210.98,LATAM,ref-mx-mxc
+466,North America,United States,US,Arizona,AZ,85013,33.5700,-112.1900,122000,570,214.04,West Coast,ref-us-az
+467,North America,United States,US,Georgia,GA,30313,33.8700,-84.5100,152000,720,211.11,South,ref-us-ga
+468,Europe,Italy,IT,Lazio,,00112,42.0200,12.6200,87000,415,209.64,Southern Europe,ref-it-laz
+469,Asia,China,CN,Beijing,,100012,40.0200,116.5100,262000,1250,209.60,East Asia,ref-cn-bjn
+470,South America,Argentina,AR,Buenos Aires,,1012,-34.7200,-58.5000,102000,485,210.31,South America,ref-ar-bue
+471,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+472,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+473,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+474,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+475,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+476,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+477,Europe,France,FR,Île-de-France,,75015,48.9655,2.5089,66900,315,212.38,Western Europe,ref-fr-idf-PAR
+478,Oceania,Australia,AU,New South Wales,NSW,2014,-33.9599,151.3195,89500,430,208.14,ANZ,ref-au-nsw-SYD
+479,North America,United States,US,Texas,TX,73315,30.4285,-97.8422,109100,515,211.84,South,ref-us-tx-AUS
+480,North America,United States,US,Florida,FL,33153,25.9201,-80.3515,144500,690,209.42,South,ref-us-fl-MIA
+481,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6505,-0.2311,104000,495,210.10,Western Europe,ref-uk-eng-LON
+482,Europe,Norway,NO,Oslo,,0164,60.0411,10.9195,31500,145,217.24,Nordics,ref-no-osl
+483,Asia,India,IN,Maharashtra,,400015,19.2301,73.0405,215100,1015,211.92,South Asia,ref-in-mh-MUM
+484,Africa,South Africa,ZA,Western Cape,,8015,-34.0315,18.5809,74300,355,209.30,Sub-Saharan Africa,ref-za-wc-CPT
+485,North America,Mexico,MX,Mexico City,,06014,19.5801,-99.2311,174000,825,210.91,LATAM,ref-mx-mxc
+486,North America,United States,US,Arizona,AZ,85014,33.5800,-112.2000,123000,575,213.91,West Coast,ref-us-az
+487,North America,United States,US,Georgia,GA,30314,33.8800,-84.5200,153000,725,211.03,South,ref-us-ga
+488,Europe,Italy,IT,Lazio,,00113,42.0300,12.6300,88000,420,209.52,Southern Europe,ref-it-laz
+489,Asia,China,CN,Beijing,,100013,40.0300,116.5200,263000,1255,209.56,East Asia,ref-cn-bjn
+490,South America,Argentina,AR,Buenos Aires,,1013,-34.7300,-58.5100,103000,490,210.20,South America,ref-ar-bue
+491,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+492,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+493,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+494,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+495,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+496,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+497,Europe,France,FR,Île-de-France,,75016,48.9755,2.5189,65900,310,212.58,Western Europe,ref-fr-idf-PAR
+498,Oceania,Australia,AU,New South Wales,NSW,2015,-33.9699,151.3295,90500,435,208.05,ANZ,ref-au-nsw-SYD
+499,North America,United States,US,Texas,TX,73316,30.4385,-97.8522,110100,520,211.73,South,ref-us-tx-AUS
+500,North America,United States,US,Florida,FL,33154,25.9301,-80.3615,145500,695,209.35,South,ref-us-fl-MIA
+501,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6605,-0.2411,105000,500,210.00,Western Europe,ref-uk-eng-LON
+502,Europe,Norway,NO,Oslo,,0165,60.0511,10.9295,30500,140,217.86,Nordics,ref-no-osl
+503,Asia,India,IN,Maharashtra,,400016,19.2401,73.0505,216100,1020,211.86,South Asia,ref-in-mh-MUM
+504,Africa,South Africa,ZA,Western Cape,,8016,-34.0415,18.5909,75300,360,209.17,Sub-Saharan Africa,ref-za-wc-CPT
+505,North America,Mexico,MX,Mexico City,,06015,19.5901,-99.2411,175000,830,210.84,LATAM,ref-mx-mxc
+506,North America,United States,US,Arizona,AZ,85015,33.5900,-112.2100,124000,580,213.79,West Coast,ref-us-az
+507,North America,United States,US,Georgia,GA,30315,33.8900,-84.5300,154000,730,210.96,South,ref-us-ga
+508,Europe,Italy,IT,Lazio,,00114,42.0400,12.6400,89000,425,209.41,Southern Europe,ref-it-laz
+509,Asia,China,CN,Beijing,,100014,40.0400,116.5300,264000,1260,209.52,East Asia,ref-cn-bjn
+510,South America,Argentina,AR,Buenos Aires,,1014,-34.7400,-58.5200,104000,495,210.10,South America,ref-ar-bue
+511,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+512,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+513,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+514,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+515,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+516,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+517,Europe,France,FR,Île-de-France,,75017,48.9855,2.5289,64900,305,212.79,Western Europe,ref-fr-idf-PAR
+518,Oceania,Australia,AU,New South Wales,NSW,2016,-33.9799,151.3395,91500,440,207.95,ANZ,ref-au-nsw-SYD
+519,North America,United States,US,Texas,TX,73317,30.4485,-97.8622,111100,525,211.62,South,ref-us-tx-AUS
+520,North America,United States,US,Florida,FL,33155,25.9401,-80.3715,146500,700,209.29,South,ref-us-fl-MIA
+521,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6705,-0.2511,106000,505,209.90,Western Europe,ref-uk-eng-LON
+522,Europe,Norway,NO,Oslo,,0166,60.0611,10.9395,29500,135,218.52,Nordics,ref-no-osl
+523,Asia,India,IN,Maharashtra,,400017,19.2501,73.0605,217100,1025,211.80,South Asia,ref-in-mh-MUM
+524,Africa,South Africa,ZA,Western Cape,,8017,-34.0515,18.6009,76300,365,209.04,Sub-Saharan Africa,ref-za-wc-CPT
+525,North America,Mexico,MX,Mexico City,,06016,19.6001,-99.2511,176000,835,210.78,LATAM,ref-mx-mxc
+526,North America,United States,US,Arizona,AZ,85016,33.6000,-112.2200,125000,585,213.68,West Coast,ref-us-az
+527,North America,United States,US,Georgia,GA,30316,33.9000,-84.5400,155000,735,210.88,South,ref-us-ga
+528,Europe,Italy,IT,Lazio,,00115,42.0500,12.6500,90000,430,209.30,Southern Europe,ref-it-laz
+529,Asia,China,CN,Beijing,,100015,40.0500,116.5400,265000,1265,209.49,East Asia,ref-cn-bjn
+530,South America,Argentina,AR,Buenos Aires,,1015,-34.7500,-58.5300,105000,500,210.00,South America,ref-ar-bue
+531,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+532,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+533,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+534,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+535,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+536,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+537,Europe,France,FR,Île-de-France,,75018,48.9955,2.5389,63900,300,213.00,Western Europe,ref-fr-idf-PAR
+538,Oceania,Australia,AU,New South Wales,NSW,2017,-33.9899,151.3495,92500,445,207.87,ANZ,ref-au-nsw-SYD
+539,North America,United States,US,Texas,TX,73318,30.4585,-97.8722,112100,530,211.51,South,ref-us-tx-AUS
+540,North America,United States,US,Florida,FL,33156,25.9501,-80.3815,147500,705,209.22,South,ref-us-fl-MIA
+541,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6805,-0.2611,107000,510,209.80,Western Europe,ref-uk-eng-LON
+542,Europe,Norway,NO,Oslo,,0167,60.0711,10.9495,28500,130,219.23,Nordics,ref-no-osl
+543,Asia,India,IN,Maharashtra,,400018,19.2601,73.0705,218100,1030,211.75,South Asia,ref-in-mh-MUM
+544,Africa,South Africa,ZA,Western Cape,,8018,-34.0615,18.6109,77300,370,208.92,Sub-Saharan Africa,ref-za-wc-CPT
+545,North America,Mexico,MX,Mexico City,,06017,19.6101,-99.2611,177000,840,210.71,LATAM,ref-mx-mxc
+546,North America,United States,US,Arizona,AZ,85017,33.6100,-112.2300,126000,590,213.56,West Coast,ref-us-az
+547,North America,United States,US,Georgia,GA,30317,33.9100,-84.5500,156000,740,210.81,South,ref-us-ga
+548,Europe,Italy,IT,Lazio,,00116,42.0600,12.6600,91000,435,209.20,Southern Europe,ref-it-laz
+549,Asia,China,CN,Beijing,,100016,40.0600,116.5500,266000,1270,209.45,East Asia,ref-cn-bjn
+550,South America,Argentina,AR,Buenos Aires,,1016,-34.7600,-58.5400,106000,505,209.90,South America,ref-ar-bue
+551,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+552,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+553,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+554,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+555,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+556,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+557,Europe,France,FR,Île-de-France,,75019,49.0055,2.5489,62900,295,213.22,Western Europe,ref-fr-idf-PAR
+558,Oceania,Australia,AU,New South Wales,NSW,2018,-33.9999,151.3595,93500,450,207.78,ANZ,ref-au-nsw-SYD
+559,North America,United States,US,Texas,TX,73319,30.4685,-97.8822,113100,535,211.40,South,ref-us-tx-AUS
+560,North America,United States,US,Florida,FL,33157,25.9601,-80.3915,148500,710,209.15,South,ref-us-fl-MIA
+561,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6905,-0.2711,108000,515,209.71,Western Europe,ref-uk-eng-LON
+562,Europe,Norway,NO,Oslo,,0168,60.0811,10.9595,27500,125,220.00,Nordics,ref-no-osl
+563,Asia,India,IN,Maharashtra,,400019,19.2701,73.0805,219100,1035,211.69,South Asia,ref-in-mh-MUM
+564,Africa,South Africa,ZA,Western Cape,,8019,-34.0715,18.6209,78300,375,208.80,Sub-Saharan Africa,ref-za-wc-CPT
+565,North America,Mexico,MX,Mexico City,,06018,19.6201,-99.2711,178000,845,210.65,LATAM,ref-mx-mxc
+566,North America,United States,US,Arizona,AZ,85018,33.6200,-112.2400,127000,595,213.45,West Coast,ref-us-az
+567,North America,United States,US,Georgia,GA,30318,33.9200,-84.5600,157000,745,210.74,South,ref-us-ga
+568,Europe,Italy,IT,Lazio,,00117,42.0700,12.6700,92000,440,209.09,Southern Europe,ref-it-laz
+569,Asia,China,CN,Beijing,,100017,40.0700,116.5600,267000,1275,209.41,East Asia,ref-cn-bjn
+570,South America,Argentina,AR,Buenos Aires,,1017,-34.7700,-58.5500,107000,510,209.80,South America,ref-ar-bue
+571,North America,United States,US,California,CA,90228,34.0381,-118.2354,162345,770,210.84,West Coast,ref-us-ca-LA
+572,North America,United States,US,New York,NY,10020,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+573,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+574,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+575,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+576,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+577,Europe,France,FR,Île-de-France,,75010,48.9155,2.4589,71900,340,211.47,Western Europe,ref-fr-idf-PAR
+578,Oceania,Australia,AU,New South Wales,NSW,2009,-33.9099,151.2695,84500,405,208.64,ANZ,ref-au-nsw-SYD
+579,North America,United States,US,Texas,TX,73310,30.3785,-97.7922,104100,490,212.45,South,ref-us-tx-AUS
+580,North America,United States,US,Florida,FL,33148,25.8701,-80.3015,139500,665,209.77,South,ref-us-fl-MIA
+581,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6005,-0.1811,99000,470,210.64,Western Europe,ref-uk-eng-LON
+582,Europe,Norway,NO,Oslo,,0159,59.9911,10.8695,36500,170,214.71,Nordics,ref-no-osl
+583,Asia,India,IN,Maharashtra,,400010,19.1801,72.9905,210100,990,212.22,South Asia,ref-in-mh-MUM
+584,Africa,South Africa,ZA,Western Cape,,8010,-33.9815,18.5309,69300,330,210.00,Sub-Saharan Africa,ref-za-wc-CPT
+585,North America,Mexico,MX,Mexico City,,06009,19.5301,-99.1811,169000,800,211.25,LATAM,ref-mx-mxc
+586,North America,United States,US,Arizona,AZ,85009,33.5300,-112.1500,118000,550,214.55,West Coast,ref-us-az
+587,North America,United States,US,Georgia,GA,30309,33.8300,-84.4700,148000,700,211.43,South,ref-us-ga
+588,Europe,Italy,IT,Lazio,,00108,41.9800,12.5800,83000,395,210.13,Southern Europe,ref-it-laz
+589,Asia,China,CN,Beijing,,100008,39.9800,116.4700,258000,1230,209.76,East Asia,ref-cn-bjn
+590,South America,Argentina,AR,Buenos Aires,,1008,-34.6800,-58.4600,98000,465,210.75,South America,ref-ar-bue
+591,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+592,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+593,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+594,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+595,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+596,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+597,Europe,France,FR,Île-de-France,,75012,48.9355,2.4789,69900,330,211.82,Western Europe,ref-fr-idf-PAR
+598,Oceania,Australia,AU,New South Wales,NSW,2011,-33.9299,151.2895,86500,415,208.43,ANZ,ref-au-nsw-SYD
+599,North America,United States,US,Texas,TX,73312,30.3985,-97.8122,106100,500,212.20,South,ref-us-tx-AUS
+600,North America,United States,US,Florida,FL,33150,25.8901,-80.3215,141500,675,209.63,South,ref-us-fl-MIA
+601,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6205,-0.2011,101000,480,210.42,Western Europe,ref-uk-eng-LON
+602,Europe,Norway,NO,Oslo,,0161,60.0111,10.8895,34500,160,215.62,Nordics,ref-no-osl
+603,Asia,India,IN,Maharashtra,,400012,19.2001,73.0105,212100,1000,212.10,South Asia,ref-in-mh-MUM
+604,Africa,South Africa,ZA,Western Cape,,8012,-34.0015,18.5509,71300,340,209.71,Sub-Saharan Africa,ref-za-wc-CPT
+605,North America,Mexico,MX,Mexico City,,06011,19.5501,-99.2011,171000,810,211.11,LATAM,ref-mx-mxc
+606,North America,United States,US,Arizona,AZ,85011,33.5500,-112.1700,120000,560,214.29,West Coast,ref-us-az
+607,North America,United States,US,Georgia,GA,30311,33.8500,-84.4900,150000,710,211.27,South,ref-us-ga
+608,Europe,Italy,IT,Lazio,,00110,42.0000,12.6000,85000,405,209.88,Southern Europe,ref-it-laz
+609,Asia,China,CN,Beijing,,100010,40.0000,116.4900,260000,1240,209.68,East Asia,ref-cn-bjn
+610,South America,Argentina,AR,Buenos Aires,,1010,-34.7000,-58.4800,100000,475,210.53,South America,ref-ar-bue
+611,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+612,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+613,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+614,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+615,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+616,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+617,Europe,France,FR,Île-de-France,,75013,48.9455,2.4889,68900,325,211.85,Western Europe,ref-fr-idf-PAR
+618,Oceania,Australia,AU,New South Wales,NSW,2012,-33.9399,151.2995,87500,420,208.33,ANZ,ref-au-nsw-SYD
+619,North America,United States,US,Texas,TX,73313,30.4085,-97.8222,107100,505,212.08,South,ref-us-tx-AUS
+620,North America,United States,US,Florida,FL,33151,25.9001,-80.3315,142500,680,209.56,South,ref-us-fl-MIA
+621,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6305,-0.2111,102000,485,210.31,Western Europe,ref-uk-eng-LON
+622,Europe,Norway,NO,Oslo,,0162,60.0211,10.8995,33500,155,216.13,Nordics,ref-no-osl
+623,Asia,India,IN,Maharashtra,,400013,19.2101,73.0205,213100,1005,212.04,South Asia,ref-in-mh-MUM
+624,Africa,South Africa,ZA,Western Cape,,8013,-34.0115,18.5609,72300,345,209.57,Sub-Saharan Africa,ref-za-wc-CPT
+625,North America,Mexico,MX,Mexico City,,06012,19.5601,-99.2111,172000,815,210.92,LATAM,ref-mx-mxc
+626,North America,United States,US,Arizona,AZ,85012,33.5600,-112.1800,121000,565,214.16,West Coast,ref-us-az
+627,North America,United States,US,Georgia,GA,30312,33.8600,-84.5000,151000,715,211.19,South,ref-us-ga
+628,Europe,Italy,IT,Lazio,,00111,42.0100,12.6100,86000,410,209.76,Southern Europe,ref-it-laz
+629,Asia,China,CN,Beijing,,100011,40.0100,116.5000,261000,1245,209.64,East Asia,ref-cn-bjn
+630,South America,Argentina,AR,Buenos Aires,,1011,-34.7100,-58.4900,101000,480,210.42,South America,ref-ar-bue
+631,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+632,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+633,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+634,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+635,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+636,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+637,Europe,France,FR,Île-de-France,,75014,48.9555,2.4989,67900,320,212.19,Western Europe,ref-fr-idf-PAR
+638,Oceania,Australia,AU,New South Wales,NSW,2013,-33.9499,151.3095,88500,425,208.24,ANZ,ref-au-nsw-SYD
+639,North America,United States,US,Texas,TX,73314,30.4185,-97.8322,108100,510,211.96,South,ref-us-tx-AUS
+640,North America,United States,US,Florida,FL,33152,25.9101,-80.3415,143500,685,209.49,South,ref-us-fl-MIA
+641,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6405,-0.2211,103000,490,210.20,Western Europe,ref-uk-eng-LON
+642,Europe,Norway,NO,Oslo,,0163,60.0311,10.9095,32500,150,216.67,Nordics,ref-no-osl
+643,Asia,India,IN,Maharashtra,,400014,19.2201,73.0305,214100,1010,211.98,South Asia,ref-in-mh-MUM
+644,Africa,South Africa,ZA,Western Cape,,8014,-34.0215,18.5709,73300,350,209.43,Sub-Saharan Africa,ref-za-wc-CPT
+645,North America,Mexico,MX,Mexico City,,06013,19.5701,-99.2211,173000,820,210.98,LATAM,ref-mx-mxc
+646,North America,United States,US,Arizona,AZ,85013,33.5700,-112.1900,122000,570,214.04,West Coast,ref-us-az
+647,North America,United States,US,Georgia,GA,30313,33.8700,-84.5100,152000,720,211.11,South,ref-us-ga
+648,Europe,Italy,IT,Lazio,,00112,42.0200,12.6200,87000,415,209.64,Southern Europe,ref-it-laz
+649,Asia,China,CN,Beijing,,100012,40.0200,116.5100,262000,1250,209.60,East Asia,ref-cn-bjn
+650,South America,Argentina,AR,Buenos Aires,,1012,-34.7200,-58.5000,102000,485,210.31,South America,ref-ar-bue
+651,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+652,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+653,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+654,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+655,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+656,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+657,Europe,France,FR,Île-de-France,,75015,48.9655,2.5089,66900,315,212.38,Western Europe,ref-fr-idf-PAR
+658,Oceania,Australia,AU,New South Wales,NSW,2014,-33.9599,151.3195,89500,430,208.14,ANZ,ref-au-nsw-SYD
+659,North America,United States,US,Texas,TX,73315,30.4285,-97.8422,109100,515,211.84,South,ref-us-tx-AUS
+660,North America,United States,US,Florida,FL,33153,25.9201,-80.3515,144500,690,209.42,South,ref-us-fl-MIA
+661,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6505,-0.2311,104000,495,210.10,Western Europe,ref-uk-eng-LON
+662,Europe,Norway,NO,Oslo,,0164,60.0411,10.9195,31500,145,217.24,Nordics,ref-no-osl
+663,Asia,India,IN,Maharashtra,,400015,19.2301,73.0405,215100,1015,211.92,South Asia,ref-in-mh-MUM
+664,Africa,South Africa,ZA,Western Cape,,8015,-34.0315,18.5809,74300,355,209.30,Sub-Saharan Africa,ref-za-wc-CPT
+665,North America,Mexico,MX,Mexico City,,06014,19.5801,-99.2311,174000,825,210.91,LATAM,ref-mx-mxc
+666,North America,United States,US,Arizona,AZ,85014,33.5800,-112.2000,123000,575,213.91,West Coast,ref-us-az
+667,North America,United States,US,Georgia,GA,30314,33.8800,-84.5200,153000,725,211.03,South,ref-us-ga
+668,Europe,Italy,IT,Lazio,,00113,42.0300,12.6300,88000,420,209.52,Southern Europe,ref-it-laz
+669,Asia,China,CN,Beijing,,100013,40.0300,116.5200,263000,1255,209.56,East Asia,ref-cn-bjn
+670,South America,Argentina,AR,Buenos Aires,,1013,-34.7300,-58.5100,103000,490,210.20,South America,ref-ar-bue
+671,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+672,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+673,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+674,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+675,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+676,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+677,Europe,France,FR,Île-de-France,,75016,48.9755,2.5189,65900,310,212.58,Western Europe,ref-fr-idf-PAR
+678,Oceania,Australia,AU,New South Wales,NSW,2015,-33.9699,151.3295,90500,435,208.05,ANZ,ref-au-nsw-SYD
+679,North America,United States,US,Texas,TX,73316,30.4385,-97.8522,110100,520,211.73,South,ref-us-tx-AUS
+680,North America,United States,US,Florida,FL,33154,25.9301,-80.3615,145500,695,209.35,South,ref-us-fl-MIA
+681,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6605,-0.2411,105000,500,210.00,Western Europe,ref-uk-eng-LON
+682,Europe,Norway,NO,Oslo,,0165,60.0511,10.9295,30500,140,217.86,Nordics,ref-no-osl
+683,Asia,India,IN,Maharashtra,,400016,19.2401,73.0505,216100,1020,211.86,South Asia,ref-in-mh-MUM
+684,Africa,South Africa,ZA,Western Cape,,8016,-34.0415,18.5909,75300,360,209.17,Sub-Saharan Africa,ref-za-wc-CPT
+685,North America,Mexico,MX,Mexico City,,06015,19.5901,-99.2411,175000,830,210.84,LATAM,ref-mx-mxc
+686,North America,United States,US,Arizona,AZ,85015,33.5900,-112.2100,124000,580,213.79,West Coast,ref-us-az
+687,North America,United States,US,Georgia,GA,30315,33.8900,-84.5300,154000,730,210.96,South,ref-us-ga
+688,Europe,Italy,IT,Lazio,,00114,42.0400,12.6400,89000,425,209.41,Southern Europe,ref-it-laz
+689,Asia,China,CN,Beijing,,100014,40.0400,116.5300,264000,1260,209.52,East Asia,ref-cn-bjn
+690,South America,Argentina,AR,Buenos Aires,,1014,-34.7400,-58.5200,104000,495,210.10,South America,ref-ar-bue
+691,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+692,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+693,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+694,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+695,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+696,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+697,Europe,France,FR,Île-de-France,,75017,48.9855,2.5289,64900,305,212.79,Western Europe,ref-fr-idf-PAR
+698,Oceania,Australia,AU,New South Wales,NSW,2016,-33.9799,151.3395,91500,440,207.95,ANZ,ref-au-nsw-SYD
+699,North America,United States,US,Texas,TX,73317,30.4485,-97.8622,111100,525,211.62,South,ref-us-tx-AUS
+700,North America,United States,US,Florida,FL,33155,25.9401,-80.3715,146500,700,209.29,South,ref-us-fl-MIA
+701,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6705,-0.2511,106000,505,209.90,Western Europe,ref-uk-eng-LON
+702,Europe,Norway,NO,Oslo,,0166,60.0611,10.9395,29500,135,218.52,Nordics,ref-no-osl
+703,Asia,India,IN,Maharashtra,,400017,19.2501,73.0605,217100,1025,211.80,South Asia,ref-in-mh-MUM
+704,Africa,South Africa,ZA,Western Cape,,8017,-34.0515,18.6009,76300,365,209.04,Sub-Saharan Africa,ref-za-wc-CPT
+705,North America,Mexico,MX,Mexico City,,06016,19.6001,-99.2511,176000,835,210.78,LATAM,ref-mx-mxc
+706,North America,United States,US,Arizona,AZ,85016,33.6000,-112.2200,125000,585,213.68,West Coast,ref-us-az
+707,North America,United States,US,Georgia,GA,30316,33.9000,-84.5400,155000,735,210.88,South,ref-us-ga
+708,Europe,Italy,IT,Lazio,,00115,42.0500,12.6500,90000,430,209.30,Southern Europe,ref-it-laz
+709,Asia,China,CN,Beijing,,100015,40.0500,116.5400,265000,1265,209.49,East Asia,ref-cn-bjn
+710,South America,Argentina,AR,Buenos Aires,,1015,-34.7500,-58.5300,105000,500,210.00,South America,ref-ar-bue
+711,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+712,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+713,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+714,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+715,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+716,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+717,Europe,France,FR,Île-de-France,,75018,48.9955,2.5389,63900,300,213.00,Western Europe,ref-fr-idf-PAR
+718,Oceania,Australia,AU,New South Wales,NSW,2017,-33.9899,151.3495,92500,445,207.87,ANZ,ref-au-nsw-SYD
+719,North America,United States,US,Texas,TX,73318,30.4585,-97.8722,112100,530,211.51,South,ref-us-tx-AUS
+720,North America,United States,US,Florida,FL,33156,25.9501,-80.3815,147500,705,209.22,South,ref-us-fl-MIA
+721,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6805,-0.2611,107000,510,209.80,Western Europe,ref-uk-eng-LON
+722,Europe,Norway,NO,Oslo,,0167,60.0711,10.9495,28500,130,219.23,Nordics,ref-no-osl
+723,Asia,India,IN,Maharashtra,,400018,19.2601,73.0705,218100,1030,211.75,South Asia,ref-in-mh-MUM
+724,Africa,South Africa,ZA,Western Cape,,8018,-34.0615,18.6109,77300,370,208.92,Sub-Saharan Africa,ref-za-wc-CPT
+725,North America,Mexico,MX,Mexico City,,06017,19.6101,-99.2611,177000,840,210.71,LATAM,ref-mx-mxc
+726,North America,United States,US,Arizona,AZ,85017,33.6100,-112.2300,126000,590,213.56,West Coast,ref-us-az
+727,North America,United States,US,Georgia,GA,30317,33.9100,-84.5500,156000,740,210.81,South,ref-us-ga
+728,Europe,Italy,IT,Lazio,,00116,42.0600,12.6600,91000,435,209.20,Southern Europe,ref-it-laz
+729,Asia,China,CN,Beijing,,100016,40.0600,116.5500,266000,1270,209.45,East Asia,ref-cn-bjn
+730,South America,Argentina,AR,Buenos Aires,,1016,-34.7600,-58.5400,106000,505,209.90,South America,ref-ar-bue
+731,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+732,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+733,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+734,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+735,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+736,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+737,Europe,France,FR,Île-de-France,,75019,49.0055,2.5489,62900,295,213.22,Western Europe,ref-fr-idf-PAR
+738,Oceania,Australia,AU,New South Wales,NSW,2018,-33.9999,151.3595,93500,450,207.78,ANZ,ref-au-nsw-SYD
+739,North America,United States,US,Texas,TX,73319,30.4685,-97.8822,113100,535,211.40,South,ref-us-tx-AUS
+740,North America,United States,US,Florida,FL,33157,25.9601,-80.3915,148500,710,209.15,South,ref-us-fl-MIA
+741,Europe,United Kingdom,GB,England,ENG,SW1A 0AD,51.6905,-0.2711,108000,515,209.71,Western Europe,ref-uk-eng-LON
+742,Europe,Norway,NO,Oslo,,0168,60.0811,10.9595,27500,125,220.00,Nordics,ref-no-osl
+743,Asia,India,IN,Maharashtra,,400019,19.2701,73.0805,219100,1035,211.69,South Asia,ref-in-mh-MUM
+744,Africa,South Africa,ZA,Western Cape,,8019,-34.0715,18.6209,78300,375,208.80,Sub-Saharan Africa,ref-za-wc-CPT
+745,North America,Mexico,MX,Mexico City,,06018,19.6201,-99.2711,178000,845,210.65,LATAM,ref-mx-mxc
+746,North America,United States,US,Arizona,AZ,85018,33.6200,-112.2400,127000,595,213.45,West Coast,ref-us-az
+747,North America,United States,US,Georgia,GA,30318,33.9200,-84.5600,157000,745,210.74,South,ref-us-ga
+748,Europe,Italy,IT,Lazio,,00117,42.0700,12.6700,92000,440,209.09,Southern Europe,ref-it-laz
+749,Asia,China,CN,Beijing,,100017,40.0700,116.5600,267000,1275,209.41,East Asia,ref-cn-bjn
+750,South America,Argentina,AR,Buenos Aires,,1017,-34.7700,-58.5500,107000,510,209.80,South America,ref-ar-bue
+751,North America,United States,US,California,CA,90218,34.0381,-118.2354,160345,760,210.98,West Coast,ref-us-ca-LA
+752,North America,United States,US,New York,NY,10010,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+753,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+754,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+755,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+756,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+771,North America,United States,US,California,CA,90219,34.0281,-118.2254,161345,765,210.91,West Coast,ref-us-ca-LA
+772,North America,United States,US,New York,NY,10011,40.7901,-74.1238,239901,1145,209.52,North East,ref-us-ny-NYC
+773,Europe,Germany,DE,Bavaria,,80341,48.2422,11.6877,100500,475,211.58,Western Europe,ref-de-by-MUN
+774,Asia,Japan,JP,Tokyo,,100-0011,35.7905,139.7899,310200,1445,214.67,East Asia,ref-jp-tko
+775,North America,Canada,CA,Ontario,ON,M5V 2F9,43.7301,-79.4555,130750,625,209.20,North America,ref-ca-on-TOR
+776,South America,Brazil,BR,São Paulo,,01310-110,-23.5998,-46.7401,169400,805,210.43,South America,ref-br-sp-SAO
+791,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+792,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+793,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+794,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+795,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+796,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+811,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+812,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+813,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+814,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+815,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+816,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+831,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+832,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+833,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+834,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+835,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+836,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+851,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+852,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+853,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+854,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+855,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+856,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+871,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+872,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+873,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+874,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+875,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+876,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+891,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+892,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+893,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+894,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+895,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+896,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+911,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+912,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+913,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+914,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+915,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+916,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+931,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+932,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+933,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+934,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+935,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+936,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+951,North America,United States,US,California,CA,90228,34.0381,-118.2354,162345,770,210.84,West Coast,ref-us-ca-LA
+952,North America,United States,US,New York,NY,10020,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+953,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+954,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+955,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+956,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+971,North America,United States,US,California,CA,90219,34.0281,-118.2254,161345,765,210.91,West Coast,ref-us-ca-LA
+972,North America,United States,US,New York,NY,10011,40.7901,-74.1238,239901,1145,209.52,North East,ref-us-ny-NYC
+973,Europe,Germany,DE,Bavaria,,80341,48.2422,11.6877,100500,475,211.58,Western Europe,ref-de-by-MUN
+974,Asia,Japan,JP,Tokyo,,100-0011,35.7905,139.7899,310200,1445,214.67,East Asia,ref-jp-tko
+975,North America,Canada,CA,Ontario,ON,M5V 2F9,43.7301,-79.4555,130750,625,209.20,North America,ref-ca-on-TOR
+976,South America,Brazil,BR,São Paulo,,01310-110,-23.5998,-46.7401,169400,805,210.43,South America,ref-br-sp-SAO
+991,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+992,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+993,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+994,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+995,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+996,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+1011,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+1012,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+1013,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+1014,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+1015,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+1016,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+1031,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+1032,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+1033,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+1034,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+1035,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+1036,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+1051,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+1052,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+1053,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+1054,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+1055,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+1056,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+1071,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+1072,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+1073,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+1074,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+1075,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+1076,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+1091,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+1092,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+1093,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+1094,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+1095,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+1096,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+1111,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+1112,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+1113,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+1114,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+1115,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+1116,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+1131,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+1132,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+1133,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+1134,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+1135,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+1136,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+1151,North America,United States,US,California,CA,90228,34.0381,-118.2354,162345,770,210.84,West Coast,ref-us-ca-LA
+1152,North America,United States,US,New York,NY,10020,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+1153,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+1154,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+1155,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+1156,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+1171,North America,United States,US,California,CA,90219,34.0281,-118.2254,161345,765,210.91,West Coast,ref-us-ca-LA
+1172,North America,United States,US,New York,NY,10011,40.7901,-74.1238,239901,1145,209.52,North East,ref-us-ny-NYC
+1173,Europe,Germany,DE,Bavaria,,80341,48.2422,11.6877,100500,475,211.58,Western Europe,ref-de-by-MUN
+1174,Asia,Japan,JP,Tokyo,,100-0011,35.7905,139.7899,310200,1445,214.67,East Asia,ref-jp-tko
+1175,North America,Canada,CA,Ontario,ON,M5V 2F9,43.7301,-79.4555,130750,625,209.20,North America,ref-ca-on-TOR
+1176,South America,Brazil,BR,São Paulo,,01310-110,-23.5998,-46.7401,169400,805,210.43,South America,ref-br-sp-SAO
+1191,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+1192,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+1193,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+1194,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+1195,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+1196,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+1211,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+1212,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+1213,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+1214,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+1215,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+1216,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+1231,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+1232,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+1233,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+1234,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+1235,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+1236,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+1251,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+1252,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+1253,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+1254,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+1255,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+1256,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+1271,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+1272,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+1273,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+1274,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+1275,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+1276,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+1291,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+1292,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+1293,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+1294,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko
+1295,North America,Canada,CA,Ontario,ON,M5V 2G5,43.7901,-79.5155,136750,655,208.78,North America,ref-ca-on-TOR
+1296,South America,Brazil,BR,São Paulo,,01310-116,-23.6598,-46.8001,163400,775,210.84,South America,ref-br-sp-SAO
+1311,North America,United States,US,California,CA,90226,33.9581,-118.1554,168345,800,210.43,West Coast,ref-us-ca-LA
+1312,North America,United States,US,New York,NY,10018,40.8601,-74.1938,232901,1110,209.82,North East,ref-us-ny-NYC
+1313,Europe,Germany,DE,Bavaria,,80348,48.3122,11.7577,93500,440,212.50,Western Europe,ref-de-by-MUN
+1314,Asia,Japan,JP,Tokyo,,100-0018,35.8605,139.8599,317200,1480,214.32,East Asia,ref-jp-tko
+1315,North America,Canada,CA,Ontario,ON,M5V 2G6,43.8001,-79.5255,137750,660,208.71,North America,ref-ca-on-TOR
+1316,South America,Brazil,BR,São Paulo,,01310-117,-23.6698,-46.8101,162400,770,210.91,South America,ref-br-sp-SAO
+1331,North America,United States,US,California,CA,90227,33.9481,-118.1454,169345,805,210.37,West Coast,ref-us-ca-LA
+1332,North America,United States,US,New York,NY,10019,40.8701,-74.2038,231901,1105,209.86,North East,ref-us-ny-NYC
+1333,Europe,Germany,DE,Bavaria,,80349,48.3222,11.7677,92500,435,212.64,Western Europe,ref-de-by-MUN
+1334,Asia,Japan,JP,Tokyo,,100-0019,35.8705,139.8699,318200,1485,214.28,East Asia,ref-jp-tko
+1335,North America,Canada,CA,Ontario,ON,M5V 2G7,43.8101,-79.5355,138750,665,208.65,North America,ref-ca-on-TOR
+1336,South America,Brazil,BR,São Paulo,,01310-118,-23.6798,-46.8201,161400,765,211.00,South America,ref-br-sp-SAO
+1351,North America,United States,US,California,CA,90228,34.0381,-118.2354,162345,770,210.84,West Coast,ref-us-ca-LA
+1352,North America,United States,US,New York,NY,10020,40.7801,-74.1138,240901,1150,209.48,North East,ref-us-ny-NYC
+1353,Europe,Germany,DE,Bavaria,,80340,48.2322,11.6777,101500,480,211.46,Western Europe,ref-de-by-MUN
+1354,Asia,Japan,JP,Tokyo,,100-0010,35.7805,139.7799,309200,1440,214.72,East Asia,ref-jp-tko
+1355,North America,Canada,CA,Ontario,ON,M5V 2F8,43.7201,-79.4455,129750,620,209.27,North America,ref-ca-on-TOR
+1356,South America,Brazil,BR,São Paulo,,01310-109,-23.5898,-46.7301,170400,810,210.37,South America,ref-br-sp-SAO
+1371,North America,United States,US,California,CA,90219,34.0281,-118.2254,161345,765,210.91,West Coast,ref-us-ca-LA
+1372,North America,United States,US,New York,NY,10011,40.7901,-74.1238,239901,1145,209.52,North East,ref-us-ny-NYC
+1373,Europe,Germany,DE,Bavaria,,80341,48.2422,11.6877,100500,475,211.58,Western Europe,ref-de-by-MUN
+1374,Asia,Japan,JP,Tokyo,,100-0011,35.7905,139.7899,310200,1445,214.67,East Asia,ref-jp-tko
+1375,North America,Canada,CA,Ontario,ON,M5V 2F9,43.7301,-79.4555,130750,625,209.20,North America,ref-ca-on-TOR
+1376,South America,Brazil,BR,São Paulo,,01310-110,-23.5998,-46.7401,169400,805,210.43,South America,ref-br-sp-SAO
+1391,North America,United States,US,California,CA,90220,34.0181,-118.2154,162345,770,210.84,West Coast,ref-us-ca-LA
+1392,North America,United States,US,New York,NY,10012,40.8001,-74.1338,238901,1140,209.56,North East,ref-us-ny-NYC
+1393,Europe,Germany,DE,Bavaria,,80342,48.2522,11.6977,99500,470,211.70,Western Europe,ref-de-by-MUN
+1394,Asia,Japan,JP,Tokyo,,100-0012,35.8005,139.7999,311200,1450,214.62,East Asia,ref-jp-tko
+1395,North America,Canada,CA,Ontario,ON,M5V 2G0,43.7401,-79.4655,131750,630,209.13,North America,ref-ca-on-TOR
+1396,South America,Brazil,BR,São Paulo,,01310-111,-23.6098,-46.7501,168400,800,210.50,South America,ref-br-sp-SAO
+1411,North America,United States,US,California,CA,90221,34.0081,-118.2054,163345,775,210.77,West Coast,ref-us-ca-LA
+1412,North America,United States,US,New York,NY,10013,40.8101,-74.1438,237901,1135,209.60,North East,ref-us-ny-NYC
+1413,Europe,Germany,DE,Bavaria,,80343,48.2622,11.7077,98500,465,211.83,Western Europe,ref-de-by-MUN
+1414,Asia,Japan,JP,Tokyo,,100-0013,35.8105,139.8099,312200,1455,214.57,East Asia,ref-jp-tko
+1415,North America,Canada,CA,Ontario,ON,M5V 2G1,43.7501,-79.4755,132750,635,209.06,North America,ref-ca-on-TOR
+1416,South America,Brazil,BR,São Paulo,,01310-112,-23.6198,-46.7601,167400,795,210.57,South America,ref-br-sp-SAO
+1431,North America,United States,US,California,CA,90222,33.9981,-118.1954,164345,780,210.70,West Coast,ref-us-ca-LA
+1432,North America,United States,US,New York,NY,10014,40.8201,-74.1538,236901,1130,209.65,North East,ref-us-ny-NYC
+1433,Europe,Germany,DE,Bavaria,,80344,48.2722,11.7177,97500,460,211.96,Western Europe,ref-de-by-MUN
+1434,Asia,Japan,JP,Tokyo,,100-0014,35.8205,139.8199,313200,1460,214.52,East Asia,ref-jp-tko
+1435,North America,Canada,CA,Ontario,ON,M5V 2G2,43.7601,-79.4855,133750,640,209.00,North America,ref-ca-on-TOR
+1436,South America,Brazil,BR,São Paulo,,01310-113,-23.6298,-46.7701,166400,790,210.63,South America,ref-br-sp-SAO
+1451,North America,United States,US,California,CA,90223,33.9881,-118.1854,165345,785,210.63,West Coast,ref-us-ca-LA
+1452,North America,United States,US,New York,NY,10015,40.8301,-74.1638,235901,1125,209.70,North East,ref-us-ny-NYC
+1453,Europe,Germany,DE,Bavaria,,80345,48.2822,11.7277,96500,455,212.09,Western Europe,ref-de-by-MUN
+1454,Asia,Japan,JP,Tokyo,,100-0015,35.8305,139.8299,314200,1465,214.47,East Asia,ref-jp-tko
+1455,North America,Canada,CA,Ontario,ON,M5V 2G3,43.7701,-79.4955,134750,645,208.91,North America,ref-ca-on-TOR
+1456,South America,Brazil,BR,São Paulo,,01310-114,-23.6398,-46.7801,165400,785,210.70,South America,ref-br-sp-SAO
+1471,North America,United States,US,California,CA,90224,33.9781,-118.1754,166345,790,210.56,West Coast,ref-us-ca-LA
+1472,North America,United States,US,New York,NY,10016,40.8401,-74.1738,234901,1120,209.73,North East,ref-us-ny-NYC
+1473,Europe,Germany,DE,Bavaria,,80346,48.2922,11.7377,95500,450,212.22,Western Europe,ref-de-by-MUN
+1474,Asia,Japan,JP,Tokyo,,100-0016,35.8405,139.8399,315200,1470,214.42,East Asia,ref-jp-tko
+1475,North America,Canada,CA,Ontario,ON,M5V 2G4,43.7801,-79.5055,135750,650,208.85,North America,ref-ca-on-TOR
+1476,South America,Brazil,BR,São Paulo,,01310-115,-23.6498,-46.7901,164400,780,210.77,South America,ref-br-sp-SAO
+1491,North America,United States,US,California,CA,90225,33.9681,-118.1654,167345,795,210.50,West Coast,ref-us-ca-LA
+1492,North America,United States,US,New York,NY,10017,40.8501,-74.1838,233901,1115,209.78,North East,ref-us-ny-NYC
+1493,Europe,Germany,DE,Bavaria,,80347,48.3022,11.7477,94500,445,212.36,Western Europe,ref-de-by-MUN
+1494,Asia,Japan,JP,Tokyo,,100-0017,35.8505,139.8499,316200,1475,214.37,East Asia,ref-jp-tko

@@ -1631,7 +1631,8 @@
                     "funnel",
                     "custom",
                     "treemap",
-                    "gauge"
+                    "gauge",
+                    "map"
                 ],
                 "type": "string"
             },
@@ -3487,8 +3488,54 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "PreviousPeriod": {
+                "properties": {
+                    "periodOffset": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["previousPeriod"],
+                        "nullable": false
+                    }
+                },
+                "required": ["granularity", "type"],
+                "type": "object"
+            },
+            "PeriodOverPeriodComparison": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PreviousPeriod"
+                    },
+                    {
+                        "properties": {
+                            "field": {
+                                "properties": {
+                                    "table": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["table", "name"],
+                                "type": "object"
+                            }
+                        },
+                        "required": ["field"],
+                        "type": "object"
+                    }
+                ]
+            },
             "MetricQuery": {
                 "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -4614,6 +4661,12 @@
                     "color": {
                         "type": "string"
                     },
+                    "maxFieldId": {
+                        "type": "string"
+                    },
+                    "minFieldId": {
+                        "type": "string"
+                    },
                     "max": {
                         "type": "number",
                         "format": "double"
@@ -4628,6 +4681,9 @@
             },
             "GaugeChart": {
                 "properties": {
+                    "customLabel": {
+                        "type": "string"
+                    },
                     "sections": {
                         "items": {
                             "$ref": "#/components/schemas/GaugeSection"
@@ -4636,6 +4692,9 @@
                     },
                     "showAxisLabels": {
                         "type": "boolean"
+                    },
+                    "maxFieldId": {
+                        "type": "string"
                     },
                     "max": {
                         "type": "number",
@@ -4658,6 +4717,85 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/ChartType.GAUGE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.MAP": {
+                "enum": ["map"],
+                "type": "string"
+            },
+            "MapChartLocation": {
+                "enum": ["USA", "USA_COUNTIES", "world", "europe", "custom"],
+                "type": "string"
+            },
+            "MapChartType": {
+                "enum": ["scatter", "area"],
+                "type": "string"
+            },
+            "MapChart": {
+                "properties": {
+                    "maxBubbleSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "minBubbleSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultCenterLon": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultCenterLat": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "defaultZoom": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "colorRange": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "valueFieldId": {
+                        "type": "string"
+                    },
+                    "locationFieldId": {
+                        "type": "string"
+                    },
+                    "longitudeFieldId": {
+                        "type": "string"
+                    },
+                    "latitudeFieldId": {
+                        "type": "string"
+                    },
+                    "locationType": {
+                        "$ref": "#/components/schemas/MapChartType"
+                    },
+                    "customGeoJsonUrl": {
+                        "type": "string"
+                    },
+                    "mapType": {
+                        "$ref": "#/components/schemas/MapChartLocation"
+                    }
+                },
+                "type": "object"
+            },
+            "MapChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/MapChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.MAP"
                     }
                 },
                 "required": ["type"],
@@ -4688,6 +4826,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
                     }
                 ]
             },
@@ -7395,6 +7536,195 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "ranking": {
+                                                        "properties": {
+                                                            "topMatchingFields": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "tableName": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "fieldType",
+                                                                        "label",
+                                                                        "tableName",
+                                                                        "name"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "exploreSearchResults": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "label",
+                                                                        "name"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "searchQuery": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "searchQuery"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "ranking": {
+                                                        "properties": {
+                                                            "searchQueries": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "pagination": {
+                                                                            "properties": {
+                                                                                "totalPageCount": {
+                                                                                    "type": "number",
+                                                                                    "format": "double"
+                                                                                },
+                                                                                "totalResults": {
+                                                                                    "type": "number",
+                                                                                    "format": "double"
+                                                                                },
+                                                                                "pageSize": {
+                                                                                    "type": "number",
+                                                                                    "format": "double"
+                                                                                },
+                                                                                "page": {
+                                                                                    "type": "number",
+                                                                                    "format": "double"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "totalPageCount",
+                                                                                "totalResults",
+                                                                                "pageSize",
+                                                                                "page"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "results": {
+                                                                            "items": {
+                                                                                "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "label": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "name": {
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                },
+                                                                                "required": [
+                                                                                    "fieldType",
+                                                                                    "label",
+                                                                                    "tableName",
+                                                                                    "name"
+                                                                                ],
+                                                                                "type": "object"
+                                                                            },
+                                                                            "type": "array"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "results",
+                                                                        "label"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "searchQueries"
+                                                        ],
+                                                        "type": "object"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
@@ -13035,7 +13365,8 @@
                     "funnel",
                     "treemap",
                     "gauge",
-                    "custom"
+                    "custom",
+                    "map"
                 ],
                 "type": "string"
             },
@@ -14823,6 +15154,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
                     },
@@ -19704,6 +20038,23 @@
                 "required": ["enabled"],
                 "type": "object"
             },
+            "SvgResponse": {
+                "properties": {
+                    "__isSvg__": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    },
+                    "__svg__": {
+                        "type": "string"
+                    }
+                },
+                "required": ["__isSvg__", "__svg__"],
+                "type": "object"
+            },
+            "GeoJsonResponse": {
+                "$ref": "#/components/schemas/Record_string.unknown_"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -21374,6 +21725,9 @@
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
                     }
                 },
                 "required": [
@@ -21399,6 +21753,9 @@
                     },
                     {
                         "properties": {
+                            "periodOverPeriod": {
+                                "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                            },
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
                             },
@@ -22599,7 +22956,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2194.0",
+        "version": "0.2207.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33644,6 +34001,54 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/geojson-proxy": {
+            "get": {
+                "operationId": "getGeoJson",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SvgResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/GeoJsonResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Proxies external GeoJSON/TopoJSON/SVG files to bypass CORS restrictions",
+                "tags": ["Map"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the URL of the GeoJSON or SVG file to fetch",
+                        "in": "query",
+                        "name": "url",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores": {

@@ -46,6 +46,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         style?: CSSProperties;
         frozen?: boolean;
         isVisible?: boolean;
+        isReadOnly?: boolean; // For computed/derived columns like period-over-period
     };
 };
 
