@@ -295,8 +295,8 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         savedProject?.dbtConnection?.personal_access_token !== undefined
             ? 'personal_access_token'
             : githubConfig?.enabled
-              ? 'installation_id'
-              : 'personal_access_token');
+            ? 'installation_id'
+            : 'personal_access_token');
 
     useEffect(() => {
         if (formAuthorizationMethod !== authorizationMethod) {
@@ -337,13 +337,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 </Text>
                             ) : !isOAuthAvailable ? (
                                 <Text>
-                                    OAuth requires organization-level GitHub integration.{' '}
-                                    <Anchor
-                                        href="/generalSettings/integrations"
-                                        target="_blank"
-                                    >
-                                        Set this up in Settings → Integrations
-                                    </Anchor>
+                                    OAuth requires organization-level GitHub
+                                    integration. Please contact the
+                                    administrator to set this up.
                                 </Text>
                             ) : undefined
                         }
