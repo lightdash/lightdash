@@ -1,3 +1,10 @@
+## [0.2209.4](https://github.com/lightdash/lightdash/compare/0.2209.3...0.2209.4) (2025-11-26)
+
+
+### Bug Fixes
+
+* race condition on map rendering ([#18361](https://github.com/lightdash/lightdash/issues/18361)) ([121b409](https://github.com/lightdash/lightdash/commit/121b4097f8333663e2395dab1ae92fe157fde989))
+
 ## [0.2209.3](https://github.com/lightdash/lightdash/compare/0.2209.2...0.2209.3) (2025-11-26)
 
 
