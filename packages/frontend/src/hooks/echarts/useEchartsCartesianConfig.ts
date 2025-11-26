@@ -2005,7 +2005,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    const series = useMemo(() => {
+    const baseSeries = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
@@ -2037,6 +2037,151 @@ const useEchartsCartesianConfig = (
         pivotValuesColumnsMap,
         parameters,
     ]);
+
+    // Generate period-over-period comparison series
+    // Creates dashed line series for _previous suffixed metrics returned by the backend
+    const series = useMemo(() => {
+        if (!resultsData?.metricQuery?.periodOverPeriod || !baseSeries.length) {
+            return baseSeries;
+        }
+
+        const periodOverPeriod = resultsData.metricQuery.periodOverPeriod;
+
+        // Find metrics that have _previous counterparts in the data
+        const metrics = resultsData.metricQuery?.metrics || [];
+        const firstRow = resultsData.rows?.[0];
+        if (!firstRow) return baseSeries;
+
+        const previousSeriesList: { index: number; series: EChartsSeries }[] =
+            [];
+
+        baseSeries.forEach((serie, index) => {
+            // Skip series without proper encode configuration
+            const xField = serie.encode?.x;
+            const yField = serie.encode?.y;
+            if (!xField || !yField) return;
+            if (!metrics.includes(yField)) return;
+
+            // Check if _previous data exists
+            const previousFieldKey = `${yField}_previous`;
+            if (!firstRow[previousFieldKey]) return;
+
+            // Get the metric display name from dimensions
+            const metricDisplayName =
+                serie.dimensions?.[1]?.displayName || serie.name || yField;
+
+            // Build period label based on granularity and offset
+            const periodOffset = periodOverPeriod.periodOffset ?? 1;
+            const granularity = periodOverPeriod.granularity;
+            const periodLabel =
+                periodOffset === 1
+                    ? `Previous ${granularity.toLowerCase()}`
+                    : `${periodOffset} ${granularity.toLowerCase()}s ago`;
+
+            // Create a new series for the previous period data
+            // Keep the same chart type as sibling, with visual distinction
+            const seriesType = serie.type || CartesianSeriesType.LINE;
+            const isBarType = seriesType === CartesianSeriesType.BAR;
+            const isLineType = seriesType === CartesianSeriesType.LINE;
+            const isAreaChart = isLineType && !!serie.areaStyle;
+
+            const previousSeries: EChartsSeries = {
+                ...serie,
+                name: `${metricDisplayName} (${periodLabel})`,
+                encode: {
+                    x: xField,
+                    y: previousFieldKey,
+                    tooltip: [previousFieldKey],
+                    seriesName: previousFieldKey,
+                    // Preserve xRef and yRef from original series for color config
+                    xRef: serie.encode?.xRef,
+                    yRef: serie.encode?.yRef
+                        ? {
+                              ...serie.encode.yRef,
+                              field: previousFieldKey,
+                          }
+                        : { field: previousFieldKey },
+                },
+                // Keep same type as sibling
+                type: seriesType,
+                // Style based on chart type for visual distinction
+                ...(isLineType &&
+                    !isAreaChart && {
+                        lineStyle: {
+                            type: 'dashed',
+                            width: 1.4,
+                            opacity: 0.7,
+                        },
+                    }),
+                ...(isBarType && {
+                    itemStyle: {
+                        opacity: 0.5,
+                    },
+                }),
+                // For area charts, keep areaStyle with lower opacity
+                ...(isAreaChart && {
+                    areaStyle: {
+                        ...serie.areaStyle,
+                        opacity: 0.3,
+                    },
+                    lineStyle: {
+                        type: 'dashed',
+                        width: 1.4,
+                    },
+                }),
+                // Remove area style only for non-area line charts
+                ...(!isAreaChart && { areaStyle: undefined }),
+                // Update dimensions for tooltip
+                dimensions: [
+                    serie.dimensions?.[0] || {
+                        name: xField,
+                        displayName: serie.dimensions?.[0]?.displayName || '',
+                    },
+                    {
+                        name: previousFieldKey,
+                        displayName: `${metricDisplayName} (${periodLabel})`,
+                    },
+                ],
+                // Show symbols for line types (not area)
+                ...(isLineType &&
+                    !isAreaChart && {
+                        showSymbol: false,
+                    }),
+                // Metadata for period-over-period: link to sibling series index
+                periodOverPeriodMetadata: {
+                    siblingSeriesIndex: index,
+                    periodOffset,
+                    granularity,
+                },
+            };
+
+            previousSeriesList.push({ index, series: previousSeries });
+        });
+
+        // Interleave previous series with their siblings
+        // For bars: previous comes BEFORE current (appears on left)
+        // For others: previous comes after current
+        const result: EChartsSeries[] = [];
+        baseSeries.forEach((serie, idx) => {
+            const previousEntry = previousSeriesList.find(
+                (p) => p.index === idx,
+            );
+            const isBarType = serie.type === CartesianSeriesType.BAR;
+
+            if (previousEntry && isBarType) {
+                // For bars: previous first, then current
+                result.push(previousEntry.series);
+                result.push(serie);
+            } else {
+                // For other types: current first, then previous
+                result.push(serie);
+                if (previousEntry) {
+                    result.push(previousEntry.series);
+                }
+            }
+        });
+        return result;
+    }, [baseSeries, resultsData]);
 
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
@@ -2086,49 +2231,126 @@ const useEchartsCartesianConfig = (
             isHorizontal,
         );
 
-        const seriesWithValidStack = series.map<EChartsSeries>((serie) => {
-            const computedColor = getSeriesColor(serie);
-            const baseConfig = {
-                ...serie,
-                color: computedColor,
-                stack: getValidStack(serie),
-                // Ensure label styles are applied after color is known
-                ...(serie.label?.show && {
-                    label: {
-                        ...serie.label,
-                        ...getValueLabelStyle(serie.label.position, serie.type),
-                    },
-                }),
-                // Apply reference line styling
-                ...(serie.markLine && {
-                    markLine: {
-                        ...serie.markLine,
-                        ...getReferenceLineStyle(computedColor),
-                    },
-                }),
-            };
+        // First pass: compute colors for all series (we need sibling colors for PoP series)
+        const seriesColors = series.map((serie) => getSeriesColor(serie));
 
-            // Apply bar styling for bar charts
-            if (serie.type === CartesianSeriesType.BAR) {
-                return {
-                    ...baseConfig,
-                    ...getBarStyle(),
-                    // Non-stacked bars get border radius on all bars
-                    ...((!serie.stack ||
-                        getValidStack(serie) === undefined) && {
-                        itemStyle: {
-                            borderRadius: getBarBorderRadius(
-                                isHorizontal,
-                                true,
-                                dynamicRadius,
+        // Helper to apply opacity to a color (hex or rgb)
+        const applyOpacityToColor = (
+            color: string,
+            opacity: number,
+        ): string => {
+            if (!color) return 'rgba(0, 0, 0, 0)';
+            // Handle hex colors
+            if (color.startsWith('#')) {
+                const hex = color.slice(1);
+                const r = parseInt(
+                    hex.length === 3 ? hex[0] + hex[0] : hex.slice(0, 2),
+                    16,
+                );
+                const g = parseInt(
+                    hex.length === 3 ? hex[1] + hex[1] : hex.slice(2, 4),
+                    16,
+                );
+                const b = parseInt(
+                    hex.length === 3 ? hex[2] + hex[2] : hex.slice(4, 6),
+                    16,
+                );
+                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+            }
+            // Handle rgb/rgba colors
+            if (color.startsWith('rgb')) {
+                const match = color.match(
+                    /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/,
+                );
+                if (match) {
+                    return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${opacity})`;
+                }
+            }
+            return color;
+        };
+
+        const POP_OPACITY = 0.5;
+
+        const seriesWithValidStack = series.map<EChartsSeries>(
+            (serie, index) => {
+                // For period-over-period series, use sibling color with opacity
+                let computedColor: string;
+                let lineStyleOverride: EChartsSeries['lineStyle'] | undefined;
+
+                if (serie.periodOverPeriodMetadata) {
+                    // Find sibling by matching field name (without _previous suffix)
+                    const previousField = serie.encode?.y;
+                    const baseField = previousField?.replace(/_previous$/, '');
+                    const siblingIdx = series.findIndex(
+                        (s) =>
+                            s.encode?.y === baseField &&
+                            !s.periodOverPeriodMetadata,
+                    );
+                    const siblingColor =
+                        siblingIdx >= 0 ? seriesColors[siblingIdx] : undefined;
+                    const baseColor =
+                        siblingColor || seriesColors[index] || '#888888';
+
+                    // Apply opacity to the color for consistent legend/tooltip appearance
+                    computedColor = applyOpacityToColor(baseColor, POP_OPACITY);
+
+                    // Apply same color to lineStyle (opacity already in color)
+                    lineStyleOverride = {
+                        ...serie.lineStyle,
+                        color: computedColor,
+                        opacity: 1, // Color already has opacity
+                    };
+                } else {
+                    computedColor = seriesColors[index];
+                }
+
+                const baseConfig = {
+                    ...serie,
+                    color: computedColor,
+                    stack: getValidStack(serie),
+                    // Apply lineStyle override for PoP series
+                    ...(lineStyleOverride && { lineStyle: lineStyleOverride }),
+                    // Ensure label styles are applied after color is known
+                    ...(serie.label?.show && {
+                        label: {
+                            ...serie.label,
+                            ...getValueLabelStyle(
+                                serie.label.position,
+                                serie.type,
                             ),
                         },
                     }),
+                    // Apply reference line styling
+                    ...(serie.markLine && {
+                        markLine: {
+                            ...serie.markLine,
+                            ...getReferenceLineStyle(computedColor),
+                        },
+                    }),
                 };
-            }
 
-            return baseConfig;
-        });
+                // Apply bar styling for bar charts
+                if (serie.type === CartesianSeriesType.BAR) {
+                    return {
+                        ...baseConfig,
+                        ...getBarStyle(),
+                        // Non-stacked bars get border radius on all bars
+                        ...((!serie.stack ||
+                            getValidStack(serie) === undefined) && {
+                            itemStyle: {
+                                borderRadius: getBarBorderRadius(
+                                    isHorizontal,
+                                    true,
+                                    dynamicRadius,
+                                ),
+                            },
+                        }),
+                    };
+                }
+
+                return baseConfig;
+            },
+        );
 
         // Apply border radius to stacked bar charts (only regular stacked, not 100%)
         const isStack100 =

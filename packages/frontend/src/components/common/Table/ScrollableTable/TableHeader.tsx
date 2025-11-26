@@ -146,13 +146,14 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                     </Tooltip>
                                                 </ThLabelContainer>
 
-                                                {HeaderContextMenu && (
-                                                    <ThActionsContainer>
-                                                        <HeaderContextMenu
-                                                            header={header}
-                                                        />
-                                                    </ThActionsContainer>
-                                                )}
+                                                {HeaderContextMenu &&
+                                                    !meta?.isReadOnly && (
+                                                        <ThActionsContainer>
+                                                            <HeaderContextMenu
+                                                                header={header}
+                                                            />
+                                                        </ThActionsContainer>
+                                                    )}
                                             </ThContainer>
                                         )}
                                     </Draggable>

@@ -27,6 +27,7 @@ import {
     MetricOverrides,
     NotFoundError,
     Organization,
+    PeriodOverPeriodComparison,
     Project,
     SavedChartDAO,
     SessionUser,
@@ -99,6 +100,7 @@ type DbSavedChartDetails = {
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
     timezone: TimeZone | null;
+    period_over_period_config: PeriodOverPeriodComparison | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -189,6 +191,7 @@ const createSavedChartVersion = async (
             additionalMetrics,
             customDimensions,
             timezone,
+            periodOverPeriod,
         },
         chartConfig,
         tableConfig,
@@ -217,6 +220,7 @@ const createSavedChartVersion = async (
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
                 timezone: timezone || null,
+                period_over_period_config: periodOverPeriod || null,
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -871,6 +875,7 @@ export class SavedChartModel {
                         'saved_queries_versions.pivot_dimensions',
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
+                        'saved_queries_versions.period_over_period_config',
                         `${OrganizationTableName}.organization_uuid`,
                         `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
@@ -1044,6 +1049,8 @@ export class SavedChartModel {
                     return ECHARTS_DEFAULT_COLORS;
                 };
 
+                console.log('savedQuery', JSON.stringify(savedQuery, null, 2));
+
                 return {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,
@@ -1111,6 +1118,8 @@ export class SavedChartModel {
                             })),
                         ],
                         timezone: savedQuery.timezone || undefined,
+                        periodOverPeriod:
+                            savedQuery.period_over_period_config ?? undefined,
                     },
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,

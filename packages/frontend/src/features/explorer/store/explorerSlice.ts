@@ -19,6 +19,7 @@ import {
     type MetricQuery,
     type MetricType,
     type ParameterValue,
+    type PeriodOverPeriodComparison,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -240,6 +241,14 @@ const explorerSlice = createSlice({
 
         setTimeZone: (state, action: PayloadAction<TimeZone>) => {
             state.unsavedChartVersion.metricQuery.timezone = action.payload;
+        },
+
+        setPeriodOverPeriod: (
+            state,
+            action: PayloadAction<PeriodOverPeriodComparison | undefined>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.periodOverPeriod =
+                action.payload;
         },
 
         setColumnOrder: (state, action: PayloadAction<string[]>) => {
@@ -857,7 +866,16 @@ const explorerSlice = createSlice({
                 unpivotedQueryArgs: null,
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
+                pendingFetch: false,
             };
+        },
+
+        // Request a query execution (works regardless of auto-fetch setting)
+        requestQueryExecution: (state) => {
+            state.queryExecution.pendingFetch = true;
+        },
+        clearPendingFetch: (state) => {
+            state.queryExecution.pendingFetch = false;
         },
 
         replaceFields: (

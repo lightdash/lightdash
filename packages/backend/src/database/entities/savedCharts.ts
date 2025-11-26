@@ -11,6 +11,7 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
+    PeriodOverPeriodComparison,
     TableCalculationTemplate,
     TableCalculationType,
 } from '@lightdash/common';
@@ -96,6 +97,7 @@ export type DbSavedChartVersion = {
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
     timezone: string | null;
+    period_over_period_config: PeriodOverPeriodComparison | null; // JSONB
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -116,6 +118,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'parameters'
     | 'updated_by_user_uuid'
     | 'timezone'
+    | 'period_over_period_config'
 >;
 
 type DbSavedChartVersionField = {
