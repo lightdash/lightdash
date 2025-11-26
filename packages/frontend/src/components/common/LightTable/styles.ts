@@ -73,19 +73,19 @@ export const useTableStyles = createStyles((theme) => {
                 },
             },
 
-            /* Body last row, last cell: no right or bottom border */
+            /* Body last row, last cell: no right border, keep bottom border */
             '> tbody:last-child > *:last-child > *:last-child': {
-                boxShadow: 'none',
+                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
                 '&:hover': {
-                    boxShadow: 'none !important',
+                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
                 },
             },
 
-            /* Body last row, first cell: no left or bottom border */
+            /* Body last row, first cell: no left border, keep bottom border */
             '> tbody:last-child > *:last-child > *:first-child': {
-                boxShadow: 'none',
+                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
                 '&:hover': {
-                    boxShadow: 'none !important',
+                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
                 },
             },
 
@@ -97,19 +97,19 @@ export const useTableStyles = createStyles((theme) => {
                 },
             },
 
-            /* Footer last row, last cell: no right or bottom border */
+            /* Footer last row, last cell: no right border, keep bottom border */
             '> tfoot:last-child > *:last-child > *:last-child': {
-                boxShadow: 'none',
+                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
                 '&:hover': {
-                    boxShadow: 'none !important',
+                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
                 },
             },
 
-            /* Footer last row, first cell: no left or bottom border */
+            /* Footer last row, first cell: no left border, keep bottom border */
             '> tfoot:last-child > *:last-child > *:first-child': {
-                boxShadow: 'none',
+                boxShadow: `inset 0 -1px 0 0 ${borderColor}`,
                 '&:hover': {
-                    boxShadow: 'none !important',
+                    boxShadow: `inset 0 -1px 0 0 ${borderColor} !important`,
                 },
             },
         },
