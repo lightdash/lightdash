@@ -60,7 +60,7 @@ export default createStyles(
                     ? theme.colors.red[theme.colorScheme === 'dark' ? 6 : 7]
                     : theme.colorScheme === 'dark'
                     ? theme.colors.ldDark[3]
-                    : theme.colors.ldGray?.[5],
+                    : theme.colors.ldGray[5],
             },
 
             '&:disabled': {
