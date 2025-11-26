@@ -426,7 +426,10 @@ export const useColumns = (): TableColumn[] => {
                 const baseItem = itemsMap[baseFieldId];
                 if (baseItem) {
                     // Use the base item's metadata for formatting, but indicate it's a PoP column
-                    previousFieldsMap.set(baseFieldId, { fieldId, item: baseItem });
+                    previousFieldsMap.set(baseFieldId, {
+                        fieldId,
+                        item: baseItem,
+                    });
                 }
             }
         }

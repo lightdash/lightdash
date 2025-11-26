@@ -35,7 +35,6 @@ type Props = {
 };
 
 export const Layout: FC<Props> = ({ items }) => {
-
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
 

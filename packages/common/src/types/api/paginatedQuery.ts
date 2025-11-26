@@ -1,6 +1,6 @@
 import {
-    type PeriodOverPeriodComparison,
     type ParametersValuesMap,
+    type PeriodOverPeriodComparison,
     type PivotConfiguration,
 } from '../..';
 
