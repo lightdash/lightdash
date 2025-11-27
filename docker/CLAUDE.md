@@ -18,6 +18,7 @@ Key services:
 -   `db-dev`: PostgreSQL with pgvector extension
 -   `minio`: S3-compatible storage for development
 -   `prometheus`: Metrics collection
+-   `mailpit`: Local email testing server (Web UI: 8025, SMTP: 1025)
 
 </howToUse>
 
@@ -54,6 +55,8 @@ services:
 -   9090: Prometheus metrics
 -   5432: PostgreSQL database
 -   9000/9001: MinIO storage
+-   8025: Mailpit Web UI (view sent emails)
+-   1025: Mailpit SMTP server
 
 **Configuration Files**:
 
