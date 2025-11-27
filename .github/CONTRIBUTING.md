@@ -339,6 +339,34 @@ The development environment includes Prometheus for monitoring Lightdash metrics
 
 The Prometheus configuration automatically scrapes Lightdash metrics every 5 seconds from the backend service.
 
+#### Testing Email Locally with Mailpit
+
+The development environment includes Mailpit for testing email functionality locally without sending real emails. To use it:
+
+1. **Start the development environment** (Mailpit is included by default):
+
+    ```shell
+    docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+    ```
+
+2. **Access the Mailpit Web UI**:
+
+    - Navigate to http://localhost:8025
+    - All emails sent from Lightdash will appear here
+    - You can view full email content, headers, and HTML rendering
+
+3. **Email Configuration** (pre-configured in `.env.development`):
+
+    - SMTP Host: `mailpit` (Docker hostname)
+    - SMTP Port: `1025`
+    - No authentication required for local development
+
+4. **Test email features**:
+    - Scheduled email deliveries
+    - User invitation emails
+    - Sharing alerts via email
+    - Password reset emails
+
 #### Downloading files stored in local docker container MinIO
 
 When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
