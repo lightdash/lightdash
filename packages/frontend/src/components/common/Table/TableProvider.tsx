@@ -68,9 +68,15 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     // Derive full column order that includes columns not in columnOrder
     // (e.g., _previous fields for period-over-period comparisons)
     // These should be inserted after their base field
+    // Only apply this logic when columnOrder is explicitly provided
     const derivedColumnOrder = useMemo(() => {
+        // If no columnOrder provided, preserve old behavior (empty order)
+        if (!columnOrder || columnOrder.length === 0) {
+            return [];
+        }
+
         const columnIds = columns.map((col) => col.id).filter(Boolean);
-        const orderSet = new Set(columnOrder || []);
+        const orderSet = new Set(columnOrder);
 
         // Find columns not in columnOrder
         const missingColumns = columnIds.filter(
@@ -78,14 +84,14 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         );
 
         if (missingColumns.length === 0) {
-            return columnOrder || [];
+            return columnOrder;
         }
 
         // Build new order by inserting missing columns after their base field
         const result: string[] = [];
         const insertedMissing = new Set<string>();
 
-        for (const colId of columnOrder || []) {
+        for (const colId of columnOrder) {
             result.push(colId);
 
             // Check if any missing columns should follow this one
