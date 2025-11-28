@@ -1,3 +1,15 @@
+# [0.2210.0](https://github.com/lightdash/lightdash/compare/0.2209.4...0.2210.0) (2025-11-28)
+
+
+### Bug Fixes
+
+* underlying data table colapses all rows ([#18396](https://github.com/lightdash/lightdash/issues/18396)) ([5db9dc2](https://github.com/lightdash/lightdash/commit/5db9dc20421dd8984de19261dc620d13420d2285))
+
+
+### Features
+
+* add beta badge next to PoP button ([#18397](https://github.com/lightdash/lightdash/issues/18397)) ([9ea6220](https://github.com/lightdash/lightdash/commit/9ea62204a99c30a6c48fa1c671a67adfb87b3a21))
+
 ## [0.2209.4](https://github.com/lightdash/lightdash/compare/0.2209.3...0.2209.4) (2025-11-26)
 
 
