@@ -8,7 +8,7 @@ type EntityBreadcrumbProps = {
 };
 
 export const TableBreadcrumb = ({ entityTableName }: EntityBreadcrumbProps) => (
-    <Group gap="xxs" align="center" c="gray.7">
+    <Group gap="xxs" align="center" c="ldGray.7">
         <MantineIcon icon={IconTable} size={12} />
         <Text size="xs" fw={600}>
             {capitalize(entityTableName)}
@@ -26,16 +26,16 @@ export const FieldBreadcrumb = ({
     fieldType,
     fieldId,
 }: FieldBreadcrumbProps) => (
-    <Group gap="xxs" align="center" c="gray.5">
+    <Group gap="xxs" align="center" c="ldGray.5">
         <MantineIcon icon={IconTable} size={12} />
         <Text size="xs" fw={500}>
             {capitalize(entityTableName)}
         </Text>
         <MantineIcon icon={IconChevronRight} size="sm" />
-        <Text size="xs" fw={600} c="gray.7">
+        <Text size="xs" fw={600} c="ldGray.7">
             {capitalize(fieldType)}:
         </Text>
-        <Text size="xs" c="gray.7" component="code" fw={600}>
+        <Text size="xs" c="ldGray.7" component="code" fw={600}>
             {fieldId}
         </Text>
     </Group>

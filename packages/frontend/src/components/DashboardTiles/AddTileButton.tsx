@@ -107,7 +107,7 @@ const AddTileButton: FC<Props> = ({
                             <Tooltip label="Charts generated from here are exclusive to this dashboard">
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                 />
                             </Tooltip>
                         </Group>

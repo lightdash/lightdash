@@ -20,7 +20,7 @@ export const DashboardToolCallDescription: FC<
             <Group gap="two">
                 <Text c="dimmed" size="xs">
                     Built{' '}
-                    <Text span fw={500} c="gray.8">
+                    <Text span fw={500} c="ldGray.8">
                         "{title}"
                     </Text>
                 </Text>
@@ -28,7 +28,7 @@ export const DashboardToolCallDescription: FC<
                     <Tooltip label={description}>
                         <MantineIcon
                             icon={IconInfoCircle}
-                            color="gray.6"
+                            color="ldGray.6"
                             size="sm"
                         />
                     </Tooltip>

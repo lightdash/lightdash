@@ -1,5 +1,4 @@
-import { INPUT_SIZES } from '@mantine/core';
-import { createStyles, getSize, rem } from '@mantine/styles';
+import { createStyles, getSize, INPUT_SIZES, rem } from '@mantine/core';
 import { sizes as DEFAULT_VALUE_SIZES } from './DefaultValue/DefaultValue.styles';
 
 interface TagInputStyles {
@@ -60,8 +59,8 @@ export default createStyles(
                 color: invalid
                     ? theme.colors.red[theme.colorScheme === 'dark' ? 6 : 7]
                     : theme.colorScheme === 'dark'
-                    ? theme.colors.dark[3]
-                    : theme.colors.gray[5],
+                    ? theme.colors.ldDark[3]
+                    : theme.colors.ldGray[5],
             },
 
             '&:disabled': {

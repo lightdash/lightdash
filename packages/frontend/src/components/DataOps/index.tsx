@@ -22,7 +22,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             <SettingsGridCard>
                 <div>
                     <Title order={4}>Promote content</Title>
-                    <Text c="gray.6" fz="xs">
+                    <Text c="ldGray.6" fz="xs">
                         Developers and admins on this organization can copy
                         content from this project into the selected upstream
                         project, overriding its defaults or creating new content

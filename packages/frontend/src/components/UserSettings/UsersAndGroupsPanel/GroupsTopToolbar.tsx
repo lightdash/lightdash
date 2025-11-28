@@ -55,7 +55,7 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                             leftSection={
                                 <MantineIcon
                                     size="md"
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     icon={IconSearch}
                                 />
                             }
@@ -66,7 +66,7 @@ export const GroupsTopToolbar: FC<GroupsTopToolbarProps> = memo(
                                         onClick={() => setSearch('')}
                                         variant="transparent"
                                         size="xs"
-                                        color="gray.5"
+                                        color="ldGray.5"
                                     >
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>

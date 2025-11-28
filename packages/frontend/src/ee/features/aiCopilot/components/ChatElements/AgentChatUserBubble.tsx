@@ -23,11 +23,11 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
         <Stack
             gap="xs"
             style={{ alignSelf: 'flex-end' }}
-            bg={isActive ? 'gray.0' : 'transparent'}
+            bg={isActive ? 'ldGray.0' : 'transparent'}
         >
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
-                    <Text size="sm" c="gray.7" fw={600}>
+                    <Text size="sm" c="ldGray.7" fw={600}>
                         {name}
                     </Text>
                 ) : null}
@@ -52,7 +52,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 py="xs"
                 px="sm"
                 withBorder={true}
-                bg="gray.0"
+                bg="ldGray.0"
                 color="white"
                 style={{
                     overflow: 'unset',

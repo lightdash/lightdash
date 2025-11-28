@@ -6,31 +6,31 @@ const baseStyles = (theme: MantineTheme) => ({
         fontWeight: 500,
         fontSize: 14,
         height: 32,
-        borderColor: theme.colors.gray[2],
-        color: theme.colors.dark[7],
+        borderColor: theme.colors.ldGray[2],
+        color: theme.colors.ldDark[7],
         '&:hover': {
-            backgroundColor: theme.colors.gray[0],
+            backgroundColor: theme.colors.ldGray[0],
             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
         },
         '&:focus': {
-            borderColor: theme.colors.gray[2],
+            borderColor: theme.colors.ldGray[2],
         },
         '&:focus-within': {
-            borderColor: theme.colors.gray[2],
+            borderColor: theme.colors.ldGray[2],
         },
     },
     baseItem: {
         fontSize: 14,
         '&[data-selected="true"]': {
-            color: theme.colors.gray[7],
+            color: theme.colors.ldGray[7],
             fontWeight: 500,
-            backgroundColor: theme.colors.gray[0],
+            backgroundColor: theme.colors.ldGray[0],
         },
         '&[data-selected="true"]:hover': {
-            backgroundColor: theme.colors.gray[0],
+            backgroundColor: theme.colors.ldGray[0],
         },
         '&:hover': {
-            backgroundColor: theme.colors.gray[0],
+            backgroundColor: theme.colors.ldGray[0],
             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
         },
     },
@@ -54,7 +54,7 @@ export const useFilterSelectStyles = createStyles((theme) => {
             maxWidth: '100%',
 
             '&[value=""]': {
-                border: `1px dashed ${theme.colors.gray[4]}`,
+                border: `1px dashed ${theme.colors.ldGray[4]}`,
             },
             '&[data-selected="true"]': {
                 borderBottomRightRadius: 0,

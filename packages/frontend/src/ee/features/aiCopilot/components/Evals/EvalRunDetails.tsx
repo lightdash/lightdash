@@ -173,7 +173,7 @@ export const EvalRunDetails: FC<Props> = ({
                         result.assessment?.passed,
                     );
                     return isEvalRunning ? (
-                        <Badge w={68} variant="white" color="gray">
+                        <Badge w={68} variant="transparent" color="gray">
                             {result.status === 'assessing' ? (
                                 <Loader size={12} color="gray" />
                             ) : (
@@ -181,7 +181,10 @@ export const EvalRunDetails: FC<Props> = ({
                             )}
                         </Badge>
                     ) : (
-                        <Badge color={assessmentConfig.color} variant="white">
+                        <Badge
+                            color={assessmentConfig.color}
+                            variant="transparent"
+                        >
                             {assessmentConfig.label}
                         </Badge>
                     );
@@ -216,7 +219,7 @@ export const EvalRunDetails: FC<Props> = ({
                 style: {
                     cursor: isClickable ? 'pointer' : 'default',
                     backgroundColor: selected
-                        ? 'var(--mantine-color-gray-1)'
+                        ? 'var(--mantine-color-ldGray-1)'
                         : undefined,
                 },
             };
@@ -242,19 +245,19 @@ export const EvalRunDetails: FC<Props> = ({
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn || isFirstColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -273,7 +276,7 @@ export const EvalRunDetails: FC<Props> = ({
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };
@@ -324,7 +327,7 @@ export const EvalRunDetails: FC<Props> = ({
                         <Paper p="xxs" withBorder radius="sm">
                             <MantineIcon icon={IconTarget} size="md" />
                         </Paper>
-                        <Title order={5} c="gray.9" fw={700}>
+                        <Title order={5} c="ldGray.9" fw={700}>
                             Run Overview
                         </Title>
                     </Group>
@@ -360,7 +363,7 @@ export const EvalRunDetails: FC<Props> = ({
                             variant="dot"
                             size="lg"
                             radius="sm"
-                            c="gray.7"
+                            c="ldGray.7"
                         >
                             {evalStatus.label}
                         </Badge>

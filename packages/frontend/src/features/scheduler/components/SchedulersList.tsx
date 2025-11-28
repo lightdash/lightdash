@@ -55,13 +55,13 @@ const SchedulersList: FC<Props> = ({
         (isThresholdAlertList && alertSchedulers.length <= 0)
     ) {
         return (
-            <Stack color="gray" align="center" mt="xxl">
-                <Title order={4} color="gray.6">
+            <Stack align="center" mt="xxl">
+                <Title order={4} color="ldGray.6">
                     {`There are no existing ${
                         isThresholdAlertList ? 'alerts' : 'scheduled deliveries'
                     }`}
                 </Title>
-                <Text color="gray.6">
+                <Text color="ldGray.6">
                     Add one by clicking on "Create new" below
                 </Text>
             </Stack>

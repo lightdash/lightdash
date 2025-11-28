@@ -72,7 +72,7 @@ const GroupHeader: FC<{
             p="xs"
             sx={(theme) => ({
                 '&:hover': {
-                    backgroundColor: theme.colors.dark[6],
+                    backgroundColor: theme.colors.ldDark[6],
                 },
             })}
         >
@@ -445,8 +445,8 @@ const ProjectSwitcher = () => {
                         sx={(theme) => ({
                             '&:disabled': {
                                 color: theme.white,
-                                backgroundColor: theme.colors.dark[6],
-                                borderColor: theme.colors.dark[4],
+                                backgroundColor: theme.colors.ldDark[6],
+                                borderColor: theme.colors.ldDark[4],
                             },
                         })}
                     >

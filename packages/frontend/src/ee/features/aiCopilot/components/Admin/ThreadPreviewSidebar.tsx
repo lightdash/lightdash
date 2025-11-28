@@ -61,7 +61,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     }
 
     return (
-        <Box h="100%" pos="relative" bg="white">
+        <Box h="100%" pos="relative" bg="background.0">
             <LoadingOverlay
                 pos="absolute"
                 visible={isLoadingThread}

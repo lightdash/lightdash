@@ -200,12 +200,16 @@ export const UpdateSqlChartModal = ({
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
+                    <MantineIcon
+                        icon={IconChartBar}
+                        size="lg"
+                        color="ldGray.7"
+                    />
                     <Text fw={500}>Update chart</Text>
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -249,7 +253,7 @@ export const UpdateSqlChartModal = ({
                     position="right"
                     w="100%"
                     sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[4]}`,
+                        borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                         bottom: 0,
                         padding: theme.spacing.md,
                     })}

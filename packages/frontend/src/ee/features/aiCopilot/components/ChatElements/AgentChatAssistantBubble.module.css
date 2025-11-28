@@ -1,8 +1,8 @@
 .feedbackInput {
     background-color: rgba(255, 255, 255, 0.3) !important;
 
-    --input-bd-focus: var(--mantine-color-gray-7);
+    --input-bd-focus: var(--mantine-color-ldGray-7);
     &:focus {
-        outline: 4px solid var(--mantine-color-gray-2);
+        outline: 4px solid var(--mantine-color-ldGray-2);
     }
 }

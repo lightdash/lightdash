@@ -12,7 +12,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
-import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
+import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
 
 // TODO: this name could change or we could replace this with useVirtualTable.

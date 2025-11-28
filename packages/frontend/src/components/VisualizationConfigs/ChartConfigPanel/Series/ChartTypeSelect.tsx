@@ -73,7 +73,7 @@ export const ChartTypeSelect: FC<Props> = ({
             itemComponent={SelectItem}
             icon={
                 selectedChartIcon && (
-                    <MantineIcon color="gray.8" icon={selectedChartIcon} />
+                    <MantineIcon color="ldGray.8" icon={selectedChartIcon} />
                 )
             }
             styles={{

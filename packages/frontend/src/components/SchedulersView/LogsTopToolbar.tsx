@@ -96,7 +96,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
 
                     {selectedScheduler && (
                         <>
-                            <Text fz="sm" c="gray.7" fw={500}>
+                            <Text fz="sm" c="ldGray.7" fw={500}>
                                 Scheduler:
                             </Text>
                             <Pill

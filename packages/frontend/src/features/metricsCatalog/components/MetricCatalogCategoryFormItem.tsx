@@ -82,15 +82,16 @@ const EditPopover: FC<EditPopoverProps> = ({
             width={200}
             onClose={handleClose}
             trapFocus={opened}
+            shadow="sm"
         >
             <Popover.Target>
                 <ActionIcon
-                    sx={{
+                    sx={(theme) => ({
                         visibility: hovered || opened ? 'visible' : 'hidden',
                         '&:hover': {
-                            backgroundColor: 'white',
+                            backgroundColor: theme.colors.background[0],
                         },
-                    }}
+                    })}
                     size="sm"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
@@ -100,7 +101,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     }}
                     tabIndex={-1}
                 >
-                    <MantineIcon icon={IconDots} color="gray.6" size={14} />
+                    <MantineIcon icon={IconDots} color="ldGray.6" size={14} />
                 </ActionIcon>
             </Popover.Target>
             <Popover.Dropdown
@@ -111,7 +112,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                 }}
             >
                 <Stack spacing="xs">
-                    <Text size="xs" weight={500} c="gray.6">
+                    <Text size="xs" weight={500} c="ldGray.6">
                         Edit category
                     </Text>
                     <TextInput
@@ -138,9 +139,9 @@ const EditPopover: FC<EditPopoverProps> = ({
                     </SimpleGrid>
 
                     <Divider
-                        c="gray.2"
+                        c="ldGray.2"
                         sx={(theme) => ({
-                            borderTopColor: theme.colors.gray[2],
+                            borderTopColor: theme.colors.ldGray[2],
                         })}
                     />
 
@@ -148,11 +149,14 @@ const EditPopover: FC<EditPopoverProps> = ({
                         <Tooltip
                             variant="xs"
                             label="Delete this tag permanently"
+                            openDelay={200}
+                            maw={250}
+                            fz="xs"
                         >
                             <ActionIcon
                                 size="sm"
                                 variant="outline"
-                                color="gray.4"
+                                color="ldGray.4"
                                 onClick={onDelete}
                             >
                                 <MantineIcon
@@ -164,7 +168,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         </Tooltip>
 
                         <Button
-                            color="gray.9"
+                            variant="darkPrimary"
                             size="xs"
                             compact
                             onClick={handleSave}
@@ -217,7 +221,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 borderRadius: theme.radius.md,
                 outline: 'none',
                 '&:focus, &:hover': {
-                    backgroundColor: '#F8F9FA',
+                    backgroundColor: theme.colors.ldGray[0],
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             })}
@@ -245,6 +249,8 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                     maw={200}
                     position="top"
                     withinPortal
+                    openDelay={200}
+                    fz="xs"
                     label="This category was created in the .yml config and its properties cannot be edited"
                 >
                     <Box
@@ -253,7 +259,11 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                             visibility: hovered ? 'visible' : 'hidden',
                         }}
                     >
-                        <MantineIcon icon={IconCode} color="gray.6" size={14} />
+                        <MantineIcon
+                            icon={IconCode}
+                            color="ldGray.6"
+                            size={14}
+                        />
                     </Box>
                 </Tooltip>
             )}

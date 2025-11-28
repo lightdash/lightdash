@@ -90,13 +90,13 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                     </Text>
 
                     {parameter.description && (
-                        <Text span size="xs" color="gray.6">
+                        <Text span size="xs" color="ldGray.6">
                             - {parameter.description}
                         </Text>
                     )}
 
                     {isEditing || hasChanged ? null : (
-                        <Text fw={400} span color="gray.7">
+                        <Text fw={400} span color="ldGray.7">
                             = {displayValue}
                         </Text>
                     )}

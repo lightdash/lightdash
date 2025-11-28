@@ -248,7 +248,7 @@ const DashboardHeader = ({
                             {dashboard.description && (
                                 <Text
                                     fz="xs"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                     fw={500}
                                     style={{ whiteSpace: 'pre-line' }}
                                 >

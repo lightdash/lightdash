@@ -1,8 +1,8 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
-import { MantineProvider } from '@mantine/core';
-import { type FC } from 'react';
+import { MantineProvider, useMantineColorScheme } from '@mantine/core';
+import { type FC, useMemo } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
-import { themeOverride } from '../VisualizationConfigs/mantineTheme';
+import { getVizConfigThemeOverride } from '../VisualizationConfigs/mantineTheme';
 import { VisualizationSwitcher } from './VisualizationSwitcher';
 import { CartesianChartConfig } from './config/CartesianChartConfiguration';
 import { PieChartConfiguration } from './config/PieChartConfiguration';
@@ -13,6 +13,12 @@ export const VisualizationConfigPanel: FC<{
     setSelectedChartType: (chartKind: ChartKind) => void;
     columns: VizColumn[];
 }> = ({ selectedChartType, setSelectedChartType, columns }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const themeOverride = useMemo(
+        () => getVizConfigThemeOverride(colorScheme),
+        [colorScheme],
+    );
+
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Config>

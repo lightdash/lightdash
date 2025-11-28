@@ -11,7 +11,7 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
     return (
         <Center component={Flex} direction="column" gap="md" py={40}>
             {icon && (
-                <Box sx={(theme) => ({ color: theme.colors.gray[4] })}>
+                <Box sx={(theme) => ({ color: theme.colors.ldGray[4] })}>
                     {icon}
                 </Box>
             )}
@@ -21,7 +21,7 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
                     {title}
                 </Title>
 
-                {description && <Text color="gray.6">{description}</Text>}
+                {description && <Text color="ldGray.6">{description}</Text>}
             </Center>
 
             {action}

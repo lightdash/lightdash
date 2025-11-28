@@ -28,6 +28,7 @@ type PaletteItemProps = {
     isActive: boolean;
     onSetActive?: ((uuid: string) => void) | undefined;
     readOnly?: boolean;
+    theme?: 'light' | 'dark';
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
@@ -35,6 +36,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     isActive,
     onSetActive,
     readOnly,
+    theme = 'light',
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -46,24 +48,25 @@ export const PaletteItem: FC<PaletteItemProps> = ({
         setIsDeleteModalOpen(false);
     };
 
+    const displayColors =
+        theme === 'dark' && palette.darkColors
+            ? palette.darkColors
+            : palette.colors;
+
     return (
         <>
             <Paper
                 p="sm"
                 withBorder
                 radius="sm"
-                sx={(theme) => ({
-                    backgroundColor: theme.white,
-                    borderColor: theme.colors.gray[2],
-                    position: 'relative',
-                })}
+                pos="relative"
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
                     <Group spacing="xs">
                         <Group spacing="two">
-                            {palette.colors.slice(0, 5).map((color, index) => (
+                            {displayColors.slice(0, 5).map((color, index) => (
                                 <ColorSwatch
                                     key={color + index}
                                     size={18}

@@ -17,21 +17,21 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
                 input: {
                     height: '32px',
                     fontWeight: 500,
-                    borderColor: theme.colors.gray[2],
+                    borderColor: theme.colors.ldGray[2],
                     borderRadius: theme.radius.md,
                     boxShadow: '0px 1px 2px 0px rgba(228, 229, 231, 0.24)',
                 },
                 item: {
                     '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
+                        color: theme.colors.ldGray[7],
                         fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
+                        backgroundColor: theme.colors.ldGray[2],
                     },
                     '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.ldGray[3],
                     },
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                     },
                 },
             })}

@@ -91,7 +91,7 @@ const renderTreeNode = ({
                         mb="xs"
                         pl="xs"
                         sx={(theme) => ({
-                            borderLeft: `1px solid ${theme.colors.gray[2]}`,
+                            borderLeft: `1px solid ${theme.colors.ldGray[2]}`,
                         })}
                     >
                         {node.fields.map((child: any, fieldIndex: number) =>
@@ -154,17 +154,17 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
             <Box
                 sx={(theme) => ({
                     minWidth: '600px',
-                    border: `1px solid ${theme.colors.gray[3]}`,
+                    border: `1px solid ${theme.colors.ldGray[3]}`,
                     backgroundColor: theme.fn.lighten(
-                        theme.colors.gray[0],
+                        theme.colors.ldGray[0],
                         0.5,
                     ),
                     borderRadius: theme.radius.lg,
                     padding: theme.spacing.lg,
-                    boxShadow: `0 0 0 1px ${theme.colors.gray[0]},
-                    0 2px 3px -2px ${theme.colors.gray[0]},
-                    0 3px 12px -4px ${theme.colors.gray[2]},
-                    0 4px 16px -8px ${theme.colors.gray[2]}`,
+                    boxShadow: `0 0 0 1px ${theme.colors.ldGray[0]},
+                    0 2px 3px -2px ${theme.colors.ldGray[0]},
+                    0 3px 12px -4px ${theme.colors.ldGray[2]},
+                    0 4px 16px -8px ${theme.colors.ldGray[2]}`,
                 })}
             >
                 <Box key={`catalog-tree-${searchString}`}>

@@ -209,15 +209,18 @@ export const CartesianChartSeries = ({
                               variant="contained"
                               sx={(theme) => ({
                                   root: {
-                                      border: `1px solid ${theme.colors.gray[2]}`,
+                                      border: `1px solid ${theme.colors.ldGray[2]}`,
                                   },
                               })}
                           >
                               <Accordion.Item value={referenceField} m={0}>
                                   <Accordion.Control
-                                      sx={{
-                                          backgroundColor: 'white',
-                                      }}
+                                      sx={(theme) => ({
+                                          backgroundColor:
+                                              theme.colorScheme === 'light'
+                                                  ? 'white'
+                                                  : 'transparent',
+                                      })}
                                   >
                                       <Config.Subheading>
                                           {friendlyName(referenceField)}
@@ -225,7 +228,10 @@ export const CartesianChartSeries = ({
                                   </Accordion.Control>
                                   <Accordion.Panel
                                       sx={(theme) => ({
-                                          backgroundColor: 'white',
+                                          backgroundColor:
+                                              theme.colorScheme === 'light'
+                                                  ? 'white'
+                                                  : 'transparent',
                                           borderRadius: theme.radius.sm,
                                       })}
                                   >

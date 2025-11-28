@@ -257,7 +257,7 @@ function flattenTable(
                 tableName,
                 treeSection: TreeSection.Dimensions, // Arbitrary, missing fields aren't tied to a section
                 label: 'Missing fields',
-                color: 'gray.6',
+                color: 'ldGray.6',
                 depth: baseDepth,
             },
         } satisfies SectionHeaderItem);

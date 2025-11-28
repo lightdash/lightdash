@@ -42,7 +42,7 @@ export const useChartColorConfig = ({
         (group: string, identifier: string) => {
             // Ensure we always color null the same:
             if (!identifier || identifier === 'null') {
-                return theme.colors.gray[6];
+                return theme.colors.ldGray[6];
             }
 
             let groupMappings = colorMappings.get(group);

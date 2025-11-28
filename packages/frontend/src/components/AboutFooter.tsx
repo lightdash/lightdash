@@ -45,7 +45,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
             <Box mt={FOOTER_MARGIN} h={FOOTER_HEIGHT} component="footer">
-                <Divider color="gray.2" w="100%" mb="-1px" />
+                <Divider color="ldGray.2" w="100%" mb="-1px" />
 
                 <Group
                     h="100%"
@@ -56,7 +56,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 >
                     <Button
                         variant={minimal ? 'transparent' : 'subtle'}
-                        color="gray.7"
+                        color="ldGray.7"
                         p="xs"
                         fw="500"
                         leftSection={<Logo />}
@@ -83,7 +83,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             target="_blank"
                         >
                             <ActionIcon
-                                color="gray.7"
+                                color="ldGray.7"
                                 p="xs"
                                 size="lg"
                                 variant="subtle"
@@ -91,7 +91,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 <MantineIcon
                                     icon={IconBook}
                                     size="lg"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                 />
                             </ActionIcon>
                         </Anchor>
@@ -103,11 +103,11 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 <MantineIcon
                                     icon={IconBook}
                                     size="lg"
-                                    color="gray.7"
+                                    color="ldGray.7"
                                 />
                             }
                             variant="light"
-                            color="gray.7"
+                            color="ldGray.7"
                             fw="500"
                             p="xs"
                         >

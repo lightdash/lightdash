@@ -8,6 +8,7 @@ import {
     Button,
     Group,
     MantineProvider,
+    useMantineColorScheme,
     type DefaultMantineColor,
 } from '@mantine/core';
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
@@ -91,6 +92,8 @@ const SpaceModal: FC<ActionModalProps> = ({
     rootSpace,
 }) => {
     const { showToastError } = useToaster();
+    const { colorScheme } = useMantineColorScheme();
+
     const { data: organizationUsers } = useOrganizationUsers();
     const [privateAccessType, setPrivateAccessType] = useState(
         SpacePrivateAccessType.PRIVATE,
@@ -142,7 +145,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     }
 
     return (
-        <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+        <MantineProvider inherit theme={{ colorScheme }}>
             <MantineModal
                 opened
                 size="lg"

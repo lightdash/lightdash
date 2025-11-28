@@ -397,7 +397,7 @@ export const CatalogPanel: FC = () => {
 
                             <Box>
                                 <Title order={4}>Start exploring</Title>
-                                <Text color="gray.6" fw={500}>
+                                <Text color="ldGray.6" fw={500}>
                                     Select a table or field to start exploring.
                                 </Text>
                             </Box>
@@ -439,7 +439,7 @@ export const CatalogPanel: FC = () => {
                                 borderBottomRightRadius: theme.radius.md,
                                 borderTopLeftRadius: 0,
                                 borderBottomLeftRadius: 0,
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                             },
                             description: {
                                 visibility:
@@ -457,8 +457,8 @@ export const CatalogPanel: FC = () => {
                     p="xl"
                     radius="lg"
                     sx={(theme) => ({
-                        backgroundColor: theme.colors.gray[1],
-                        border: `1px solid ${theme.colors.gray[3]}`,
+                        backgroundColor: theme.colors.ldGray[1],
+                        border: `1px solid ${theme.colors.ldGray[3]}`,
                     })}
                 >
                     {noTables ? (
@@ -474,11 +474,11 @@ export const CatalogPanel: FC = () => {
                                     mt="md"
                                     target="_blank"
                                     sx={(theme) => ({
-                                        color: theme.colors.gray[0],
-                                        backgroundColor: theme.colors.gray[8],
+                                        color: theme.colors.ldGray[0],
+                                        backgroundColor: theme.colors.ldGray[8],
                                         '&:hover': {
                                             backgroundColor:
-                                                theme.colors.gray[9],
+                                                theme.colors.ldGray[9],
                                         },
                                     })}
                                 >

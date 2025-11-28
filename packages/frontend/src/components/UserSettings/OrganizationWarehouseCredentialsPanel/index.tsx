@@ -41,7 +41,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                                 <Title order={5}>
                                     Organization warehouse credentials
                                 </Title>
-                                <Text c="gray.6" fz="xs">
+                                <Text c="ldGray.6" fz="xs">
                                     Shared credentials that can be used across
                                     all projects in your organization.
                                 </Text>
@@ -69,7 +69,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                         icon={
                             <MantineIcon
                                 icon={IconDatabaseCog}
-                                color="gray.6"
+                                color="ldGray.6"
                                 stroke={1}
                                 size="5xl"
                             />

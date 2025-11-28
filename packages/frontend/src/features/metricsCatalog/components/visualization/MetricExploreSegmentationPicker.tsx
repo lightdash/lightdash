@@ -46,7 +46,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     return (
         <Stack spacing="xs">
             <Group position="apart">
-                <Text fw={500} c="gray.7">
+                <Text fw={500} c="ldGray.7">
                     Segment
                 </Text>
 
@@ -57,7 +57,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     size="xs"
                     radius="md"
                     rightIcon={
-                        <MantineIcon icon={IconX} color="gray.5" size={12} />
+                        <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
                     sx={(theme) => ({
                         visibility:
@@ -66,7 +66,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                                 ? 'hidden'
                                 : 'visible',
                         '&:hover': {
-                            backgroundColor: theme.colors.gray[1],
+                            backgroundColor: theme.colors.ldGray[1],
                         },
                     })}
                     styles={{
@@ -104,7 +104,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                         data-disabled={!segmentDimensionsQuery.isSuccess}
                         rightSection={
                             segmentDimensionsQuery.isLoading ? (
-                                <Loader size="xs" color="gray.5" />
+                                <Loader size="xs" color="ldGray.5" />
                             ) : undefined
                         }
                         classNames={classes}

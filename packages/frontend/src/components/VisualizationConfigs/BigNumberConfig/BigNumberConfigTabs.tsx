@@ -1,10 +1,16 @@
-import { MantineProvider, Tabs } from '@mantine/core';
-import { memo } from 'react';
-import { themeOverride } from '../mantineTheme';
+import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
+import { type FC, memo, useMemo } from 'react';
+import { getVizConfigThemeOverride } from '../mantineTheme';
 import { Comparison } from './BigNumberComparison';
 import { Layout } from './BigNumberLayout';
 
-export const ConfigTabs = memo(() => {
+export const ConfigTabs: FC = memo(() => {
+    const { colorScheme } = useMantineColorScheme();
+    const themeOverride = useMemo(
+        () => getVizConfigThemeOverride(colorScheme),
+        [colorScheme],
+    );
+
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Tabs defaultValue="layout" keepMounted={false}>

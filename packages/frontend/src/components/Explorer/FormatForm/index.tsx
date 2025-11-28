@@ -127,7 +127,7 @@ export const FormatForm: FC<Props> = ({
                 />
 
                 {formatType !== CustomFormatType.DEFAULT && (
-                    <Text ml="md" mt={30} w={200} color="gray.6">
+                    <Text ml="md" mt={30} w={200} color="ldGray.6">
                         {'Looks like: '}
                         {applyCustomFormat(
                             CustomFormatType.PERCENT === formatType
@@ -144,7 +144,7 @@ export const FormatForm: FC<Props> = ({
                     CustomFormatType.BYTES_SI,
                     CustomFormatType.BYTES_IEC,
                 ].includes(formatType) && (
-                    <Text ml="md" mt={30} w={200} color="gray.6">
+                    <Text ml="md" mt={30} w={200} color="ldGray.6">
                         {'Format: '}
                         {convertCustomFormatToFormatExpression(format)}
                     </Text>

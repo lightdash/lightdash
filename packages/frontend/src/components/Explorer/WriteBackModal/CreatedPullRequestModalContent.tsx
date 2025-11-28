@@ -20,13 +20,13 @@ export const CreatedPullRequestModalContent = ({
                     <MantineIcon
                         icon={IconGitBranch}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={500}>Write back to dbt</Text>
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -45,7 +45,7 @@ export const CreatedPullRequestModalContent = ({
             </Stack>
             <Group position="right" w="100%" p="md">
                 <Button
-                    color="gray.7"
+                    color="ldGray.7"
                     onClick={onClose}
                     variant="outline"
                     size="xs"

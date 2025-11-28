@@ -115,7 +115,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                         <Group gap="two">
                                             <Title
                                                 order={6}
-                                                c="gray.8"
+                                                c="ldGray.8"
                                                 fw={500}
                                             >
                                                 Test Prompts
@@ -142,7 +142,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                             >
                                                 <MantineIcon
                                                     icon={IconInfoCircle}
-                                                    color="gray.6"
+                                                    color="ldGray.6"
                                                 />
                                             </Tooltip>
                                         </Group>

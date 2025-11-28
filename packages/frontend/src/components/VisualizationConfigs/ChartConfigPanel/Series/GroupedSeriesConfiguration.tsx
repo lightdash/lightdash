@@ -280,7 +280,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     )}
                 </Stack>
                 <Box
-                    bg="gray.1"
+                    bg="ldGray.1"
                     p="xxs"
                     ml="md"
                     py="xs"

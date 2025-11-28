@@ -257,7 +257,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         ) : (
                             <Table.Tr>
                                 <Table.Td colSpan={3}>
-                                    <Text c="gray.6" fs="italic" ta="center">
+                                    <Text c="ldGray.6" fs="italic" ta="center">
                                         {debouncedSearch
                                             ? 'No parameters found matching your search'
                                             : 'No parameters configured for this project'}

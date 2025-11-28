@@ -55,7 +55,7 @@ const MinimalDashboardTabs = ({
                             <Button
                                 size="xs"
                                 variant="subtle"
-                                color="gray.8"
+                                color="ldGray.8"
                                 radius="md"
                                 rightIcon={
                                     <MantineIcon icon={IconChevronDown} />

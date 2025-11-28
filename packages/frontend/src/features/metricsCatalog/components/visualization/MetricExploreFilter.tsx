@@ -174,7 +174,7 @@ export const MetricExploreFilter: FC<Props> = ({
         <Stack spacing="xs">
             <Group position="apart">
                 <Group spacing="xs" align="normal">
-                    <Text fw={500} c="gray.7">
+                    <Text fw={500} c="ldGray.7">
                         Filter
                     </Text>
                 </Group>
@@ -189,13 +189,13 @@ export const MetricExploreFilter: FC<Props> = ({
                         rightIcon={
                             <MantineIcon
                                 icon={IconX}
-                                color="gray.5"
+                                color="ldGray.5"
                                 size={12}
                             />
                         }
                         sx={{
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[1],
+                                backgroundColor: theme.colors.ldGray[1],
                             },
                             visibility: showClearButton,
                         }}

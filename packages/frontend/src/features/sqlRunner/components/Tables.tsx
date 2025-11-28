@@ -101,15 +101,15 @@ const TableItem: FC<TableItemProps> = memo(
                     sx={(theme) => ({
                         fontSize: 14,
                         borderRadius: theme.radius.sm,
-                        color: isActive ? 'gray.8' : 'gray.7',
+                        color: isActive ? 'ldGray.8' : 'ldGray.7',
                         flex: 1,
                         background: isActive
-                            ? theme.colors.gray[1]
+                            ? theme.colors.ldGray[1]
                             : 'transparent',
                         '&:hover': {
                             background: isActive
-                                ? theme.colors.gray[3]
-                                : theme.colors.gray[2],
+                                ? theme.colors.ldGray[3]
+                                : theme.colors.ldGray[2],
                         },
                     })}
                 >
@@ -159,7 +159,7 @@ const TableItem: FC<TableItemProps> = memo(
                                 <ActionIcon
                                     size={16}
                                     onClick={copy}
-                                    bg="gray.1"
+                                    bg="ldGray.1"
                                 >
                                     <MantineIcon
                                         icon={IconCopy}
@@ -219,12 +219,12 @@ const Table: FC<{
                 sx={(theme) => ({
                     borderRadius: theme.radius.md,
                     '&:hover': {
-                        background: theme.colors.gray[1],
+                        background: theme.colors.ldGray[1],
                     },
                 })}
             >
                 <Group noWrap spacing="two">
-                    <Text p={6} fz="sm" c="gray.8">
+                    <Text p={6} fz="sm" c="ldGray.8">
                         {schema}
                     </Text>
 
@@ -253,7 +253,7 @@ const Table: FC<{
                             />
                         ))}
                     {Object.keys(tables).length > limitTableResults && (
-                        <Text ml="md" c="gray.5">
+                        <Text ml="md" c="ldGray.5">
                             Filtering first {limitTableResults} of{' '}
                             {Object.keys(tables).length} tables, search to see
                             more
@@ -380,7 +380,7 @@ export const Tables: FC = () => {
                         styles={(theme) => ({
                             input: {
                                 borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                             },
                         })}
                     />
@@ -415,7 +415,7 @@ export const Tables: FC = () => {
 
             {isSuccess && !data && (
                 <Center p="sm">
-                    <Text c="gray.4">No results found</Text>
+                    <Text c="ldGray.4">No results found</Text>
                 </Center>
             )}
         </>

@@ -19,7 +19,7 @@ export const CommentTimestamp: FC<Props> = ({ timestamp }) => {
             offset={-2}
             label={dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}
         >
-            <Text fz="xs" color="gray.5">
+            <Text fz="xs" color="ldGray.5">
                 {timeAgo}
             </Text>
         </Tooltip>

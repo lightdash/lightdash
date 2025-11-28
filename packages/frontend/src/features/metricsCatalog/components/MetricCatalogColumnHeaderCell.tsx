@@ -11,13 +11,20 @@ export const MetricCatalogColumnHeaderCell = ({
     Icon: FC<SVGProps<SVGSVGElement>>;
 }) => {
     return (
-        <Tooltip variant="xs" label={tooltipLabel} disabled={!tooltipLabel}>
+        <Tooltip
+            variant="xs"
+            label={tooltipLabel}
+            disabled={!tooltipLabel}
+            openDelay={200}
+            maw={250}
+            fz="xs"
+        >
             <Group spacing={6} mr={6} h="100%" noWrap>
                 <Icon />
                 <Text
                     fz="xs"
                     fw={600}
-                    color="dark.3"
+                    color="ldDark.3"
                     sx={{
                         userSelect: 'none',
                     }}

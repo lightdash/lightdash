@@ -396,11 +396,10 @@ export const ContentPanel: FC = () => {
                     radius={0}
                     px="md"
                     py={6}
-                    bg="gray.1"
                     sx={(theme) => ({
                         borderWidth: '0 0 1px 1px',
                         borderStyle: 'solid',
-                        borderColor: theme.colors.gray[3],
+                        borderColor: theme.colors.ldGray[3],
                     })}
                 >
                     <Group position="apart">
@@ -419,7 +418,9 @@ export const ContentPanel: FC = () => {
                                     styles={(theme) => ({
                                         root: {
                                             backgroundColor:
-                                                theme.colors.gray[2],
+                                                theme.colorScheme === 'dark'
+                                                    ? theme.colors.ldDark[9]
+                                                    : theme.colors.ldGray[2],
                                         },
                                     })}
                                     size="sm"
@@ -456,7 +457,7 @@ export const ContentPanel: FC = () => {
                                                 >
                                                     <Group spacing={4} noWrap>
                                                         <MantineIcon
-                                                            color="gray.6"
+                                                            color="ldGray.6"
                                                             icon={
                                                                 IconChartHistogram
                                                             }
@@ -575,8 +576,12 @@ export const ContentPanel: FC = () => {
                             sx={(theme) => ({
                                 borderWidth: '0 0 0 1px',
                                 borderStyle: 'solid',
-                                borderColor: theme.colors.gray[3],
+                                borderColor: theme.colors.ldGray[3],
                                 overflow: 'auto',
+                                backgroundColor:
+                                    theme.colorScheme === 'dark'
+                                        ? theme.colors.dark[6]
+                                        : 'white',
                             })}
                         >
                             <Box
@@ -744,7 +749,6 @@ export const ContentPanel: FC = () => {
                     <Box
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
-                        bg="gray.1"
                         h={15}
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',
@@ -753,12 +757,12 @@ export const ContentPanel: FC = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[2],
+                                backgroundColor: theme.colors.ldGray[2],
                             },
                             '&[data-resize-handle-state="drag"]': {
-                                backgroundColor: theme.colors.gray[3],
+                                backgroundColor: theme.colors.ldGray[3],
                             },
-                            borderLeft: `1px solid ${theme.colors.gray[3]}`,
+                            borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
                             gap: 5,
                         })}
                     >
@@ -770,7 +774,7 @@ export const ContentPanel: FC = () => {
 
                         {showLimitText && (
                             <>
-                                <Text fz="xs" fw={400} c="gray.7">
+                                <Text fz="xs" fw={400} c="ldGray.7">
                                     Showing first {defaultQueryLimit} rows
                                 </Text>
                                 <MantineIcon
@@ -847,7 +851,7 @@ export const ContentPanel: FC = () => {
                                                                 <Text
                                                                     fz="xs"
                                                                     fw={400}
-                                                                    c="gray.7"
+                                                                    c="ldGray.7"
                                                                     ta="center"
                                                                 >
                                                                     This query

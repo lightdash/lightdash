@@ -40,7 +40,7 @@ export const ToolCallPaper = ({
         borderStyle: variant === 'dashed' ? 'dashed' : null,
         borderColor: hasError ? theme.colors.red[3] : '',
     });
-    const contentColor = hasError ? 'red.6' : 'gray.6';
+    const contentColor = hasError ? 'red.6' : 'ldGray.6';
 
     return (
         <Paper
@@ -69,7 +69,7 @@ export const ToolCallPaper = ({
                         <MantineIcon
                             icon={IconSelector}
                             size={12}
-                            color="gray.6"
+                            color="ldGray.6"
                         />
                     </Group>
                 </Group>

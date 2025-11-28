@@ -347,7 +347,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 size: 250,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTextCaption} color="gray.6" />
+                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -373,7 +373,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
-                                                <Text c="gray.5" fz="xs">
+                                                <Text c="ldGray.5" fz="xs">
                                                     Scheduler:{' '}
                                                     <Text
                                                         c="white"
@@ -383,7 +383,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                                         {run.schedulerName}
                                                     </Text>
                                                 </Text>
-                                                <Text c="gray.5" fz="xs">
+                                                <Text c="ldGray.5" fz="xs">
                                                     Created by:{' '}
                                                     <Text
                                                         c="white"
@@ -409,7 +409,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
-                                <Text fz="xs" c="gray.6" maw="190px" truncate>
+                                <Text fz="xs" c="ldGray.6" maw="190px" truncate>
                                     {run.resourceName}
                                 </Text>
                             </Stack>
@@ -429,7 +429,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                         // Parent row: show aggregated counts
                         const { logCounts } = rowData.run;
                         return (
-                            <Text fz="xs" fw={500} c="gray.7">
+                            <Text fz="xs" fw={500} c="ldGray.7">
                                 {logCounts.total}{' '}
                                 {logCounts.total === 1 ? 'job' : 'jobs'}
                             </Text>
@@ -438,7 +438,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                         // Child row: show task name
                         return (
                             <Group gap="two">
-                                <Text fz="xs" fw={400} c="gray.7">
+                                <Text fz="xs" fw={400} c="ldGray.7">
                                     {formatTaskName(rowData.log.task)}
                                 </Text>
                                 {rowData.log.targetType === 'email' && (
@@ -451,7 +451,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="gray.6"
+                                            color="ldGray.6"
                                             size="sm"
                                         />
                                     </Tooltip>
@@ -468,7 +468,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="gray.6" />
+                        <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -477,13 +477,13 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
 
                     if (isRunGroup(rowData)) {
                         return (
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {formatTime(rowData.run.scheduledTime)}
                             </Text>
                         );
                     } else {
                         return (
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {formatTime(rowData.log.scheduledTime)}
                             </Text>
                         );
@@ -497,7 +497,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconClock} color="gray.6" />
+                        <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -506,13 +506,13 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
 
                     if (isRunGroup(rowData)) {
                         return (
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {formatTime(rowData.run.createdAt)}
                             </Text>
                         );
                     } else {
                         return (
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {formatTime(rowData.log.createdAt)}
                             </Text>
                         );
@@ -647,7 +647,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -672,19 +672,19 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn || isFirstColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -703,7 +703,7 @@ const LogsTable: FC<LogsTableProps> = ({ projectUuid }) => {
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };

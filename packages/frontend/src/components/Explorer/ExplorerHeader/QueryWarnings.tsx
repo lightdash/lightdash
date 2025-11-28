@@ -76,7 +76,7 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                                     />
                                 </Box>
                                 {index < array.length - 1 && (
-                                    <Divider color="gray.2" />
+                                    <Divider color="ldGray.2" />
                                 )}
                             </Fragment>
                         ))}

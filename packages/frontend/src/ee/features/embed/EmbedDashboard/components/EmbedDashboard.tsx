@@ -333,7 +333,7 @@ const EmbedDashboard: FC<{
                     }}
                     variant="outline"
                 >
-                    <Tabs.List bg="gray.0" px="lg">
+                    <Tabs.List bg="ldGray.0" px="lg">
                         {sortedTabs.map((tab) => (
                             <Tabs.Tab
                                 key={tab.uuid}
@@ -341,13 +341,13 @@ const EmbedDashboard: FC<{
                                 bg={
                                     activeTab?.uuid === tab.uuid
                                         ? 'white'
-                                        : 'gray.0'
+                                        : 'ldGray.0'
                                 }
                             >
                                 <Title
                                     fw={500}
                                     order={6}
-                                    color="gray.7"
+                                    color="ldGray.7"
                                     truncate
                                     maw={`calc(${
                                         100 / (sortedTabs?.length || 1)

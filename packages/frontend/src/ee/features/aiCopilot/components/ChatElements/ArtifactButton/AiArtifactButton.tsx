@@ -53,7 +53,7 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
         >
             <Box className={styles.container}>
                 {isLoading ? (
-                    <Loader size={14} color="gray.5" />
+                    <Loader size={14} color="ldGray.5" />
                 ) : (
                     <MantineIcon
                         icon={ArtifactIcon}

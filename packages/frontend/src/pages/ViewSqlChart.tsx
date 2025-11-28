@@ -133,7 +133,7 @@ const ViewSqlChart = () => {
                             <SegmentedControl
                                 styles={(theme) => ({
                                     root: {
-                                        backgroundColor: theme.colors.gray[2],
+                                        backgroundColor: theme.colors.ldGray[2],
                                     },
                                 })}
                                 size="sm"

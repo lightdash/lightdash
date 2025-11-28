@@ -26,7 +26,7 @@ export const EditableText: FC<Props> = ({ lighter, ...props }) => {
                             visibility: hovered ? 'initial' : 'hidden',
                             cursor: 'pointer',
                         }}
-                        color="gray.6"
+                        color="ldGray.6"
                         icon={IconPencil}
                         onClick={handleIconClick}
                     />
@@ -43,10 +43,11 @@ export const EditableText: FC<Props> = ({ lighter, ...props }) => {
                         ':hover': {
                             whiteSpace: 'normal',
                             overflow: 'visible',
-                            background: theme.colors.gray[lighter ? '1' : '2'],
+                            background:
+                                theme.colors.ldGray[lighter ? '1' : '2'],
                         },
                         '::placeholder': {
-                            color: theme.colors.gray[lighter ? '5' : '6'],
+                            color: theme.colors.ldGray[lighter ? '5' : '6'],
                         },
                     },
                 })}

@@ -101,11 +101,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     target="_blank"
                     size="xs"
                     compact
-                    color="gray.6"
+                    color="ldGray.6"
                     variant="subtle"
                     leftIcon={<TableFilled />}
                     fz="sm"
-                    c="dark.4"
+                    c="ldDark.4"
                     fw={500}
                     sx={{
                         '&[data-disabled]': {
@@ -267,11 +267,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     {categories.length === 0 && hovered && canManageTags ? (
                         <Group spacing={2}>
                             <MantineIcon
-                                color="dark.1"
+                                color="ldDark.1"
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" color="dark.1">
+                            <Text span fz="sm" color="ldDark.1">
                                 Click to add
                             </Text>
                         </Group>

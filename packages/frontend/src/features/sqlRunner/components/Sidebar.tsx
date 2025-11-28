@@ -42,7 +42,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart" p="sm">
                 <Group noWrap spacing="xs">
-                    <Title order={5} fz="sm" c="gray.6">
+                    <Title order={5} fz="sm" c="ldGray.6">
                         {activeSidebarTab === SidebarTabs.TABLES
                             ? 'TABLES'
                             : 'VISUALIZATION'}

@@ -238,7 +238,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Group justify="space-between" w="100%">
                             <Button
                                 variant="subtle"
-                                color="gray.4"
+                                color="ldGray.4"
                                 size="xs"
                                 leftSection={
                                     <MantineIcon icon={IconArrowLeft} />
@@ -365,6 +365,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 pr={0}
                 pb={0}
                 mih={`calc(100vh - ${navbarHeight}px)`}
+                bg="ldGray.0"
             >
                 <Box>
                     {activeTab === 'setup' && (

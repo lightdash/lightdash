@@ -42,7 +42,9 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             direction="column"
             p={0}
             withBorder
-            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
+            bg={
+                hovered ? theme.fn.rgba(theme.colors.ldGray[0], 0.5) : undefined
+            }
             h="100%"
         >
             <Group
@@ -54,7 +56,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     flexGrow: 1,
                     borderBottomWidth: 1,
                     borderBottomStyle: 'solid',
-                    borderBottomColor: theme.colors.gray[3],
+                    borderBottomColor: theme.colors.ldGray[3],
                 }}
             >
                 {dragIcon}
@@ -78,9 +80,9 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     label={getResourceViewsSinceWhenDescription(item)}
                 >
                     <Flex align="center" gap={4}>
-                        <IconEye color={theme.colors.gray[6]} size={14} />
+                        <IconEye color={theme.colors.ldGray[6]} size={14} />
 
-                        <Text size={14} color="gray.6" fz="xs">
+                        <Text size={14} color="ldGray.6" fz="xs">
                             {item.data.views} views
                         </Text>
                     </Flex>

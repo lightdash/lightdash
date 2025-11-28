@@ -54,7 +54,7 @@ const ListStateContent: FC<{
                 py="sm"
                 mih={220}
                 px="sm"
-                sx={(theme) => ({ backgroundColor: theme.colors.gray[2] })}
+                sx={(theme) => ({ backgroundColor: theme.colors.ldGray[2] })}
             >
                 <SchedulersList
                     schedulersQuery={schedulersQuery}

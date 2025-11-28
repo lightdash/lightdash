@@ -11,9 +11,9 @@ const InfoContainer = forwardRef<HTMLDivElement, PropsWithChildren<Props>>(
     ({ children, icon }, ref) => {
         return (
             <Group spacing="xs" ref={ref} noWrap>
-                <MantineIcon icon={icon} color="gray.6" />
+                <MantineIcon icon={icon} color="ldGray.6" />
 
-                <Text fz="xs" style={{ flexGrow: 1 }} color="gray.6">
+                <Text fz="xs" style={{ flexGrow: 1 }} color="ldGray.6">
                     {children}
                 </Text>
             </Group>

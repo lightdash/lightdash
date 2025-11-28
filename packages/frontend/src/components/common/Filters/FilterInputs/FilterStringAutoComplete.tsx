@@ -206,14 +206,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             <Stack w="100%" spacing={0}>
                 <ScrollArea {...props}>
                     {searchedMaxResults ? (
-                        <Text
-                            color="dimmed"
-                            size="xs"
-                            px="sm"
-                            pt="xs"
-                            pb="xxs"
-                            bg="white"
-                        >
+                        <Text color="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
                             Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
                             {search ? 'Continue' : 'Start'} typing...
                         </Text>
@@ -235,9 +228,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 p="xxs"
                                 sx={(theme) => ({
                                     cursor: 'pointer',
-                                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                                     '&:hover': {
-                                        backgroundColor: theme.colors.gray[1],
+                                        backgroundColor: theme.colors.ldGray[1],
                                     },
                                 })}
                                 onClick={() => setForceRefresh(true)}

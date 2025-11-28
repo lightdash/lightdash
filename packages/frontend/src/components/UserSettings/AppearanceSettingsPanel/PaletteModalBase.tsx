@@ -8,12 +8,18 @@ import {
     ScrollArea,
     SimpleGrid,
     Stack,
+    Tabs,
     Text,
     TextInput,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChevronDown, IconPalette } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconMoon,
+    IconPalette,
+    IconSun,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartPreviewComponent } from './ChartPreviewComponent';
@@ -21,6 +27,7 @@ import { ChartPreviewComponent } from './ChartPreviewComponent';
 export interface PaletteFormValues {
     name?: string;
     colors: string[];
+    darkColors?: string[];
 }
 
 export type PaletteModalBaseProps = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -43,9 +50,13 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     existingPaletteNames = [],
 }) => {
     const [showAllColors, setShowAllColors] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | null>('light');
 
     const form = useForm<PaletteFormValues>({
-        initialValues,
+        initialValues: {
+            ...initialValues,
+            darkColors: initialValues.darkColors || initialValues.colors,
+        },
         validate: {
             name: (value) => {
                 if (!value || value.trim().length < 3) {
@@ -58,6 +69,10 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
             },
             colors: (value) =>
                 value.every((c) => c.startsWith('#')) ? null : 'Invalid colors',
+            darkColors: (value) =>
+                !value || value.every((c) => c.startsWith('#'))
+                    ? null
+                    : 'Invalid dark colors',
         },
     });
 
@@ -80,7 +95,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
             >
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                         padding: theme.spacing.sm,
                     })}
                 >
@@ -88,7 +103,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconPalette} size="sm" />
                         </Paper>
-                        <Text color="dark.7" fw={700} fz="md">
+                        <Text fw={700} fz="md">
                             {title}
                         </Text>
                     </Group>
@@ -120,111 +135,277 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            <Group
-                                align="flex-start"
-                                spacing={0}
-                                noWrap
-                                h="100%"
-                                mah={320}
-                                sx={(theme) => ({
-                                    border: `1px solid ${theme.colors.gray[2]}`,
-                                    borderRadius: theme.radius.md,
-                                    overflow: 'scroll',
-                                })}
+                            <Tabs
+                                value={activeTab}
+                                onTabChange={setActiveTab}
+                                variant="default"
                             >
-                                {/* Left side - Color inputs */}
-                                <Box
-                                    w={250}
-                                    miw={250}
-                                    p="sm"
-                                    // Address scrollarea right padding
-                                    pr={0}
-                                    pb="xs"
-                                    sx={(theme) => ({
-                                        borderRight: `1px solid ${theme.colors.gray[2]}`,
-                                    })}
-                                >
-                                    <ScrollArea
-                                        h={260}
-                                        offsetScrollbars
-                                        styles={{
-                                            viewport: {
-                                                maxHeight: 260,
-                                            },
-                                        }}
+                                <Tabs.List>
+                                    <Tabs.Tab
+                                        value="light"
+                                        icon={<MantineIcon icon={IconSun} />}
                                     >
-                                        <SimpleGrid cols={2} spacing="two">
-                                            {form.values.colors
-                                                .slice(
-                                                    0,
-                                                    showAllColors
-                                                        ? form.values.colors
-                                                              .length
-                                                        : 10,
-                                                )
-                                                .map((color, index) => (
-                                                    <ColorInput
-                                                        key={index}
-                                                        label={`#${index + 1}`}
-                                                        labelProps={{
-                                                            size: 10,
-                                                            color: 'gray.4',
-                                                        }}
-                                                        value={color}
-                                                        onChange={(newColor) =>
-                                                            form.setFieldValue(
-                                                                `colors.${index}`,
-                                                                newColor,
-                                                            )
-                                                        }
-                                                        swatches={
-                                                            form.values.colors
-                                                        }
-                                                        format="hex"
-                                                        size="xs"
-                                                        withPicker
-                                                        withEyeDropper={false}
-                                                    />
-                                                ))}
-                                        </SimpleGrid>
-                                    </ScrollArea>
+                                        Light Mode
+                                    </Tabs.Tab>
+                                    <Tabs.Tab
+                                        value="dark"
+                                        icon={<MantineIcon icon={IconMoon} />}
+                                    >
+                                        Dark Mode
+                                    </Tabs.Tab>
+                                </Tabs.List>
 
-                                    <Button
-                                        variant="subtle"
-                                        color="blue"
-                                        size="xs"
-                                        compact
-                                        onClick={() =>
-                                            setShowAllColors(!showAllColors)
-                                        }
-                                        rightIcon={
-                                            <MantineIcon
-                                                icon={IconChevronDown}
+                                <Tabs.Panel value="light" pt="md">
+                                    <Group
+                                        align="flex-start"
+                                        spacing={0}
+                                        noWrap
+                                        h="100%"
+                                        mah={320}
+                                        sx={(theme) => ({
+                                            border: `1px solid ${theme.colors.ldGray[2]}`,
+                                            borderRadius: theme.radius.md,
+                                            overflow: 'scroll',
+                                        })}
+                                    >
+                                        {/* Left side - Color inputs */}
+                                        <Box
+                                            w={250}
+                                            miw={250}
+                                            p="sm"
+                                            pr={0}
+                                            pb="xs"
+                                            sx={(theme) => ({
+                                                borderRight: `1px solid ${theme.colors.ldGray[2]}`,
+                                            })}
+                                        >
+                                            <ScrollArea
+                                                h={260}
+                                                offsetScrollbars
+                                                styles={{
+                                                    viewport: {
+                                                        maxHeight: 260,
+                                                    },
+                                                }}
+                                            >
+                                                <SimpleGrid
+                                                    cols={2}
+                                                    spacing="two"
+                                                >
+                                                    {form.values.colors
+                                                        .slice(
+                                                            0,
+                                                            showAllColors
+                                                                ? form.values
+                                                                      .colors
+                                                                      .length
+                                                                : 10,
+                                                        )
+                                                        .map((color, index) => (
+                                                            <ColorInput
+                                                                key={index}
+                                                                label={`#${
+                                                                    index + 1
+                                                                }`}
+                                                                labelProps={{
+                                                                    size: 10,
+                                                                    color: 'ldGray.4',
+                                                                }}
+                                                                value={color}
+                                                                onChange={(
+                                                                    newColor,
+                                                                ) =>
+                                                                    form.setFieldValue(
+                                                                        `colors.${index}`,
+                                                                        newColor,
+                                                                    )
+                                                                }
+                                                                swatches={
+                                                                    form.values
+                                                                        .colors
+                                                                }
+                                                                format="hex"
+                                                                size="xs"
+                                                                withPicker
+                                                                withEyeDropper={
+                                                                    false
+                                                                }
+                                                            />
+                                                        ))}
+                                                </SimpleGrid>
+                                            </ScrollArea>
+
+                                            <Button
+                                                variant="subtle"
+                                                color="blue"
                                                 size="xs"
-                                            />
-                                        }
-                                        fullWidth
-                                        sx={{ alignSelf: 'flex-end' }}
-                                    >
-                                        {showAllColors
-                                            ? 'Show fewer colors'
-                                            : 'Show all colors'}
-                                    </Button>
-                                </Box>
+                                                compact
+                                                onClick={() =>
+                                                    setShowAllColors(
+                                                        !showAllColors,
+                                                    )
+                                                }
+                                                rightIcon={
+                                                    <MantineIcon
+                                                        icon={IconChevronDown}
+                                                        size="xs"
+                                                    />
+                                                }
+                                                fullWidth
+                                                sx={{ alignSelf: 'flex-end' }}
+                                            >
+                                                {showAllColors
+                                                    ? 'Show fewer colors'
+                                                    : 'Show all colors'}
+                                            </Button>
+                                        </Box>
 
-                                {/* Right side - Chart preview */}
-                                <ChartPreviewComponent
-                                    colors={form.values.colors}
-                                />
-                            </Group>
+                                        {/* Right side - Chart preview */}
+                                        <ChartPreviewComponent
+                                            // Hardcoded background color, we don't want this to chanbe based on theme
+                                            // because it's used for users to decide how palette looks like in light mode
+                                            backgroundColor="#ffffff"
+                                            colors={form.values.colors}
+                                        />
+                                    </Group>
+                                </Tabs.Panel>
+
+                                <Tabs.Panel value="dark" pt="md">
+                                    <Group
+                                        align="flex-start"
+                                        spacing={0}
+                                        noWrap
+                                        h="100%"
+                                        mah={320}
+                                        sx={(theme) => ({
+                                            border: `1px solid ${theme.colors.ldGray[2]}`,
+                                            borderRadius: theme.radius.md,
+                                            overflow: 'scroll',
+                                        })}
+                                    >
+                                        {/* Left side - Color inputs */}
+                                        <Box
+                                            w={250}
+                                            miw={250}
+                                            p="sm"
+                                            pr={0}
+                                            pb="xs"
+                                            sx={(theme) => ({
+                                                borderRight: `1px solid ${theme.colors.ldGray[2]}`,
+                                            })}
+                                        >
+                                            <ScrollArea
+                                                h={260}
+                                                offsetScrollbars
+                                                styles={{
+                                                    viewport: {
+                                                        maxHeight: 260,
+                                                    },
+                                                }}
+                                            >
+                                                <SimpleGrid
+                                                    cols={2}
+                                                    spacing="two"
+                                                >
+                                                    {(
+                                                        form.values
+                                                            .darkColors ||
+                                                        form.values.colors
+                                                    )
+                                                        .slice(
+                                                            0,
+                                                            showAllColors
+                                                                ? (
+                                                                      form
+                                                                          .values
+                                                                          .darkColors ||
+                                                                      form
+                                                                          .values
+                                                                          .colors
+                                                                  ).length
+                                                                : 10,
+                                                        )
+                                                        .map((color, index) => (
+                                                            <ColorInput
+                                                                key={index}
+                                                                label={`#${
+                                                                    index + 1
+                                                                }`}
+                                                                labelProps={{
+                                                                    size: 10,
+                                                                    color: 'ldGray.4',
+                                                                }}
+                                                                value={color}
+                                                                onChange={(
+                                                                    newColor,
+                                                                ) =>
+                                                                    form.setFieldValue(
+                                                                        `darkColors.${index}`,
+                                                                        newColor,
+                                                                    )
+                                                                }
+                                                                swatches={
+                                                                    form.values
+                                                                        .darkColors ||
+                                                                    form.values
+                                                                        .colors
+                                                                }
+                                                                format="hex"
+                                                                size="xs"
+                                                                withPicker
+                                                                withEyeDropper={
+                                                                    false
+                                                                }
+                                                            />
+                                                        ))}
+                                                </SimpleGrid>
+                                            </ScrollArea>
+
+                                            <Button
+                                                variant="subtle"
+                                                color="blue"
+                                                size="xs"
+                                                compact
+                                                onClick={() =>
+                                                    setShowAllColors(
+                                                        !showAllColors,
+                                                    )
+                                                }
+                                                rightIcon={
+                                                    <MantineIcon
+                                                        icon={IconChevronDown}
+                                                        size="xs"
+                                                    />
+                                                }
+                                                fullWidth
+                                                sx={{ alignSelf: 'flex-end' }}
+                                            >
+                                                {showAllColors
+                                                    ? 'Show fewer colors'
+                                                    : 'Show all colors'}
+                                            </Button>
+                                        </Box>
+
+                                        {/* Right side - Chart preview */}
+                                        <ChartPreviewComponent
+                                            // Hardcoded background color, we don't want this to chanbe based on theme
+                                            // because it's used for users to decide how palette looks like in dark mode
+                                            backgroundColor="#25262b"
+                                            colors={
+                                                form.values.darkColors ||
+                                                form.values.colors
+                                            }
+                                        />
+                                    </Group>
+                                </Tabs.Panel>
+                            </Tabs>
                         </Stack>
                     </Modal.Body>
 
                     <Box
                         sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
+                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                             padding: theme.spacing.sm,
-                            backgroundColor: theme.white,
                             position: 'sticky',
                             bottom: 0,
                             width: '100%',

@@ -15,7 +15,7 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
     return (
         <Box>
             {relatedDashboards ? (
-                <Text fw={600} fz="xs" color="gray.6">
+                <Text fw={600} fz="xs" color="ldGray.6">
                     Used in {relatedDashboards?.length ?? 0} dashboard
                     {relatedDashboards?.length === 1 ? '' : 's'}
                     {relatedDashboards && relatedDashboards.length > 0

@@ -59,7 +59,7 @@ export const CatalogMetadataFieldsTable: FC<Props> = ({
                             </td>
                             <td>
                                 <Badge
-                                    color="gray.4"
+                                    color="ldGray.4"
                                     radius="lg"
                                     size="xs"
                                     fz="xs"

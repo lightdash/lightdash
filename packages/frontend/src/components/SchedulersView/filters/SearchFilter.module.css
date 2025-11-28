@@ -4,13 +4,13 @@
     text-overflow: ellipsis;
     font-size: var(--mantine-font-size-sm);
     font-weight: 400;
-    color: var(--mantine-color-gray-5);
+    color: var(--mantine-color-ldGray-5);
     box-shadow: var(--mantine-shadow-subtle);
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .searchInput:hover {
-    border: 1px solid var(--mantine-color-gray-4);
+    border: 1px solid var(--mantine-color-ldGray-4);
 }
 
 .searchInput:focus {
@@ -23,13 +23,13 @@
     text-overflow: ellipsis;
     font-size: var(--mantine-font-size-sm);
     font-weight: 400;
-    color: var(--mantine-color-gray-8);
+    color: var(--mantine-color-ldGray-8);
     box-shadow: var(--mantine-shadow-subtle);
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .searchInputWithValue:hover {
-    border: 1px solid var(--mantine-color-gray-4);
+    border: 1px solid var(--mantine-color-ldGray-4);
 }
 
 .searchInputWithValue:focus {

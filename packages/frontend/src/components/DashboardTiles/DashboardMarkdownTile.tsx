@@ -107,6 +107,7 @@ const MarkdownTile: FC<Props> = (props) => {
                     overflow: 'auto',
                     '.wmde-markdown': {
                         fontSize: '14px',
+                        backgroundColor: 'transparent',
                     },
                 }}
             >

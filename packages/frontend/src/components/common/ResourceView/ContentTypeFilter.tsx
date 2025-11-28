@@ -9,7 +9,7 @@ interface OptionProps {
 
 const ContentTypeSelectOption = ({ label }: OptionProps) => (
     <Center px={'xxs'}>
-        <Text size="sm" color="gray.7">
+        <Text size="sm" color="ldGray.7">
             {label}
         </Text>
     </Center>

@@ -70,7 +70,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     {isEditMode && (
                         <ActionIcon
                             size="xs"
-                            variant="subtle"
+                            variant="default"
                             onClick={() => setIsDateZoomDisabled(true)}
                             className={styles.closeButton}
                         >

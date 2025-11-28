@@ -15,7 +15,7 @@ const SelectItem = forwardRef<
         <Box ref={mergeRefs(ref, hoverRef)} {...others} w={290}>
             <Text
                 fz="sm"
-                c="dark.8"
+                c="foreground.1"
                 fw={400}
                 truncate={hovered ? undefined : 'end'}
             >

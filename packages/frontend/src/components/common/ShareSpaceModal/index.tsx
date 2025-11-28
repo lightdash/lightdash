@@ -73,8 +73,8 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 onClose={() => setIsOpen(false)}
                 actions={
                     !isNestedSpace ? (
-                        <Box bg="gray.0">
-                            <Text color="gray.7" fz="xs">
+                        <Box bg="ldGray.0">
+                            <Text color="ldGray.7" fz="xs">
                                 {selectedAccess.value ===
                                     SpaceAccessType.PRIVATE &&
                                 sessionUser.data?.ability?.can(
@@ -110,7 +110,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     ) : null
                 }
                 modalActionsProps={{
-                    bg: 'gray.0',
+                    bg: 'ldGray.0',
                 }}
             >
                 <>

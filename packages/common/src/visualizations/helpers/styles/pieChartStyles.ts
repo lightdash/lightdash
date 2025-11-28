@@ -1,4 +1,4 @@
-import { GRAY_3, GRAY_6, GRAY_7, WHITE } from './themeColors';
+import { BACKGROUND, GRAY_3, GRAY_6, GRAY_7 } from './themeColors';
 
 /**
  * Calculate border radius based on slice percentage
@@ -27,7 +27,7 @@ export const getPieSliceStyle = (isDonut: boolean) =>
     isDonut
         ? {
               itemStyle: {
-                  borderColor: WHITE,
+                  borderColor: BACKGROUND,
                   borderWidth: 2,
               },
           }

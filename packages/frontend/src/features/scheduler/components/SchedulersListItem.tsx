@@ -65,18 +65,18 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         {scheduler.name}
                     </Text>
                     <Group spacing="sm">
-                        <Text color="gray" size={12}>
+                        <Text color="ldGray" size={12}>
                             {getHumanReadableCronExpression(
                                 scheduler.cron,
                                 scheduler.timezone || project.schedulerTimezone,
                             )}
                         </Text>
 
-                        <Box c="gray.4">
+                        <Box c="ldGray.4">
                             <MantineIcon icon={IconCircleFilled} size={5} />
                         </Box>
 
-                        <Text color="gray" size={12}>
+                        <Text color="ldGray" size={12}>
                             {scheduler.targets.length} recipients
                         </Text>
                     </Group>

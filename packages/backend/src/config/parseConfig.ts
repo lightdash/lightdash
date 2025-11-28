@@ -816,6 +816,7 @@ export type LightdashConfig = {
         };
     };
     // This is the override color palette for the organization
+    // TODO: allow override for dark theme
     appearance: {
         overrideColorPalette?: string[];
         overrideColorPaletteName?: string;

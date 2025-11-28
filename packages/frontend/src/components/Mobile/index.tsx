@@ -18,7 +18,7 @@ const MobileView = () => (
             <Title ta="center" order={4}>
                 This page is not available to view on mobile yet.
             </Title>
-            <Text ta="center" color="gray.6">
+            <Text ta="center" color="ldGray.6">
                 Sign in on a laptop or desktop to access this page!
             </Text>
             <MantineLinkButton href="/">Back to home page</MantineLinkButton>

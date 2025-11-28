@@ -36,7 +36,7 @@ export const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'lg',
-    bg = 'gray.0',
+    bg = 'ldGray.0',
     ...mantineIconProps
 }) => (
     <Paper
@@ -81,7 +81,7 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.DASHBOARD:
             return <IconBox icon={IconLayoutDashboard} color="green.6" />;
         case ResourceViewItemType.SPACE:
-            return <IconBox icon={IconFolder} color="violet.6" bg="violet.0" />;
+            return <IconBox icon={IconFolder} color="violet.6" />;
         case ResourceViewItemType.CHART:
             return <ChartIcon chartKind={item.data.chartKind} />;
         default:

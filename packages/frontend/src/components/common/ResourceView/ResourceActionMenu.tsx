@@ -189,7 +189,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
                             sx={(theme) => ({
                                 ':hover': {
-                                    backgroundColor: theme.colors.gray[1],
+                                    backgroundColor: theme.colors.ldGray[1],
                                 },
                             })}
                         >

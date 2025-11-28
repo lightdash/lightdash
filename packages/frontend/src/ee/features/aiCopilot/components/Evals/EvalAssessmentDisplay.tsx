@@ -78,7 +78,7 @@ export const EvalAssessmentDisplay: FC<EvalAssessmentDisplayProps> = ({
                     rightAction={
                         <Badge
                             color={assessmentConfig.color}
-                            variant="white"
+                            variant="transparent"
                             leftSection={
                                 <MantineIcon
                                     size={14}
