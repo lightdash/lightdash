@@ -93,6 +93,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 pb={0}
                                 w={sidebarWidth}
                                 style={style}
+                                radius={0}
                                 sx={{
                                     display: 'flex',
                                     flexGrow: 1,

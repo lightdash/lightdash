@@ -418,7 +418,9 @@ export const ContentPanel: FC = () => {
                                     styles={(theme) => ({
                                         root: {
                                             backgroundColor:
-                                                theme.colors.ldGray[2],
+                                                theme.colorScheme === 'dark'
+                                                    ? theme.colors.ldDark[9]
+                                                    : theme.colors.ldGray[2],
                                         },
                                     })}
                                     size="sm"

@@ -161,10 +161,15 @@ export const HeaderEdit: FC = () => {
             <Paper
                 shadow="none"
                 radius={0}
+                withBorder={false}
                 px="md"
                 py="xs"
                 sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
+                    borderBottom: `1px solid ${
+                        theme.colorScheme === 'dark'
+                            ? theme.colors.ldDark[8]
+                            : theme.colors.ldGray[3]
+                    }`,
                 })}
             >
                 <Group position="apart">
