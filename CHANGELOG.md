@@ -1,3 +1,10 @@
+# [0.2211.0](https://github.com/lightdash/lightdash/compare/0.2210.0...0.2211.0) (2025-11-28)
+
+
+### Features
+
+* dark mode support ([#18365](https://github.com/lightdash/lightdash/issues/18365)) ([0806f1d](https://github.com/lightdash/lightdash/commit/0806f1d06e07ee3cc84c5c2b9ccab29917c2ed94))
+
 # [0.2210.0](https://github.com/lightdash/lightdash/compare/0.2209.4...0.2210.0) (2025-11-28)
 
 
