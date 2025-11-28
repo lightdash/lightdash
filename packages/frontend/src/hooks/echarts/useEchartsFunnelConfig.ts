@@ -99,6 +99,7 @@ const useEchartsFunnelConfig = (
                     meta,
                     itemStyle: {
                         color: colorOverrides?.[id] ?? colorDefaults[id],
+                        borderWidth: 0,
                     },
                 };
             }),
