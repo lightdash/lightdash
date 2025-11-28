@@ -2308,72 +2308,98 @@ const useEchartsCartesianConfig = (
         resultsData?.metricQuery?.sorts,
     ]);
 
-    const sortedResultsByTotals = useMemo(() => {
-        if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
+    const { sortedResultsByTotals, barTotalsSortedCategoryValues } =
+        useMemo(() => {
+            if (!stackedSeriesWithColorAssignments?.length)
+                return {
+                    sortedResultsByTotals: sortedResults,
+                    barTotalsSortedCategoryValues: undefined,
+                };
 
-        const axis = validCartesianConfig?.layout.flipAxes
-            ? axes.yAxis[0]
-            : axes.xAxis[0];
+            const axis = validCartesianConfig?.layout.flipAxes
+                ? axes.yAxis[0]
+                : axes.xAxis[0];
 
-        const xFieldId = validCartesianConfig?.layout?.xField;
-        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+            const xFieldId = validCartesianConfig?.layout?.xField;
+            const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
-        if (
-            xFieldId &&
-            axis?.type === 'category' &&
-            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
-        ) {
-            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
-                ? 1
-                : 0;
+            if (
+                xFieldId &&
+                axis?.type === 'category' &&
+                xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
+            ) {
+                const stackTotalValueIndex = validCartesianConfig?.layout
+                    .flipAxes
+                    ? 1
+                    : 0;
 
-            const stackTotals = getStackTotalRows(
-                rows,
-                stackedSeriesWithColorAssignments,
-                validCartesianConfig?.layout.flipAxes,
-                validCartesianConfigLegend,
-            );
+                const stackTotals = getStackTotalRows(
+                    rows,
+                    stackedSeriesWithColorAssignments,
+                    validCartesianConfig?.layout.flipAxes,
+                    validCartesianConfigLegend,
+                );
 
-            // Using entries since we cannot use a map here (cannot index with unknown)
-            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
-            const stackTotalEntries: [unknown, number][] = Object.entries(
-                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
-            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
-                acc.push([
-                    key,
-                    totals.reduce((sum, total) => sum + total[2], 0),
-                ]);
+                // Using entries since we cannot use a map here (cannot index with unknown)
+                // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+                const stackTotalEntries: [unknown, number][] = Object.entries(
+                    groupBy(
+                        stackTotals,
+                        (total) => total[stackTotalValueIndex],
+                    ),
+                ).reduce<[unknown, number][]>((acc, [key, totals]) => {
+                    acc.push([
+                        key,
+                        totals.reduce((sum, total) => sum + total[2], 0),
+                    ]);
 
-                return acc;
-            }, []);
+                    return acc;
+                }, []);
 
-            return sortedResults.sort((a, b) => {
-                const totalA =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === a[xFieldId],
-                    )?.[1] ?? 0;
+                const sorted = sortedResults.sort((a, b) => {
+                    const totalA =
+                        stackTotalEntries.find(
+                            (entry) => entry[0] === a[xFieldId],
+                        )?.[1] ?? 0;
 
-                const totalB =
-                    stackTotalEntries.find(
-                        (entry) => entry[0] === b[xFieldId],
-                    )?.[1] ?? 0;
+                    const totalB =
+                        stackTotalEntries.find(
+                            (entry) => entry[0] === b[xFieldId],
+                        )?.[1] ?? 0;
 
-                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
-            });
-        }
+                    return totalA - totalB; // Asc/Desc will be taken care of by inverse config
+                });
 
-        return sortedResults;
-    }, [
-        stackedSeriesWithColorAssignments,
-        sortedResults,
-        validCartesianConfig?.layout.flipAxes,
-        validCartesianConfig?.layout?.xField,
-        validCartesianConfig?.eChartsConfig.xAxis,
-        axes.yAxis,
-        axes.xAxis,
-        rows,
-        validCartesianConfigLegend,
-    ]);
+                // Extract sorted category values for ECharts axis data property
+                const categoryValues = Array.from(
+                    new Set(
+                        sorted.map((row) =>
+                            EMPTY_X_AXIS in row ? undefined : row[xFieldId],
+                        ),
+                    ),
+                );
+
+                return {
+                    sortedResultsByTotals: sorted,
+                    barTotalsSortedCategoryValues: categoryValues,
+                };
+            }
+
+            return {
+                sortedResultsByTotals: sortedResults,
+                barTotalsSortedCategoryValues: undefined,
+            };
+        }, [
+            stackedSeriesWithColorAssignments,
+            sortedResults,
+            validCartesianConfig?.layout.flipAxes,
+            validCartesianConfig?.layout?.xField,
+            validCartesianConfig?.eChartsConfig.xAxis,
+            axes.yAxis,
+            axes.xAxis,
+            rows,
+            validCartesianConfigLegend,
+        ]);
 
     // Apply 100% stacking transformation if needed
     const { dataToRender, originalValues } = useMemo(() => {
@@ -2602,14 +2628,45 @@ const useEchartsCartesianConfig = (
         series,
     ]);
 
+    // When BAR_TOTALS sorting is active, we need to explicitly set the category axis data
+    // to preserve our sorted order, as ECharts would otherwise sort it differently
+    const axesWithBarTotalsSorting = useMemo(() => {
+        if (!barTotalsSortedCategoryValues) {
+            return { xAxis: axes.xAxis, yAxis: axes.yAxis };
+        }
+
+        const flipAxes = validCartesianConfig?.layout?.flipAxes;
+
+        return {
+            xAxis: flipAxes
+                ? axes.xAxis
+                : axes.xAxis.map((axis, index) =>
+                      index === 0
+                          ? { ...axis, data: barTotalsSortedCategoryValues }
+                          : axis,
+                  ),
+            yAxis: flipAxes
+                ? axes.yAxis.map((axis, index) =>
+                      index === 0
+                          ? { ...axis, data: barTotalsSortedCategoryValues }
+                          : axis,
+                  )
+                : axes.yAxis,
+        };
+    }, [
+        axes,
+        barTotalsSortedCategoryValues,
+        validCartesianConfig?.layout?.flipAxes,
+    ]);
+
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
         return {
-            xAxis: axes.xAxis,
-            yAxis: axes.yAxis,
+            xAxis: axesWithBarTotalsSorting.xAxis,
+            yAxis: axesWithBarTotalsSorting.yAxis,
             useUTC: true,
             series: stackedSeriesWithColorAssignments,
             animation: !(isInDashboard || minimal),
@@ -2649,7 +2706,7 @@ const useEchartsCartesianConfig = (
             }),
         };
     }, [
-        axes,
+        axesWithBarTotalsSorting,
         stackedSeriesWithColorAssignments,
         isInDashboard,
         minimal,
