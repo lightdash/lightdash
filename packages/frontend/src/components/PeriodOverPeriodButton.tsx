@@ -1,7 +1,6 @@
 import {
     getItemId,
     isDimension,
-    isPreviousPeriodableTimeDimension,
     isSupportedPeriodOverPeriodGranularity,
     timeFrameConfigs,
     TimeFrames,
@@ -65,8 +64,11 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
 
         const allTimeDimensions = selectedDimensions
             .map((dimId) => itemsMap[dimId])
-            .filter((item): item is Dimension =>
-                isPreviousPeriodableTimeDimension(item),
+            .filter(
+                (item): item is Dimension =>
+                    isDimension(item) &&
+                    !!item.timeInterval &&
+                    isSupportedPeriodOverPeriodGranularity(item.timeInterval),
             );
 
         if (allTimeDimensions.length <= 1) return allTimeDimensions;
