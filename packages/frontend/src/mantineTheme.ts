@@ -340,4 +340,4 @@ export const getMantineThemeOverride = (
                 to: { opacity: 1 },
             },
         }),
-    }) satisfies MantineThemeOverride;
+    } satisfies MantineThemeOverride);
