@@ -367,6 +367,8 @@ export type EChartsSeries = {
         siblingSeriesIndex: number;
         periodOffset: number;
         granularity: string;
+        /** The field ID of the base metric this PoP series compares against */
+        baseFieldId: string;
     };
 };
 

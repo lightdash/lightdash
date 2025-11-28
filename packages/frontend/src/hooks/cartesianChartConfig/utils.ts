@@ -6,6 +6,7 @@ import {
     isDimension,
     type CartesianSeriesType,
     type ItemsMap,
+    type ResultColumns,
     type Series,
 } from '@lightdash/common';
 import {
@@ -124,11 +125,14 @@ export const getExpectedSeriesMap = ({
 type MergeExistingAndExpectedSeriesArgs = {
     expectedSeriesMap: Record<string, Series>;
     existingSeries: Series[];
+    /** ResultColumns from API response - contains popMetadata for PoP fields */
+    resultsColumns?: ResultColumns;
 };
 
 export const mergeExistingAndExpectedSeries = ({
     expectedSeriesMap,
     existingSeries,
+    resultsColumns,
 }: MergeExistingAndExpectedSeriesArgs) => {
     const { existingValidSeries, existingValidSeriesIds } =
         existingSeries.reduce<{
@@ -182,11 +186,16 @@ export const mergeExistingAndExpectedSeries = ({
                 return [...acc];
             }
 
-            // For _previous fields, inherit chart properties from the base field's series
+            // For PoP fields, inherit chart properties from the base field's series
             let seriesToAdd = expectedSeries;
             const yRefField = expectedSeries.encode.yRef.field;
-            if (yRefField && yRefField.endsWith('_previous')) {
-                const baseFieldId = yRefField.replace(/_previous$/, '');
+            const popMetadata = yRefField
+                ? resultsColumns?.[yRefField]?.popMetadata
+                : undefined;
+
+            if (popMetadata) {
+                // Use baseFieldId from popMetadata
+                const { baseFieldId } = popMetadata;
                 const baseSeries = acc.find(
                     (series) => series.encode.yRef.field === baseFieldId,
                 );
