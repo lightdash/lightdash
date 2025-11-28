@@ -70,13 +70,9 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
                 const settings = filter.settings as DateFilterSettings;
                 const unitOfTime = settings.unitOfTime || UnitOfTime.days;
 
-                if (settings.completed) {
-                    throw new NotImplementedError(
-                        'Custom metric completed filter is not supported on dbt',
-                    );
-                }
+                const completed = settings.completed ? ' completed' : '';
 
-                return [`${operator} ${firstValue} ${unitOfTime}`];
+                return [`${operator} ${firstValue}${completed} ${unitOfTime}`];
             }
             throw new NotImplementedError(
                 `No function implemented to convert date custom metric filter to dbt: ${operator}`,

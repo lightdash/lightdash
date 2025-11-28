@@ -19,6 +19,7 @@ export type ParsedFilter = {
     values: AnyType[];
     is?: boolean;
     date_interval?: string;
+    completed?: boolean;
 };
 
 const filterGrammar = `ROOT
@@ -73,15 +74,17 @@ MONTH = ("0" [1-9]) / ("1" [0-2])
 DAY = ("0" [1-9]) / ([1-2] [0-9]) / ("3" [0-1])
 TIME = [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)?
 
-DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMBER SPACE_SYMBOL* interval:DATE_INTERVAL {
+DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMBER SPACE_SYMBOL* completed:COMPLETED? SPACE_SYMBOL* interval:DATE_INTERVAL {
     return {
         type: operator,
         values: [value],
-        date_interval: interval
+        date_interval: interval,
+        completed: completed !== null
     }
    }
 
 DATE_OPERATOR = 'inThePast' / 'inTheNext'
+COMPLETED = 'completed'i
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
 NUMBER
@@ -300,6 +303,9 @@ export const parseFilters = (
                         ? {
                               settings: {
                                   unitOfTime: parsedFilter.date_interval,
+                                  ...(parsedFilter.completed !== undefined
+                                      ? { completed: parsedFilter.completed }
+                                      : {}),
                               },
                           }
                         : null),
@@ -407,6 +413,9 @@ export const parseModelRequiredFilters = ({
                         ? {
                               settings: {
                                   unitOfTime: parsedFilter.date_interval,
+                                  ...(parsedFilter.completed !== undefined
+                                      ? { completed: parsedFilter.completed }
+                                      : {}),
                               },
                           }
                         : null),
