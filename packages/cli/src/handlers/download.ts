@@ -8,13 +8,17 @@ import {
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
+    generateSlug,
     getErrorMessage,
     LightdashError,
+    Project,
     PromotionAction,
     PromotionChanges,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
+import groupBy from 'lodash/groupBy';
+import { Dirent } from 'node:fs';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
@@ -78,15 +82,17 @@ type ContentAsCodeType =
       };
 
 const createDirForContent = async (
-    items: (ChartAsCode | DashboardAsCode)[],
+    projectName: string,
+    spaceSlug: string,
     folder: 'charts' | 'dashboards',
     customPath: string | undefined,
 ) => {
-    const outputDir = path.join(getDownloadFolder(customPath), folder);
+    const baseDir = getDownloadFolder(customPath);
+    // Build hierarchical path: baseDir/projectName/spaceSlug/folder
+    const outputDir = path.join(baseDir, projectName, spaceSlug, folder);
 
-    GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
-    const created = await fs.mkdir(outputDir, { recursive: true });
-    if (created) console.info(`\nCreated new folder: ${outputDir} `);
+    GlobalState.debug(`Creating directory: ${outputDir}`);
+    await fs.mkdir(outputDir, { recursive: true });
 
     return outputDir;
 };
@@ -114,69 +120,134 @@ const writeContent = async (
     }
 };
 
+const isLightdashContentFile = (folder: string, entry: Dirent) =>
+    entry.isFile() &&
+    entry.parentPath.endsWith(path.sep + folder) &&
+    entry.name.endsWith('.yml') &&
+    !entry.name.endsWith('.language.map.yml');
+
+const loadYamlFile = async <T extends ChartAsCode | DashboardAsCode>(
+    file: Dirent,
+) => {
+    const filePath = path.join(file.parentPath, file.name);
+    const [fileContent, stats] = await Promise.all([
+        fs.readFile(filePath, 'utf-8'),
+        fs.stat(filePath),
+    ]);
+
+    const item = yaml.load(fileContent) as T;
+    const downloadedAt = item.downloadedAt
+        ? new Date(item.downloadedAt)
+        : undefined;
+    const needsUpdating =
+        downloadedAt &&
+        Math.abs(stats.mtime.getTime() - downloadedAt.getTime()) > 30000;
+
+    return {
+        ...item,
+        updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
+        needsUpdating: needsUpdating ?? true,
+    };
+};
+
 const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     folder: 'charts' | 'dashboards',
     customPath?: string,
 ): Promise<(T & { needsUpdating: boolean })[]> => {
-    const inputDir = path.join(getDownloadFolder(customPath), folder);
+    const baseDir = getDownloadFolder(customPath);
 
-    console.info(`Reading ${folder} from ${inputDir}`);
-    const items: (T & { needsUpdating: boolean })[] = [];
+    GlobalState.log(`Reading ${folder} from ${baseDir}`);
+
     try {
-        // Read all files from the lightdash directory
-        // if folder does not exist, this throws an error
-        const files = await fs.readdir(inputDir);
-        const yamlFiles = files
-            .filter((file) => file.endsWith('.yml'))
-            .filter((file) => !file.endsWith('.language.map.yml'));
+        const allEntries = await fs.readdir(baseDir, {
+            recursive: true,
+            withFileTypes: true,
+        });
 
-        // Load each JSON file
-        for (const file of yamlFiles) {
-            const filePath = path.join(inputDir, file);
-            const fileContent = await fs.readFile(filePath, 'utf-8');
-            const item = yaml.load(fileContent) as T;
+        const items = await Promise.all(
+            allEntries
+                .filter((entry) => isLightdashContentFile(folder, entry))
+                .map((file) => loadYamlFile<T>(file)),
+        );
 
-            const fileUpdatedAt = (await fs.stat(filePath)).mtime;
-            // We override the updatedAt to the file's updatedAt
-            // in case there were some changes made locally
-            // do not override if the file was just created
-            const downloadedAt = item.downloadedAt
-                ? new Date(item.downloadedAt)
-                : undefined;
-            const needsUpdating =
-                downloadedAt &&
-                Math.abs(fileUpdatedAt.getTime() - downloadedAt.getTime()) >
-                    30000;
-
-            const locallyUpdatedItem = {
-                ...item,
-                updatedAt: needsUpdating ? fileUpdatedAt : item.updatedAt, // Force the update by changing updatedAt , which is what promotion is going to compare
-                needsUpdating: needsUpdating ?? true, // if downloadAt is not set, we force the update
-            };
-            items.push(locallyUpdatedItem);
+        if (items.length === 0) {
+            console.error(
+                styles.warning(
+                    `Unable to upload ${folder}, no files found in "${baseDir}". Run download command first.`,
+                ),
+            );
         }
+
+        return items;
     } catch (error) {
-        // Folder does not exist
+        // Handle case where base directory doesn't exist
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
             console.error(
                 styles.warning(
-                    `Unable to upload ${folder}, "${inputDir}" folder not found. Run download command first.`,
+                    `Unable to upload ${folder}, "${baseDir}" folder not found. Run download command first.`,
                 ),
             );
             return [];
         }
         // Unknown error
-        console.error(styles.error(`Error reading ${inputDir}: ${error}`));
+        console.error(styles.error(`Error reading ${baseDir}: ${error}`));
         throw error;
     }
+};
 
-    return items;
+const groupBySpace = <T extends ChartAsCode | DashboardAsCode>(
+    items: T[],
+): Record<string, Array<{ item: T; index: number }>> => {
+    const itemsWithIndex = items.map((item, index) => ({ item, index }));
+    return groupBy(itemsWithIndex, (entry) => entry.item.spaceSlug);
+};
+
+const writeSpaceContent = async <T extends ChartAsCode | DashboardAsCode>({
+    projectName,
+    spaceSlug,
+    folder,
+    contentInSpace,
+    contentAsCode,
+    customPath,
+    languageMap,
+}: {
+    projectName: string;
+    spaceSlug: string;
+    folder: 'charts' | 'dashboards';
+    contentInSpace: Array<{ item: T; index: number }>;
+    contentAsCode:
+        | ApiDashboardAsCodeListResponse['results']
+        | ApiChartAsCodeListResponse['results'];
+    customPath?: string;
+    languageMap: boolean;
+}) => {
+    const outputDir = await createDirForContent(
+        projectName,
+        spaceSlug,
+        folder,
+        customPath,
+    );
+
+    const contentType = folder === 'charts' ? 'chart' : 'dashboard';
+
+    for (const { item, index } of contentInSpace) {
+        await writeContent(
+            {
+                type: contentType,
+                content: item,
+                translationMap: contentAsCode.languageMap?.[index],
+            } as ContentAsCodeType,
+            outputDir,
+            languageMap,
+        );
+    }
 };
 
 export const downloadContent = async (
     ids: string[], // slug, uuid or url
     type: 'charts' | 'dashboards',
     projectId: string,
+    projectName: string,
     customPath?: string,
     languageMap: boolean = false,
 ): Promise<[number, string[]]> => {
@@ -210,25 +281,22 @@ export const downloadContent = async (
         });
 
         if ('dashboards' in contentAsCode) {
-            const outputDir = await createDirForContent(
-                contentAsCode.dashboards,
-                'dashboards',
-                customPath,
-            );
+            // Group dashboards by spaceSlug
+            const dashboardsBySpace = groupBySpace(contentAsCode.dashboards);
 
-            for (const [
-                index,
-                dashboard,
-            ] of contentAsCode.dashboards.entries()) {
-                await writeContent(
-                    {
-                        type: 'dashboard',
-                        content: dashboard,
-                        translationMap: contentAsCode.languageMap?.[index],
-                    },
-                    outputDir,
+            // Create directory and write content for each space
+            for (const [spaceSlug, dashboardsInSpace] of Object.entries(
+                dashboardsBySpace,
+            )) {
+                await writeSpaceContent({
+                    projectName,
+                    spaceSlug,
+                    folder: 'dashboards',
+                    contentInSpace: dashboardsInSpace,
+                    contentAsCode,
+                    customPath,
                     languageMap,
-                );
+                });
             }
 
             // Extract chart slugs from dashboards
@@ -249,21 +317,19 @@ export const downloadContent = async (
                 [],
             );
         } else {
-            const outputDir = await createDirForContent(
-                contentAsCode.charts,
-                'charts',
-                customPath,
-            );
-            for (const [index, chart] of contentAsCode.charts.entries()) {
-                await writeContent(
-                    {
-                        type: 'chart',
-                        content: chart,
-                        translationMap: contentAsCode.languageMap?.[index],
-                    },
-                    outputDir,
+            const chartsBySpace = groupBySpace(contentAsCode.charts);
+            for (const [spaceSlug, chartsInSpace] of Object.entries(
+                chartsBySpace,
+            )) {
+                await writeSpaceContent({
+                    projectName,
+                    spaceSlug,
+                    folder: 'charts',
+                    contentInSpace: chartsInSpace,
+                    contentAsCode,
+                    customPath,
                     languageMap,
-                );
+                });
             }
         }
         offset = contentAsCode.offset;
@@ -276,6 +342,9 @@ export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const spinner = GlobalState.startSpinner(`Downloading charts`);
+    spinner.start(`Downloading content from project`);
+
     await checkLightdashVersion();
 
     const config = await getConfig();
@@ -291,6 +360,14 @@ export const downloadHandler = async (
             'No project selected. Run lightdash config set-project',
         );
     }
+
+    // Fetch project details to get project name for folder structure
+    const project = await lightdashApi<Project>({
+        method: 'GET',
+        url: `/api/v1/projects/${projectId}`,
+        body: undefined,
+    });
+    const projectName = generateSlug(project.name);
 
     // For analytics
     let chartTotal: number | undefined;
@@ -317,11 +394,11 @@ export const downloadHandler = async (
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
-            const spinner = GlobalState.startSpinner(`Downloading charts`);
             [chartTotal] = await downloadContent(
                 options.charts,
                 'charts',
                 projectId,
+                projectName,
                 options.path,
                 options.languageMap,
             );
@@ -333,13 +410,13 @@ export const downloadHandler = async (
                 styles.warning(`No dashboards filters provided, skipping`),
             );
         } else {
-            const spinner = GlobalState.startSpinner(`Downloading dashboards`);
             let chartSlugs: string[] = [];
 
             [dashboardTotal, chartSlugs] = await downloadContent(
                 options.dashboards,
                 'dashboards',
                 projectId,
+                projectName,
                 options.path,
                 options.languageMap,
             );
@@ -357,6 +434,7 @@ export const downloadHandler = async (
                     chartSlugs,
                     'charts',
                     projectId,
+                    projectName,
                     options.path,
                     options.languageMap,
                 );
