@@ -17,6 +17,7 @@ import useLeafletMapConfig from '../../hooks/leaflet/useLeafletMapConfig';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import HeatmapLayer from './HeatmapLayer';
 
 // Custom styles for Leaflet zoom controls
 const leafletCustomStyles = `
@@ -237,7 +238,7 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
               zIndex: 0,
           };
 
-    // Scatter mode - render markers (show map even without data)
+    // Scatter/Heatmap mode - render markers or heatmap (show map even without data)
     if (mapConfig.isLatLong) {
         const scatterData = mapConfig.scatterData || [];
         const scatterValues = scatterData.map((d) => d.value);
@@ -246,10 +247,31 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
         const maxValue =
             scatterValues.length > 0 ? Math.max(...scatterValues, 1) : 1;
 
-        // Create d3 sqrt scale for proportional circle sizing
+        // Create d3 sqrt scale for proportional circle sizing (scatter mode)
         const sizeScale = scaleSqrt()
             .domain([minValue, maxValue])
             .range([mapConfig.minBubbleSize, mapConfig.maxBubbleSize]);
+
+        // Prepare heatmap points: [lat, lng, intensity]
+        const heatmapPoints: [number, number, number][] = scatterData.map(
+            (point) => {
+                // Normalize intensity to 0-1 range
+                const intensity =
+                    maxValue === minValue
+                        ? 0.5
+                        : (point.value - minValue) / (maxValue - minValue);
+                return [point.lat, point.lon, intensity];
+            },
+        );
+
+        // Build gradient from color scale
+        const heatmapGradient: Record<number, string> = {};
+        mapConfig.colors.scale.forEach((color, index) => {
+            const position = index / (mapConfig.colors.scale.length - 1);
+            heatmapGradient[position] = color;
+        });
+
+        const isHeatmap = mapConfig.locationType === MapChartType.HEATMAP;
 
         return (
             <div
@@ -269,40 +291,53 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                             url={mapConfig.tile.url}
                         />
                     )}
-                    {scatterData.map((point, idx) => {
-                        const radius = sizeScale(point.value);
-                        const color = getColorForValue(
-                            point.value,
-                            minValue,
-                            maxValue,
-                            mapConfig.colors.scale,
-                        );
-                        return (
-                            <CircleMarker
-                                key={idx}
-                                center={[point.lat, point.lon]}
-                                radius={radius}
-                                pathOptions={{
-                                    fillColor: color,
-                                    fillOpacity: 0.7,
-                                    color: '#fff',
-                                    weight: 1,
-                                }}
-                            >
-                                <Popup>
-                                    <div>
-                                        <strong>Value:</strong> {point.value}
-                                        <br />
-                                        <strong>Lat:</strong>{' '}
-                                        {point.lat.toFixed(4)}
-                                        <br />
-                                        <strong>Lon:</strong>{' '}
-                                        {point.lon.toFixed(4)}
-                                    </div>
-                                </Popup>
-                            </CircleMarker>
-                        );
-                    })}
+                    {isHeatmap ? (
+                        <HeatmapLayer
+                            points={heatmapPoints}
+                            options={{
+                                gradient: heatmapGradient,
+                                radius: 25,
+                                blur: 15,
+                                minOpacity: 0.6,
+                            }}
+                        />
+                    ) : (
+                        scatterData.map((point, idx) => {
+                            const radius = sizeScale(point.value);
+                            const color = getColorForValue(
+                                point.value,
+                                minValue,
+                                maxValue,
+                                mapConfig.colors.scale,
+                            );
+                            return (
+                                <CircleMarker
+                                    key={idx}
+                                    center={[point.lat, point.lon]}
+                                    radius={radius}
+                                    pathOptions={{
+                                        fillColor: color,
+                                        fillOpacity: 0.7,
+                                        color: '#fff',
+                                        weight: 1,
+                                    }}
+                                >
+                                    <Popup>
+                                        <div>
+                                            <strong>Value:</strong>{' '}
+                                            {point.value}
+                                            <br />
+                                            <strong>Lat:</strong>{' '}
+                                            {point.lat.toFixed(4)}
+                                            <br />
+                                            <strong>Lon:</strong>{' '}
+                                            {point.lon.toFixed(4)}
+                                        </div>
+                                    </Popup>
+                                </CircleMarker>
+                            );
+                        })
+                    )}
                 </MapContainer>
             </div>
         );

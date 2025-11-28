@@ -66,6 +66,7 @@ export const Layout: FC = memo(() => {
             value: MapChartType.SCATTER,
             label: 'Scatter',
         },
+        { value: MapChartType.HEATMAP, label: 'Heatmap' },
         { value: MapChartType.AREA, label: 'Area' },
     ];
 
@@ -112,7 +113,8 @@ export const Layout: FC = memo(() => {
                 </Config.Section>
             </Config>
 
-            {locationType === MapChartType.SCATTER && (
+            {(locationType === MapChartType.SCATTER ||
+                locationType === MapChartType.HEATMAP) && (
                 <Config>
                     <Config.Section>
                         <Config.Heading>Coordinates</Config.Heading>

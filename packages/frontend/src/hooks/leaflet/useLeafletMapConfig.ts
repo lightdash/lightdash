@@ -33,6 +33,7 @@ export type LeafletMapConfig = {
     scatterData: ScatterPoint[] | null;
     regionData: RegionData[] | null;
     isLatLong: boolean;
+    locationType: MapChartType;
     mapType: MapChartLocation;
     geoJsonUrl: string | null;
     center: [number, number];
@@ -169,7 +170,9 @@ const useLeafletMapConfig = ({
 
         const mapType = configMapType || MapChartLocation.WORLD;
         const isLatLong =
-            !locationType || locationType === MapChartType.SCATTER;
+            !locationType ||
+            locationType === MapChartType.SCATTER ||
+            locationType === MapChartType.HEATMAP;
 
         let scatterData: ScatterPoint[] | null = null;
         let regionData: RegionData[] | null = null;
@@ -235,6 +238,7 @@ const useLeafletMapConfig = ({
             scatterData,
             regionData,
             isLatLong,
+            locationType: locationType || MapChartType.SCATTER,
             mapType,
             geoJsonUrl: getGeoJsonUrl(mapType, customGeoJsonUrl),
             center,

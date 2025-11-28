@@ -152,6 +152,7 @@ export enum MapChartLocation {
 export enum MapChartType {
     SCATTER = 'scatter',
     AREA = 'area',
+    HEATMAP = 'heatmap',
 }
 
 export enum MapTileBackground {
