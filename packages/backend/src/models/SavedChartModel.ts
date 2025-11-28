@@ -1049,8 +1049,6 @@ export class SavedChartModel {
                     return ECHARTS_DEFAULT_COLORS;
                 };
 
-                console.log('savedQuery', JSON.stringify(savedQuery, null, 2));
-
                 return {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,

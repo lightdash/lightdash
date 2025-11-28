@@ -46,7 +46,7 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine/core';
-import { useClipboard, useElementSize } from '@mantine/hooks';
+import { useClipboard, useElementSize, useIntersection } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -1870,6 +1870,14 @@ export const GenericDashboardChartTile: FC<
 };
 
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+    // Track if tile is visible in viewport to defer polling for off-screen charts
+    // This optimizes dashboard loading by warming up all queries but only polling visible ones
+    const { ref: intersectionRef, entry } = useIntersection({
+        threshold: 0,
+        rootMargin: '100px', // Start polling slightly before tile enters viewport
+    });
+    const isInViewport = entry?.isIntersecting ?? true; // Default to true on initial render
+
     // Handle orphaned tiles where the chart was deleted but tile remains
     const orphanedChartError = useMemo((): ClientSideError | null => {
         if (props.tile.properties.savedChartUuid === null) {
@@ -1888,10 +1896,13 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         props.tile.properties?.savedChartUuid,
     );
 
+    // Only poll for results when tile is in viewport
+    // Query creation (warm up) happens immediately via useDashboardChartReadyQuery
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+        isInViewport, // pollingEnabled - only poll when visible
     );
 
     const isLoading = useMemo(() => {
@@ -1912,13 +1923,17 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     ]);
 
     return (
-        <GenericDashboardChartTile
-            {...props}
-            isLoading={isLoading}
-            resultsData={resultsData}
-            dashboardChartReadyQuery={readyQuery.data}
-            error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
-        />
+        <div ref={intersectionRef} style={{ height: '100%', width: '100%' }}>
+            <GenericDashboardChartTile
+                {...props}
+                isLoading={isLoading}
+                resultsData={resultsData}
+                dashboardChartReadyQuery={readyQuery.data}
+                error={
+                    orphanedChartError ?? readyQuery.error ?? resultsData.error
+                }
+            />
+        </div>
     );
 };
 
