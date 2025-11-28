@@ -29,6 +29,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { BetaBadge } from './common/BetaBadge';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard/constants';
 import MantineIcon from './common/MantineIcon';
 
@@ -233,6 +234,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                         }}
                         variant={periodOverPeriod ? 'light' : 'subtle'}
                         color={periodOverPeriod ? 'blue' : 'gray'}
+                        rightIcon={<BetaBadge />}
                         styles={(theme) => ({
                             root: periodOverPeriod
                                 ? {}
@@ -241,7 +243,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                   },
                         })}
                     >
-                        {buttonLabel}
+                        {buttonLabel}{' '}
                     </Button>
                 </Tooltip>
             </Popover.Target>
