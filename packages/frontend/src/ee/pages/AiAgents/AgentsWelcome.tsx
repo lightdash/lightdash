@@ -167,7 +167,7 @@ const AgentsWelcome = () => {
                                             <Text
                                                 size="sm"
                                                 fw="bold"
-                                                c="gray.7"
+                                                c="ldGray.7"
                                             >
                                                 {agentFeature.title}
                                             </Text>

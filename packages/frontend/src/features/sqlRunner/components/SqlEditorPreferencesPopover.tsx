@@ -65,7 +65,7 @@ export const SqlEditorPreferencesPopover: FC = () => {
                     }}
                 >
                     <MantineIcon
-                        color={isPopoverDisabled ? 'gray.6' : 'indigo.6'}
+                        color={isPopoverDisabled ? 'ldGray.6' : 'indigo.6'}
                         icon={IconCodeCircle}
                     />
                 </ActionIcon>

@@ -88,7 +88,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     <MantineIcon
                         icon={IconTableAlias}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={500}>Create virtual view</Text>
                     <Tooltip
@@ -103,7 +103,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         } `}
                     >
                         <MantineIcon
-                            color="gray.7"
+                            color="ldGray.7"
                             icon={IconInfoCircle}
                             size={16}
                         />
@@ -111,7 +111,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -128,7 +128,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Group position="right" w="100%" p="md">
                     <Button
-                        color="gray.7"
+                        color="ldGray.7"
                         onClick={onClose}
                         variant="outline"
                         disabled={isLoadingVirtual}

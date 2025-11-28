@@ -213,6 +213,7 @@ export * from './visualizations/helpers/styles/gridStyles';
 export * from './visualizations/helpers/styles/legendStyles';
 export * from './visualizations/helpers/styles/pieChartStyles';
 export * from './visualizations/helpers/styles/referenceLineStyles';
+export * as vizThemeColors from './visualizations/helpers/styles/themeColors';
 export * from './visualizations/helpers/styles/tooltipStyles';
 export * from './visualizations/helpers/styles/valueLabelStyles';
 export * from './visualizations/helpers/tooltipFormatter';

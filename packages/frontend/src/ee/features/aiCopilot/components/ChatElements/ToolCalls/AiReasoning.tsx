@@ -61,7 +61,7 @@ export const AiReasoning: FC<AiReasoningProps> = ({
                     ...mdStyle,
                     padding: '0.5rem 0',
                     fontSize: 'var(--mantine-font-size-xs)',
-                    color: 'var(--mantine-color-gray-7)',
+                    color: 'var(--mantine-color-ldGray-7)',
                 }}
                 components={mdEditorComponents}
             />

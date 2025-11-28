@@ -1,14 +1,7 @@
-import { DEFAULT_THEME } from '@mantine/core';
-import { transparentize } from 'polished';
-import { type ReactNode } from 'react';
+import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
-
-// FIXME: these colors are coming from the mantine's default theme.
-// We should use the theme from the app instead.
-export const TABLE_HEADER_BG = DEFAULT_THEME.colors.gray[0];
-
-// Needed for virtualization. Matches value from Pivot table.
-export const ROW_HEIGHT_PX = 34;
+import { ROW_HEIGHT_PX } from './constants';
+import trStyles from './Tr.module.css';
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -18,7 +11,7 @@ export const TableScrollableWrapper = styled.div`
     overflow: auto;
     min-width: 100%;
     border-radius: 4px;
-    border: 1px solid #dcdcdd;
+    border: 1px solid var(--mantine-color-ldGray-3);
 `;
 
 interface TableContainerProps {
@@ -53,7 +46,6 @@ export const TableContainer = styled.div<
 export const Table = styled.table<{ $showFooter?: boolean }>`
     border-spacing: 0;
     font-size: 14px;
-    background-color: white;
     width: 100%;
     border-radius: 4px;
 
@@ -68,11 +60,9 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     }
 
     th {
-        color: #1c2127;
         font-weight: 600;
     }
     td {
-        color: #1c2127;
     }
 
     /* Inner cell borders using box-shadow (from Blueprint CSS) */
@@ -126,7 +116,7 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         border-top: none !important;
         border-bottom: none !important;
         /* Footer cell border: top separator between body and footer */
-        box-shadow: inset 0 1px 0 #dcdcdd !important;
+        box-shadow: inset 0 1px 0 var(--mantine-color-ldGray-3) !important;
     }
 
     .sticky-column {
@@ -166,30 +156,21 @@ const CellStyles = css<{ $isNaN: boolean }>`
     ${FontSyles}
 `;
 
-export const Tr = styled.tr<{
+interface TrProps extends ComponentPropsWithRef<'tr'> {
     $index?: number;
-}>`
-    ${({ $index = 0 }) =>
-        $index % 2 === 1
-            ? `
-                background-color: ${transparentize(
-                    0.7,
-                    DEFAULT_THEME.colors.gray[1],
-                )};
-            `
-            : ''}
+}
 
-    :hover {
-        background-color: ${transparentize(
-            0.3,
-            DEFAULT_THEME.colors.gray[1],
-        )} !important;
-    }
-
-    :hover td {
-        filter: saturate(1) brightness(0.9);
-    }
-`;
+export const Tr = forwardRef<HTMLTableRowElement, TrProps>(
+    ({ className, $index = 0, ...props }, ref) => (
+        <tr
+            ref={ref}
+            className={[trStyles.tr, className].filter(Boolean).join(' ')}
+            data-odd={$index % 2 === 1 ? 'true' : undefined}
+            {...props}
+        />
+    ),
+);
+Tr.displayName = 'Tr';
 
 export const Td = styled.td<{
     $isNaN: boolean;
@@ -265,11 +246,11 @@ export const Td = styled.td<{
     ${({ $isInteractive, $isSelected, $hasData, $backgroundColor }) =>
         $isInteractive && $isSelected && $hasData
             ? `
-                    box-shadow: inset 0 0 0 1px #4170CB !important;
+                    box-shadow: inset 0 0 0 1px var(--table-selected-border) !important;
                     ${
                         $backgroundColor
                             ? 'filter: saturate(1) brightness(0.8) !important;'
-                            : `background-color: #ECF6FE !important;`
+                            : `background-color: var(--table-selected-bg) !important;`
                     }
                 `
             : ''}
@@ -281,8 +262,8 @@ export const Td = styled.td<{
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
-    ${CellStyles}
-    background-color: white;
+    ${CellStyles};
+    background-color: var(--mantine-color-ldGray-0);
 `;
 
 export const Th = styled.th``;

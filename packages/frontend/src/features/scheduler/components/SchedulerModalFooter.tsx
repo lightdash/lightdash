@@ -31,8 +31,8 @@ const SchedulersModalFooter = ({
             position="apart"
             sx={(theme) => ({
                 position: 'sticky',
-                backgroundColor: 'white',
-                borderTop: `1px solid ${theme.colors.gray[4]}`,
+                backgroundColor: theme.colors.background[0],
+                borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                 bottom: 0,
                 zIndex: 2,
                 padding: theme.spacing.md,

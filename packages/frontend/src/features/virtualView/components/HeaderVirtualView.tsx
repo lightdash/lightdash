@@ -191,10 +191,10 @@ const ChangesReviewModal: FC<
                 <Stack
                     spacing={0}
                     sx={(theme) => ({
-                        border: `1px solid ${theme.colors.gray[3]}`,
+                        border: `1px solid ${theme.colors.ldGray[3]}`,
                         borderRadius: theme.radius.md,
                         padding: theme.spacing.xs,
-                        backgroundColor: theme.colors.gray[0],
+                        backgroundColor: theme.colors.ldGray[0],
                     })}
                 >
                     <List>
@@ -250,10 +250,10 @@ const ChangesReviewModal: FC<
                         <Stack
                             spacing={0}
                             sx={(theme) => ({
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                                 borderRadius: theme.radius.md,
                                 padding: theme.spacing.xs,
-                                backgroundColor: theme.colors.gray[0],
+                                backgroundColor: theme.colors.ldGray[0],
                             })}
                         >
                             <List>
@@ -482,7 +482,7 @@ export const HeaderVirtualView: FC<{
             py="xs"
             position="apart"
             sx={(theme) => ({
-                borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
             })}
         >
             <LoadingOverlay

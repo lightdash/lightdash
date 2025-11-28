@@ -637,7 +637,7 @@ const SchedulerForm: FC<Props> = ({
                 <Tabs.Panel value="setup" mt="md">
                     <Stack
                         sx={(theme) => ({
-                            backgroundColor: theme.white,
+                            backgroundColor: theme.colors.background[0],
                             paddingRight: theme.spacing.xl,
                         })}
                         spacing="xl"
@@ -767,7 +767,7 @@ const SchedulerForm: FC<Props> = ({
                                             NotificationFrequency.ALWAYS && (
                                             <Text
                                                 size="xs"
-                                                color="gray.6"
+                                                color="ldGray.6"
                                                 fs="italic"
                                             >
                                                 You will be notified at the
@@ -856,7 +856,7 @@ const SchedulerForm: FC<Props> = ({
                                     {isImageDisabled && (
                                         <Text
                                             size="xs"
-                                            color="gray.6"
+                                            color="ldGray.6"
                                             w="30%"
                                             sx={{ alignSelf: 'start' }}
                                         >
@@ -1107,7 +1107,7 @@ const SchedulerForm: FC<Props> = ({
                                     <MantineIcon
                                         icon={IconMail}
                                         size="xl"
-                                        color="gray.7"
+                                        color="ldGray.7"
                                     />
                                     <HoverCard
                                         disabled={!isAddEmailDisabled}
@@ -1268,7 +1268,11 @@ const SchedulerForm: FC<Props> = ({
                                         </HoverCard>
                                     </Group>
                                     {!isAddSlackDisabled && (
-                                        <Text size="xs" color="gray.6" ml="3xl">
+                                        <Text
+                                            size="xs"
+                                            color="ldGray.6"
+                                            ml="3xl"
+                                        >
                                             If delivering to a private Slack
                                             channel, please type the name of the
                                             channel in the input box exactly as
@@ -1361,7 +1365,7 @@ const SchedulerForm: FC<Props> = ({
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                 />
                             </Tooltip>
                         </Group>

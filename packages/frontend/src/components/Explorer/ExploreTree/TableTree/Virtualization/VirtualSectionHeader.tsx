@@ -65,7 +65,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 <Tooltip
                     label="Add a custom dimension with SQL"
                     variant="xs"
-                    position="bottom"
+                    position="left"
                 >
                     <Button
                         size="xs"

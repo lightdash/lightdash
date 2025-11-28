@@ -1,4 +1,4 @@
-import { Button, Menu, Text, Tooltip } from '@mantine/core';
+import { Button, Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import {
@@ -45,6 +45,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
     ({ onIntervalChange }) => {
         const { showToastSuccess } = useToaster();
         const [isOpen, setIsOpen] = useState(false);
+        const theme = useMantineTheme();
         const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(
             null,
         );
@@ -131,7 +132,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                 c={
                                     isOneAtLeastFetching
                                         ? 'transparent'
-                                        : 'gray.7'
+                                        : 'ldGray.7'
                                 }
                             >
                                 Every{' '}
@@ -146,7 +147,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                         <MantineIcon
                             icon={IconRefresh}
                             color={
-                                isOneAtLeastFetching ? 'transparent' : 'black'
+                                isOneAtLeastFetching ? 'transparent' : undefined
                             }
                         />
                     </Button>
@@ -182,14 +183,16 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                             }}
                             disabled={refreshInterval === undefined}
                             bg={
-                                refreshInterval === undefined ? 'blue' : 'white'
+                                refreshInterval === undefined
+                                    ? 'blue'
+                                    : theme.colors.foreground[0]
                             }
                             sx={{
                                 '&[disabled]': {
                                     color:
                                         refreshInterval === undefined
-                                            ? 'white'
-                                            : 'black',
+                                            ? theme.colors.foreground[0]
+                                            : theme.colors.background[0],
                                 },
                             }}
                         >
@@ -216,15 +219,15 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                 bg={
                                     refreshInterval === +value
                                         ? 'blue'
-                                        : 'white'
+                                        : theme.colors.background[0]
                                 }
                                 disabled={refreshInterval === +value}
                                 sx={{
                                     '&[disabled]': {
                                         color:
                                             refreshInterval === +value
-                                                ? 'white'
-                                                : 'black',
+                                                ? theme.colors.foreground[0]
+                                                : theme.colors.background[0],
                                     },
                                 }}
                             >

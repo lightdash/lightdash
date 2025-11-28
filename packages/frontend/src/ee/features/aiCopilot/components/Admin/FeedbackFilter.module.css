@@ -6,7 +6,7 @@
 
 .indicator {
     border-radius: var(--mantine-radius-md);
-    border: 1px solid var(--mantine-color-gray-2);
+    border: 1px solid var(--mantine-color-ldGray-2);
     background-color: white;
     box-shadow: var(--mantine-shadow-subtle);
 }

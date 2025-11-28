@@ -10,6 +10,7 @@ import {
 import { type ModalRootProps } from '@mantine/core/lib/Modal/ModalRoot/ModalRoot';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import ReactJson from 'react-json-view';
+import { useRjvTheme } from '../hooks/useRjvTheme';
 import MantineIcon from './common/MantineIcon';
 
 type Props = ModalRootProps & {
@@ -23,6 +24,7 @@ export const JsonViewerModal = ({
     opened,
     onClose,
 }: Props) => {
+    const theme = useRjvTheme();
     return (
         <Modal
             opened={opened}
@@ -35,7 +37,11 @@ export const JsonViewerModal = ({
                         overflow: 'auto',
                     }}
                 >
-                    <ReactJson enableClipboard={false} src={jsonObject} />
+                    <ReactJson
+                        theme={theme}
+                        enableClipboard={false}
+                        src={jsonObject}
+                    />
                 </Box>
 
                 <CopyButton value={JSON.stringify(jsonObject)} timeout={2000}>

@@ -152,7 +152,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconClock} color="gray.6" />
+                        <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -169,7 +169,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 140,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconRadar} color="gray.6" />
+                        <MantineIcon icon={IconRadar} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -186,7 +186,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconUser} color="gray.6" />
+                        <MantineIcon icon={IconUser} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -199,7 +199,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="gray.6" />
+                        <MantineIcon icon={IconHash} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -213,7 +213,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="gray.6" />
+                        <MantineIcon icon={IconHash} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -226,7 +226,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconHash} color="gray.6" />
+                        <MantineIcon icon={IconHash} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -239,7 +239,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 size: 100,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconProgress} color="gray.6" />
+                        <MantineIcon icon={IconProgress} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -307,7 +307,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -338,7 +338,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             pos: 'relative',
             style: {
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.gray[0],
+                backgroundColor: theme.colors.ldGray[0],
                 fontWeight: 600,
                 fontSize: theme.fontSizes.xs,
                 justifyContent: 'center',
@@ -360,13 +360,13 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             style: {
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 fontSize: theme.fontSizes.xs,
-                color: theme.colors.gray[7],
+                color: theme.colors.ldGray[7],
             },
         },
 
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />

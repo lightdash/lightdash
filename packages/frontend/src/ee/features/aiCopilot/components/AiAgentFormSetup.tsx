@@ -216,7 +216,7 @@ export const AiAgentFormSetup = ({
                                     size="md"
                                 />
                             </Paper>
-                            <Title order={5} c="gray.9" fw={700}>
+                            <Title order={5} c="ldGray.9" fw={700}>
                                 Basic information
                             </Title>
                         </Group>
@@ -282,7 +282,7 @@ export const AiAgentFormSetup = ({
                                 <Paper p="xxs" withBorder radius="sm">
                                     <MantineIcon icon={IconBook2} size="md" />
                                 </Paper>
-                                <Title order={5} c="gray.9" fw={700}>
+                                <Title order={5} c="ldGray.9" fw={700}>
                                     Knowledge & expertise
                                 </Title>
                             </Group>
@@ -304,7 +304,12 @@ export const AiAgentFormSetup = ({
                                 </Text>
                             </Stack>
                             <Stack gap="sm">
-                                <Title order={6} c="gray.7" size="sm" fw={500}>
+                                <Title
+                                    order={6}
+                                    c="ldGray.7"
+                                    size="sm"
+                                    fw={500}
+                                >
                                     Quick Templates
                                 </Title>
 
@@ -323,7 +328,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="gray.7"
+                                        c="ldGray.7"
                                         size="sm"
                                         fw={500}
                                     >
@@ -502,7 +507,7 @@ export const AiAgentFormSetup = ({
                             <Paper p="xxs" withBorder radius="sm">
                                 <MantineIcon icon={IconLock} size="md" />
                             </Paper>
-                            <Title order={5} c="gray.9" fw={700}>
+                            <Title order={5} c="ldGray.9" fw={700}>
                                 Access control
                             </Title>
                         </Group>
@@ -690,7 +695,7 @@ export const AiAgentFormSetup = ({
                             <Paper p="xxs" withBorder radius="sm">
                                 <MantineIcon icon={IconPlug} size="md" />
                             </Paper>
-                            <Title order={5} c="gray.9" fw={700}>
+                            <Title order={5} c="ldGray.9" fw={700}>
                                 Integrations
                             </Title>
                         </Group>
@@ -854,7 +859,7 @@ export const AiAgentFormSetup = ({
                                         size="md"
                                     />
                                 </Paper>
-                                <Title order={5} c="gray.9" fw={700}>
+                                <Title order={5} c="ldGray.9" fw={700}>
                                     Danger zone
                                 </Title>
                             </Group>
@@ -866,7 +871,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="gray.7"
+                                        c="ldGray.7"
                                         size="sm"
                                         fw={500}
                                     >

@@ -57,11 +57,11 @@ export const UnitInputsGrid: FC<Props> = ({
             cols={3}
             spacing="xs"
             py="xs"
-            sx={{
-                border: '1px solid #E6E6E6',
+            sx={(theme) => ({
+                border: `1px solid ${theme.colors.ldGray['1']}`,
                 borderRadius: '4px',
-                backgroundColor: '#fafafa',
-            }}
+                backgroundColor: theme.colors.ldGray['0'],
+            })}
         >
             {/* Row 1 */}
             <EmptySpace />

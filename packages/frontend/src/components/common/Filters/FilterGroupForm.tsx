@@ -173,7 +173,7 @@ const FilterGroupForm: FC<Props> = memo(
                 )}
 
                 <Group spacing="xs">
-                    <Box bg="white" pos="relative" style={{ zIndex: 3 }}>
+                    <Box pos="relative" style={{ zIndex: 3 }}>
                         <Select
                             limit={FILTER_SELECT_LIMIT}
                             size="xs"
@@ -263,7 +263,16 @@ const FilterGroupForm: FC<Props> = memo(
                 {isEditMode &&
                     !hideButtons &&
                     availableFieldsForGroupRules.length > 0 && (
-                        <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
+                        <Box
+                            pos="relative"
+                            sx={(theme) => ({
+                                zIndex: 2,
+                                backgroundColor:
+                                    theme.colorScheme === 'dark'
+                                        ? theme.colors.dark[6]
+                                        : 'white',
+                            })}
+                        >
                             <Button
                                 variant="outline"
                                 size="xs"

@@ -75,10 +75,15 @@ export const HeaderView: FC = () => {
             <Paper
                 shadow="none"
                 radius={0}
+                withBorder={false}
                 px="md"
                 py="xs"
                 sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    borderBottom: `1px solid ${
+                        theme.colorScheme === 'dark'
+                            ? theme.colors.ldDark[8]
+                            : theme.colors.ldGray[3]
+                    }`,
                 })}
             >
                 <Group position="apart">
@@ -91,7 +96,7 @@ export const HeaderView: FC = () => {
                                     spaceName={space.name}
                                 />
                             )}
-                            <Title c="dark.6" order={5} fw={600}>
+                            <Title c="ldDark.6" order={5} fw={600}>
                                 {savedSqlChart.name}
                             </Title>
                         </Group>

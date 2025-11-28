@@ -49,7 +49,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             )}
 
             {isLoading && showLoadingMessage && (
-                <Text color="gray.9" align="center">
+                <Text color="ldGray.9" align="center">
                     Hang on, still loading...
                 </Text>
             )}
@@ -72,7 +72,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                         <>
                             <Box
                                 component={PanelResizeHandle}
-                                bg="gray.1"
+                                bg="ldGray.1"
                                 h={6}
                                 sx={(theme) => ({
                                     transition:
@@ -82,10 +82,10 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     '&:hover': {
-                                        backgroundColor: theme.colors.gray[2],
+                                        backgroundColor: theme.colors.ldGray[2],
                                     },
                                     '&[data-resize-handle-state="drag"]': {
-                                        backgroundColor: theme.colors.gray[3],
+                                        backgroundColor: theme.colors.ldGray[3],
                                     },
                                 })}
                             >

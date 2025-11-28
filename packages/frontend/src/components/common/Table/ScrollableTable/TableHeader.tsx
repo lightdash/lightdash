@@ -1,11 +1,10 @@
 import { Draggable } from '@hello-pangea/dnd';
 import { isCustomDimension, isDimension, isField } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
 import {
-    TABLE_HEADER_BG,
     Th,
     ThActionsContainer,
     ThContainer,
@@ -23,6 +22,7 @@ const TableHeader: FC<TableHeaderProps> = ({
     minimal = false,
     showSubtotals = true,
 }) => {
+    const theme = useMantineTheme();
     const { table, headerContextMenu, columns } = useTableContext();
     const HeaderContextMenu = headerContextMenu;
     const currentColOrder = React.useRef<Array<string>>([]);
@@ -86,7 +86,8 @@ const TableHeader: FC<TableHeaderProps> = ({
                                         ...meta?.style,
                                         width: meta?.width,
                                         backgroundColor:
-                                            meta?.bgColor ?? TABLE_HEADER_BG,
+                                            meta?.bgColor ??
+                                            theme.colors.ldGray[0],
                                     }}
                                     className={meta?.className}
                                 >

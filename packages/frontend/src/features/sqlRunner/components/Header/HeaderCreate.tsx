@@ -199,10 +199,15 @@ export const HeaderCreate: FC = () => {
             <Paper
                 shadow="none"
                 radius={0}
+                withBorder={false}
                 px="md"
                 py="xs"
                 sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    borderBottom: `1px solid ${
+                        theme.colorScheme === 'dark'
+                            ? theme.colors.ldDark[8]
+                            : theme.colors.ldGray[3]
+                    }`,
                 })}
             >
                 <Group position="apart">
@@ -270,7 +275,7 @@ export const HeaderCreate: FC = () => {
                                             >
                                                 {getCtaLabels('save').label}
                                             </Text>
-                                            <Text fz={10} c="gray.6">
+                                            <Text fz={10} c="ldGray.6">
                                                 {
                                                     getCtaLabels('save')
                                                         .description
@@ -301,7 +306,7 @@ export const HeaderCreate: FC = () => {
                                                     ).label
                                                 }
                                             </Text>
-                                            <Text fz={10} c="gray.6">
+                                            <Text fz={10} c="ldGray.6">
                                                 {
                                                     getCtaLabels(
                                                         'createVirtualView',
@@ -363,7 +368,7 @@ export const HeaderCreate: FC = () => {
                                                             ).label
                                                         }
                                                     </Text>
-                                                    <Text fz={10} c="gray.6">
+                                                    <Text fz={10} c="ldGray.6">
                                                         {
                                                             getCtaLabels(
                                                                 'writeBackToDbt',

@@ -428,7 +428,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                 <Modal.Header
                     h={52}
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                         padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                     })}
                 >
@@ -458,7 +458,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     size="sm"
                                     radius="sm"
                                     sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                        border: `1px solid ${theme.colors.ldGray[2]}`,
                                     })}
                                     onClick={handleGoToPreviousMetric}
                                     disabled={!previousMetricInList}
@@ -490,7 +490,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     size="sm"
                                     radius="sm"
                                     sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                        border: `1px solid ${theme.colors.ldGray[2]}`,
                                     })}
                                     onClick={handleGoToNextMetric}
                                     disabled={!nextMetricInList}
@@ -499,7 +499,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                 </ActionIcon>
                             </Tooltip>
                         </Group>
-                        <Text fw={600} fz="md" color="gray.8">
+                        <Text fw={600} fz="md" color="ldGray.8">
                             {metricQuery.data?.label}
                         </Text>
                         <Tooltip
@@ -507,7 +507,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             disabled={!metricQuery.data?.description}
                         >
                             <MantineIcon
-                                color="gray.5"
+                                color="ldGray.5"
                                 icon={IconInfoCircle}
                                 size={18}
                             />
@@ -523,7 +523,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack bg="offWhite.0" w={460}>
+                    <Stack w={460}>
                         <Stack
                             spacing="xl"
                             w="100%"
@@ -548,10 +548,10 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     metricResultsQuery.data.hasFilteredSeries
                                 }
                             />
-                            <Divider color="gray.2" />
+                            <Divider color="ldGray.2" />
                             <Stack spacing="xs">
                                 <Group position="apart">
-                                    <Text fw={500} c="gray.7">
+                                    <Text fw={500} c="ldGray.7">
                                         Comparison
                                     </Text>
 
@@ -569,7 +569,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                                     : 'visible',
                                             '&:hover': {
                                                 backgroundColor:
-                                                    theme.colors.gray[1],
+                                                    theme.colors.ldGray[1],
                                             },
                                         })}
                                         onClick={() =>
@@ -582,7 +582,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                         rightIcon={
                                             <MantineIcon
                                                 icon={IconX}
-                                                color="gray.5"
+                                                color="ldGray.5"
                                                 size={12}
                                             />
                                         }
@@ -608,7 +608,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                         </Stack>
                     </Stack>
 
-                    <Divider orientation="vertical" color="gray.2" />
+                    <Divider orientation="vertical" color="ldGray.2" />
 
                     <Box w="100%" py="xl" px="xxl">
                         <MetricsVisualization

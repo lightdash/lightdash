@@ -47,7 +47,7 @@ const UserNameDisplay: FC<{
                     : user.email}
             </Title>
             {user.email && user.firstName && (
-                <Text fz="xs" c="gray.6">
+                <Text fz="xs" c="ldGray.6">
                     {user.email}
                 </Text>
             )}
@@ -154,7 +154,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                     <Text>Are you sure you want to delete this user?</Text>
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertCircle} color="gray" />
-                        <Text fz="xs" c="gray.6" span>
+                        <Text fz="xs" c="ldGray.6" span>
                             Scheduled deliveries created by this user will also
                             be deleted.
                         </Text>

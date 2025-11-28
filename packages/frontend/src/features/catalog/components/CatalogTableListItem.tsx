@@ -65,11 +65,11 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     borderBottom:
                         isLast || isOpen
                             ? 'none'
-                            : `1px solid ${theme.colors.gray[2]}`,
+                            : `1px solid ${theme.colors.ldGray[2]}`,
                     backgroundColor: hovered
-                        ? theme.colors.gray[1]
+                        ? theme.colors.ldGray[1]
                         : hovered
-                        ? theme.colors.gray[2]
+                        ? theme.colors.ldGray[2]
                         : 'transparent',
                     border: `2px solid ${
                         isSelected ? theme.colors.blue[6] : 'transparent'
@@ -89,7 +89,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 pos="relative"
             >
                 <Grid.Col span={'content'}>
-                    <MantineIcon icon={IconTable} color="gray.6" size="md" />
+                    <MantineIcon icon={IconTable} color="ldGray.6" size="md" />
                 </Grid.Col>
 
                 <Grid.Col span={10}>
@@ -121,7 +121,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     >
                         <Group noWrap spacing="one">
                             <MantineIcon
-                                color="gray.5"
+                                color="ldGray.5"
                                 icon={IconLayersIntersect}
                                 visibility={
                                     countJoinedTables === 0
@@ -146,7 +146,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                             <Text
                                 ref={errorDescriptionRef}
                                 fz="13px"
-                                c="gray.7"
+                                c="ldGray.7"
                                 w="100%"
                                 lineClamp={2}
                             >
@@ -157,7 +157,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         <Highlight
                             fz="13px"
                             w="auto"
-                            c="gray.7"
+                            c="ldGray.7"
                             lineClamp={2}
                             highlight={searchString}
                             highlightColor="yellow"
@@ -183,9 +183,9 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                             target="_blank"
                             compact
                             sx={(theme) => ({
-                                backgroundColor: theme.colors.gray[8],
+                                backgroundColor: theme.colors.ldGray[8],
                                 '&:hover': {
-                                    backgroundColor: theme.colors.gray[9],
+                                    backgroundColor: theme.colors.ldGray[9],
                                 },
                             })}
                             onClick={(e) => e.stopPropagation()}

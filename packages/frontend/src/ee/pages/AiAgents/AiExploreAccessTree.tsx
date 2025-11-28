@@ -53,7 +53,7 @@ const AiExploreAccessTree: FC<Props> = ({ exploreAccessSummary }) => {
                     <Group gap="xxs" {...elementProps}>
                         {level === 1 || level === 2 ? (
                             <MantineIcon
-                                color={hasChildren ? 'gray.9' : 'gray.5'}
+                                color={hasChildren ? 'ldGray.9' : 'ldGray.5'}
                                 icon={
                                     expanded
                                         ? IconChevronDown

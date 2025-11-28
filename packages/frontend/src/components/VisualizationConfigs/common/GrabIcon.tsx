@@ -21,6 +21,6 @@ export const GrabIcon: FC<Props> = ({ dragHandleProps, hovered }) => (
             '&:hover': { opacity: 1 },
         }}
     >
-        <MantineIcon color="gray.6" icon={IconGripVertical} />
+        <MantineIcon color="ldGray.6" icon={IconGripVertical} />
     </Box>
 );

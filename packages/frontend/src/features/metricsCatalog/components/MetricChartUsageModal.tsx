@@ -49,14 +49,14 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
             <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                        borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
                     })}
                 >
                     <Group spacing="xs">
                         <MantineIcon
                             icon={IconDeviceAnalytics}
                             size="lg"
-                            color="gray.7"
+                            color="ldGray.7"
                         />
                         <Text fw={500}>Metric Usage</Text>
                     </Group>

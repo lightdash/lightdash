@@ -7,6 +7,7 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
+    useMantineTheme,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
@@ -29,12 +30,16 @@ type Props = {
 };
 
 const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
+    const mantineTheme = useMantineTheme();
     const dispatch = useAppDispatch();
 
     const { hovered, ref: hoverRef } = useHover<HTMLButtonElement>();
     const timeAgo = useTimeAgo(new Date(timestamp));
 
     const formattedDate = dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
+
+    const openInQueryEditorLinkColor =
+        mantineTheme.colorScheme === 'dark' ? 'indigo.4' : 'indigo.6';
 
     return (
         <Stack w="100%">
@@ -46,7 +51,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                         sx={(theme) => ({
                             padding: theme.spacing.xs,
                             '&:hover': {
-                                backgroundColor: theme.colors.gray[0],
+                                backgroundColor: theme.colors.ldGray[0],
                             },
                         })}
                         onClick={() => {
@@ -56,13 +61,16 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                         <Group spacing="xs" lh={1} noWrap>
                             <MantineIcon
                                 icon={hovered ? IconCornerDownLeft : IconClock}
-                                color="gray"
                             />
                             <Text
                                 fz="xs"
                                 fw={500}
                                 w={150}
-                                color={hovered ? 'indigo.7' : 'gray.8'}
+                                color={
+                                    hovered
+                                        ? openInQueryEditorLinkColor
+                                        : 'ldGray.8'
+                                }
                             >
                                 {hovered
                                     ? 'Open in query editor'
@@ -78,7 +86,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             fw={500}
                             mb="xs"
                             sx={(theme) => ({
-                                borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
                             })}
                         >
                             {timeAgo}
@@ -100,7 +108,11 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             revealHorizontalRightPadding: 0,
                             roundedSelection: false,
                         }}
-                        theme="lightdash"
+                        theme={
+                            mantineTheme.colorScheme === 'dark'
+                                ? 'lightdash-dark'
+                                : 'lightdash-light'
+                        }
                     />
                 </HoverCard.Dropdown>
             </HoverCard>

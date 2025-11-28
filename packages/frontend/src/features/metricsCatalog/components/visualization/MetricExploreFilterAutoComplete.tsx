@@ -183,9 +183,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                             p="xxs"
                             sx={(theme) => ({
                                 cursor: 'pointer',
-                                borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                                 '&:hover': {
-                                    backgroundColor: theme.colors.gray[1],
+                                    backgroundColor: theme.colors.ldGray[1],
                                 },
                             })}
                             onClick={() => setForceRefresh(true)}

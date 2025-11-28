@@ -3,6 +3,7 @@ import {
     Box,
     Text,
     Tooltip,
+    useMantineTheme,
     type BoxProps as BoxPropsBase,
 } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
@@ -152,6 +153,7 @@ const TableProvider: FC<
 const TableComponent = forwardRef<HTMLTableElement, TableProps>(
     ({ children, component = 'table', containerRef, ...rest }, ref) => {
         const { cx, classes } = useTableStyles();
+        const theme = useMantineTheme();
 
         const [isContainerInitialized, setIsContainerInitialized] =
             useState(false);
@@ -189,7 +191,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 pos="relative"
                 sx={{
                     overflow: 'auto',
-                    border: '1px solid #dcdcdd',
+                    border: `1px solid ${theme.colors.ldGray[3]}`,
                     borderRadius: '4px',
                 }}
             >

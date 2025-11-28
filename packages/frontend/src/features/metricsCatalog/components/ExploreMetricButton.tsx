@@ -69,6 +69,9 @@ export const ExploreMetricButton = ({ row }: Props) => {
             withinPortal
             variant="xs"
             label="Click to view this in the Metrics Explorer"
+            openDelay={200}
+            maw={250}
+            fz="xs"
         >
             <Button
                 compact

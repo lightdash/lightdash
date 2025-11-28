@@ -4,11 +4,17 @@
 
 .searchInput {
     flex: 1;
-    background-color: rgba(255, 255, 255, 0.3);
 
-    --input-bd-focus: var(--mantine-color-gray-7);
+    @mixin light {
+        background-color: alpha(var(--mantine-color-gray-1), 0.3);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-5), 0.3);
+    }
+
+    --input-bd-focus: var(--mantine-color-ldGray-7);
     &:focus {
-        outline: 4px solid var(--mantine-color-gray-2);
+        outline: 4px solid var(--mantine-color-ldGray-2);
     }
 }
 
@@ -19,7 +25,7 @@
 .comboboxOption:hover > div,
 .comboboxOption[data-combobox-selected],
 .comboboxOption[data-combobox-selected] > div {
-    background-color: var(--mantine-color-gray-0);
+    background-color: var(--mantine-color-ldGray-0);
     color: inherit;
 }
 

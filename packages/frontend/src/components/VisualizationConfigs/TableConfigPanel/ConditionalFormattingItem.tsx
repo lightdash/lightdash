@@ -408,8 +408,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             <Box
                                 p="xs"
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.gray[1],
-                                    border: `1px solid ${theme.colors.gray[4]}`,
+                                    backgroundColor: theme.colors.ldGray[1],
+                                    border: `1px solid ${theme.colors.ldGray[4]}`,
                                     borderRadius: theme.radius.sm,
                                 })}
                             >

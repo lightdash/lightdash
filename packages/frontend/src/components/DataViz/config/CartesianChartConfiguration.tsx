@@ -26,7 +26,7 @@ export const CartesianChartConfig = ({
 
     return (
         <Stack spacing="xs" mb="lg">
-            <Tabs color="gray" defaultValue="data" keepMounted>
+            <Tabs defaultValue="data" keepMounted>
                 <Tabs.List>
                     <Tabs.Tab value="data">Data</Tabs.Tab>
                     <Tabs.Tab value="series">Series</Tabs.Tab>

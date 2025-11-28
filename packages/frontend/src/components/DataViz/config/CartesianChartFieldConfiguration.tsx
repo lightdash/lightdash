@@ -44,7 +44,7 @@ const YFieldsAxisConfig: FC<{
                 sx={(theme) => ({
                     paddingLeft: !isSingle ? theme.spacing.xs : 0,
                     borderLeft: !isSingle
-                        ? `1px solid ${theme.colors.gray[3]}`
+                        ? `1px solid ${theme.colors.ldGray[3]}`
                         : 0,
                 })}
             >
@@ -107,7 +107,7 @@ const YFieldsAxisConfig: FC<{
                             />
                             <Tooltip variant="xs" label="Remove Y axis">
                                 <ActionIcon
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     variant="subtle"
                                     onClick={() =>
                                         dispatch(
@@ -185,7 +185,7 @@ const XFieldAxisConfig = ({
             />
             <Tooltip variant="xs" label="Remove X axis">
                 <ActionIcon
-                    color="gray.6"
+                    color="ldGray.6"
                     variant="subtle"
                     onClick={() => dispatch(actions.removeXAxisField())}
                     data-testid="remove-x-axis-field"
@@ -314,7 +314,7 @@ export const CartesianChartFieldConfiguration = ({
                         <Config.Heading>{`Y-axis`}</Config.Heading>
                         <Tooltip variant="xs" label="Add Y axis">
                             <ActionIcon
-                                color="gray.6"
+                                color="ldGray.6"
                                 variant="subtle"
                                 onClick={() =>
                                     dispatch(actions.addYAxisField())

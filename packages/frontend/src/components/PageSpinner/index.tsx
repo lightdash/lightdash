@@ -13,7 +13,7 @@ const PageSpinner: FC = () => (
     >
         <Box pos="relative" w={100} h={100}>
             <Loader
-                color="gray.6"
+                color="ldGray.6"
                 size={100}
                 sx={{ g: { g: { strokeWidth: rem(2) } } }}
             />

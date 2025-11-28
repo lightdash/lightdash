@@ -1,0 +1,19 @@
+.tr {
+    &[data-odd='true'] {
+        background-color: alpha(
+            var(--mantine-color-ldGray-1),
+            light-dark(0.3, 0.1)
+        );
+    }
+
+    &:hover {
+        background-color: alpha(
+            var(--mantine-color-ldGray-1),
+            light-dark(0.7, 0.2)
+        ) !important;
+    }
+
+    &:hover td {
+        filter: saturate(1) brightness(0.9);
+    }
+}

@@ -32,13 +32,13 @@ const SuboptimalState: FC<Props> = ({
                 ...rest?.sx,
             }}
         >
-            {loading && <Loader color="gray.6" />}
+            {loading && <Loader color="ldGray.6" />}
             {icon && !loading && (
-                <MantineIcon color="gray.5" size="xxl" icon={icon} />
+                <MantineIcon color="ldGray.5" size="xxl" icon={icon} />
             )}
             {title && (
                 <Text
-                    color="gray.7"
+                    color="ldGray.7"
                     fz={18}
                     fw={600}
                     style={{ whiteSpace: 'pre-wrap' }}

@@ -50,7 +50,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                                       left: '12px',
                                       width: '100%',
                                       height: '1px',
-                                      background: theme.colors.gray[3],
+                                      background: theme.colors.ldGray[3],
                                   },
                               }
                             : {}),
@@ -63,7 +63,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                             size="xs"
                             styles={(theme) => ({
                                 placeholder: {
-                                    backgroundColor: theme.colors.gray[2],
+                                    backgroundColor: theme.colors.ldGray[2],
                                 },
                             })}
                         >
@@ -89,7 +89,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                                 size="xs"
                                 radius="xl"
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.gray[2],
+                                    backgroundColor: theme.colors.ldGray[2],
                                 })}
                             >
                                 {tableCount}
@@ -103,9 +103,9 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     mb="sm"
                     ml="sm"
                     sx={(theme) => ({
-                        border: `1px solid ${theme.colors.gray[2]}`,
+                        border: `1px solid ${theme.colors.ldGray[2]}`,
                         borderRadius: theme.radius.md,
-                        backgroundColor: 'white',
+                        backgroundColor: theme.colors.background[0],
                     })}
                 >
                     {children}

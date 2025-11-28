@@ -124,7 +124,7 @@ const TableValidationItem = forwardRef<
                             {(isChartValidationError(validationError) ||
                                 isDashboardValidationError(validationError)) &&
                                 !isDeleted(validationError) && (
-                                    <Text fz={11} color="gray.6">
+                                    <Text fz={11} color="ldGray.6">
                                         {getViews(validationError)} view
                                         {getViews(validationError) === 1
                                             ? ''
@@ -188,7 +188,7 @@ const TableValidationItem = forwardRef<
                                 <MantineIcon
                                     icon={IconX}
                                     size="lg"
-                                    color="gray.6"
+                                    color="ldGray.6"
                                 />
                             </ActionIcon>
                         )}

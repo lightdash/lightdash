@@ -1,27 +1,27 @@
 .codeBlock {
     border-radius: var(--mantine-radius-md);
-    border: 1px solid var(--mantine-color-gray-2);
+    border: 1px solid var(--mantine-color-ldGray-2);
     overflow: hidden;
 }
 
 .toolCallItem {
     border-radius: var(--mantine-radius-md);
-    border: 1px solid var(--mantine-color-gray-2);
+    border: 1px solid var(--mantine-color-ldGray-2);
     overflow: hidden;
     transition: background-color 0.2s ease;
-    background-color: var(--mantine-color-gray-0);
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 .toolCallHeader {
     padding: 8px 12px;
-    background-color: var(--mantine-color-gray-0);
+    background-color: var(--mantine-color-ldGray-0);
     cursor: pointer;
     user-select: none;
     transition: background-color 0.15s ease;
 }
 
 .toolCallHeader:hover {
-    background-color: var(--mantine-color-gray-0);
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 .toolCallName {
@@ -31,8 +31,8 @@
 .emptyState {
     text-align: center;
     border-radius: var(--mantine-radius-md);
-    border: 1px solid var(--mantine-color-gray-2);
-    background-color: var(--mantine-color-gray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 .emptyStateIcon {

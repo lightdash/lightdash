@@ -115,9 +115,9 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         handleOpen(true);
                     }}
                 >
-                    <Text size="sm" fw={500} c="dark.8">
+                    <Text size="sm" fw={500} c="ldDark.8">
                         Custom:{' '}
-                        <Text size="sm" fw={500} c="gray.6" span>
+                        <Text size="sm" fw={500} c="ldGray.6" span>
                             {buttonLabel}
                         </Text>
                     </Text>
@@ -141,7 +141,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
     ];
 
     return (
-        <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
+        <Popover
+            opened={isOpen}
+            onChange={handleOpen}
+            position="bottom-start"
+            shadow="sm"
+        >
             <Popover.Target>
                 <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
@@ -182,19 +187,19 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         transitionTimingFunction="linear"
                         styles={(theme) => ({
                             root: {
-                                border: `1px solid ${theme.colors.gray[2]}`,
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                 borderRadius: theme.radius.md,
-                                backgroundColor: theme.colors.gray[0],
+                                backgroundColor: theme.colors.ldGray[0],
                                 alignItems: 'center',
                             },
                             label: {
                                 fontSize: theme.fontSizes.sm,
-                                color: theme.colors.gray[6],
+                                color: theme.colors.ldGray[6],
                                 fontWeight: 500,
                                 paddingLeft: theme.spacing.sm,
                                 paddingRight: theme.spacing.sm,
                                 '&[data-active]': {
-                                    color: theme.colors.dark[7],
+                                    color: theme.colors.ldDark[7],
                                 },
                             },
                             control: {
@@ -204,7 +209,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             },
                             indicator: {
                                 boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.gray[3]}`,
+                                border: `1px solid ${theme.colors.ldGray[3]}`,
                                 borderRadius: theme.radius.md,
                                 top: 4,
                             },
@@ -245,17 +250,17 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 sx={(theme) => ({
                                     fontWeight: 500,
                                     fontSize: theme.fontSizes.xs,
-                                    color: theme.colors.gray[7],
+                                    color: theme.colors.ldGray[7],
                                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                                     borderRadius: theme.radius.sm,
                                     backgroundColor:
                                         tempSelectedPreset?.label ===
                                         preset.label
-                                            ? theme.colors.gray[0]
+                                            ? theme.colors.ldGray[0]
                                             : 'transparent',
 
                                     '&:hover': {
-                                        backgroundColor: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.ldGray[0],
                                     },
                                 })}
                             >
@@ -264,7 +269,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         ))}
                     </Stack>
 
-                    <Divider orientation="vertical" color="gray.2" />
+                    <Divider orientation="vertical" color="ldGray.2" />
                     <Stack spacing={0}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
@@ -292,7 +297,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                 />
                             )}
                         </Box>
-                        <Divider color="gray.2" />
+                        <Divider color="ldGray.2" />
                         <Box p="sm">
                             <Group position="apart" spacing="xl">
                                 <Group spacing="xs">
@@ -306,11 +311,11 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         styles={(theme) => ({
                                             input: {
                                                 boxShadow: theme.shadows.subtle,
-                                                border: `1px solid ${theme.colors.gray[2]}`,
+                                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                             },
                                         })}
                                     />
-                                    <Text size="xs" c="gray.5">
+                                    <Text size="xs" c="ldGray.5">
                                         -
                                     </Text>
                                     <TextInput
@@ -323,7 +328,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         styles={(theme) => ({
                                             input: {
                                                 boxShadow: theme.shadows.subtle,
-                                                border: `1px solid ${theme.colors.gray[2]}`,
+                                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                             },
                                         })}
                                     />
@@ -337,7 +342,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         onClick={() => handleOpen(false)}
                                         sx={(theme) => ({
                                             boxShadow: theme.shadows.subtle,
-                                            border: `1px solid ${theme.colors.gray[2]}`,
+                                            border: `1px solid ${theme.colors.ldGray[2]}`,
                                         })}
                                     >
                                         Cancel

@@ -167,7 +167,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                 size: 300,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUserCircle} color="gray.6" />
+                        <MantineIcon icon={IconUserCircle} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -182,7 +182,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                         <Stack gap="xs">
                             {!user.isActive ? (
                                 <Stack gap="xxs" align="flex-start">
-                                    <Text fw={600} fz="sm" c="gray.6">
+                                    <Text fw={600} fz="sm" c="ldGray.6">
                                         {user.firstName
                                             ? `${user.firstName} ${user.lastName}`
                                             : user.email}
@@ -194,7 +194,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                         style={{ textTransform: 'none' }}
                                         px="xxs"
                                     >
-                                        <Text fz="xs" fw={400} c="gray.8">
+                                        <Text fz="xs" fw={400} c="ldGray.8">
                                             Inactive
                                         </Text>
                                     </Badge>
@@ -214,7 +214,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                             style={{ textTransform: 'none' }}
                                             px="xxs"
                                         >
-                                            <Text fz="xs" fw={400} c="gray.8">
+                                            <Text fz="xs" fw={400} c="ldGray.8">
                                                 {!user.isInviteExpired
                                                     ? 'Pending'
                                                     : 'Link expired'}
@@ -231,12 +231,12 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                     {user.email && (
                                         <Badge
                                             variant="filled"
-                                            color="gray.2"
+                                            color="ldGray.2"
                                             radius="xs"
                                             style={{ textTransform: 'none' }}
                                             px="xxs"
                                         >
-                                            <Text fz="xs" fw={400} c="gray.8">
+                                            <Text fz="xs" fw={400} c="ldGray.8">
                                                 {user.email}
                                             </Text>
                                         </Badge>
@@ -306,7 +306,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                             !user.groups
                         ) {
                             return (
-                                <Text fz="sm" c="gray.6">
+                                <Text fz="sm" c="ldGray.6">
                                     0 groups
                                 </Text>
                             );
@@ -318,14 +318,14 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                 disabled={user.groups.length < 1}
                             >
                                 <HoverCard.Target>
-                                    <Text fz="sm" c="gray.6">
+                                    <Text fz="sm" c="ldGray.6">
                                         {`${user.groups.length} group${
                                             user.groups.length !== 1 ? 's' : ''
                                         }`}
                                     </Text>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown p="sm">
-                                    <Text fz="xs" fw={600} c="gray.6">
+                                    <Text fz="xs" fw={600} c="ldGray.6">
                                         User groups:
                                     </Text>
                                     <List size="xs" ml="xs" mt="xs" fz="xs">
@@ -407,7 +407,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -435,19 +435,19 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                 props.table.getAllColumns().length - 1;
 
             return {
-                bg: 'gray.0',
+                bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
                               isLastColumn
                                   ? 'transparent'
-                                  : theme.colors.gray[2]
+                                  : theme.colors.ldGray[2]
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
@@ -460,7 +460,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                     borderRight: 'none',
                     borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderTop: 'none',
                 },
             };
@@ -477,7 +477,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         ),
         icons: {
             IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
             ),
             IconSortAscending: () => (
                 <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />

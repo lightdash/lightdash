@@ -22,7 +22,7 @@ const ChartTypeIcon: FC<{ type: CartesianSeriesType }> = ({ type }) => {
             ? ChartKind.VERTICAL_BAR
             : ChartKind.LINE;
 
-    return <MantineIcon icon={getChartIcon(chartKind)} color="dark.0" />;
+    return <MantineIcon icon={getChartIcon(chartKind)} color="ldDark.0" />;
 };
 
 const ChartTypeItem = forwardRef<
@@ -74,19 +74,19 @@ export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
                 },
                 input: {
                     fontWeight: 500,
-                    border: `1px solid ${theme.colors.gray[2]}`,
+                    border: `1px solid ${theme.colors.ldGray[2]}`,
                 },
                 item: {
                     '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
+                        color: theme.colors.ldGray[7],
                         fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
+                        backgroundColor: theme.colors.ldGray[2],
                     },
                     '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.ldGray[3],
                     },
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.ldGray[1],
                     },
                 },
             })}

@@ -9,7 +9,7 @@ const LoadingState: FC<LoadingStateProps> = ({ title, ...rest }) => {
     return (
         <Stack my="xl" align="center">
             <Loader size="xl" color="gray" mt="xl" {...rest} />
-            <Title order={3} fw={500} color="gray.7">
+            <Title order={3} fw={500} color="ldGray.7">
                 {title}
             </Title>
         </Stack>

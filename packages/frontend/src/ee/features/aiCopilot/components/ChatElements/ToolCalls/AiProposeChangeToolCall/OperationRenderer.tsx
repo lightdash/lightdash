@@ -18,8 +18,8 @@ const ReplaceOrAddOperation = ({ value, name }: ReplaceOperationProps) => {
     const mdStyle = useMdEditorStyle();
 
     return (
-        <Paper bg="gray.0" p="xs" component={Stack} gap="xxs">
-            <Text component="code" size="xs" fw={600} c="gray.7">
+        <Paper bg="ldGray.0" p="xs" component={Stack} gap="xxs">
+            <Text component="code" size="xs" fw={600} c="ldGray.7">
                 {capitalize(name)}
             </Text>
             <MDEditor.Markdown

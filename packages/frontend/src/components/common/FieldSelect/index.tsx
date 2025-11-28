@@ -16,6 +16,7 @@ import {
     Select,
     Text,
     Tooltip,
+    useMantineTheme,
     type SelectProps,
 } from '@mantine/core';
 import {
@@ -105,6 +106,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     focusOnRender = false,
     ...rest
 }: FieldSelectProps<T>) => {
+    const theme = useMantineTheme();
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
     useEffect(() => {
         if (focusOnRender) {
@@ -234,7 +236,10 @@ const FieldSelectComponent = <T extends Item = Item>({
                     position: 'sticky',
                     top: 0,
                     zIndex: 1,
-                    backgroundColor: 'white',
+                    backgroundColor:
+                        theme.colorScheme === 'dark'
+                            ? theme.colors.dark[6]
+                            : 'white',
                 },
                 separatorLabel: {
                     fontWeight: 600,

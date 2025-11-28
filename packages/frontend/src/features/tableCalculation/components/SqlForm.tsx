@@ -16,6 +16,7 @@ import { type TableCalculationForm } from '../types';
 import { useLocalStorage } from '@mantine/hooks';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-tomorrow_night';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 
 const SQL_PLACEHOLDER = '${table_name.field_name} + ${table_name.metric_name}';
@@ -93,7 +94,11 @@ export const SqlForm: FC<Props> = ({
             <ScrollArea h={isFullScreen ? '90%' : '150px'}>
                 <SqlEditor
                     mode="sql"
-                    theme="github"
+                    theme={
+                        theme.colorScheme === 'dark'
+                            ? 'tomorrow_night'
+                            : 'github'
+                    }
                     width="100%"
                     placeholder={SQL_PLACEHOLDER}
                     maxLines={Infinity}
@@ -108,7 +113,7 @@ export const SqlForm: FC<Props> = ({
                     showPrintMargin={false}
                     isFullScreen={isFullScreen}
                     wrapEnabled={isSoftWrapEnabled}
-                    gutterBackgroundColor={theme.colors.gray['1']}
+                    gutterBackgroundColor={theme.colors.ldGray[1]}
                     {...form.getInputProps('sql')}
                 />
                 <SqlEditorActions

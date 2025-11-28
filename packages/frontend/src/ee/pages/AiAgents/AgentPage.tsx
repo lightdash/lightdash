@@ -60,7 +60,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             borderRadius: theme.radius.sm,
         })}
         label={
-            <Text truncate="end" size="sm" c="gray.7">
+            <Text truncate="end" size="sm" c="ldGray.7">
                 {thread.title || thread.firstMessage.message}
             </Text>
         }
@@ -97,7 +97,7 @@ const AgentSidebar: FC<{
                     component={Link}
                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                     size="sm"
-                    color="gray.9"
+                    color="ldGray.9"
                     {...(!isAgentSidebarCollapsed && {
                         fullWidth: true,
                         justify: 'flex-start',
@@ -132,7 +132,7 @@ const AgentSidebar: FC<{
                                 <Text
                                     truncate="end"
                                     size="sm"
-                                    c="gray.6"
+                                    c="ldGray.6"
                                     ta="center"
                                 >
                                     No threads yet
@@ -239,7 +239,6 @@ const AgentPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: 'white',
                 }}
             >
                 <Loader color="gray" />
@@ -283,9 +282,9 @@ const AgentPage = () => {
                             leftSection={<MantineIcon icon={IconSettings} />}
                             styles={(theme) => ({
                                 root: {
-                                    borderColor: theme.colors.gray[2],
+                                    borderColor: theme.colors.ldGray[2],
                                     boxShadow: `var(--mantine-shadow-subtle)`,
-                                    color: theme.colors.gray[7],
+                                    color: theme.colors.ldGray[7],
                                     fontSize: theme.fontSizes.xs,
                                 },
                             })}

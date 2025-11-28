@@ -631,13 +631,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                     };
                                 })();
 
-                                const fontColor =
-                                    conditionalFormattingColor &&
-                                    readableColor(
-                                        conditionalFormattingColor,
-                                    ) === 'white'
-                                        ? 'white'
-                                        : undefined;
+                                // When conditional formatting is applied, always use calculated contrast color
+                                // to ensure text remains readable regardless of light/dark mode
+                                const fontColor = conditionalFormattingColor
+                                    ? readableColor(conditionalFormattingColor)
+                                    : undefined;
 
                                 const suppressContextMenu =
                                     (value === undefined ||

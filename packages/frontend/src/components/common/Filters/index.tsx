@@ -61,6 +61,7 @@ const getInvalidFilterRules = (
     }, []);
 
 const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
+    // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -218,14 +219,14 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             spacing="xs"
                             pl="xs"
                             sx={(theme) => ({
-                                border: `1px solid ${theme.colors.gray[2]}`,
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
                                 borderRadius: theme.radius.sm,
                             })}
                         >
                             <MantineIcon icon={IconAlertCircle} />
                             <Text color="dimmed" fz="xs">
                                 Tried to reference field with unknown id:{' '}
-                                <Text span fw={500} c="gray.7">
+                                <Text span fw={500} c="ldGray.7">
                                     {rule.target.fieldId}
                                 </Text>
                             </Text>
@@ -246,7 +247,16 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                 ))}
 
             {isEditMode && (
-                <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
+                <Box
+                    pos="relative"
+                    sx={(theme) => ({
+                        zIndex: 2,
+                        backgroundColor:
+                            theme.colorScheme === 'dark'
+                                ? theme.colors.dark[6]
+                                : 'white',
+                    })}
+                >
                     {!isOpen ? (
                         <Group align="center" position="apart" sx={{ flex: 1 }}>
                             <Button

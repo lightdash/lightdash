@@ -50,7 +50,7 @@ export const SchedulerSettingsForm: FC<Props> = ({
                             >
                                 <MantineIcon
                                     icon={IconHelp}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     size="sm"
                                 />
                             </Tooltip>

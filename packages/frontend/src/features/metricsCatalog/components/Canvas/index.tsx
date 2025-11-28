@@ -560,8 +560,8 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             >
                 <Panel position="top-left" style={{ margin: '14px 27px' }}>
                     <Group spacing="xs">
-                        <Text fz={14} fw={600} c="gray.7">
-                            <Text span fw={500} c="gray.6">
+                        <Text fz={14} fw={600} c="ldGray.7">
+                            <Text span fw={500} c="ldGray.6">
                                 Canvas mode:
                             </Text>{' '}
                             Current month to date
@@ -573,7 +573,10 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                             variant="transparent"
                             size="xs"
                         >
-                            <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                            />
                         </ActionIcon>
                     </Group>
                 </Panel>
@@ -589,7 +592,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                             }}
                             leftIcon={
                                 <MantineIcon
-                                    color="gray.5"
+                                    color="ldGray.5"
                                     icon={IconLayoutGridRemove}
                                 />
                             }

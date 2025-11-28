@@ -36,10 +36,13 @@ const SummaryPreview: FC<SummaryPreviewProps> = ({
             <ReactMarkdownPreview
                 source={summary.summary}
                 rehypePlugins={[[rehypeExternalLinks, { target: '_blank' }]]}
+                style={{
+                    backgroundColor: 'transparent',
+                }}
             />
             <Flex align="center" justify="space-between" mt="md" w="100%">
                 <Text
-                    color="gray.7"
+                    color="ldGray.7"
                     fz="xs"
                 >{`generated ${relativeDate}`}</Text>
                 <Tooltip label="Regenerate summary" position="left">

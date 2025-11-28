@@ -178,7 +178,7 @@ export const SaveToDashboard: FC<Props> = ({
                 </Stack>
                 <Stack spacing="xxs">
                     <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} color="gray.6" fz="xs">
+                    <Text fw={400} color="ldGray.6" fz="xs">
                         This chart will be saved exclusively to the dashboard "
                         {dashboardName}", keeping your space clutter-free.
                     </Text>
@@ -189,7 +189,7 @@ export const SaveToDashboard: FC<Props> = ({
                 position="right"
                 w="100%"
                 sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
                     bottom: 0,
                     padding: theme.spacing.md,
                 })}

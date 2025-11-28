@@ -131,7 +131,7 @@ const AiAgentAdminAgentsTable = () => {
                 size: 250,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="gray.6" />
+                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -145,7 +145,7 @@ const AiAgentAdminAgentsTable = () => {
                                     name={agent.name}
                                     src={agent.imageUrl}
                                 />
-                                <Text fz="sm" fw={600} c="gray.9" truncate>
+                                <Text fz="sm" fw={600} c="ldGray.9" truncate>
                                     {agent.name}
                                 </Text>
                             </Group>
@@ -160,14 +160,14 @@ const AiAgentAdminAgentsTable = () => {
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconBox} color="gray.6" />
+                        <MantineIcon icon={IconBox} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const project = projectsMap.get(row.original.projectUuid);
                     return (
-                        <Text c="gray.9" fz="sm" fw={400}>
+                        <Text c="ldGray.9" fz="sm" fw={400}>
                             {project?.name ?? 'Unknown Project'}
                         </Text>
                     );
@@ -180,7 +180,7 @@ const AiAgentAdminAgentsTable = () => {
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTag} color="gray.6" />
+                        <MantineIcon icon={IconTag} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -188,7 +188,7 @@ const AiAgentAdminAgentsTable = () => {
                     const agent = row.original;
                     if (!agent.tags || agent.tags.length === 0) {
                         return (
-                            <Text c="gray.5" fz="xs" fs="italic">
+                            <Text c="ldGray.5" fz="xs" fs="italic">
                                 No tags
                             </Text>
                         );
@@ -208,7 +208,7 @@ const AiAgentAdminAgentsTable = () => {
                                 </Badge>
                             ))}
                             {agent.tags.length > 3 && (
-                                <Text c="gray.6" fz="xs">
+                                <Text c="ldGray.6" fz="xs">
                                     +{agent.tags.length - 3} more
                                 </Text>
                             )}
@@ -223,7 +223,7 @@ const AiAgentAdminAgentsTable = () => {
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconPuzzle} color="gray.6" />
+                        <MantineIcon icon={IconPuzzle} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -234,7 +234,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (agent.integrations.length === 0) {
                         return (
-                            <Text c="gray.5" fz="xs" fs="italic">
+                            <Text c="ldGray.5" fz="xs" fs="italic">
                                 None
                             </Text>
                         );
@@ -269,7 +269,7 @@ const AiAgentAdminAgentsTable = () => {
                                                     />
                                                     <Text
                                                         fz="xs"
-                                                        c="gray.7"
+                                                        c="ldGray.7"
                                                         fw={500}
                                                         truncate
                                                         ref={isTruncated.ref}
@@ -299,7 +299,7 @@ const AiAgentAdminAgentsTable = () => {
                 size: 120,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconUsers} color="gray.6" />
+                        <MantineIcon icon={IconUsers} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -311,7 +311,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (totalCount === 0) {
                         return (
-                            <Text c="gray.5" fz="xs" fs="italic">
+                            <Text c="ldGray.5" fz="xs" fs="italic">
                                 No restrictions
                             </Text>
                         );
@@ -364,14 +364,14 @@ const AiAgentAdminAgentsTable = () => {
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconClock} color="gray.6" />
+                        <MantineIcon icon={IconClock} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => {
                     const agent = row.original;
                     return (
-                        <Text fz="sm" c="gray.7">
+                        <Text fz="sm" c="ldGray.7">
                             {new Date(agent.createdAt).toLocaleDateString()}
                         </Text>
                     );
@@ -453,7 +453,7 @@ const AiAgentAdminAgentsTable = () => {
         mantinePaperProps: {
             shadow: undefined,
             style: {
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
@@ -480,7 +480,7 @@ const AiAgentAdminAgentsTable = () => {
                 padding: `${theme.spacing.md} ${theme.spacing.xl}`,
                 borderRight: 'none',
                 borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                 borderTop: 'none',
             },
         },
@@ -562,7 +562,7 @@ const AiAgentAdminAgentsTable = () => {
                         </Box>
                     </Group>
                 </Group>
-                <Divider color="gray.2" />
+                <Divider color="ldGray.2" />
             </Box>
         ),
         state: {

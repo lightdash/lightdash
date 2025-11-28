@@ -89,7 +89,10 @@ export const EvalPromptThreadReference: FC<Props> = ({
             <Stack gap="xs">
                 <Group justify="space-between" align="flex-start">
                     <Group gap="xs" style={{ flex: 1 }} align="flex-start">
-                        <MantineIcon icon={IconMessageCircle} color="gray.6" />
+                        <MantineIcon
+                            icon={IconMessageCircle}
+                            color="ldGray.6"
+                        />
                         <Box style={{ flex: 1 }}>
                             <Stack gap="xs"></Stack>
                             <Group gap="xs" align="center">

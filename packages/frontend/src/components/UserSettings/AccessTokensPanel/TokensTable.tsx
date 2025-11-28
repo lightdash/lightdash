@@ -90,7 +90,7 @@ const TokenItem: FC<{
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                     size="md"
                                 />
                             </Tooltip>
@@ -115,7 +115,7 @@ const TokenItem: FC<{
                             <ActionIcon
                                 variant="transparent"
                                 size="sm"
-                                color="gray.6"
+                                color="ldGray.6"
                             >
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>

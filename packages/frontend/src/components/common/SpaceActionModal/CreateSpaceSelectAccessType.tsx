@@ -64,7 +64,7 @@ export const CreateSpaceSelectAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     <Text fw={600} fz="sm">
                         Members of {project?.name}
                     </Text>
-                    <Text c="gray.6" fz="xs">
+                    <Text c="ldGray.6" fz="xs">
                         {selectedAccess.description}
                     </Text>
                 </Stack>

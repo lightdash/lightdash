@@ -118,7 +118,7 @@ const UserCompletionModal: FC = () => {
                 title={
                     <Box ta="center">
                         <Title order={4}>Nearly there...</Title>
-                        <Text ta="center" c="gray.6">
+                        <Text ta="center" c="ldGray.6">
                             Tell us a bit more about yourself
                         </Text>
                     </Box>

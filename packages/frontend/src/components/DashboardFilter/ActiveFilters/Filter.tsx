@@ -6,9 +6,9 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
-    CloseButton,
     createStyles,
     Indicator,
     Popover,
@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconGripVertical } from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -29,9 +29,6 @@ import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 
 const useDashboardFilterStyles = createStyles((theme) => ({
-    root: {
-        backgroundColor: 'white',
-    },
     unsetRequiredFilter: {
         borderStyle: 'solid',
         borderWidth: '3px',
@@ -39,8 +36,8 @@ const useDashboardFilterStyles = createStyles((theme) => ({
     inactiveFilter: {
         borderStyle: 'dashed',
         borderWidth: '1px',
-        borderColor: theme.fn.rgba(theme.colors.gray[5], 0.7),
-        backgroundColor: theme.fn.rgba(theme.white, 0.7),
+        borderColor: theme.fn.rgba(theme.colors.ldGray[5], 0.7),
+        backgroundColor: theme.fn.rgba(theme.colors.background[0], 0.7),
     },
 }));
 
@@ -242,7 +239,7 @@ const Filter: FC<Props> = ({
                                         ? 'outline'
                                         : 'default'
                                 }
-                                className={`${classes.root} ${
+                                className={`${
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
@@ -255,7 +252,6 @@ const Filter: FC<Props> = ({
                                     isDraggable && (
                                         <MantineIcon
                                             icon={IconGripVertical}
-                                            color="gray"
                                             cursor="grab"
                                             size="sm"
                                         />
@@ -263,16 +259,18 @@ const Filter: FC<Props> = ({
                                 }
                                 rightIcon={
                                     (isEditMode || isTemporary) && (
-                                        <CloseButton
-                                            size="sm"
+                                        <ActionIcon
                                             onClick={onRemove}
-                                        />
+                                            size="xs"
+                                        >
+                                            <MantineIcon
+                                                size="sm"
+                                                icon={IconX}
+                                            />
+                                        </ActionIcon>
                                     )
                                 }
                                 styles={{
-                                    inner: {
-                                        color: 'black',
-                                    },
                                     label: {
                                         maxWidth: '800px',
                                         whiteSpace: 'nowrap',
@@ -322,14 +320,18 @@ const Filter: FC<Props> = ({
                                             </Text>
                                         </Tooltip>
                                         {filterRule?.disabled ? (
-                                            <Text span color="gray.6" truncate>
+                                            <Text
+                                                span
+                                                color="ldGray.6"
+                                                truncate
+                                            >
                                                 is any value
                                             </Text>
                                         ) : (
                                             <>
                                                 <Text
                                                     span
-                                                    color="gray.7"
+                                                    color="ldGray.7"
                                                     truncate
                                                 >
                                                     {filterRuleLabels?.operator}{' '}

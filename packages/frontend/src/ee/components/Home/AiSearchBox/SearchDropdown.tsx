@@ -106,7 +106,7 @@ export const SearchDropdown: FC<Props> = ({
                                     onClick={() => onChange('')}
                                     variant="transparent"
                                     size="xs"
-                                    color="gray.5"
+                                    color="ldGray.5"
                                 >
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>

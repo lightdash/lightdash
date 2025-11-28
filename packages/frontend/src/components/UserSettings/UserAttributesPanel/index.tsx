@@ -58,18 +58,18 @@ const UserListItem: FC<{
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="gray.6"
+                                    color="ldGray.6"
                                 />
                             </Tooltip>
                         )}
                     </Group>
                     <Group spacing="sm">
-                        <Text fz="xs" color="gray.6">
+                        <Text fz="xs" color="ldGray.6">
                             {orgUserAttribute.users.length} user
                             {orgUserAttribute.users.length !== 1 ? 's' : ''}
                         </Text>
                         {isGroupManagementEnabled && (
-                            <Text fz="xs" color="gray.6">
+                            <Text fz="xs" color="ldGray.6">
                                 {orgUserAttribute.groups.length} group
                                 {orgUserAttribute.groups.length !== 1
                                     ? 's'

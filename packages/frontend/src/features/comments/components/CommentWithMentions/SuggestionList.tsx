@@ -100,11 +100,12 @@ export const SuggestionList = forwardRef<
                                         fontSize: theme.fontSizes.xs,
                                         fontWeight: 400,
                                         textAlign: 'left',
-                                        backgroundColor: 'white',
+                                        backgroundColor:
+                                            theme.colors.background[0],
                                         color:
                                             index === selectedIndex
                                                 ? theme.colors.blue[6]
-                                                : theme.colors.gray[7],
+                                                : theme.colors.ldGray[7],
                                         opacity: item.disabled ? 0.5 : 1,
                                         cursor: item.disabled
                                             ? 'not-allowed'

@@ -15,7 +15,7 @@ When creating/updating components:
 -   [ ] Check Mantine docs/types for available component props
 -   [ ] Use inline-style component props for styling when available (and follow <=3 props rule; if more than 3 props, use CSS modules)
 -   [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
--   [ ] Theme values('md', 'lg', 'xl', or 'gray.1', 'gray.2', etc) instead of magic numbers
+-   [ ] Theme values('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
 
 ### Quick Migration Guide
 
@@ -207,6 +207,140 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 // ✅ Good - Theme tokens
 <Box p="md" mt="lg">
 ```
+
+#### Color Guidelines
+
+**Prefer default component colors - Mantine handles theme switching automatically:**
+
+```tsx
+// ✅ Best - Let Mantine handle theme switching
+<Button>Default button</Button>           // Auto-switches themes
+<Card>Default card</Card>                 // Auto-switches themes
+<Text>Default text</Text>                 // Auto-switches themes
+<TextInput placeholder="Search..." />     // Auto-switches themes
+```
+
+**When you need custom colors, use theme colors for dark mode compatibility:**
+
+```tsx
+// ❌ Bad - Standard Mantine colors (poor dark mode support)
+<Text c="gray.6">Secondary text</Text>
+<Box bg="gray.1">Background</Box>
+
+// ✅ Good - ldGray for borders and neutral elements
+<Text c="ldGray.6">Secondary text</Text>        // Gray text → Light gray text
+<Box style={{ borderColor: 'ldGray.3' }}>Border</Box>  // Auto-adjusts border
+
+// ✅ Good - ldDark for elements that appear dark in light mode
+<Button bg="ldDark.8" c="ldDark.0">Dark button</Button>  // Dark bg/light text → Light bg/dark text
+<Badge bg="ldDark.9" c="ldDark.1">Dark badge</Badge>    // Inverts for dark mode
+
+// ✅ Good - Foreground/background variables (always use .0 as there is only one option for now)
+<Text c="foreground.0">Primary text</Text>      // Main text color
+<Box bg="background.0">Main background</Box>    // Main background color
+```
+
+**Available custom color scales:**
+
+| Token | Light Mode | Dark Mode | Purpose |
+|-------|------------|-----------|---------|
+| `ldGray.0-9` | Light grays (#f8f9fa → #212529) | Dark grays (#2e2e32 → #d9d9df) | Borders, text |
+| `ldDark.0-9` | Dark shades (#C9C9C9 → #141414) | Light shades (#f3f5ff → #18181a) | Inverted contrast elements |
+| `background.0` | #FEFEFE (white) | #1A1B1E (dark) | Page/card backgrounds |
+| `foreground.0` | #1A1B1E (dark) | #FEFEFE (white) | Primary text color |
+
+**When to use each:**
+- **`ldGray`**: Borders, subtle text, neutral UI elements
+- **`ldDark`**: Buttons/badges with dark backgrounds in light mode, "inverted" elements
+- **`foreground.0`**: Main text color throughout the app
+- **`background.0`**: Main page/container backgrounds
+- **Standard colors**: Brand colors (blue, red, green) for accents and semantic meanings
+
+#### Advanced Theme Customization
+
+**For complex theme-specific styling, use CSS modules with mixins:**
+
+```css
+/* Component.module.css */
+.customCard {
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+/* Light theme specific styles */
+@mixin light {
+    .customCard {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .customCard:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+}
+
+/* Dark theme specific styles */
+@mixin dark {
+    .customCard {
+        background-color: #1a1a1a;
+        border: 1px solid #404040;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .customCard:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        background-color: #252525;
+    }
+}
+
+/* Theme-specific icons or complex layouts */
+@mixin light {
+    .iconWrapper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+}
+
+@mixin dark {
+    .iconWrapper {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    }
+}
+```
+
+**When to use CSS modules mixins:**
+- Complex hover states that differ between themes
+- Gradients or shadows that need theme-specific values
+- Layout adjustments based on theme
+- When component props don't provide enough customization
+
+#### Theme-Aware Component Logic
+
+**For JavaScript logic that needs to know the current theme:**
+
+```tsx
+import { useMantineColorScheme } from '@mantine/core';
+
+const MyComponent = () => {
+    const { colorScheme } = useMantineColorScheme();
+
+    // Theme-specific logic
+    const iconColor = colorScheme === 'dark' ? 'blue.4' : 'blue.6';
+    const showBorder = colorScheme === 'light';
+
+    return (
+        <Box style={{ border: showBorder ? '1px solid' : 'none' }}>
+            <Icon color={iconColor} />
+        </Box>
+    );
+};
+```
+
+**When to use `useMantineColorScheme()`:**
+- Conditional rendering based on theme
+- Dynamic prop values that can't be handled by CSS
+- Component behavior that changes between themes
 
 ## Mantine Documentation
 

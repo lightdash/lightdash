@@ -228,7 +228,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             )}
                                     </Group>
                                     {canBelongToSpace && (
-                                        <Text fz={12} color="gray.6">
+                                        <Text fz={12} color="ldGray.6">
                                             {getResourceTypeName(item)} •{' '}
                                             <Tooltip
                                                 position="top-start"
@@ -279,7 +279,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                     return space ? (
                         <Anchor
-                            color="gray.7"
+                            color="ldGray.7"
                             component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
@@ -433,7 +433,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                               userSelect: 'none',
                                               '&:hover': {
                                                   backgroundColor:
-                                                      theme.colors.gray[1],
+                                                      theme.colors.ldGray[1],
                                               },
                                           })
                                         : undefined

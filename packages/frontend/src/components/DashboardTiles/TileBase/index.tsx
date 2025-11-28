@@ -114,11 +114,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 h="100%"
                 direction="column"
                 p="md"
-                bg="white"
                 radius="sm"
+                bg="background.0"
                 shadow={isEditMode ? 'xs' : undefined}
                 sx={(theme) => {
-                    let border = `1px solid ${theme.colors.gray[1]}`;
+                    let border = `1px solid ${theme.colors.ldGray[1]}`;
                     if (isEditMode) {
                         border = `1px dashed ${theme.colors.blue[5]}`;
                     }
@@ -146,7 +146,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                     style={{
                         alignItems: 'flex-start',
-                        backgroundColor: 'white',
                         zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
                         borderRadius: '5px',
                     }}

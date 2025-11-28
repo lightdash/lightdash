@@ -193,14 +193,14 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                     {labels.field}{' '}
                                                 </Text>
                                                 {filter.disabled ? (
-                                                    <Text span color="gray.6">
+                                                    <Text span color="ldGray.6">
                                                         is any value
                                                     </Text>
                                                 ) : (
                                                     <>
                                                         <Text
                                                             span
-                                                            color="gray.7"
+                                                            color="ldGray.7"
                                                         >
                                                             {labels.operator}{' '}
                                                         </Text>

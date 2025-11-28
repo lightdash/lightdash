@@ -150,7 +150,7 @@ export const SingleItemModalContent = ({
                     <MantineIcon
                         icon={IconGitBranch}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={500}>Write back to dbt</Text>
                     <Tooltip
@@ -161,7 +161,7 @@ export const SingleItemModalContent = ({
                         label={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
                     >
                         <MantineIcon
-                            color="gray.7"
+                            color="ldGray.7"
                             icon={IconInfoCircle}
                             size={16}
                         />
@@ -169,7 +169,7 @@ export const SingleItemModalContent = ({
                 </Group>
             }
             styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
                 body: { padding: 0 },
             })}
         >
@@ -198,7 +198,7 @@ export const SingleItemModalContent = ({
 
             <Group position="right" w="100%" p="md">
                 <Button
-                    color="gray.7"
+                    color="ldGray.7"
                     onClick={handleClose}
                     variant="outline"
                     disabled={isLoading}
@@ -338,7 +338,7 @@ const MultipleItemsModalContent = ({
                     <MantineIcon
                         icon={IconGitBranch}
                         size="lg"
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                     <Text fw={500}>Write back to dbt</Text>
                 </Group>
@@ -351,9 +351,9 @@ const MultipleItemsModalContent = ({
                 pl="md"
                 pb="sm"
                 fz="s"
-                color="gray.7"
+                color="ldGray.7"
                 sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                    borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
                 })}
             >
                 Create a pull request in your dbt project's git repository for
@@ -450,7 +450,7 @@ const MultipleItemsModalContent = ({
 
             <Group position="right" w="100%" p="md">
                 <Button
-                    color="gray.7"
+                    color="ldGray.7"
                     onClick={handleClose}
                     variant="outline"
                     disabled={isLoading}

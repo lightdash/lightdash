@@ -1,3 +1,38 @@
+## [0.2212.1](https://github.com/lightdash/lightdash/compare/0.2212.0...0.2212.1) (2025-11-28)
+
+
+### Bug Fixes
+
+* add dark mode support for grid item borders ([#18414](https://github.com/lightdash/lightdash/issues/18414)) ([0a98b2d](https://github.com/lightdash/lightdash/commit/0a98b2d9b30da4add9a37e54ae19f047a4c13423))
+* improve text readability with conditional formatting colors ([#18412](https://github.com/lightdash/lightdash/issues/18412)) ([25e18c6](https://github.com/lightdash/lightdash/commit/25e18c617f8dd3dd2022e6b67591e801436ef500))
+* legend double click tooltip and funnel dark mode ([#18410](https://github.com/lightdash/lightdash/issues/18410)) ([12651a7](https://github.com/lightdash/lightdash/commit/12651a72ab65e8ba831c0400caeeb55e8d957fa2))
+
+# [0.2212.0](https://github.com/lightdash/lightdash/compare/0.2211.0...0.2212.0) (2025-11-28)
+
+
+### Features
+
+* beta tag + report issue for dark mode ([#18407](https://github.com/lightdash/lightdash/issues/18407)) ([e5e08ec](https://github.com/lightdash/lightdash/commit/e5e08ec826d6f15b2386ff9a5f61c49d54afe3d9))
+
+# [0.2211.0](https://github.com/lightdash/lightdash/compare/0.2210.0...0.2211.0) (2025-11-28)
+
+
+### Features
+
+* dark mode support ([#18365](https://github.com/lightdash/lightdash/issues/18365)) ([0806f1d](https://github.com/lightdash/lightdash/commit/0806f1d06e07ee3cc84c5c2b9ccab29917c2ed94))
+
+# [0.2210.0](https://github.com/lightdash/lightdash/compare/0.2209.4...0.2210.0) (2025-11-28)
+
+
+### Bug Fixes
+
+* underlying data table colapses all rows ([#18396](https://github.com/lightdash/lightdash/issues/18396)) ([5db9dc2](https://github.com/lightdash/lightdash/commit/5db9dc20421dd8984de19261dc620d13420d2285))
+
+
+### Features
+
+* add beta badge next to PoP button ([#18397](https://github.com/lightdash/lightdash/issues/18397)) ([9ea6220](https://github.com/lightdash/lightdash/commit/9ea62204a99c30a6c48fa1c671a67adfb87b3a21))
+
 ## [0.2209.4](https://github.com/lightdash/lightdash/compare/0.2209.3...0.2209.4) (2025-11-26)
 
 

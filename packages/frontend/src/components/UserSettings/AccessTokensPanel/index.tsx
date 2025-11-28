@@ -29,7 +29,7 @@ const AccessTokensPanel: FC = () => {
                     icon={
                         <MantineIcon
                             icon={IconKey}
-                            color="gray.6"
+                            color="ldGray.6"
                             stroke={1}
                             size="5xl"
                         />

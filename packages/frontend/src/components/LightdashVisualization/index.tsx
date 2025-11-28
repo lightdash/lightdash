@@ -48,7 +48,7 @@ const LightdashVisualization = memo(
                         icon={
                             // Icon consistent with SuboptimalState in charts
                             <MantineIcon
-                                color="gray.5"
+                                color="ldGray.5"
                                 size="xxl"
                                 icon={IconChartBarOff}
                             />
