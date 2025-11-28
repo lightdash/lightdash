@@ -46,6 +46,9 @@ export const MetricChartUsageButton = ({
         <Tooltip
             variant="xs"
             disabled={!hasChartsUsage}
+            openDelay={200}
+            maw={250}
+            fz="xs"
             label={
                 <Text>
                     Used by {row.original.chartUsage} charts.

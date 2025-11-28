@@ -40,6 +40,8 @@ export const CatalogCategory: FC<Props> = ({
                         maw={200}
                         position="top"
                         withinPortal
+                        openDelay={200}
+                        fz="xs"
                         label="This category cannot be removed from this metric because it was defined in the .yml file."
                     >
                         <MantineIcon

@@ -81,6 +81,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             position="bottom-start"
             opened={opened}
             onClose={setLocalStorage}
+            shadow="sm"
         >
             <Popover.Target>
                 <Button

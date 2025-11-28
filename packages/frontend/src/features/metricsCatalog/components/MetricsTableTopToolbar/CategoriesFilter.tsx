@@ -56,12 +56,15 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
 
     return (
         <Group spacing="two">
-            <Popover width={300} position="bottom-start">
+            <Popover width={300} position="bottom-start" shadow="sm">
                 <Popover.Target>
                     <Tooltip
                         withinPortal
                         variant="xs"
                         label="Filter metrics by category"
+                        openDelay={200}
+                        maw={250}
+                        fz="xs"
                     >
                         <Button
                             h={32}
@@ -219,7 +222,13 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 </Popover.Dropdown>
             </Popover>
             {hasSelectedCategories && (
-                <Tooltip variant="xs" label="Clear all categories">
+                <Tooltip
+                    variant="xs"
+                    label="Clear all categories"
+                    openDelay={200}
+                    maw={250}
+                    fz="xs"
+                >
                     <ActionIcon
                         size="xs"
                         color="ldGray.5"

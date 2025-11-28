@@ -82,6 +82,7 @@ const EditPopover: FC<EditPopoverProps> = ({
             width={200}
             onClose={handleClose}
             trapFocus={opened}
+            shadow="sm"
         >
             <Popover.Target>
                 <ActionIcon
@@ -148,6 +149,9 @@ const EditPopover: FC<EditPopoverProps> = ({
                         <Tooltip
                             variant="xs"
                             label="Delete this tag permanently"
+                            openDelay={200}
+                            maw={250}
+                            fz="xs"
                         >
                             <ActionIcon
                                 size="sm"
@@ -245,6 +249,8 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                     maw={200}
                     position="top"
                     withinPortal
+                    openDelay={200}
+                    fz="xs"
                     label="This category was created in the .yml config and its properties cannot be edited"
                 >
                     <Box

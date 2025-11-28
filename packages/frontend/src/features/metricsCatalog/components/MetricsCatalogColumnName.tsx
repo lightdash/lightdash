@@ -57,7 +57,15 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper shadow="xs" withBorder pt="xs" px="two">
+                    <Paper
+                        shadow="xs"
+                        withBorder
+                        pt="xs"
+                        px="two"
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.ldGray[2]}`,
+                        })}
+                    >
                         {emoji && (
                             <Group position="right">
                                 <Button
@@ -243,6 +251,8 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         disabled={!row.original.tableName}
                         variant="xs"
                         openDelay={300}
+                        maw={250}
+                        fz="xs"
                     >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}

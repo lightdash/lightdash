@@ -205,19 +205,9 @@ export const getMantineThemeOverride = (
                 }),
             },
 
-            Popover: {
-                defaultProps: {
-                    withinPortal: true,
-                    radius: 'md',
-                    shadow: 'md',
-                },
-            },
-
             Tooltip: {
                 defaultProps: {
                     withArrow: true,
-                    withinPortal: true,
-                    multiline: true,
                 },
                 variants: {
                     xs: (theme) => ({
@@ -233,14 +223,6 @@ export const getMantineThemeOverride = (
                     // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
                     // It could be made a less-magic number once we migrate
                     yOffset: 140,
-                },
-            },
-
-            Paper: {
-                defaultProps: {
-                    radius: 'md',
-                    shadow: 'subtle',
-                    withBorder: true,
                 },
             },
 
@@ -358,4 +340,4 @@ export const getMantineThemeOverride = (
                 to: { opacity: 1 },
             },
         }),
-    } satisfies MantineThemeOverride);
+    }) satisfies MantineThemeOverride;

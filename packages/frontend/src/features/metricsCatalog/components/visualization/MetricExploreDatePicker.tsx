@@ -141,7 +141,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
     ];
 
     return (
-        <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
+        <Popover
+            opened={isOpen}
+            onChange={handleOpen}
+            position="bottom-start"
+            shadow="sm"
+        >
             <Popover.Target>
                 <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
