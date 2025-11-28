@@ -301,6 +301,8 @@ export type InfiniteQueryResults = Partial<
     hasFetchedAllRows: boolean;
     totalClientFetchTimeMs: number | undefined;
     error: ApiError | null;
+    /** True when polling is paused (e.g., chart is not in viewport) */
+    isPollingPaused: boolean;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -308,6 +310,13 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
     chartName?: string,
+    /**
+     * When false, polling for results is paused.
+     * Use this to defer polling for charts that are not in the viewport.
+     * Query creation still happens immediately; only polling is deferred.
+     * @default true
+     */
+    pollingEnabled: boolean = true,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -392,7 +401,8 @@ export const useInfiniteQueryResults = (
         ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
         ApiError
     >({
-        enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
+        enabled:
+            !!fetchArgs.projectUuid && !!fetchArgs.queryUuid && pollingEnabled,
         queryKey: ['query-page', fetchArgs],
         queryFn: async () => {
             const startTime = performance.now();
@@ -511,6 +521,20 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
+    // When polling is re-enabled (e.g., chart scrolls back into view),
+    // trigger a refetch if we have a pending query that needs to continue
+    useEffect(() => {
+        if (
+            pollingEnabled &&
+            fetchArgs.projectUuid &&
+            fetchArgs.queryUuid &&
+            nextPageData?.status === QueryHistoryStatus.PENDING
+        ) {
+            // Invalidate to trigger a refetch now that polling is enabled
+            void queryClient.invalidateQueries(['query-page', fetchArgs]);
+        }
+    }, [pollingEnabled, fetchArgs, nextPageData?.status, queryClient]);
+
     const totalClientFetchTimeMs = useMemo(() => {
         if (fetchedPages.length === 0) {
             return undefined;
@@ -557,6 +581,7 @@ export const useInfiniteQueryResults = (
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
             error: nextPage.error,
+            isPollingPaused: !pollingEnabled,
         }),
         [
             projectUuid,
@@ -572,6 +597,7 @@ export const useInfiniteQueryResults = (
             isInitialLoading,
             nextPage.error,
             fetchAll,
+            pollingEnabled,
         ],
     );
 };
