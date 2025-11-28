@@ -1,3 +1,10 @@
+# [0.2212.0](https://github.com/lightdash/lightdash/compare/0.2211.0...0.2212.0) (2025-11-28)
+
+
+### Features
+
+* beta tag + report issue for dark mode ([#18407](https://github.com/lightdash/lightdash/issues/18407)) ([e5e08ec](https://github.com/lightdash/lightdash/commit/e5e08ec826d6f15b2386ff9a5f61c49d54afe3d9))
+
 # [0.2211.0](https://github.com/lightdash/lightdash/compare/0.2210.0...0.2211.0) (2025-11-28)
 
 
