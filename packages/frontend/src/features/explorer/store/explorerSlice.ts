@@ -21,6 +21,7 @@ import {
     type ParameterValue,
     type PeriodOverPeriodComparison,
     type ReplaceCustomFields,
+    type ResultColumns,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -44,7 +45,7 @@ import {
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
 
-import { calcColumnOrder } from './utils';
+import { calcColumnOrder, computeColumnOrderWithPoP } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
 
@@ -867,7 +868,19 @@ const explorerSlice = createSlice({
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
                 pendingFetch: false,
+                completeColumnOrder: [],
             };
+        },
+
+        setCompleteColumnOrder: (
+            state,
+            action: PayloadAction<ResultColumns>,
+        ) => {
+            const { completeColumnOrder } = computeColumnOrderWithPoP(
+                state.unsavedChartVersion.tableConfig.columnOrder,
+                action.payload,
+            );
+            state.queryExecution.completeColumnOrder = completeColumnOrder;
         },
 
         // Request a query execution (works regardless of auto-fetch setting)

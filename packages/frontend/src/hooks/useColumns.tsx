@@ -426,8 +426,8 @@ export const useColumns = (): TableColumn[] => {
         return result;
     }, [itemsMap, activeFields]);
 
-    // Find period-over-period _previous fields from resultsColumns
-    // Use the base field's metadata (from itemsMap) for labels and formatting
+    // Find period-over-period fields from resultsColumns using popMetadata
+    // This uses backend-provided metadata instead of string matching
     const popPreviousFields = useMemo<
         Map<string, { fieldId: string; item: ItemsMap[string] }>
     >(() => {
@@ -438,13 +438,13 @@ export const useColumns = (): TableColumn[] => {
             { fieldId: string; item: ItemsMap[string] }
         >();
 
-        // Find _previous fields in columns and map them by their base field ID
-        for (const fieldId of Object.keys(resultsColumns)) {
-            if (fieldId.endsWith('_previous')) {
-                const baseFieldId = fieldId.replace(/_previous$/, '');
+        // Find PoP fields using popMetadata from API response
+        for (const [fieldId, column] of Object.entries(resultsColumns)) {
+            if (column.popMetadata) {
+                const { baseFieldId } = column.popMetadata;
                 const baseItem = itemsMap[baseFieldId];
                 if (baseItem) {
-                    // Use the base item's metadata for formatting, but indicate it's a PoP column
+                    // Use the base item's metadata for formatting
                     previousFieldsMap.set(baseFieldId, {
                         fieldId,
                         item: baseItem,

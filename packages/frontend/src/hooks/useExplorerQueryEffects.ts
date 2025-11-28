@@ -137,5 +137,16 @@ export const useExplorerQueryEffects = ({
         }
     }, [validQueryArgs, needsUnpivotedData, isResultsOpen, dispatch]);
 
+    // Effect 4: Sync complete column order when query results change
+    const { queryResults } = useExplorerQueryManager();
+
+    useEffect(() => {
+        if (queryResults.columns) {
+            dispatch(
+                explorerActions.setCompleteColumnOrder(queryResults.columns),
+            );
+        }
+    }, [queryResults.columns, dispatch]);
+
     // No return - this hook just orchestrates effects
 };

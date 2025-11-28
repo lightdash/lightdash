@@ -65,67 +65,14 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         setColumnVisibility(calculateColumnVisibility(columns));
     }, [columns]);
 
-    // Derive full column order that includes columns not in columnOrder
-    // (e.g., _previous fields for period-over-period comparisons)
-    // These should be inserted after their base field
-    // Only apply this logic when columnOrder is explicitly provided
-    const derivedColumnOrder = useMemo(() => {
-        // If no columnOrder provided, preserve old behavior (empty order)
-        if (!columnOrder || columnOrder.length === 0) {
-            return [];
-        }
-
-        const columnIds = columns.map((col) => col.id).filter(Boolean);
-        const orderSet = new Set(columnOrder);
-
-        // Find columns not in columnOrder
-        const missingColumns = columnIds.filter(
-            (id): id is string => id !== undefined && !orderSet.has(id),
-        );
-
-        if (missingColumns.length === 0) {
-            return columnOrder;
-        }
-
-        // Build new order by inserting missing columns after their base field
-        const result: string[] = [];
-        const insertedMissing = new Set<string>();
-
-        for (const colId of columnOrder) {
-            result.push(colId);
-
-            // Check if any missing columns should follow this one
-            // (e.g., field_previous should follow field)
-            for (const missing of missingColumns) {
-                if (insertedMissing.has(missing)) continue;
-
-                // Check if this missing column is a derivative of the current column
-                // e.g., orders_total_order_amount_previous follows orders_total_order_amount
-                if (missing.startsWith(`${colId}_`)) {
-                    result.push(missing);
-                    insertedMissing.add(missing);
-                }
-            }
-        }
-
-        // Add any remaining missing columns at the end
-        for (const missing of missingColumns) {
-            if (!insertedMissing.has(missing)) {
-                result.push(missing);
-            }
-        }
-
-        return result;
-    }, [columnOrder, columns]);
-
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
-        ...derivedColumnOrder,
+        ...(columnOrder || []),
     ]);
 
     useEffect(() => {
-        setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...derivedColumnOrder]);
-    }, [derivedColumnOrder]);
+        setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
+    }, [columnOrder]);
 
     const withTotals = showColumnCalculation ? 60 : 0;
     const rowColumnWidth = hideRowNumbers

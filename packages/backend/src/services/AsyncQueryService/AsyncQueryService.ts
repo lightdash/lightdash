@@ -1131,6 +1131,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        popEnabledMetrics,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1138,6 +1139,11 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        /**
+         * Set of metric field IDs that have period-over-period comparison enabled.
+         * Used to add popMetadata to the corresponding ResultColumns.
+         */
+        popEnabledMetrics?: Set<string>;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1175,6 +1181,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      { popEnabledMetrics },
                   );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
@@ -1288,6 +1295,7 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
+                      { popEnabledMetrics },
                   );
                   write?.(rows);
               };
@@ -1343,6 +1351,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         pivotConfiguration,
         originalColumns,
+        popEnabledMetrics,
     }: RunAsyncWarehouseQueryArgs) {
         let stream:
             | {
@@ -1432,6 +1441,7 @@ export class AsyncQueryService extends ProjectService {
                 write: stream?.write,
                 pivotConfiguration,
                 itemsMap: fieldsMap,
+                popEnabledMetrics,
             });
 
             this.analytics.track({
@@ -1913,6 +1923,12 @@ export class AsyncQueryService extends ProjectService {
                     this.logger.info(
                         `Executing query ${queryHistoryUuid} in the main loop`,
                     );
+
+                    // Build set of metrics with PoP enabled for ResultColumn metadata
+                    const popEnabledMetrics = metricQuery.periodOverPeriod
+                        ? new Set(metricQuery.metrics)
+                        : undefined;
+
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
@@ -1925,6 +1941,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
+                        popEnabledMetrics,
                     }).catch((e) => {
                         const errorMessage = getErrorMessage(e);
 
