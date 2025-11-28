@@ -1,8 +1,7 @@
-import { type ReactNode } from 'react';
+import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
-
-// Needed for virtualization. Matches value from Pivot table.
-export const ROW_HEIGHT_PX = 34;
+import { ROW_HEIGHT_PX } from './constants';
+import trStyles from './Tr.module.css';
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -157,24 +156,21 @@ const CellStyles = css<{ $isNaN: boolean }>`
     ${FontSyles}
 `;
 
-export const Tr = styled.tr<{
+interface TrProps extends ComponentPropsWithRef<'tr'> {
     $index?: number;
-}>`
-    ${({ $index = 0 }) =>
-        $index % 2 === 1
-            ? `
-                background-color: var(--mantine-color-ldGray-0);
-            `
-            : ''}
+}
 
-    :hover {
-        background-color: var(--mantine-color-ldGray-1) !important;
-    }
-
-    :hover td {
-        filter: saturate(1) brightness(0.9);
-    }
-`;
+export const Tr = forwardRef<HTMLTableRowElement, TrProps>(
+    ({ className, $index = 0, ...props }, ref) => (
+        <tr
+            ref={ref}
+            className={[trStyles.tr, className].filter(Boolean).join(' ')}
+            data-odd={$index % 2 === 1 ? 'true' : undefined}
+            {...props}
+        />
+    ),
+);
+Tr.displayName = 'Tr';
 
 export const Td = styled.td<{
     $isNaN: boolean;
