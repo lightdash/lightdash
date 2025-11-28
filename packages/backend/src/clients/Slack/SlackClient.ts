@@ -37,6 +37,7 @@ import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel'
 
 const DEFAULT_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
 const MAX_CHANNELS_LIMIT = 100000;
+const INITIAL_CHANNELS_LIMIT = 200;
 
 export type PostSlackFile = {
     organizationUuid: string;
@@ -188,11 +189,20 @@ export class SlackClient {
             if (!cached) return undefined;
 
             let finalResults = cached.channels;
+
             if (search) {
                 finalResults = finalResults.filter((channel) =>
-                    channel.name.includes(search),
+                    channel.name.toLowerCase().includes(search.toLowerCase()),
                 );
             }
+
+            if (!search && finalResults.length > INITIAL_CHANNELS_LIMIT) {
+                Logger.debug(
+                    `Limiting Slack channels response to ${INITIAL_CHANNELS_LIMIT} (total: ${finalResults.length}). Use search to find specific channels.`,
+                );
+                return finalResults.slice(0, INITIAL_CHANNELS_LIMIT);
+            }
+
             return finalResults.slice(0, MAX_CHANNELS_LIMIT);
         };
 
@@ -248,6 +258,7 @@ export class SlackClient {
                     : allChannels;
             } catch (e) {
                 slackErrorHandler(e, 'Unable to fetch slack channels');
+                break;
             }
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
@@ -273,6 +284,7 @@ export class SlackClient {
                         : allUsers;
                 } catch (e) {
                     slackErrorHandler(e, 'Unable to fetch slack users');
+                    break;
                 }
             } while (nextCursor);
             Logger.debug(`Total slack users ${allUsers.length}`);
