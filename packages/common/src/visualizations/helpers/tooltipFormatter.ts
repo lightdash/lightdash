@@ -741,19 +741,14 @@ export const buildCartesianTooltipFormatter =
                     '';
 
                 // For period-over-period series, use the base field's format
-                // (strip _previous suffix to find the base field)
+                // using baseFieldId from metadata instead of string matching
                 let effectiveFormatKey = formatKey as string;
-                if (
-                    effectiveFormatKey.endsWith('_previous') &&
-                    seriesOption?.periodOverPeriodMetadata
-                ) {
-                    const baseFieldKey = effectiveFormatKey.replace(
-                        /_previous$/,
-                        '',
-                    );
+                if (seriesOption?.periodOverPeriodMetadata?.baseFieldId) {
+                    const { baseFieldId } =
+                        seriesOption.periodOverPeriodMetadata;
                     // Use base field format if it exists in itemsMap
-                    if (itemsMap[baseFieldKey]) {
-                        effectiveFormatKey = baseFieldKey;
+                    if (itemsMap[baseFieldId]) {
+                        effectiveFormatKey = baseFieldId;
                     }
                 }
 
