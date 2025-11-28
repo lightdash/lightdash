@@ -97,7 +97,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
 }) => {
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
-        (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
+        typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
     >(CUSTOM_WIDTH_OPTIONS[1].value);
     const location = useLocation();
     const exportDashboardMutation = useExportDashboard();

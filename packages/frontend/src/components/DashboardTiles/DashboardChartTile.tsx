@@ -151,7 +151,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? (savedChart.chartConfig.config.showTableNames ?? false)
+                ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -1434,7 +1434,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? (chart.chartConfig.config.showTableNames ?? false)
+                        ? chart.chartConfig.config.showTableNames ?? false
                         : true
                 }
                 chartName={title || chart.name}
@@ -1706,7 +1706,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? (chart.chartConfig.config.showTableNames ?? false)
+                            ? chart.chartConfig.config.showTableNames ?? false
                             : true
                     }
                     chartName={title || chart.name}
