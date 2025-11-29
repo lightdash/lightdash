@@ -851,19 +851,75 @@ const DashboardProvider: React.FC<
         );
     }, [dashboardTiles]);
 
-    const addDimensionDashboardFilter = useCallback(
+    const upsertDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
-            const setFunction = isTemporary
-                ? setDashboardTemporaryFilters
-                : setDashboardFilters;
-            setFunction((previousFilters) => ({
-                dimensions: [...previousFilters.dimensions, filter],
-                metrics: previousFilters.metrics,
-                tableCalculations: previousFilters.tableCalculations,
-            }));
+            const existingSavedFilter = dashboardFilters.dimensions.find(
+                (d) => d.target.fieldId === filter.target.fieldId,
+            );
+            if (existingSavedFilter) {
+                // override the existing saved filter
+                const newDashboardFilters = {
+                    ...dashboardFilters,
+                    dimensions: dashboardFilters.dimensions.map((d) => {
+                        if (d.id === existingSavedFilter.id) {
+                            return {
+                                ...existingSavedFilter,
+                                disabled: filter.disabled,
+                                values: filter.values,
+                                operator: filter.operator,
+                            };
+                        }
+                        return d;
+                    }),
+                };
+                setDashboardFilters(newDashboardFilters);
+                setHaveFiltersChanged(true);
+                return;
+            }
+            if (isTemporary) {
+                const existingTemporaryFilter =
+                    dashboardTemporaryFilters.dimensions.find(
+                        (d) => d.target.fieldId === filter.target.fieldId,
+                    );
+                if (existingTemporaryFilter) {
+                    // override the existing temporary filter
+                    const newDashboardTemporaryFilters = {
+                        ...dashboardTemporaryFilters,
+                        dimensions: dashboardTemporaryFilters.dimensions.map(
+                            (d) => {
+                                if (d.id === existingTemporaryFilter.id) {
+                                    return {
+                                        ...existingTemporaryFilter,
+                                        disabled: filter.disabled,
+                                        operator: filter.operator,
+                                        values: filter.values,
+                                    };
+                                }
+                                return d;
+                            },
+                        ),
+                    };
+                    setDashboardTemporaryFilters(newDashboardTemporaryFilters);
+                } else {
+                    setDashboardTemporaryFilters((prev) => ({
+                        ...prev,
+                        dimensions: [...prev.dimensions, filter],
+                    }));
+                }
+            } else {
+                setDashboardFilters((prev) => ({
+                    ...prev,
+                    dimensions: [...prev.dimensions, filter],
+                }));
+            }
             setHaveFiltersChanged(true);
         },
-        [setDashboardFilters],
+        [
+            setDashboardFilters,
+            dashboardFilters,
+            dashboardTemporaryFilters,
+            setDashboardTemporaryFilters,
+        ],
     );
 
     const updateDimensionDashboardFilter = useCallback(
@@ -1103,7 +1159,7 @@ const DashboardProvider: React.FC<
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,
-        addDimensionDashboardFilter,
+        upsertDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
