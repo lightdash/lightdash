@@ -21,7 +21,7 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
-import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { convertQueryResultsToToon } from '../utils/convertQueryResultsToToon';
 import { getPivotedResults } from '../utils/getPivotedResults';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
@@ -251,12 +251,12 @@ export const getRunQuery = ({
                     };
                 }
 
-                const csv = convertQueryResultsToCsv(queryResults);
+                const toon = serializeData(
+                    convertQueryResultsToToon(queryResults),
+                    'toon',
+                );
                 return {
-                    result: `${serializeData(
-                        csv,
-                        'csv',
-                    )} ${selfImprovementResultFollowUp}`,
+                    result: `${toon} ${selfImprovementResultFollowUp}`,
                     metadata: { status: 'success' },
                 };
             } catch (e) {

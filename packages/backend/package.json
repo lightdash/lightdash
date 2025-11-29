@@ -73,6 +73,7 @@
         "@slack/bolt": "^3.22.0",
         "@slack/oauth": "^3.0.4",
         "@slack/web-api": "^6.13.0",
+        "@toon-format/toon": "^1.4.0",
         "@tsoa/runtime": "^6.6.0",
         "@types/async": "^3.2.16",
         "@types/sshpk": "^1.17.1",
