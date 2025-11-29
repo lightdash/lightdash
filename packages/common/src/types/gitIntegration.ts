@@ -8,4 +8,10 @@ export type PullRequestCreated = {
     prUrl: string;
 };
 
+export type ApiGitFileContent = {
+    content: string;
+    sha: string;
+    filePath: string;
+};
+
 export type GitRepo = { name: string; fullName: string; ownerLogin: string };

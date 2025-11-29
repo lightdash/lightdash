@@ -1,0 +1,41 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Get the YAML file for an explore (recommended)
+# This automatically finds the YAML file for the explore's base table
+# Replace "customers" with a real explore name from your project
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/explores/organizations/files
+
+
+### Get a file by path (if you know the exact path)
+# This fetches the file content and SHA which you'll need for the PR
+# Replace the filePath with a real file path in your dbt project
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/files?
+    filePath=models/staging/customers.yml
+
+
+### Create a pull request with file changes
+# Use the SHA from the GET /files response above
+# This creates a new branch, commits the file change, and opens a PR
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/pull-requests/file-change
+Content-Type: application/json
+
+{
+    "filePath": "dbt/models/prod/lightdash/organizations.yml",
+    "content": "version: 2\n\nmodels:\n  - name: customers\n    description: Updated via Lightdash API\n    columns:\n      - name: customer_id\n        description: Primary key\n",
+    "originalSha": "90e22107121cc3e1415da0821dac5ad165e8fc4c",
+    "title": "Update customers model description",
+    "description": "Updated the description for the customers model via Lightdash file editor."
+}
+
+
+### List available branches in the repository
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/branches
+

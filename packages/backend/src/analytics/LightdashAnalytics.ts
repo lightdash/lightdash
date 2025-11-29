@@ -1209,6 +1209,19 @@ export type WriteBackErrorEvent = BaseTrack & {
     };
 };
 
+export type SourceCodeEvent = BaseTrack & {
+    event: 'source_code.viewed' | 'source_code.pull_request_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        exploreName?: string;
+        filePath: string;
+        fileSize: number;
+        gitProvider: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+    };
+};
+
 type CreateTagEvent = BaseTrack & {
     event: 'category.created';
     userId: string;
@@ -1531,6 +1544,7 @@ type TypedEvent =
     | GithubInstallEvent
     | WriteBackEvent
     | WriteBackErrorEvent
+    | SourceCodeEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
