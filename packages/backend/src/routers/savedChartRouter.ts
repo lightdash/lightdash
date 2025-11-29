@@ -30,6 +30,27 @@ savedChartRouter.get(
 );
 
 savedChartRouter.get(
+    '/:savedQueryUuidOrSlug/calculateSubtotals',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        req.services
+            .getSavedChartService()
+            .calculateSubtotals(
+                getObjectValue(req.params, 'savedQueryUuidOrSlug'),
+                req.account!,
+            )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+savedChartRouter.get(
     '/:savedQueryUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,

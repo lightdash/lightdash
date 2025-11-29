@@ -39,6 +39,15 @@ const calculateSubtotalsFromQuery = async (
     });
 };
 
+const calculateSubtotalsOfSavedChart = async (
+    savedChartUuid: string,
+): Promise<ApiCalculateSubtotalsResponse['results']> => {
+    return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
+        url: `/saved/${savedChartUuid}/calculateSubtotals`,
+        method: 'GET',
+    });
+};
+
 const postCalculateSubtotalsForEmbed = async (
     embedToken: string,
     projectUuid: string,
@@ -116,6 +125,8 @@ export const useCalculateSubtotals = ({
                       dashboardFilters,
                       invalidateCache,
                   )
+                : savedChartUuid
+                ? calculateSubtotalsOfSavedChart(savedChartUuid)
                 : projectUuid && metricQuery && explore && columnOrder
                 ? calculateSubtotalsFromQuery(
                       projectUuid,
