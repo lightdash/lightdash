@@ -43,12 +43,16 @@ export type ReadinessScoreEvaluation = {
 
 // Explicit types for each scorer (TSOA-compatible)
 export type MetadataCompletenessEvaluation = ReadinessScoreEvaluation;
-export type ExploreAnalysisEvaluation = ReadinessScoreEvaluation;
+export type ExploreAnalysisEvaluation = ReadinessScoreEvaluation & {
+    largeExplores: string[];
+};
 export type InstructionQualityEvaluation = ReadinessScoreEvaluation;
 
 // Zod schemas for validation (backend only)
 export const MetadataCompletenessSchema = BaseScorerSchema;
-export const ExploreAnalysisSchema = BaseScorerSchema;
+export const ExploreAnalysisSchema = BaseScorerSchema.extend({
+    largeExplores: z.array(z.string()),
+});
 export const InstructionQualitySchema = BaseScorerSchema;
 
 export interface ReadinessScore {
