@@ -76,6 +76,7 @@ export const useDashboardChartReadyQuery = (
     const tileParameterReferences = useDashboardContext(
         (c) => c.tileParameterReferences,
     );
+    const canTileLoad = useDashboardContext((c) => c.canTileLoad);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
@@ -258,7 +259,11 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid && dashboardUuid && chartQuery.data && explore,
+            chartUuid &&
+                dashboardUuid &&
+                chartQuery.data &&
+                explore &&
+                canTileLoad(tileUuid),
         ),
         retry: false,
         refetchOnMount: false,

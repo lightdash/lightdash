@@ -122,4 +122,5 @@ export type DashboardContextType = {
     tileNamesById: Record<string, string>;
     refreshDashboardVersion: () => Promise<void>;
     isRefreshingDashboardVersion: boolean;
+    canTileLoad: (tileUuid: string) => boolean;
 };
