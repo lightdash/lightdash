@@ -2,6 +2,7 @@ import {
     ChartType,
     MapChartLocation,
     MapChartType,
+    MapTileBackground,
     type ItemsMap,
     type MapChart,
 } from '@lightdash/common';
@@ -31,6 +32,7 @@ type MapChartConfig = {
     setDefaultCenterLon: (lon: number | undefined) => void;
     setMinBubbleSize: (size: number | undefined) => void;
     setMaxBubbleSize: (size: number | undefined) => void;
+    setTileBackground: (background: MapTileBackground | undefined) => void;
 };
 
 const useMapChartConfig = (
@@ -79,6 +81,9 @@ const useMapChartConfig = (
     const [maxBubbleSize, setMaxBubbleSizeState] = useState<number | undefined>(
         initialConfig?.maxBubbleSize,
     );
+    const [tileBackground, setTileBackgroundState] = useState<
+        MapTileBackground | undefined
+    >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
 
     // Auto-fill latitude/longitude fields when switching to scatter mode
     useEffect(() => {
@@ -149,6 +154,7 @@ const useMapChartConfig = (
             defaultCenterLon,
             minBubbleSize,
             maxBubbleSize,
+            tileBackground,
         };
     }, [
         mapType,
@@ -165,6 +171,7 @@ const useMapChartConfig = (
         defaultCenterLon,
         minBubbleSize,
         maxBubbleSize,
+        tileBackground,
     ]);
 
     const defaultConfig: MapChart = useMemo(() => {
@@ -262,6 +269,13 @@ const useMapChartConfig = (
         setMaxBubbleSizeState(size);
     }, []);
 
+    const setTileBackground = useCallback(
+        (background: MapTileBackground | undefined) => {
+            setTileBackgroundState(background);
+        },
+        [],
+    );
+
     return {
         chartType: ChartType.MAP,
         validConfig,
@@ -283,6 +297,7 @@ const useMapChartConfig = (
         setDefaultCenterLon,
         setMinBubbleSize,
         setMaxBubbleSize,
+        setTileBackground,
     };
 };
 
