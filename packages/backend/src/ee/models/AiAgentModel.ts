@@ -3334,6 +3334,30 @@ export class AiAgentModel {
             });
     }
 
+    async getLatestPromptInThread(threadUuid: string): Promise<string | null> {
+        const result = await this.database(AiPromptTableName)
+            .select('ai_prompt_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        return result?.ai_prompt_uuid ?? null;
+    }
+
+    async updateThreadAgent({
+        threadUuid,
+        agentUuid,
+    }: {
+        threadUuid: string;
+        agentUuid: string;
+    }): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({
+                agent_uuid: agentUuid,
+            });
+    }
+
     async appendInstruction(data: {
         agentUuid: string;
         instruction: string;

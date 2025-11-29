@@ -1312,6 +1312,21 @@ export type AiAgentPromptFeedbackEvent = BaseTrack & {
     };
 };
 
+export type AiAgentSwitchedInThreadEvent = BaseTrack & {
+    event: 'ai_agent.switched_in_thread';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        oldAgentId: string;
+        oldAgentName: string;
+        newAgentId: string;
+        newAgentName: string;
+        threadId: string;
+        wasCancelled: boolean;
+    };
+};
+
 export type AiAgentResponseStreamed = BaseTrack & {
     event: 'ai_agent.response_streamed';
     userId: string;
@@ -1542,6 +1557,7 @@ type TypedEvent =
     | AiAgentUpdatedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
+    | AiAgentSwitchedInThreadEvent
     | AiAgentEvalCreatedEvent
     | AiAgentEvalRunEvent
     | AiAgentEvalAppendedEvent
