@@ -81,15 +81,25 @@ const SavedExplorer = () => {
     useEffect(() => {
         if (!data) return;
 
-        const initialState = buildInitialExplorerState({
-            savedChart: data,
-            isEditMode,
-            expandedSections: [ExplorerSection.VISUALIZATION],
-            defaultLimit: health.data?.query.defaultLimit,
-        });
+        const currentSavedChart = store.getState().explorer.savedChart;
+        const isNewChart = currentSavedChart?.uuid !== data.uuid;
 
-        store.dispatch(explorerActions.reset(initialState));
-    }, [data, isEditMode, health.data?.query.defaultLimit, store]);
+        if (isNewChart) {
+            const initialState = buildInitialExplorerState({
+                savedChart: data,
+                isEditMode,
+                expandedSections: [ExplorerSection.VISUALIZATION],
+                defaultLimit: health.data?.query.defaultLimit,
+            });
+            store.dispatch(explorerActions.reset(initialState));
+        } else {
+            store.dispatch(explorerActions.setSavedChart(data));
+        }
+    }, [data, store, isEditMode, health.data?.query.defaultLimit]);
+
+    useEffect(() => {
+        store.dispatch(explorerActions.setIsEditMode(isEditMode));
+    }, [isEditMode, store]);
 
     // Check for error first
     if (error) {

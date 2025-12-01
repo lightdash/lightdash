@@ -1,3 +1,10 @@
+## [0.2214.1](https://github.com/lightdash/lightdash/compare/0.2214.0...0.2214.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* preserve explorer state when loading saved chart ([#18440](https://github.com/lightdash/lightdash/issues/18440)) ([628cd81](https://github.com/lightdash/lightdash/commit/628cd81c370f27a0be5aeb2aa9c58b400d07e642))
+
 # [0.2214.0](https://github.com/lightdash/lightdash/compare/0.2213.3...0.2214.0) (2025-12-01)
 
 
