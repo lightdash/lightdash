@@ -111,3 +111,27 @@
 :global(.leaflet-control-zoom-out) {
     border-radius: 0 0 var(--mantine-radius-sm) var(--mantine-radius-sm) !important;
 }
+
+/* Attribution styling */
+:global(.leaflet-control-attribution) {
+    font-size: 10px;
+    background: transparent !important;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-5);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
+}
+
+:global(.leaflet-control-attribution a) {
+    @mixin light {
+        color: var(--mantine-color-ldGray-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-5);
+    }
+}
