@@ -97,6 +97,7 @@ const useEchartsGaugeConfig = ({
             showAxisLabels,
             sections,
             customLabel,
+            defaultColor,
         } = chartConfig.validConfig;
 
         // Get the first row of data
@@ -168,7 +169,7 @@ const useEchartsGaugeConfig = ({
             foregroundColor: theme.colors.foreground[0],
             numericValue,
             sections: sectionsWithResolvedValues,
-            primaryColor: theme.colors.blue[6],
+            primaryColor: defaultColor || theme.colors.blue[6],
             gaugeMax: effectiveMax,
         });
 

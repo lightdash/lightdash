@@ -51,6 +51,9 @@ const useGaugeChartConfig = (
     const [customLabel, setCustomLabel] = useState<string | undefined>(
         initialChartConfig?.customLabel,
     );
+    const [defaultColor, setDefaultColor] = useState<string | undefined>(
+        initialChartConfig?.defaultColor,
+    );
 
     // Get the effective selected field - use state value or fallback to first available
     const effectiveSelectedField = useMemo(() => {
@@ -81,6 +84,7 @@ const useGaugeChartConfig = (
             showAxisLabels,
             sections,
             customLabel,
+            defaultColor,
         };
     }, [
         effectiveSelectedField,
@@ -90,6 +94,7 @@ const useGaugeChartConfig = (
         showAxisLabels,
         sections,
         customLabel,
+        defaultColor,
     ]);
 
     return useMemo(
@@ -111,6 +116,8 @@ const useGaugeChartConfig = (
             setSections,
             customLabel,
             setCustomLabel,
+            defaultColor,
+            setDefaultColor,
         }),
         [
             validConfig,
@@ -123,6 +130,7 @@ const useGaugeChartConfig = (
             showAxisLabels,
             sections,
             customLabel,
+            defaultColor,
         ],
     );
 };

@@ -13,12 +13,13 @@ import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
 export const GaugeDisplayConfig: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
         return null;
@@ -38,6 +39,8 @@ export const GaugeDisplayConfig: FC = memo(() => {
             setShowAxisLabels,
             customLabel,
             setCustomLabel,
+            defaultColor,
+            setDefaultColor,
         },
         numericMetrics,
     } = visualizationConfig;
@@ -151,6 +154,28 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             setShowAxisLabels(event.currentTarget.checked)
                         }
                     />
+
+                    <Group spacing="xs" noWrap>
+                        <Stack spacing="xs" style={{ flex: 1 }}>
+                            <TextInput
+                                label="Default color"
+                                description="Set the gauge bar color (overridden by sections if defined)"
+                                value={defaultColor || ''}
+                                onChange={(event) =>
+                                    setDefaultColor(
+                                        event.currentTarget.value || undefined,
+                                    )
+                                }
+                                placeholder="#5470c6"
+                                readOnly
+                            />
+                        </Stack>
+                        <ColorSelector
+                            color={defaultColor || '#5470c6'}
+                            swatches={colorPalette}
+                            onColorChange={(color) => setDefaultColor(color)}
+                        />
+                    </Group>
 
                     <TextInput
                         label="Custom label"
