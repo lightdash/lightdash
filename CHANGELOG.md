@@ -1,3 +1,10 @@
+# [0.2214.0](https://github.com/lightdash/lightdash/compare/0.2213.3...0.2214.0) (2025-12-01)
+
+
+### Features
+
+* show scheduler logs as a details view ([#18287](https://github.com/lightdash/lightdash/issues/18287)) ([38b1f50](https://github.com/lightdash/lightdash/commit/38b1f50d4b88e70daa5dbc9094738528c182d648))
+
 ## [0.2213.3](https://github.com/lightdash/lightdash/compare/0.2213.2...0.2213.3) (2025-12-01)
 
 
