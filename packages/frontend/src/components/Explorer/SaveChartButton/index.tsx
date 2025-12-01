@@ -16,7 +16,10 @@ import useSearchParams from '../../../hooks/useSearchParams';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
-const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
+const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
+    isExplorer,
+    disabled,
+}) => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -59,6 +62,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     }, [explore, unsavedChartVersion.metricQuery.additionalMetrics]);
 
     const isDisabled =
+        disabled ||
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
         foundCustomMetricWithDuplicateId ||
