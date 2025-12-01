@@ -982,6 +982,7 @@ export type SlackConfig = {
     socketMode?: boolean;
     channelsCachedTime: number;
     supportUrl: string;
+    multiAgentChannelEnabled: boolean;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -1553,6 +1554,8 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 10 minutes
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
+            multiAgentChannelEnabled:
+                process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
