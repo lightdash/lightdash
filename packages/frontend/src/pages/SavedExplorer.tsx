@@ -81,10 +81,10 @@ const SavedExplorer = () => {
     useEffect(() => {
         if (!data) return;
 
-        const currentState = store.getState().explorer;
-        const isInitialized = currentState.savedChart !== undefined;
+        const currentSavedChart = store.getState().explorer.savedChart;
+        const isNewChart = currentSavedChart?.uuid !== data.uuid;
 
-        if (!isInitialized) {
+        if (isNewChart) {
             const initialState = buildInitialExplorerState({
                 savedChart: data,
                 isEditMode,
