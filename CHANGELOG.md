@@ -1,3 +1,10 @@
+## [0.2213.3](https://github.com/lightdash/lightdash/compare/0.2213.2...0.2213.3) (2025-12-01)
+
+
+### Bug Fixes
+
+* apply distinctOn find() chart model ([#18437](https://github.com/lightdash/lightdash/issues/18437)) ([f40f591](https://github.com/lightdash/lightdash/commit/f40f5912f7d92d5882aa1623170ba4004f97f037)), closes [#18436](https://github.com/lightdash/lightdash/issues/18436)
+
 ## [0.2213.2](https://github.com/lightdash/lightdash/compare/0.2213.1...0.2213.2) (2025-12-01)
 
 
