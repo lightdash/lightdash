@@ -55,7 +55,7 @@ import {
     type DestinationType,
 } from '../../features/scheduler/hooks/useSchedulerFilters';
 import useHealth from '../../hooks/health/useHealth';
-import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
+import { useGetSlack } from '../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
@@ -71,6 +71,7 @@ import {
 
 interface SchedulersTableProps {
     projectUuid: string;
+    getSlackChannelName: (channelId: string) => string | null;
 }
 
 const fetchSize = 50;
@@ -96,7 +97,10 @@ const getRunStatusConfig = (status: SchedulerRunStatus) => {
     }
 };
 
-const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
+const SchedulersTable: FC<SchedulersTableProps> = ({
+    projectUuid,
+    getSlackChannelName,
+}) => {
     const theme = useMantineTheme();
     const { data: project } = useProject(projectUuid);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -230,24 +234,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
         }
         return destinations;
     }, [health.data, organizationHasSlack]);
-
-    const { data: allSlackChannels } = useSlackChannels(
-        '',
-        { excludeArchived: false },
-        { enabled: organizationHasSlack },
-    );
-
-    const getSlackChannelName = useCallback(
-        (channelId: string) => {
-            if (allSlackChannels === undefined || allSlackChannels.length === 0)
-                return channelId;
-            const channelName = allSlackChannels.find(
-                (slackChannel) => slackChannel.id === channelId,
-            )?.name;
-            return channelName || channelId;
-        },
-        [allSlackChannels],
-    );
 
     const sorting = useMemo<MRT_SortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
@@ -483,7 +469,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({ projectUuid }) => {
                     currentTargets.map((t) => {
                         if (isSlackTarget(t)) {
                             return slackChannels.push(
-                                getSlackChannelName(t.channel),
+                                getSlackChannelName(t.channel) || t.channel,
                             );
                         } else if (isMsTeamsTarget(t)) {
                             return msTeamsTargets.push(t.webhook);
