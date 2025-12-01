@@ -7,6 +7,7 @@ import {
     ProjectType,
     friendlyName,
     isExploreError,
+    type CreateWarehouseCredentials,
     type LightdashProjectConfig,
     type Tag,
 } from '@lightdash/common';
@@ -28,6 +29,7 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
+import getWarehouseClient from './dbt/getWarehouseClient';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -78,9 +80,47 @@ const replaceProjectParameters = async (
     });
 };
 
+const updateWarehouseCredentials = async (
+    projectUuid: string,
+    credentials: CreateWarehouseCredentials,
+) => {
+    GlobalState.debug(
+        `> Updating warehouse credentials for project ${projectUuid}`,
+    );
+    try {
+        // Get current project to construct UpdateProject payload
+        const currentProject = await lightdashApi<Project>({
+            method: 'GET',
+            url: `/api/v1/projects/${projectUuid}`,
+            body: undefined,
+        });
+
+        // Construct update payload with all required fields
+        const updatePayload = {
+            name: currentProject.name,
+            dbtConnection: currentProject.dbtConnection,
+            warehouseConnection: credentials,
+            dbtVersion: currentProject.dbtVersion,
+        };
+
+        await lightdashApi<{ jobUuid: string }>({
+            method: 'PATCH',
+            url: `/api/v1/projects/${projectUuid}`,
+            body: JSON.stringify(updatePayload),
+        });
+        GlobalState.debug('> Warehouse credentials updated successfully');
+    } catch (error) {
+        GlobalState.debug(
+            `> Failed to update warehouse credentials: ${error}`,
+        );
+        throw error;
+    }
+};
+
 export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
+    credentials?: CreateWarehouseCredentials,
 ): Promise<void> => {
     if (explores.length === 0) {
         GlobalState.log(styles.warning('No explores found'));
@@ -118,6 +158,12 @@ export const deploy = async (
         url: `/api/v1/projects/${options.projectUuid}/explores`,
         body: JSON.stringify(explores),
     });
+
+    // Update warehouse credentials if provided and not skipped
+    if (credentials && options.warehouseCredentials !== false) {
+        await updateWarehouseCredentials(options.projectUuid, credentials);
+    }
+
     await LightdashAnalytics.track({
         event: 'deploy.triggered',
         properties: {
@@ -251,6 +297,36 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     const executionId = uuidv4();
     const explores = await compile(options);
 
+    // Get warehouse credentials to update during deploy
+    let credentials: CreateWarehouseCredentials | undefined;
+    if (
+        options.warehouseCredentials !== false &&
+        !dbtVersion.isDbtCloudCLI &&
+        !options.organizationCredentials
+    ) {
+        try {
+            const absoluteProjectPath = path.resolve(options.projectDir);
+            const context = await getDbtContext({
+                projectDir: absoluteProjectPath,
+                targetPath: options.targetPath,
+            });
+            const result = await getWarehouseClient({
+                isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+                profilesDir: options.profilesDir,
+                profile: options.profile || context.profileName,
+                target: options.target,
+                startOfWeek: options.startOfWeek,
+            });
+            credentials = result.credentials;
+            GlobalState.debug('> Warehouse credentials loaded for deploy');
+        } catch (error) {
+            GlobalState.debug(
+                `> Failed to load warehouse credentials: ${error}`,
+            );
+            // Continue without credentials - they may not have changed
+        }
+    }
+
     const config = await getConfig();
     let projectUuid: string;
 
@@ -281,7 +357,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid = config.context.project;
     }
 
-    await deploy(explores, { ...options, projectUuid });
+    await deploy(explores, { ...options, projectUuid }, credentials);
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');
     let displayUrl = options.create
