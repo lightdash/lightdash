@@ -238,6 +238,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType !== 'snowflake',
             );
             Logger.info('Convert explores');
+            const disableTimestampConversion =
+                this.warehouseClient.credentials.type === 'snowflake' &&
+                this.warehouseClient.credentials.disableTimestampConversion ===
+                    true;
+
             const lazyExplores = await convertExplores(
                 lazyTypedModels,
                 loadSources,
@@ -245,6 +250,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 metrics,
                 this.warehouseClient,
                 lightdashProjectConfig,
+                disableTimestampConversion,
             );
             Logger.info('Finished compiling explores');
             return [...lazyExplores, ...failedExplores];
@@ -277,6 +283,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType !== 'snowflake',
                 );
                 Logger.info('Convert explores after missing catalog error');
+                const disableTimestampConversion =
+                    this.warehouseClient.credentials.type === 'snowflake' &&
+                    this.warehouseClient.credentials
+                        .disableTimestampConversion === true;
+
                 const explores = await convertExplores(
                     typedModels,
                     loadSources,
@@ -284,6 +295,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     metrics,
                     this.warehouseClient,
                     lightdashProjectConfig,
+                    disableTimestampConversion,
                 );
                 Logger.info(
                     'Finished compiling explores after missing catalog error',

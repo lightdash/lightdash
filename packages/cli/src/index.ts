@@ -364,6 +364,11 @@ program
         '--no-warehouse-credentials',
         'Compile without any warehouse credentials. Skips dbt compile + warehouse catalog',
     )
+    .option(
+        '--disable-timestamp-conversion',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        false,
+    )
     .action(compileHandler);
 
 program
@@ -455,6 +460,11 @@ program
     .option(
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+    )
+    .option(
+        '--disable-timestamp-conversion',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        false,
     )
     .action(previewHandler);
 
@@ -706,6 +716,11 @@ program
     .option(
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+    )
+    .option(
+        '--disable-timestamp-conversion',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        false,
     )
     .action(deployHandler);
 

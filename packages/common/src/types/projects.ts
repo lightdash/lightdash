@@ -225,6 +225,7 @@ export type CreateSnowflakeCredentials = {
     accessUrl?: string;
     startOfWeek?: WeekDay | null;
     quotedIdentifiersIgnoreCase?: boolean;
+    disableTimestampConversion?: boolean; // Disable timestamp conversion to UTC - only disable if all timestamp values are already in UTC
     override?: boolean;
     organizationWarehouseCredentialsUuid?: string;
 };

@@ -7567,10 +7567,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -7579,8 +7579,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -7590,16 +7590,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -7687,10 +7687,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -7699,8 +7699,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9009,6 +9009,9 @@
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
                     },
+                    "disableTimestampConversion": {
+                        "type": "boolean"
+                    },
                     "override": {
                         "type": "boolean"
                     },
@@ -9855,6 +9858,9 @@
                         "type": "string"
                     },
                     "override": {
+                        "type": "boolean"
+                    },
+                    "disableTimestampConversion": {
                         "type": "boolean"
                     },
                     "quotedIdentifiersIgnoreCase": {
@@ -18562,6 +18568,13 @@
                         "type": "string",
                         "description": "The active color palette uuid for all projects in the organization"
                     },
+                    "chartDarkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The default dark color palette for all projects in the organization"
+                    },
                     "chartColors": {
                         "items": {
                             "type": "string"
@@ -18627,6 +18640,13 @@
                         },
                         "type": "array",
                         "description": "The default color palette for all projects in the organization"
+                    },
+                    "chartDarkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The default dark color palette for all projects in the organization"
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -19204,6 +19224,13 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "colors": {
                         "items": {
                             "type": "string"
@@ -19222,6 +19249,7 @@
                 },
                 "required": [
                     "createdAt",
+                    "darkColors",
                     "colors",
                     "name",
                     "organizationUuid",
@@ -19245,6 +19273,12 @@
             },
             "CreateColorPalette": {
                 "properties": {
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "colors": {
                         "items": {
                             "type": "string"
@@ -19307,6 +19341,12 @@
             },
             "UpdateColorPalette": {
                 "properties": {
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "colors": {
                         "items": {
                             "type": "string"
@@ -22956,7 +22996,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2207.0",
+        "version": "0.2212.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
