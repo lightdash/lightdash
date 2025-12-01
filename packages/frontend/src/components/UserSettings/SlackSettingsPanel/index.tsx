@@ -27,13 +27,13 @@ import {
     IconDeviceFloppy,
     IconHelpCircle,
     IconRefresh,
-    IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import useHealth from '../../../hooks/health/useHealth';
 import {
     useDeleteSlack,
     useGetSlack,
@@ -43,6 +43,8 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import slackSvg from '../../../svgs/slack.svg';
+import { BetaBadge } from '../../common/BetaBadge';
+import { ComingSoonBadge } from '../../common/ComingSoonBadge';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
@@ -75,8 +77,12 @@ const SlackSettingsPanel: FC = () => {
     const { data: aiCopilotFlag } = useFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
+    const { data: health } = useHealth();
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
+
+    const isSlackMultiAgentChannelEnabled =
+        health?.slack?.multiAgentChannelEnabled ?? false;
 
     const [search, setSearch] = useState('');
 
@@ -350,32 +356,28 @@ const SlackSettingsPanel: FC = () => {
                                     </Stack>
 
                                     <Stack spacing="xs">
-                                        <Group spacing="two">
+                                        <Group spacing="xs">
                                             <Title order={6} fw={500}>
                                                 Multi-agent channel
                                             </Title>
 
-                                            <Tooltip
-                                                multiline
-                                                variant="xs"
-                                                maw={250}
-                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                />
-                                            </Tooltip>
-                                            <Badge
-                                                color="indigo"
-                                                variant="light"
-                                                icon={
+                                            {isSlackMultiAgentChannelEnabled && (
+                                                <Tooltip
+                                                    multiline
+                                                    variant="xs"
+                                                    maw={250}
+                                                    label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                                >
                                                     <MantineIcon
-                                                        icon={IconSparkles}
+                                                        icon={IconHelpCircle}
                                                     />
-                                                }
-                                            >
-                                                Coming soon
-                                            </Badge>
+                                                </Tooltip>
+                                            )}
+                                            {isSlackMultiAgentChannelEnabled ? (
+                                                <BetaBadge />
+                                            ) : (
+                                                <ComingSoonBadge />
+                                            )}
                                         </Group>
 
                                         <Text c="dimmed" fz="xs">
@@ -386,13 +388,21 @@ const SlackSettingsPanel: FC = () => {
 
                                         <Select
                                             size="xs"
-                                            placeholder="Select a channel (optional)"
-                                            searchable
-                                            clearable
+                                            placeholder={
+                                                isSlackMultiAgentChannelEnabled
+                                                    ? 'Select a channel (optional)'
+                                                    : 'Feature not available'
+                                            }
                                             limit={500}
-                                            disabled
                                             nothingFound="No channels found"
-                                            data={slackChannelOptions}
+                                            data={
+                                                isSlackMultiAgentChannelEnabled
+                                                    ? slackChannelOptions
+                                                    : []
+                                            }
+                                            disabled={
+                                                !isSlackMultiAgentChannelEnabled
+                                            }
                                             rightSection={
                                                 isLoadingSlackChannels ? (
                                                     <Loader size="xs" />
