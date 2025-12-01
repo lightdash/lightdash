@@ -1282,8 +1282,8 @@ export class MetricQueryBuilder {
                     const popMinMaxCteParts = [
                         `SELECT`,
                         [
-                            `MIN(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                            `MAX(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                            `MIN(${keysCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                            `MAX(${keysCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                         ].join(',\n'),
                         `FROM ${keysCteName}`,
                     ];
@@ -1320,7 +1320,7 @@ export class MetricQueryBuilder {
                         `WHERE ${getIntervalSyntax(
                             adapterType,
                             popField.compiledSql,
-                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                            `${popMinMaxCteName}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
                             '>=',
                             periodOverPeriod.periodOffset || 1,
                             periodOverPeriod.granularity,
@@ -1328,7 +1328,7 @@ export class MetricQueryBuilder {
                         )} AND ${getIntervalSyntax(
                             adapterType,
                             popField.compiledSql,
-                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                            `${popMinMaxCteName}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
                             '<=',
                             periodOverPeriod.periodOffset || 1,
                             periodOverPeriod.granularity,
@@ -1463,8 +1463,8 @@ export class MetricQueryBuilder {
                 const popUnaffectedMinMaxCteParts = [
                     `SELECT`,
                     [
-                        `MIN(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                        `MAX(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                        `MIN(${unaffectedMetricsCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                        `MAX(${unaffectedMetricsCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                     ].join(',\n'),
                     `FROM ${unaffectedMetricsCteName}`,
                 ];
@@ -1505,7 +1505,7 @@ export class MetricQueryBuilder {
                     `WHERE ${getIntervalSyntax(
                         adapterType,
                         popField.compiledSql,
-                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                        `${popUnaffectedMinMaxCteName}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
                         '>=',
                         periodOverPeriod.periodOffset || 1,
                         periodOverPeriod.granularity,
@@ -1513,7 +1513,7 @@ export class MetricQueryBuilder {
                     )} AND ${getIntervalSyntax(
                         adapterType,
                         popField.compiledSql,
-                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                        `${popUnaffectedMinMaxCteName}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
                         '<=',
                         periodOverPeriod.periodOffset || 1,
                         periodOverPeriod.granularity,
@@ -2072,8 +2072,8 @@ export class MetricQueryBuilder {
             const popMinMaxCteParts = [
                 `SELECT`,
                 [
-                    `MIN(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                    `MAX(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                    `MIN(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                    `MAX(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                 ].join(',\n'),
                 `FROM ${baseCteName}`,
             ];
@@ -2111,7 +2111,7 @@ export class MetricQueryBuilder {
                 `WHERE ${getIntervalSyntax(
                     adapterType,
                     popField.compiledSql,
-                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                    `${popMinMaxCteName}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
                     '>=',
                     periodOverPeriod.periodOffset || 1,
                     periodOverPeriod.granularity,
@@ -2119,7 +2119,7 @@ export class MetricQueryBuilder {
                 )} AND ${getIntervalSyntax(
                     adapterType,
                     popField.compiledSql,
-                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                    `${popMinMaxCteName}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
                     '<=',
                     periodOverPeriod.periodOffset || 1,
                     periodOverPeriod.granularity,
