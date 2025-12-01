@@ -48,6 +48,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -112,6 +113,15 @@ export type ProjectModelArguments = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
+
+// Initialize cache for warehouse credentials with 30 seconds TTL
+const warehouseCredentialsCache =
+    process.env.EXPERIMENTAL_CACHE === 'true'
+        ? new NodeCache({
+              stdTTL: 30, // time to live in seconds
+              checkperiod: 60, // cleanup interval in seconds
+          })
+        : undefined;
 
 type RawSummaryRow = {
     name: Explore['name'];
@@ -532,6 +542,9 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
+        // Invalidate warehouse credentials cache
+        warehouseCredentialsCache?.del(projectUuid);
+
         await this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
             try {
@@ -567,6 +580,9 @@ export class ProjectModel {
     }
 
     async delete(projectUuid: string): Promise<void> {
+        // Invalidate warehouse credentials cache
+        warehouseCredentialsCache?.del(projectUuid);
+
         await this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
                 .select('project_id')
@@ -1557,8 +1573,16 @@ export class ProjectModel {
 
     async getWarehouseCredentialsForProject(
         projectUuid: string,
-        refreshToken?: string, // TODO make this a fucntion to get the refresh token for the user, and use it if bigquery
     ): Promise<CreateWarehouseCredentials> {
+        // Try to get from cache first
+        const cachedCredentials =
+            warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
+                projectUuid,
+            );
+        if (cachedCredentials) {
+            return cachedCredentials;
+        }
+
         const [row] = await this.database('warehouse_credentials')
             .innerJoin(
                 'projects',
@@ -1590,16 +1614,23 @@ export class ProjectModel {
         }
         if (row.organization_warehouse_credentials_uuid) {
             // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
-            return this.getOrganizationWarehouseCredentials(
-                row.organization_warehouse_credentials_uuid,
-                row.organization_uuid,
-            );
+            const orgCredentials =
+                await this.getOrganizationWarehouseCredentials(
+                    row.organization_warehouse_credentials_uuid,
+                    row.organization_uuid,
+                );
+            // Store in cache
+            warehouseCredentialsCache?.set(projectUuid, orgCredentials);
+            return orgCredentials;
         }
 
         try {
-            return JSON.parse(
+            const credentials = JSON.parse(
                 this.encryptionUtil.decrypt(row.encrypted_credentials),
             ) as CreateWarehouseCredentials;
+            // Store in cache
+            warehouseCredentialsCache?.set(projectUuid, credentials);
+            return credentials;
         } catch (e) {
             throw new UnexpectedServerError(
                 'Unexpected error: failed to parse warehouse credentials',
