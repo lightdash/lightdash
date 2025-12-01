@@ -823,7 +823,6 @@ export class SavedChartService
         account: Account,
     ): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
-        // console.log('savedChart', JSON.stringify(savedChart, null, 2));
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );

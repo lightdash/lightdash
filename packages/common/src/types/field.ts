@@ -8,7 +8,7 @@ import type {
 import { type AnyType } from './any';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
-import { TimeFrames } from './timeFrames';
+import type { TimeFrames } from './timeFrames';
 
 export enum Compact {
     THOUSANDS = 'thousands',
@@ -591,24 +591,6 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
-
-/**
- * Check if a dimension is a time dimension that can be used for previous period comparison
- * @param field - The dimension to check
- * @returns true if the dimension is a time dimension that can be used for previous period comparison
- */
-export const isPreviousPeriodableTimeDimension = (
-    field: ItemsMap[string] | AdditionalMetric | undefined,
-) =>
-    isDimension(field) &&
-    !!field.timeInterval &&
-    [
-        TimeFrames.DAY,
-        TimeFrames.WEEK,
-        TimeFrames.MONTH,
-        TimeFrames.QUARTER,
-        TimeFrames.YEAR,
-    ].includes(field.timeInterval);
 
 export interface FilterableDimension extends Dimension {
     type:
