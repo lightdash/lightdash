@@ -5297,10 +5297,19 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
         const allowedSpaces = spaces.filter(
             (space) =>
-                space.projectUuid === projectUuid &&
-                hasDirectAccessToSpace(user, space), // NOTE: We don't check for admin access to the space - exclude private spaces from this panel if admin
+                (space.projectUuid === projectUuid &&
+                    hasDirectAccessToSpace(user, space)) ||
+                hasViewAccessToSpace(
+                    user,
+                    space,
+                    spacesAccess[space.uuid] ?? [],
+                ),
         );
 
         const mostPopular = await this.getMostPopular(allowedSpaces);

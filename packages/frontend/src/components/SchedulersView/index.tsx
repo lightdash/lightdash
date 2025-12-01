@@ -9,8 +9,9 @@ import {
 } from '@mantine-8/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { type FC } from 'react';
+import { type FC, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
+import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import LogsTable from './LogsTable';
@@ -31,6 +32,32 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         searchParams.get('tab') === SchedulersViewTab.RUN_HISTORY
             ? SchedulersViewTab.RUN_HISTORY
             : SchedulersViewTab.ALL_SCHEDULERS;
+
+    const { data: slackInstallation } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
+
+    const slackChannelsQuery = useSlackChannels(
+        '',
+        { excludeArchived: false },
+        { enabled: organizationHasSlack },
+    );
+
+    // Create a map of Slack channel ID -> name
+    const slackChannelMap = useMemo(() => {
+        const map = new Map<string, string>();
+        slackChannelsQuery?.data?.forEach((channel) => {
+            map.set(channel.id, channel.name);
+        });
+        return map;
+    }, [slackChannelsQuery?.data]);
+
+    // Callback to get Slack channel name from ID
+    const getSlackChannelName = useCallback(
+        (channelId: string): string | null => {
+            return slackChannelMap.get(channelId) || null;
+        },
+        [slackChannelMap],
+    );
 
     const handleTabChange = (value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
@@ -105,10 +132,16 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     </Tabs.List>
 
                     <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
-                        <SchedulersTable projectUuid={projectUuid} />
+                        <SchedulersTable
+                            projectUuid={projectUuid}
+                            getSlackChannelName={getSlackChannelName}
+                        />
                     </Tabs.Panel>
                     <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
-                        <LogsTable projectUuid={projectUuid} />
+                        <LogsTable
+                            projectUuid={projectUuid}
+                            getSlackChannelName={getSlackChannelName}
+                        />
                     </Tabs.Panel>
                 </Tabs>
             </Stack>

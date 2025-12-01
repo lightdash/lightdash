@@ -2,12 +2,11 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
-    SchedulerRunStatus,
     type SchedulerAndTargets,
     type SchedulerRun,
     type SchedulerWithLogs,
 } from '@lightdash/common';
-import { Tooltip, type MantineTheme } from '@mantine-8/core';
+import { type MantineTheme } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -62,113 +61,45 @@ export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
     }
 };
 
-export const getLogStatusIcon = (log: LogForIcon, theme: MantineTheme) => {
-    switch (log.status) {
+export const getLogStatusIconWithoutTooltip = (
+    status: SchedulerJobStatus,
+    theme: MantineTheme,
+) => {
+    switch (status) {
         case SchedulerJobStatus.SCHEDULED:
             return (
-                <Tooltip label={SchedulerJobStatus.SCHEDULED}>
-                    <MantineIcon
-                        icon={IconClockFilled}
-                        color="blue.3"
-                        style={{ color: theme.colors.blue[3] }}
-                    />
-                </Tooltip>
+                <MantineIcon
+                    icon={IconClockFilled}
+                    color="blue.3"
+                    style={{ color: theme.colors.blue[3] }}
+                />
             );
         case SchedulerJobStatus.STARTED:
             return (
-                <Tooltip label={SchedulerJobStatus.STARTED}>
-                    <MantineIcon
-                        icon={IconProgress}
-                        color="yellow.6"
-                        style={{ color: theme.colors.yellow[6] }}
-                    />
-                </Tooltip>
+                <MantineIcon
+                    icon={IconProgress}
+                    color="yellow.6"
+                    style={{ color: theme.colors.yellow[6] }}
+                />
             );
         case SchedulerJobStatus.COMPLETED:
             return (
-                <Tooltip label={SchedulerJobStatus.COMPLETED}>
-                    <MantineIcon
-                        icon={IconCircleCheckFilled}
-                        color="green.6"
-                        style={{ color: theme.colors.green[6] }}
-                    />
-                </Tooltip>
+                <MantineIcon
+                    icon={IconCircleCheckFilled}
+                    color="green.6"
+                    style={{ color: theme.colors.green[6] }}
+                />
             );
         case SchedulerJobStatus.ERROR:
             return (
-                <Tooltip label={log?.details?.error} multiline>
-                    <MantineIcon
-                        icon={IconAlertTriangleFilled}
-                        color="red.6"
-                        style={{ color: theme.colors.red[6] }}
-                    />
-                </Tooltip>
+                <MantineIcon
+                    icon={IconAlertTriangleFilled}
+                    color="red.6"
+                    style={{ color: theme.colors.red[6] }}
+                />
             );
         default:
-            return assertUnreachable(log.status, 'Resource type not supported');
-    }
-};
-
-export const getRunStatusIcon = (
-    runStatus: SchedulerRunStatus,
-    theme: MantineTheme,
-) => {
-    switch (runStatus) {
-        case SchedulerRunStatus.SCHEDULED:
-            return (
-                <Tooltip label="Scheduled">
-                    <MantineIcon
-                        icon={IconClockFilled}
-                        color="blue.3"
-                        style={{ color: theme.colors.blue[3] }}
-                    />
-                </Tooltip>
-            );
-        case SchedulerRunStatus.RUNNING:
-            return (
-                <Tooltip label="Running">
-                    <MantineIcon
-                        icon={IconProgress}
-                        color="yellow.6"
-                        style={{ color: theme.colors.yellow[6] }}
-                    />
-                </Tooltip>
-            );
-        case SchedulerRunStatus.COMPLETED:
-            return (
-                <Tooltip label="Completed">
-                    <MantineIcon
-                        icon={IconCircleCheckFilled}
-                        color="green.6"
-                        style={{ color: theme.colors.green[6] }}
-                    />
-                </Tooltip>
-            );
-        case SchedulerRunStatus.PARTIAL_FAILURE:
-            return (
-                <Tooltip label="Partial failure - some jobs failed">
-                    <MantineIcon
-                        icon={IconAlertTriangleFilled}
-                        color="orange.6"
-                        style={{ color: theme.colors.orange[6] }}
-                    />
-                </Tooltip>
-            );
-        case SchedulerRunStatus.FAILED:
-            return (
-                <Tooltip label="Failed">
-                    <MantineIcon
-                        icon={IconAlertTriangleFilled}
-                        color="red.6"
-                        style={{ color: theme.colors.red[6] }}
-                    />
-                </Tooltip>
-            );
-        default:
-            return assertUnreachable(
-                runStatus,
-                'Run status type not supported',
-            );
+            return assertUnreachable(status, 'Resource type not supported');
     }
 };
 

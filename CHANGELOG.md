@@ -1,3 +1,39 @@
+# [0.2214.0](https://github.com/lightdash/lightdash/compare/0.2213.3...0.2214.0) (2025-12-01)
+
+
+### Features
+
+* show scheduler logs as a details view ([#18287](https://github.com/lightdash/lightdash/issues/18287)) ([38b1f50](https://github.com/lightdash/lightdash/commit/38b1f50d4b88e70daa5dbc9094738528c182d648))
+
+## [0.2213.3](https://github.com/lightdash/lightdash/compare/0.2213.2...0.2213.3) (2025-12-01)
+
+
+### Bug Fixes
+
+* apply distinctOn find() chart model ([#18437](https://github.com/lightdash/lightdash/issues/18437)) ([f40f591](https://github.com/lightdash/lightdash/commit/f40f5912f7d92d5882aa1623170ba4004f97f037)), closes [#18436](https://github.com/lightdash/lightdash/issues/18436)
+
+## [0.2213.2](https://github.com/lightdash/lightdash/compare/0.2213.1...0.2213.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* add version 2 to geo.yml ([#18431](https://github.com/lightdash/lightdash/issues/18431)) ([71b25c0](https://github.com/lightdash/lightdash/commit/71b25c0f75998aa890939665566fc4e692c54f01))
+
+## [0.2213.1](https://github.com/lightdash/lightdash/compare/0.2213.0...0.2213.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* api tests for catalog ([#18433](https://github.com/lightdash/lightdash/issues/18433)) ([ce9784f](https://github.com/lightdash/lightdash/commit/ce9784f1b13e0921bda05e61f3b8ad6c8d8872aa))
+
+# [0.2213.0](https://github.com/lightdash/lightdash/compare/0.2212.1...0.2213.0) (2025-12-01)
+
+
+### Features
+
+* env variables to enable multi-agent slack channels ([#18428](https://github.com/lightdash/lightdash/issues/18428)) ([d50fbb9](https://github.com/lightdash/lightdash/commit/d50fbb9553f8487478177b52bc3377b50592a83a))
+* show all charts and dashboards a user has access to in the home page ([#18391](https://github.com/lightdash/lightdash/issues/18391)) ([335d8d1](https://github.com/lightdash/lightdash/commit/335d8d1767e122f1d8bcc8d6b7fa04fdf60faafd))
+
 ## [0.2212.1](https://github.com/lightdash/lightdash/compare/0.2212.0...0.2212.1) (2025-11-28)
 
 

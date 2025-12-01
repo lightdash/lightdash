@@ -1,4 +1,4 @@
-import { AnyType, SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT, type CatalogField } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
@@ -135,25 +135,24 @@ describe('Lightdash catalog search', () => {
         cy.request(
             `${apiUrl}/projects/${projectUuid}/dataCatalog/metrics?search=total_revenue&sort=chartUsage&order=desc`,
         ).then((resp) => {
-            const { data } = resp.body.results;
             expect(resp.status).to.eq(200);
-            expect(data).to.have.length(2);
 
-            const field1 = data[0];
+            const { data } = resp.body.results;
+            expect(data).to.have.length(3);
 
-            expect(field1).to.have.property('name', 'total_revenue');
-            expect(field1).to.have.property(
-                'description',
+            const expectedDescriptions = [
+                'Total revenue',
                 'Sum of all payments',
-            );
-
-            const field2 = data[1];
-
-            expect(field2).to.have.property('name', 'total_revenue');
-            expect(field2).to.have.property(
-                'description',
                 'Sum of Revenue attributed',
-            );
+            ];
+
+            data.forEach((field: CatalogField, index: number) => {
+                expect(field).to.have.property('name', 'total_revenue');
+                expect(field).to.have.property(
+                    'description',
+                    expectedDescriptions[index],
+                );
+            });
         });
     });
 
