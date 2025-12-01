@@ -1,5 +1,5 @@
-import { Group, Text, Tooltip } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine-8/core';
+import { IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import MantineIcon from '../../../../common/MantineIcon';
 import type { MissingFieldItem } from './types';
@@ -23,27 +23,44 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
     }, [onRemove, fieldId, isDimension]);
 
     return (
-        <Tooltip
-            withinPortal
-            label={`Field ${fieldId} not found on this chart. Click here to remove it.`}
-            position="bottom-start"
-            maw={700}
+        <Group
+            ml={32}
+            mr={16}
+            my="xs"
+            gap="xs"
+            wrap="nowrap"
+            style={{ overflow: 'hidden' }}
         >
-            <Group
-                onClick={handleClick}
-                ml={12}
-                my="xs"
-                noWrap
-                style={{ cursor: 'pointer' }}
+            <MantineIcon
+                icon={IconAlertTriangle}
+                color="yellow.9"
+                style={{ flexShrink: 0 }}
+            />
+
+            <Text truncate size="sm" style={{ flex: 1, minWidth: 0 }}>
+                {fieldId}
+            </Text>
+
+            <Tooltip
+                withinPortal
+                label={
+                    <Text size="xs" style={{ wordBreak: 'break-all' }}>
+                        Remove missing field "{fieldId}".
+                    </Text>
+                }
+                maw={300}
+                multiline
             >
-                <MantineIcon
-                    icon={IconAlertTriangle}
-                    color="yellow.9"
+                <ActionIcon
+                    color="gray"
+                    variant="transparent"
                     style={{ flexShrink: 0 }}
-                />
-                <Text truncate>{fieldId}</Text>
-            </Group>
-        </Tooltip>
+                    onClick={handleClick}
+                >
+                    <MantineIcon icon={IconTrash} style={{ flexShrink: 0 }} />
+                </ActionIcon>
+            </Tooltip>
+        </Group>
     );
 };
 

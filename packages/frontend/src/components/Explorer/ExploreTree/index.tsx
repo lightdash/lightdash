@@ -22,6 +22,7 @@ import {
     selectActiveFields,
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectDimensions,
     selectMissingCustomDimensions,
     selectMissingCustomMetrics,
     selectMissingFieldIds,
@@ -59,6 +60,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         selectMissingFieldIds(state, explore),
     );
     const activeFields = useExplorerSelector(selectActiveFields);
+    const selectedDimensions = useExplorerSelector(selectDimensions);
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
@@ -190,6 +192,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             missingCustomMetrics,
             missingCustomDimensions,
             missingFieldIds,
+            selectedDimensions,
             activeFields,
             sectionNodeMaps,
         });
@@ -207,6 +210,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         missingFieldIds,
         searchResultsMap,
         sectionNodeMaps,
+        selectedDimensions,
         tableTrees,
     ]);
 
