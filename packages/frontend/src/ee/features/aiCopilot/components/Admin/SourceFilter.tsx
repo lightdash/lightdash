@@ -2,7 +2,6 @@ import { Box, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
 import { IconBrandSlack, IconMessageCircleStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
-import classes from './SourceFilter.module.css';
 
 type SourceFilterProps = Pick<
     ReturnType<typeof useAiAgentAdminFilters>,
@@ -58,15 +57,11 @@ export const SourceFilter = ({
     return (
         <SegmentedControl
             size="xs"
+            radius="md"
             value={selectedSource}
             onChange={(value) =>
                 setSelectedSource(value as 'all' | 'web_app' | 'slack')
             }
-            classNames={{
-                root: classes.segmentedControl,
-                indicator: classes.indicator,
-                label: classes.label,
-            }}
             data={data}
         />
     );

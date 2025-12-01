@@ -590,7 +590,12 @@ const AiAgentAdminThreadsTable = ({
                 },
             },
         },
-        mantineTableBodyRowProps: ({ row }) => {
+        mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
+            // Don't apply custom styling during skeleton loading
+            if (mantineTable.getState().showSkeletons) {
+                return {};
+            }
+
             const thread = row.original;
             const isSelected = selectedThread?.uuid === thread.uuid;
 
