@@ -15,7 +15,7 @@ import {
     type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import type L from 'leaflet';
+import type { Map as LeafletMap } from 'leaflet';
 import isEqual from 'lodash/isEqual';
 import {
     useCallback,
@@ -120,7 +120,7 @@ const VisualizationProvider: FC<
     }, [resultsData]);
 
     const chartRef = useRef<EChartsReact | null>(null);
-    const leafletMapRef = useRef<L.Map | null>(null);
+    const leafletMapRef = useRef<LeafletMap | null>(null);
     useEffect(() => {
         if (setEchartsRef)
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);

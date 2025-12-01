@@ -4,6 +4,7 @@ import {
     type DashboardFilters,
     type Dimension,
     type ItemsMap,
+    type MapChart,
     type Metric,
     type MetricQuery,
     type ParametersValuesMap,
@@ -230,10 +231,15 @@ export const isMapVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.MAP;
 };
 
-export type VisualizationConfigMapProps =
-    VisualizationConfigCommon<VisualizationConfigMap> & {
-        itemsMap: ItemsMap | undefined;
-    };
+export type VisualizationConfigMapProps = Omit<
+    VisualizationConfigCommon<VisualizationConfigMap>,
+    'initialChartConfig'
+> & {
+    // Override initialChartConfig to accept MapChart without saveMapExtent
+    // since saveMapExtent is a UI-only property not persisted to backend
+    initialChartConfig: MapChart | undefined;
+    itemsMap: ItemsMap | undefined;
+};
 
 // Union of all visualization configs
 

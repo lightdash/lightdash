@@ -21,7 +21,7 @@ const VisualizationMapConfig: React.FC<VisualizationConfigMapProps> = ({
             type: ChartType.MAP,
             config: mapConfig.validConfig,
         });
-    }, [mapConfig, onChartConfigChange]);
+    }, [mapConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigMap = useMemo(
         () => ({

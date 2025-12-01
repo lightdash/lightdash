@@ -13,7 +13,7 @@ export const DEFAULT_MAP_COLORS = ['#228be6', '#fa5252']; // blue to red
 
 type MapChartConfig = {
     chartType: ChartType.MAP;
-    validConfig: MapChart;
+    validConfig: MapChart & { saveMapExtent: boolean };
     defaultConfig: MapChart;
     setMapType: (mapType: MapChartLocation | undefined) => void;
     setCustomGeoJsonUrl: (url: string | undefined) => void;
@@ -27,12 +27,15 @@ type MapChartConfig = {
     removeColor: (index: number) => void;
     updateColor: (index: number, color: string) => void;
     setShowLegend: (show: boolean) => void;
+    setSaveMapExtent: (save: boolean) => void;
     setDefaultZoom: (zoom: number | undefined) => void;
     setDefaultCenterLat: (lat: number | undefined) => void;
     setDefaultCenterLon: (lon: number | undefined) => void;
     setMinBubbleSize: (size: number | undefined) => void;
     setMaxBubbleSize: (size: number | undefined) => void;
+    setSizeFieldId: (fieldId: string | undefined) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
+    setBackgroundColor: (color: string | undefined) => void;
 };
 
 const useMapChartConfig = (
@@ -66,6 +69,10 @@ const useMapChartConfig = (
     const [showLegend, setShowLegendState] = useState<boolean>(
         initialConfig?.showLegend ?? false,
     );
+    // UI-only state: controls whether we track map extent changes
+    // When true, zoom/center values are captured as user pans/zooms
+    // Default to true so map extent is saved by default
+    const [saveMapExtent, setSaveMapExtentState] = useState<boolean>(true);
     const [defaultZoom, setDefaultZoomState] = useState<number | undefined>(
         initialConfig?.defaultZoom,
     );
@@ -81,9 +88,15 @@ const useMapChartConfig = (
     const [maxBubbleSize, setMaxBubbleSizeState] = useState<number | undefined>(
         initialConfig?.maxBubbleSize,
     );
+    const [sizeFieldId, setSizeFieldIdState] = useState<string | undefined>(
+        initialConfig?.sizeFieldId,
+    );
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
     >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
+    const [backgroundColor, setBackgroundColorState] = useState<
+        string | undefined
+    >(initialConfig?.backgroundColor);
 
     // Auto-fill latitude/longitude fields when switching to scatter mode
     useEffect(() => {
@@ -138,7 +151,7 @@ const useMapChartConfig = (
         }
     }, [locationType, itemsMap, latitudeFieldId, longitudeFieldId]);
 
-    const validConfig: MapChart = useMemo(() => {
+    const validConfig: MapChart & { saveMapExtent: boolean } = useMemo(() => {
         return {
             mapType,
             customGeoJsonUrl,
@@ -149,12 +162,16 @@ const useMapChartConfig = (
             valueFieldId,
             colorRange,
             showLegend,
+            // saveMapExtent is UI-only, not persisted to backend
+            saveMapExtent,
             defaultZoom,
             defaultCenterLat,
             defaultCenterLon,
             minBubbleSize,
             maxBubbleSize,
+            sizeFieldId,
             tileBackground,
+            backgroundColor,
         };
     }, [
         mapType,
@@ -166,12 +183,15 @@ const useMapChartConfig = (
         valueFieldId,
         colorRange,
         showLegend,
+        saveMapExtent,
         defaultZoom,
         defaultCenterLat,
         defaultCenterLon,
         minBubbleSize,
         maxBubbleSize,
+        sizeFieldId,
         tileBackground,
+        backgroundColor,
     ]);
 
     const defaultConfig: MapChart = useMemo(() => {
@@ -249,6 +269,10 @@ const useMapChartConfig = (
         setShowLegendState(show);
     }, []);
 
+    const setSaveMapExtent = useCallback((save: boolean) => {
+        setSaveMapExtentState(save);
+    }, []);
+
     const setDefaultZoom = useCallback((zoom: number | undefined) => {
         setDefaultZoomState(zoom);
     }, []);
@@ -269,12 +293,20 @@ const useMapChartConfig = (
         setMaxBubbleSizeState(size);
     }, []);
 
+    const setSizeFieldId = useCallback((fieldId: string | undefined) => {
+        setSizeFieldIdState(fieldId);
+    }, []);
+
     const setTileBackground = useCallback(
         (background: MapTileBackground | undefined) => {
             setTileBackgroundState(background);
         },
         [],
     );
+
+    const setBackgroundColor = useCallback((color: string | undefined) => {
+        setBackgroundColorState(color);
+    }, []);
 
     return {
         chartType: ChartType.MAP,
@@ -292,12 +324,15 @@ const useMapChartConfig = (
         removeColor,
         updateColor,
         setShowLegend,
+        setSaveMapExtent,
         setDefaultZoom,
         setDefaultCenterLat,
         setDefaultCenterLon,
         setMinBubbleSize,
         setMaxBubbleSize,
+        setSizeFieldId,
         setTileBackground,
+        setBackgroundColor,
     };
 };
 

@@ -16,6 +16,7 @@ export type ScatterPoint = {
     lat: number;
     lon: number;
     value: number;
+    sizeValue: number;
     rowData: Record<string, any>;
 };
 
@@ -44,14 +45,23 @@ export type LeafletMapConfig = {
     };
     minBubbleSize: number;
     maxBubbleSize: number;
+    sizeRange: { min: number; max: number } | null;
     tile: TileConfig;
+    backgroundColor: string | null;
+    showLegend: boolean;
+    valueRange: { min: number; max: number } | null;
+    valueFieldLabel: string | null;
 };
 
 const getGeoJsonUrl = (
     mapType: MapChartLocation,
     customUrl?: string,
 ): string | null => {
-    if (mapType === MapChartLocation.CUSTOM && customUrl) {
+    if (mapType === MapChartLocation.CUSTOM) {
+        if (!customUrl) {
+            // Custom region selected but no URL provided - return null to clear shapes
+            return null;
+        }
         const isExternalUrl =
             customUrl.startsWith('http://') || customUrl.startsWith('https://');
         if (isExternalUrl) {
@@ -63,8 +73,6 @@ const getGeoJsonUrl = (
     switch (mapType) {
         case MapChartLocation.USA:
             return '/us-states.json';
-        case MapChartLocation.USA_COUNTIES:
-            return '/us-counties.json';
         case MapChartLocation.EUROPE:
             return '/europe.json';
         case MapChartLocation.WORLD:
@@ -77,7 +85,6 @@ const getGeoJsonUrl = (
 const getMapCenter = (mapType: MapChartLocation): [number, number] => {
     switch (mapType) {
         case MapChartLocation.USA:
-        case MapChartLocation.USA_COUNTIES:
             return [39.8283, -98.5795]; // Center of USA
         case MapChartLocation.EUROPE:
             return [54.526, 15.2551]; // Center of Europe
@@ -90,7 +97,6 @@ const getMapCenter = (mapType: MapChartLocation): [number, number] => {
 const getMapZoom = (mapType: MapChartLocation): number => {
     switch (mapType) {
         case MapChartLocation.USA:
-        case MapChartLocation.USA_COUNTIES:
             return 4;
         case MapChartLocation.EUROPE:
             return 4;
@@ -140,7 +146,8 @@ const getTileConfig = (
 const useLeafletMapConfig = ({
     isInDashboard: _isInDashboard,
 }: Args): LeafletMapConfig | null => {
-    const { visualizationConfig, resultsData } = useVisualizationContext();
+    const { visualizationConfig, resultsData, itemsMap } =
+        useVisualizationContext();
     const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
@@ -165,7 +172,10 @@ const useLeafletMapConfig = ({
             defaultCenterLon,
             minBubbleSize,
             maxBubbleSize,
+            sizeFieldId,
             tileBackground,
+            backgroundColor,
+            showLegend,
         } = chartConfig.validConfig || {};
 
         const mapType = configMapType || MapChartLocation.WORLD;
@@ -189,6 +199,10 @@ const useLeafletMapConfig = ({
                         const value = valueFieldId
                             ? Number(row[valueFieldId]?.value.raw)
                             : 1;
+                        // Use sizeFieldId if set, otherwise fall back to value
+                        const sizeValue = sizeFieldId
+                            ? Number(row[sizeFieldId]?.value.raw)
+                            : value;
 
                         if (isNaN(lat) || isNaN(lon)) return null;
 
@@ -196,6 +210,7 @@ const useLeafletMapConfig = ({
                             lat,
                             lon,
                             value,
+                            sizeValue: isNaN(sizeValue) ? 1 : sizeValue,
                             rowData: row as Record<string, any>,
                         };
                     })
@@ -234,6 +249,40 @@ const useLeafletMapConfig = ({
         // Calculate zoom - use custom if provided, otherwise default based on map type
         const zoom = defaultZoom ?? getMapZoom(mapType);
 
+        // Calculate value range for legend
+        let valueRange: { min: number; max: number } | null = null;
+        let sizeRange: { min: number; max: number } | null = null;
+        if (scatterData && scatterData.length > 0) {
+            const values = scatterData.map((d) => d.value);
+            valueRange = {
+                min: Math.min(...values, 0),
+                max: Math.max(...values, 1),
+            };
+            // Calculate size range for bubble sizing
+            const sizeValues = scatterData.map((d) => d.sizeValue);
+            sizeRange = {
+                min: Math.min(...sizeValues, 0),
+                max: Math.max(...sizeValues, 1),
+            };
+        } else if (regionData && regionData.length > 0) {
+            const values = regionData.map((d) => d.value);
+            valueRange = {
+                min: Math.min(...values),
+                max: Math.max(...values),
+            };
+        }
+
+        // Get value field label for tooltips
+        let valueFieldLabel: string | null = null;
+        if (valueFieldId && itemsMap?.[valueFieldId]) {
+            const valueItem = itemsMap[valueFieldId];
+            if ('label' in valueItem) {
+                valueFieldLabel = valueItem.label;
+            } else if ('name' in valueItem) {
+                valueFieldLabel = (valueItem as { name: string }).name;
+            }
+        }
+
         return {
             scatterData,
             regionData,
@@ -255,9 +304,14 @@ const useLeafletMapConfig = ({
             },
             minBubbleSize: minBubbleSize ?? 2,
             maxBubbleSize: maxBubbleSize ?? 8,
+            sizeRange,
             tile: getTileConfig(tileBackground),
+            backgroundColor: backgroundColor ?? null,
+            showLegend: showLegend ?? false,
+            valueRange,
+            valueFieldLabel,
         };
-    }, [chartConfig, resultsData, theme]);
+    }, [chartConfig, resultsData, theme, itemsMap]);
 };
 
 export default useLeafletMapConfig;

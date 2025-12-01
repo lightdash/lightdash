@@ -57,8 +57,7 @@ export const Layout: FC = memo(() => {
     const mapTypeOptions = [
         { value: MapChartLocation.WORLD, label: 'World' },
         { value: MapChartLocation.EUROPE, label: 'Europe' },
-        { value: MapChartLocation.USA, label: 'USA' },
-        { value: MapChartLocation.USA_COUNTIES, label: 'USA Counties' },
+        { value: MapChartLocation.USA, label: 'US' },
     ];
 
     const locationTypeOptions = [

@@ -3,13 +3,22 @@ import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { memo, useEffect, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type RefObject,
+} from 'react';
 import {
     CircleMarker,
     GeoJSON,
     MapContainer,
     Popup,
     TileLayer,
+    useMap,
 } from 'react-leaflet';
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
@@ -18,33 +27,53 @@ import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
+import MapLegend from './MapLegend';
+// eslint-disable-next-line css-modules/no-unused-class
+import classes from './SimpleMap.module.css';
 
-// Custom styles for Leaflet zoom controls
-const leafletCustomStyles = `
-.leaflet-control-zoom {
-    border: none !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-}
-.leaflet-control-zoom a {
-    width: 24px !important;
-    height: 24px !important;
-    line-height: 24px !important;
-    font-size: 14px !important;
-    background-color: rgba(255, 255, 255, 0.8) !important;
-    color: #666 !important;
-    border: none !important;
-}
-.leaflet-control-zoom a:hover {
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    color: #333 !important;
-}
-.leaflet-control-zoom-in {
-    border-radius: 4px 4px 0 0 !important;
-}
-.leaflet-control-zoom-out {
-    border-radius: 0 0 4px 4px !important;
-}
-`;
+// Component to capture the Leaflet map instance and store it in the ref
+const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
+    const map = useMap();
+    useEffect(() => {
+        mapRef.current = map;
+        return () => {
+            mapRef.current = null;
+        };
+    }, [map, mapRef]);
+    return null;
+};
+
+// Component to track map extent when saveMapExtent is enabled
+const MapExtentTracker: FC<{
+    saveMapExtent: boolean;
+    onExtentChange: (zoom: number, lat: number, lon: number) => void;
+}> = ({ saveMapExtent, onExtentChange }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!saveMapExtent) return;
+
+        const handleMoveEnd = () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            onExtentChange(zoom, center.lat, center.lng);
+        };
+
+        // Capture initial extent
+        handleMoveEnd();
+
+        // Listen for map movements
+        map.on('moveend', handleMoveEnd);
+        map.on('zoomend', handleMoveEnd);
+
+        return () => {
+            map.off('moveend', handleMoveEnd);
+            map.off('zoomend', handleMoveEnd);
+        };
+    }, [map, saveMapExtent, onExtentChange]);
+
+    return null;
+};
 
 const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
     const description =
@@ -97,7 +126,7 @@ const getColorForValue = (
 };
 
 const SimpleMap: FC<SimpleMapProps> = memo((props) => {
-    const { isLoading, visualizationConfig, resultsData } =
+    const { isLoading, visualizationConfig, resultsData, leafletMapRef } =
         useVisualizationContext();
     const mapConfig = useLeafletMapConfig({
         isInDashboard: props.isInDashboard,
@@ -106,16 +135,31 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
     const [geoJsonData, setGeoJsonData] =
         useState<GeoJSON.FeatureCollection | null>(null);
 
-    // Inject custom Leaflet styles
-    useEffect(() => {
-        const styleId = 'leaflet-custom-styles';
-        if (!document.getElementById(styleId)) {
-            const styleElement = document.createElement('style');
-            styleElement.id = styleId;
-            styleElement.textContent = leafletCustomStyles;
-            document.head.appendChild(styleElement);
-        }
-    }, []);
+    // Get extent setters from visualization config
+    const extentSetters = useMemo(() => {
+        if (!isMapVisualizationConfig(visualizationConfig)) return null;
+        return {
+            setDefaultZoom: visualizationConfig.chartConfig.setDefaultZoom,
+            setDefaultCenterLat:
+                visualizationConfig.chartConfig.setDefaultCenterLat,
+            setDefaultCenterLon:
+                visualizationConfig.chartConfig.setDefaultCenterLon,
+            saveMapExtent:
+                visualizationConfig.chartConfig.validConfig.saveMapExtent,
+        };
+    }, [visualizationConfig]);
+
+    // Handler to update extent when map moves
+    const handleExtentChange = useCallback(
+        (zoom: number, lat: number, lon: number) => {
+            if (extentSetters) {
+                extentSetters.setDefaultZoom(zoom);
+                extentSetters.setDefaultCenterLat(lat);
+                extentSetters.setDefaultCenterLon(lon);
+            }
+        },
+        [extentSetters],
+    );
 
     // Load all data when component mounts
     useEffect(() => {
@@ -222,22 +266,6 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
         return <EmptyChart locationType={locationType} />;
     }
 
-    const containerStyle: React.CSSProperties = props.$shouldExpand
-        ? {
-              minHeight: 'inherit',
-              height: '100%',
-              width: '100%',
-              position: 'relative',
-              zIndex: 0,
-          }
-        : {
-              minHeight: 'inherit',
-              height: '400px',
-              width: '100%',
-              position: 'relative',
-              zIndex: 0,
-          };
-
     // Scatter/Heatmap mode - render markers or heatmap (show map even without data)
     if (mapConfig.isLatLong) {
         const scatterData = mapConfig.scatterData || [];
@@ -247,9 +275,13 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
         const maxValue =
             scatterValues.length > 0 ? Math.max(...scatterValues, 1) : 1;
 
+        // Use sizeRange for bubble sizing (based on sizeFieldId or value)
+        const sizeMin = mapConfig.sizeRange?.min ?? minValue;
+        const sizeMax = mapConfig.sizeRange?.max ?? maxValue;
+
         // Create d3 sqrt scale for proportional circle sizing (scatter mode)
         const sizeScale = scaleSqrt()
-            .domain([minValue, maxValue])
+            .domain([sizeMin, sizeMax])
             .range([mapConfig.minBubbleSize, mapConfig.maxBubbleSize]);
 
         // Prepare heatmap points: [lat, lng, intensity]
@@ -275,9 +307,17 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
 
         return (
             <div
-                style={containerStyle}
-                className={props.className}
+                className={`${classes.container} ${props.className ?? ''}`}
+                data-should-expand={props.$shouldExpand}
                 data-testid={props['data-testid']}
+                style={
+                    mapConfig.backgroundColor
+                        ? ({
+                              '--map-background-color':
+                                  mapConfig.backgroundColor,
+                          } as React.CSSProperties)
+                        : undefined
+                }
             >
                 <MapContainer
                     center={mapConfig.center}
@@ -285,6 +325,11 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                     style={{ height: '100%', width: '100%' }}
                     scrollWheelZoom
                 >
+                    <MapRefUpdater mapRef={leafletMapRef} />
+                    <MapExtentTracker
+                        saveMapExtent={extentSetters?.saveMapExtent ?? false}
+                        onExtentChange={handleExtentChange}
+                    />
                     {mapConfig.tile.url && (
                         <TileLayer
                             attribution={mapConfig.tile.attribution}
@@ -303,7 +348,7 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                         />
                     ) : (
                         scatterData.map((point, idx) => {
-                            const radius = sizeScale(point.value);
+                            const radius = sizeScale(point.sizeValue);
                             const color = getColorForValue(
                                 point.value,
                                 minValue,
@@ -324,14 +369,22 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                                 >
                                     <Popup>
                                         <div>
-                                            <strong>Value:</strong>{' '}
+                                            <strong>
+                                                {mapConfig.valueFieldLabel ||
+                                                    'Value'}
+                                                :
+                                            </strong>{' '}
                                             {point.value}
                                             <br />
-                                            <strong>Lat:</strong>{' '}
-                                            {point.lat.toFixed(4)}
-                                            <br />
-                                            <strong>Lon:</strong>{' '}
-                                            {point.lon.toFixed(4)}
+                                            <span
+                                                style={{
+                                                    fontSize: '0.85em',
+                                                    opacity: 0.7,
+                                                }}
+                                            >
+                                                Lat: {point.lat.toFixed(4)},
+                                                Lon: {point.lon.toFixed(4)}
+                                            </span>
                                         </div>
                                     </Popup>
                                 </CircleMarker>
@@ -339,12 +392,19 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                         })
                     )}
                 </MapContainer>
+                {mapConfig.showLegend && mapConfig.valueRange && (
+                    <MapLegend
+                        colors={mapConfig.colors.scale}
+                        min={mapConfig.valueRange.min}
+                        max={mapConfig.valueRange.max}
+                    />
+                )}
             </div>
         );
     }
 
-    // Choropleth mode - render GeoJSON with regions colored by data
-    if (!mapConfig.isLatLong && geoJsonData) {
+    // Choropleth/Area mode - render map with optional GeoJSON layer
+    if (!mapConfig.isLatLong) {
         const regionData = mapConfig.regionData || [];
         const dataMap = new Map<string, number>();
         regionData.forEach((d) => {
@@ -422,10 +482,11 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                 });
             }
 
+            const valueLabel = mapConfig.valueFieldLabel || 'Value';
             const popupContent = `
                 <div>
                     <strong>${name}</strong><br/>
-                    Value: ${value !== undefined ? value : 'No data'}
+                    ${valueLabel}: ${value !== undefined ? value : 'No data'}
                 </div>
             `;
 
@@ -434,9 +495,17 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
 
         return (
             <div
-                style={containerStyle}
-                className={props.className}
+                className={`${classes.container} ${props.className ?? ''}`}
+                data-should-expand={props.$shouldExpand}
                 data-testid={props['data-testid']}
+                style={
+                    mapConfig.backgroundColor
+                        ? ({
+                              '--map-background-color':
+                                  mapConfig.backgroundColor,
+                          } as React.CSSProperties)
+                        : undefined
+                }
             >
                 <MapContainer
                     center={mapConfig.center}
@@ -444,22 +513,34 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                     style={{ height: '100%', width: '100%' }}
                     scrollWheelZoom
                 >
+                    <MapRefUpdater mapRef={leafletMapRef} />
+                    <MapExtentTracker
+                        saveMapExtent={extentSetters?.saveMapExtent ?? false}
+                        onExtentChange={handleExtentChange}
+                    />
                     {mapConfig.tile.url && (
                         <TileLayer
                             attribution={mapConfig.tile.attribution}
                             url={mapConfig.tile.url}
                         />
                     )}
-                    {geoJsonData.features &&
+                    {geoJsonData?.features &&
                         geoJsonData.features.length > 0 && (
                             <GeoJSON
-                                key={`geojson-${geoJsonData.features.length}`}
+                                key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonData.features.length}`}
                                 data={geoJsonData}
                                 style={style}
                                 onEachFeature={onEachFeature}
                             />
                         )}
                 </MapContainer>
+                {mapConfig.showLegend && mapConfig.valueRange && (
+                    <MapLegend
+                        colors={mapConfig.colors.scale}
+                        min={mapConfig.valueRange.min}
+                        max={mapConfig.valueRange.max}
+                    />
+                )}
             </div>
         );
     }
