@@ -1464,7 +1464,10 @@ export class SavedChartModel {
                                                 ),
                                         );
                                 });
-                        });
+                        })
+                        // Deduplicate results since dashboard_versions JOIN can produce
+                        // multiple rows when a chart appears in multiple dashboard versions
+                        .distinctOn('saved_queries.saved_query_uuid');
                 }
 
                 if (filters.spaceUuids) {
