@@ -12,13 +12,16 @@ import {
     type CompileProjectPayload,
     type DownloadAsyncQueryResultsPayload,
     type DownloadCsvPayload,
+    type EmailBatchNotificationPayload,
     type EmailNotificationPayload,
     type ExportCsvDashboardPayload,
     type GsheetsNotificationPayload,
+    type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type ReplaceCustomFieldsPayload,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
+    type SlackBatchNotificationPayload,
     type SlackNotificationPayload,
     type TraceTaskBase,
     type ValidateProjectPayload,
@@ -37,9 +40,14 @@ export const EE_SCHEDULER_TASKS = {
 
 export const SCHEDULER_TASKS = {
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
+    // Legacy individual notification tasks (deprecated, kept for backwards compatibility)
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
     SEND_EMAIL_NOTIFICATION: 'sendEmailNotification',
     SEND_MSTEAMS_NOTIFICATION: 'sendMsTeamsNotification',
+    // Batch notification tasks - one job per delivery type
+    SEND_SLACK_BATCH_NOTIFICATION: 'sendSlackBatchNotification',
+    SEND_EMAIL_BATCH_NOTIFICATION: 'sendEmailBatchNotification',
+    SEND_MSTEAMS_BATCH_NOTIFICATION: 'sendMsTeamsBatchNotification',
     UPLOAD_GSHEETS: 'uploadGsheets',
     DOWNLOAD_CSV: 'downloadCsv',
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',
@@ -65,9 +73,14 @@ export const ALL_TASK_NAMES: SchedulerTaskName[] =
 // Map each task to its payload type
 export interface TaskPayloadMap {
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
+    // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
     [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: EmailNotificationPayload;
     [SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION]: MsTeamsNotificationPayload;
+    // Batch notification tasks
+    [SCHEDULER_TASKS.SEND_SLACK_BATCH_NOTIFICATION]: SlackBatchNotificationPayload;
+    [SCHEDULER_TASKS.SEND_EMAIL_BATCH_NOTIFICATION]: EmailBatchNotificationPayload;
+    [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
     [SCHEDULER_TASKS.DOWNLOAD_CSV]: DownloadCsvPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadMetricGsheetPayload;

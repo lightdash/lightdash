@@ -4,9 +4,11 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerTarget,
     DownloadCsvPayload,
+    EmailBatchNotificationPayload,
     EmailNotificationPayload,
     GsheetsNotificationPayload,
     JobPriority,
+    MsTeamsBatchNotificationPayload,
     MsTeamsNotificationPayload,
     NotificationPayloadBase,
     QueueTraceProperties,
@@ -16,9 +18,13 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerEmailTarget,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerMsTeamsTarget,
+    SchedulerSlackTarget,
     SchedulerTaskName,
+    SlackBatchNotificationPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
@@ -32,6 +38,9 @@ import {
     isCreateScheduler,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
+    isEmailTarget,
+    isMsTeamsTarget,
+    isSlackTarget,
     type DownloadAsyncQueryResultsPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
@@ -496,6 +505,152 @@ export class SchedulerClient {
         return { target, jobId: id };
     }
 
+    // Batch notification methods - spawn one job per delivery type
+
+    private async addSlackBatchNotificationJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: SchedulerAndTargets,
+        targets: SchedulerSlackTarget[],
+        page: NotificationPayloadBase['page'],
+        traceProperties: TraceTaskBase,
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const payload: SlackBatchNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+            page,
+            targets,
+            scheduler,
+            ...traceProperties,
+        };
+
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.SEND_SLACK_BATCH_NOTIFICATION,
+            payload,
+            date,
+            JobPriority.LOW,
+        );
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                type: 'slack',
+                targetCount: targets.length,
+                format: scheduler.format,
+                sendNow: false,
+            },
+        });
+
+        return {
+            jobId: id,
+            type: 'slack' as const,
+            targetCount: targets.length,
+        };
+    }
+
+    private async addEmailBatchNotificationJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: SchedulerAndTargets,
+        targets: SchedulerEmailTarget[],
+        page: NotificationPayloadBase['page'],
+        traceProperties: TraceTaskBase,
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const payload: EmailBatchNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+            page,
+            targets,
+            scheduler,
+            ...traceProperties,
+        };
+
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.SEND_EMAIL_BATCH_NOTIFICATION,
+            payload,
+            date,
+            JobPriority.LOW,
+        );
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                type: 'email',
+                targetCount: targets.length,
+                format: scheduler.format,
+                sendNow: false,
+            },
+        });
+
+        return {
+            jobId: id,
+            type: 'email' as const,
+            targetCount: targets.length,
+        };
+    }
+
+    private async addMsTeamsBatchNotificationJob(
+        date: Date,
+        jobGroup: string,
+        scheduler: SchedulerAndTargets,
+        targets: SchedulerMsTeamsTarget[],
+        page: NotificationPayloadBase['page'],
+        traceProperties: TraceTaskBase,
+    ) {
+        const graphileClient = await this.graphileUtils;
+
+        const payload: MsTeamsBatchNotificationPayload = {
+            schedulerUuid: scheduler.schedulerUuid,
+            jobGroup,
+            scheduledTime: date,
+            page,
+            targets,
+            scheduler,
+            ...traceProperties,
+        };
+
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION,
+            payload,
+            date,
+            JobPriority.LOW,
+        );
+
+        this.analytics.track({
+            event: 'scheduler_notification_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                type: 'msteams',
+                targetCount: targets.length,
+                format: scheduler.format,
+                sendNow: false,
+            },
+        });
+
+        return {
+            jobId: id,
+            type: 'msteams' as const,
+            targetCount: targets.length,
+        };
+    }
+
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -595,6 +750,20 @@ export class SchedulerClient {
                 );
                 return [{ ...job, target: undefined }];
             }
+
+            // For saved schedulers, use batch jobs (one job per delivery type)
+            // For "Send Now" (unsaved schedulers), fall back to individual jobs
+            if (hasSchedulerUuid(scheduler)) {
+                return await this.generateBatchJobsForSchedulerTargets(
+                    scheduledTime,
+                    scheduler,
+                    page,
+                    parentJobId,
+                    traceProperties,
+                );
+            }
+
+            // Legacy behavior for "Send Now" - individual jobs per target
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
                     scheduledTime,
@@ -617,6 +786,81 @@ export class SchedulerClient {
             );
             throw err;
         }
+    }
+
+    private async generateBatchJobsForSchedulerTargets(
+        scheduledTime: Date,
+        scheduler: SchedulerAndTargets,
+        page: NotificationPayloadBase['page'] | undefined,
+        parentJobId: string,
+        traceProperties: TraceTaskBase,
+    ) {
+        if (!page) {
+            throw new Error(
+                'Missing page data for slack, email, or msteams notification',
+            );
+        }
+
+        // Group targets by type
+        const slackTargets = scheduler.targets.filter(isSlackTarget);
+        const emailTargets = scheduler.targets.filter(isEmailTarget);
+        const msTeamsTargets = scheduler.targets.filter(isMsTeamsTarget);
+
+        const batchJobs: Promise<{
+            jobId: string;
+            type: 'slack' | 'email' | 'msteams';
+            targetCount: number;
+        }>[] = [];
+
+        if (slackTargets.length > 0) {
+            batchJobs.push(
+                this.addSlackBatchNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    slackTargets,
+                    page,
+                    traceProperties,
+                ),
+            );
+        }
+
+        if (emailTargets.length > 0) {
+            batchJobs.push(
+                this.addEmailBatchNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    emailTargets,
+                    page,
+                    traceProperties,
+                ),
+            );
+        }
+
+        if (msTeamsTargets.length > 0) {
+            batchJobs.push(
+                this.addMsTeamsBatchNotificationJob(
+                    scheduledTime,
+                    parentJobId,
+                    scheduler,
+                    msTeamsTargets,
+                    page,
+                    traceProperties,
+                ),
+            );
+        }
+
+        Logger.info(
+            `Creating ${batchJobs.length} batch notification jobs for scheduler ${scheduler.schedulerUuid} ` +
+                `(slack: ${slackTargets.length}, email: ${emailTargets.length}, msteams: ${msTeamsTargets.length})`,
+        );
+
+        const results = await Promise.all(batchJobs);
+        return results.map((result) => ({
+            jobId: result.jobId,
+            target: undefined,
+        }));
     }
 
     async downloadCsvJob(payload: DownloadCsvPayload) {

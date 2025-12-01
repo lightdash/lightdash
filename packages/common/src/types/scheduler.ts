@@ -459,6 +459,41 @@ export type GsheetsNotificationPayload = TraceTaskBase & {
     jobGroup: string;
 };
 
+// Batch notification payloads - one job per delivery type instead of per recipient
+export type SlackBatchNotificationPayload = TraceTaskBase &
+    Omit<NotificationPayloadBase, 'scheduler'> & {
+        targets: SchedulerSlackTarget[];
+        scheduler: SchedulerAndTargets;
+    };
+
+export type EmailBatchNotificationPayload = TraceTaskBase &
+    Omit<NotificationPayloadBase, 'scheduler'> & {
+        targets: SchedulerEmailTarget[];
+        scheduler: SchedulerAndTargets;
+    };
+
+export type MsTeamsBatchNotificationPayload = TraceTaskBase &
+    Omit<NotificationPayloadBase, 'scheduler'> & {
+        targets: SchedulerMsTeamsTarget[];
+        scheduler: SchedulerAndTargets;
+    };
+
+// Result tracking for batch deliveries
+export type DeliveryResult = {
+    target: string; // channel ID, email, or webhook URL
+    targetUuid?: string;
+    success: boolean;
+    error?: string;
+};
+
+export type BatchDeliveryResult = {
+    type: 'slack' | 'email' | 'msteams';
+    total: number;
+    succeeded: number;
+    failed: number;
+    results: DeliveryResult[];
+};
+
 export type DownloadCsvPayload = TraceTaskBase & {
     exploreId: string;
     metricQuery: MetricQuery;
