@@ -1,3 +1,10 @@
+## [0.2213.1](https://github.com/lightdash/lightdash/compare/0.2213.0...0.2213.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* api tests for catalog ([#18433](https://github.com/lightdash/lightdash/issues/18433)) ([ce9784f](https://github.com/lightdash/lightdash/commit/ce9784f1b13e0921bda05e61f3b8ad6c8d8872aa))
+
 # [0.2213.0](https://github.com/lightdash/lightdash/compare/0.2212.1...0.2213.0) (2025-12-01)
 
 
