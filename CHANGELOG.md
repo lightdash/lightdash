@@ -1,3 +1,11 @@
+## [0.2214.2](https://github.com/lightdash/lightdash/compare/0.2214.1...0.2214.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* ai agent tables dark mode issues ([#18446](https://github.com/lightdash/lightdash/issues/18446)) ([cdc9833](https://github.com/lightdash/lightdash/commit/cdc983359832e54f9f4fabba398260f49d8916d0)), closes [#18444](https://github.com/lightdash/lightdash/issues/18444)
+* dark mode placeholder bg is white for ai agents admin page ([#18445](https://github.com/lightdash/lightdash/issues/18445)) ([49a172e](https://github.com/lightdash/lightdash/commit/49a172eb74e5eb8e552e93bc619bab1d685963fa)), closes [#18416](https://github.com/lightdash/lightdash/issues/18416)
+
 ## [0.2214.1](https://github.com/lightdash/lightdash/compare/0.2214.0...0.2214.1) (2025-12-01)
 
 
