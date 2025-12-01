@@ -1,3 +1,10 @@
+## [0.2213.2](https://github.com/lightdash/lightdash/compare/0.2213.1...0.2213.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* add version 2 to geo.yml ([#18431](https://github.com/lightdash/lightdash/issues/18431)) ([71b25c0](https://github.com/lightdash/lightdash/commit/71b25c0f75998aa890939665566fc4e692c54f01))
+
 ## [0.2213.1](https://github.com/lightdash/lightdash/compare/0.2213.0...0.2213.1) (2025-12-01)
 
 
