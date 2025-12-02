@@ -976,7 +976,9 @@ export class CatalogModel {
             {
                 catalogSize: paginatedCatalogItems.data.length,
             },
-            async () =>
+            async () => {
+                const exploresWithChangesetApplied = new Set();
+
                 paginatedCatalogItems.data.map((item) => {
                     // Use the explore from filteredExplores if available, otherwise use from DB
                     let explore = exploreByTableName
@@ -993,12 +995,16 @@ export class CatalogModel {
                         );
                     }
 
-                    if (changeset) {
+                    if (
+                        changeset &&
+                        !exploresWithChangesetApplied.has(explore.name)
+                    ) {
                         const exploreWithChanges =
                             ChangesetUtils.applyChangeset(changeset, {
                                 [explore.name]: explore,
                             })[explore.name] as Explore; // at this point we know the explore is valid
                         explore = exploreWithChanges;
+                        exploresWithChangesetApplied.add(explore.name);
                     }
                     return parseCatalog({
                         ...item,
@@ -1006,7 +1012,8 @@ export class CatalogModel {
                         catalog_tags:
                             tagsPerItem[item.catalog_search_uuid] ?? [],
                     });
-                }),
+                });
+            },
         );
 
         return {
