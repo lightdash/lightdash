@@ -220,6 +220,7 @@ jobs:
                   AI_DEFAULT_PROVIDER: ${{ matrix.ai_provider }}
                   OPENAI_MODEL_NAME: ${{ matrix.ai_provider == 'openai' && matrix.model_name || '' }}
                   ANTHROPIC_MODEL_NAME: ${{ matrix.ai_provider == 'anthropic' && matrix.model_name || '' }}
+                  OPENAI_REASONING_ENABLED: ${{ matrix.model_name == 'gpt-5.1-2025-11-13' && 'true' || 'false' }}
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
                   LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
