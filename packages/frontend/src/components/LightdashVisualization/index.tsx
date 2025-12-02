@@ -1,19 +1,22 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { Anchor, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
-import { forwardRef, Fragment, memo } from 'react';
+import { forwardRef, Fragment, lazy, memo, Suspense } from 'react';
 import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CustomVisualization from '../CustomVisualization';
 import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
 import SimpleGauge from '../SimpleGauge';
-import SimpleMap from '../SimpleMap';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import SimpleTreemap from '../SimpleTreemap';
 import { useVisualizationContext } from './useVisualizationContext';
+
+// Lazy load SimpleMap to avoid bundling Leaflet in the main chunk
+const LazySimpleMap = lazy(() => import('../SimpleMap'));
 
 interface LightdashVisualizationProps {
     isDashboard?: boolean;
@@ -160,13 +163,22 @@ const LightdashVisualization = memo(
                     );
                 case ChartType.MAP:
                     return (
-                        <SimpleMap
-                            className={className}
-                            isInDashboard={isDashboard}
-                            $shouldExpand
-                            data-testid={props['data-testid']}
-                            {...props}
-                        />
+                        <Suspense
+                            fallback={
+                                <SuboptimalState
+                                    title="Loading map..."
+                                    loading
+                                />
+                            }
+                        >
+                            <LazySimpleMap
+                                className={className}
+                                isInDashboard={isDashboard}
+                                $shouldExpand
+                                data-testid={props['data-testid']}
+                                {...props}
+                            />
+                        </Suspense>
                     );
                 case ChartType.CUSTOM:
                     return (
