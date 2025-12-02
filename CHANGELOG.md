@@ -1,3 +1,10 @@
+## [0.2215.2](https://github.com/lightdash/lightdash/compare/0.2215.1...0.2215.2) (2025-12-02)
+
+
+### Bug Fixes
+
+* cache project db query ([#18435](https://github.com/lightdash/lightdash/issues/18435)) ([7c91552](https://github.com/lightdash/lightdash/commit/7c915522231de5760e773771f9b9bedb284adaa2))
+
 ## [0.2215.1](https://github.com/lightdash/lightdash/compare/0.2215.0...0.2215.1) (2025-12-02)
 
 
