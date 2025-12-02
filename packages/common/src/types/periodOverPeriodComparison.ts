@@ -50,3 +50,27 @@ export const periodOverPeriodGranularityLabels: Record<TimeFrames, string> = {
 export const isSupportedPeriodOverPeriodGranularity = (
     granularity: TimeFrames,
 ) => validPeriodOverPeriodGranularities.includes(granularity);
+
+/**
+ * Suffix used for period-over-period comparison columns.
+ * This is the single source of truth for the PoP column naming convention.
+ */
+export const POP_PREVIOUS_PERIOD_SUFFIX = '_previous';
+
+/**
+ * Gets the PoP field ID for a base metric field ID.
+ * @param baseFieldId - The field ID of the base metric (e.g., "orders_total_revenue")
+ * @returns The PoP field ID (e.g., "orders_total_revenue_previous")
+ */
+export const getPopFieldId = (baseFieldId: string): string =>
+    `${baseFieldId}${POP_PREVIOUS_PERIOD_SUFFIX}`;
+
+/**
+ * Gets the base field ID from a PoP field ID.
+ * @param fieldId - The field ID to check
+ * @returns The base field ID if this is a PoP field, null otherwise
+ */
+export const getBaseFieldIdFromPop = (fieldId: string): string | null =>
+    fieldId.endsWith(POP_PREVIOUS_PERIOD_SUFFIX)
+        ? fieldId.slice(0, -POP_PREVIOUS_PERIOD_SUFFIX.length)
+        : null;

@@ -66,9 +66,23 @@ export function convertItemTypeToDimensionType(item: Item): DimensionType {
     }
 }
 
+/**
+ * Metadata for period-over-period comparison columns.
+ * This allows the frontend to identify PoP columns without string matching.
+ */
+export type PopColumnMetadata = {
+    /** The field ID of the base metric this PoP column compares against */
+    baseFieldId: string;
+};
+
 export type ResultColumn = {
     reference: string;
     type: DimensionType; // Lightdash simple type. In the future, we might introduce the warehouse type as well, which provides more detail.
+    /**
+     * Present when this column is a period-over-period comparison column.
+     * Contains metadata linking this column to its base metric.
+     */
+    popMetadata?: PopColumnMetadata;
 };
 
 export type ResultColumns = Record<string, ResultColumn>;

@@ -154,6 +154,37 @@ export const selectParameterReferences = createSelector(
     (explorer) => explorer.parameterReferences,
 );
 
+// Query execution selectors
+const selectQueryExecution = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.queryExecution,
+);
+
+export const selectValidQueryArgs = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.validQueryArgs,
+);
+
+export const selectUnpivotedQueryArgs = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.unpivotedQueryArgs,
+);
+
+export const selectQueryUuidHistory = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.queryUuidHistory,
+);
+
+export const selectUnpivotedQueryUuidHistory = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
+);
+
+export const selectPendingFetch = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.pendingFetch,
+);
+
 // TODO: REDUX-MIGRATION - Add missingRequiredParameters as a computed selector once all dependencies are in Redux
 // Currently missingRequiredParameters is computed state in Context, not stored in Redux
 
@@ -164,8 +195,11 @@ export const selectSorts = createSelector(
 );
 
 export const selectColumnOrder = createSelector(
-    [selectUnsavedChartVersion],
-    (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
+    [selectUnsavedChartVersion, selectQueryExecution],
+    (unsavedChartVersion, queryExecution) =>
+        queryExecution.completeColumnOrder.length > 0
+            ? queryExecution.completeColumnOrder
+            : unsavedChartVersion.tableConfig.columnOrder,
 );
 
 // Query limit selector
@@ -196,37 +230,6 @@ export const selectChartConfig = createSelector(
 export const selectPivotConfig = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
-);
-
-// Query execution selectors
-const selectQueryExecution = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.queryExecution,
-);
-
-export const selectValidQueryArgs = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.validQueryArgs,
-);
-
-export const selectUnpivotedQueryArgs = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.unpivotedQueryArgs,
-);
-
-export const selectQueryUuidHistory = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.queryUuidHistory,
-);
-
-export const selectUnpivotedQueryUuidHistory = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.unpivotedQueryUuidHistory,
-);
-
-export const selectPendingFetch = createSelector(
-    [selectQueryExecution],
-    (queryExecution) => queryExecution.pendingFetch,
 );
 
 // Navigation context selectors
