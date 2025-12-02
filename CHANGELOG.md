@@ -1,3 +1,16 @@
+# [0.2218.0](https://github.com/lightdash/lightdash/compare/0.2217.0...0.2218.0) (2025-12-02)
+
+
+### Bug Fixes
+
+* convert quarter syntax when pop ([#18464](https://github.com/lightdash/lightdash/issues/18464)) ([b65702b](https://github.com/lightdash/lightdash/commit/b65702b3200aa3154ca51ac67556c1ab9021d2cf))
+* don't apply changesets multiple times ([#18480](https://github.com/lightdash/lightdash/issues/18480)) ([19ac7a8](https://github.com/lightdash/lightdash/commit/19ac7a8bda50bec6aad5221847f1a6dbde1a29a4))
+
+
+### Features
+
+* add AWS Bedrock environment variables to docker-compose ([#18477](https://github.com/lightdash/lightdash/issues/18477)) ([bb3e070](https://github.com/lightdash/lightdash/commit/bb3e0706ee511a64ae6700b0d33d2b3a838e7678))
+
 # [0.2217.0](https://github.com/lightdash/lightdash/compare/0.2216.0...0.2217.0) (2025-12-02)
 
 
