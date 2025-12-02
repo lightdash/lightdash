@@ -253,9 +253,10 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         onClose?.();
                     }
                 }}
-                position="bottom"
+                position="top"
                 width={300}
                 withArrow
+                withinPortal
                 trapFocus={!hasOpenSubPopover}
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
