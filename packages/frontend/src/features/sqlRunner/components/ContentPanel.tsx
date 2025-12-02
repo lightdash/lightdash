@@ -415,14 +415,6 @@ export const ContentPanel: FC = () => {
                                             ? 'none'
                                             : undefined
                                     }
-                                    styles={(theme) => ({
-                                        root: {
-                                            backgroundColor:
-                                                theme.colorScheme === 'dark'
-                                                    ? theme.colors.ldDark[9]
-                                                    : theme.colors.ldGray[2],
-                                        },
-                                    })}
                                     size="sm"
                                     radius="md"
                                     data={[
