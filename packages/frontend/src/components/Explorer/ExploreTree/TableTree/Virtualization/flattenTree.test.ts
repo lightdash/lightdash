@@ -172,6 +172,7 @@ describe('flattenTreeForVirtualization', () => {
         missingCustomMetrics: [],
         missingCustomDimensions: [],
         missingFieldIds: [],
+        selectedDimensions: [],
         activeFields: new Set(),
         sectionNodeMaps: createSectionNodeMaps([mockTable]),
     };
