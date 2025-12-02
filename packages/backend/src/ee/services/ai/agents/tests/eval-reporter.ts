@@ -494,7 +494,11 @@ export default class EvalHtmlReporter implements Reporter {
 </html>`;
     }
 
-    private static escapeHtml(text: string): string {
+    private static escapeHtml(text: string | null): string {
+        if (!text) {
+            return 'null';
+        }
+
         const map: Record<string, string> = {
             '&': '&amp;',
             '<': '&lt;',
