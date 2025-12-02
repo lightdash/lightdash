@@ -1,3 +1,10 @@
+## [0.2218.1](https://github.com/lightdash/lightdash/compare/0.2218.0...0.2218.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* make the metrics catalog tooltip visible again ([#18484](https://github.com/lightdash/lightdash/issues/18484)) ([8e31086](https://github.com/lightdash/lightdash/commit/8e31086d55d6f3ebea8ad574d8f4fac2d70b1281))
+
 # [0.2218.0](https://github.com/lightdash/lightdash/compare/0.2217.0...0.2218.0) (2025-12-02)
 
 
