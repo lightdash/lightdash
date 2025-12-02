@@ -1,3 +1,10 @@
+## [0.2214.4](https://github.com/lightdash/lightdash/compare/0.2214.3...0.2214.4) (2025-12-02)
+
+
+### Bug Fixes
+
+* set max-height on pivot table instead of inheriting h ([#18473](https://github.com/lightdash/lightdash/issues/18473)) ([aa8e474](https://github.com/lightdash/lightdash/commit/aa8e474a3578489e207ceebea49a90f957c5708a)), closes [#18327](https://github.com/lightdash/lightdash/issues/18327)
+
 ## [0.2214.3](https://github.com/lightdash/lightdash/compare/0.2214.2...0.2214.3) (2025-12-02)
 
 
