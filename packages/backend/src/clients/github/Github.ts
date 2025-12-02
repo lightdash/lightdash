@@ -172,7 +172,12 @@ export const getFileContent = async ({
             `status` in error &&
             error.status === 404
         ) {
-            throw new NotFoundError(`file ${fileName} not found in Github`);
+            throw new NotFoundError(
+                `File "${fileName}" not found in GitHub repository ${owner}/${repo} on branch "${branch}". ` +
+                    `Please verify: 1) The file exists at this exact path in your repository, ` +
+                    `2) The "Project directory path" setting in your project configuration matches your repository structure (currently looking in the configured path), ` +
+                    `3) Your dbt project was compiled correctly and the manifest contains the right file paths.`,
+            );
         }
         throw new UnexpectedGitError(getErrorMessage(error));
     }

@@ -128,12 +128,24 @@ export const getFileContent = async ({
         `/projects/${projectId}/repository/files/${encodedPath}?ref=${branch}`,
     );
 
-    const fileData = await makeGitlabRequest(url, token);
+    try {
+        const fileData = await makeGitlabRequest(url, token);
 
-    return {
-        content: Buffer.from(fileData.content, 'base64').toString('utf-8'),
-        sha: fileData.last_commit_id,
-    };
+        return {
+            content: Buffer.from(fileData.content, 'base64').toString('utf-8'),
+            sha: fileData.last_commit_id,
+        };
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            throw new NotFoundError(
+                `File "${fileName}" not found in GitLab repository ${owner}/${repo} on branch "${branch}". ` +
+                    `Please verify: 1) The file exists at this exact path in your repository, ` +
+                    `2) The "Project directory path" setting in your project configuration matches your repository structure (currently looking in the configured path), ` +
+                    `3) Your dbt project was compiled correctly and the manifest contains the right file paths.`,
+            );
+        }
+        throw error;
+    }
 };
 
 export const createBranch = async ({
