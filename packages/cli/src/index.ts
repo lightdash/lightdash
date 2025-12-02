@@ -63,6 +63,15 @@ function parseUseDbtListOption(value: string | undefined): boolean {
     return value.toLowerCase() !== 'false';
 }
 
+function parseDisableTimestampConversionOption(
+    value: string | undefined,
+): boolean {
+    if (value === undefined) {
+        return false;
+    }
+    return value.toLowerCase() === 'true';
+}
+
 function parseProjectArgument(value: string | undefined): string | undefined {
     if (value === undefined) {
         throw new InvalidArgumentError('No project argument provided.');
@@ -364,6 +373,12 @@ program
         '--no-warehouse-credentials',
         'Compile without any warehouse credentials. Skips dbt compile + warehouse catalog',
     )
+    .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
+        false,
+    )
     .action(compileHandler);
 
 program
@@ -453,8 +468,20 @@ program
         false,
     )
     .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
+        false,
+    )
+    .option(
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
+    )
+    .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
+        false,
     )
     .action(previewHandler);
 
@@ -542,6 +569,12 @@ program
     .option(
         '--skip-copy-content',
         'Skip copying content from the source project',
+        false,
+    )
+    .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
         false,
     )
     .action(startPreviewHandler);
@@ -707,6 +740,12 @@ program
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
+    .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
+        false,
+    )
     .action(deployHandler);
 
 program
@@ -778,6 +817,12 @@ program
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
+    )
+    .option(
+        '--disable-timestamp-conversion [true|false]',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        parseDisableTimestampConversionOption,
+        false,
     )
     .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
