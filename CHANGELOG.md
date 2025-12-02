@@ -1,3 +1,15 @@
+# [0.2215.0](https://github.com/lightdash/lightdash/compare/0.2214.4...0.2215.0) (2025-12-02)
+
+
+### Bug Fixes
+
+* `EvalHtmlReporter` Cannot read properties of null exception ([#18469](https://github.com/lightdash/lightdash/issues/18469)) ([6cfc61d](https://github.com/lightdash/lightdash/commit/6cfc61d01034149b67e7d3fc26f20d82a2508e49))
+
+
+### Features
+
+* enable reasoning for GPT-5.1 in evals ([#18468](https://github.com/lightdash/lightdash/issues/18468)) ([f37963f](https://github.com/lightdash/lightdash/commit/f37963ff6f4acab551e643d4ce92c2316d7a3e80))
+
 ## [0.2214.4](https://github.com/lightdash/lightdash/compare/0.2214.3...0.2214.4) (2025-12-02)
 
 
