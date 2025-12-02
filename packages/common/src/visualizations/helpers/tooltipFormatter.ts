@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import {
     type DefaultLabelFormatterCallbackParams,
     type LineSeriesOption,
@@ -24,6 +26,8 @@ import {
 } from './styles/tooltipStyles';
 import { getFormattedValue } from './valueFormatter';
 
+dayjs.extend(utc);
+
 /**
  * Compute a previous period date based on the current date, granularity, and offset
  */
@@ -33,62 +37,48 @@ const computePreviousPeriodDate = (
     periodOffset: number,
 ): string | null => {
     try {
-        const currentDate = new Date(currentDateStr);
-        if (Number.isNaN(currentDate.getTime())) return null;
+        const currentDate = dayjs.utc(currentDateStr);
+        if (!currentDate.isValid()) return null;
 
-        const previousDate = new Date(currentDate);
+        let previousDate: dayjs.Dayjs;
 
         switch (granularity.toUpperCase()) {
             case TimeFrames.DAY:
-                previousDate.setDate(previousDate.getDate() - periodOffset);
+                previousDate = currentDate.subtract(periodOffset, 'day');
                 break;
             case TimeFrames.WEEK:
-                previousDate.setDate(previousDate.getDate() - periodOffset * 7);
+                previousDate = currentDate.subtract(periodOffset, 'week');
                 break;
             case TimeFrames.MONTH:
-                previousDate.setMonth(previousDate.getMonth() - periodOffset);
+                previousDate = currentDate.subtract(periodOffset, 'month');
                 break;
             case TimeFrames.QUARTER:
-                previousDate.setMonth(
-                    previousDate.getMonth() - periodOffset * 3,
-                );
+                previousDate = currentDate.subtract(periodOffset * 3, 'month');
                 break;
             case TimeFrames.YEAR:
-                previousDate.setFullYear(
-                    previousDate.getFullYear() - periodOffset,
-                );
+                previousDate = currentDate.subtract(periodOffset, 'year');
                 break;
             default:
                 return null;
         }
 
         // Format based on granularity
-        const options: Intl.DateTimeFormatOptions = { timeZone: 'UTC' };
         switch (granularity.toUpperCase()) {
             case TimeFrames.DAY:
-                options.year = 'numeric';
-                options.month = 'short';
-                options.day = 'numeric';
-                break;
             case TimeFrames.WEEK:
-                options.year = 'numeric';
-                options.month = 'short';
-                options.day = 'numeric';
-                break;
+                return previousDate.format('MMM D, YYYY');
             case TimeFrames.MONTH:
-                options.year = 'numeric';
-                options.month = 'short';
-                break;
-            case TimeFrames.QUARTER:
+                return previousDate.format('MMM YYYY');
+            case TimeFrames.QUARTER: {
+                // Format as "Q1 2024" style
+                const quarter = Math.floor(previousDate.month() / 3) + 1;
+                return `Q${quarter} ${previousDate.year()}`;
+            }
             case TimeFrames.YEAR:
-                options.year = 'numeric';
-                break;
+                return previousDate.format('YYYY');
             default:
-                options.year = 'numeric';
-                options.month = 'short';
+                return previousDate.format('MMM YYYY');
         }
-
-        return previousDate.toLocaleDateString(undefined, options);
     } catch {
         return null;
     }
@@ -751,19 +741,14 @@ export const buildCartesianTooltipFormatter =
                     '';
 
                 // For period-over-period series, use the base field's format
-                // (strip _previous suffix to find the base field)
+                // using baseFieldId from metadata instead of string matching
                 let effectiveFormatKey = formatKey as string;
-                if (
-                    effectiveFormatKey.endsWith('_previous') &&
-                    seriesOption?.periodOverPeriodMetadata
-                ) {
-                    const baseFieldKey = effectiveFormatKey.replace(
-                        /_previous$/,
-                        '',
-                    );
+                if (seriesOption?.periodOverPeriodMetadata?.baseFieldId) {
+                    const { baseFieldId } =
+                        seriesOption.periodOverPeriodMetadata;
                     // Use base field format if it exists in itemsMap
-                    if (itemsMap[baseFieldKey]) {
-                        effectiveFormatKey = baseFieldKey;
+                    if (itemsMap[baseFieldId]) {
+                        effectiveFormatKey = baseFieldId;
                     }
                 }
 

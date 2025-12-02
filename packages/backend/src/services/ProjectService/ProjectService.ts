@@ -6799,6 +6799,10 @@ export class ProjectService extends BaseService {
                 models,
                 DbtManifestVersion.V12,
             );
+        const disableTimestampConversion =
+            project.warehouseConnection?.type === 'snowflake' &&
+            project.warehouseConnection.disableTimestampConversion === true;
+
         const convertedExplores = await convertExplores(
             dbtModelNode,
             false,
@@ -6810,6 +6814,7 @@ export class ProjectService extends BaseService {
                     default_visibility: 'hide', // todo: pass correct config
                 },
             },
+            disableTimestampConversion,
         );
         Logger.info(`Explore count: ${convertedExplores.length}`);
         const previewName = `preview_${jobId}_${prId}`;

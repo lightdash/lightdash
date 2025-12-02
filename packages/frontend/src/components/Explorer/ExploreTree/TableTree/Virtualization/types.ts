@@ -14,6 +14,7 @@ export enum TreeSection {
     Metrics = 'metrics',
     CustomMetrics = 'custom-metrics',
     CustomDimensions = 'custom-dimensions',
+    MissingFields = 'missing-fields',
 }
 
 /**
@@ -177,6 +178,9 @@ export interface FlattenTreeOptions {
     missingCustomMetrics: AdditionalMetric[];
     missingCustomDimensions: CustomDimension[];
     missingFieldIds: string[];
+
+    // Selected fields (for determining if missing field is dimension or metric)
+    selectedDimensions: string[];
 
     // Active fields (for pinning selected items to top)
     activeFields: Set<string>;

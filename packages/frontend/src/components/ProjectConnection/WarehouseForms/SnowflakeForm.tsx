@@ -567,6 +567,18 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                     isRedeployRequired={false}
                                 />
+                                <BooleanSwitch
+                                    name="warehouse.disableTimestampConversion"
+                                    label="Disable timestamp conversion to UTC"
+                                    description="When disabled, Lightdash will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
+                                    onLabel="Yes"
+                                    offLabel="No"
+                                    disabled={disabled}
+                                    {...form.getInputProps(
+                                        'warehouse.disableTimestampConversion',
+                                        { type: 'checkbox' },
+                                    )}
+                                />
                             </Stack>
                         </FormSection>
                         <FormCollapseButton

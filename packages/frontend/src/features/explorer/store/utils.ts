@@ -1,4 +1,90 @@
-import { type FieldId } from '@lightdash/common';
+import { type FieldId, type ResultColumns } from '@lightdash/common';
+
+/**
+ * Relationship between a Period-over-Period field and its base field
+ */
+export type PopFieldRelationship = {
+    baseFieldId: string;
+    popFieldId: string;
+};
+
+/**
+ * Result of computing column order with PoP fields
+ */
+export type ColumnOrderWithPoP = {
+    completeColumnOrder: string[];
+    popRelationships: Map<string, PopFieldRelationship>;
+};
+
+/**
+ * Computes the complete column order including period-over-period (PoP) fields
+ * using the popMetadata from ResultColumns (provided by the API).
+ *
+ * This is a pure function that can be used in both Redux selectors and hooks.
+ * It uses backend-provided metadata instead of string matching, making it
+ * robust against naming convention changes.
+ *
+ * @param baseColumnOrder - The original column order without PoP columns
+ * @param resultsColumns - The ResultColumns from the API response (contains popMetadata)
+ * @returns Object containing:
+ *   - completeColumnOrder: The full ordered list of column IDs including PoP fields
+ *   - popRelationships: Map of PoP field ID to its relationship with the base field
+ */
+export const computeColumnOrderWithPoP = (
+    baseColumnOrder: string[],
+    resultsColumns: ResultColumns | undefined,
+): ColumnOrderWithPoP => {
+    const popRelationships = new Map<string, PopFieldRelationship>();
+
+    // If no results columns, return base order
+    if (!resultsColumns) {
+        return {
+            completeColumnOrder: baseColumnOrder,
+            popRelationships,
+        };
+    }
+
+    // Build map of PoP columns using popMetadata from API
+    // Key: baseFieldId, Value: popFieldId
+    const popFieldsByBase = new Map<string, string>();
+
+    for (const [fieldId, column] of Object.entries(resultsColumns)) {
+        if (column.popMetadata) {
+            const { baseFieldId } = column.popMetadata;
+            popFieldsByBase.set(baseFieldId, fieldId);
+            popRelationships.set(fieldId, {
+                baseFieldId,
+                popFieldId: fieldId,
+            });
+        }
+    }
+
+    // If no PoP columns found, return base order
+    if (popFieldsByBase.size === 0) {
+        return {
+            completeColumnOrder: baseColumnOrder,
+            popRelationships,
+        };
+    }
+
+    // Build complete order: insert each PoP field right after its base field
+    const completeOrder: string[] = [];
+
+    for (const baseFieldId of baseColumnOrder) {
+        completeOrder.push(baseFieldId);
+
+        // If this base field has a PoP sibling, insert it right after
+        const popFieldId = popFieldsByBase.get(baseFieldId);
+        if (popFieldId) {
+            completeOrder.push(popFieldId);
+        }
+    }
+
+    return {
+        completeColumnOrder: completeOrder,
+        popRelationships,
+    };
+};
 
 /**
  * Calculates the column order for the results table.

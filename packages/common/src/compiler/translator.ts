@@ -118,6 +118,7 @@ const convertDimension = (
     timeInterval?: TimeFrames,
     startOfWeek?: WeekDay | null,
     isAdditionalDimension?: boolean,
+    disableTimestampConversion?: boolean,
 ): Dimension => {
     // Config block takes priority, then meta block
     const meta = merge({}, column.meta, column.config?.meta);
@@ -135,7 +136,7 @@ const convertDimension = (
     let name = meta.dimension?.name || column.name;
     let sql = meta.dimension?.sql || defaultSql(column.name);
     let label = meta.dimension?.label || friendlyName(name);
-    if (type === DimensionType.TIMESTAMP) {
+    if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
     const isIntervalBase =
@@ -451,6 +452,7 @@ export const convertTable = (
     dbtMetrics: DbtMetric[],
     spotlightConfig: LightdashProjectConfig['spotlight'],
     startOfWeek?: WeekDay | null,
+    disableTimestampConversion?: boolean,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -470,6 +472,8 @@ export const convertTable = (
                 undefined,
                 undefined,
                 startOfWeek,
+                undefined,
+                disableTimestampConversion,
             );
 
             // Config block takes priority, then meta block
@@ -533,6 +537,7 @@ export const convertTable = (
                                     startOfWeek,
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
+                                    disableTimestampConversion,
                                 ),
                         }),
                         {},
@@ -569,6 +574,7 @@ export const convertTable = (
                     undefined,
                     startOfWeek,
                     true,
+                    disableTimestampConversion,
                 );
 
                 return {
@@ -785,6 +791,7 @@ export const convertExplores = async (
     metrics: DbtMetric[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
     lightdashProjectConfig: LightdashProjectConfig,
+    disableTimestampConversion?: boolean,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -815,6 +822,7 @@ export const convertExplores = async (
                     tableMetrics,
                     lightdashProjectConfig.spotlight,
                     warehouseSqlBuilder.getStartOfWeek(),
+                    disableTimestampConversion,
                 );
 
                 // add lineage

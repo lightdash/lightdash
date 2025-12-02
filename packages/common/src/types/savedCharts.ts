@@ -143,7 +143,6 @@ export type GaugeChart = {
 
 export enum MapChartLocation {
     USA = 'USA',
-    USA_COUNTIES = 'USA_COUNTIES',
     WORLD = 'world',
     EUROPE = 'europe',
     CUSTOM = 'custom',
@@ -152,6 +151,15 @@ export enum MapChartLocation {
 export enum MapChartType {
     SCATTER = 'scatter',
     AREA = 'area',
+    HEATMAP = 'heatmap',
+}
+
+export enum MapTileBackground {
+    NONE = 'none',
+    OPENSTREETMAP = 'openstreetmap',
+    LIGHT = 'light',
+    DARK = 'dark',
+    SATELLITE = 'satellite',
 }
 
 export type MapChart = {
@@ -168,13 +176,17 @@ export type MapChart = {
     showLegend?: boolean;
     // Color range (array of 2-5 colors for gradient)
     colorRange?: string[];
-    // Default view settings
+    // Map extent settings (zoom and center are saved when user enables "save map extent")
     defaultZoom?: number;
     defaultCenterLat?: number;
     defaultCenterLon?: number;
     // Scatter bubble size settings (for lat/long maps)
     minBubbleSize?: number;
     maxBubbleSize?: number;
+    sizeFieldId?: string;
+    // Tile background
+    tileBackground?: MapTileBackground;
+    backgroundColor?: string;
 };
 
 export enum FunnelChartDataInput {

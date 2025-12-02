@@ -8,6 +8,7 @@ import type {
     ParametersValuesMap,
     StackType,
 } from '@lightdash/common';
+import type { Map as LeafletMap } from 'leaflet';
 import { createContext, type RefObject } from 'react';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
@@ -19,6 +20,7 @@ import { type VisualizationConfig } from './types';
 type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact | null>;
+    leafletMapRef: RefObject<LeafletMap | null>;
     pivotDimensions: string[] | undefined;
     resultsData:
         | (InfiniteQueryResults & {

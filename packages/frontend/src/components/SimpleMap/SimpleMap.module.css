@@ -1,0 +1,137 @@
+/* Map container styles */
+.container {
+    min-height: inherit;
+    width: 100%;
+    position: relative;
+    z-index: 0;
+    height: 400px;
+
+    &[data-should-expand='true'] {
+        height: 100%;
+    }
+
+    /* Override Leaflet's default background with custom property */
+    :global(.leaflet-container) {
+        background: var(--map-background-color, #ddd) !important;
+    }
+}
+
+/* Legend styles */
+.legend {
+    position: absolute;
+    bottom: 24px;
+    right: 10px;
+    z-index: 1000;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-sm);
+    min-width: 120px;
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-white), 0.9);
+        box-shadow: var(--mantine-shadow-sm);
+    }
+
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-6), 0.9);
+        box-shadow: var(--mantine-shadow-sm);
+    }
+}
+
+.legendGradient {
+    display: flex;
+    height: 12px;
+    border-radius: var(--mantine-radius-xs);
+    overflow: hidden;
+}
+
+.legendColorStop {
+    flex: 1;
+}
+
+.legendLabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-xs);
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-3);
+    }
+}
+
+/*
+ * Custom styles for Leaflet zoom controls
+ * Note: Using :global() because Leaflet renders its own DOM elements outside React.
+ * The @mixin light/dark and CSS variables still work because they're based on
+ * data attributes and CSS custom properties set on the document root.
+ */
+:global(.leaflet-control-zoom) {
+    border: none !important;
+    box-shadow: var(--mantine-shadow-xs) !important;
+}
+
+:global(.leaflet-control-zoom a) {
+    width: 24px !important;
+    height: 24px !important;
+    line-height: 24px !important;
+    font-size: var(--mantine-font-size-sm) !important;
+    border: none !important;
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-white), 0.8) !important;
+        color: var(--mantine-color-ldGray-6) !important;
+    }
+
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-6), 0.8) !important;
+        color: var(--mantine-color-ldGray-4) !important;
+    }
+}
+
+:global(.leaflet-control-zoom a:hover) {
+    @mixin light {
+        background-color: alpha(var(--mantine-color-white), 0.95) !important;
+        color: var(--mantine-color-ldGray-8) !important;
+    }
+
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-dark-5), 0.95) !important;
+        color: var(--mantine-color-ldGray-2) !important;
+    }
+}
+
+:global(.leaflet-control-zoom-in) {
+    border-radius: var(--mantine-radius-sm) var(--mantine-radius-sm) 0 0 !important;
+}
+
+:global(.leaflet-control-zoom-out) {
+    border-radius: 0 0 var(--mantine-radius-sm) var(--mantine-radius-sm) !important;
+}
+
+/* Attribution styling */
+:global(.leaflet-control-attribution) {
+    font-size: 10px;
+    background: transparent !important;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-5);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
+}
+
+:global(.leaflet-control-attribution a) {
+    @mixin light {
+        color: var(--mantine-color-ldGray-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-5);
+    }
+}

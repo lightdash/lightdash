@@ -996,7 +996,8 @@ export class CatalogModel {
                     if (changeset) {
                         const exploreWithChanges =
                             ChangesetUtils.applyChangeset(changeset, {
-                                [explore.name]: explore,
+                                // we need to clone the explore to avoid mutating the original explore object
+                                [explore.name]: structuredClone(explore),
                             })[explore.name] as Explore; // at this point we know the explore is valid
                         explore = exploreWithChanges;
                     }

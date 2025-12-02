@@ -33,6 +33,7 @@ import {
     MetricFilterRule,
     parseAllReferences,
     PivotConfiguration,
+    POP_PREVIOUS_PERIOD_SUFFIX,
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -103,6 +104,25 @@ export type BuildQueryProps = {
  * @param isAdd - Whether to add (true) or subtract (false) the interval
  * @returns The warehouse-specific interval syntax with comparison
  */
+/**
+ * Converts QUARTER interval to 3 months for databases that don't support QUARTER.
+ * @param value - The interval value
+ * @param granularity - The time granularity
+ * @returns Tuple of [convertedValue, convertedGranularity]
+ */
+function convertQuarterToMonths(
+    value: number,
+    granularity: string,
+): [number, string] {
+    const upperGranularity = granularity.toUpperCase();
+
+    if (upperGranularity === 'QUARTER') {
+        return [value * 3, 'MONTH'];
+    }
+
+    return [value, granularity];
+}
+
 export function getIntervalSyntax(
     adapterType: SupportedDbtAdapter,
     column: string,
@@ -121,41 +141,71 @@ export function getIntervalSyntax(
             // BigQuery always uses DATE_ADD/DATE_SUB
             intervalExpression = `DATE_${operation}(DATE(${columnWithInterval}), INTERVAL ${value} ${granularity})`;
             break;
-        case SupportedDbtAdapter.DATABRICKS:
-            // Databricks uses standard interval arithmetic
+        case SupportedDbtAdapter.DATABRICKS: {
+            // Databricks uses interval arithmetic with quoted values
+            // Databricks doesn't support QUARTER interval, convert to months
+            const [dbValue, dbGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL ${value} ${granularity}`;
+            } INTERVAL '${dbValue}' ${dbGranularity}`;
             break;
+        }
         case SupportedDbtAdapter.SNOWFLAKE:
             // Snowflake uses DATEADD function
             intervalExpression = `DATEADD(${granularity}, ${
                 isAdd ? value : -value
             }, ${columnWithInterval})`;
             break;
-        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.REDSHIFT: {
             // Redshift uses standard interval arithmetic
+            // Redshift doesn't support QUARTER interval, convert to months
+            const [redshiftValue, redshiftGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value} ${granularity}'`;
+            } INTERVAL '${redshiftValue} ${redshiftGranularity}'`;
             break;
-        case SupportedDbtAdapter.POSTGRES:
+        }
+        case SupportedDbtAdapter.POSTGRES: {
             // Postgres uses standard interval arithmetic
+            // Postgres doesn't support QUARTER interval, convert to months
+            const [pgValue, pgGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value} ${granularity}'`;
+            } INTERVAL '${pgValue} ${pgGranularity}'`;
             break;
-        case SupportedDbtAdapter.TRINO:
+        }
+        case SupportedDbtAdapter.TRINO: {
             // Trino uses standard interval arithmetic
+            // Trino doesn't support QUARTER interval, convert to months
+            const [trinoValue, trinoGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value}' ${granularity}`;
+            } INTERVAL '${trinoValue}' ${trinoGranularity}`;
             break;
-        case SupportedDbtAdapter.CLICKHOUSE:
+        }
+        case SupportedDbtAdapter.CLICKHOUSE: {
             // ClickHouse uses date arithmetic functions
+            // ClickHouse doesn't support QUARTER interval, convert to months
+            const [chValue, chGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             const func = isAdd ? 'date_add' : 'date_sub';
-            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${value} ${granularity})`;
+            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${chValue} ${chGranularity})`;
             break;
+        }
         default:
             // Default to standard SQL interval syntax
             intervalExpression = `${columnWithInterval} ${
@@ -1282,8 +1332,8 @@ export class MetricQueryBuilder {
                     const popMinMaxCteParts = [
                         `SELECT`,
                         [
-                            `MIN(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                            `MAX(${fieldQuoteChar}${keysCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                            `MIN(${keysCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                            `MAX(${keysCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                         ].join(',\n'),
                         `FROM ${keysCteName}`,
                     ];
@@ -1320,7 +1370,7 @@ export class MetricQueryBuilder {
                         `WHERE ${getIntervalSyntax(
                             adapterType,
                             popField.compiledSql,
-                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                            `${popMinMaxCteName}.min_date`,
                             '>=',
                             periodOverPeriod.periodOffset || 1,
                             periodOverPeriod.granularity,
@@ -1328,7 +1378,7 @@ export class MetricQueryBuilder {
                         )} AND ${getIntervalSyntax(
                             adapterType,
                             popField.compiledSql,
-                            `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                            `${popMinMaxCteName}.max_date`,
                             '<=',
                             periodOverPeriod.periodOffset || 1,
                             periodOverPeriod.granularity,
@@ -1367,7 +1417,7 @@ export class MetricQueryBuilder {
                                         metric.compiledSql
                                     } AS ${fieldQuoteChar}${getItemId(
                                         metric,
-                                    )}_previous${fieldQuoteChar}`,
+                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
                             ),
                         ].join(',\n'),
                         `FROM ${popKeysCteName}`,
@@ -1393,7 +1443,10 @@ export class MetricQueryBuilder {
                     popMetricCtes.push({
                         name: popMetricsCteName,
                         metrics: metricsInCte.map(
-                            (metric) => `${getItemId(metric)}_previous`,
+                            (metric) =>
+                                `${getItemId(
+                                    metric,
+                                )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
                         ),
                     });
                 }
@@ -1463,8 +1516,8 @@ export class MetricQueryBuilder {
                 const popUnaffectedMinMaxCteParts = [
                     `SELECT`,
                     [
-                        `MIN(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                        `MAX(${fieldQuoteChar}${unaffectedMetricsCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                        `MIN(${unaffectedMetricsCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                        `MAX(${unaffectedMetricsCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                     ].join(',\n'),
                     `FROM ${unaffectedMetricsCteName}`,
                 ];
@@ -1494,7 +1547,7 @@ export class MetricQueryBuilder {
                                     metric.compiledSql
                                 } AS ${fieldQuoteChar}${getItemId(
                                     metric,
-                                )}_previous${fieldQuoteChar}`,
+                                )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
                         ),
                     ].join(',\n'),
                     sqlFrom,
@@ -1505,7 +1558,7 @@ export class MetricQueryBuilder {
                     `WHERE ${getIntervalSyntax(
                         adapterType,
                         popField.compiledSql,
-                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                        `${popUnaffectedMinMaxCteName}.min_date`,
                         '>=',
                         periodOverPeriod.periodOffset || 1,
                         periodOverPeriod.granularity,
@@ -1513,7 +1566,7 @@ export class MetricQueryBuilder {
                     )} AND ${getIntervalSyntax(
                         adapterType,
                         popField.compiledSql,
-                        `${fieldQuoteChar}${popUnaffectedMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                        `${popUnaffectedMinMaxCteName}.max_date`,
                         '<=',
                         periodOverPeriod.periodOffset || 1,
                         periodOverPeriod.granularity,
@@ -1529,7 +1582,8 @@ export class MetricQueryBuilder {
                 popMetricCtes.push({
                     name: popUnaffectedMetricsCteName,
                     metrics: unaffectedMetrics.map(
-                        (metric) => `${getItemId(metric)}_previous`,
+                        (metric) =>
+                            `${getItemId(metric)}${POP_PREVIOUS_PERIOD_SUFFIX}`,
                     ),
                 });
             }
@@ -1569,7 +1623,11 @@ export class MetricQueryBuilder {
                         // excludes metrics only used for references
                         .filter((metric) =>
                             metricsObjects.find(
-                                (m) => metric === `${getItemId(m)}_previous`,
+                                (m) =>
+                                    metric ===
+                                    `${getItemId(
+                                        m,
+                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
                             ),
                         )
                         .map(
@@ -2072,8 +2130,8 @@ export class MetricQueryBuilder {
             const popMinMaxCteParts = [
                 `SELECT`,
                 [
-                    `MIN(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                    `MAX(${fieldQuoteChar}${baseCteName}${fieldQuoteChar}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                    `MIN(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                    `MAX(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
                 ].join(',\n'),
                 `FROM ${baseCteName}`,
             ];
@@ -2100,7 +2158,7 @@ export class MetricQueryBuilder {
                         // rename metric to include pop prefix
                         select.replace(
                             new RegExp(`${fieldQuoteChar}$`),
-                            `_previous${fieldQuoteChar}`,
+                            `${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
                         ),
                     ),
                 ].join(',\n')}`,
@@ -2111,7 +2169,7 @@ export class MetricQueryBuilder {
                 `WHERE ${getIntervalSyntax(
                     adapterType,
                     popField.compiledSql,
-                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}min_date${fieldQuoteChar}`,
+                    `${popMinMaxCteName}.min_date`,
                     '>=',
                     periodOverPeriod.periodOffset || 1,
                     periodOverPeriod.granularity,
@@ -2119,7 +2177,7 @@ export class MetricQueryBuilder {
                 )} AND ${getIntervalSyntax(
                     adapterType,
                     popField.compiledSql,
-                    `${fieldQuoteChar}${popMinMaxCteName}${fieldQuoteChar}.${fieldQuoteChar}max_date${fieldQuoteChar}`,
+                    `${popMinMaxCteName}.max_date`,
                     '<=',
                     periodOverPeriod.periodOffset || 1,
                     periodOverPeriod.granularity,
@@ -2137,7 +2195,7 @@ export class MetricQueryBuilder {
             // Create new finalSelectParts that joins base CTE with pop CTE
             const popMetricSelects = compiledMetricQuery.metrics.map(
                 (metricId) =>
-                    `  ${popCteName}.${fieldQuoteChar}${metricId}_previous${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}_previous${fieldQuoteChar}`,
+                    `  ${popCteName}.${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
             );
             // Get dimension aliases from dimensionSelects
             const dimensionAlias = Object.keys(dimensionsSQL.selects).map(

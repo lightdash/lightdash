@@ -255,7 +255,7 @@ function flattenTable(
             estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
             data: {
                 tableName,
-                treeSection: TreeSection.Dimensions, // Arbitrary, missing fields aren't tied to a section
+                treeSection: TreeSection.MissingFields, // Arbitrary, missing fields aren't tied to a section
                 label: 'Missing fields',
                 color: 'ldGray.6',
                 depth: baseDepth,
@@ -270,7 +270,7 @@ function flattenTable(
                 data: {
                     fieldId,
                     tableName,
-                    isDimension: true, // Will be determined by the component
+                    isDimension: options.selectedDimensions.includes(fieldId),
                 },
             } satisfies MissingFieldItem);
         });

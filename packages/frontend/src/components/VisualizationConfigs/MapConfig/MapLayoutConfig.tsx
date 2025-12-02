@@ -57,8 +57,7 @@ export const Layout: FC = memo(() => {
     const mapTypeOptions = [
         { value: MapChartLocation.WORLD, label: 'World' },
         { value: MapChartLocation.EUROPE, label: 'Europe' },
-        { value: MapChartLocation.USA, label: 'USA' },
-        { value: MapChartLocation.USA_COUNTIES, label: 'USA Counties' },
+        { value: MapChartLocation.USA, label: 'US' },
     ];
 
     const locationTypeOptions = [
@@ -66,6 +65,7 @@ export const Layout: FC = memo(() => {
             value: MapChartType.SCATTER,
             label: 'Scatter',
         },
+        { value: MapChartType.HEATMAP, label: 'Heatmap' },
         { value: MapChartType.AREA, label: 'Area' },
     ];
 
@@ -98,53 +98,6 @@ export const Layout: FC = memo(() => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Location</Config.Heading>
-
-                    <Switch
-                        label="Custom map"
-                        checked={isCustomMap}
-                        onChange={(e) => {
-                            if (e.currentTarget.checked) {
-                                setMapType(MapChartLocation.CUSTOM);
-                            } else {
-                                setMapType(MapChartLocation.WORLD);
-                                setCustomGeoJsonUrl(undefined);
-                            }
-                        }}
-                        mt="sm"
-                    />
-
-                    {isCustomMap ? (
-                        <TextInput
-                            label="Map URL"
-                            placeholder="https://example.com/map.json"
-                            value={validConfig.customGeoJsonUrl || ''}
-                            onChange={(e) =>
-                                setCustomGeoJsonUrl(
-                                    e.currentTarget.value || undefined,
-                                )
-                            }
-                        />
-                    ) : (
-                        <Select
-                            label="Map region"
-                            disabled={isCustomMap}
-                            data={mapTypeOptions}
-                            value={
-                                validConfig.mapType || MapChartLocation.WORLD
-                            }
-                            onChange={(value) =>
-                                setMapType(
-                                    (value as MapChartLocation) || undefined,
-                                )
-                            }
-                        />
-                    )}
-                </Config.Section>
-            </Config>
-
-            <Config>
-                <Config.Section>
                     <Config.Heading>Map Type</Config.Heading>
                     <SegmentedControl
                         data={locationTypeOptions}
@@ -159,9 +112,11 @@ export const Layout: FC = memo(() => {
                 </Config.Section>
             </Config>
 
-            {locationType === MapChartType.SCATTER && (
+            {(locationType === MapChartType.SCATTER ||
+                locationType === MapChartType.HEATMAP) && (
                 <Config>
                     <Config.Section>
+                        <Config.Heading>Coordinates</Config.Heading>
                         <Group spacing="md" grow>
                             <FieldSelect
                                 label="Latitude"
@@ -199,23 +154,75 @@ export const Layout: FC = memo(() => {
             )}
 
             {locationType === MapChartType.AREA && (
-                <Config>
-                    <Config.Section>
-                        <FieldSelect
-                            label="Region field"
-                            placeholder="Select field"
-                            item={locationField}
-                            items={availableFields}
-                            onChange={(newField) =>
-                                setLocationFieldId(
-                                    newField ? getItemId(newField) : undefined,
-                                )
-                            }
-                            hasGrouping
-                            clearable
-                        />
-                    </Config.Section>
-                </Config>
+                <>
+                    <Config>
+                        <Config.Section>
+                            <Config.Heading>Location</Config.Heading>
+
+                            <Switch
+                                label="Custom region"
+                                checked={isCustomMap}
+                                onChange={(e) => {
+                                    if (e.currentTarget.checked) {
+                                        setMapType(MapChartLocation.CUSTOM);
+                                    } else {
+                                        setMapType(MapChartLocation.WORLD);
+                                        setCustomGeoJsonUrl(undefined);
+                                    }
+                                }}
+                            />
+
+                            {isCustomMap ? (
+                                <TextInput
+                                    label="Map URL"
+                                    placeholder="https://example.com/map.json"
+                                    value={validConfig.customGeoJsonUrl || ''}
+                                    onChange={(e) =>
+                                        setCustomGeoJsonUrl(
+                                            e.currentTarget.value || undefined,
+                                        )
+                                    }
+                                />
+                            ) : (
+                                <Select
+                                    label="Map region"
+                                    disabled={isCustomMap}
+                                    data={mapTypeOptions}
+                                    value={
+                                        validConfig.mapType ||
+                                        MapChartLocation.WORLD
+                                    }
+                                    onChange={(value) =>
+                                        setMapType(
+                                            (value as MapChartLocation) ||
+                                                undefined,
+                                        )
+                                    }
+                                />
+                            )}
+                        </Config.Section>
+                    </Config>
+
+                    <Config>
+                        <Config.Section>
+                            <FieldSelect
+                                label="Region field"
+                                placeholder="Select field"
+                                item={locationField}
+                                items={availableFields}
+                                onChange={(newField) =>
+                                    setLocationFieldId(
+                                        newField
+                                            ? getItemId(newField)
+                                            : undefined,
+                                    )
+                                }
+                                hasGrouping
+                                clearable
+                            />
+                        </Config.Section>
+                    </Config>
+                </>
             )}
 
             <Config>

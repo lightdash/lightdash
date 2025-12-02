@@ -1,19 +1,28 @@
-import { ECHARTS_DEFAULT_COLORS, MapChartType } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    getItemId,
+    isCustomDimension,
+    isDimension,
+    isMetric,
+    isTableCalculation,
+    MapChartType,
+    MapTileBackground,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    Button,
     Group,
-    NumberInput,
     RangeSlider,
+    Select,
     Stack,
     Switch,
     Text,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCamera, IconPlus, IconX } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { IconPlus, IconX } from '@tabler/icons-react';
+import { memo, useMemo, type FC } from 'react';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
+import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -68,65 +77,20 @@ const ColorItem: FC<ColorItemProps> = ({
 };
 
 export const Display: FC = memo(() => {
-    const { visualizationConfig, chartRef } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
-    const handleCaptureCurrentView = useCallback(() => {
-        if (!chartRef.current) return;
-        const instance = chartRef.current.getEchartsInstance();
-        if (!instance) return;
+    // Get all available fields for selection (dimensions, metrics, and table calculations)
+    const availableFields = useMemo(() => {
+        if (!itemsMap) return [];
 
-        const option = instance.getOption() as Record<string, unknown>;
-
-        // Try to get geo settings first (for scatter maps)
-        const geoArray = option.geo as
-            | Array<{
-                  zoom?: number;
-                  center?: [number, number];
-              }>
-            | undefined;
-        const geo = geoArray?.[0];
-        if (geo) {
-            const zoom = geo.zoom ?? 1;
-            const center = geo.center ?? [0, 0];
-
-            if (isMapVisualizationConfig(visualizationConfig)) {
-                const {
-                    setDefaultZoom,
-                    setDefaultCenterLat,
-                    setDefaultCenterLon,
-                } = visualizationConfig.chartConfig;
-                setDefaultZoom(zoom);
-                setDefaultCenterLat(center[1]);
-                setDefaultCenterLon(center[0]);
-            }
-            return;
-        }
-
-        // Try series settings (for choropleth maps)
-        const seriesArray = option.series as
-            | Array<{
-                  type?: string;
-                  zoom?: number;
-                  center?: [number, number];
-              }>
-            | undefined;
-        const series = seriesArray?.[0];
-        if (series && series.type === 'map') {
-            const zoom = series.zoom ?? 1;
-            const center = series.center ?? [0, 0];
-
-            if (isMapVisualizationConfig(visualizationConfig)) {
-                const {
-                    setDefaultZoom,
-                    setDefaultCenterLat,
-                    setDefaultCenterLon,
-                } = visualizationConfig.chartConfig;
-                setDefaultZoom(zoom);
-                setDefaultCenterLat(center[1]);
-                setDefaultCenterLon(center[0]);
-            }
-        }
-    }, [chartRef, visualizationConfig]);
+        return Object.values(itemsMap).filter(
+            (item) =>
+                isDimension(item) ||
+                isCustomDimension(item) ||
+                isMetric(item) ||
+                isTableCalculation(item),
+        );
+    }, [itemsMap]);
 
     if (!isMapVisualizationConfig(visualizationConfig)) {
         return null;
@@ -139,11 +103,12 @@ export const Display: FC = memo(() => {
             removeColor,
             updateColor,
             setShowLegend,
-            setDefaultZoom,
-            setDefaultCenterLat,
-            setDefaultCenterLon,
+            setSaveMapExtent,
             setMinBubbleSize,
             setMaxBubbleSize,
+            setSizeFieldId,
+            setTileBackground,
+            setBackgroundColor,
         },
     } = visualizationConfig;
 
@@ -152,6 +117,15 @@ export const Display: FC = memo(() => {
     const isScatterMap =
         !validConfig.locationType ||
         validConfig.locationType === MapChartType.SCATTER;
+    const isBackgroundNone =
+        validConfig.tileBackground === MapTileBackground.NONE;
+
+    // Get selected size field object
+    const sizeField = itemsMap
+        ? validConfig.sizeFieldId
+            ? itemsMap[validConfig.sizeFieldId]
+            : undefined
+        : undefined;
 
     return (
         <Stack>
@@ -204,8 +178,9 @@ export const Display: FC = memo(() => {
 
             <Config>
                 <Config.Section>
+                    <Config.Heading>Legend</Config.Heading>
                     <Config.Group>
-                        <Config.Label>Legend</Config.Label>
+                        <Config.Label>Show legend</Config.Label>
                         <Switch
                             checked={validConfig.showLegend ?? false}
                             onChange={(e) =>
@@ -216,10 +191,67 @@ export const Display: FC = memo(() => {
                 </Config.Section>
             </Config>
 
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Background map</Config.Heading>
+                    <Select
+                        data={[
+                            { value: MapTileBackground.NONE, label: 'None' },
+
+                            { value: MapTileBackground.LIGHT, label: 'Light' },
+                            {
+                                value: MapTileBackground.OPENSTREETMAP,
+                                label: 'OpenStreetMap',
+                            },
+                            { value: MapTileBackground.DARK, label: 'Dark' },
+                            {
+                                value: MapTileBackground.SATELLITE,
+                                label: 'Satellite',
+                            },
+                        ]}
+                        value={
+                            validConfig.tileBackground ??
+                            MapTileBackground.LIGHT
+                        }
+                        onChange={(value) =>
+                            setTileBackground(
+                                (value as MapTileBackground) || undefined,
+                            )
+                        }
+                    />
+                    {isBackgroundNone && (
+                        <Config.Group>
+                            <Config.Label>Background color</Config.Label>
+                            <ColorSelector
+                                color={validConfig.backgroundColor ?? '#f3f3f3'}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={setBackgroundColor}
+                            />
+                        </Config.Group>
+                    )}
+                </Config.Section>
+            </Config>
+
             {isScatterMap && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Bubble size</Config.Heading>
+                        <Config.Heading>Bubbles</Config.Heading>
+                        <FieldSelect
+                            label="Size based on"
+                            placeholder="Select field (optional)"
+                            item={sizeField}
+                            items={availableFields}
+                            onChange={(newField) =>
+                                setSizeFieldId(
+                                    newField ? getItemId(newField) : undefined,
+                                )
+                            }
+                            hasGrouping
+                            clearable
+                        />
+                        <Text size="xs" c="dimmed" mt="xs" mb="xs">
+                            Size range
+                        </Text>
                         <RangeSlider
                             min={0}
                             max={100}
@@ -246,51 +278,16 @@ export const Display: FC = memo(() => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Default view</Config.Heading>
-                    <Group spacing="md" grow>
-                        <NumberInput
-                            label="Zoom"
-                            value={validConfig.defaultZoom ?? ''}
-                            onChange={(value) =>
-                                setDefaultZoom(
-                                    value === '' ? undefined : Number(value),
-                                )
+                    <Config.Heading>Map extent</Config.Heading>
+                    <Config.Group>
+                        <Config.Label>Save current map extent</Config.Label>
+                        <Switch
+                            checked={validConfig.saveMapExtent}
+                            onChange={(e) =>
+                                setSaveMapExtent(e.currentTarget.checked)
                             }
-                            min={1}
-                            max={10}
-                            step={0.1}
-                            precision={2}
                         />
-                        <NumberInput
-                            label="Latitude"
-                            value={validConfig.defaultCenterLat ?? ''}
-                            onChange={(value) =>
-                                setDefaultCenterLat(
-                                    value === '' ? undefined : Number(value),
-                                )
-                            }
-                            precision={2}
-                        />
-                        <NumberInput
-                            label="Longitude"
-                            value={validConfig.defaultCenterLon ?? ''}
-                            onChange={(value) =>
-                                setDefaultCenterLon(
-                                    value === '' ? undefined : Number(value),
-                                )
-                            }
-                            precision={2}
-                        />
-                    </Group>
-                    <Button
-                        variant="light"
-                        leftIcon={<IconCamera size={16} />}
-                        mt="sm"
-                        fullWidth
-                        onClick={handleCaptureCurrentView}
-                    >
-                        Capture current view
-                    </Button>
+                    </Config.Group>
                 </Config.Section>
             </Config>
         </Stack>

@@ -40,12 +40,14 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
+    disableTimestampConversion?: boolean;
 };
 
 const getExploresFromLightdashYmlProject = async (
     projectDir: string,
     lightdashProjectConfig: LightdashProjectConfig,
     startOfWeek?: number,
+    disableTimestampConversion?: boolean,
 ): Promise<(Explore | ExploreError)[] | null> => {
     // Try to load Lightdash YAML models
     const lightdashModels = await loadLightdashModels(projectDir);
@@ -92,6 +94,7 @@ const getExploresFromLightdashYmlProject = async (
         [],
         warehouseSqlBuilder,
         lightdashProjectConfig,
+        disableTimestampConversion,
     );
 
     return validExplores;
@@ -131,6 +134,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         absoluteProjectPath,
         lightdashProjectConfig,
         options.startOfWeek,
+        options.disableTimestampConversion,
     );
 
     // Load dbt Project
@@ -239,6 +243,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                 : Object.values(manifest.metrics || {}),
             warehouseSqlBuilder,
             lightdashProjectConfig,
+            options.disableTimestampConversion,
         );
         console.error('');
 
