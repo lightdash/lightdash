@@ -9,6 +9,7 @@ import {
     isV9MetricRef,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
+    type DbtExploreLightdashAdditionalDimension,
     type DbtMetric,
     type DbtModelColumn,
     type DbtModelNode,
@@ -204,6 +205,82 @@ const convertDimension = (
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
             : {}),
     };
+};
+
+/**
+ * Convert an explore-scoped additional dimension to Dimension(s).
+ * Reuses convertDimension by creating a synthetic column object.
+ * Returns the base dimension plus any time interval dimensions.
+ */
+const convertExploreScopedDimension = (
+    index: number,
+    tableName: string,
+    tableLabel: string,
+    dimensionName: string,
+    dimensionConfig: DbtExploreLightdashAdditionalDimension,
+    targetWarehouse: SupportedDbtAdapter,
+    startOfWeek?: WeekDay | null,
+): Record<string, Dimension> => {
+    // Create a synthetic column to reuse convertDimension
+    const syntheticColumn: DbtModelColumn = {
+        name: dimensionName,
+        data_type: dimensionConfig.type,
+        meta: {
+            dimension: dimensionConfig,
+        },
+    };
+
+    const syntheticModel = {
+        name: tableName,
+        relation_name: tableName,
+    };
+
+    const baseDimension = convertDimension(
+        index,
+        targetWarehouse,
+        syntheticModel,
+        tableLabel,
+        syntheticColumn,
+        undefined,
+        undefined,
+        startOfWeek,
+        true, // isAdditionalDimension
+    );
+
+    const result: Record<string, Dimension> = {
+        [dimensionName]: baseDimension,
+    };
+
+    // Process time intervals if applicable (same logic as column-level additional dimensions)
+    if (baseDimension.isIntervalBase) {
+        let intervals: TimeFrames[] = [];
+
+        if (
+            dimensionConfig.time_intervals &&
+            Array.isArray(dimensionConfig.time_intervals)
+        ) {
+            intervals = validateTimeFrames(dimensionConfig.time_intervals);
+        } else {
+            intervals = getDefaultTimeFrames(dimensionConfig.type);
+        }
+
+        intervals.forEach((interval) => {
+            const intervalDimension = convertDimension(
+                index,
+                targetWarehouse,
+                syntheticModel,
+                tableLabel,
+                syntheticColumn,
+                undefined,
+                interval,
+                startOfWeek,
+                true, // isAdditionalDimension
+            );
+            result[intervalDimension.name] = intervalDimension;
+        });
+    }
+
+    return result;
 };
 
 const generateTableLineage = (
@@ -882,28 +959,72 @@ export const convertExplores = async (
             },
             ...(meta.explores
                 ? Object.entries(meta.explores).map(
-                      ([exploreName, exploreConfig]) => ({
-                          name: exploreName,
-                          label:
-                              exploreConfig.label || friendlyName(exploreName),
-                          groupLabel:
-                              exploreConfig.group_label || meta.group_label,
-                          joins: exploreConfig.joins || [],
-                          description: exploreConfig.description,
-                          tables: {
-                              ...tableLookup,
-                              // Override the base table required filters with the explore config required filters
-                              [model.name]: {
-                                  ...tableLookup[model.name],
-                                  requiredFilters: parseModelRequiredFilters({
+                      ([exploreName, exploreConfig]) => {
+                          const baseTable = tableLookup[model.name];
+                          const baseTableLabel =
+                              meta.label || friendlyName(model.name);
+
+                          // Convert explore-scoped additional dimensions
+                          let exploreScopedDimensions: Record<
+                              string,
+                              Dimension
+                          > = {};
+                          if (exploreConfig.additional_dimensions) {
+                              const existingDimensionCount = Object.keys(
+                                  baseTable.dimensions,
+                              ).length;
+
+                              Object.entries(
+                                  exploreConfig.additional_dimensions,
+                              ).forEach(([dimName, dimConfig], dimIndex) => {
+                                  const convertedDims =
+                                      convertExploreScopedDimension(
+                                          existingDimensionCount + dimIndex,
+                                          model.name,
+                                          baseTableLabel,
+                                          dimName,
+                                          dimConfig,
+                                          adapterType,
+                                          warehouseSqlBuilder.getStartOfWeek(),
+                                      );
+                                  exploreScopedDimensions = {
+                                      ...exploreScopedDimensions,
+                                      ...convertedDims,
+                                  };
+                              });
+                          }
+
+                          return {
+                              name: exploreName,
+                              label:
+                                  exploreConfig.label ||
+                                  friendlyName(exploreName),
+                              groupLabel:
+                                  exploreConfig.group_label || meta.group_label,
+                              // Inherit joins from base model if not specified in explore config
+                              joins: exploreConfig.joins || meta?.joins || [],
+                              description: exploreConfig.description,
+                              tables: {
+                                  ...tableLookup,
+                                  // Override the base table with required filters and explore-scoped dimensions
+                                  [model.name]: {
+                                      ...baseTable,
                                       requiredFilters:
-                                          exploreConfig.required_filters,
-                                      defaultFilters:
-                                          exploreConfig.default_filters,
-                                  }),
+                                          parseModelRequiredFilters({
+                                              requiredFilters:
+                                                  exploreConfig.required_filters,
+                                              defaultFilters:
+                                                  exploreConfig.default_filters,
+                                          }),
+                                      // Merge explore-scoped dimensions with existing dimensions
+                                      dimensions: {
+                                          ...baseTable.dimensions,
+                                          ...exploreScopedDimensions,
+                                      },
+                                  },
                               },
-                          },
-                      }),
+                          };
+                      },
                   )
                 : []),
         ];

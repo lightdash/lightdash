@@ -10,6 +10,7 @@ import type {
     DbtColumnLightdashAdditionalDimension,
     DbtColumnLightdashDimension,
     DbtColumnLightdashMetric,
+    DbtExploreLightdashAdditionalDimension,
     DbtModelJoin,
     DbtModelLightdashConfig,
 } from './dbt';
@@ -53,6 +54,15 @@ export type LightdashModelExplore = {
     joins?: DbtModelJoin[]; // Reuses DbtModelJoin directly
     required_filters?: RequiredFilter[];
     default_filters?: RequiredFilter[];
+    /**
+     * Explore-scoped custom dimensions.
+     * These dimensions are only available within this specific explore
+     * and can reference fields from any joined table.
+     */
+    additional_dimensions?: Record<
+        string,
+        DbtExploreLightdashAdditionalDimension
+    >;
 };
 
 /**

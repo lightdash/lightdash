@@ -30,6 +30,23 @@ models:
         default_time_dimension:
           field: order_date
           interval: MONTH
+        explores:
+          orders_with_custom_dims:
+            label: Orders with Custom Dimensions
+            # No need to specify joins - they are inherited from the parent model
+            additional_dimensions:
+              full_name:
+                type: string
+                sql: "CONCAT(${customers.first_name}, ' ', ${customers.last_name})"
+                label: Customer Full Name
+              order_value_category:
+                type: string
+                sql: "CASE WHEN ${orders.amount} > 100 THEN 'high' ELSE 'low' END"
+                label: Order Value Category
+              order_month:
+                type: date
+                sql: DATE(${orders.order_date})
+                time_intervals: [MONTH]
     columns:
       - name: order_id
         tests:
