@@ -63,7 +63,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     withArrow
                     label={
                         <Stack spacing={4}>
-                            <Text lineClamp={1} fz="xs" fw={600} color="white">
+                            <Text lineClamp={1} fz="xs" fw={600}>
                                 {tooltipText}
                             </Text>
                             <Group>
