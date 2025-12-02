@@ -1,3 +1,10 @@
+## [0.2215.1](https://github.com/lightdash/lightdash/compare/0.2215.0...0.2215.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* re-allow removing missing fields ([#18459](https://github.com/lightdash/lightdash/issues/18459)) ([82e341a](https://github.com/lightdash/lightdash/commit/82e341a6445471f7e22794012258746f400381af)), closes [#18458](https://github.com/lightdash/lightdash/issues/18458)
+
 # [0.2215.0](https://github.com/lightdash/lightdash/compare/0.2214.4...0.2215.0) (2025-12-02)
 
 
