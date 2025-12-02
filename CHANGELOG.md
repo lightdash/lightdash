@@ -1,3 +1,10 @@
+## [0.2214.3](https://github.com/lightdash/lightdash/compare/0.2214.2...0.2214.3) (2025-12-02)
+
+
+### Bug Fixes
+
+* spaces pinned item tooltip illegible in dark mode ([#18457](https://github.com/lightdash/lightdash/issues/18457)) ([bb7fa9f](https://github.com/lightdash/lightdash/commit/bb7fa9fe64dbfd0d220e0e49af2b12094c780ab8)), closes [#18415](https://github.com/lightdash/lightdash/issues/18415)
+
 ## [0.2214.2](https://github.com/lightdash/lightdash/compare/0.2214.1...0.2214.2) (2025-12-01)
 
 
