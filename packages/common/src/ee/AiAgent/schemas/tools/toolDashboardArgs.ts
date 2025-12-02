@@ -82,7 +82,6 @@ export type DashboardVisualization = z.infer<
 >;
 
 export const toolDashboardArgsSchema = createToolSchema({
-    type: AiResultType.DASHBOARD_RESULT,
     description: TOOL_DASHBOARD_DESCRIPTION,
 })
     .extend({

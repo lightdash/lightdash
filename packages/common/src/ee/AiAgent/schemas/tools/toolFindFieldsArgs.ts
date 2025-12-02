@@ -17,7 +17,6 @@ Usage tips:
 `;
 
 export const toolFindFieldsArgsSchema = createToolSchema({
-    type: 'find_fields',
     description: TOOL_FIND_FIELDS_DESCRIPTION,
 })
     .extend({

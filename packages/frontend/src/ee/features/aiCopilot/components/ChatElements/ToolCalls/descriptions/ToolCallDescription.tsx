@@ -1,12 +1,25 @@
+import type {
+    ToolTableVizArgs,
+    ToolTimeSeriesArgs,
+    ToolVerticalBarArgs,
+} from '@lightdash/common';
 import {
-    AiResultType,
     assertUnreachable,
-    parseToolArgs,
-    ToolNameSchema,
+    type ToolDashboardArgs,
+    type ToolFindChartsArgs,
+    type ToolFindContentArgs,
+    type ToolFindDashboardsArgs,
+    type ToolFindExploresArgsV1,
+    type ToolFindExploresArgsV2,
+    type ToolFindExploresArgsV3,
+    type ToolFindFieldsArgs,
+    type ToolName,
+    type ToolRunQueryArgs,
+    type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { AiChartGenerationToolCallDescription } from '../AiChartGenerationToolCallDescription';
 import type { ToolCallSummary } from '../utils/types';
+import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
@@ -15,108 +28,57 @@ import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCal
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 
 export const ToolCallDescription: FC<{
+    toolName: ToolName;
     toolCall: ToolCallSummary;
-}> = ({ toolCall }) => {
-    const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
-
-    if (!toolNameParsed.success) {
-        console.error(
-            `Failed to parse tool name ${toolCall.toolName} ${toolCall.toolCallId}`,
-            toolNameParsed.error,
-        );
-        return null;
-    }
-
-    const toolName = toolNameParsed.data;
-    const toolArgsParsed = parseToolArgs(toolName, toolCall.toolArgs);
-
-    if (!toolArgsParsed.success) {
-        console.error(
-            `Failed to parse tool args for ${toolName} ${toolCall.toolCallId}`,
-            toolArgsParsed.error,
-        );
-        return null;
-    }
-
-    const toolArgs = toolArgsParsed.data;
-
-    switch (toolArgs.type) {
-        case 'find_explores':
-        case 'find_explores_v2':
-        case 'find_explores_v3':
+}> = ({ toolName, toolCall }) => {
+    switch (toolName) {
+        case 'findExplores':
+            const toolArgsFindExplores = toolCall.toolArgs as
+                | ToolFindExploresArgsV3
+                | ToolFindExploresArgsV2
+                | ToolFindExploresArgsV1;
             return (
                 <ExploreToolCallDescription
                     exploreName={
-                        toolArgs.type === 'find_explores_v3'
-                            ? undefined
-                            : toolArgs.exploreName ?? undefined
+                        'exploreName' in toolArgsFindExplores
+                            ? toolArgsFindExplores.exploreName
+                            : null
                     }
                     searchQuery={
-                        toolArgs.type === 'find_explores_v3'
-                            ? toolArgs.searchQuery
-                            : undefined
+                        'searchQuery' in toolArgsFindExplores
+                            ? toolArgsFindExplores.searchQuery
+                            : null
                     }
                 />
             );
-        case 'find_fields':
+        case 'findFields':
+            const toolArgsFindFields = toolCall.toolArgs as ToolFindFieldsArgs;
             return (
                 <FieldSearchToolCallDescription
-                    searchQueries={toolArgs.fieldSearchQueries}
+                    searchQueries={toolArgsFindFields.fieldSearchQueries}
                 />
             );
-        case 'search_field_values':
-            const searchFieldValuesArgs = toolArgs;
+        case 'searchFieldValues':
+            const searchFieldValuesArgs =
+                toolCall.toolArgs as ToolSearchFieldValuesArgs;
             return (
                 <FieldValuesSearchToolCallDescription
                     fieldId={searchFieldValuesArgs.fieldId}
                     query={searchFieldValuesArgs.query}
                 />
             );
-        case AiResultType.VERTICAL_BAR_RESULT:
-            const barVizConfigToolArgs = toolArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={barVizConfigToolArgs.title}
-                    dimensions={[barVizConfigToolArgs.vizConfig.xDimension]}
-                    metrics={barVizConfigToolArgs.vizConfig.yMetrics}
-                    breakdownByDimension={
-                        barVizConfigToolArgs.vizConfig.breakdownByDimension
-                    }
-                />
-            );
-        case AiResultType.TABLE_RESULT:
-            const tableVizConfigToolArgs = toolArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={tableVizConfigToolArgs.title}
-                    dimensions={
-                        tableVizConfigToolArgs.vizConfig.dimensions ?? []
-                    }
-                    metrics={tableVizConfigToolArgs.vizConfig.metrics}
-                />
-            );
-        case AiResultType.TIME_SERIES_RESULT:
-            const timeSeriesToolCallArgs = toolArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={timeSeriesToolCallArgs.title}
-                    dimensions={[timeSeriesToolCallArgs.vizConfig.xDimension]}
-                    metrics={timeSeriesToolCallArgs.vizConfig.yMetrics}
-                    breakdownByDimension={
-                        timeSeriesToolCallArgs.vizConfig.breakdownByDimension
-                    }
-                />
-            );
-        case 'find_content':
-            const findContentToolArgs = toolArgs;
+        case 'findContent':
+            const findContentToolArgs =
+                toolCall.toolArgs as ToolFindContentArgs;
             return (
                 <ContentSearchToolCallDescription
                     searchType="content"
                     searchQueries={findContentToolArgs.searchQueries}
                 />
             );
-        case 'find_dashboards':
-            const findDashboardsToolArgs = toolArgs;
+        case 'findDashboards':
+            const findDashboardsToolArgs =
+                toolCall.toolArgs as ToolFindDashboardsArgs;
             return (
                 <ContentSearchToolCallDescription
                     searchType="dashboards"
@@ -125,25 +87,24 @@ export const ToolCallDescription: FC<{
                     }
                 />
             );
-        case 'find_charts':
-            const findChartsToolArgs = toolArgs;
+        case 'findCharts':
+            const findChartsToolArgs = toolCall.toolArgs as ToolFindChartsArgs;
             return (
                 <ContentSearchToolCallDescription
                     searchType="charts"
                     searchQueries={findChartsToolArgs.chartSearchQueries}
                 />
             );
-        case AiResultType.DASHBOARD_RESULT:
-        case AiResultType.DASHBOARD_V2_RESULT:
-            const dashboardToolArgs = toolArgs;
+        case 'generateDashboard':
+            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardArgs;
             return (
                 <DashboardToolCallDescription
                     title={dashboardToolArgs.title}
                     description={dashboardToolArgs.description}
                 />
             );
-        case AiResultType.QUERY_RESULT:
-            const queryToolArgs = toolArgs;
+        case 'runQuery':
+            const queryToolArgs = toolCall.toolArgs as ToolRunQueryArgs;
             return (
                 <QueryResultToolCallDescription
                     title={queryToolArgs.title}
@@ -153,10 +114,22 @@ export const ToolCallDescription: FC<{
                     tableCalculations={queryToolArgs.tableCalculations}
                 />
             );
-        case AiResultType.IMPROVE_CONTEXT:
-        case AiResultType.PROPOSE_CHANGE:
+        case 'generateBarVizConfig':
+        case 'generateTableVizConfig':
+        case 'generateTimeSeriesVizConfig':
+            const chartToolArgs = toolCall.toolArgs as
+                | ToolTableVizArgs
+                | ToolTimeSeriesArgs
+                | ToolVerticalBarArgs;
+            return (
+                <AiChartGenerationToolCallDescription
+                    title={chartToolArgs.title}
+                />
+            );
+        case 'improveContext':
+        case 'proposeChange':
             return <> </>;
         default:
-            return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
+            return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }
 };

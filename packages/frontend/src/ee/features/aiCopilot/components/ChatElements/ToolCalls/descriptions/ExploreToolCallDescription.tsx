@@ -2,8 +2,8 @@ import { Badge, rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 
 type ExploreToolCallDescriptionProps = {
-    exploreName: string | undefined;
-    searchQuery: string | undefined;
+    exploreName: string | null;
+    searchQuery: string | null;
 };
 
 export const ExploreToolCallDescription: FC<

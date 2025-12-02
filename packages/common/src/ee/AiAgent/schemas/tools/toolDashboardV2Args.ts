@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { AiResultType } from '../../types';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
@@ -34,7 +33,6 @@ export type DashboardV2Visualization = z.infer<
 >;
 
 export const toolDashboardV2ArgsSchema = createToolSchema({
-    type: AiResultType.DASHBOARD_V2_RESULT,
     description: TOOL_DASHBOARD_V2_DESCRIPTION,
 })
     .extend({

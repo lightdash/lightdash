@@ -17,7 +17,6 @@ Usage Tips:
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema({
-    type: 'search_field_values',
     description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
 })
     .extend({

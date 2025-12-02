@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { type Dimension, type Metric, type Table } from '../../../..';
-import { AiResultType } from '../../types';
 import { customMetricBaseSchema } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -153,7 +152,6 @@ const changeSchema = z.discriminatedUnion('entityType', [
 // ============================================================================
 
 export const toolProposeChangeArgsSchema = createToolSchema({
-    type: AiResultType.PROPOSE_CHANGE,
     description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
 })
     .extend({

@@ -19,7 +19,6 @@ Usage Tips:
 `;
 
 export const toolRunMetricQueryArgsSchema = createToolSchema({
-    type: 'run_metric_query',
     description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
 })
     .extend({

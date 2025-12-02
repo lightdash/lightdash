@@ -16,7 +16,6 @@ Usage tips:
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
 
 export const toolFindContentArgsSchema = createToolSchema({
-    type: 'find_content',
     description: TOOL_FIND_CONTENT_DESCRIPTION,
 })
     .extend({

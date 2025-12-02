@@ -112,6 +112,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                                         lineVariant={'dashed'}
                                     >
                                         <ToolCallDescription
+                                            toolName={toolName}
                                             toolCall={toolCall}
                                         />
                                     </Timeline.Item>

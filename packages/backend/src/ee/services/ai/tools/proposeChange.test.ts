@@ -31,7 +31,6 @@ describe('translateToolProposeChangeArgs', () => {
         expect(
             await translateToolProposeChangeArgs(
                 {
-                    type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',
                     rationale: 'Update the description of the customers table',
                     change: {
@@ -77,7 +76,6 @@ describe('translateToolProposeChangeArgs', () => {
         expect(
             await translateToolProposeChangeArgs(
                 {
-                    type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',
                     rationale: 'Update the description of the customers table',
                     change: {
@@ -119,7 +117,6 @@ describe('translateToolProposeChangeArgs', () => {
         expect(
             await translateToolProposeChangeArgs(
                 {
-                    type: AiResultType.PROPOSE_CHANGE,
                     entityTableName: 'customers',
                     rationale: 'Update the description of the customers table',
                     change: {

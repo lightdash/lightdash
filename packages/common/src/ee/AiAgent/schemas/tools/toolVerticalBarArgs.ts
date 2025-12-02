@@ -15,7 +15,6 @@ import { verticalBarMetricVizConfigSchema } from '../visualizations';
 export const TOOL_VERTICAL_BAR_VIZ_DESCRIPTION = `Use this tool to generate a Bar Chart Visualization.`;
 
 export const toolVerticalBarArgsSchema = createToolSchema({
-    type: AiResultType.VERTICAL_BAR_RESULT,
     description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
 })
     .extend({

@@ -18,7 +18,6 @@ Usage tips:
 `;
 
 export const toolFindDashboardsArgsSchema = createToolSchema({
-    type: 'find_dashboards',
     description: TOOL_FIND_DASHBOARDS_DESCRIPTION,
 })
     .extend({
