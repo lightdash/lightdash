@@ -187,7 +187,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
             <Box
                 ref={containerRef}
                 miw="inherit"
-                h="inherit"
+                mah="100%"
                 pos="relative"
                 sx={{
                     overflow: 'auto',
