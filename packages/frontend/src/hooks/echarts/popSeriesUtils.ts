@@ -74,6 +74,7 @@ const createPopSeries = ({
 
     const xField = baseSerie.encode?.x;
     const seriesType = baseSerie.type || CartesianSeriesType.LINE;
+    const isBarType = seriesType === CartesianSeriesType.BAR;
     const isLineType = seriesType === CartesianSeriesType.LINE;
     const isAreaChart = isLineType && !!baseSerie.areaStyle;
 
@@ -96,6 +97,10 @@ const createPopSeries = ({
         },
         // Keep same type as sibling
         type: seriesType,
+        // For bars: remove gap between PoP bar and its sibling for tighter grouping
+        ...(isBarType && {
+            barGap: '0%',
+        }),
         // Style based on chart type for visual distinction
         ...(isLineType &&
             !isAreaChart && {
