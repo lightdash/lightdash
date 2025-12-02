@@ -34,7 +34,6 @@ import {
     Group,
     HoverCard,
     Input,
-    Loader,
     MultiSelect,
     NumberInput,
     Radio,
@@ -59,7 +58,6 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import debounce from 'lodash/debounce';
 import intersection from 'lodash/intersection';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -67,12 +65,13 @@ import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput'
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import { DefaultValue } from '../../../components/common/TagInput/DefaultValue/DefaultValue';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
-import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useGetSlack } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import MsTeamsSvg from '../../../svgs/msteams.svg?react';
@@ -128,8 +127,6 @@ const DEFAULT_VALUES_ALERT = {
     ],
     notificationFrequency: NotificationFrequency.ONCE,
 };
-
-const INITIAL_CHANNELS_LIMIT = 200; // Must match backend INITIAL_CHANNELS_LIMIT
 
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
@@ -500,19 +497,8 @@ const SchedulerForm: FC<Props> = ({
     const [emailValidationError, setEmailValidationError] = useState<
         string | undefined
     >();
-    const [privateChannels, setPrivateChannels] = useState<
-        Array<{
-            label: string;
-            value: string;
-            group: 'Private channels';
-        }>
-    >([]);
 
     const [showFormatting, setShowFormatting] = useState(false);
-
-    const [search, setSearch] = useState('');
-
-    const debounceSetSearch = debounce((val) => setSearch(val), 500);
 
     const numericMetrics = {
         ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
@@ -529,36 +515,6 @@ const SchedulerForm: FC<Props> = ({
             return SlackStates.MISSING_SCOPES;
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
-
-    const slackChannelsQuery = useSlackChannels(
-        search,
-        { excludeArchived: true },
-        { enabled: organizationHasSlack },
-    );
-
-    const slackChannels = useMemo(() => {
-        return (slackChannelsQuery?.data || [])
-            .map((channel) => {
-                const channelPrefix = channel.name.charAt(0);
-
-                return {
-                    value: channel.id,
-                    label: channel.name,
-                    group:
-                        channelPrefix === '#'
-                            ? 'Channels'
-                            : channelPrefix === '@'
-                            ? 'Users'
-                            : 'Private channels',
-                };
-            })
-            .concat(privateChannels);
-    }, [slackChannelsQuery?.data, privateChannels]);
-
-    // Always enable debounced search to reduce API calls
-    // With the 200 initial channel limit, search is needed to find specific channels
-    const responsiveChannelsSearchEnabled =
-        slackChannels.length >= INITIAL_CHANNELS_LIMIT || search.length > 0;
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
@@ -1205,54 +1161,17 @@ const SchedulerForm: FC<Props> = ({
                                         >
                                             <HoverCard.Target>
                                                 <Box w="100%">
-                                                    <MultiSelect
+                                                    <SlackChannelSelect
+                                                        multiple
+                                                        size="sm"
                                                         placeholder="Search slack channels"
-                                                        data={slackChannels}
-                                                        searchable
-                                                        creatable
-                                                        limit={500}
-                                                        withinPortal
                                                         value={
                                                             form.values
                                                                 .slackTargets
                                                         }
-                                                        rightSection={
-                                                            slackChannelsQuery?.isInitialLoading ?? (
-                                                                <Loader size="sm" />
-                                                            )
-                                                        }
                                                         disabled={
                                                             isAddSlackDisabled
                                                         }
-                                                        getCreateLabel={(
-                                                            query,
-                                                        ) =>
-                                                            `Send to private channel #${query}`
-                                                        }
-                                                        onCreate={(newItem) => {
-                                                            setPrivateChannels(
-                                                                (current) => [
-                                                                    ...current,
-                                                                    {
-                                                                        label: newItem,
-                                                                        value: newItem,
-                                                                        group: 'Private channels',
-                                                                    },
-                                                                ],
-                                                            );
-                                                            return newItem;
-                                                        }}
-                                                        onSearchChange={(
-                                                            val,
-                                                        ) => {
-                                                            if (
-                                                                responsiveChannelsSearchEnabled
-                                                            ) {
-                                                                debounceSetSearch(
-                                                                    val,
-                                                                );
-                                                            }
-                                                        }}
                                                         onChange={(val) => {
                                                             form.setFieldValue(
                                                                 'slackTargets',

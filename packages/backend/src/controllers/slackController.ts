@@ -53,6 +53,7 @@ export class SlackController extends BaseController {
         @Query() excludeDms?: boolean,
         @Query() excludeGroups?: boolean,
         @Query() forceRefresh?: boolean,
+        @Query() includeChannelIds?: string,
     ): Promise<ApiSlackChannelsResponse> {
         this.setStatus(200);
         return {
@@ -65,6 +66,9 @@ export class SlackController extends BaseController {
                     excludeDms,
                     excludeGroups,
                     forceRefresh,
+                    includeChannelIds: includeChannelIds
+                        ? includeChannelIds.split(',').filter(Boolean)
+                        : undefined,
                 }),
         };
     }

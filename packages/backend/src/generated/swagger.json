@@ -28012,6 +28012,14 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeChannelIds",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ]
             }

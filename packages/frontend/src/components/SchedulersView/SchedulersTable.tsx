@@ -72,6 +72,7 @@ import {
 interface SchedulersTableProps {
     projectUuid: string;
     getSlackChannelName: (channelId: string) => string | null;
+    onSlackChannelIdsChange?: (channelIds: string[]) => void;
 }
 
 const fetchSize = 50;
@@ -100,6 +101,7 @@ const getRunStatusConfig = (status: SchedulerRunStatus) => {
 const SchedulersTable: FC<SchedulersTableProps> = ({
     projectUuid,
     getSlackChannelName,
+    onSlackChannelIdsChange,
 }) => {
     const theme = useMantineTheme();
     const { data: project } = useProject(projectUuid);
@@ -180,6 +182,21 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             a.name.localeCompare(b.name),
         );
     }, [flatData]);
+
+    // Extract unique Slack channel IDs from loaded schedulers and report them
+    useEffect(() => {
+        if (!onSlackChannelIdsChange) return;
+
+        const channelIds = new Set<string>();
+        flatData.forEach((scheduler) => {
+            scheduler.targets.forEach((target) => {
+                if (isSlackTarget(target)) {
+                    channelIds.add(target.channel);
+                }
+            });
+        });
+        onSlackChannelIdsChange(Array.from(channelIds));
+    }, [flatData, onSlackChannelIdsChange]);
 
     // Callback to fetch more data when scrolling
     const fetchMoreOnBottomReached = useCallback(

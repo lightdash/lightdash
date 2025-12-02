@@ -9,7 +9,7 @@ import {
 } from '@mantine-8/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { type FC, useCallback, useMemo } from 'react';
+import { type FC, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -33,13 +33,27 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             ? SchedulersViewTab.RUN_HISTORY
             : SchedulersViewTab.ALL_SCHEDULERS;
 
-    const { data: slackInstallation } = useGetSlack();
+    const {
+        data: slackInstallation,
+        isInitialLoading: isLoadingSlackInstallation,
+    } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
+
+    // Track slack channel IDs from scheduler data to ensure they're included in the query
+    const [schedulerSlackChannelIds, setSchedulerSlackChannelIds] = useState<
+        string[]
+    >([]);
 
     const slackChannelsQuery = useSlackChannels(
         '',
-        { excludeArchived: false },
-        { enabled: organizationHasSlack },
+        {
+            excludeArchived: false,
+            includeChannelIds:
+                schedulerSlackChannelIds.length > 0
+                    ? schedulerSlackChannelIds
+                    : undefined,
+        },
+        { enabled: organizationHasSlack && !isLoadingSlackInstallation },
     );
 
     // Create a map of Slack channel ID -> name
@@ -135,6 +149,9 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         <SchedulersTable
                             projectUuid={projectUuid}
                             getSlackChannelName={getSlackChannelName}
+                            onSlackChannelIdsChange={
+                                setSchedulerSlackChannelIds
+                            }
                         />
                     </Tabs.Panel>
                     <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>

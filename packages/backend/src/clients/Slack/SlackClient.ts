@@ -36,8 +36,7 @@ import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 
 const DEFAULT_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
-const MAX_CHANNELS_LIMIT = 100000;
-const INITIAL_CHANNELS_LIMIT = 200;
+const CHANNELS_LIMIT = 200;
 
 export type PostSlackFile = {
     organizationUuid: string;
@@ -171,6 +170,7 @@ export class SlackClient {
             excludeDms?: boolean;
             excludeGroups?: boolean;
             forceRefresh?: boolean;
+            includeChannelIds?: string[];
         } = {
             excludeArchived: true,
             excludeDms: false,
@@ -196,14 +196,29 @@ export class SlackClient {
                 );
             }
 
-            if (!search && finalResults.length > INITIAL_CHANNELS_LIMIT) {
+            // Always include specified channel IDs (e.g., currently selected channels)
+            const includeIds = filter.includeChannelIds ?? [];
+            const includedChannels =
+                includeIds.length > 0
+                    ? cached.channels.filter((channel) =>
+                          includeIds.includes(channel.id),
+                      )
+                    : [];
+
+            if (finalResults.length > CHANNELS_LIMIT) {
                 Logger.debug(
-                    `Limiting Slack channels response to ${INITIAL_CHANNELS_LIMIT} (total: ${finalResults.length}). Use search to find specific channels.`,
+                    `Limiting Slack channels response to ${CHANNELS_LIMIT} (total: ${finalResults.length}). Use search to find specific channels.`,
                 );
-                return finalResults.slice(0, INITIAL_CHANNELS_LIMIT);
+                const limited = finalResults.slice(0, CHANNELS_LIMIT);
+                // Merge included channels that aren't already in the limited results
+                const limitedIds = new Set(limited.map((c) => c.id));
+                const missingIncluded = includedChannels.filter(
+                    (c) => !limitedIds.has(c.id),
+                );
+                return [...limited, ...missingIncluded];
             }
 
-            return finalResults.slice(0, MAX_CHANNELS_LIMIT);
+            return finalResults;
         };
 
         const isCacheValid = () => {
