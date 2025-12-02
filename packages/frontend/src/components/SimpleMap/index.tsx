@@ -254,9 +254,162 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
     }, [mapConfig?.geoJsonUrl, mapConfig?.isLatLong]);
 
     // Get location type from visualization config
-    const locationType = isMapVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig.validConfig.locationType
-        : undefined;
+    const locationType = useMemo(
+        () =>
+            isMapVisualizationConfig(visualizationConfig)
+                ? visualizationConfig.chartConfig.validConfig.locationType
+                : undefined,
+        [visualizationConfig],
+    );
+
+    // Memoize scatter/lat-long mode calculations
+    const scatterData = useMemo(
+        () => mapConfig?.scatterData || [],
+        [mapConfig?.scatterData],
+    );
+
+    const scatterValueRange = useMemo(() => {
+        const values = scatterData.map((d) => d.value);
+        return {
+            min: values.length > 0 ? Math.min(...values, 0) : 0,
+            max: values.length > 0 ? Math.max(...values, 1) : 1,
+        };
+    }, [scatterData]);
+
+    const sizeScale = useMemo(() => {
+        if (!mapConfig) return null;
+        const sizeMin = mapConfig.sizeRange?.min ?? scatterValueRange.min;
+        const sizeMax = mapConfig.sizeRange?.max ?? scatterValueRange.max;
+        return scaleSqrt()
+            .domain([sizeMin, sizeMax])
+            .range([mapConfig.minBubbleSize, mapConfig.maxBubbleSize]);
+    }, [mapConfig, scatterValueRange.min, scatterValueRange.max]);
+
+    const heatmapPoints = useMemo((): [number, number, number][] => {
+        const { min, max } = scatterValueRange;
+        return scatterData.map((point) => {
+            const intensity =
+                max === min ? 0.5 : (point.value - min) / (max - min);
+            return [point.lat, point.lon, intensity];
+        });
+    }, [scatterData, scatterValueRange]);
+
+    const heatmapGradient = useMemo((): Record<number, string> => {
+        if (!mapConfig) return {};
+        const gradient: Record<number, string> = {};
+        mapConfig.colors.scale.forEach((color, index) => {
+            const position = index / (mapConfig.colors.scale.length - 1);
+            gradient[position] = color;
+        });
+        return gradient;
+    }, [mapConfig]);
+
+    const isHeatmap = mapConfig?.locationType === MapChartType.HEATMAP;
+
+    // Memoize choropleth/area mode calculations
+    const regionData = useMemo(
+        () => mapConfig?.regionData || [],
+        [mapConfig?.regionData],
+    );
+
+    const regionDataMap = useMemo(() => {
+        const dataMap = new Map<string, number>();
+        regionData.forEach((d) => {
+            dataMap.set(d.name.toLowerCase(), d.value);
+        });
+        return dataMap;
+    }, [regionData]);
+
+    const regionValueRange = useMemo(() => {
+        const values = regionData.map((d) => d.value);
+        return {
+            min: values.length > 0 ? Math.min(...values) : 0,
+            max: values.length > 0 ? Math.max(...values) : 1,
+        };
+    }, [regionData]);
+
+    const choroplethStyle = useCallback(
+        (feature: any): L.PathOptions => {
+            if (!feature?.properties || !mapConfig) {
+                return {
+                    fillColor: '#f3f3f3',
+                    weight: 0.5,
+                    opacity: 1,
+                    color: '#999',
+                    fillOpacity: 0.5,
+                };
+            }
+
+            const name =
+                feature.properties.name?.toLowerCase() ||
+                feature.properties.NAME?.toLowerCase() ||
+                '';
+            const value = regionDataMap.get(name);
+
+            if (value !== undefined) {
+                const color = getColorForValue(
+                    value,
+                    regionValueRange.min,
+                    regionValueRange.max,
+                    mapConfig.colors.scale,
+                );
+                return {
+                    fillColor: color,
+                    weight: 1,
+                    opacity: 1,
+                    color: '#666',
+                    fillOpacity: 0.7,
+                };
+            }
+
+            return {
+                fillColor: '#f3f3f3',
+                weight: 0.5,
+                opacity: 1,
+                color: '#999',
+                fillOpacity: 0.5,
+            };
+        },
+        [regionDataMap, regionValueRange, mapConfig],
+    );
+
+    const onEachFeature = useCallback(
+        (feature: GeoJSON.Feature, layer: L.Layer) => {
+            const name =
+                feature.properties?.name ||
+                feature.properties?.NAME ||
+                'Unknown';
+            const value = regionDataMap.get(name.toLowerCase());
+
+            if (layer instanceof L.Path) {
+                layer.on({
+                    mouseover: () => {
+                        layer.setStyle({
+                            weight: 2,
+                            fillOpacity: 0.9,
+                        });
+                    },
+                    mouseout: () => {
+                        layer.setStyle({
+                            weight: 1,
+                            fillOpacity: 0.7,
+                        });
+                    },
+                });
+            }
+
+            const valueLabel = mapConfig?.valueFieldLabel || 'Value';
+            const popupContent = `
+                <div>
+                    <strong>${name}</strong><br/>
+                    ${valueLabel}: ${value !== undefined ? value : 'No data'}
+                </div>
+            `;
+
+            (layer as L.Path).bindPopup(popupContent);
+        },
+        [regionDataMap, mapConfig?.valueFieldLabel],
+    );
 
     if (isLoading) {
         return <LoadingChart />;
@@ -268,43 +421,6 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
 
     // Scatter/Heatmap mode - render markers or heatmap (show map even without data)
     if (mapConfig.isLatLong) {
-        const scatterData = mapConfig.scatterData || [];
-        const scatterValues = scatterData.map((d) => d.value);
-        const minValue =
-            scatterValues.length > 0 ? Math.min(...scatterValues, 0) : 0;
-        const maxValue =
-            scatterValues.length > 0 ? Math.max(...scatterValues, 1) : 1;
-
-        // Use sizeRange for bubble sizing (based on sizeFieldId or value)
-        const sizeMin = mapConfig.sizeRange?.min ?? minValue;
-        const sizeMax = mapConfig.sizeRange?.max ?? maxValue;
-
-        // Create d3 sqrt scale for proportional circle sizing (scatter mode)
-        const sizeScale = scaleSqrt()
-            .domain([sizeMin, sizeMax])
-            .range([mapConfig.minBubbleSize, mapConfig.maxBubbleSize]);
-
-        // Prepare heatmap points: [lat, lng, intensity]
-        const heatmapPoints: [number, number, number][] = scatterData.map(
-            (point) => {
-                // Normalize intensity to 0-1 range
-                const intensity =
-                    maxValue === minValue
-                        ? 0.5
-                        : (point.value - minValue) / (maxValue - minValue);
-                return [point.lat, point.lon, intensity];
-            },
-        );
-
-        // Build gradient from color scale
-        const heatmapGradient: Record<number, string> = {};
-        mapConfig.colors.scale.forEach((color, index) => {
-            const position = index / (mapConfig.colors.scale.length - 1);
-            heatmapGradient[position] = color;
-        });
-
-        const isHeatmap = mapConfig.locationType === MapChartType.HEATMAP;
-
         return (
             <div
                 className={`${classes.container} ${props.className ?? ''}`}
@@ -347,12 +463,13 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                             }}
                         />
                     ) : (
+                        sizeScale &&
                         scatterData.map((point, idx) => {
                             const radius = sizeScale(point.sizeValue);
                             const color = getColorForValue(
                                 point.value,
-                                minValue,
-                                maxValue,
+                                scatterValueRange.min,
+                                scatterValueRange.max,
                                 mapConfig.colors.scale,
                             );
                             return (
@@ -405,94 +522,6 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
 
     // Choropleth/Area mode - render map with optional GeoJSON layer
     if (!mapConfig.isLatLong) {
-        const regionData = mapConfig.regionData || [];
-        const dataMap = new Map<string, number>();
-        regionData.forEach((d) => {
-            dataMap.set(d.name.toLowerCase(), d.value);
-        });
-
-        const values = regionData.map((d) => d.value);
-        const minValue = values.length > 0 ? Math.min(...values) : 0;
-        const maxValue = values.length > 0 ? Math.max(...values) : 1;
-
-        const style = (feature: any): L.PathOptions => {
-            if (!feature?.properties) {
-                return {
-                    fillColor: '#f3f3f3',
-                    weight: 0.5,
-                    opacity: 1,
-                    color: '#999',
-                    fillOpacity: 0.5,
-                };
-            }
-
-            const name =
-                feature.properties.name?.toLowerCase() ||
-                feature.properties.NAME?.toLowerCase() ||
-                '';
-            const value = dataMap.get(name);
-
-            if (value !== undefined) {
-                const color = getColorForValue(
-                    value,
-                    minValue,
-                    maxValue,
-                    mapConfig.colors.scale,
-                );
-                return {
-                    fillColor: color,
-                    weight: 1,
-                    opacity: 1,
-                    color: '#666',
-                    fillOpacity: 0.7,
-                };
-            }
-
-            // Default style for regions without data
-            return {
-                fillColor: '#f3f3f3',
-                weight: 0.5,
-                opacity: 1,
-                color: '#999',
-                fillOpacity: 0.5,
-            };
-        };
-
-        const onEachFeature = (feature: GeoJSON.Feature, layer: L.Layer) => {
-            const name =
-                feature.properties?.name ||
-                feature.properties?.NAME ||
-                'Unknown';
-            const value = dataMap.get(name.toLowerCase());
-
-            if (layer instanceof L.Path) {
-                layer.on({
-                    mouseover: () => {
-                        layer.setStyle({
-                            weight: 2,
-                            fillOpacity: 0.9,
-                        });
-                    },
-                    mouseout: () => {
-                        layer.setStyle({
-                            weight: 1,
-                            fillOpacity: 0.7,
-                        });
-                    },
-                });
-            }
-
-            const valueLabel = mapConfig.valueFieldLabel || 'Value';
-            const popupContent = `
-                <div>
-                    <strong>${name}</strong><br/>
-                    ${valueLabel}: ${value !== undefined ? value : 'No data'}
-                </div>
-            `;
-
-            (layer as L.Path).bindPopup(popupContent);
-        };
-
         return (
             <div
                 className={`${classes.container} ${props.className ?? ''}`}
@@ -529,7 +558,7 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                             <GeoJSON
                                 key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonData.features.length}`}
                                 data={geoJsonData}
-                                style={style}
+                                style={choroplethStyle}
                                 onEachFeature={onEachFeature}
                             />
                         )}

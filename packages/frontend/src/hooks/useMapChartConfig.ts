@@ -93,7 +93,7 @@ const useMapChartConfig = (
     );
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
-    >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
+    >(initialConfig?.tileBackground ?? MapTileBackground.LIGHT);
     const [backgroundColor, setBackgroundColorState] = useState<
         string | undefined
     >(initialConfig?.backgroundColor);
