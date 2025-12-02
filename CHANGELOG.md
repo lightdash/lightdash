@@ -1,3 +1,10 @@
+# [0.2216.0](https://github.com/lightdash/lightdash/compare/0.2215.2...0.2216.0) (2025-12-02)
+
+
+### Features
+
+* leaflet-based maps ([#18394](https://github.com/lightdash/lightdash/issues/18394)) ([701d8a2](https://github.com/lightdash/lightdash/commit/701d8a2e0a97e6e5afdf0f1089f75f6a56af8194))
+
 ## [0.2215.2](https://github.com/lightdash/lightdash/compare/0.2215.1...0.2215.2) (2025-12-02)
 
 
