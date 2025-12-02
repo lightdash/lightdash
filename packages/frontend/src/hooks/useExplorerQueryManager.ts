@@ -186,22 +186,11 @@ export const useExplorerQueryManager = () => {
         dispatch,
     ]);
 
-    // Compute loading state
+    // Compute loading state - combines query creation + results loading
     const isLoading = useMemo(() => {
         const isCreatingQuery = query.isFetching;
-        const isFetchingFirstPage = queryResults.isFetchingFirstPage;
-        const isFetchingAllRows = queryResults.isFetchingAllPages;
-        const isQueryError = queryResults.error;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !isQueryError
-        );
-    }, [
-        query.isFetching,
-        queryResults.isFetchingFirstPage,
-        queryResults.isFetchingAllPages,
-        queryResults.error,
-    ]);
+        return Boolean(isCreatingQuery || queryResults.isLoading);
+    }, [query.isFetching, queryResults.isLoading]);
 
     return {
         // Query state

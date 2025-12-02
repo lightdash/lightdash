@@ -291,10 +291,7 @@ export type InfiniteQueryResults = Partial<
     projectUuid?: string;
     queryStatus?: QueryHistoryStatus;
     rows: ResultRow[];
-    isInitialLoading: boolean;
-    isFetchingFirstPage: boolean;
-    isFetchingRows: boolean;
-    isFetchingAllPages: boolean;
+    isLoading: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     fetchAll: boolean;
@@ -363,25 +360,6 @@ export const useInfiniteQueryResults = (
 
         return fetchedRows.length >= fetchedPages[0].totalResults;
     }, [fetchedRows, fetchedPages]);
-
-    const isFetchingRows = useMemo(() => {
-        const isFetchingPage = fetchArgs.page > fetchedPages.length;
-
-        return (
-            (!!projectUuid &&
-                !!queryUuid &&
-                (isFetchingPage || (fetchAll && !hasFetchedAllRows))) ||
-            dependenciesChanged
-        );
-    }, [
-        fetchedPages,
-        fetchArgs.page,
-        projectUuid,
-        queryUuid,
-        fetchAll,
-        hasFetchedAllRows,
-        dependenciesChanged,
-    ]);
 
     const queryClient = useQueryClient();
 
@@ -530,9 +508,20 @@ export const useInfiniteQueryResults = (
         );
     }, [fetchAll, fetchedPages]);
 
-    const isInitialLoading = useMemo(() => {
-        return fetchAll ? !hasFetchedAllRows : fetchedPages.length < 1;
-    }, [fetchedPages, fetchAll, hasFetchedAllRows]);
+    // Computed loading states - single source of truth
+    const isFetchingFirstPage = useMemo(() => {
+        return (
+            dependenciesChanged ||
+            (!!queryUuid && !fetchedPages.length) ||
+            (!!queryUuid && fetchedPages[0]?.totalResults === undefined)
+        );
+    }, [dependenciesChanged, queryUuid, fetchedPages]);
+
+    const isLoading = useMemo(() => {
+        const isFetchingAllPages = fetchAll && !hasFetchedAllRows;
+        const hasError = !!nextPage.error;
+        return (isFetchingFirstPage || isFetchingAllPages) && !hasError;
+    }, [isFetchingFirstPage, fetchAll, hasFetchedAllRows, nextPage.error]);
 
     return useMemo(
         () => ({
@@ -545,16 +534,10 @@ export const useInfiniteQueryResults = (
             columns: fetchedPages[0]?.columns,
             hasFetchedAllRows,
             rows: fetchedRows,
-            isFetchingRows,
             fetchMoreRows,
             setFetchAll,
             totalClientFetchTimeMs,
-            isInitialLoading: isInitialLoading || dependenciesChanged,
-            isFetchingFirstPage:
-                dependenciesChanged ||
-                (!!queryUuid && !fetchedPages.length) ||
-                (!!queryUuid && fetchedPages[0]?.totalResults === undefined),
-            isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
+            isLoading,
             fetchAll,
             error: nextPage.error,
         }),
@@ -566,10 +549,9 @@ export const useInfiniteQueryResults = (
             fetchedPages,
             hasFetchedAllRows,
             fetchedRows,
-            isFetchingRows,
             fetchMoreRows,
             totalClientFetchTimeMs,
-            isInitialLoading,
+            isLoading,
             nextPage.error,
             fetchAll,
         ],

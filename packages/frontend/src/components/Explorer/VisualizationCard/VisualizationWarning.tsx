@@ -18,14 +18,10 @@ import MantineIcon from '../../common/MantineIcon';
 export type PivotMismatchWarningProps = {
     pivotDimensions: string[] | undefined;
     chartConfig: ChartConfig;
-    resultsData: Pick<
-        InfiniteQueryResults,
-        | 'isFetchingRows'
-        | 'isInitialLoading'
-        | 'isFetchingFirstPage'
-        | 'pivotDetails'
-    > & { metricQuery?: MetricQuery; fields?: ItemsMap };
-    isLoading: boolean;
+    resultsData: Pick<InfiniteQueryResults, 'isLoading' | 'pivotDetails'> & {
+        metricQuery?: MetricQuery;
+        fields?: ItemsMap;
+    };
     maxColumnLimit: number | undefined;
 };
 
@@ -33,7 +29,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     pivotDimensions,
     chartConfig,
     resultsData,
-    isLoading,
     maxColumnLimit,
 }) => {
     const { data: useSqlPivotResults } = useFeatureFlag(
@@ -45,11 +40,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         [pivotDimensions],
     );
 
-    const isQueryFetching = Boolean(
-        resultsData?.isInitialLoading ||
-            resultsData?.isFetchingFirstPage ||
-            resultsData?.isFetchingRows,
-    );
+    const isQueryFetching = resultsData?.isLoading ?? false;
 
     // Determine if pivot column limit has been exceeded
     const shouldShowPivotColumnLimit = useMemo(() => {
@@ -122,7 +113,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     // Determine how many messages to show
     const messages = useMemo(() => {
         // Only show when not loading/fetching
-        if (isLoading || isQueryFetching) return [];
+        if (isQueryFetching) return [];
 
         const _messages: string[] = [];
         if (shouldShowUnusedDims) {
@@ -142,7 +133,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         }
         return _messages;
     }, [
-        isLoading,
         isQueryFetching,
         shouldShowPivotMismatch,
         shouldShowUnusedDims,

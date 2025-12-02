@@ -41,12 +41,12 @@ const getQueryStatus = (
     queryResults: ReturnType<typeof useInfiniteQueryResults>,
 ): 'loading' | 'error' | 'idle' | 'success' => {
     const isCreatingQuery = query.isFetching;
-    const isFetchingFirstPage = queryResults.isFetchingFirstPage;
+    const isLoading = queryResults.isLoading;
 
     // Don't return queryResults.status because we changed from mutation to query so 'loading' has a different meaning
     if (queryResults.error || query.error) {
         return 'error';
-    } else if (isCreatingQuery || isFetchingFirstPage) {
+    } else if (isCreatingQuery || isLoading) {
         return 'loading';
     } else if (!query.data) {
         return 'idle';
@@ -108,9 +108,7 @@ export const ExplorerResults = memo(() => {
             return {
                 rows: unpivotedQueryResults.rows,
                 totalResults: unpivotedQueryResults.totalResults,
-                isFetchingRows:
-                    unpivotedQueryResults.isFetchingRows &&
-                    !unpivotedQueryResults.error,
+                isLoading: unpivotedQueryResults.isLoading,
                 fetchMoreRows: unpivotedQueryResults.fetchMoreRows,
                 status: getQueryStatus(unpivotedQuery, unpivotedQueryResults),
                 apiError: unpivotedQuery.error ?? unpivotedQueryResults.error,
@@ -121,7 +119,7 @@ export const ExplorerResults = memo(() => {
         const result = {
             rows: queryResults.rows,
             totalResults: queryResults.totalResults,
-            isFetchingRows: queryResults.isFetchingRows && !queryResults.error,
+            isLoading: queryResults.isLoading,
             fetchMoreRows: queryResults.fetchMoreRows,
             status: finalStatus,
             apiError: query.error ?? queryResults.error,
@@ -141,7 +139,7 @@ export const ExplorerResults = memo(() => {
     const {
         rows,
         totalResults: totalRows,
-        isFetchingRows,
+        isLoading,
         fetchMoreRows,
         status,
         apiError,
@@ -261,7 +259,7 @@ export const ExplorerResults = memo(() => {
                     errorDetail={apiError?.error}
                     data={rows || []}
                     totalRowsCount={totalRows || 0}
-                    isFetchingRows={isFetchingRows}
+                    isFetchingRows={isLoading}
                     fetchMoreRows={fetchMoreRows}
                     columns={columns}
                     columnOrder={explorerColumnOrder}

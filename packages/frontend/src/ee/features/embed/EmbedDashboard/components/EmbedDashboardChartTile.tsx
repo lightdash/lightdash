@@ -43,22 +43,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
         readyQuery.data?.chart.name,
     );
 
-    const isLoading = useMemo(() => {
-        const isCreatingQuery = readyQuery.isFetching;
-        const isFetchingFirstPage = resultsData.isFetchingFirstPage;
-        const isFetchingAllRows =
-            resultsData.fetchAll && !resultsData.hasFetchedAllRows;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !resultsData.error
-        );
-    }, [
-        readyQuery.isFetching,
-        resultsData.fetchAll,
-        resultsData.hasFetchedAllRows,
-        resultsData.isFetchingFirstPage,
-        resultsData.error,
-    ]);
+    // Combine query creation loading + results loading
+    const isLoading = readyQuery.isFetching || resultsData.isLoading;
 
     const error = readyQuery.error ?? resultsData.error;
 
