@@ -570,25 +570,7 @@ const SnowflakeForm: FC<{
                                 <BooleanSwitch
                                     name="warehouse.disableTimestampConversion"
                                     label="Disable timestamp conversion to UTC"
-                                    description={
-                                        <p>
-                                            <Text
-                                                color="orange"
-                                                size="sm"
-                                                weight="500"
-                                            >
-                                                ⚠️ Warning: Only enable this if
-                                                all your timestamp values are
-                                                already stored in UTC timezone.
-                                            </Text>
-                                            <br />
-                                            When disabled, Lightdash will skip
-                                            converting timestamps to UTC. This
-                                            can improve performance but requires
-                                            your data to already be in UTC
-                                            format.
-                                        </p>
-                                    }
+                                    description="When disabled, Lightdash will skip converting timestamps to UTC. This can improve performance but requires your data to already be in UTC format."
                                     onLabel="Yes"
                                     offLabel="No"
                                     disabled={disabled}
