@@ -34,7 +34,7 @@ export const useCategoryStyles = createStyles(
                 outline: 'none',
                 filter:
                     theme.colorScheme === 'dark'
-                        ? 'brightness(0.5) contrast(2)'
+                        ? 'brightness(0.8) saturate(0.7)'
                         : 'none',
                 '&:focus': {
                     outline: `2px solid ${focusOutlineColor}`,

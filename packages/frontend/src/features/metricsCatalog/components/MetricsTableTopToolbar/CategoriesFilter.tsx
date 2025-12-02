@@ -119,7 +119,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack spacing={4}>
-                        <Text fz="xs" c="ldDark.3" fw={600}>
+                        <Text fz="xs" c="ldGray.6" fw={600}>
                             Filter by categories:
                         </Text>
 

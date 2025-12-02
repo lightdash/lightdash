@@ -48,8 +48,12 @@ const NavBar = memo(() => {
 
     const { navBarMode } = useNavBarMode();
 
-    // Force dark theme for navbar
-    const darkTheme = useMemo(() => getMantineThemeOverride('dark'), []);
+    // Force dark theme for navbar (excluding global styles)
+    const darkTheme = useMemo(() => {
+        const fullDarkTheme = getMantineThemeOverride('dark');
+        const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
+        return themeWithoutGlobalStyles;
+    }, []);
 
     const isCurrentProjectPreview = !!projects?.find(
         (project) =>
@@ -92,10 +96,7 @@ const NavBar = memo(() => {
     };
 
     return (
-        <MantineProvider
-            inherit
-            theme={{ colorScheme: 'dark', colors: darkTheme.colors }}
-        >
+        <MantineProvider theme={darkTheme}>
             {isCurrentProjectPreview && <PreviewBanner />}
             {/* hack to make navbar fixed and maintain space */}
             <Box h={!isFullscreen ? headerContainerHeight : 0} />
