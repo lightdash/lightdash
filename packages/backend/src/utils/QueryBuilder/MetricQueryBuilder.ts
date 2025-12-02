@@ -103,6 +103,25 @@ export type BuildQueryProps = {
  * @param isAdd - Whether to add (true) or subtract (false) the interval
  * @returns The warehouse-specific interval syntax with comparison
  */
+/**
+ * Converts QUARTER interval to 3 months for databases that don't support QUARTER.
+ * @param value - The interval value
+ * @param granularity - The time granularity
+ * @returns Tuple of [convertedValue, convertedGranularity]
+ */
+function convertQuarterToMonths(
+    value: number,
+    granularity: string,
+): [number, string] {
+    const upperGranularity = granularity.toUpperCase();
+
+    if (upperGranularity === 'QUARTER') {
+        return [value * 3, 'MONTH'];
+    }
+
+    return [value, granularity];
+}
+
 export function getIntervalSyntax(
     adapterType: SupportedDbtAdapter,
     column: string,
@@ -121,41 +140,71 @@ export function getIntervalSyntax(
             // BigQuery always uses DATE_ADD/DATE_SUB
             intervalExpression = `DATE_${operation}(DATE(${columnWithInterval}), INTERVAL ${value} ${granularity})`;
             break;
-        case SupportedDbtAdapter.DATABRICKS:
-            // Databricks uses standard interval arithmetic
+        case SupportedDbtAdapter.DATABRICKS: {
+            // Databricks uses interval arithmetic with quoted values
+            // Databricks doesn't support QUARTER interval, convert to months
+            const [dbValue, dbGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL ${value} ${granularity}`;
+            } INTERVAL '${dbValue}' ${dbGranularity}`;
             break;
+        }
         case SupportedDbtAdapter.SNOWFLAKE:
             // Snowflake uses DATEADD function
             intervalExpression = `DATEADD(${granularity}, ${
                 isAdd ? value : -value
             }, ${columnWithInterval})`;
             break;
-        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.REDSHIFT: {
             // Redshift uses standard interval arithmetic
+            // Redshift doesn't support QUARTER interval, convert to months
+            const [redshiftValue, redshiftGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value} ${granularity}'`;
+            } INTERVAL '${redshiftValue} ${redshiftGranularity}'`;
             break;
-        case SupportedDbtAdapter.POSTGRES:
+        }
+        case SupportedDbtAdapter.POSTGRES: {
             // Postgres uses standard interval arithmetic
+            // Postgres doesn't support QUARTER interval, convert to months
+            const [pgValue, pgGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value} ${granularity}'`;
+            } INTERVAL '${pgValue} ${pgGranularity}'`;
             break;
-        case SupportedDbtAdapter.TRINO:
+        }
+        case SupportedDbtAdapter.TRINO: {
             // Trino uses standard interval arithmetic
+            // Trino doesn't support QUARTER interval, convert to months
+            const [trinoValue, trinoGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
-            } INTERVAL '${value}' ${granularity}`;
+            } INTERVAL '${trinoValue}' ${trinoGranularity}`;
             break;
-        case SupportedDbtAdapter.CLICKHOUSE:
+        }
+        case SupportedDbtAdapter.CLICKHOUSE: {
             // ClickHouse uses date arithmetic functions
+            // ClickHouse doesn't support QUARTER interval, convert to months
+            const [chValue, chGranularity] = convertQuarterToMonths(
+                value,
+                granularity,
+            );
             const func = isAdd ? 'date_add' : 'date_sub';
-            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${value} ${granularity})`;
+            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${chValue} ${chGranularity})`;
             break;
+        }
         default:
             // Default to standard SQL interval syntax
             intervalExpression = `${columnWithInterval} ${
