@@ -1,9 +1,6 @@
-name: Build & Deploy to Docker Hub
+name: Build Container & Release to Docker Hub
 
 on:
-  pull_request:
-    branches:
-      - 'main'
   push:
     tags:
       - '*'
