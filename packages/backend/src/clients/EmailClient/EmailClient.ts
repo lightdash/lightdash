@@ -757,11 +757,20 @@ export default class EmailClient {
         }
 
         const changeCount = payload.changes.length;
-        const changeDescription =
+        const fieldText =
             changeCount === 1
-                ? `1 setting was changed`
-                : `${changeCount} settings were changed`;
-        return `${changeDescription} by ${changedByName}`;
+                ? '1 field changed'
+                : `${changeCount} fields changed`;
+
+        if (payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE) {
+            return `Database connection updated by ${changedByName} (${fieldText})`;
+        }
+
+        if (payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE) {
+            return `dbt connection updated by ${changedByName} (${fieldText})`;
+        }
+
+        return `${fieldText} by ${changedByName}`;
     }
 
     public async sendAdminChangeNotificationEmail(
