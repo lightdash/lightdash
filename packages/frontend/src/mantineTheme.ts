@@ -99,16 +99,16 @@ const darkModeColors = {
         '#C1C2C5',
     ] as ColorTuple,
     ldGray: [
-        '#2e2e32',
-        '#414145',
-        '#545458',
-        '#67676b',
-        '#7a7a7e',
-        '#8d8d91',
-        '#a0a0a4',
-        '#b3b3b7',
-        '#c6c6ca',
-        '#d9d9df',
+        '#252528',
+        '#303032',
+        '#3b3b3f',
+        '#464649',
+        '#515154',
+        '#5c5c60',
+        '#676769',
+        '#727275',
+        '#7d7d81',
+        '#888892',
     ] as ColorTuple,
 };
 
@@ -304,7 +304,10 @@ export const getMantineThemeOverride = (
             },
 
             'html, body': {
-                backgroundColor: theme.colors.ldGray[0],
+                backgroundColor:
+                    theme.colorScheme === 'dark'
+                        ? theme.colors.ldDark[1]
+                        : theme.colors.ldGray[0],
             },
 
             body: {
@@ -339,5 +342,12 @@ export const getMantineThemeOverride = (
                 from: { opacity: 0 },
                 to: { opacity: 1 },
             },
+            ...(theme.colorScheme === 'dark'
+                ? {
+                      '[class*="mantine-"][data-with-border]': {
+                          borderColor: theme.colors.ldDark[4],
+                      },
+                  }
+                : undefined),
         }),
     } satisfies MantineThemeOverride);
