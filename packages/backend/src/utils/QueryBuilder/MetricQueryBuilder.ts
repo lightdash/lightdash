@@ -1657,7 +1657,7 @@ export class MetricQueryBuilder {
                         if (Object.keys(dimensionSelects).length === 0) {
                             return `CROSS JOIN ${metricCte.name}`;
                         }
-                        return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
+                        return `LEFT JOIN ${metricCte.name} ON ${dimensionAlias
                             .map(
                                 (alias) =>
                                     `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
@@ -1668,7 +1668,7 @@ export class MetricQueryBuilder {
                         if (Object.keys(dimensionSelects).length === 0) {
                             return ``; // no need to join on PoP metrics
                         }
-                        return `INNER JOIN ${
+                        return `LEFT JOIN ${
                             popMetricCte.name
                         } ON ${dimensionAlias
                             .map((alias) => {
@@ -2206,7 +2206,7 @@ export class MetricQueryBuilder {
                 `SELECT`,
                 [`  ${baseCteName}.*`, ...popMetricSelects].join(',\n'),
                 `FROM ${baseCteName}`,
-                `INNER JOIN ${popCteName} ON ${dimensionAlias
+                `LEFT JOIN ${popCteName} ON ${dimensionAlias
                     .map((alias) => {
                         if (
                             alias ===

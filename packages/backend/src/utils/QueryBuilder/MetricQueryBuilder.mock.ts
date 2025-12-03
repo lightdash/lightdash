@@ -1853,7 +1853,7 @@ cte_unaffected AS (
 metrics AS (
     SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3"
     FROM cte_unaffected
-    INNER JOIN cte_metrics_table2 ON ( cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1" OR ( cte_unaffected."table1_dim1" IS NULL AND cte_metrics_table2."table1_dim1" IS NULL ) )
+    LEFT JOIN cte_metrics_table2 ON ( cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1" OR ( cte_unaffected."table1_dim1" IS NULL AND cte_metrics_table2."table1_dim1" IS NULL ) )
 )
 SELECT
   *,
