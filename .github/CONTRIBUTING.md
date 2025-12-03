@@ -367,6 +367,53 @@ The development environment includes Mailpit for testing email functionality loc
     - Sharing alerts via email
     - Password reset emails
 
+#### Testing Email Locally with Mailpit (without Docker)
+
+If you're running Lightdash without Docker, you can install and run Mailpit directly:
+
+1. **Install Mailpit**:
+
+    **macOS (using Homebrew):**
+
+    ```shell
+    brew install mailpit
+    ```
+
+    **Linux/macOS (using install script):**
+
+    ```shell
+    sudo bash < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh)
+    ```
+
+    **Other options:** See the [Mailpit installation guide](https://github.com/axllent/mailpit#installation) for more methods including Arch Linux (AUR), FreeBSD, or downloading static binaries.
+
+2. **Run Mailpit**:
+
+    ```shell
+    mailpit
+    ```
+
+    Or run as a background service on macOS:
+
+    ```shell
+    brew services start mailpit
+    ```
+
+3. **Configure Lightdash** in your `.env.development.local`:
+
+    ```shell
+    SMTP_HOST=localhost
+    SMTP_PORT=1025
+    SMTP_SECURE=false
+    SMTP_ALLOW_INVALID_CERT=false
+    SMTP_SENDER_EMAIL=lightdash@localhost.com
+    SMTP_SENDER_NAME=Lightdash
+    ```
+
+4. **Access the Mailpit Web UI**:
+    - Navigate to http://localhost:8025
+    - All emails sent from Lightdash will appear here
+
 #### Downloading files stored in local docker container MinIO
 
 When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
