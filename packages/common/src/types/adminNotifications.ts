@@ -9,8 +9,6 @@ export enum AdminNotificationType {
 
 export type ChangeDetail = {
     field: string;
-    previousValue: string | null;
-    newValue: string | null;
 };
 
 export type AdminNotificationPayload = {
