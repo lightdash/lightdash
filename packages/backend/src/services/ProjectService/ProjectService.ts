@@ -242,6 +242,7 @@ import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -285,6 +286,7 @@ export type ProjectServiceArguments = {
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     projectCompileLogModel: ProjectCompileLogModel;
+    adminNotificationService: AdminNotificationService;
 };
 
 export class ProjectService extends BaseService {
@@ -348,6 +350,8 @@ export class ProjectService extends BaseService {
 
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
+    adminNotificationService: AdminNotificationService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -378,6 +382,7 @@ export class ProjectService extends BaseService {
         projectParametersModel,
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
+        adminNotificationService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -411,6 +416,7 @@ export class ProjectService extends BaseService {
         this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
+        this.adminNotificationService = adminNotificationService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -1885,6 +1891,62 @@ export class ProjectService extends BaseService {
         this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
+
+        if (updatedProject.warehouseConnection) {
+            const databaseChanges =
+                this.adminNotificationService.detectDatabaseChanges(
+                    savedProject.warehouseConnection,
+                    updatedProject.warehouseConnection,
+                );
+
+            if (databaseChanges.length > 0) {
+                this.adminNotificationService
+                    .notifyDatabaseConnectionChange({
+                        organizationUuid: savedProject.organizationUuid,
+                        projectUuid,
+                        projectName: savedProject.name,
+                        changedBy: user,
+                        changes: databaseChanges,
+                    })
+                    .catch((error) => {
+                        this.logger.error(
+                            'Failed to send database connection change notification',
+                            {
+                                error,
+                                projectUuid,
+                            },
+                        );
+                    });
+            }
+        }
+
+        if (updatedProject.dbtConnection) {
+            const dbtChanges = this.adminNotificationService.detectDbtChanges(
+                savedProject.dbtConnection,
+                updatedProject.dbtConnection,
+            );
+
+            if (dbtChanges.length > 0) {
+                this.adminNotificationService
+                    .notifyDbtConnectionChange({
+                        organizationUuid: savedProject.organizationUuid,
+                        projectUuid,
+                        projectName: savedProject.name,
+                        changedBy: user,
+                        changes: dbtChanges,
+                    })
+                    .catch((error) => {
+                        this.logger.error(
+                            'Failed to send dbt connection change notification',
+                            {
+                                error,
+                                projectUuid,
+                            },
+                        );
+                    });
+            }
+        }
+
         await this.jobModel.create(job);
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
