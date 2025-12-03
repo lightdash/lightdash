@@ -1739,8 +1739,8 @@ LIMIT 10`;
                                     target: {
                                         fieldId: 'calc1',
                                     },
-                                    operator: FilterOperator.GREATER_THAN,
-                                    values: [0],
+                                    operator: FilterOperator.NOT_NULL,
+                                    values: [],
                                 },
                             ],
                         },
@@ -1778,8 +1778,9 @@ LIMIT 10`;
             );
 
             // Final SELECT should explicitly include the table calculation
+            // Match the SELECT after the CTE closing paren (not the SELECT inside the CTE)
             const finalSelectMatch = result.query.match(
-                /SELECT\s+(.*?)\s+FROM\s+table_calculations\s+WHERE/s,
+                /\)\s*SELECT\s+(.*?)\s+FROM\s+table_calculations\s+WHERE/s,
             );
             expect(finalSelectMatch).toBeTruthy();
             if (finalSelectMatch) {
@@ -1798,7 +1799,7 @@ LIMIT 10`;
 
             // Should have both metric and table calc filters in WHERE clause
             expect(result.query).toContain('("table2_metric3") IN (100)');
-            expect(result.query).toContain('("calc1") > (0)');
+            expect(result.query).toContain('("calc1") IS NOT NULL');
         });
     });
 
