@@ -1,0 +1,17 @@
+:global(iframe[src*='headwayapp.co']) {
+    color-scheme: light dark;
+}
+
+/* Switch to dark mode when Mantine color scheme is dark */
+[data-mantine-color-scheme='dark'] :global(.HW_widget),
+[data-mantine-color-scheme='dark'] :global(.HW_frame_cont),
+[data-mantine-color-scheme='dark'] :global(iframe[src*='headwayapp.co']) {
+    filter: invert(0.9) hue-rotate(180deg);
+}
+
+/* Prevent double inversion on images within the inverted iframe */
+[data-mantine-color-scheme='dark'] :global(.HW_widget img),
+[data-mantine-color-scheme='dark'] :global(.HW_frame_cont img),
+[data-mantine-color-scheme='dark'] :global(iframe[src*='headwayapp.co'] img) {
+    filter: invert(0.9) hue-rotate(180deg);
+}
