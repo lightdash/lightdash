@@ -1847,6 +1847,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: UpdateProject,
         method: RequestMethod,
+        account?: Account,
     ): Promise<{ jobUuid: string }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1892,7 +1893,7 @@ export class ProjectService extends BaseService {
 
         await this.projectModel.update(projectUuid, updatedProject);
 
-        if (updatedProject.warehouseConnection) {
+        if (account && updatedProject.warehouseConnection) {
             const databaseChanges =
                 this.adminNotificationService.detectDatabaseChanges(
                     savedProject.warehouseConnection,
@@ -1905,7 +1906,7 @@ export class ProjectService extends BaseService {
                         organizationUuid: savedProject.organizationUuid,
                         projectUuid,
                         projectName: savedProject.name,
-                        changedBy: user,
+                        changedBy: account,
                         changes: databaseChanges,
                     })
                     .catch((error) => {
@@ -1920,7 +1921,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (updatedProject.dbtConnection) {
+        if (account && updatedProject.dbtConnection) {
             const dbtChanges = this.adminNotificationService.detectDbtChanges(
                 savedProject.dbtConnection,
                 updatedProject.dbtConnection,
@@ -1932,7 +1933,7 @@ export class ProjectService extends BaseService {
                         organizationUuid: savedProject.organizationUuid,
                         projectUuid,
                         projectName: savedProject.name,
-                        changedBy: user,
+                        changedBy: account,
                         changes: dbtChanges,
                     })
                     .catch((error) => {
