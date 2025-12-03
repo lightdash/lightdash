@@ -402,6 +402,7 @@ const createOptimisticMessages = (
             savedQueryUuid: null,
             artifacts: null,
             referencedArtifacts: null,
+            modelConfig: null,
         },
     ];
 };

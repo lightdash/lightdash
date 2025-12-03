@@ -56,6 +56,7 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink } from './ContentLink';
+import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
@@ -567,6 +568,12 @@ export const AssistantBubble: FC<Props> = memo(
                                 <MantineIcon icon={IconBug} />
                             </ActionIcon>
                         )}
+
+                        <MessageModelIndicator
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            modelConfig={message.modelConfig}
+                        />
                     </Group>
                 )}
 

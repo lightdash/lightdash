@@ -168,6 +168,7 @@ export type AiAgentMessageAssistant = {
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
+    modelConfig: { modelId: string; modelProvider: string } | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

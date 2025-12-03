@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { type FC, useCallback } from 'react';
+import { type FC, useCallback, useEffect, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -36,15 +36,34 @@ const AiAgentNewThreadPage: FC = () => {
     );
     const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
 
-    if (import.meta.env.DEV) {
-        console.log('modelOptions', modelOptions);
-    }
+    const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+
+    // Initialize to default model when data loads
+    useEffect(() => {
+        if (modelOptions && !selectedModelId) {
+            const defaultModel = modelOptions.find((m) => m.default);
+            if (defaultModel) {
+                setSelectedModelId(defaultModel.id);
+            }
+        }
+    }, [modelOptions, selectedModelId]);
 
     const onSubmit = useCallback(
         (prompt: string) => {
-            void createAgentThread({ prompt });
+            const selectedModel = modelOptions?.find(
+                (m) => m.id === selectedModelId,
+            );
+            void createAgentThread({
+                prompt,
+                modelConfig: selectedModel
+                    ? {
+                          modelId: selectedModel.id,
+                          modelProvider: selectedModel.provider,
+                      }
+                    : undefined,
+            });
         },
-        [createAgentThread],
+        [createAgentThread, modelOptions, selectedModelId],
     );
 
     return (
@@ -137,6 +156,11 @@ const AiAgentNewThreadPage: FC = () => {
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
+                        models={modelOptions}
+                        selectedModelId={selectedModelId}
+                        onModelChange={setSelectedModelId}
+                        // extendedThinking={extendedThinking}
+                        // onExtendedThinkingChange={setExtendedThinking}
                     />
                 </Stack>
             </Stack>
