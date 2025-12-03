@@ -583,6 +583,8 @@ export class ServiceRepository
                         this.models.getOrganizationWarehouseCredentialsModel(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        this.getAdminNotificationService(),
                 }),
         );
     }
@@ -634,6 +636,8 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        this.getAdminNotificationService(),
                 }),
         );
     }
