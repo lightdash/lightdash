@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Box,
     CopyButton,
     Drawer,
@@ -15,7 +16,7 @@ import {
     Text,
     Title,
     useMantineTheme,
-    type MantineTheme,
+    type DefaultMantineColor,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -40,29 +41,16 @@ import ProjectCompileLog from './ProjectCompileLog';
 dayjs.extend(duration);
 dayjs.extend(utc);
 
-const statusInfo = (status: string, theme: MantineTheme) => {
+const statusInfo = (status: string): DefaultMantineColor => {
     switch (status) {
         case 'DONE':
-            return {
-                background: theme.colors.green['1'],
-                color: theme.colors.green['9'],
-            };
+            return 'green';
         case 'ERROR':
-            return {
-                background: theme.colors.red['1'],
-                color: theme.colors.red['9'],
-            };
+            return 'red';
         case 'SKIPPED':
-            return {
-                background: theme.colors.ldGray['1'],
-                color: theme.colors.ldGray['6'],
-                fontStyle: 'italic',
-            };
+            return 'gray';
         default:
-            return {
-                background: theme.colors.ldGray['1'],
-                color: theme.colors.ldGray['9'],
-            };
+            return 'gray';
     }
 };
 
@@ -102,7 +90,7 @@ const DrawerIcon: FC<DrawerIconProps> = ({ job }) => {
         case JobStatusType.DONE:
             return <MantineIcon icon={IconCircleCheckFilled} size="xl" />;
         case JobStatusType.RUNNING:
-            return <Loader color="dark" size="sm" />;
+            return <Loader color="gray" size="sm" />;
         case JobStatusType.STARTED:
             return null;
         default:
@@ -112,29 +100,13 @@ const DrawerIcon: FC<DrawerIconProps> = ({ job }) => {
 
 type StepIconProps = { step: JobStep };
 const StepIcon: FC<StepIconProps> = ({ step }) => {
-    const theme = useMantineTheme();
-
     switch (step.stepStatus) {
         case JobStepStatusType.ERROR:
-            return (
-                <MantineIcon
-                    icon={IconAlertTriangleFilled}
-                    style={{
-                        color: statusInfo(step.stepStatus, theme).color,
-                    }}
-                />
-            );
+            return <MantineIcon icon={IconAlertTriangleFilled} />;
         case JobStepStatusType.DONE:
-            return (
-                <MantineIcon
-                    icon={IconCircleCheckFilled}
-                    style={{
-                        color: statusInfo(step.stepStatus, theme).color,
-                    }}
-                />
-            );
+            return <MantineIcon icon={IconCircleCheckFilled} />;
         case JobStepStatusType.RUNNING:
-            return <Loader color="dark" size={16} />;
+            return <Loader color="gray" size={16} />;
         case JobStepStatusType.SKIPPED:
         case JobStepStatusType.PENDING:
             return null;
@@ -186,43 +158,23 @@ const JobDetailsDrawer: FC = () => {
         >
             <Stack p="sm">
                 {activeJob.steps?.map((step) => (
-                    <Group
+                    <Alert
+                        variant="light"
                         key={step.jobUuid}
-                        align="flex-start"
-                        bg={statusInfo(step.stepStatus, theme).background}
-                        p="sm"
-                        spacing="xs"
-                        w="100%"
-                        sx={{
-                            borderRadius: 3,
-                        }}
+                        color={statusInfo(step.stepStatus)}
+                        icon={<StepIcon step={step} />}
+                        title={step.stepLabel}
                     >
-                        <Box pt={2}>
-                            <StepIcon step={step} />
-                        </Box>
                         <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-                            <Text fw={600}>{step.stepLabel}</Text>
-
-                            <Text fz="xs">
-                                <Text
-                                    span
-                                    fw={600}
-                                    c={statusInfo(step.stepStatus, theme).color}
-                                    fs={
-                                        statusInfo(step.stepStatus, theme)
-                                            .fontStyle || 'normal'
-                                    }
-                                >
-                                    {jobStepStatusLabel(step.stepStatus)}{' '}
-                                </Text>
-                                {jobStepDuration(step)}
+                            <Text fz="xs" fw={500}>
+                                {jobStepStatusLabel(step.stepStatus)} (
+                                {jobStepDuration(step)})
                             </Text>
                             {step.stepError && (
                                 <Stack
                                     mt="xs"
                                     pt="xs"
                                     sx={{
-                                        backgroundColor: theme.colors.red[0],
                                         border: `1px solid ${theme.colors.red[2]}`,
                                         borderRadius: theme.radius.sm,
                                         padding: theme.spacing.xs,
@@ -309,7 +261,7 @@ const JobDetailsDrawer: FC = () => {
                                 </Stack>
                             )}
                         </Stack>
-                    </Group>
+                    </Alert>
                 ))}
                 {isJobDone && activeJob.projectUuid && (
                     <ProjectCompileLog
