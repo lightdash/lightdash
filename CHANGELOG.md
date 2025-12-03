@@ -1,3 +1,12 @@
+## [0.2221.1](https://github.com/lightdash/lightdash/compare/0.2221.0...0.2221.1) (2025-12-03)
+
+
+### Bug Fixes
+
+* cache message is too dark in dark mode ([#18526](https://github.com/lightdash/lightdash/issues/18526)) ([6e00427](https://github.com/lightdash/lightdash/commit/6e004277bd4ef7f571fc1b03c035c93500a64635)), closes [#18425](https://github.com/lightdash/lightdash/issues/18425)
+* chart label readability in dark mode ([#18520](https://github.com/lightdash/lightdash/issues/18520)) ([c2d2bef](https://github.com/lightdash/lightdash/commit/c2d2bef1407c3e2e7711e5c7ccfc46250c663ec4)), closes [#18421](https://github.com/lightdash/lightdash/issues/18421)
+* job details drawer dark theme ([#18528](https://github.com/lightdash/lightdash/issues/18528)) ([c96047b](https://github.com/lightdash/lightdash/commit/c96047b5c69538fbe68877da4838030b098bcc25)), closes [#18449](https://github.com/lightdash/lightdash/issues/18449)
+
 # [0.2221.0](https://github.com/lightdash/lightdash/compare/0.2220.0...0.2221.0) (2025-12-03)
 
 
