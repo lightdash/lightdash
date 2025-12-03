@@ -672,6 +672,7 @@ export class RolesService extends BaseService {
                 account,
                 userUuid,
                 projectUuid,
+                project.organizationUuid,
                 previousProjectRole,
                 newProjectRole,
             )

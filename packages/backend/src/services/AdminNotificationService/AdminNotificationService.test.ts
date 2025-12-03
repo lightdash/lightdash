@@ -307,6 +307,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
@@ -319,6 +320,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
@@ -334,6 +336,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.ADMIN,
             ProjectMemberRole.EDITOR,
         );
@@ -349,6 +352,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.VIEWER,
             ProjectMemberRole.EDITOR,
         );
@@ -361,6 +365,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
@@ -383,6 +388,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
@@ -397,6 +403,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
@@ -411,6 +418,7 @@ describe('AdminNotificationService', () => {
             mockSessionAccount,
             mockTargetUserUuid,
             mockProjectUuid,
+            mockOrganizationUuid,
             ProjectMemberRole.EDITOR,
             ProjectMemberRole.ADMIN,
         );
