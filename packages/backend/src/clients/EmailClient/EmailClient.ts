@@ -1,4 +1,6 @@
 import {
+    AdminNotificationPayload,
+    AdminNotificationType,
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
@@ -730,6 +732,61 @@ export default class EmailClient {
             },
             text: `${title}\n\n${message}`,
             attachments,
+        });
+    }
+
+    public async sendAdminChangeNotificationEmail(
+        recipients: string[],
+        payload: AdminNotificationPayload,
+    ): Promise<void> {
+        const subjectMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'Organization Admin Added',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'Organization Admin Removed',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]: 'Project Admin Added',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'Project Admin Removed',
+        };
+
+        const projectContext = payload.projectName
+            ? `${payload.projectName} - ${payload.organizationName}`
+            : payload.organizationName;
+
+        const isRemoval = payload.type.includes('removed');
+
+        return this.sendEmail({
+            to: recipients,
+            subject: `[Lightdash] ${
+                subjectMap[payload.type]
+            } - ${projectContext}`,
+            template: 'adminChangeNotification',
+            context: {
+                type: payload.type,
+                organizationName: payload.organizationName,
+                projectName: payload.projectName,
+                changes: payload.changes,
+                changedBy: payload.changedBy,
+                targetUser: payload.targetUser,
+                timestamp: payload.timestamp.toISOString(),
+                settingsUrl: payload.settingsUrl,
+                host: this.lightdashConfig.siteUrl,
+                isRemoval,
+            },
+            text: payload.changedBy.isServiceAccount
+                ? `${payload.targetUser.firstName} ${
+                      payload.targetUser.lastName
+                  } was ${
+                      isRemoval ? 'removed as admin' : 'added as admin'
+                  } by Service Account: ${
+                      payload.changedBy.serviceAccountDescription
+                  }`
+                : `${payload.targetUser.firstName} ${
+                      payload.targetUser.lastName
+                  } was ${
+                      isRemoval ? 'removed as admin' : 'added as admin'
+                  } by ${payload.changedBy.firstName} ${
+                      payload.changedBy.lastName
+                  }`,
         });
     }
 }
