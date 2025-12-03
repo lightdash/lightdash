@@ -1,5 +1,5 @@
 import { CartesianSeriesType, type Series } from '../../../types/savedCharts';
-import { WHITE } from './themeColors';
+import { BACKGROUND, FOREGROUND } from './themeColors';
 
 /**
  * Get value label styling for any chart series (line, bar, area, scatter, etc.)
@@ -18,6 +18,7 @@ export const getValueLabelStyle = (
     const base = {
         fontSize: 11,
         fontWeight: isInside ? '400' : '500',
+        color: FOREGROUND,
     } as const;
 
     if (
@@ -27,7 +28,7 @@ export const getValueLabelStyle = (
     ) {
         return {
             ...base,
-            textBorderColor: WHITE,
+            textBorderColor: BACKGROUND,
             textBorderWidth: 1.5,
             textBorderType: 'solid',
         };

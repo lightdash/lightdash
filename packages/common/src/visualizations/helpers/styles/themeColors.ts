@@ -18,6 +18,7 @@ export const GRAY_9 = 'var(--mantine-color-ldGray-9)';
 // White
 export const WHITE = 'var(--mantine-color-white)';
 
+export const FOREGROUND = 'var(--mantine-color-foreground-0)';
 export const BACKGROUND = 'var(--mantine-color-background-0)';
 export const TOOLTIP_BACKGROUND = 'var(--mantine-color-background-1)';
 
