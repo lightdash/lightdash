@@ -1,3 +1,10 @@
+## [0.2218.2](https://github.com/lightdash/lightdash/compare/0.2218.1...0.2218.2) (2025-12-03)
+
+
+### Bug Fixes
+
+* no public spaces to save chart ([#18438](https://github.com/lightdash/lightdash/issues/18438)) ([369f435](https://github.com/lightdash/lightdash/commit/369f4351f132b7c17d9de530228fb5e0fb162a4d))
+
 ## [0.2218.1](https://github.com/lightdash/lightdash/compare/0.2218.0...0.2218.1) (2025-12-02)
 
 
