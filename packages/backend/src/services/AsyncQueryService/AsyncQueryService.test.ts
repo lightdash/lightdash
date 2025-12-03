@@ -50,6 +50,7 @@ import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvaila
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
@@ -202,6 +203,7 @@ const getMockedAsyncQueryService = (
         }),
         permissionsService: {} as PermissionsService,
         projectCompileLogModel: {} as ProjectCompileLogModel,
+        adminNotificationService: {} as AdminNotificationService,
         ...overrides,
     });
 
