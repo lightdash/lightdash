@@ -1,3 +1,10 @@
+## [0.2221.3](https://github.com/lightdash/lightdash/compare/0.2221.2...0.2221.3) (2025-12-03)
+
+
+### Bug Fixes
+
+* saved charts header dark theme ([#18537](https://github.com/lightdash/lightdash/issues/18537)) ([f167b0e](https://github.com/lightdash/lightdash/commit/f167b0e7e070bc4a231df13268011faa0603eff0))
+
 ## [0.2221.2](https://github.com/lightdash/lightdash/compare/0.2221.1...0.2221.2) (2025-12-03)
 
 
