@@ -113,6 +113,7 @@ export const mockRolesModel = {
     deleteRole: jest.fn(),
     removeScopeFromRole: jest.fn(),
     getOrganizationRoleAssignments: jest.fn(),
+    getOrganizationAdmins: jest.fn(),
     upsertOrganizationUserRoleAssignment: jest.fn(),
     upsertSystemRoleProjectAccess: jest.fn(),
     upsertCustomRoleProjectAccess: jest.fn(),
@@ -122,6 +123,7 @@ export const mockRolesModel = {
     assignRoleToGroup: jest.fn(),
     unassignRoleFromGroup: jest.fn(),
     getProjectAccess: jest.fn(),
+    getProjectAccessByUserUuid: jest.fn(),
     getGroupProjectAccess: jest.fn(),
     removeUserProjectAccess: jest.fn(),
     db: {
@@ -166,4 +168,9 @@ export const mockGroupsModel = {
         groupUuid: 'test-group-uuid',
         name: 'Test Group',
     }),
+};
+
+export const mockAdminNotificationService = {
+    notifyOrgAdminRoleChange: jest.fn().mockResolvedValue(undefined),
+    notifyProjectAdminRoleChange: jest.fn().mockResolvedValue(undefined),
 };
