@@ -2329,6 +2329,11 @@ export class MetricQueryBuilder {
                           ),
                           ...(shouldInlineSimpleCalcs
                               ? simpleTableCalculationSelects
+                              : createdSimpleTableCalcsCte
+                              ? simpleTableCalcs.map(
+                                    (tableCalc) =>
+                                        `  ${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                                )
                               : []),
                       ]
                     : [
