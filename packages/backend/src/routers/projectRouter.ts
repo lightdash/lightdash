@@ -32,6 +32,7 @@ projectRouter.patch(
                 req.user!,
                 req.body,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),
+                req.account,
             )
             .then((results) => {
                 res.json({
