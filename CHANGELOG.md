@@ -1,3 +1,10 @@
+# [0.2220.0](https://github.com/lightdash/lightdash/compare/0.2219.0...0.2220.0) (2025-12-03)
+
+
+### Features
+
+* dark mode for headway widget ([#18514](https://github.com/lightdash/lightdash/issues/18514)) ([12855fb](https://github.com/lightdash/lightdash/commit/12855fb49cd0bbc8a5e75e03d3ed962895878c7b))
+
 # [0.2219.0](https://github.com/lightdash/lightdash/compare/0.2218.3...0.2219.0) (2025-12-03)
 
 
