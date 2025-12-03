@@ -9,8 +9,6 @@ import {
     FeatureFlags,
     OrganizationMemberRole,
     ProjectMemberRole,
-    sensitiveCredentialsFieldNames,
-    sensitiveDbtFieldNames,
     SessionUser,
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -204,26 +202,6 @@ export class AdminNotificationService extends BaseService {
         };
     }
 
-    private static formatChangeValue(
-        value: unknown,
-        isSensitive: boolean,
-        isNewValue: boolean = false,
-    ): string | null {
-        if (value === undefined || value === null) {
-            return null;
-        }
-
-        if (isSensitive) {
-            return isNewValue ? '[UPDATED]' : '[REDACTED]';
-        }
-
-        if (typeof value === 'object') {
-            return '[Complex Value]';
-        }
-
-        return String(value);
-    }
-
     private async getOrganizationName(
         organizationUuid: string,
     ): Promise<string> {
@@ -274,35 +252,6 @@ export class AdminNotificationService extends BaseService {
         if (value === null) return 'null';
         if (Array.isArray(value)) return JSON.stringify(value.sort());
         if (typeof value === 'object') return JSON.stringify(value);
-        return String(value);
-    }
-
-    private static formatDbtChangeValue(
-        value: unknown,
-        isSensitive: boolean,
-        isNewValue: boolean = false,
-    ): string | null {
-        if (value === undefined || value === null) {
-            return null;
-        }
-
-        if (isSensitive) {
-            return isNewValue ? '[UPDATED]' : '[REDACTED]';
-        }
-
-        if (Array.isArray(value)) {
-            if (value.length === 0) return '(empty)';
-            return value.join(', ');
-        }
-
-        if (typeof value === 'object') {
-            return '[Complex Value]';
-        }
-
-        if (typeof value === 'boolean') {
-            return value ? 'Yes' : 'No';
-        }
-
         return String(value);
     }
 
@@ -593,21 +542,11 @@ export class AdminNotificationService extends BaseService {
                 if (beforeValue === undefined && afterValue === undefined)
                     return;
 
-                const isSensitive = (
-                    sensitiveCredentialsFieldNames as readonly string[]
-                ).includes(key);
-
+                // Only store field name - templates don't display before/after values
                 changes.push({
                     field: this.getFieldLabel(key),
-                    previousValue: AdminNotificationService.formatChangeValue(
-                        beforeValue,
-                        isSensitive,
-                    ),
-                    newValue: AdminNotificationService.formatChangeValue(
-                        afterValue,
-                        isSensitive,
-                        true,
-                    ),
+                    previousValue: null,
+                    newValue: null,
                 });
             });
 
@@ -739,22 +678,11 @@ export class AdminNotificationService extends BaseService {
                 if (beforeValue === undefined && afterValue === undefined)
                     return;
 
-                const isSensitive = (
-                    sensitiveDbtFieldNames as readonly string[]
-                ).includes(key);
-
+                // Only store field name - templates don't display before/after values
                 changes.push({
                     field: this.getDbtFieldLabel(key),
-                    previousValue:
-                        AdminNotificationService.formatDbtChangeValue(
-                            beforeValue,
-                            isSensitive,
-                        ),
-                    newValue: AdminNotificationService.formatDbtChangeValue(
-                        afterValue,
-                        isSensitive,
-                        true,
-                    ),
+                    previousValue: null,
+                    newValue: null,
                 });
             });
 
