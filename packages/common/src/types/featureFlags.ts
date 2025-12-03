@@ -74,6 +74,11 @@ export enum FeatureFlags {
      * Dark mode
      */
     DarkMode = 'dark-mode',
+
+    /**
+     * Enable admin change notifications for critical configuration changes
+     */
+    AdminChangeNotifications = 'admin-change-notifications',
 }
 
 export type FeatureFlag = {
