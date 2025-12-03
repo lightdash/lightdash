@@ -22,6 +22,7 @@ import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
 import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
+import type useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import type useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
@@ -241,6 +242,28 @@ export type VisualizationConfigMapProps = Omit<
     itemsMap: ItemsMap | undefined;
 };
 
+// Sankey
+
+export type VisualizationConfigSankeyType = {
+    chartType: ChartType.SANKEY;
+    chartConfig: ReturnType<typeof useSankeyChartConfig>;
+    dimensions: Record<string, Dimension>;
+    numericFields: Record<string, Metric | TableCalculation>;
+};
+
+export const isSankeyVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigSankeyType => {
+    return visualizationConfig?.chartType === ChartType.SANKEY;
+};
+
+export type VisualizationConfigSankeyProps =
+    VisualizationConfigCommon<VisualizationConfigSankeyType> & {
+        itemsMap: ItemsMap | undefined;
+        colorPalette: string[];
+        tableCalculationsMetadata?: TableCalculationMetadata[];
+    };
+
 // Union of all visualization configs
 
 export type VisualizationConfig =
@@ -252,4 +275,5 @@ export type VisualizationConfig =
     | VisualizationConfigTreemap
     | VisualizationConfigGauge
     | VisualizationConfigMap
+    | VisualizationConfigSankeyType
     | VisualizationCustomConfigType;

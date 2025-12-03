@@ -21,6 +21,7 @@ import {
     type ParameterDefinitions,
     type PieChartConfig,
     type ReplaceCustomFields,
+    type SankeyChartConfig,
     type SavedChart,
     type TableCalculation,
     type TableCalculationMetadata,
@@ -83,6 +84,7 @@ export type ConfigCacheMap = {
     [ChartType.TREEMAP]: ChartConfigCache<TreemapChartConfig['config']>;
     [ChartType.GAUGE]: ChartConfigCache<GaugeChartConfig['config']>;
     [ChartType.MAP]: ChartConfigCache<MapChartConfig['config']>;
+    [ChartType.SANKEY]: ChartConfigCache<SankeyChartConfig['config']>;
     [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
 };
 

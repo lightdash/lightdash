@@ -19,6 +19,7 @@ import {
     IconFilter,
     IconGauge,
     IconMap,
+    IconRouteAltLeft,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -37,6 +38,7 @@ import {
     isGaugeVisualizationConfig,
     isMapVisualizationConfig,
     isPieVisualizationConfig,
+    isSankeyVisualizationConfig,
     isTableVisualizationConfig,
     isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
@@ -190,6 +192,13 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Map',
                     icon: <MantineIcon icon={IconMap} color="gray" />,
+                };
+            case ChartType.SANKEY:
+                return {
+                    text: 'Sankey chart',
+                    icon: (
+                        <MantineIcon icon={IconRouteAltLeft} color="ldGray" />
+                    ),
                 };
             case ChartType.CUSTOM:
                 return {
@@ -413,6 +422,23 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Gauge
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isSankeyVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconRouteAltLeft} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.SANKEY);
+                    }}
+                >
+                    Sankey chart
                 </Menu.Item>
 
                 {isMapsEnabled && (

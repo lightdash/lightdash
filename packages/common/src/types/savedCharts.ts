@@ -25,6 +25,7 @@ export enum ChartKind {
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
     MAP = 'map',
+    SANKEY = 'sankey',
 }
 
 export enum ChartType {
@@ -37,6 +38,7 @@ export enum ChartType {
     GAUGE = 'gauge',
     CUSTOM = 'custom',
     MAP = 'map',
+    SANKEY = 'sankey',
 }
 
 export enum ComparisonFormatTypes {
@@ -219,6 +221,42 @@ export type FunnelChart = {
     };
     showLegend?: boolean;
     legendPosition?: FunnelChartLegendPosition;
+};
+
+export enum SankeyChartLabelPosition {
+    LEFT = 'left',
+    RIGHT = 'right',
+    INSIDE = 'inside',
+    HIDDEN = 'hidden',
+}
+
+export enum SankeyChartOrientation {
+    HORIZONTAL = 'horizontal',
+    VERTICAL = 'vertical',
+}
+
+export type SankeyChart = {
+    // Source and target dimension fields
+    sourceFieldId?: string;
+    targetFieldId?: string;
+    // Value/weight metric field
+    valueFieldId?: string;
+    // Display options
+    nodeWidth?: number;
+    nodeGap?: number;
+    orientation?: SankeyChartOrientation;
+    // Label options
+    labels?: {
+        position?: SankeyChartLabelPosition;
+        showValue?: boolean;
+    };
+    // Color options
+    nodeColorOverrides?: Record<string, string>;
+    linkColorMode?: 'source' | 'target' | 'gradient';
+    // Interaction options
+    draggable?: boolean;
+    // Legend options (for node colors)
+    showLegend?: boolean;
 };
 
 export type ColumnProperties = {
@@ -472,6 +510,11 @@ export type MapChartConfig = {
     config?: MapChart;
 };
 
+export type SankeyChartConfig = {
+    type: ChartType.SANKEY;
+    config?: SankeyChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
@@ -481,7 +524,8 @@ export type ChartConfig =
     | TableChartConfig
     | TreemapChartConfig
     | GaugeChartConfig
-    | MapChartConfig;
+    | MapChartConfig
+    | SankeyChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -677,6 +721,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.TREEMAP;
         case ChartKind.GAUGE:
             return ChartType.GAUGE;
+        case ChartKind.SANKEY:
+            return ChartType.SANKEY;
         default:
             return ChartType.CARTESIAN;
     }
@@ -735,6 +781,8 @@ export const getChartKind = (
             return ChartKind.GAUGE;
         case ChartType.MAP:
             return ChartKind.MAP;
+        case ChartType.SANKEY:
+            return ChartKind.SANKEY;
         default:
             return assertUnreachable(
                 chartType,

@@ -47,6 +47,7 @@ import VisualizationConfigFunnel from './VisualizationConfigFunnel';
 import VisualizationGaugeConfig from './VisualizationConfigGauge';
 import VisualizationMapConfig from './VisualizationConfigMap';
 import VisualizationPieConfig from './VisualizationConfigPie';
+import VisualizationConfigSankey from './VisualizationConfigSankey';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationTreemapConfig from './VisualizationConfigTreemap';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
@@ -511,6 +512,26 @@ const VisualizationProvider: FC<
                         </Context.Provider>
                     )}
                 </VisualizationCustomConfig>
+            );
+        case ChartType.SANKEY:
+            return (
+                <VisualizationConfigSankey
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                    colorPalette={colorPalette}
+                    tableCalculationsMetadata={tableCalculationsMetadata}
+                    parameters={parameters}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationConfigSankey>
             );
         default:
             return assertUnreachable(chartConfig, 'Unknown chart type');

@@ -11,6 +11,7 @@ import {
     IconFilter,
     IconGauge,
     IconMap,
+    IconRouteAltLeft,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -46,6 +47,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconCode;
         case ChartKind.MAP:
             return IconMap;
+        case ChartKind.SANKEY:
+            return IconRouteAltLeft;
         default:
             return assertUnreachable(
                 chartKind,

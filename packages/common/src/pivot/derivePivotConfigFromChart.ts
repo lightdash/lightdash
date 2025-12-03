@@ -330,6 +330,7 @@ export function derivePivotConfigurationFromChart(
         case ChartType.CUSTOM:
         case ChartType.BIG_NUMBER:
         case ChartType.MAP:
+        case ChartType.SANKEY:
             newConfig = undefined;
             break;
         default:
