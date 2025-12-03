@@ -283,4 +283,7 @@ export const lightdashConfigMock: LightdashConfig = {
     echarts6: {
         enabled: false,
     },
+    adminChangeNotifications: {
+        enabled: false,
+    },
 };
