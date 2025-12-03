@@ -76,6 +76,16 @@ export class AdminNotificationService extends BaseService {
         }
     }
 
+    private static getServiceAccountDescription(
+        account: Account,
+    ): string | undefined {
+        if (account.authentication?.type === 'service-account') {
+            return (account.authentication as { description?: string })
+                .description;
+        }
+        return undefined;
+    }
+
     async notifyOrgAdminRoleChange(
         account: Account,
         targetUserUuid: string,
@@ -139,13 +149,9 @@ export class AdminNotificationService extends BaseService {
                     role: accountUser?.role,
                     isServiceAccount: account.isServiceAccount(),
                     serviceAccountDescription:
-                        account.authentication?.type === 'service-account'
-                            ? (
-                                  account.authentication as {
-                                      description?: string;
-                                  }
-                              ).description
-                            : undefined,
+                        AdminNotificationService.getServiceAccountDescription(
+                            account,
+                        ),
                 },
                 targetUser: {
                     userUuid: targetUser.userUuid,
@@ -274,13 +280,9 @@ export class AdminNotificationService extends BaseService {
                     role: accountUser?.role,
                     isServiceAccount: account.isServiceAccount(),
                     serviceAccountDescription:
-                        account.authentication?.type === 'service-account'
-                            ? (
-                                  account.authentication as {
-                                      description?: string;
-                                  }
-                              ).description
-                            : undefined,
+                        AdminNotificationService.getServiceAccountDescription(
+                            account,
+                        ),
                 },
                 targetUser: {
                     userUuid: targetUser.userUuid,
