@@ -4,6 +4,7 @@ import {
 } from '@ai-sdk/amazon-bedrock';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { ModelPreset } from './presets';
 import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
@@ -31,16 +32,18 @@ export const getBedrockModel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
+    preset: ModelPreset<'bedrock'>,
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
-    const model = bedrock(config.modelName);
+    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#accessing-bedrock */
+    const model = bedrock(`${config.region}.${preset.modelId}`);
 
     return {
         model,
-        callOptions: {
-            temperature: config.temperature,
-        },
-        providerOptions: undefined,
+        callOptions: preset.callOptions,
+        providerOptions: preset.providerOptions
+            ? { [PROVIDER]: preset.providerOptions }
+            : undefined,
     };
 };
 

@@ -656,9 +656,6 @@ export const getAiConfig = () => ({
                   apiKey: process.env.AZURE_AI_API_KEY,
                   apiVersion: process.env.AZURE_AI_API_VERSION,
                   deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
-                  temperature: getFloatFromEnvironmentVariable(
-                      'AZURE_AI_TEMPERATURE',
-                  ),
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -671,14 +668,9 @@ export const getAiConfig = () => ({
                       process.env.OPENAI_EMBEDDING_MODEL ||
                       DEFAULT_OPENAI_EMBEDDING_MODEL,
                   baseUrl: process.env.OPENAI_BASE_URL,
-                  temperature:
-                      getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),
-                  responsesApi: process.env.OPENAI_RESPONSES_API === 'true',
-                  reasoning: {
-                      enabled: process.env.OPENAI_REASONING_ENABLED === 'true',
-                      reasoningSummary: process.env.OPENAI_REASONING_SUMMARY,
-                      reasoningEffort: process.env.OPENAI_REASONING_EFFORT,
-                  },
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENAI_AVAILABLE_MODELS',
+                  ),
               }
             : undefined,
         anthropic: process.env.ANTHROPIC_API_KEY
@@ -687,8 +679,8 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.ANTHROPIC_MODEL_NAME ||
                       DEFAULT_ANTHROPIC_MODEL_NAME,
-                  temperature: getFloatFromEnvironmentVariable(
-                      'ANTHROPIC_TEMPERATURE',
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'ANTHROPIC_AVAILABLE_MODELS',
                   ),
               }
             : undefined,
@@ -701,9 +693,6 @@ export const getAiConfig = () => ({
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
-                  ),
-                  temperature: getFloatFromEnvironmentVariable(
-                      'OPENROUTER_TEMPERATURE',
                   ),
               }
             : undefined,
@@ -719,8 +708,8 @@ export const getAiConfig = () => ({
                           process.env.BEDROCK_MODEL_NAME ||
                           DEFAULT_BEDROCK_MODEL_NAME,
                       embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
-                      temperature: getFloatFromEnvironmentVariable(
-                          'BEDROCK_TEMPERATURE',
+                      availableModels: getArrayFromCommaSeparatedList(
+                          'BEDROCK_AVAILABLE_MODELS',
                       ),
                   }
                 : undefined,
