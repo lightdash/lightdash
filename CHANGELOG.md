@@ -1,3 +1,16 @@
+# [0.2219.0](https://github.com/lightdash/lightdash/compare/0.2218.3...0.2219.0) (2025-12-03)
+
+
+### Bug Fixes
+
+* `ldDark` color shade order is not correct in dark theme ([#18495](https://github.com/lightdash/lightdash/issues/18495)) ([73a3d28](https://github.com/lightdash/lightdash/commit/73a3d280768ac92b2879c2362e87ed0e5c41b122))
+* dark-mode for Storybook ([#18508](https://github.com/lightdash/lightdash/issues/18508)) ([d4f8a10](https://github.com/lightdash/lightdash/commit/d4f8a10a97171463ed0212d38cc83763b9294aa7))
+
+
+### Features
+
+* improve gray and dark colors in dark mode ([#18496](https://github.com/lightdash/lightdash/issues/18496)) ([6ff4c38](https://github.com/lightdash/lightdash/commit/6ff4c383b5184c5847213837f766d293163b3664)), closes [#18423](https://github.com/lightdash/lightdash/issues/18423)
+
 ## [0.2218.3](https://github.com/lightdash/lightdash/compare/0.2218.2...0.2218.3) (2025-12-03)
 
 
