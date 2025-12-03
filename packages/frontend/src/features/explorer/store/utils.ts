@@ -47,11 +47,13 @@ export const computeColumnOrderWithPoP = (
     // Build map of PoP columns using popMetadata from API
     // Key: baseFieldId, Value: popFieldId
     const popFieldsByBase = new Map<string, string>();
+    const popFieldIds = new Set<string>();
 
     for (const [fieldId, column] of Object.entries(resultsColumns)) {
         if (column.popMetadata) {
             const { baseFieldId } = column.popMetadata;
             popFieldsByBase.set(baseFieldId, fieldId);
+            popFieldIds.add(fieldId);
             popRelationships.set(fieldId, {
                 baseFieldId,
                 popFieldId: fieldId,
@@ -67,10 +69,16 @@ export const computeColumnOrderWithPoP = (
         };
     }
 
+    // Filter out any PoP fields that may have gotten into baseColumnOrder
+    // This is a defensive check to prevent duplication if PoP fields were incorrectly included
+    const cleanBaseOrder = baseColumnOrder.filter(
+        (field) => !popFieldIds.has(field),
+    );
+
     // Build complete order: insert each PoP field right after its base field
     const completeOrder: string[] = [];
 
-    for (const baseFieldId of baseColumnOrder) {
+    for (const baseFieldId of cleanBaseOrder) {
         completeOrder.push(baseFieldId);
 
         // If this base field has a PoP sibling, insert it right after
