@@ -799,9 +799,8 @@ export default class EmailClient {
             [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
                 'adminChangeNotification',
             [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
-                'databaseConnectionChange',
-            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
-                'dbtConnectionChange',
+                'connectionChange',
+            [AdminNotificationType.DBT_CONNECTION_CHANGE]: 'connectionChange',
         };
 
         const projectContext = payload.projectName
