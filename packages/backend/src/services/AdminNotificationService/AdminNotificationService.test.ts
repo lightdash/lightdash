@@ -1,8 +1,15 @@
 import {
     AdminNotificationPayload,
     AdminNotificationType,
+    CreateBigqueryCredentials,
+    CreatePostgresCredentials,
+    DbtGithubProjectConfig,
+    DbtGitlabProjectConfig,
+    DbtProjectType,
     OrganizationMemberRole,
     ProjectMemberRole,
+    SessionUser,
+    WarehouseTypes,
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -428,5 +435,374 @@ describe('AdminNotificationService', () => {
         ).toContain(
             `/projects/${mockProjectUuid}/settings/projectManagement/projectAccess`,
         );
+    });
+
+    describe('detectDatabaseChanges', () => {
+        const basePostgresCredentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'admin',
+            password: 'secret',
+            dbname: 'mydb',
+            schema: 'public',
+        };
+
+        it('should return empty array when credentials are identical', () => {
+            const changes = service.detectDatabaseChanges(
+                basePostgresCredentials,
+                basePostgresCredentials,
+            );
+            expect(changes).toEqual([]);
+        });
+
+        it('should detect warehouse type change', () => {
+            const bigqueryCredentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'my-project',
+                dataset: 'my_dataset',
+                keyfileContents: {},
+                timeoutSeconds: 300,
+                priority: 'interactive',
+                retries: 3,
+                location: 'US',
+                maximumBytesBilled: 1000000,
+            };
+
+            const changes = service.detectDatabaseChanges(
+                basePostgresCredentials,
+                bigqueryCredentials,
+            );
+
+            expect(changes).toHaveLength(1);
+            expect(changes[0].field).toBe('Warehouse Type');
+            expect(changes[0].previousValue).toBe(WarehouseTypes.POSTGRES);
+            expect(changes[0].newValue).toBe(WarehouseTypes.BIGQUERY);
+        });
+
+        it('should only return type change when warehouse type changes', () => {
+            const bigqueryCredentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'my-project',
+                dataset: 'my_dataset',
+                keyfileContents: {},
+                timeoutSeconds: 300,
+                priority: 'interactive',
+                retries: 3,
+                location: 'US',
+                maximumBytesBilled: 1000000,
+            };
+
+            const changes = service.detectDatabaseChanges(
+                basePostgresCredentials,
+                bigqueryCredentials,
+            );
+
+            expect(changes).toHaveLength(1);
+            expect(changes[0].field).toBe('Warehouse Type');
+        });
+
+        it('should detect individual field changes', () => {
+            const updatedCredentials: CreatePostgresCredentials = {
+                ...basePostgresCredentials,
+                host: 'production.db.com',
+                port: 5433,
+            };
+
+            const changes = service.detectDatabaseChanges(
+                basePostgresCredentials,
+                updatedCredentials,
+            );
+
+            expect(changes).toHaveLength(2);
+            expect(changes.map((c) => c.field)).toContain('Host');
+            expect(changes.map((c) => c.field)).toContain('Port');
+        });
+
+        it('should handle undefined before state', () => {
+            const changes = service.detectDatabaseChanges(
+                undefined,
+                basePostgresCredentials,
+            );
+
+            expect(changes.length).toBeGreaterThan(0);
+            expect(changes[0].field).toBe('Warehouse Type');
+        });
+
+        it('should use friendly field labels', () => {
+            const updatedCredentials: CreatePostgresCredentials = {
+                ...basePostgresCredentials,
+                dbname: 'newdb',
+            };
+
+            const changes = service.detectDatabaseChanges(
+                basePostgresCredentials,
+                updatedCredentials,
+            );
+
+            expect(changes[0].field).toBe('Database');
+        });
+    });
+
+    describe('detectDbtChanges', () => {
+        const baseGithubConfig: DbtGithubProjectConfig = {
+            type: DbtProjectType.GITHUB,
+            repository: 'org/repo',
+            branch: 'main',
+            project_sub_path: '/',
+            host_domain: 'github.com',
+            authorization_method: 'personal_access_token',
+            personal_access_token: 'ghp_xxx',
+        };
+
+        it('should return empty array when configs are identical', () => {
+            const changes = service.detectDbtChanges(
+                baseGithubConfig,
+                baseGithubConfig,
+            );
+            expect(changes).toEqual([]);
+        });
+
+        it('should detect connection type change', () => {
+            const gitlabConfig: DbtGitlabProjectConfig = {
+                type: DbtProjectType.GITLAB,
+                repository: 'org/repo',
+                branch: 'main',
+                project_sub_path: '/',
+                host_domain: 'gitlab.com',
+                personal_access_token: 'glpat_xxx',
+            };
+
+            const changes = service.detectDbtChanges(
+                baseGithubConfig,
+                gitlabConfig,
+            );
+
+            expect(changes).toHaveLength(1);
+            expect(changes[0].field).toBe('Connection Type');
+            expect(changes[0].previousValue).toBe('GitHub');
+            expect(changes[0].newValue).toBe('GitLab');
+        });
+
+        it('should only return type change when connection type changes', () => {
+            const gitlabConfig: DbtGitlabProjectConfig = {
+                type: DbtProjectType.GITLAB,
+                repository: 'different/repo',
+                branch: 'develop',
+                project_sub_path: '/subpath',
+                host_domain: 'gitlab.com',
+                personal_access_token: 'glpat_xxx',
+            };
+
+            const changes = service.detectDbtChanges(
+                baseGithubConfig,
+                gitlabConfig,
+            );
+
+            expect(changes).toHaveLength(1);
+            expect(changes[0].field).toBe('Connection Type');
+        });
+
+        it('should detect individual field changes', () => {
+            const updatedConfig: DbtGithubProjectConfig = {
+                ...baseGithubConfig,
+                branch: 'develop',
+                repository: 'org/new-repo',
+            };
+
+            const changes = service.detectDbtChanges(
+                baseGithubConfig,
+                updatedConfig,
+            );
+
+            expect(changes).toHaveLength(2);
+            expect(changes.map((c) => c.field)).toContain('Branch');
+            expect(changes.map((c) => c.field)).toContain('Repository');
+        });
+
+        it('should handle undefined before state', () => {
+            const changes = service.detectDbtChanges(
+                undefined,
+                baseGithubConfig,
+            );
+
+            expect(changes.length).toBeGreaterThan(0);
+            expect(changes[0].field).toBe('Connection Type');
+        });
+    });
+
+    describe('notifyDatabaseConnectionChange', () => {
+        const mockSessionUser = mockSessionAccount.user as SessionUser;
+
+        it('should not send when feature flag is disabled', async () => {
+            (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
+                enabled: false,
+            });
+
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Host', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
+        });
+
+        it('should not send when changes array is empty', async () => {
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [],
+            });
+
+            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
+        });
+
+        it('should not send when no recipients found', async () => {
+            (
+                organizationMemberProfileModel.getOrganizationAdmins as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (projectModel.getProjectAccess as jest.Mock).mockResolvedValueOnce(
+                [],
+            );
+
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Host', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
+        });
+
+        it('should send notification with correct type', async () => {
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Host', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
+            expect(sendAdminChangeNotificationEmail.mock.calls[0][1].type).toBe(
+                AdminNotificationType.DATABASE_CONNECTION_CHANGE,
+            );
+        });
+
+        it('should send to org admins and project admins', async () => {
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Host', previousValue: null, newValue: null },
+                ],
+            });
+
+            const recipients =
+                sendAdminChangeNotificationEmail.mock.calls[0][0];
+            expect(recipients).toContain(mockOrgAdmin1.email);
+            expect(recipients).toContain(mockProjectAdmin.email);
+        });
+
+        it('should include correct settings URL', async () => {
+            await service.notifyDatabaseConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Host', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(
+                sendAdminChangeNotificationEmail.mock.calls[0][1].settingsUrl,
+            ).toContain(
+                `/generalSettings/projectManagement/${mockProjectUuid}/settings`,
+            );
+        });
+    });
+
+    describe('notifyDbtConnectionChange', () => {
+        const mockSessionUser = mockSessionAccount.user as SessionUser;
+
+        it('should not send when feature flag is disabled', async () => {
+            (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
+                enabled: false,
+            });
+
+            await service.notifyDbtConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Branch', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
+        });
+
+        it('should not send when changes array is empty', async () => {
+            await service.notifyDbtConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [],
+            });
+
+            expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
+        });
+
+        it('should send notification with correct type', async () => {
+            await service.notifyDbtConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Branch', previousValue: null, newValue: null },
+                ],
+            });
+
+            expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
+            expect(sendAdminChangeNotificationEmail.mock.calls[0][1].type).toBe(
+                AdminNotificationType.DBT_CONNECTION_CHANGE,
+            );
+        });
+
+        it('should send to org admins and project admins', async () => {
+            await service.notifyDbtConnectionChange({
+                organizationUuid: mockOrganizationUuid,
+                projectUuid: mockProjectUuid,
+                projectName: 'Test Project',
+                changedBy: mockSessionUser,
+                changes: [
+                    { field: 'Branch', previousValue: null, newValue: null },
+                ],
+            });
+
+            const recipients =
+                sendAdminChangeNotificationEmail.mock.calls[0][0];
+            expect(recipients).toContain(mockOrgAdmin1.email);
+            expect(recipients).toContain(mockProjectAdmin.email);
+        });
     });
 });
