@@ -182,7 +182,7 @@
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",
-        "vite": "^7.1.10",
+        "vite": "8.0.0-beta.0",
         "vite-plugin-compression2": "^2.3.0",
         "vite-plugin-dts": "^4.5.4",
         "vite-plugin-monaco-editor": "^1.1.0",

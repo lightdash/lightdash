@@ -69,49 +69,38 @@ export default defineConfig({
 
         rollupOptions: {
             output: {
-                manualChunks: {
-                    react: [
-                        'react',
-                        'react-dom',
-                        'react-router',
-                        'react-hook-form',
-                        'react-use',
-                        // TODO: removed because of PNPM
-                        // 'react-draggable',
-                        '@hello-pangea/dnd',
-                        '@tanstack/react-query',
-                        '@tanstack/react-table',
-                        '@tanstack/react-virtual',
-                    ],
-                    echarts: ['echarts'],
-                    ace: ['ace-builds', 'react-ace/lib'],
-                    modules: [
-                        // TODO: removed because of PNPM
-                        // 'ajv',
-                        // 'ajv-formats',
-                        // 'liquidjs',
-                        // 'pegjs',
-                        'jspdf',
-                        'lodash',
-                        'colorjs.io',
-                        'zod',
-                    ],
-                    thirdparty: [
-                        '@sentry/react',
-                        'rudder-sdk-js',
-                        'posthog-js',
-                    ],
-                    uiw: [
-                        '@uiw/react-markdown-preview',
-                        '@uiw/react-md-editor',
-                    ],
-                    mantine: [
-                        '@mantine/core',
-                        '@mantine/dates',
-                        '@mantine/form',
-                        '@mantine/hooks',
-                        '@mantine/notifications',
-                        '@mantine/prism',
+                // Rolldown-specific chunking (types not yet available)
+                // @ts-expect-error advancedChunks is a Rolldown feature
+                advancedChunks: {
+                    groups: [
+                        {
+                            name: 'react',
+                            test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-hook-form|react-use|@hello-pangea[\\/]dnd|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)[\\/]/,
+                        },
+                        {
+                            name: 'echarts',
+                            test: /[\\/]node_modules[\\/]echarts/,
+                        },
+                        {
+                            name: 'ace',
+                            test: /[\\/]node_modules[\\/](ace-builds|react-ace)[\\/]/,
+                        },
+                        {
+                            name: 'modules',
+                            test: /[\\/]node_modules[\\/](jspdf|lodash|colorjs\.io|zod)[\\/]/,
+                        },
+                        {
+                            name: 'thirdparty',
+                            test: /[\\/]node_modules[\\/](@sentry[\\/]react|rudder-sdk-js|posthog-js)[\\/]/,
+                        },
+                        {
+                            name: 'uiw',
+                            test: /[\\/]node_modules[\\/]@uiw[\\/](react-markdown-preview|react-md-editor)[\\/]/,
+                        },
+                        {
+                            name: 'mantine',
+                            test: /[\\/]node_modules[\\/]@mantine[\\/](core|dates|form|hooks|notifications|prism)[\\/]/,
+                        },
                     ],
                 },
             },
