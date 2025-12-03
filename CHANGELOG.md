@@ -1,3 +1,10 @@
+## [0.2221.4](https://github.com/lightdash/lightdash/compare/0.2221.3...0.2221.4) (2025-12-03)
+
+
+### Bug Fixes
+
+* column duplication and reordering in results table ([#18539](https://github.com/lightdash/lightdash/issues/18539)) ([41312dc](https://github.com/lightdash/lightdash/commit/41312dcfc1ba6e4544e25f5f36fa7764a13c10f9))
+
 ## [0.2221.3](https://github.com/lightdash/lightdash/compare/0.2221.2...0.2221.3) (2025-12-03)
 
 
