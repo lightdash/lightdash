@@ -1,3 +1,10 @@
+## [0.2221.5](https://github.com/lightdash/lightdash/compare/0.2221.4...0.2221.5) (2025-12-03)
+
+
+### Bug Fixes
+
+* sort grouped fields by label (default) or index ([#18376](https://github.com/lightdash/lightdash/issues/18376)) ([b00125f](https://github.com/lightdash/lightdash/commit/b00125f791a1bdcf1d60e785d397663a070f7294))
+
 ## [0.2221.4](https://github.com/lightdash/lightdash/compare/0.2221.3...0.2221.4) (2025-12-03)
 
 
