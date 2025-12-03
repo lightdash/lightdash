@@ -184,12 +184,11 @@ export class AdminNotificationService extends BaseService {
         account: Account,
         targetUserUuid: string,
         projectUuid: string,
+        organizationUuid: string,
         previousRole: ProjectMemberRole | null,
         newRole: ProjectMemberRole | null,
     ): Promise<void> {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        const isEnabled = await this.isFeatureEnabled(project.organizationUuid);
+        const isEnabled = await this.isFeatureEnabled(organizationUuid);
         if (!isEnabled) {
             this.logger.debug('Admin change notifications disabled');
             return;
@@ -207,15 +206,21 @@ export class AdminNotificationService extends BaseService {
         }
 
         try {
-            const [organization, targetUser, orgAdmins, projectAccess] =
-                await Promise.all([
-                    this.organizationModel.get(project.organizationUuid),
-                    this.userModel.getUserDetailsByUuid(targetUserUuid),
-                    this.organizationMemberProfileModel.getOrganizationAdmins(
-                        project.organizationUuid,
-                    ),
-                    this.projectModel.getProjectAccess(projectUuid),
-                ]);
+            const [
+                project,
+                organization,
+                targetUser,
+                orgAdmins,
+                projectAccess,
+            ] = await Promise.all([
+                this.projectModel.getSummary(projectUuid),
+                this.organizationModel.get(organizationUuid),
+                this.userModel.getUserDetailsByUuid(targetUserUuid),
+                this.organizationMemberProfileModel.getOrganizationAdmins(
+                    organizationUuid,
+                ),
+                this.projectModel.getProjectAccess(projectUuid),
+            ]);
 
             const projectAdmins = projectAccess.filter(
                 (member) => member.role === ProjectMemberRole.ADMIN,
@@ -257,7 +262,7 @@ export class AdminNotificationService extends BaseService {
                 type: isPromotion
                     ? AdminNotificationType.PROJECT_ADMIN_ADDED
                     : AdminNotificationType.PROJECT_ADMIN_REMOVED,
-                organizationUuid: project.organizationUuid,
+                organizationUuid,
                 organizationName: organization.name,
                 projectUuid,
                 projectName: project.name,
