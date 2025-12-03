@@ -1,15 +1,10 @@
-import { type ToolSearchFieldValuesArgsTransformed } from '@lightdash/common';
 import { Badge, rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 
-type FieldValuesSearchToolCallDescriptionProps = Pick<
-    ToolSearchFieldValuesArgsTransformed,
-    'fieldId' | 'query'
->;
-
-export const FieldValuesSearchToolCallDescription: FC<
-    FieldValuesSearchToolCallDescriptionProps
-> = ({ fieldId, query }) => {
+export const FieldValuesSearchToolCallDescription: FC<{
+    fieldId: string;
+    query: string | null;
+}> = ({ fieldId, query }) => {
     return (
         <Text c="dimmed" size="xs">
             Searched for values in field{' '}

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
@@ -159,7 +158,6 @@ Configuration Tips:
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({
-    type: AiResultType.QUERY_RESULT,
     description: TOOL_RUN_QUERY_DESCRIPTION,
 })
     .extend({

@@ -135,8 +135,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
     );
 
     const defaultChartType =
-        chartConfig.type === AiResultType.QUERY_RESULT
-            ? chartConfig.chartConfig?.defaultVizType ?? 'table'
+        chartConfigFromAiAgentVizConfig.type === AiResultType.QUERY_RESULT
+            ? chartConfigFromAiAgentVizConfig.vizTool.chartConfig
+                  ?.defaultVizType ?? 'table'
             : 'table';
 
     const handleChartConfigChange = useCallback(

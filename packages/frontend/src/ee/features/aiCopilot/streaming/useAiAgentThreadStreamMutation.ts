@@ -1,5 +1,4 @@
 import {
-    AiResultType,
     toolImproveContextArgsSchema,
     ToolNameSchema,
     toolRunQueryOutputSchema,
@@ -191,11 +190,7 @@ export function useAiAgentThreadStreamMutation() {
                                                 part.input,
                                             );
 
-                                        if (
-                                            improveContextArgs.success &&
-                                            improveContextArgs.data.type ===
-                                                AiResultType.IMPROVE_CONTEXT
-                                        ) {
+                                        if (improveContextArgs.success) {
                                             dispatch(
                                                 setImproveContextNotification({
                                                     threadUuid,

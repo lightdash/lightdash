@@ -50,48 +50,15 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
     schema,
 });
 
-function createToolSchema<
-    $Type extends string,
-    $Description extends string,
->(args: {
-    type: $Type;
+function createToolSchema<$Description extends string>(args: {
     description: $Description;
-}): ReturnType<typeof toolSchemaBuilder<{ type: z.ZodLiteral<$Type> }>>;
-function createToolSchema<
-    $Type extends string,
-    $Description extends string,
-    $Version extends number,
->(args: {
-    type: $Type;
-    description: $Description;
-    version: $Version;
-}): ReturnType<
-    typeof toolSchemaBuilder<{ type: z.ZodLiteral<`${$Type}_v${$Version}`> }>
->;
-function createToolSchema<
-    $Type extends string,
-    $Description extends string,
-    $Version extends number,
->({
-    type,
+}): ReturnType<typeof toolSchemaBuilder<{}>>;
+function createToolSchema<$Description extends string>({
     description,
-    version,
 }: {
-    type: $Type;
     description: $Description;
-    version?: $Version;
 }) {
-    return toolSchemaBuilder(
-        z
-            .object({
-                type: z.literal(
-                    version !== undefined
-                        ? (`${type}_v${version}` as const)
-                        : type,
-                ),
-            })
-            .describe(description),
-    );
+    return toolSchemaBuilder(z.object({}).describe(description));
 }
 
 export { createToolSchema };

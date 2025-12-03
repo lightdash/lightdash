@@ -15,7 +15,6 @@ import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz
 export const TOOL_TIME_SERIES_VIZ_DESCRIPTION = `Use this tool to generate a Time Series Chart.`;
 
 export const toolTimeSeriesArgsSchema = createToolSchema({
-    type: AiResultType.TIME_SERIES_RESULT,
     description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
 })
     .extend({

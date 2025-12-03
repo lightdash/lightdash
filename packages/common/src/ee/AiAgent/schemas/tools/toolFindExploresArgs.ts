@@ -18,7 +18,6 @@ Output:
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema({
-    type: 'find_explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
 })
     .extend({
@@ -31,9 +30,7 @@ export const toolFindExploresArgsSchemaV1 = createToolSchema({
     .build();
 
 export const toolFindExploresArgsSchemaV2 = createToolSchema({
-    type: 'find_explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
-    version: 2,
 })
     .extend({
         exploreName: z
@@ -43,9 +40,7 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema({
     .build();
 
 export const toolFindExploresArgsSchemaV3 = createToolSchema({
-    type: 'find_explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
-    version: 3,
 })
     .extend({
         // TODO: check if we need to add exploreName back in for backward compatibility
@@ -57,13 +52,8 @@ export const toolFindExploresArgsSchemaV3 = createToolSchema({
     })
     .build();
 
-export const toolFindExploresArgsSchema = z.discriminatedUnion('type', [
-    toolFindExploresArgsSchemaV1,
-    toolFindExploresArgsSchemaV2,
-    toolFindExploresArgsSchemaV3,
-]);
-
-export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
+export const toolFindExploresArgsSchemaTransformed =
+    toolFindExploresArgsSchemaV3;
 
 export const findExploresRankingMetadataSchema = z.object({
     searchQuery: z.string(),
@@ -107,7 +97,7 @@ export type ToolFindExploresArgsV2 = z.infer<
 export type ToolFindExploresArgsV3 = z.infer<
     typeof toolFindExploresArgsSchemaV3
 >;
-export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
+export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchemaV3>;
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema

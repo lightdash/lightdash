@@ -410,7 +410,6 @@ describe('McpSchemaCompatLayer', () => {
         };
 
         const base = {
-            type: 'run_metric_query',
             vizConfig: baseVizConfig,
         };
 
@@ -548,7 +547,6 @@ describe('McpSchemaCompatLayer', () => {
         const mapped = mapZodSchema<ToolFindFieldsArgs>(schema);
 
         const base = {
-            type: 'find_fields',
             table: 'test',
             fieldSearchQueries: [
                 {
