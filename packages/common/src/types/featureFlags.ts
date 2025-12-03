@@ -84,6 +84,16 @@ export enum FeatureFlags {
      * Enable tree/list mode switcher in Metrics Catalog
      */
     MetricsCatalogTreeModeSwitcher = 'metrics-catalog-tree-mode-switcher',
+
+    /**
+     * Dark mode
+     */
+    DarkMode = 'dark-mode',
+
+    /**
+     * Enable admin change notifications for critical configuration changes
+     */
+    AdminChangeNotifications = 'admin-change-notifications',
 }
 
 export type FeatureFlag = {
