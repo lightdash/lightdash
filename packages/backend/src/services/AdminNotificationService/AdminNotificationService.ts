@@ -97,6 +97,7 @@ export class AdminNotificationService extends BaseService {
         user: 'Username',
         password: 'Password',
         database: 'Database',
+        dbname: 'Database',
         schema: 'Schema',
         account: 'Account',
         warehouse: 'Warehouse',
