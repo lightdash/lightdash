@@ -29,6 +29,7 @@ export default defineConfig({
             languageWorkers: ['json'],
         }),
         sentryVitePlugin({
+            telemetry: false,
             org: 'lightdash',
             project: 'lightdash-frontend',
             authToken: process.env.SENTRY_AUTH_TOKEN,
