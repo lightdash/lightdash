@@ -260,87 +260,91 @@ export class ProjectModel {
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {
-        const orgs = await this.database('organizations')
-            .where('organization_uuid', organizationUuid)
-            .select('*');
-        if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
-        }
+        return wrapSentryTransaction(
+            'ProjectModel.getAllByOrganizationUuid',
+            { organizationUuid },
+            async (span) => {
+                const orgs = await this.database('organizations')
+                    .where('organization_uuid', organizationUuid)
+                    .select('*');
+                if (orgs.length === 0) {
+                    throw new NotExistsError('Cannot find organization');
+                }
 
-        const organizationId = orgs[0].organization_id;
+                const organizationId = orgs[0].organization_id;
 
-        const projects = await this.database
-            .with('agg_project_group_access_counts', (q) => {
-                void q
-                    .select(
-                        'projects.project_uuid',
-                        this.database.raw(
-                            `COUNT(distinct ${GroupMembershipTableName}.user_id) as member_count`,
-                        ),
-                    )
-                    .from(ProjectGroupAccessTableName)
-                    .groupBy('projects.project_uuid')
+                const projects = await this.database
+                    .with('agg_project_group_access_counts', (q) => {
+                        void q
+                            .select(
+                                'projects.project_uuid',
+                                this.database.raw(
+                                    `COUNT(distinct ${GroupMembershipTableName}.user_id) as member_count`,
+                                ),
+                            )
+                            .from(ProjectGroupAccessTableName)
+                            .groupBy('projects.project_uuid')
+                            .leftJoin(
+                                'projects',
+                                'projects.project_uuid',
+                                `${ProjectGroupAccessTableName}.project_uuid`,
+                            )
+                            .leftJoin(
+                                GroupMembershipTableName,
+                                `${GroupMembershipTableName}.group_uuid`,
+                                `${ProjectGroupAccessTableName}.group_uuid`,
+                            )
+                            .where('projects.organization_id', organizationId);
+                    })
+                    .with('agg_project_membership_counts', (q) => {
+                        void q
+                            .select(
+                                'projects.project_uuid',
+                                this.database.raw(
+                                    `COUNT(distinct ${ProjectMembershipsTableName}.user_id) as member_count`,
+                                ),
+                            )
+                            .from(ProjectMembershipsTableName)
+                            .groupBy('projects.project_uuid')
+                            .leftJoin(
+                                'projects',
+                                'projects.project_id',
+                                `${ProjectMembershipsTableName}.project_id`,
+                            )
+                            .where('projects.organization_id', organizationId);
+                    })
+                    .from('projects')
                     .leftJoin(
-                        'projects',
-                        'projects.project_uuid',
-                        `${ProjectGroupAccessTableName}.project_uuid`,
-                    )
-                    .leftJoin(
-                        GroupMembershipTableName,
-                        `${GroupMembershipTableName}.group_uuid`,
-                        `${ProjectGroupAccessTableName}.group_uuid`,
-                    )
-                    .where('projects.organization_id', organizationId);
-            })
-            .with('agg_project_membership_counts', (q) => {
-                void q
-                    .select(
-                        'projects.project_uuid',
-                        this.database.raw(
-                            `COUNT(distinct ${ProjectMembershipsTableName}.user_id) as member_count`,
-                        ),
-                    )
-                    .from(ProjectMembershipsTableName)
-                    .groupBy('projects.project_uuid')
-                    .leftJoin(
-                        'projects',
+                        WarehouseCredentialTableName,
                         'projects.project_id',
-                        `${ProjectMembershipsTableName}.project_id`,
+                        `${WarehouseCredentialTableName}.project_id`,
                     )
-                    .where('projects.organization_id', organizationId);
-            })
-            .from('projects')
-            .leftJoin(
-                WarehouseCredentialTableName,
-                'projects.project_id',
-                `${WarehouseCredentialTableName}.project_id`,
-            )
-            .select(
-                'projects.project_uuid',
-                'projects.name',
-                'projects.project_type',
-                'projects.created_at',
-                `projects.copied_from_project_uuid`,
-                `projects.created_by_user_uuid`,
-                `${WarehouseCredentialTableName}.warehouse_type`,
-                `${WarehouseCredentialTableName}.encrypted_credentials`,
-                this.database.raw(
-                    '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
-                ),
-            )
-            .leftJoin(
-                'agg_project_group_access_counts',
-                'projects.project_uuid',
-                'agg_project_group_access_counts.project_uuid',
-            )
-            .leftJoin(
-                'agg_project_membership_counts',
-                'projects.project_uuid',
-                'agg_project_membership_counts.project_uuid',
-            )
-            .where('organization_id', organizationId)
-            .orderByRaw(
-                `
+                    .select(
+                        'projects.project_uuid',
+                        'projects.name',
+                        'projects.project_type',
+                        'projects.created_at',
+                        `projects.copied_from_project_uuid`,
+                        `projects.created_by_user_uuid`,
+                        `${WarehouseCredentialTableName}.warehouse_type`,
+                        `${WarehouseCredentialTableName}.encrypted_credentials`,
+                        this.database.raw(
+                            '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
+                        ),
+                    )
+                    .leftJoin(
+                        'agg_project_group_access_counts',
+                        'projects.project_uuid',
+                        'agg_project_group_access_counts.project_uuid',
+                    )
+                    .leftJoin(
+                        'agg_project_membership_counts',
+                        'projects.project_uuid',
+                        'agg_project_membership_counts.project_uuid',
+                    )
+                    .where('organization_id', organizationId)
+                    .orderByRaw(
+                        `
                     CASE
                         WHEN projects.project_type = 'DEFAULT' THEN 0
                         ELSE 1
@@ -348,47 +352,51 @@ export class ProjectModel {
                     member_count DESC,
                     projects.created_at ASC
                 `,
-            );
-
-        return projects.map<OrganizationProject>(
-            ({
-                name,
-                project_uuid,
-                project_type,
-                created_at,
-                created_by_user_uuid,
-                copied_from_project_uuid,
-                warehouse_type,
-                encrypted_credentials,
-            }) => {
-                try {
-                    const warehouseCredentials =
-                        encrypted_credentials !== null
-                            ? (JSON.parse(
-                                  this.encryptionUtil.decrypt(
-                                      encrypted_credentials,
-                                  ),
-                              ) as CreateWarehouseCredentials)
-                            : undefined;
-                    return {
-                        name,
-                        projectUuid: project_uuid,
-                        type: project_type,
-                        createdByUserUuid: created_by_user_uuid,
-                        createdAt: created_at,
-                        upstreamProjectUuid: copied_from_project_uuid,
-                        warehouseType:
-                            warehouse_type !== null
-                                ? (warehouse_type as WarehouseTypes)
-                                : undefined,
-                        requireUserCredentials:
-                            !!warehouseCredentials?.requireUserCredentials,
-                    };
-                } catch (e) {
-                    throw new UnexpectedServerError(
-                        'Unexpected error: failed to parse warehouse credentials',
                     );
-                }
+
+                span.setAttribute('projectsCount', projects.length);
+
+                return projects.map<OrganizationProject>(
+                    ({
+                        name,
+                        project_uuid,
+                        project_type,
+                        created_at,
+                        created_by_user_uuid,
+                        copied_from_project_uuid,
+                        warehouse_type,
+                        encrypted_credentials,
+                    }) => {
+                        try {
+                            const warehouseCredentials =
+                                encrypted_credentials !== null
+                                    ? (JSON.parse(
+                                          this.encryptionUtil.decrypt(
+                                              encrypted_credentials,
+                                          ),
+                                      ) as CreateWarehouseCredentials)
+                                    : undefined;
+                            return {
+                                name,
+                                projectUuid: project_uuid,
+                                type: project_type,
+                                createdByUserUuid: created_by_user_uuid,
+                                createdAt: created_at,
+                                upstreamProjectUuid: copied_from_project_uuid,
+                                warehouseType:
+                                    warehouse_type !== null
+                                        ? (warehouse_type as WarehouseTypes)
+                                        : undefined,
+                                requireUserCredentials:
+                                    !!warehouseCredentials?.requireUserCredentials,
+                            };
+                        } catch (e) {
+                            throw new UnexpectedServerError(
+                                'Unexpected error: failed to parse warehouse credentials',
+                            );
+                        }
+                    },
+                );
             },
         );
     }

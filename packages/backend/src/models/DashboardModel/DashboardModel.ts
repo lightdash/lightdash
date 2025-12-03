@@ -68,6 +68,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
+import { wrapSentryTransaction } from '../../utils';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -335,63 +336,67 @@ export class DashboardModel {
         projectUuid: string,
         chartUuid?: string,
     ): Promise<DashboardBasicDetailsWithTileTypes[]> {
-        const cteTableName = 'cte';
-        const dashboardsQuery = this.database
-            .with(cteTableName, (queryBuilder) => {
-                void queryBuilder
-                    .table(DashboardsTableName)
-                    .leftJoin(
-                        DashboardVersionsTableName,
-                        `${DashboardsTableName}.dashboard_id`,
-                        `${DashboardVersionsTableName}.dashboard_id`,
-                    )
-                    .leftJoin(
-                        SpaceTableName,
-                        `${DashboardsTableName}.space_id`,
-                        `${SpaceTableName}.space_id`,
-                    )
-                    .leftJoin(
-                        UserTableName,
-                        `${UserTableName}.user_uuid`,
-                        `${DashboardVersionsTableName}.updated_by_user_uuid`,
-                    )
-                    .innerJoin(
-                        ProjectTableName,
-                        `${SpaceTableName}.project_id`,
-                        `${ProjectTableName}.project_id`,
-                    )
-                    .innerJoin(
-                        OrganizationTableName,
-                        `${ProjectTableName}.organization_id`,
-                        `${OrganizationTableName}.organization_id`,
-                    )
-                    .leftJoin(
-                        PinnedDashboardTableName,
-                        `${PinnedDashboardTableName}.dashboard_uuid`,
-                        `${DashboardsTableName}.dashboard_uuid`,
-                    )
-                    .leftJoin(
-                        PinnedListTableName,
-                        `${PinnedListTableName}.pinned_list_uuid`,
-                        `${PinnedDashboardTableName}.pinned_list_uuid`,
-                    )
-                    .select<GetDashboardDetailsQuery[]>([
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${DashboardsTableName}.name`,
-                        `${DashboardsTableName}.description`,
-                        `${DashboardVersionsTableName}.created_at`,
-                        `${DashboardVersionsTableName}.dashboard_version_id`,
-                        `${ProjectTableName}.project_uuid`,
-                        `${UserTableName}.user_uuid`,
-                        `${UserTableName}.first_name`,
-                        `${UserTableName}.last_name`,
-                        `${OrganizationTableName}.organization_uuid`,
-                        `${SpaceTableName}.space_uuid`,
-                        `${PinnedListTableName}.pinned_list_uuid`,
-                        `${PinnedDashboardTableName}.order`,
-                        `${DashboardsTableName}.views_count`,
-                        `${DashboardsTableName}.first_viewed_at`,
-                        this.database.raw(`
+        return wrapSentryTransaction(
+            'DashboardModel.getAllByProject',
+            { projectUuid, chartUuid },
+            async (span) => {
+                const cteTableName = 'cte';
+                const dashboardsQuery = this.database
+                    .with(cteTableName, (queryBuilder) => {
+                        void queryBuilder
+                            .table(DashboardsTableName)
+                            .leftJoin(
+                                DashboardVersionsTableName,
+                                `${DashboardsTableName}.dashboard_id`,
+                                `${DashboardVersionsTableName}.dashboard_id`,
+                            )
+                            .leftJoin(
+                                SpaceTableName,
+                                `${DashboardsTableName}.space_id`,
+                                `${SpaceTableName}.space_id`,
+                            )
+                            .leftJoin(
+                                UserTableName,
+                                `${UserTableName}.user_uuid`,
+                                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                            )
+                            .innerJoin(
+                                ProjectTableName,
+                                `${SpaceTableName}.project_id`,
+                                `${ProjectTableName}.project_id`,
+                            )
+                            .innerJoin(
+                                OrganizationTableName,
+                                `${ProjectTableName}.organization_id`,
+                                `${OrganizationTableName}.organization_id`,
+                            )
+                            .leftJoin(
+                                PinnedDashboardTableName,
+                                `${PinnedDashboardTableName}.dashboard_uuid`,
+                                `${DashboardsTableName}.dashboard_uuid`,
+                            )
+                            .leftJoin(
+                                PinnedListTableName,
+                                `${PinnedListTableName}.pinned_list_uuid`,
+                                `${PinnedDashboardTableName}.pinned_list_uuid`,
+                            )
+                            .select<GetDashboardDetailsQuery[]>([
+                                `${DashboardsTableName}.dashboard_uuid`,
+                                `${DashboardsTableName}.name`,
+                                `${DashboardsTableName}.description`,
+                                `${DashboardVersionsTableName}.created_at`,
+                                `${DashboardVersionsTableName}.dashboard_version_id`,
+                                `${ProjectTableName}.project_uuid`,
+                                `${UserTableName}.user_uuid`,
+                                `${UserTableName}.first_name`,
+                                `${UserTableName}.last_name`,
+                                `${OrganizationTableName}.organization_uuid`,
+                                `${SpaceTableName}.space_uuid`,
+                                `${PinnedListTableName}.pinned_list_uuid`,
+                                `${PinnedDashboardTableName}.order`,
+                                `${DashboardsTableName}.views_count`,
+                                `${DashboardsTableName}.first_viewed_at`,
+                                this.database.raw(`
                             COALESCE(
                                 (
                                     SELECT json_agg(validations.*)
@@ -401,108 +406,118 @@ export class DashboardModel {
                                 ), '[]'
                             ) as validation_errors
                         `),
-                    ])
-                    .orderBy([
-                        {
-                            column: `${DashboardVersionsTableName}.dashboard_id`,
-                        },
-                        {
-                            column: `${DashboardVersionsTableName}.created_at`,
-                            order: 'desc',
-                        },
-                    ])
-                    .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-                    .where(`${ProjectTableName}.project_uuid`, projectUuid);
-            })
-            .select(`${cteTableName}.*`);
+                            ])
+                            .orderBy([
+                                {
+                                    column: `${DashboardVersionsTableName}.dashboard_id`,
+                                },
+                                {
+                                    column: `${DashboardVersionsTableName}.created_at`,
+                                    order: 'desc',
+                                },
+                            ])
+                            .distinctOn(
+                                `${DashboardVersionsTableName}.dashboard_id`,
+                            )
+                            .where(
+                                `${ProjectTableName}.project_uuid`,
+                                projectUuid,
+                            );
+                    })
+                    .select(`${cteTableName}.*`);
 
-        if (chartUuid) {
-            void dashboardsQuery
-                .leftJoin(
-                    DashboardTilesTableName,
-                    `${DashboardTilesTableName}.dashboard_version_id`,
-                    `${cteTableName}.dashboard_version_id`,
-                )
-                .leftJoin(
-                    DashboardTileChartTableName,
-                    function joinDashboardTileChartTableName() {
-                        this.on(
-                            `${DashboardTileChartTableName}.dashboard_version_id`,
-                            '=',
+                if (chartUuid) {
+                    void dashboardsQuery
+                        .leftJoin(
+                            DashboardTilesTableName,
                             `${DashboardTilesTableName}.dashboard_version_id`,
+                            `${cteTableName}.dashboard_version_id`,
+                        )
+                        .leftJoin(
+                            DashboardTileChartTableName,
+                            function joinDashboardTileChartTableName() {
+                                this.on(
+                                    `${DashboardTileChartTableName}.dashboard_version_id`,
+                                    '=',
+                                    `${DashboardTilesTableName}.dashboard_version_id`,
+                                );
+                                this.andOn(
+                                    `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                                    '=',
+                                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                                );
+                            },
+                        )
+                        .leftJoin(
+                            SavedChartsTableName,
+                            `${SavedChartsTableName}.saved_query_id`,
+                            `${DashboardTileChartTableName}.saved_chart_id`,
+                        )
+                        .distinctOn(`${cteTableName}.dashboard_uuid`)
+                        .andWhere(
+                            `${SavedChartsTableName}.saved_query_uuid`,
+                            chartUuid,
                         );
-                        this.andOn(
-                            `${DashboardTileChartTableName}.dashboard_tile_uuid`,
-                            '=',
-                            `${DashboardTilesTableName}.dashboard_tile_uuid`,
-                        );
-                    },
-                )
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.saved_query_id`,
-                    `${DashboardTileChartTableName}.saved_chart_id`,
-                )
-                .distinctOn(`${cteTableName}.dashboard_uuid`)
-                .andWhere(
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    chartUuid,
-                );
-        }
-        const dashboards = await dashboardsQuery.from(cteTableName);
+                }
+                const dashboards = await dashboardsQuery.from(cteTableName);
 
-        return Promise.all(
-            dashboards.map(
-                async ({
-                    name,
-                    description,
-                    dashboard_uuid,
-                    created_at,
-                    project_uuid,
-                    user_uuid,
-                    first_name,
-                    last_name,
-                    organization_uuid,
-                    space_uuid,
-                    pinned_list_uuid,
-                    order,
-                    views_count,
-                    first_viewed_at,
-                    validation_errors,
-                    dashboard_version_id,
-                }) => {
-                    const tileTypes = await this.getDashboardVersionTileTypes(
-                        dashboard_version_id,
-                    );
+                span.setAttribute('dashboardsCount', dashboards.length);
 
-                    return {
-                        organizationUuid: organization_uuid,
-                        name,
-                        description,
-                        uuid: dashboard_uuid,
-                        updatedAt: created_at,
-                        projectUuid: project_uuid,
-                        updatedByUser: {
-                            userUuid: user_uuid,
-                            firstName: first_name,
-                            lastName: last_name,
+                return Promise.all(
+                    dashboards.map(
+                        async ({
+                            name,
+                            description,
+                            dashboard_uuid,
+                            created_at,
+                            project_uuid,
+                            user_uuid,
+                            first_name,
+                            last_name,
+                            organization_uuid,
+                            space_uuid,
+                            pinned_list_uuid,
+                            order,
+                            views_count,
+                            first_viewed_at,
+                            validation_errors,
+                            dashboard_version_id,
+                        }) => {
+                            const tileTypes =
+                                await this.getDashboardVersionTileTypes(
+                                    dashboard_version_id,
+                                );
+
+                            return {
+                                organizationUuid: organization_uuid,
+                                name,
+                                description,
+                                uuid: dashboard_uuid,
+                                updatedAt: created_at,
+                                projectUuid: project_uuid,
+                                updatedByUser: {
+                                    userUuid: user_uuid,
+                                    firstName: first_name,
+                                    lastName: last_name,
+                                },
+                                spaceUuid: space_uuid,
+                                pinnedListUuid: pinned_list_uuid,
+                                pinnedListOrder: order,
+                                views: views_count,
+                                firstViewedAt: first_viewed_at,
+                                validationErrors: validation_errors?.map(
+                                    (error: DbValidationTable) => ({
+                                        validationId: error.validation_id,
+                                        error: error.error,
+                                        createdAt: error.created_at,
+                                    }),
+                                ),
+                                tileTypes,
+                            };
                         },
-                        spaceUuid: space_uuid,
-                        pinnedListUuid: pinned_list_uuid,
-                        pinnedListOrder: order,
-                        views: views_count,
-                        firstViewedAt: first_viewed_at,
-                        validationErrors: validation_errors?.map(
-                            (error: DbValidationTable) => ({
-                                validationId: error.validation_id,
-                                error: error.error,
-                                createdAt: error.created_at,
-                            }),
-                        ),
-                        tileTypes,
-                    };
-                },
-            ),
+                    ),
+                );
+            },
         );
     }
 

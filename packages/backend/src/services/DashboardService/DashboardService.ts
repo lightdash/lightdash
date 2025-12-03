@@ -60,6 +60,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { wrapSentryTransaction } from '../../utils';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -199,43 +200,55 @@ export class DashboardService
         chartUuid?: string,
         includePrivate?: boolean,
     ): Promise<DashboardBasicDetailsWithTileTypes[]> {
-        const dashboards = await this.dashboardModel.getAllByProject(
-            projectUuid,
-            chartUuid,
+        return wrapSentryTransaction(
+            'DashboardService.getAllByProject',
+            { projectUuid, chartUuid, includePrivate },
+            async (span) => {
+                const dashboards = await this.dashboardModel.getAllByProject(
+                    projectUuid,
+                    chartUuid,
+                );
+                const spaceUuids = [
+                    ...new Set(
+                        dashboards.map((dashboard) => dashboard.spaceUuid),
+                    ),
+                ];
+                const spaces = await Promise.all(
+                    spaceUuids.map((spaceUuid) =>
+                        this.spaceModel.getSpaceSummary(spaceUuid),
+                    ),
+                );
+                const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                    user.userUuid,
+                    spaces.map((s) => s.uuid),
+                );
+
+                span.setAttribute('dashboardsCount', dashboards.length);
+                span.setAttribute('spacesCount', spaces.length);
+
+                return dashboards.filter((dashboard) => {
+                    const dashboardSpace = spaces.find(
+                        (space) => space.uuid === dashboard.spaceUuid,
+                    );
+                    const hasAbility = user.ability.can(
+                        'view',
+                        subject('Dashboard', {
+                            organizationUuid: dashboardSpace?.organizationUuid,
+                            projectUuid: dashboardSpace?.projectUuid,
+                            isPrivate: dashboardSpace?.isPrivate,
+                            access: spacesAccess[dashboard.spaceUuid] ?? [],
+                        }),
+                    );
+                    return (
+                        dashboardSpace &&
+                        (includePrivate
+                            ? hasAbility
+                            : hasAbility &&
+                              hasDirectAccessToSpace(user, dashboardSpace))
+                    );
+                });
+            },
         );
-        const spaceUuids = [
-            ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
-        ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-        return dashboards.filter((dashboard) => {
-            const dashboardSpace = spaces.find(
-                (space) => space.uuid === dashboard.spaceUuid,
-            );
-            const hasAbility = user.ability.can(
-                'view',
-                subject('Dashboard', {
-                    organizationUuid: dashboardSpace?.organizationUuid,
-                    projectUuid: dashboardSpace?.projectUuid,
-                    isPrivate: dashboardSpace?.isPrivate,
-                    access: spacesAccess[dashboard.spaceUuid] ?? [],
-                }),
-            );
-            return (
-                dashboardSpace &&
-                (includePrivate
-                    ? hasAbility
-                    : hasAbility &&
-                      hasDirectAccessToSpace(user, dashboardSpace))
-            );
-        });
     }
 
     async getByIdOrSlug(

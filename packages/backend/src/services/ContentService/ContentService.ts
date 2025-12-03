@@ -22,6 +22,7 @@ import {
 } from '../../models/ContentModel/ContentModelTypes';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -79,57 +80,77 @@ export class ContentService extends BaseService {
         queryArgs: ContentArgs,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<SummaryContent[]>> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
-        const projectUuids = (
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid)
-        )
-            .filter((project) =>
-                user.ability.can(
-                    'view',
-                    subject('Project', {
+        return wrapSentryTransaction(
+            'ContentService.find',
+            { contentTypes: filters.contentTypes },
+            async (span) => {
+                const { organizationUuid } = user;
+                if (organizationUuid === undefined) {
+                    throw new NotExistsError('Organization not found');
+                }
+                const projectUuids = (
+                    await this.projectModel.getAllByOrganizationUuid(
                         organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                ),
-            )
-            .map((p) => p.projectUuid);
-        const allowedProjectUuids = filters.projectUuids
-            ? intersection(filters.projectUuids, projectUuids)
-            : projectUuids; // todo: move this filter to project model query
+                    )
+                )
+                    .filter((project) =>
+                        user.ability.can(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid: project.projectUuid,
+                            }),
+                        ),
+                    )
+                    .map((p) => p.projectUuid);
+                const allowedProjectUuids = filters.projectUuids
+                    ? intersection(filters.projectUuids, projectUuids)
+                    : projectUuids; // todo: move this filter to project model query
 
-        const spaces = await this.spaceModel.find({
-            projectUuids: allowedProjectUuids,
-            spaceUuids: filters.spaceUuids,
-        });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((p) => p.uuid),
-        );
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
-            )
-            .map((space) => space.uuid);
+                const spaces = await this.spaceModel.find({
+                    projectUuids: allowedProjectUuids,
+                    spaceUuids: filters.spaceUuids,
+                });
+                const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                    user.userUuid,
+                    spaces.map((p) => p.uuid),
+                );
+                const allowedSpaceUuids = spaces
+                    .filter((space) =>
+                        hasViewAccessToSpace(
+                            user,
+                            space,
+                            spacesAccess[space.uuid] ?? [],
+                        ),
+                    )
+                    .map((space) => space.uuid);
 
-        return this.contentModel.findSummaryContents(
-            {
-                ...filters,
-                projectUuids: allowedProjectUuids,
-                spaceUuids: allowedSpaceUuids,
-                space: {
-                    rootSpaces:
-                        !filters.spaceUuids || filters.spaceUuids.length === 0,
-                },
+                span.setAttribute('projectsCount', projectUuids.length);
+                span.setAttribute(
+                    'allowedProjectsCount',
+                    allowedProjectUuids.length,
+                );
+                span.setAttribute('spacesCount', spaces.length);
+                span.setAttribute(
+                    'allowedSpacesCount',
+                    allowedSpaceUuids.length,
+                );
+
+                return this.contentModel.findSummaryContents(
+                    {
+                        ...filters,
+                        projectUuids: allowedProjectUuids,
+                        spaceUuids: allowedSpaceUuids,
+                        space: {
+                            rootSpaces:
+                                !filters.spaceUuids ||
+                                filters.spaceUuids.length === 0,
+                        },
+                    },
+                    queryArgs,
+                    paginateArgs,
+                );
             },
-            queryArgs,
-            paginateArgs,
         );
     }
 
