@@ -519,10 +519,8 @@ export class AdminNotificationService extends BaseService {
             ...Object.keys(after),
         ]);
 
-        const skipFields = new Set(['type', 'startOfWeek']);
-
         Array.from(allKeys)
-            .filter((key) => !skipFields.has(key))
+            .filter((key) => key !== 'type')
             .forEach((key) => {
                 const beforeValue =
                     before?.[key as keyof CreateWarehouseCredentials];
@@ -657,10 +655,8 @@ export class AdminNotificationService extends BaseService {
             ...Object.keys(after),
         ]);
 
-        const skipFields = new Set(['type']);
-
         Array.from(allKeys)
-            .filter((key) => !skipFields.has(key))
+            .filter((key) => key !== 'type')
             .forEach((key) => {
                 const beforeValue = (
                     before as unknown as Record<string, unknown>
