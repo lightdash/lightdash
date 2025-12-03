@@ -850,6 +850,9 @@ export type LightdashConfig = {
     groups: {
         enabled: boolean;
     };
+    adminChangeNotifications: {
+        enabled: boolean;
+    };
     extendedUsageAnalytics: {
         enabled: boolean;
     };
@@ -1595,6 +1598,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',
+        },
+        adminChangeNotifications: {
+            enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
