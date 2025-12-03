@@ -16,10 +16,12 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { RolesService } from './RolesService';
 import {
     mockAccount,
     mockAccountNoAccess,
+    mockAdminNotificationService,
     mockAnalytics,
     mockCustomRole,
     mockCustomRoleWithScopes,
@@ -42,6 +44,8 @@ describe('RolesService', () => {
         groupsModel: mockGroupsModel as unknown as GroupsModel,
         projectModel: mockProjectModel as unknown as ProjectModel,
         emailClient: {} as unknown as EmailClient,
+        adminNotificationService:
+            mockAdminNotificationService as unknown as AdminNotificationService,
     });
     beforeEach(() => {
         jest.clearAllMocks();
@@ -403,6 +407,105 @@ describe('RolesService', () => {
             expect(
                 mockRolesModel.getRolesByOrganizationUuid,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('admin notification integration', () => {
+        const organizationUuid = 'test-org-uuid';
+        const userUuid = 'target-user-uuid';
+        const projectUuid = 'test-project-uuid';
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+            mockUserModel.getUserDetailsByUuid.mockResolvedValue({
+                userUuid,
+                firstName: 'Target',
+                lastName: 'User',
+                role: OrganizationMemberRole.MEMBER,
+            });
+            mockRolesModel.getOrganizationAdmins.mockResolvedValue([
+                'admin-uuid-1',
+            ]);
+            mockRolesModel.getProjectAccessByUserUuid.mockResolvedValue([]);
+            mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: OrganizationMemberRole.ADMIN,
+                name: OrganizationMemberRole.ADMIN,
+                scopes: [],
+                ownerType: 'system',
+            });
+        });
+
+        describe('upsertOrganizationUserRoleAssignment', () => {
+            it('should call notifyOrgAdminRoleChange when assigning org role', async () => {
+                await service.upsertOrganizationUserRoleAssignment(
+                    mockAccount,
+                    organizationUuid,
+                    userUuid,
+                    { roleId: OrganizationMemberRole.ADMIN },
+                );
+
+                expect(
+                    mockAdminNotificationService.notifyOrgAdminRoleChange,
+                ).toHaveBeenCalledWith(
+                    mockAccount,
+                    userUuid,
+                    organizationUuid,
+                    OrganizationMemberRole.MEMBER,
+                    OrganizationMemberRole.ADMIN,
+                );
+            });
+
+            it('should not throw if notification fails', async () => {
+                mockAdminNotificationService.notifyOrgAdminRoleChange.mockRejectedValueOnce(
+                    new Error('Notification failed'),
+                );
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        mockAccount,
+                        organizationUuid,
+                        userUuid,
+                        { roleId: OrganizationMemberRole.ADMIN },
+                    ),
+                ).resolves.not.toThrow();
+            });
+        });
+
+        describe('upsertProjectUserRoleAssignment', () => {
+            it('should call notifyProjectAdminRoleChange when assigning project role', async () => {
+                await service.upsertProjectUserRoleAssignment(
+                    mockAccount,
+                    projectUuid,
+                    userUuid,
+                    { roleId: ProjectMemberRole.ADMIN },
+                );
+
+                expect(
+                    mockAdminNotificationService.notifyProjectAdminRoleChange,
+                ).toHaveBeenCalledWith(
+                    mockAccount,
+                    userUuid,
+                    projectUuid,
+                    organizationUuid,
+                    null,
+                    ProjectMemberRole.ADMIN,
+                );
+            });
+
+            it('should not throw if notification fails', async () => {
+                mockAdminNotificationService.notifyProjectAdminRoleChange.mockRejectedValueOnce(
+                    new Error('Notification failed'),
+                );
+
+                await expect(
+                    service.upsertProjectUserRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        userUuid,
+                        { roleId: ProjectMemberRole.ADMIN },
+                    ),
+                ).resolves.not.toThrow();
+            });
         });
     });
 });
