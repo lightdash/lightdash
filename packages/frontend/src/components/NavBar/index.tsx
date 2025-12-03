@@ -6,11 +6,12 @@ import {
     MantineProvider,
     type MantineTheme,
 } from '@mantine/core';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
+import { getMantineThemeOverride } from '../../mantineTheme';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
@@ -46,6 +47,13 @@ const NavBar = memo(() => {
     const { isFullscreen } = useFullscreen();
 
     const { navBarMode } = useNavBarMode();
+
+    // Force dark theme for navbar (excluding global styles)
+    const darkTheme = useMemo(() => {
+        const fullDarkTheme = getMantineThemeOverride('dark');
+        const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
+        return themeWithoutGlobalStyles;
+    }, []);
 
     const isCurrentProjectPreview = !!projects?.find(
         (project) =>
@@ -88,7 +96,7 @@ const NavBar = memo(() => {
     };
 
     return (
-        <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+        <MantineProvider theme={darkTheme}>
             {isCurrentProjectPreview && <PreviewBanner />}
             {/* hack to make navbar fixed and maintain space */}
             <Box h={!isFullscreen ? headerContainerHeight : 0} />

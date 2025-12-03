@@ -34,6 +34,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
+import { getMantineThemeOverride } from '../../../mantineTheme';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
@@ -69,6 +70,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const [openPanels, setOpenPanels] =
         useState<SearchItemType[]>(allSearchItemTypes);
 
+    const omnibarTheme = useMemo(() => {
+        const fullTheme = getMantineThemeOverride(colorScheme);
+        const { globalStyles, ...themeWithoutGlobalStyles } = fullTheme;
+        return themeWithoutGlobalStyles;
+    }, [colorScheme]);
     const [focusedItemIndex, setFocusedItemIndex] =
         useState<FocusedItemIndex>();
 
@@ -201,7 +207,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 )}
             </Transition>
 
-            <MantineProvider inherit theme={{ colorScheme }}>
+            <MantineProvider theme={omnibarTheme}>
                 <Modal
                     withCloseButton={false}
                     size={`calc(${rem(PAGE_CONTENT_WIDTH)} - ${

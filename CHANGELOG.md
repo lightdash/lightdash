@@ -1,3 +1,81 @@
+## [0.2221.5](https://github.com/lightdash/lightdash/compare/0.2221.4...0.2221.5) (2025-12-03)
+
+
+### Bug Fixes
+
+* sort grouped fields by label (default) or index ([#18376](https://github.com/lightdash/lightdash/issues/18376)) ([b00125f](https://github.com/lightdash/lightdash/commit/b00125f791a1bdcf1d60e785d397663a070f7294))
+
+## [0.2221.4](https://github.com/lightdash/lightdash/compare/0.2221.3...0.2221.4) (2025-12-03)
+
+
+### Bug Fixes
+
+* column duplication and reordering in results table ([#18539](https://github.com/lightdash/lightdash/issues/18539)) ([41312dc](https://github.com/lightdash/lightdash/commit/41312dcfc1ba6e4544e25f5f36fa7764a13c10f9))
+
+## [0.2221.3](https://github.com/lightdash/lightdash/compare/0.2221.2...0.2221.3) (2025-12-03)
+
+
+### Bug Fixes
+
+* saved charts header dark theme ([#18537](https://github.com/lightdash/lightdash/issues/18537)) ([f167b0e](https://github.com/lightdash/lightdash/commit/f167b0e7e070bc4a231df13268011faa0603eff0))
+
+## [0.2221.2](https://github.com/lightdash/lightdash/compare/0.2221.1...0.2221.2) (2025-12-03)
+
+
+### Bug Fixes
+
+* table calculation missing values with filter-only metrics ([#18513](https://github.com/lightdash/lightdash/issues/18513)) ([e777ada](https://github.com/lightdash/lightdash/commit/e777ada84805578fbe7e615c66e4f8120b5f4406))
+
+## [0.2221.1](https://github.com/lightdash/lightdash/compare/0.2221.0...0.2221.1) (2025-12-03)
+
+
+### Bug Fixes
+
+* cache message is too dark in dark mode ([#18526](https://github.com/lightdash/lightdash/issues/18526)) ([6e00427](https://github.com/lightdash/lightdash/commit/6e004277bd4ef7f571fc1b03c035c93500a64635)), closes [#18425](https://github.com/lightdash/lightdash/issues/18425)
+* chart label readability in dark mode ([#18520](https://github.com/lightdash/lightdash/issues/18520)) ([c2d2bef](https://github.com/lightdash/lightdash/commit/c2d2bef1407c3e2e7711e5c7ccfc46250c663ec4)), closes [#18421](https://github.com/lightdash/lightdash/issues/18421)
+* job details drawer dark theme ([#18528](https://github.com/lightdash/lightdash/issues/18528)) ([c96047b](https://github.com/lightdash/lightdash/commit/c96047b5c69538fbe68877da4838030b098bcc25)), closes [#18449](https://github.com/lightdash/lightdash/issues/18449)
+
+# [0.2221.0](https://github.com/lightdash/lightdash/compare/0.2220.0...0.2221.0) (2025-12-03)
+
+
+### Features
+
+* drop `type` property from tool schemas ([#18476](https://github.com/lightdash/lightdash/issues/18476)) ([b23743f](https://github.com/lightdash/lightdash/commit/b23743f9a73f7cf12cc180c3b4e6cd179edc9354))
+
+# [0.2220.0](https://github.com/lightdash/lightdash/compare/0.2219.0...0.2220.0) (2025-12-03)
+
+
+### Features
+
+* dark mode for headway widget ([#18514](https://github.com/lightdash/lightdash/issues/18514)) ([12855fb](https://github.com/lightdash/lightdash/commit/12855fb49cd0bbc8a5e75e03d3ed962895878c7b))
+
+# [0.2219.0](https://github.com/lightdash/lightdash/compare/0.2218.3...0.2219.0) (2025-12-03)
+
+
+### Bug Fixes
+
+* `ldDark` color shade order is not correct in dark theme ([#18495](https://github.com/lightdash/lightdash/issues/18495)) ([73a3d28](https://github.com/lightdash/lightdash/commit/73a3d280768ac92b2879c2362e87ed0e5c41b122))
+* dark-mode for Storybook ([#18508](https://github.com/lightdash/lightdash/issues/18508)) ([d4f8a10](https://github.com/lightdash/lightdash/commit/d4f8a10a97171463ed0212d38cc83763b9294aa7))
+
+
+### Features
+
+* improve gray and dark colors in dark mode ([#18496](https://github.com/lightdash/lightdash/issues/18496)) ([6ff4c38](https://github.com/lightdash/lightdash/commit/6ff4c383b5184c5847213837f766d293163b3664)), closes [#18423](https://github.com/lightdash/lightdash/issues/18423)
+
+## [0.2218.3](https://github.com/lightdash/lightdash/compare/0.2218.2...0.2218.3) (2025-12-03)
+
+
+### Bug Fixes
+
+* lighten pop series color with scaling ([#18505](https://github.com/lightdash/lightdash/issues/18505)) ([82247ca](https://github.com/lightdash/lightdash/commit/82247ca71495179ee92af33aae0242f2cff0025b))
+
+## [0.2218.2](https://github.com/lightdash/lightdash/compare/0.2218.1...0.2218.2) (2025-12-03)
+
+
+### Bug Fixes
+
+* no public spaces to save chart ([#18438](https://github.com/lightdash/lightdash/issues/18438)) ([369f435](https://github.com/lightdash/lightdash/commit/369f4351f132b7c17d9de530228fb5e0fb162a4d))
+
 ## [0.2218.1](https://github.com/lightdash/lightdash/compare/0.2218.0...0.2218.1) (2025-12-02)
 
 

@@ -3,10 +3,12 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    OrderFieldsByStrategy,
     type GroupType,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import { MAX_GROUP_DEPTH } from './constants';
+import { sortNodes } from './sortNodes';
 import {
     isGroupNode,
     type GroupNode,
@@ -42,6 +44,8 @@ const createNodeWithGroup = (
     groups: string[],
     groupDetails: Record<string, GroupType>,
     isLegacyInterval: boolean,
+    orderFieldsBy: OrderFieldsByStrategy,
+    itemsMap: Record<string, NodeItem>,
 ): NodeMap => {
     if (groups.length === 0) {
         return {
@@ -88,12 +92,28 @@ const createNodeWithGroup = (
                   tail,
                   groupDetails,
                   isLegacyInterval,
+                  orderFieldsBy,
+                  itemsMap,
               );
+
+    // Sort children according to orderFieldsBy strategy
+    const sortedChildren = Object.values(updatedChildren).sort(
+        sortNodes(orderFieldsBy, itemsMap),
+    );
+
+    // Convert sorted array back to NodeMap
+    const sortedChildrenMap = sortedChildren.reduce<NodeMap>(
+        (acc, child) => ({
+            ...acc,
+            [child.key]: child,
+        }),
+        {},
+    );
 
     // Create updated group node
     const updatedGroupNode: GroupNode = {
         ...groupNode,
-        children: updatedChildren,
+        children: sortedChildrenMap,
     };
 
     // Return updated node map with the updated group
@@ -106,6 +126,7 @@ const createNodeWithGroup = (
 export const getNodeMapFromItemsMap = (
     itemsMap: Record<string, NodeItem>,
     groupDetails: Record<string, GroupType> = {},
+    orderFieldsBy: OrderFieldsByStrategy = OrderFieldsByStrategy.LABEL,
 ): NodeMap => {
     // Filter items: only include non-hidden items and all custom dimensions
     const filteredItems = Object.entries(itemsMap).filter(([_itemId, item]) =>
@@ -177,6 +198,8 @@ export const getNodeMapFromItemsMap = (
             groupsWithMaxDepth,
             groupDetails,
             isLegacyInterval,
+            orderFieldsBy,
+            itemsMap,
         );
     }, {});
 };

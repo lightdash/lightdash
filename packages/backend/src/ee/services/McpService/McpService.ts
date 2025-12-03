@@ -294,7 +294,7 @@ export class McpService extends BaseService {
             {
                 description: toolFindExploresArgsSchemaV3.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindExploresArgsSchemaV3.omit({ type: true }),
+                    toolFindExploresArgsSchemaV3,
                 ) as AnyType,
             },
             async (_args, context) => {
@@ -335,7 +335,6 @@ export class McpService extends BaseService {
                 });
                 const result = await findExploresTool.execute!(
                     {
-                        type: 'find_explores_v3',
                         ...argsWithProject,
                         searchQuery: args.searchQuery,
                     },
@@ -362,7 +361,7 @@ export class McpService extends BaseService {
             {
                 description: toolFindFieldsArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindFieldsArgsSchema.omit({ type: true }),
+                    toolFindFieldsArgsSchema,
                 ) as AnyType,
             },
             async (_args, context) => {
@@ -390,16 +389,10 @@ export class McpService extends BaseService {
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
                 });
-                const result = await findFieldsTool.execute!(
-                    {
-                        type: 'find_fields',
-                        ...argsWithProject,
-                    },
-                    {
-                        toolCallId: '',
-                        messages: [],
-                    },
-                );
+                const result = await findFieldsTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
 
                 return {
                     content: [
@@ -417,7 +410,7 @@ export class McpService extends BaseService {
             {
                 description: toolFindContentArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolFindContentArgsSchema.omit({ type: true }),
+                    toolFindContentArgsSchema,
                 ),
             },
             async (_args, context) => {
@@ -444,16 +437,10 @@ export class McpService extends BaseService {
                     findContent,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findContentTool.execute!(
-                    {
-                        type: 'find_content',
-                        ...argsWithProject,
-                    },
-                    {
-                        toolCallId: '',
-                        messages: [],
-                    },
-                );
+                const result = await findContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
 
                 return {
                     content: [
@@ -647,7 +634,7 @@ export class McpService extends BaseService {
             {
                 description: toolRunMetricQueryArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolRunMetricQueryArgsSchema.omit({ type: true }),
+                    toolRunMetricQueryArgsSchema,
                 ) as AnyType,
             },
             async (_args, context) => {
@@ -676,14 +663,10 @@ export class McpService extends BaseService {
                 });
 
                 const result = await runMetricQueryTool.execute!(
-                    {
-                        type: 'run_metric_query',
-                        ...argsWithProject,
-                    },
+                    argsWithProject,
                     {
                         toolCallId: '',
                         messages: [],
-                        experimental_context: agentContext,
                     },
                 );
 
@@ -703,7 +686,7 @@ export class McpService extends BaseService {
             {
                 description: toolSearchFieldValuesArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolSearchFieldValuesArgsSchema.omit({ type: true }),
+                    toolSearchFieldValuesArgsSchema,
                 ) as AnyType,
             },
             async (_args, context) => {
@@ -730,10 +713,7 @@ export class McpService extends BaseService {
                     searchFieldValues,
                 });
                 const result = await searchFieldValuesTool.execute!(
-                    {
-                        type: 'search_field_values',
-                        ...argsWithProject,
-                    },
+                    argsWithProject,
                     {
                         toolCallId: '',
                         messages: [],

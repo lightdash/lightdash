@@ -21,6 +21,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
@@ -34,6 +35,7 @@ const ExplorerHeader: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { onBackToDashboard } = useEmbed();
+    const ability = useAbilityContext();
 
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
@@ -62,10 +64,39 @@ const ExplorerHeader: FC = memo(() => {
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
-    const userCanCreateCharts = useCreateInAnySpaceAccess(
+    const userCanCreateChartsInSpace = useCreateInAnySpaceAccess(
         projectUuid,
         'SavedChart',
     );
+
+    const userCanCreateSpace = ability.can(
+        'create',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const embed = useEmbed();
+    const isEmbedded = embed.embedToken !== undefined;
+
+    const buttonDisabledMessage = useMemo(() => {
+        // There is no concept on abilities about 'create' a SavedChart without space context
+        // We need a space to save the chart to whether it is public or user has editor permissions
+
+        // User has permissions to create charts in a public space (eg: interactive viewer with editor space permission)
+        if (userCanCreateChartsInSpace) return null;
+
+        // User has permissions to create spaces
+        // Therefore, he can create a space for him to save the chart (eg: editor)
+        if (userCanCreateSpace) return null;
+
+        // Edge case: there are no public spaces and the user does not have permissions to create spaces
+        if (!userCanCreateChartsInSpace && !userCanCreateSpace) {
+            return 'There are no public spaces to save this chart to';
+        }
+
+        return null;
+    }, [userCanCreateChartsInSpace, userCanCreateSpace]);
 
     const urlToShare = useMemo(() => {
         if (unsavedChartVersion) {
@@ -101,10 +132,7 @@ const ExplorerHeader: FC = memo(() => {
         FeatureFlags.EnableUserTimezones,
     );
 
-    const userCanManageCompileProject = user?.data?.ability?.can(
-        'manage',
-        'CompileProject',
-    );
+    const userCanManageCompileProject = ability.can('manage', 'CompileProject');
 
     return (
         <Group position="apart">
@@ -162,8 +190,20 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {!savedChart && userCanCreateCharts && (
-                    <SaveChartButton isExplorer />
+                {!savedChart && !isEmbedded && (
+                    <Tooltip
+                        disabled={buttonDisabledMessage === null}
+                        withinPortal
+                        position="bottom"
+                        label={buttonDisabledMessage}
+                    >
+                        <div>
+                            <SaveChartButton
+                                isExplorer
+                                disabled={buttonDisabledMessage !== null}
+                            />
+                        </div>
+                    </Tooltip>
                 )}
                 <Can
                     I="update"

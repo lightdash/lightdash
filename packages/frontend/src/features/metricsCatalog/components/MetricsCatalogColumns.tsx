@@ -267,11 +267,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     {categories.length === 0 && hovered && canManageTags ? (
                         <Group spacing={2}>
                             <MantineIcon
-                                color="ldDark.1"
+                                color="ldGray.4"
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" color="ldDark.1">
+                            <Text span fz="sm" color="ldGray.4">
                                 Click to add
                             </Text>
                         </Group>

@@ -326,7 +326,7 @@ const DashboardHeader = ({
 
             {oldestCacheTime && (
                 <Text
-                    color="gray"
+                    color="ldGray"
                     mr="sm"
                     sx={{ fontSize: '11px', textAlign: 'end' }}
                 >

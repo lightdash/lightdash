@@ -56,10 +56,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     flexGrow: 1,
                     borderBottomWidth: 1,
                     borderBottomStyle: 'solid',
-                    borderBottomColor:
-                        t.colorScheme === 'dark'
-                            ? t.colors.ldDark[8]
-                            : t.colors.ldGray[3],
+                    borderBottomColor: t.colors.ldGray[3],
                 })}
             >
                 {dragIcon}

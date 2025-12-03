@@ -16,7 +16,6 @@ Usage tips:
 `;
 
 export const toolFindChartsArgsSchema = createToolSchema({
-    type: 'find_charts',
     description: TOOL_FIND_CHARTS_DESCRIPTION,
 })
     .extend({

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { AiResultType } from '../../types';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -23,7 +22,6 @@ Captures learnings from user corrections, clarifications, and guidance to improv
 `;
 
 export const toolImproveContextArgsSchema = createToolSchema({
-    type: AiResultType.IMPROVE_CONTEXT,
     description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
 })
     .extend({

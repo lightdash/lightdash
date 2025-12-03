@@ -4,7 +4,6 @@ import {
     Stack,
     Text,
     createPolymorphicComponent,
-    useMantineColorScheme,
     type MenuItemProps,
 } from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
@@ -23,22 +22,15 @@ const LargeMenuItem: ReturnType<
 > = createPolymorphicComponent<'button', LargeMenuItemProps>(
     forwardRef<HTMLButtonElement, LargeMenuItemProps>(
         ({ icon, title, description, iconProps, ...rest }, ref) => {
-            const { colorScheme } = useMantineColorScheme();
             return (
                 <Menu.Item<'button'>
                     ref={ref}
                     icon={
-                        <Card
-                            p="sm"
-                            bg={
-                                colorScheme === 'dark' ? 'ldDark.7' : 'ldGray.7'
-                            }
-                            radius="sm"
-                        >
+                        <Card p="sm" bg="ldDark.6" radius="sm">
                             <MantineIcon
                                 icon={icon}
                                 size="lg"
-                                color="ldDark.0"
+                                color="ldDark.9"
                                 {...iconProps}
                             />
                         </Card>
