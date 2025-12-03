@@ -8,6 +8,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     Role,
     RoleAssignment,
     RoleWithScopes,
@@ -26,6 +27,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 
 type RolesServiceArguments = {
@@ -37,6 +39,7 @@ type RolesServiceArguments = {
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     emailClient: EmailClient;
+    adminNotificationService: AdminNotificationService;
 };
 
 export class RolesService extends BaseService {
@@ -56,6 +59,8 @@ export class RolesService extends BaseService {
 
     private readonly emailClient: EmailClient;
 
+    private readonly adminNotificationService: AdminNotificationService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -65,6 +70,7 @@ export class RolesService extends BaseService {
         groupsModel,
         projectModel,
         emailClient,
+        adminNotificationService,
     }: RolesServiceArguments) {
         super({ serviceName: 'RolesService' });
         this.lightdashConfig = lightdashConfig;
@@ -75,6 +81,7 @@ export class RolesService extends BaseService {
         this.groupsModel = groupsModel;
         this.projectModel = projectModel;
         this.emailClient = emailClient;
+        this.adminNotificationService = adminNotificationService;
     }
 
     /**
@@ -396,6 +403,8 @@ export class RolesService extends BaseService {
         }
 
         const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        const previousRole = user.role;
+
         if (user.role === OrganizationMemberRole.ADMIN) {
             // If user is currently an admin, we need to check if there are more admins
             // because every org should have at least one admin
@@ -426,6 +435,22 @@ export class RolesService extends BaseService {
                 isSystemRole: true,
             },
         });
+
+        // Send admin change notification (fire and forget)
+        this.adminNotificationService
+            .notifyOrgAdminRoleChange(
+                account,
+                userUuid,
+                orgUuid,
+                previousRole,
+                roleId as OrganizationMemberRole,
+            )
+            .catch((err) => {
+                this.logger.error(
+                    'Failed to send org admin role change notification',
+                    { error: err },
+                );
+            });
 
         // Build response
         return {
@@ -638,6 +663,24 @@ export class RolesService extends BaseService {
                 isSystemRole: isSystemRole(roleId),
             },
         });
+
+        // Send project admin change notification (fire and forget)
+        const previousProjectRole = userProjectRole[0]?.role ?? null;
+        const newProjectRole = isSystemRole(roleId) ? roleId : null;
+        this.adminNotificationService
+            .notifyProjectAdminRoleChange(
+                account,
+                userUuid,
+                projectUuid,
+                previousProjectRole,
+                newProjectRole,
+            )
+            .catch((err) => {
+                this.logger.error(
+                    'Failed to send project admin role change notification',
+                    { error: err },
+                );
+            });
 
         return {
             roleId,
