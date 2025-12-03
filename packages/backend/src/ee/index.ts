@@ -189,7 +189,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationWarehouseCredentialsModel(),
                     userModel: models.getUserModel(),
                 }),
-            projectService: ({ models, context, clients, utils }) =>
+            projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -223,6 +223,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        repository.getAdminNotificationService(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -295,6 +297,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
+                    adminNotificationService:
+                        repository.getAdminNotificationService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
