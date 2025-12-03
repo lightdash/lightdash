@@ -253,7 +253,31 @@ const explorerSlice = createSlice({
         },
 
         setColumnOrder: (state, action: PayloadAction<string[]>) => {
-            state.unsavedChartVersion.tableConfig.columnOrder = action.payload;
+            // Identify PoP fields by comparing with existing completeColumnOrder
+            // PoP fields are those in completeColumnOrder but not in base columnOrder
+            const currentBaseOrder =
+                state.unsavedChartVersion.tableConfig.columnOrder;
+            const currentCompleteOrder =
+                state.queryExecution.completeColumnOrder;
+
+            // Build set of PoP fields
+            const baseFieldsSet = new Set(currentBaseOrder);
+            const popFields = new Set(
+                currentCompleteOrder.filter(
+                    (field) => !baseFieldsSet.has(field),
+                ),
+            );
+
+            // Filter out PoP fields from the incoming order to get base order
+            const baseOrder = action.payload.filter(
+                (field) => !popFields.has(field),
+            );
+
+            // Update base order
+            state.unsavedChartVersion.tableConfig.columnOrder = baseOrder;
+
+            // Also update completeColumnOrder to match the user's drag immediately
+            state.queryExecution.completeColumnOrder = action.payload;
         },
 
         setPivotConfig: (
