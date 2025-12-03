@@ -1,3 +1,10 @@
+# [0.2221.0](https://github.com/lightdash/lightdash/compare/0.2220.0...0.2221.0) (2025-12-03)
+
+
+### Features
+
+* drop `type` property from tool schemas ([#18476](https://github.com/lightdash/lightdash/issues/18476)) ([b23743f](https://github.com/lightdash/lightdash/commit/b23743f9a73f7cf12cc180c3b4e6cd179edc9354))
+
 # [0.2220.0](https://github.com/lightdash/lightdash/compare/0.2219.0...0.2220.0) (2025-12-03)
 
 

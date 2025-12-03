@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2220.0",
+    "version": "0.2221.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
