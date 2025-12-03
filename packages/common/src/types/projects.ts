@@ -76,12 +76,6 @@ export const sensitiveCredentialsFieldNames = [
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
 
-export const sensitiveDbtFieldNames = [
-    'personal_access_token',
-    'api_key',
-] as const;
-export type SensitiveDbtFieldNames = typeof sensitiveDbtFieldNames[number];
-
 export type BigqueryCredentials = Omit<
     CreateBigqueryCredentials,
     SensitiveCredentialsFieldNames
