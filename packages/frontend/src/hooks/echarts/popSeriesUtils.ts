@@ -5,9 +5,21 @@ import {
     type PeriodOverPeriodComparison,
     type ResultColumns,
 } from '@lightdash/common';
-import { lighten } from 'polished';
+import { getLuminance, lighten } from 'polished';
 
-const POP_LIGHTEN_AMOUNT = 0.25;
+const POP_MAX_LIGHTEN = 0.25;
+const POP_MIN_LIGHTEN = 0.01;
+
+/**
+ * Compute a lightened color for PoP series, scaling the amount
+ * inversely to the original color's luminance.
+ * Dark colors get more lightening, light colors get less.
+ */
+const computePopColor = (color: string): string => {
+    const luminance = getLuminance(color);
+    const scaledAmount = POP_MAX_LIGHTEN * (1 - luminance);
+    return lighten(Math.max(POP_MIN_LIGHTEN, scaledAmount), color);
+};
 
 /**
  * Builds a map of base field ID -> PoP field ID using popMetadata from ResultColumns.
@@ -288,7 +300,7 @@ export const computeSeriesColorsWithPop = ({
                 console.error('No color to use for series', serie);
                 return baseColors[index];
             }
-            return lighten(POP_LIGHTEN_AMOUNT, colorToUse);
+            return computePopColor(colorToUse);
         }
 
         return baseColors[index];
