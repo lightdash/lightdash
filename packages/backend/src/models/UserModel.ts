@@ -127,25 +127,22 @@ type UserModelArguments = {
     lightdashConfig: LightdashConfig;
 };
 
+const sessionUserCache =
+    process.env.EXPERIMENTAL_CACHE === 'true'
+        ? new NodeCache({
+              stdTTL: 30, // time to live in seconds
+              checkperiod: 60, // cleanup interval in seconds
+          })
+        : undefined;
+
 export class UserModel {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly database: Knex;
 
-    private readonly sessionUserCache: NodeCache | undefined;
-
     constructor({ database, lightdashConfig }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
-
-        // Initialize cache with 30 seconds TTL
-        this.sessionUserCache =
-            process.env.EXPERIMENTAL_CACHE === 'true'
-                ? new NodeCache({
-                      stdTTL: 30, // time to live in seconds
-                      checkperiod: 60, // cleanup interval in seconds
-                  })
-                : undefined;
     }
 
     private canTrackingBeAnonymized() {
@@ -158,7 +155,7 @@ export class UserModel {
     ) {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
-        const cachedUser = this.sessionUserCache?.get<SessionUser>(cacheKey);
+        const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
         if (cachedUser) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
@@ -169,7 +166,7 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        this.sessionUserCache?.set(cacheKey, sessionUser);
+        sessionUserCache?.set(cacheKey, sessionUser);
         return { sessionUser, cacheHit: false };
     }
 
