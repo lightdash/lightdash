@@ -1,6 +1,7 @@
 import {
     AdminNotificationPayload,
     AdminNotificationType,
+    ChangeDetail,
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
@@ -56,9 +57,14 @@ type EmailTemplate = {
         | string
         | boolean
         | number
+        | null
+        | undefined
         | AttachmentUrl[]
         | PartialFailure[]
-        | undefined
+        | { chartName: string; error: string }[]
+        | ChangeDetail[]
+        | AdminNotificationPayload['changedBy']
+        | AdminNotificationPayload['targetUser']
     >;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
@@ -736,6 +742,28 @@ export default class EmailClient {
         });
     }
 
+    private static getAdminChangeNotificationText(
+        payload: AdminNotificationPayload,
+        isRemoval: boolean,
+    ): string {
+        const changedByName = payload.changedBy.isServiceAccount
+            ? `Service Account: ${payload.changedBy.serviceAccountDescription}`
+            : `${payload.changedBy.firstName} ${payload.changedBy.lastName}`;
+
+        if (payload.targetUser) {
+            const targetName = `${payload.targetUser.firstName} ${payload.targetUser.lastName}`;
+            const action = isRemoval ? 'removed as admin' : 'added as admin';
+            return `${targetName} was ${action} by ${changedByName}`;
+        }
+
+        const changeCount = payload.changes.length;
+        const changeDescription =
+            changeCount === 1
+                ? `1 setting was changed`
+                : `${changeCount} settings were changed`;
+        return `${changeDescription} by ${changedByName}`;
+    }
+
     public async sendAdminChangeNotificationEmail(
         recipients: string[],
         payload: AdminNotificationPayload,
@@ -747,6 +775,24 @@ export default class EmailClient {
             [AdminNotificationType.PROJECT_ADMIN_ADDED]: 'Project Admin Added',
             [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
                 'Project Admin Removed',
+            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
+                'Database Connection Changed',
+            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
+                'dbt Connection Changed',
+        };
+
+        const templateMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'adminChangeNotification',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
+                'databaseConnectionChange',
+            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
+                'dbtConnectionChange',
         };
 
         const projectContext = payload.projectName
@@ -754,13 +800,19 @@ export default class EmailClient {
             : payload.organizationName;
 
         const isRemoval = payload.type.includes('removed');
+        const isDatabaseConnectionChange =
+            payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE;
+        const isDbtConnectionChange =
+            payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE;
+        const isConnectionChange =
+            isDatabaseConnectionChange || isDbtConnectionChange;
 
         return this.sendEmail({
             to: recipients,
             subject: `[Lightdash] ${
                 subjectMap[payload.type]
             } - ${projectContext}`,
-            template: 'adminChangeNotification',
+            template: templateMap[payload.type],
             context: {
                 type: payload.type,
                 organizationName: payload.organizationName,
@@ -772,22 +824,14 @@ export default class EmailClient {
                 settingsUrl: payload.settingsUrl,
                 host: this.lightdashConfig.siteUrl,
                 isRemoval,
+                isDatabaseConnectionChange,
+                isDbtConnectionChange,
+                isConnectionChange,
             },
-            text: payload.changedBy.isServiceAccount
-                ? `${payload.targetUser.firstName} ${
-                      payload.targetUser.lastName
-                  } was ${
-                      isRemoval ? 'removed as admin' : 'added as admin'
-                  } by Service Account: ${
-                      payload.changedBy.serviceAccountDescription
-                  }`
-                : `${payload.targetUser.firstName} ${
-                      payload.targetUser.lastName
-                  } was ${
-                      isRemoval ? 'removed as admin' : 'added as admin'
-                  } by ${payload.changedBy.firstName} ${
-                      payload.changedBy.lastName
-                  }`,
+            text: EmailClient.getAdminChangeNotificationText(
+                payload,
+                isRemoval,
+            ),
         });
     }
 }
