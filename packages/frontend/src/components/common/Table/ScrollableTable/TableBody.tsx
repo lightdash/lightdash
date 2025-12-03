@@ -14,6 +14,7 @@ import {
     Loader,
     Skeleton,
     Tooltip,
+    useMantineColorScheme,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
@@ -65,6 +66,9 @@ const TableRow: FC<TableRowProps> = ({
     minMaxMap,
     minimal = false,
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const isDarkTheme = colorScheme === 'dark';
+
     const rowFields = useMemo(
         () =>
             row
@@ -156,6 +160,7 @@ const TableRow: FC<TableRowProps> = ({
                             SMALL_TEXT_LENGTH
                         }
                         tooltipContent={tooltipContent}
+                        isDarkTheme={isDarkTheme}
                     >
                         {cell.getIsGrouped() ? (
                             <Group spacing="xxs">

@@ -40,6 +40,7 @@ interface CommonBodyCellProps {
     isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
+    isDarkTheme?: boolean;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -56,6 +57,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     style,
     tooltipContent,
     minimal = false,
+    isDarkTheme = false,
 }) => {
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();
@@ -151,6 +153,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
                 $hasUrls={hasUrls}
+                $isDarkTheme={isDarkTheme}
                 $hasNewlines={
                     typeof displayValue === 'string' &&
                     displayValue.includes('\n')

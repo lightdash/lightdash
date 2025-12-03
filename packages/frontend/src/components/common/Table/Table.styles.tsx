@@ -185,6 +185,7 @@ export const Td = styled.td<{
     $isMinimal: boolean;
     $hasNewlines: boolean;
     $hasUrls: boolean;
+    $isDarkTheme?: boolean;
 }>`
     max-width: 300px;
     white-space: pre;
@@ -224,10 +225,15 @@ export const Td = styled.td<{
         // this is important because click-outside will not work and it will re-open the menu
         $isSelected ? `pointer-events: none;` : ''}
 
-    ${({ $backgroundColor }) =>
+    ${({ $backgroundColor, $isDarkTheme }) =>
         $backgroundColor
             ? `
                 background-color: ${$backgroundColor} !important;
+                ${
+                    $isDarkTheme
+                        ? 'filter: invert(1) hue-rotate(180deg)!important;'
+                        : ''
+                }
             `
             : `
                 background-color: transparent;
