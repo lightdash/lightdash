@@ -664,6 +664,11 @@ export class SchedulerService extends BaseService {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
+        // Validate that the scheduler is enabled before attempting to send
+        if (!scheduler.enabled) {
+            throw new ParameterError('Cannot send disabled scheduler');
+        }
+
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
             {
