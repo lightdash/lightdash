@@ -8,7 +8,6 @@ import {
     DbtProjectType,
     OrganizationMemberRole,
     ProjectMemberRole,
-    SessionUser,
     WarehouseTypes,
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -266,8 +265,6 @@ describe('AdminNotificationService', () => {
         ).toEqual([
             {
                 field: 'Organization Role',
-                previousValue: OrganizationMemberRole.MEMBER,
-                newValue: OrganizationMemberRole.ADMIN,
             },
         ]);
     });
@@ -476,8 +473,6 @@ describe('AdminNotificationService', () => {
 
             expect(changes).toHaveLength(1);
             expect(changes[0].field).toBe('Warehouse Type');
-            expect(changes[0].previousValue).toBe(WarehouseTypes.POSTGRES);
-            expect(changes[0].newValue).toBe(WarehouseTypes.BIGQUERY);
         });
 
         it('should only return type change when warehouse type changes', () => {
@@ -580,8 +575,6 @@ describe('AdminNotificationService', () => {
 
             expect(changes).toHaveLength(1);
             expect(changes[0].field).toBe('Connection Type');
-            expect(changes[0].previousValue).toBe('GitHub');
-            expect(changes[0].newValue).toBe('GitLab');
         });
 
         it('should only return type change when connection type changes', () => {
@@ -632,8 +625,6 @@ describe('AdminNotificationService', () => {
     });
 
     describe('notifyDatabaseConnectionChange', () => {
-        const mockSessionUser = mockSessionAccount.user as SessionUser;
-
         it('should not send when feature flag is disabled', async () => {
             (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
                 enabled: false,
@@ -643,10 +634,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Host', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Host' }],
             });
 
             expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
@@ -657,7 +646,7 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
+                changedBy: mockSessionAccount,
                 changes: [],
             });
 
@@ -676,10 +665,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Host', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Host' }],
             });
 
             expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
@@ -690,10 +677,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Host', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Host' }],
             });
 
             expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
@@ -707,10 +692,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Host', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Host' }],
             });
 
             const recipients =
@@ -724,10 +707,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Host', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Host' }],
             });
 
             expect(
@@ -739,8 +720,6 @@ describe('AdminNotificationService', () => {
     });
 
     describe('notifyDbtConnectionChange', () => {
-        const mockSessionUser = mockSessionAccount.user as SessionUser;
-
         it('should not send when feature flag is disabled', async () => {
             (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
                 enabled: false,
@@ -750,10 +729,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Branch', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Branch' }],
             });
 
             expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
@@ -764,7 +741,7 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
+                changedBy: mockSessionAccount,
                 changes: [],
             });
 
@@ -776,10 +753,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Branch', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Branch' }],
             });
 
             expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
@@ -793,10 +768,8 @@ describe('AdminNotificationService', () => {
                 organizationUuid: mockOrganizationUuid,
                 projectUuid: mockProjectUuid,
                 projectName: 'Test Project',
-                changedBy: mockSessionUser,
-                changes: [
-                    { field: 'Branch', previousValue: null, newValue: null },
-                ],
+                changedBy: mockSessionAccount,
+                changes: [{ field: 'Branch' }],
             });
 
             const recipients =
