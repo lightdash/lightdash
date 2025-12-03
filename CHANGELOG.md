@@ -1,3 +1,10 @@
+## [0.2221.2](https://github.com/lightdash/lightdash/compare/0.2221.1...0.2221.2) (2025-12-03)
+
+
+### Bug Fixes
+
+* table calculation missing values with filter-only metrics ([#18513](https://github.com/lightdash/lightdash/issues/18513)) ([e777ada](https://github.com/lightdash/lightdash/commit/e777ada84805578fbe7e615c66e4f8120b5f4406))
+
 ## [0.2221.1](https://github.com/lightdash/lightdash/compare/0.2221.0...0.2221.1) (2025-12-03)
 
 
