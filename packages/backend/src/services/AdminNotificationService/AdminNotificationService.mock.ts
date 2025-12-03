@@ -91,7 +91,7 @@ export const mockProjectSummary = {
     parentProjectUuid: undefined,
 };
 
-export const createMockAccount = (
+const createMockAccount = (
     overrides: Partial<{
         userUuid: string;
         email: string;
