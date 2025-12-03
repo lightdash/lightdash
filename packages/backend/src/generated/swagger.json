@@ -1210,18 +1210,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "firstName", "lastName"],
+                "properties": {},
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1255,7 +1244,12 @@
                         "type": "string"
                     },
                     "user": {
-                        "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -6748,6 +6742,53 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AIModelOption": {
+                "properties": {
+                    "default": {
+                        "type": "boolean"
+                    },
+                    "provider": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "default",
+                    "provider",
+                    "description",
+                    "displayName",
+                    "id"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AIModelOption-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AIModelOption"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentModelOptionsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AIModelOption-Array_"
+            },
             "ReadinessScoreEvaluation": {
                 "properties": {
                     "recommendations": {
@@ -7549,20 +7590,36 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "tableName": {
+                                                                            "type": "string"
                                                                         },
                                                                         "fieldType": {
                                                                             "type": "string"
@@ -7570,17 +7627,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "tableName",
                                                                         "fieldType",
                                                                         "label",
-                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -7590,16 +7644,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -7629,8 +7683,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -7674,15 +7728,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "tableName": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "fieldType": {
                                                                                         "type": "string"
@@ -7690,17 +7747,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "tableName",
                                                                                     "fieldType",
                                                                                     "label",
-                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -7728,8 +7782,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -7965,6 +8019,18 @@
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
+                    "modelConfig": {
+                        "properties": {
+                            "modelProvider": {
+                                "type": "string"
+                            },
+                            "modelId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["modelProvider", "modelId"],
+                        "type": "object"
+                    },
                     "prompt": {
                         "type": "string"
                     }
@@ -7990,6 +8056,18 @@
             },
             "ApiAiAgentThreadMessageCreateRequest": {
                 "properties": {
+                    "modelConfig": {
+                        "properties": {
+                            "modelProvider": {
+                                "type": "string"
+                            },
+                            "modelId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["modelProvider", "modelId"],
+                        "type": "object"
+                    },
                     "prompt": {
                         "type": "string"
                     }
@@ -22994,7 +23072,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2225.0",
+        "version": "0.2229.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

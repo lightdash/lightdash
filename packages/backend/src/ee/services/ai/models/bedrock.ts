@@ -41,9 +41,18 @@ export const getBedrockModel = (
     return {
         model,
         callOptions: preset.callOptions,
-        providerOptions: preset.providerOptions
-            ? { [PROVIDER]: preset.providerOptions }
-            : undefined,
+        providerOptions: {
+            [PROVIDER]: {
+                ...(preset.providerOptions || {}),
+                // TODO :: reasoning
+                // ...(preset.supportsReasoning && {
+                //     reasoningConfig: {
+                //         type: 'enabled',
+                //         budgetTokens: 1024, // TODO :: low - 1024, medium - 4096, high - 16384
+                //     },
+                // }),
+            },
+        },
     };
 };
 

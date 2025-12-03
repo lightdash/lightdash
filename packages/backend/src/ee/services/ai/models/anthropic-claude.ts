@@ -20,8 +20,18 @@ export const getAnthropicModel = (
     return {
         model,
         callOptions: preset.callOptions,
-        providerOptions: preset.providerOptions
-            ? { [PROVIDER]: preset.providerOptions }
-            : undefined,
+        providerOptions: {
+            [PROVIDER]: {
+                ...(preset.providerOptions || {}),
+                // TODO :: reasoning
+                // ...(preset.supportsReasoning && {
+                //     thinking: {
+                //         type: 'enabled',
+                //         /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
+                //         budgetTokens: 1024, // TODO :: low - 1024, medium - 4096, high - 16384
+                //     },
+                // }),
+            },
+        },
     };
 };

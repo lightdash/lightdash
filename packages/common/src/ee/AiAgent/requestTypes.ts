@@ -38,6 +38,7 @@ export type AiPrompt = {
     createdAt: Date;
     response: string | null;
     humanScore: number | null;
+    modelConfig: { modelId: string; modelProvider: string } | null;
 };
 
 export type SlackPrompt = AiPrompt & {
@@ -68,6 +69,7 @@ export type CreateWebAppPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
     prompt: string;
+    modelConfig?: { modelId: string; modelProvider: string };
 };
 
 export type UpdateSlackResponse = {

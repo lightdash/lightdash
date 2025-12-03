@@ -10,9 +10,6 @@ export const getOpenaiGptmodel = (
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
     preset: ModelPreset<'openai'>,
-    options?: {
-        enableReasoning?: boolean;
-    },
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
@@ -23,12 +20,7 @@ export const getOpenaiGptmodel = (
 
     const isGpt5 = model.modelId.includes('gpt-5');
 
-    // Determine if reasoning should be enabled
-    const reasoningEnabled =
-        preset.supportsReasoning &&
-        (options?.enableReasoning !== undefined
-            ? options.enableReasoning
-            : false);
+    const reasoningEnabled = preset.supportsReasoning;
 
     return {
         model,
@@ -41,9 +33,11 @@ export const getOpenaiGptmodel = (
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
+                // TODO :: reasoning
+                // Defaulting to Low as GPT-5 models without reasoning are not better than GPT-4.1
                 ...(reasoningEnabled && {
                     reasoningSummary: 'auto',
-                    reasoningEffort: 'medium',
+                    reasoningEffort: 'low',
                 }),
             },
         },
