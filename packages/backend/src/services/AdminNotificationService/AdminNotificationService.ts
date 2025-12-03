@@ -9,7 +9,6 @@ import {
     FeatureFlags,
     OrganizationMemberRole,
     ProjectMemberRole,
-    SessionUser,
 } from '@lightdash/common';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -190,16 +189,21 @@ export class AdminNotificationService extends BaseService {
         return allEmails.filter(Boolean);
     }
 
-    private static resolveChangedBySessionUser(
-        user: SessionUser,
+    private static resolveChangedByAccount(
+        account: Account,
     ): AdminNotificationPayload['changedBy'] {
+        const accountUser =
+            account.user?.type === 'registered' ? account.user : undefined;
+
         return {
-            isServiceAccount: false,
-            userUuid: user.userUuid,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
+            userUuid: accountUser?.userUuid,
+            email: account.user?.email,
+            firstName: accountUser?.firstName,
+            lastName: accountUser?.lastName,
+            role: accountUser?.role,
+            isServiceAccount: account.isServiceAccount(),
+            serviceAccountDescription:
+                AdminNotificationService.getServiceAccountDescription(account),
         };
     }
 
@@ -209,7 +213,11 @@ export class AdminNotificationService extends BaseService {
         try {
             const org = await this.organizationModel.get(organizationUuid);
             return org.name;
-        } catch {
+        } catch (error) {
+            this.logger.warn('Failed to get organization name', {
+                organizationUuid,
+                error,
+            });
             return 'Unknown Organization';
         }
     }
@@ -297,8 +305,6 @@ export class AdminNotificationService extends BaseService {
             const changes: ChangeDetail[] = [
                 {
                     field: 'Organization Role',
-                    previousValue: previousRole ?? null,
-                    newValue: newRole,
                 },
             ];
 
@@ -426,8 +432,6 @@ export class AdminNotificationService extends BaseService {
             const changes: ChangeDetail[] = [
                 {
                     field: 'Project Role',
-                    previousValue: previousRole,
-                    newValue: newRole,
                 },
             ];
 
@@ -499,8 +503,6 @@ export class AdminNotificationService extends BaseService {
         if (before?.type !== after.type) {
             changes.push({
                 field: 'Warehouse Type',
-                previousValue: before?.type ?? null,
-                newValue: after.type,
             });
 
             if (before !== undefined) {
@@ -541,11 +543,8 @@ export class AdminNotificationService extends BaseService {
                 if (beforeValue === undefined && afterValue === undefined)
                     return;
 
-                // Only store field name - templates don't display before/after values
                 changes.push({
                     field: this.getFieldLabel(key),
-                    previousValue: null,
-                    newValue: null,
                 });
             });
 
@@ -562,7 +561,7 @@ export class AdminNotificationService extends BaseService {
         organizationUuid: string;
         projectUuid: string;
         projectName: string;
-        changedBy: SessionUser;
+        changedBy: Account;
         changes: ChangeDetail[];
     }): Promise<void> {
         if (!(await this.isFeatureEnabled(params.organizationUuid))) {
@@ -590,10 +589,9 @@ export class AdminNotificationService extends BaseService {
             return;
         }
 
-        const changedByInfo =
-            AdminNotificationService.resolveChangedBySessionUser(
-                params.changedBy,
-            );
+        const changedByInfo = AdminNotificationService.resolveChangedByAccount(
+            params.changedBy,
+        );
 
         const payload: AdminNotificationPayload = {
             type: AdminNotificationType.DATABASE_CONNECTION_CHANGE,
@@ -633,10 +631,6 @@ export class AdminNotificationService extends BaseService {
         if (before?.type !== after.type) {
             changes.push({
                 field: 'Connection Type',
-                previousValue: before
-                    ? AdminNotificationService.getDbtTypeLabel(before.type)
-                    : null,
-                newValue: AdminNotificationService.getDbtTypeLabel(after.type),
             });
 
             if (before !== undefined) {
@@ -675,11 +669,8 @@ export class AdminNotificationService extends BaseService {
                 if (beforeValue === undefined && afterValue === undefined)
                     return;
 
-                // Only store field name - templates don't display before/after values
                 changes.push({
                     field: this.getDbtFieldLabel(key),
-                    previousValue: null,
-                    newValue: null,
                 });
             });
 
@@ -696,7 +687,7 @@ export class AdminNotificationService extends BaseService {
         organizationUuid: string;
         projectUuid: string;
         projectName: string;
-        changedBy: SessionUser;
+        changedBy: Account;
         changes: ChangeDetail[];
     }): Promise<void> {
         if (!(await this.isFeatureEnabled(params.organizationUuid))) {
@@ -724,10 +715,9 @@ export class AdminNotificationService extends BaseService {
             return;
         }
 
-        const changedByInfo =
-            AdminNotificationService.resolveChangedBySessionUser(
-                params.changedBy,
-            );
+        const changedByInfo = AdminNotificationService.resolveChangedByAccount(
+            params.changedBy,
+        );
 
         const payload: AdminNotificationPayload = {
             type: AdminNotificationType.DBT_CONNECTION_CHANGE,
