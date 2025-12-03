@@ -1,3 +1,10 @@
+## [0.2218.3](https://github.com/lightdash/lightdash/compare/0.2218.2...0.2218.3) (2025-12-03)
+
+
+### Bug Fixes
+
+* lighten pop series color with scaling ([#18505](https://github.com/lightdash/lightdash/issues/18505)) ([82247ca](https://github.com/lightdash/lightdash/commit/82247ca71495179ee92af33aae0242f2cff0025b))
+
 ## [0.2218.2](https://github.com/lightdash/lightdash/compare/0.2218.1...0.2218.2) (2025-12-03)
 
 
