@@ -336,7 +336,7 @@
                                                                                                         margin-bottom: 20px;
                                                                                                     "
                                                                                                 >
-                                                                                                    Database Connection Changed
+                                                                                                    {{#if isDatabaseConnectionChange}}Database{{else}}dbt{{/if}} Connection Changed
                                                                                                 </h1>
                                                                                             </td>
                                                                                         </tr>
@@ -380,7 +380,7 @@
                                                                                                     "
                                                                                                 >
                                                                                                     <p style="margin-bottom: 16px;">
-                                                                                                        The database connection settings have been modified.
+                                                                                                        The {{#if isDatabaseConnectionChange}}database{{else}}dbt{{/if}} connection settings have been modified.
                                                                                                     </p>
 
                                                                                                     <!-- Context info -->
