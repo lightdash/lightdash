@@ -2327,9 +2327,13 @@ export class MetricQueryBuilder {
                               (tableCalc) =>
                                   `  ${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
                           ),
+                          // Include simple table calcs - either inlined or from CTE
                           ...(shouldInlineSimpleCalcs
                               ? simpleTableCalculationSelects
-                              : []),
+                              : simpleTableCalcs.map(
+                                    (tableCalc) =>
+                                        `  ${fieldQuoteChar}${tableCalc.name}${fieldQuoteChar}`,
+                                )),
                       ]
                     : [
                           '  *',

@@ -1705,6 +1705,101 @@ LIMIT 10`;
                 expect(selectClause).not.toBe('*');
             }
         });
+
+        test('Should include table calculation in SELECT when table calc has filter AND filter-only metric exists', () => {
+            // Reproduces bug: table calc displays as "-" when:
+            // 1. Table calculation is in results
+            // 2. Table calculation has a filter
+            // 3. A metric NOT in results IS in filter
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1'], // Only select table1_metric1
+                    filters: {
+                        metrics: {
+                            id: 'metric-filter-root',
+                            and: [
+                                {
+                                    id: 'metric-filter-1',
+                                    target: {
+                                        fieldId: 'table2_metric3', // Filter on table2_metric3 (not in SELECT)
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [100],
+                                },
+                            ],
+                        },
+                        tableCalculations: {
+                            id: 'tc-filter-root',
+                            and: [
+                                {
+                                    id: 'tc-filter-1',
+                                    target: {
+                                        fieldId: 'calc1',
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [0],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                    limit: 10,
+                    tableCalculations: [
+                        {
+                            name: 'calc1',
+                            displayName: 'Calc 1',
+                            sql: '${table1.metric1} * 2',
+                        },
+                    ],
+                    compiledTableCalculations: [
+                        {
+                            name: 'calc1',
+                            displayName: 'Calc 1',
+                            sql: '${table1.metric1} * 2',
+                            compiledSql: '"table1_metric1" * 2',
+                            dependsOn: [],
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have table_calculations CTE (because table calc has filter)
+            expect(result.query).toContain('table_calculations AS (');
+
+            // Should calculate filter-only metric in the CTE
+            expect(result.query).toContain(
+                'SUM("table2".number_column) AS "table2_metric3"',
+            );
+
+            // Final SELECT should explicitly include the table calculation
+            const finalSelectMatch = result.query.match(
+                /SELECT\s+(.*?)\s+FROM\s+table_calculations\s+WHERE/s,
+            );
+            expect(finalSelectMatch).toBeTruthy();
+            if (finalSelectMatch) {
+                const selectClause = finalSelectMatch[1].trim();
+                // Should include the selected dimension
+                expect(selectClause).toContain('"table1_dim1"');
+                // Should include the selected metric
+                expect(selectClause).toContain('"table1_metric1"');
+                // Should include the table calculation (this was the bug - it was missing)
+                expect(selectClause).toContain('"calc1"');
+                // Should NOT include the filter-only metric
+                expect(selectClause).not.toContain('"table2_metric3"');
+                // Should NOT be SELECT * (since we have filter-only metrics)
+                expect(selectClause).not.toBe('*');
+            }
+
+            // Should have both metric and table calc filters in WHERE clause
+            expect(result.query).toContain('("table2_metric3") IN (100)');
+            expect(result.query).toContain('("calc1") > (0)');
+        });
     });
 
     describe('Table Calculations', () => {
