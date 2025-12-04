@@ -724,6 +724,10 @@ const getMetricFromParam = (
     return v;
 };
 
+const isPrimaryYAxis = (series: Series) => {
+    return (series.yAxisIndex ?? 0) === 0;
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -808,8 +812,9 @@ const getPivotSeries = ({
                                 !!flipAxes,
                             );
 
-                            // For 100% stacked charts, values are already percentages (0-100)
-                            if (isStack100) {
+                            // For 100% stacked bar charts on the primary axis, values are already percentages (0-100)
+                            // Only apply stack100 formatting if this series is on yAxisIndex 0
+                            if (isStack100 && isPrimaryYAxis(series)) {
                                 return formatStack100Value(raw);
                             }
 
@@ -930,8 +935,9 @@ const getSimpleSeries = ({
                             rawValue = v;
                         }
 
-                        // For 100% stacked charts, values are already percentages (0-100)
-                        if (isStack100) {
+                        // For 100% stacked charts on the primary axis, values are already percentages (0-100)
+                        // Only apply stack100 formatting if this series is on yAxisIndex 0
+                        if (isStack100 && (series.yAxisIndex ?? 0) === 0) {
                             return formatStack100Value(rawValue);
                         }
 
@@ -2394,9 +2400,14 @@ const useEchartsCartesianConfig = (
             };
         }
 
-        // Collect all y-field hashes from stacked series
+        // Collect all y-field hashes from stacked series ON THE PRIMARY AXIS ONLY
+        // 100% stacking should only affect series on yAxisIndex 0 (the left/primary Y-axis)
         const yFieldRefs = stackedSeriesWithColorAssignments
-            .filter((serie) => serie.stack && serie.encode)
+            .filter((serie) => {
+                return (
+                    serie.stack && serie.encode && (serie.yAxisIndex ?? 0) === 0 // Only primary axis
+                );
+            })
             .map((serie) =>
                 validCartesianConfig?.layout.flipAxes
                     ? serie.encode!.x
