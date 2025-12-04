@@ -76,6 +76,7 @@ const EditPopover: FC<EditPopoverProps> = ({
 
     return (
         <Popover
+            withinPortal
             position="top"
             opened={opened}
             closeOnClickOutside
