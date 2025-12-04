@@ -1,3 +1,10 @@
+# [0.2225.0](https://github.com/lightdash/lightdash/compare/0.2224.2...0.2225.0) (2025-12-04)
+
+
+### Features
+
+* add explore-scoped additional dimensions ([#18486](https://github.com/lightdash/lightdash/issues/18486)) ([f6b0dda](https://github.com/lightdash/lightdash/commit/f6b0dda1fb0d27c77276c1bd50497421233c971b))
+
 ## [0.2224.2](https://github.com/lightdash/lightdash/compare/0.2224.1...0.2224.2) (2025-12-04)
 
 
