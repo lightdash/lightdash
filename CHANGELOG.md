@@ -1,3 +1,10 @@
+## [0.2224.1](https://github.com/lightdash/lightdash/compare/0.2224.0...0.2224.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* move session user cache outside of UserModel class ([#18509](https://github.com/lightdash/lightdash/issues/18509)) ([24b18ff](https://github.com/lightdash/lightdash/commit/24b18ffa9721a6db020e8863c75032e993c59ae7))
+
 # [0.2224.0](https://github.com/lightdash/lightdash/compare/0.2223.0...0.2224.0) (2025-12-04)
 
 
