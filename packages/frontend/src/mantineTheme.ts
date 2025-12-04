@@ -186,18 +186,19 @@ export const getMantineThemeOverride = (
                 variants: {
                     darkPrimary: (theme) => ({
                         root: {
-                            background: `var(--mantine-color-ldDark-9)`,
+                            background: `var(--mantine-color-foreground-0)`,
                             borderRadius: theme.radius.md,
-                            color: `var(--mantine-color-ldDark-0)`,
+                            color: `var(--mantine-color-ldGray-0)`,
+                            boxShadow: `inset 0 -2px 0 0 color-mix(in srgb, var(--mantine-color-ldDark-0) 40%, transparent)`, // glossy effect
                             ...theme.fn.hover({
-                                background: `var(--mantine-color-ldDark-8)`,
+                                background: `color-mix(in srgb, var(--mantine-color-foreground-0) 80%, transparent)`,
                             }),
                             '&[data-loading]': {
                                 boxShadow: theme.shadows.subtle,
                             },
                             '&[data-disabled]': {
                                 boxShadow: theme.shadows.subtle,
-                                color: `var(--mantine-color-ldDark-5)`,
+                                color: `color-mix(in srgb, var(--mantine-color-foreground-0) 50%, transparent)`,
                             },
                         },
                     }),
