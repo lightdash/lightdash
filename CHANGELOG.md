@@ -1,3 +1,10 @@
+## [0.2226.1](https://github.com/lightdash/lightdash/compare/0.2226.0...0.2226.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* show correct format for secondary line axis with stack100 ([#18579](https://github.com/lightdash/lightdash/issues/18579)) ([be7c1c3](https://github.com/lightdash/lightdash/commit/be7c1c35980a98e79080f0cf8b8b39743c85e2ab)), closes [#18543](https://github.com/lightdash/lightdash/issues/18543)
+
 # [0.2226.0](https://github.com/lightdash/lightdash/compare/0.2225.0...0.2226.0) (2025-12-04)
 
 
