@@ -44,6 +44,7 @@ jobs:
         uses: depot/build-push-action@v1
         with:
           project: bgbbt3d0kc # depot project id
+          token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
           file: dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
