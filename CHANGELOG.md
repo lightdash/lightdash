@@ -1,3 +1,10 @@
+# [0.2222.0-alpha.1](https://github.com/lightdash/lightdash/compare/0.2221.5...0.2222.0-alpha.1) (2025-12-04)
+
+
+### Features
+
+* add event loop blocking test to livez endpoint ([87e8c5a](https://github.com/lightdash/lightdash/commit/87e8c5aedb82acfb4c42dc1727f6cdcca550709b))
+
 ## [0.2221.5](https://github.com/lightdash/lightdash/compare/0.2221.4...0.2221.5) (2025-12-03)
 
 
