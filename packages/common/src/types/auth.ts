@@ -67,7 +67,7 @@ export type OssEmbed = {
     chartUuids: string[];
     allowAllCharts: boolean;
     createdAt: string;
-    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
+    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'> | null;
 };
 
 export type Authentication =

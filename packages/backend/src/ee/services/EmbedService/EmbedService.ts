@@ -487,7 +487,7 @@ export class EmbedService extends BaseService {
         );
 
         await this.isFeatureEnabled({
-            userUuid: user.userUuid,
+            userUuid: user?.userUuid ?? account.user.id,
             organizationUuid: dashboard.organizationUuid,
         });
 
@@ -962,7 +962,7 @@ export class EmbedService extends BaseService {
 
         const { organizationUuid } = chart;
         await this.isFeatureEnabled({
-            userUuid: user.userUuid,
+            userUuid: user?.userUuid ?? account.user.id,
             organizationUuid,
         });
 
@@ -1064,7 +1064,7 @@ export class EmbedService extends BaseService {
 
         const { organizationUuid } = chart;
         await this.isFeatureEnabled({
-            userUuid: user.userUuid,
+            userUuid: user?.userUuid ?? account.user.id,
             organizationUuid,
         });
 

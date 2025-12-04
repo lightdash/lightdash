@@ -47,13 +47,6 @@ export class EmbedModel {
             );
         }
 
-        // embed table does not cascade when the user gets deleted
-        // so we need to check if the user still exists and throw an error if not
-        // in the frontend this prompts the user to create a new embed
-        if (!embed.user_uuid) {
-            throw new NotFoundError(`User not found for embed`);
-        }
-
         const dashboards = await this.database('dashboards')
             .select()
             .whereIn('dashboard_uuid', embed.dashboard_uuids);
@@ -81,11 +74,13 @@ export class EmbedModel {
             chartUuids: validChartUuids,
             allowAllCharts: embed.allow_all_charts,
             createdAt: embed.created_at,
-            user: {
-                userUuid: embed.user_uuid,
-                firstName: embed.first_name,
-                lastName: embed.last_name,
-            },
+            user: embed.user_uuid
+                ? {
+                      userUuid: embed.user_uuid,
+                      firstName: embed.first_name,
+                      lastName: embed.last_name,
+                  }
+                : null,
         };
     }
 
