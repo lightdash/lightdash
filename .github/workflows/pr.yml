@@ -43,6 +43,8 @@ jobs:
     name: Lint & Typecheck
     runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -71,6 +73,8 @@ jobs:
     name: Build
     runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -95,6 +99,8 @@ jobs:
     name: Unit Tests
     runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -278,6 +284,8 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "E2E: API"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -328,6 +336,8 @@ jobs:
       matrix:
         containers: [1, 2, 3]
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -384,6 +394,8 @@ jobs:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
       options: --user 1001
     name: "E2E: Performance"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -440,6 +452,8 @@ jobs:
       matrix:
         timezone: ['America/New_York', 'Europe/Madrid', 'Asia/Tokyo']
     name: "E2E: Timezone (${{ matrix.timezone }})"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -481,6 +495,8 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "CLI: API"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -512,6 +528,8 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "CLI: Integration"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -577,6 +595,8 @@ jobs:
       matrix:
         dbt: ['1.4', '1.9', '1.10']
     name: "CLI: dbt ${{ matrix.dbt }}"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
