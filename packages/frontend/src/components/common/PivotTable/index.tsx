@@ -18,7 +18,13 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Button, Group, Text, type BoxProps } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Text,
+    useMantineColorScheme,
+    type BoxProps,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -40,7 +46,10 @@ import {
     formatCellContent,
     getFormattedValueCell,
 } from '../../../hooks/useColumns';
-import { getColorFromRange } from '../../../utils/colorUtils';
+import {
+    getColorFromRange,
+    transformColorsForDarkMode,
+} from '../../../utils/colorUtils';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
@@ -111,6 +120,7 @@ const PivotTable: FC<PivotTableProps> = ({
     isMinimal = false,
     ...tableProps
 }) => {
+    const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
 
@@ -600,7 +610,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                         value: value?.raw,
                                         config: conditionalFormattingConfig,
                                         minMaxMap,
-                                        getColorFromRange,
+                                        getColorFromRange: (
+                                            val,
+                                            colorRange,
+                                            minMaxRange,
+                                        ) => {
+                                            const effectiveColorRange =
+                                                colorScheme === 'dark'
+                                                    ? transformColorsForDarkMode(
+                                                          colorRange,
+                                                      )
+                                                    : colorRange;
+                                            return getColorFromRange(
+                                                val,
+                                                effectiveColorRange,
+                                                minMaxRange,
+                                            );
+                                        },
                                     });
 
                                 const conditionalFormatting = (() => {
