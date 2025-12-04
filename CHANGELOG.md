@@ -1,3 +1,10 @@
+## [0.2226.2](https://github.com/lightdash/lightdash/compare/0.2226.1...0.2226.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* metric catalog popularity tooltip ([#18589](https://github.com/lightdash/lightdash/issues/18589)) ([1621840](https://github.com/lightdash/lightdash/commit/162184086f7c558418a94c597b0ef15465c99142))
+
 ## [0.2226.1](https://github.com/lightdash/lightdash/compare/0.2226.0...0.2226.1) (2025-12-04)
 
 
