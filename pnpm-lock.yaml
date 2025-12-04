@@ -1029,6 +1029,9 @@ importers:
       postcss-preset-mantine:
         specifier: ^1.18.0
         version: 1.18.0(postcss@8.5.6)
+      postcss-simple-vars:
+        specifier: ^7.0.1
+        version: 7.0.1(postcss@8.5.6)
       posthog-js:
         specifier: ^1.166.1
         version: 1.166.1
