@@ -4995,6 +4995,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'enum', enums: ['string'] },
                         { dataType: 'enum', enums: ['number'] },
+                        { dataType: 'enum', enums: ['date'] },
                     ],
                 },
                 description: { dataType: 'string' },
@@ -6876,6 +6877,12 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required:
+                                                                                                        true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
@@ -6883,12 +6890,6 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required:
-                                                                                                        true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -7145,6 +7146,12 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required:
+                                                                                                            true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
@@ -7152,12 +7159,6 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required:
-                                                                                                            true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',

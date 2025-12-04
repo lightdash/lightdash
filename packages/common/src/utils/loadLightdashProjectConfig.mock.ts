@@ -136,3 +136,29 @@ parameters:
       - Bob
       - Alice
 `;
+
+export const validConfigWithDateParameter = `
+spotlight:
+  default_visibility: show
+parameters:
+  start_date:
+    label: Start Date
+    type: date
+    default: '2025-08-06'
+    options:
+      - '2025-08-06'
+      - '2025-08-07'
+      - '2025-08-08'
+`;
+
+export const validConfigWithDateParameterFromDimension = `
+spotlight:
+  default_visibility: show
+parameters:
+  order_date:
+    label: Order Date
+    type: date
+    options_from_dimension:
+      model: orders
+      dimension: order_date
+`;
