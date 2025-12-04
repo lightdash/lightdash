@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { type FC, useCallback, useEffect, useState } from 'react';
+import { type FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -37,33 +37,57 @@ const AiAgentNewThreadPage: FC = () => {
     const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
 
     const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+    const [extendedThinking, setExtendedThinking] = useState(false);
+
+    const handleSelectedModelIdChange = useCallback(
+        (modelId: string) => {
+            setSelectedModelId(modelId);
+            const selectedModel = modelOptions?.find((m) => m.id === modelId);
+            if (selectedModel && !selectedModel.supportsReasoning) {
+                setExtendedThinking(false);
+            }
+        },
+        [modelOptions, setExtendedThinking],
+    );
 
     // Initialize to default model when data loads
     useEffect(() => {
         if (modelOptions && !selectedModelId) {
             const defaultModel = modelOptions.find((m) => m.default);
             if (defaultModel) {
-                setSelectedModelId(defaultModel.id);
+                handleSelectedModelIdChange(defaultModel.id);
             }
         }
-    }, [modelOptions, selectedModelId]);
+    }, [modelOptions, selectedModelId, handleSelectedModelIdChange]);
+
+    // Only enable extended thinking toggle when selected model supports reasoning
+    const selectedModel = useMemo(
+        () => modelOptions?.find((m) => m.id === selectedModelId),
+        [modelOptions, selectedModelId],
+    );
+    const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
     const onSubmit = useCallback(
         (prompt: string) => {
-            const selectedModel = modelOptions?.find(
-                (m) => m.id === selectedModelId,
-            );
             void createAgentThread({
                 prompt,
                 modelConfig: selectedModel
                     ? {
                           modelId: selectedModel.id,
                           modelProvider: selectedModel.provider,
+                          reasoning: showExtendedThinking
+                              ? extendedThinking
+                              : undefined,
                       }
                     : undefined,
             });
         },
-        [createAgentThread, modelOptions, selectedModelId],
+        [
+            createAgentThread,
+            selectedModel,
+            showExtendedThinking,
+            extendedThinking,
+        ],
     );
 
     return (
@@ -158,9 +182,15 @@ const AiAgentNewThreadPage: FC = () => {
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         models={modelOptions}
                         selectedModelId={selectedModelId}
-                        onModelChange={setSelectedModelId}
-                        // extendedThinking={extendedThinking}
-                        // onExtendedThinkingChange={setExtendedThinking}
+                        onModelChange={handleSelectedModelIdChange}
+                        extendedThinking={
+                            showExtendedThinking ? extendedThinking : undefined
+                        }
+                        onExtendedThinkingChange={
+                            showExtendedThinking
+                                ? setExtendedThinking
+                                : undefined
+                        }
                     />
                 </Stack>
             </Stack>

@@ -33,24 +33,33 @@ export const getBedrockModel = (
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
     preset: ModelPreset<'bedrock'>,
+    options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
     /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#accessing-bedrock */
     const model = bedrock(`${config.region}.${preset.modelId}`);
 
+    const reasoningEnabled =
+        options?.enableReasoning && preset.supportsReasoning;
+
     return {
         model,
-        callOptions: preset.callOptions,
+        callOptions: {
+            ...preset.callOptions,
+            // temperature is not supported when reasoning is enabled
+            ...(reasoningEnabled
+                ? { temperature: undefined }
+                : { temperature: 0.2 }),
+        },
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
-                // TODO :: reasoning
-                // ...(preset.supportsReasoning && {
-                //     reasoningConfig: {
-                //         type: 'enabled',
-                //         budgetTokens: 1024, // TODO :: low - 1024, medium - 4096, high - 16384
-                //     },
-                // }),
+                ...(reasoningEnabled && {
+                    reasoningConfig: {
+                        type: 'enabled',
+                        budgetTokens: 2048,
+                    },
+                }),
             },
         },
     };

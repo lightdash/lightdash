@@ -5943,6 +5943,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                supportsReasoning: { dataType: 'boolean', required: true },
                 default: { dataType: 'boolean', required: true },
                 provider: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
@@ -7439,6 +7440,24 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                modelConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                reasoning: { dataType: 'boolean' },
+                                modelProvider: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                modelId: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 referencedArtifacts: {
                     dataType: 'union',
                     subSchemas: [
@@ -7608,6 +7627,7 @@ const models: TsoaRoute.Models = {
                 modelConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        reasoning: { dataType: 'boolean' },
                         modelProvider: { dataType: 'string', required: true },
                         modelId: { dataType: 'string', required: true },
                     },
@@ -7649,6 +7669,7 @@ const models: TsoaRoute.Models = {
                 modelConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        reasoning: { dataType: 'boolean' },
                         modelProvider: { dataType: 'string', required: true },
                         modelId: { dataType: 'string', required: true },
                     },

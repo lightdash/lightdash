@@ -129,7 +129,9 @@ export const getModel = (
                 config,
                 options?.modelId,
             );
-            return getOpenaiGptmodel(openaiConfig, preset);
+            return getOpenaiGptmodel(openaiConfig, preset, {
+                enableReasoning: options?.enableReasoning,
+            });
         }
         case 'azure': {
             const azureConfig = config.providers.azure;
@@ -145,7 +147,9 @@ export const getModel = (
                 config,
                 options?.modelId,
             );
-            return getAnthropicModel(anthropicConfig, preset);
+            return getAnthropicModel(anthropicConfig, preset, {
+                enableReasoning: options?.enableReasoning,
+            });
         }
         case 'openrouter': {
             const openrouterConfig = config.providers.openrouter;
@@ -163,7 +167,9 @@ export const getModel = (
                 config,
                 options?.modelId,
             );
-            return getBedrockModel(bedrockConfig, preset);
+            return getBedrockModel(bedrockConfig, preset, {
+                enableReasoning: options?.enableReasoning,
+            });
         }
         default:
             return assertUnreachable(provider, `Invalid provider: ${provider}`);

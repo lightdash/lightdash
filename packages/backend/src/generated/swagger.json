@@ -6744,6 +6744,9 @@
             },
             "AIModelOption": {
                 "properties": {
+                    "supportsReasoning": {
+                        "type": "boolean"
+                    },
                     "default": {
                         "type": "boolean"
                     },
@@ -6761,6 +6764,7 @@
                     }
                 },
                 "required": [
+                    "supportsReasoning",
                     "default",
                     "provider",
                     "description",
@@ -7872,6 +7876,22 @@
             },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "modelConfig": {
+                        "properties": {
+                            "reasoning": {
+                                "type": "boolean"
+                            },
+                            "modelProvider": {
+                                "type": "string"
+                            },
+                            "modelId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["modelProvider", "modelId"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "referencedArtifacts": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
@@ -7941,6 +7961,7 @@
                     }
                 },
                 "required": [
+                    "modelConfig",
                     "referencedArtifacts",
                     "artifacts",
                     "savedQueryUuid",
@@ -8021,6 +8042,9 @@
                 "properties": {
                     "modelConfig": {
                         "properties": {
+                            "reasoning": {
+                                "type": "boolean"
+                            },
                             "modelProvider": {
                                 "type": "string"
                             },
@@ -8058,6 +8082,9 @@
                 "properties": {
                     "modelConfig": {
                         "properties": {
+                            "reasoning": {
+                                "type": "boolean"
+                            },
                             "modelProvider": {
                                 "type": "string"
                             },
