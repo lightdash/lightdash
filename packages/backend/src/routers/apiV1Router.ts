@@ -24,16 +24,6 @@ import { userRouter } from './userRouter';
 export const apiV1Router: Router = express.Router();
 
 apiV1Router.get('/livez', async (req, res, next) => {
-    // For testing event loop blocking - pass ?blockSeconds=X to block for X seconds
-    const blockSeconds = parseInt(req.query.blockSeconds as string, 10);
-    if (!Number.isNaN(blockSeconds) && blockSeconds > 0 && blockSeconds <= 60) {
-        const startTime = Date.now();
-        const blockUntil = startTime + blockSeconds * 1000;
-        // Synchronous busy-wait to block the event loop
-        while (Date.now() < blockUntil) {
-            // Busy loop - this blocks the event loop
-        }
-    }
     res.json({
         status: 'ok',
     });
