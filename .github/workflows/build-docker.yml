@@ -15,6 +15,10 @@ env:
 jobs:
   docker-build:
     runs-on: ubuntu-latest
+    # Set permissions for depot OIDC authentication
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Set up Docker tags
         id: meta
