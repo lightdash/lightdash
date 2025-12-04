@@ -1682,6 +1682,21 @@ const getEchartAxes = ({
                           )
                         : undefined,
                 ...topAxisConfigWithStyle,
+                // Preserve top axis formatting when 100% stacking is enabled on bottom axis with flipped axes
+                ...(shouldStack100 &&
+                    validCartesianConfig.layout.flipAxes &&
+                    showXAxis &&
+                    topAxisConfigWithStyle.axisLabel &&
+                    typeof topAxisConfigWithStyle.axisLabel === 'object'
+                    ? {
+                          axisLabel: {
+                              ...(topAxisConfigWithStyle.axisLabel as Record<
+                                  string,
+                                  unknown
+                              >),
+                          },
+                      }
+                    : {}),
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
@@ -1801,6 +1816,21 @@ const getEchartAxes = ({
                           )
                         : undefined,
                 ...rightAxisConfigWithStyle,
+                // Preserve right axis formatting when 100% stacking is enabled on left axis
+                ...(shouldStack100 &&
+                    !validCartesianConfig.layout.flipAxes &&
+                    showYAxis &&
+                    rightAxisConfigWithStyle.axisLabel &&
+                    typeof rightAxisConfigWithStyle.axisLabel === 'object'
+                    ? {
+                          axisLabel: {
+                              ...(rightAxisConfigWithStyle.axisLabel as Record<
+                                  string,
+                                  unknown
+                              >),
+                          },
+                      }
+                    : {}),
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
