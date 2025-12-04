@@ -157,7 +157,10 @@ export const useFieldValues = (
             // make sure we don't cache for too long
             cacheTime: 60 * 1000, // 1 minute
             ...useQueryOptions,
-            enabled: !!tableName && !!projectId,
+            enabled:
+                !!tableName &&
+                !!projectId &&
+                useQueryOptions?.enabled !== false,
             staleTime: 0,
             onSuccess: (data) => {
                 const { results: newResults, search: newSearch } = data;

@@ -1,3 +1,74 @@
+# [0.2226.0](https://github.com/lightdash/lightdash/compare/0.2225.0...0.2226.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* fallback to account user id for isFeatureEnabled in embed service ([#18565](https://github.com/lightdash/lightdash/issues/18565)) ([c112d76](https://github.com/lightdash/lightdash/commit/c112d762a1d8c0e34346faa94b8786281ee0d2a5))
+
+
+### Features
+
+* conditional formatting gradients for dark mode ([#18577](https://github.com/lightdash/lightdash/issues/18577)) ([e7b036f](https://github.com/lightdash/lightdash/commit/e7b036fd6d5b782177f452eb9f9043aa59829864)), closes [#18420](https://github.com/lightdash/lightdash/issues/18420)
+
+# [0.2225.0](https://github.com/lightdash/lightdash/compare/0.2224.2...0.2225.0) (2025-12-04)
+
+
+### Features
+
+* add explore-scoped additional dimensions ([#18486](https://github.com/lightdash/lightdash/issues/18486)) ([f6b0dda](https://github.com/lightdash/lightdash/commit/f6b0dda1fb0d27c77276c1bd50497421233c971b))
+
+## [0.2224.2](https://github.com/lightdash/lightdash/compare/0.2224.1...0.2224.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* dark/light mode user pending badge ([#18567](https://github.com/lightdash/lightdash/issues/18567)) ([459cf79](https://github.com/lightdash/lightdash/commit/459cf795b8eccae0903f362217a9cd619163045e))
+* unify dashboard title colors ([#18563](https://github.com/lightdash/lightdash/issues/18563)) ([71cd021](https://github.com/lightdash/lightdash/commit/71cd021019f4ff56af1df3dc39647856ba4a13ae)), closes [#c9d1d9](https://github.com/lightdash/lightdash/issues/c9d1d9)
+
+## [0.2224.1](https://github.com/lightdash/lightdash/compare/0.2224.0...0.2224.1) (2025-12-04)
+
+
+### Bug Fixes
+
+* move session user cache outside of UserModel class ([#18509](https://github.com/lightdash/lightdash/issues/18509)) ([24b18ff](https://github.com/lightdash/lightdash/commit/24b18ffa9721a6db020e8863c75032e993c59ae7))
+
+# [0.2224.0](https://github.com/lightdash/lightdash/compare/0.2223.0...0.2224.0) (2025-12-04)
+
+
+### Features
+
+* **CENG-144:** allow date type parameters ([#18198](https://github.com/lightdash/lightdash/issues/18198)) ([51680d5](https://github.com/lightdash/lightdash/commit/51680d55741a264a0f3b3dea0537e04b382aab05))
+
+# [0.2223.0](https://github.com/lightdash/lightdash/compare/0.2222.0...0.2223.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* improve GeoJSON proxy security and reduce file size limit ([#18504](https://github.com/lightdash/lightdash/issues/18504)) ([4befe6d](https://github.com/lightdash/lightdash/commit/4befe6d1796620d3d8b9363c0f31c1962a3b512f))
+* Revert "feat: add event loop blocking test to livez endpoint ([#18547](https://github.com/lightdash/lightdash/issues/18547))" ([#18562](https://github.com/lightdash/lightdash/issues/18562)) ([4afd400](https://github.com/lightdash/lightdash/commit/4afd4001cd357bf9c9725b16974f7ba7f86be3d3))
+* simple statistic comparison colors in dark theme ([#18525](https://github.com/lightdash/lightdash/issues/18525)) ([75776e3](https://github.com/lightdash/lightdash/commit/75776e34c9e94ac4872906f4cb3edfda52b19dd2))
+* update anthropic and bedrock providers to resolve empty tool call input issue ([#18560](https://github.com/lightdash/lightdash/issues/18560)) ([0950247](https://github.com/lightdash/lightdash/commit/0950247491da346a399901474d1bd798ff20a220))
+
+
+### Features
+
+* make grays lighter in dark mode ([#18561](https://github.com/lightdash/lightdash/issues/18561)) ([5c0fc79](https://github.com/lightdash/lightdash/commit/5c0fc7919db1063a8bd9586eaa4a794f755f253f)), closes [#b0b0](https://github.com/lightdash/lightdash/issues/b0b0)
+
+# [0.2222.0](https://github.com/lightdash/lightdash/compare/0.2221.6...0.2222.0) (2025-12-04)
+
+
+### Features
+
+* add event loop blocking test to livez endpoint ([#18547](https://github.com/lightdash/lightdash/issues/18547)) ([7b8ed4e](https://github.com/lightdash/lightdash/commit/7b8ed4ef7252fd75ee888b1b31114cc142fc61c4))
+
+## [0.2221.6](https://github.com/lightdash/lightdash/compare/0.2221.5...0.2221.6) (2025-12-04)
+
+
+### Bug Fixes
+
+* allow single project name in Git repository validator ([#18555](https://github.com/lightdash/lightdash/issues/18555)) ([ba4fcce](https://github.com/lightdash/lightdash/commit/ba4fcce4d1c6f4cca9e4fa43a1722ed89e3813f9))
+* remove explicit gray color from icon buttons ([#18557](https://github.com/lightdash/lightdash/issues/18557)) ([bd42b2b](https://github.com/lightdash/lightdash/commit/bd42b2b211efb795160952ee8fa67a16bc999a9f))
+
 ## [0.2221.5](https://github.com/lightdash/lightdash/compare/0.2221.4...0.2221.5) (2025-12-03)
 
 

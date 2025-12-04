@@ -1,6 +1,14 @@
-import { SupportedDbtAdapter } from '../types/dbt';
+import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
+import { type Explore } from '../types/explore';
+import { DimensionType, FieldType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
-import { attachTypesToModels, convertTable } from './translator';
+import { TimeFrames } from '../types/timeFrames';
+import { warehouseClientMock } from './exploreCompiler.mock';
+import {
+    attachTypesToModels,
+    convertExplores,
+    convertTable,
+} from './translator';
 import {
     DBT_METRIC,
     DBT_METRIC_DERIVED,
@@ -796,5 +804,203 @@ describe('spotlight config', () => {
         ).toThrowError(
             `Invalid spotlight categories found in metric 'user_count': category_1, category_2. Categories must be defined in project config.`,
         );
+    });
+});
+
+describe('explore-scoped additional dimensions', () => {
+    const MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS: DbtModelNode & {
+        relation_name: string;
+    } = {
+        unique_id: 'model.test.test_model',
+        resource_type: 'model',
+        name: 'test_model',
+        database: 'testDatabase',
+        schema: 'testSchema',
+        alias: 'test_model',
+        description: 'Test model with explore-scoped dimensions',
+        relation_name: 'testDatabase.testSchema.test_model',
+        columns: {
+            order_id: {
+                name: 'order_id',
+                data_type: DimensionType.STRING,
+                meta: {},
+            },
+            amount: {
+                name: 'amount',
+                data_type: DimensionType.NUMBER,
+                meta: {},
+            },
+        },
+        meta: {
+            explores: {
+                orders_with_custom_dims: {
+                    label: 'Orders with Custom Dimensions',
+                    additional_dimensions: {
+                        amount_doubled: {
+                            type: DimensionType.NUMBER,
+                            sql: '${amount} * 2',
+                            label: 'Amount Doubled',
+                            description: 'The order amount multiplied by 2',
+                        },
+                        amount_category: {
+                            type: DimensionType.STRING,
+                            sql: "CASE WHEN ${amount} > 100 THEN 'high' ELSE 'low' END",
+                            label: 'Amount Category',
+                        },
+                    },
+                },
+            },
+        },
+        config: {
+            materialized: 'table',
+        },
+        tags: [],
+        path: 'models/test_model.sql',
+        patch_path: 'test://models/test_model.yml',
+        depends_on: { nodes: [], macros: [] },
+        refs: [],
+        sources: [],
+        compiled: true,
+        compiled_code: 'SELECT * FROM orders',
+        fqn: ['test', 'test_model'],
+        raw_code: 'SELECT * FROM orders',
+        language: 'sql',
+        package_name: 'test',
+        original_file_path: 'models/test_model.sql',
+        checksum: { name: 'sha256', checksum: '' },
+    };
+
+    it('should create explore with explore-scoped additional dimensions', async () => {
+        const explores = await convertExplores(
+            [MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        // Should create 2 explores: base explore + additional explore with custom dimensions
+        expect(explores).toHaveLength(2);
+
+        // Find the explore with custom dimensions
+        const exploreWithDims = explores.find(
+            (e) => 'name' in e && e.name === 'orders_with_custom_dims',
+        ) as Explore;
+
+        expect(exploreWithDims).toBeDefined();
+        expect(exploreWithDims.label).toBe('Orders with Custom Dimensions');
+
+        // Check that explore-scoped dimensions are present
+        const baseTable = exploreWithDims.tables.test_model;
+        expect(baseTable.dimensions).toHaveProperty('amount_doubled');
+        expect(baseTable.dimensions).toHaveProperty('amount_category');
+
+        // Verify dimension properties
+        const amountDoubled = baseTable.dimensions.amount_doubled;
+        expect(amountDoubled.type).toBe(DimensionType.NUMBER);
+        expect(amountDoubled.label).toBe('Amount Doubled');
+        expect(amountDoubled.description).toBe(
+            'The order amount multiplied by 2',
+        );
+        expect(amountDoubled.isAdditionalDimension).toBe(true);
+        expect(amountDoubled.table).toBe('test_model');
+        expect(amountDoubled.fieldType).toBe(FieldType.DIMENSION);
+
+        const amountCategory = baseTable.dimensions.amount_category;
+        expect(amountCategory.type).toBe(DimensionType.STRING);
+        expect(amountCategory.label).toBe('Amount Category');
+        expect(amountCategory.isAdditionalDimension).toBe(true);
+    });
+
+    it('should NOT include explore-scoped dimensions in base explore', async () => {
+        const explores = await convertExplores(
+            [MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        // Find the base explore
+        const baseExplore = explores.find(
+            (e) => 'name' in e && e.name === 'test_model',
+        ) as Explore;
+
+        expect(baseExplore).toBeDefined();
+
+        // Base explore should NOT have the explore-scoped dimensions
+        const baseTable = baseExplore.tables.test_model;
+        expect(baseTable.dimensions).not.toHaveProperty('amount_doubled');
+        expect(baseTable.dimensions).not.toHaveProperty('amount_category');
+
+        // But should have the regular dimensions
+        expect(baseTable.dimensions).toHaveProperty('order_id');
+        expect(baseTable.dimensions).toHaveProperty('amount');
+    });
+
+    const MODEL_WITH_DATE_EXPLORE_DIMENSION: DbtModelNode = {
+        ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+        meta: {
+            explores: {
+                orders_with_date_dims: {
+                    label: 'Orders with Date Dimensions',
+                    additional_dimensions: {
+                        custom_date: {
+                            type: DimensionType.DATE,
+                            sql: 'DATE(${amount})',
+                            label: 'Custom Date',
+                            time_intervals: [
+                                TimeFrames.DAY,
+                                TimeFrames.WEEK,
+                                TimeFrames.MONTH,
+                            ],
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    it('should create time interval dimensions for date type explore-scoped dimensions', async () => {
+        const explores = await convertExplores(
+            [MODEL_WITH_DATE_EXPLORE_DIMENSION],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const exploreWithDims = explores.find(
+            (e) => 'name' in e && e.name === 'orders_with_date_dims',
+        ) as Explore;
+
+        expect(exploreWithDims).toBeDefined();
+
+        const baseTable = exploreWithDims.tables.test_model;
+
+        // Should have the base date dimension
+        expect(baseTable.dimensions).toHaveProperty('custom_date');
+        expect(baseTable.dimensions.custom_date.type).toBe(DimensionType.DATE);
+        expect(baseTable.dimensions.custom_date.isIntervalBase).toBe(true);
+
+        // Should have time interval dimensions
+        expect(baseTable.dimensions).toHaveProperty('custom_date_day');
+        expect(baseTable.dimensions).toHaveProperty('custom_date_week');
+        expect(baseTable.dimensions).toHaveProperty('custom_date_month');
+
+        // Verify time interval dimension properties
+        expect(baseTable.dimensions.custom_date_day.timeInterval).toBe('DAY');
+        expect(
+            baseTable.dimensions.custom_date_day.timeIntervalBaseDimensionName,
+        ).toBe('custom_date');
     });
 });

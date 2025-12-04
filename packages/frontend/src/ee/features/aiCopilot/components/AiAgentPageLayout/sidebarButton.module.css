@@ -6,4 +6,5 @@
     span[data-position='left']:has(+ :empty) {
         margin-right: 0;
     }
+    color: var(--mantine-color-ldGray-9);
 }

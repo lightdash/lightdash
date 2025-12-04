@@ -7,6 +7,8 @@ import {
     invalidConfigWithIncompleteOptionsFromDimension,
     invalidConfigWithNoOptions,
     validConfigWithAllowCustomValues,
+    validConfigWithDateParameter,
+    validConfigWithDateParameterFromDimension,
     validConfigWithMixedArrayTypes,
     validConfigWithNumberArrayParameter,
     validConfigWithNumberParameter,
@@ -178,6 +180,46 @@ describe('loadLightdashProjectConfig', () => {
                     multiple: true,
                     default: ['John', 'Jane'],
                     options: ['John', 'Jane', 'Bob', 'Alice'],
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with date parameter', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithDateParameter,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                start_date: {
+                    label: 'Start Date',
+                    type: 'date',
+                    default: '2025-08-06',
+                    options: ['2025-08-06', '2025-08-07', '2025-08-08'],
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with date parameter using options_from_dimension', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithDateParameterFromDimension,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                order_date: {
+                    label: 'Order Date',
+                    type: 'date',
+                    options_from_dimension: {
+                        model: 'orders',
+                        dimension: 'order_date',
+                    },
                 },
             },
         });

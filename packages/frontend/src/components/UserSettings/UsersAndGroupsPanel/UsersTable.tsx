@@ -214,7 +214,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                             style={{ textTransform: 'none' }}
                                             px="xxs"
                                         >
-                                            <Text fz="xs" fw={400} c="ldGray.8">
+                                            <Text fz="xs" fw={400} c="gray.8">
                                                 {!user.isInviteExpired
                                                     ? 'Pending'
                                                     : 'Link expired'}

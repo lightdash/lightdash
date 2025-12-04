@@ -68,3 +68,17 @@ parameters:
       - "usd"
       - "eur"
       - "gbp"
+  date_dim_parameter:
+    label: A dimension date parameter
+    options_from_dimension:
+      dimension: order_date
+      model: orders
+    description: "The first date in comparing who's moved from segment to segment"
+    default: '2025-07-06'
+    type: date
+  date_custom_parameter:
+    label: A custom date parameter
+    allow_custom_values: true
+    description: "The first date in comparing who's moved from segment to segment"
+    default: '2025-08-06'
+    type: date

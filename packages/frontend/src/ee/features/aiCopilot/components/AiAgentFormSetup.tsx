@@ -709,7 +709,7 @@ export const AiAgentFormSetup = ({
                                 <Group
                                     c={
                                         slackChannelsConfigured
-                                            ? 'green.04'
+                                            ? 'green.4'
                                             : 'dimmed'
                                     }
                                     gap="xxs"

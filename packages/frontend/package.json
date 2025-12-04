@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2221.5",
+    "version": "0.2226.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -103,6 +103,7 @@
         "monaco-sql-languages": "^0.12.2",
         "polished": "^4.2.2",
         "postcss-preset-mantine": "^1.18.0",
+        "postcss-simple-vars": "^7.0.1",
         "posthog-js": "^1.166.1",
         "react": "19.2.0",
         "react-ace": "^9.5.0",

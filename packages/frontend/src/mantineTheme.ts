@@ -99,18 +99,24 @@ const darkModeColors = {
         '#C1C2C5',
     ] as ColorTuple,
     ldGray: [
-        '#252528',
-        '#303032',
-        '#3b3b3f',
-        '#464649',
-        '#515154',
-        '#5c5c60',
-        '#676769',
-        '#727275',
-        '#7d7d81',
-        '#888892',
+        '#28282c',
+        '#343437',
+        '#404044',
+        '#4d4d4f',
+        '#59595c',
+        '#77777c',
+        '#858588',
+        '#949498',
+        '#a2a2a7',
+        '#b0b0bd',
     ] as ColorTuple,
 };
+
+// Colors used for conditional formatting in dark mode
+export const DARK_MODE_COLORS = {
+    SUBTLE_GRAY: darkModeColors.ldDark[4],
+    CONTRAST_GRAY: darkModeColors.ldDark[6],
+} as const;
 
 export const getMantineThemeOverride = (
     colorScheme: ColorScheme,

@@ -60,7 +60,7 @@
                         "type": {
                             "description": "The data type of the parameter (defaults to 'string' for backwards compatibility)",
                             "type": "string",
-                            "enum": ["string", "number"],
+                            "enum": ["string", "number", "date"],
                             "default": "string"
                         },
                         "description": {

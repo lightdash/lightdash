@@ -396,4 +396,119 @@ describe('safeReplaceParametersWithTypes', () => {
             });
         }).toThrow('Invalid number parameter: "invalid" is not a valid number');
     });
+
+    it('should wrap date parameters with CAST to DATE', () => {
+        const sql =
+            'SELECT * FROM orders WHERE order_date >= ${lightdash.parameters.start_date}';
+        const parameters = { start_date: '2025-08-06' };
+        const parameterDefinitions = {
+            start_date: {
+                label: 'Start Date',
+                type: 'date' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM orders WHERE order_date >= CAST('2025-08-06' AS DATE)",
+        );
+    });
+
+    it('should reject date parameters with SQL injection attempts', () => {
+        const sql =
+            'SELECT * FROM orders WHERE order_date = ${lightdash.parameters.order_date}';
+        const parameters = {
+            order_date: "2025-08-06'; DROP TABLE orders; --",
+        };
+        const parameterDefinitions = {
+            order_date: {
+                label: 'Order Date',
+                type: 'date' as const,
+            },
+        };
+
+        // SQL injection attempts should be rejected by date validation
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: parameters,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow(
+            'Invalid date parameter: "2025-08-06\'; DROP TABLE orders; --" is not a valid ISO 8601 date (YYYY-MM-DD)',
+        );
+    });
+
+    it.each([
+        { description: 'invalid date format', testDate: '08/06/2025' },
+        { description: 'not-a-date', testDate: 'invalid date string' },
+        { description: 'impossible date', testDate: '2025-02-30' },
+    ])(
+        'should throw error for $description: $testDate',
+        ({ description, testDate }) => {
+            const sql =
+                'SELECT * FROM orders WHERE order_date = ${lightdash.parameters.order_date}';
+            const parameterDefinitions = {
+                order_date: {
+                    label: 'Order Date',
+                    type: 'date' as const,
+                },
+            };
+
+            // Test invalid date format
+            const invalidFormatParams = { order_date: testDate };
+            expect(() => {
+                safeReplaceParametersWithTypes({
+                    sql,
+                    parameterValuesMap: invalidFormatParams,
+                    parameterDefinitions,
+                    sqlBuilder: mockSqlBuilder,
+                });
+            }).toThrow(
+                `Invalid date parameter: "${testDate}" is not a valid ISO 8601 date (YYYY-MM-DD)`,
+            );
+        },
+    );
+
+    it('should handle mixed parameter types including dates', () => {
+        const sql =
+            'SELECT * FROM orders WHERE user_id = ${lightdash.parameters.user_id} AND order_date >= ${lightdash.parameters.start_date} AND status = ${lightdash.parameters.status}';
+        const parameters = {
+            user_id: 42,
+            start_date: '2025-01-01',
+            status: 'active',
+        };
+        const parameterDefinitions = {
+            user_id: {
+                label: 'User ID',
+                type: 'number' as const,
+            },
+            start_date: {
+                label: 'Start Date',
+                type: 'date' as const,
+            },
+            status: {
+                label: 'Status',
+                type: 'string' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM orders WHERE user_id = 42 AND order_date >= CAST('2025-01-01' AS DATE) AND status = 'active'",
+        );
+    });
 });

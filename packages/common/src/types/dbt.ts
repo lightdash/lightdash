@@ -75,11 +75,34 @@ type DbtLightdashFieldTags = {
 
 export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
+/**
+ * Additional dimension definition for explore-scoped dimensions.
+ * These dimensions are only available within a specific explore.
+ * They can reference fields from joined tables using ${table.field} syntax.
+ *
+ * Unlike column-level additional dimensions, explore-scoped dimensions
+ * require `type` and `sql` since there's no underlying column to infer from.
+ */
+export type DbtExploreLightdashAdditionalDimension =
+    DbtColumnLightdashAdditionalDimension & {
+        type: DimensionType; // Required for explore-scoped dimensions
+        sql: string; // Required for explore-scoped dimensions
+    };
+
 type ExploreConfig = {
     label?: string;
     description?: string;
     group_label?: string;
     joins?: DbtModelJoin[];
+    /**
+     * Explore-scoped custom dimensions.
+     * These dimensions are only available within this specific explore
+     * and can reference fields from any joined table.
+     */
+    additional_dimensions?: Record<
+        string,
+        DbtExploreLightdashAdditionalDimension
+    >;
 };
 
 export type SharedDbtModelLightdashConfig = {

@@ -42,7 +42,7 @@ const FormatFilter: FC<FormatFilterProps> = ({
                 >
                     <Button
                         h={32}
-                        c="ldGray.7"
+                        c="foreground.0"
                         fw={500}
                         fz="sm"
                         variant="default"
@@ -82,7 +82,7 @@ const FormatFilter: FC<FormatFilterProps> = ({
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
-                    <Text fz="xs" c="ldDark.3" fw={600}>
+                    <Text fz="xs" c="ldGray.9" fw={600}>
                         Filter by format:
                     </Text>
 
