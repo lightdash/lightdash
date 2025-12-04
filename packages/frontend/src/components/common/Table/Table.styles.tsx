@@ -43,7 +43,9 @@ export const TableContainer = styled.div<
             `}
 `;
 
-export const Table = styled.table<{ $showFooter?: boolean }>`
+export const Table = styled.table<{
+    $showFooter?: boolean;
+}>`
     border-spacing: 0;
     font-size: 14px;
     width: 100%;
@@ -70,21 +72,25 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     tbody tr:first-child td,
     tfoot tr:first-child th,
     tfoot tr:first-child td {
-        box-shadow: inset 0 1px 0 0 rgba(17, 20, 24, 0.15);
+        box-shadow: inset 0 1px 0 0
+            color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
     }
 
     tbody tr td,
     tfoot tr td {
-        box-shadow: inset 0 1px 0 0 rgba(17, 20, 24, 0.15);
+        box-shadow: inset 0 1px 0 0
+            color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
     }
 
     tbody tr td:not(:first-child),
     tfoot tr td:not(:first-child) {
-        box-shadow: inset 1px 1px 0 0 rgba(17, 20, 24, 0.15);
+        box-shadow: inset 1px 1px 0 0
+            color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
     }
 
     th:not(:first-child) {
-        box-shadow: inset 1px 0 0 0 rgba(17, 20, 24, 0.15);
+        box-shadow: inset 1px 0 0 0
+            color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
     }
 
     /* FIXME: everything above this line is copied from blueprint's table css */
