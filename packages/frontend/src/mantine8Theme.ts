@@ -54,6 +54,10 @@ const subtleInputStyles = (theme: MantineTheme) => ({
         color: theme.colors.ldGray[7],
         marginBottom: theme.spacing.xxs,
     },
+    pill: {
+        background: theme.colors.ldGray[1],
+        color: theme.colors.ldGray[9],
+    },
 });
 
 export const getMantine8ThemeOverride = (
