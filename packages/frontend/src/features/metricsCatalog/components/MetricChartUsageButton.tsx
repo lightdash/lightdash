@@ -44,6 +44,7 @@ export const MetricChartUsageButton = ({
 
     return (
         <Tooltip
+            withinPortal
             variant="xs"
             disabled={!hasChartsUsage}
             openDelay={200}
@@ -66,7 +67,7 @@ export const MetricChartUsageButton = ({
                 leftIcon={<BarChart />}
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
-                c="ldDark.4"
+                c="ldGray.7"
                 fw={500}
                 sx={{
                     '&[data-disabled]': {
