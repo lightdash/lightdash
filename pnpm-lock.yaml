@@ -111,6 +111,9 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
+      turbo:
+        specifier: ^2.6.2
+        version: 2.6.2
       typescript:
         specifier: 5.5.4
         version: 5.5.4
@@ -13681,6 +13684,7 @@ packages:
   next@15.4.8:
     resolution: {integrity: sha512-jwOXTz/bo0Pvlf20FSb6VXVeWRssA2vbvq9SdrOPEg9x8E1B27C2rQtvriAn600o9hH61kjrVRexEffv3JybuA==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -16478,8 +16482,42 @@ packages:
     resolution: {integrity: sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg==}
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
 
+  turbo-darwin-64@2.6.2:
+    resolution: {integrity: sha512-nF9d/YAyrNkyXn9lp3ZtgXPb7fZsik3cUNe/sBvUO0G5YezUS/kDYYw77IdjizDzairz8pL2ITCTUreG2d5iZQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  turbo-darwin-arm64@2.6.2:
+    resolution: {integrity: sha512-mmm0jFaVramST26XE1Lk2qjkjvLJHOe9f3TFjqY+aByjMK/ZmKE5WFPuCWo4L3xhwx+16T37rdPP//76loB3oA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  turbo-linux-64@2.6.2:
+    resolution: {integrity: sha512-IUMHjkVRJDUABGpi+iS1Le59aOl5DX88U5UT/mKaE7nNEjG465+a8UtYno56cZnLP+C6BkX4I93LFgYf9syjGQ==}
+    cpu: [x64]
+    os: [linux]
+
+  turbo-linux-arm64@2.6.2:
+    resolution: {integrity: sha512-0qQdZiimMUZj2Gfq87thYu0E02NaNcsB3lcEK/TD70Zzi7AxQoxye664Gis0Uao2j2L9/+05wC2btZ7SoFX3Gw==}
+    cpu: [arm64]
+    os: [linux]
+
   turbo-stream@2.4.0:
     resolution: {integrity: sha512-FHncC10WpBd2eOmGwpmQsWLDoK4cqsA/UT/GqNoaKOQnT8uzhtCbg3EoUDMvqpOSAI0S26mr0rkjzbOO6S3v1g==}
+
+  turbo-windows-64@2.6.2:
+    resolution: {integrity: sha512-BmMfFmt0VaoZL4NbtDq/dzGfjHsPoGU2+vFiZtkiYsttHY3fd/Dmgnu9PuRyJN1pv2M22q88rXO+dqYRHztLMw==}
+    cpu: [x64]
+    os: [win32]
+
+  turbo-windows-arm64@2.6.2:
+    resolution: {integrity: sha512-0r4s4M/FgLxfjrdLPdqQUur8vZAtaWEi4jhkQ6wCIN2xzA9aee9IKwM53w7CQcjaLvWhT0AU7LTQHjFaHwxiKw==}
+    cpu: [arm64]
+    os: [win32]
+
+  turbo@2.6.2:
+    resolution: {integrity: sha512-LiQAFS6iWvnY8ViGtoPgduWBeuGH9B32XR4p8H8jxU5PudwyHiiyf1jQW0fCC8gCCTz9itkIbqZLIyUu5AG33w==}
+    hasBin: true
 
   tween-functions@1.2.0:
     resolution: {integrity: sha512-PZBtLYcCLtEcjL14Fzb1gSxPBeL7nWvGhO5ZFPGqziCcr8uvHp0NDmdjBchp6KHL+tExcg0m3NISmKxhU394dA==}
@@ -37373,7 +37411,34 @@ snapshots:
 
   tunnel@0.0.6: {}
 
+  turbo-darwin-64@2.6.2:
+    optional: true
+
+  turbo-darwin-arm64@2.6.2:
+    optional: true
+
+  turbo-linux-64@2.6.2:
+    optional: true
+
+  turbo-linux-arm64@2.6.2:
+    optional: true
+
   turbo-stream@2.4.0: {}
+
+  turbo-windows-64@2.6.2:
+    optional: true
+
+  turbo-windows-arm64@2.6.2:
+    optional: true
+
+  turbo@2.6.2:
+    optionalDependencies:
+      turbo-darwin-64: 2.6.2
+      turbo-darwin-arm64: 2.6.2
+      turbo-linux-64: 2.6.2
+      turbo-linux-arm64: 2.6.2
+      turbo-windows-64: 2.6.2
+      turbo-windows-arm64: 2.6.2
 
   tween-functions@1.2.0: {}
 

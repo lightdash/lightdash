@@ -18,32 +18,15 @@ permissions:
 
 jobs:
   # ============================================================================
-  # Stage 1: Install dependencies and warm up the cache
+  # Stage 1: Build, lint, typecheck, and test
   # ============================================================================
-  install:
-    name: Install
+  build-and-test:
+    name: Build & Test
     runs-on: depot-ubuntu-24.04-4
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20' 
-          cache: 'pnpm' ## TODO: if we switch to runners with local cache, we can remove this caching which uses the github cache API.
-          cache-dependency-path: 'pnpm-lock.yaml'
-      - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-  # ============================================================================
-  # Stage 2: Run in parallel after install
-  # ============================================================================
-
-  # 2A: Static checks (lint, format, unused-exports, typecheck)
-  static-checks:
-    name: Lint & Typecheck
-    runs-on: depot-ubuntu-24.04-4
-    needs: install
     env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_API: https://cache.depot.dev
       NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
@@ -56,77 +39,25 @@ jobs:
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint all packages
-        run: pnpm lint
+        run: pnpm turbo:lint
       - name: Check formatting all packages
-        run: pnpm format
+        run: pnpm turbo:format
       - name: Check for unused exports
         run: pnpm -F frontend unused-exports
-      - name: Build common
-        run: pnpm common-build
-      - name: Build warehouses
-        run: pnpm warehouses-build
       - name: Check types for all packages
-        run: pnpm typecheck
-
-  # 2B: Full build of the repo
-  build:
-    name: Build
-    runs-on: depot-ubuntu-24.04-4
-    needs: install
-    env:
-      NODE_OPTIONS: '--max-old-space-size=8192'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-      - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Build common
-        run: pnpm common-build
-      - name: Build warehouses
-        run: pnpm warehouses-build
-      - name: Build frontend
-        run: pnpm frontend-build
-      - name: Build backend
-        run: pnpm backend-build
-
-  # 2C: Unit tests
-  unit-tests:
-    name: Unit Tests
-    runs-on: depot-ubuntu-24.04-4
-    needs: install
-    env:
-      NODE_OPTIONS: '--max-old-space-size=8192'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-      - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Build common
-        run: pnpm common-build
-      - name: Build warehouses
-        run: pnpm warehouses-build
-      - name: Build backend
-        run: pnpm backend-build
+        run: pnpm turbo:typecheck
+      - name: Build all packages
+        run: pnpm turbo:build
       - name: Run unit tests
-        run: pnpm test
+        run: pnpm turbo:test
 
   # ============================================================================
-  # Stage 3: Deploy preview environment (only if stage 2 passes)
+  # Stage 2: Deploy preview environment (only if stage 1 passes)
   # ============================================================================
   files-changed:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
-    needs: [static-checks, build, unit-tests]
+    needs: build-and-test
     outputs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
       backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
@@ -169,7 +100,7 @@ jobs:
   preview:
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
-    needs: [static-checks, build, unit-tests]
+    needs: build-and-test
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
@@ -250,13 +181,13 @@ jobs:
             }
 
   # ============================================================================
-  # Stage 4: E2E and CLI tests (only after preview is up)
+  # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
 
   # Build cypress e2e image (runs in parallel with preview deployment)
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
-    needs: [static-checks, build, unit-tests]
+    needs: build-and-test
     name: Build E2E Image
     steps:
       - name: Checkout
