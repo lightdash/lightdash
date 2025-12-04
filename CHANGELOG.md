@@ -1,3 +1,18 @@
+# [0.2223.0](https://github.com/lightdash/lightdash/compare/0.2222.0...0.2223.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* improve GeoJSON proxy security and reduce file size limit ([#18504](https://github.com/lightdash/lightdash/issues/18504)) ([4befe6d](https://github.com/lightdash/lightdash/commit/4befe6d1796620d3d8b9363c0f31c1962a3b512f))
+* Revert "feat: add event loop blocking test to livez endpoint ([#18547](https://github.com/lightdash/lightdash/issues/18547))" ([#18562](https://github.com/lightdash/lightdash/issues/18562)) ([4afd400](https://github.com/lightdash/lightdash/commit/4afd4001cd357bf9c9725b16974f7ba7f86be3d3))
+* simple statistic comparison colors in dark theme ([#18525](https://github.com/lightdash/lightdash/issues/18525)) ([75776e3](https://github.com/lightdash/lightdash/commit/75776e34c9e94ac4872906f4cb3edfda52b19dd2))
+* update anthropic and bedrock providers to resolve empty tool call input issue ([#18560](https://github.com/lightdash/lightdash/issues/18560)) ([0950247](https://github.com/lightdash/lightdash/commit/0950247491da346a399901474d1bd798ff20a220))
+
+
+### Features
+
+* make grays lighter in dark mode ([#18561](https://github.com/lightdash/lightdash/issues/18561)) ([5c0fc79](https://github.com/lightdash/lightdash/commit/5c0fc7919db1063a8bd9586eaa4a794f755f253f)), closes [#b0b0](https://github.com/lightdash/lightdash/issues/b0b0)
+
 # [0.2222.0](https://github.com/lightdash/lightdash/compare/0.2221.6...0.2222.0) (2025-12-04)
 
 
