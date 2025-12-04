@@ -552,10 +552,7 @@ export const AssistantBubble: FC<Props> = memo(
                                     aria-label="Add to evaluation set"
                                     onClick={() => onAddToEvals(message.uuid)}
                                 >
-                                    <MantineIcon
-                                        icon={IconTestPipe}
-                                        color="gray"
-                                    />
+                                    <MantineIcon icon={IconTestPipe} />
                                 </ActionIcon>
                             </Tooltip>
                         )}
@@ -567,7 +564,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 aria-label="Debug information"
                                 onClick={openDrawer}
                             >
-                                <MantineIcon icon={IconBug} color="gray" />
+                                <MantineIcon icon={IconBug} />
                             </ActionIcon>
                         )}
                     </Group>
