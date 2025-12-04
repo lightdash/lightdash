@@ -1,3 +1,10 @@
+# [0.2224.0](https://github.com/lightdash/lightdash/compare/0.2223.0...0.2224.0) (2025-12-04)
+
+
+### Features
+
+* **CENG-144:** allow date type parameters ([#18198](https://github.com/lightdash/lightdash/issues/18198)) ([51680d5](https://github.com/lightdash/lightdash/commit/51680d55741a264a0f3b3dea0537e04b382aab05))
+
 # [0.2223.0](https://github.com/lightdash/lightdash/compare/0.2222.0...0.2223.0) (2025-12-04)
 
 
