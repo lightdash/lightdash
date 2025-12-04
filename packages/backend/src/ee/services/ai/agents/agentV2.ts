@@ -64,74 +64,6 @@ const getAgentTelemetryConfig = (
         },
     } as const);
 
-const getRepairToolCall =
-    (args: AiAgentArgs, tools: ToolSet): ToolCallRepairFunction<typeof tools> =>
-    async ({ messages: conversationHistory, error, toolCall, inputSchema }) => {
-        const logger = createAiAgentLogger(args.debugLoggingEnabled);
-        logger(
-            'Repair Tool Call',
-            `Attempting to repair tool call: ${toolCall.toolName}`,
-        );
-        logger(
-            'Repair Tool Call',
-            `Original tool call arguments: ${JSON.stringify(toolCall.input)}`,
-        );
-        if (error) {
-            logger('Repair Tool Call', `Error encountered: ${error.message}`);
-        }
-        if (NoSuchToolError.isInstance(error)) {
-            logger(
-                'Repair Tool Call',
-                `No such tool error for ${toolCall.toolName}. Returning null.`,
-            );
-            return null;
-        }
-
-        const tool = tools[toolCall.toolName as keyof typeof tools];
-        if (!tool) {
-            if (args.debugLoggingEnabled) {
-                Logger.warn(
-                    `[AiAgent][Repair Tool Call] Tool ${toolCall.toolName} not found in available tools.`,
-                );
-            }
-            return null; // Should ideally not happen if NoSuchToolError is handled
-        }
-
-        // TODO: extract this as separate agent
-        logger(
-            'Repair Tool Call',
-            `Generating repaired object for tool: ${toolCall.toolName}`,
-        );
-        const { object: repairedArgs } = await generateObject({
-            model: args.model,
-            schema: tool.inputSchema,
-            messages: [
-                ...conversationHistory,
-                {
-                    role: 'system',
-                    content: [
-                        `The model tried to call the tool "${toolCall.toolName}"` +
-                            ` with the following arguments:`,
-                        JSON.stringify(toolCall.input),
-                        `The tool accepts the following schema:`,
-                        JSON.stringify(inputSchema(toolCall)),
-                        'Please fix the arguments.',
-                    ].join('\n'),
-                },
-            ],
-            experimental_telemetry: getAgentTelemetryConfig(
-                'generateAgentResponse/repairToolCall',
-                args,
-            ),
-        });
-
-        logger(
-            'Repair Tool Call',
-            `Repaired arguments: ${JSON.stringify(repairedArgs)}`,
-        );
-        return { ...toolCall, args: JSON.stringify(repairedArgs) };
-    };
-
 const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -284,7 +216,6 @@ export const generateAgentResponse = async ({
             tools,
             messages,
             experimental_context: new AgentContext(availableExplores),
-            experimental_repairToolCall: getRepairToolCall(args, tools),
             onStepFinish: async (step) => {
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
@@ -449,7 +380,6 @@ export const streamAgentResponse = async ({
             tools,
             messages,
             experimental_context: new AgentContext(availableExplores),
-            experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
@@ -487,6 +417,15 @@ export const streamAgentResponse = async ({
                                 promptId: args.promptUuid,
                             },
                         });
+
+                        if (event.chunk.invalid) {
+                            Sentry.captureException(event.chunk.error, {
+                                tags: {
+                                    errorType: 'AiAgentToolCallInvalid',
+                                },
+                            });
+                            break;
+                        }
 
                         void dependencies
                             .storeToolCall({
