@@ -22,7 +22,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                     pathname: `/projects/${projectUuid}/sql-runner`,
                 }}
                 state={{ sql: data?.query }} // pass SQL as location state
-                leftIcon={<MantineIcon icon={IconTerminal2} color="gray" />}
+                leftIcon={<MantineIcon icon={IconTerminal2} color="ldGray.7" />}
                 disabled={isInitialLoading || !!error}
             >
                 Open in SQL Runner
