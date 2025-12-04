@@ -22,7 +22,7 @@ jobs:
   # ============================================================================
   install:
     name: Install
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -41,7 +41,7 @@ jobs:
   # 2A: Static checks (lint, format, unused-exports, typecheck)
   static-checks:
     name: Lint & Typecheck
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: install
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
   # 2B: Full build of the repo
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: install
     steps:
       - uses: actions/checkout@v4
@@ -93,7 +93,7 @@ jobs:
   # 2C: Unit tests
   unit-tests:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: install
     steps:
       - uses: actions/checkout@v4
@@ -119,7 +119,7 @@ jobs:
   # ============================================================================
   files-changed:
     name: Select Tests to Run
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [static-checks, build, unit-tests]
     outputs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
@@ -162,7 +162,7 @@ jobs:
 
   preview:
     name: Deploy Preview
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [static-checks, build, unit-tests]
     outputs:
       url: ${{ steps.deploy.outputs.url }}
@@ -249,7 +249,7 @@ jobs:
 
   # Build cypress e2e image (runs in parallel with preview deployment)
   build-cypress-e2e-image:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [static-checks, build, unit-tests]
     name: Build E2E Image
     steps:
@@ -275,7 +275,7 @@ jobs:
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed]
     name: "E2E: API"
     steps:
@@ -318,7 +318,7 @@ jobs:
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -378,7 +378,7 @@ jobs:
   perf-tests:
     if: needs.files-changed.outputs.perf == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -430,7 +430,7 @@ jobs:
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -478,7 +478,7 @@ jobs:
   cli-tests-without-dbt:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed]
     name: "CLI: API"
     steps:
@@ -509,7 +509,7 @@ jobs:
   cli-tests:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed]
     name: "CLI: Integration"
     steps:
@@ -570,7 +570,7 @@ jobs:
   cli-dbt-tests:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [preview, files-changed]
     strategy:
       fail-fast: false
@@ -639,7 +639,7 @@ jobs:
   # Cleanup job to drop all schemas created during CLI tests
   cleanup-schemas:
     if: always() && needs.files-changed.outputs.cli == 'true'
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     needs: [files-changed, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
     name: Cleanup test schemas
     steps:
