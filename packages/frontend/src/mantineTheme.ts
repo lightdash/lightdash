@@ -112,6 +112,12 @@ const darkModeColors = {
     ] as ColorTuple,
 };
 
+// Colors used for conditional formatting in dark mode
+export const DARK_MODE_COLORS = {
+    SUBTLE_GRAY: darkModeColors.ldDark[4],
+    CONTRAST_GRAY: darkModeColors.ldDark[6],
+} as const;
+
 export const getMantineThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: {
