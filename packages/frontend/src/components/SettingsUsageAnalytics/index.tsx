@@ -36,7 +36,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                         <MantineIcon
                             icon={IconLayoutDashboard}
                             size="xl"
-                            color="gray"
+                            color="ldGray.6"
                         />
                         <Text fw={600} fz="lg">
                             User Activity
@@ -56,7 +56,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                             <MantineIcon
                                 icon={IconArchive}
                                 size="xl"
-                                color="gray"
+                                color="ldGray.6"
                             />
                             <Text fw={600} fz="lg">
                                 Least viewed content
