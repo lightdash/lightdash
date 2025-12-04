@@ -1625,6 +1625,7 @@ const getEchartAxes = ({
                     validCartesianConfig.layout.flipAxes &&
                     showXAxis && {
                         axisLabel: {
+                            ...(bottomAxisConfigWithStyle.axisLabel || {}),
                             formatter: '{value}%',
                         },
                     }),
@@ -1729,6 +1730,7 @@ const getEchartAxes = ({
                     !validCartesianConfig.layout.flipAxes &&
                     showYAxis && {
                         axisLabel: {
+                            ...(leftAxisConfigWithStyle.axisLabel || {}),
                             formatter: '{value}%',
                         },
                     }),
