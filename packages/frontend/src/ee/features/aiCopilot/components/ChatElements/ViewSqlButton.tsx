@@ -20,8 +20,8 @@ export const ViewSqlButton: FC<ViewSqlButtonProps> = memo(({ sql }) => {
         >
             <HoverCard.Target>
                 <Tooltip label="View SQL">
-                    <ActionIcon size="sm" variant="subtle" color="gray">
-                        <MantineIcon icon={IconEye} color="gray" />
+                    <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                        <MantineIcon icon={IconEye} />
                     </ActionIcon>
                 </Tooltip>
             </HoverCard.Target>

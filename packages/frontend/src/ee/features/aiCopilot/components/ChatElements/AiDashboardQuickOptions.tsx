@@ -46,8 +46,8 @@ export const AiDashboardQuickOptions: FC<Props> = ({
         <Fragment>
             <Menu withArrow>
                 <Menu.Target>
-                    <ActionIcon size="sm" variant="subtle" color="gray">
-                        <MantineIcon icon={IconDots} size="lg" color="gray" />
+                    <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                        <MantineIcon icon={IconDots} size="lg" />
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>

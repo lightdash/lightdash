@@ -60,7 +60,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             borderRadius: theme.radius.sm,
         })}
         label={
-            <Text truncate="end" size="sm" c="ldGray.7">
+            <Text truncate="end" size="sm" c="ldGray.9">
                 {thread.title || thread.firstMessage.message}
             </Text>
         }
@@ -97,7 +97,6 @@ const AgentSidebar: FC<{
                     component={Link}
                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                     size="sm"
-                    color="ldGray.9"
                     {...(!isAgentSidebarCollapsed && {
                         fullWidth: true,
                         justify: 'flex-start',
@@ -284,7 +283,7 @@ const AgentPage = () => {
                                 root: {
                                     borderColor: theme.colors.ldGray[2],
                                     boxShadow: `var(--mantine-shadow-subtle)`,
-                                    color: theme.colors.ldGray[7],
+                                    color: theme.colors.ldGray[9],
                                     fontSize: theme.fontSizes.xs,
                                 },
                             })}
