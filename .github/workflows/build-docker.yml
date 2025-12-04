@@ -24,9 +24,9 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
 
-      # Improved Docker builds
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      # Set up Depot for faster Docker builds
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
 
       # Credentials for pushing final image to Docker Hub
       - name: Login to Docker Hub
@@ -37,14 +37,13 @@ jobs:
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@v5
+        uses: depot/build-push-action@v1
         with:
+          project: bgbbt3d0kc # depot project id
           file: dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}
-          cache-to: type=registry,mode=min,ref=${{ env.REGISTRY_IMAGE }}
 
 
