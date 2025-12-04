@@ -1,3 +1,11 @@
+## [0.2224.2](https://github.com/lightdash/lightdash/compare/0.2224.1...0.2224.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* dark/light mode user pending badge ([#18567](https://github.com/lightdash/lightdash/issues/18567)) ([459cf79](https://github.com/lightdash/lightdash/commit/459cf795b8eccae0903f362217a9cd619163045e))
+* unify dashboard title colors ([#18563](https://github.com/lightdash/lightdash/issues/18563)) ([71cd021](https://github.com/lightdash/lightdash/commit/71cd021019f4ff56af1df3dc39647856ba4a13ae)), closes [#c9d1d9](https://github.com/lightdash/lightdash/issues/c9d1d9)
+
 ## [0.2224.1](https://github.com/lightdash/lightdash/compare/0.2224.0...0.2224.1) (2025-12-04)
 
 
