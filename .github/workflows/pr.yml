@@ -1,0 +1,662 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  deployments: write
+  contents: read
+  pull-requests: write
+  issues: write
+  packages: write
+
+jobs:
+  # ============================================================================
+  # Stage 1: Install dependencies and warm up the cache
+  # ============================================================================
+  install:
+    name: Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
+          cache: 'pnpm' ## TODO: if we switch to runners with local cache, we can remove this caching which uses the github cache API.
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+  # ============================================================================
+  # Stage 2: Run in parallel after install
+  # ============================================================================
+
+  # 2A: Static checks (lint, format, unused-exports, typecheck)
+  static-checks:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Lint all packages
+        run: pnpm lint
+      - name: Check formatting all packages
+        run: pnpm format
+      - name: Check for unused exports
+        run: pnpm -F frontend unused-exports
+      - name: Build common
+        run: pnpm common-build
+      - name: Build warehouses
+        run: pnpm warehouses-build
+      - name: Check types for all packages
+        run: pnpm typecheck
+
+  # 2B: Full build of the repo
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build common
+        run: pnpm common-build
+      - name: Build warehouses
+        run: pnpm warehouses-build
+      - name: Build frontend
+        run: pnpm frontend-build
+      - name: Build backend
+        run: pnpm backend-build
+
+  # 2C: Unit tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build common
+        run: pnpm common-build
+      - name: Build warehouses
+        run: pnpm warehouses-build
+      - name: Build backend
+        run: pnpm backend-build
+      - name: Run unit tests
+        run: pnpm test
+
+  # ============================================================================
+  # Stage 3: Deploy preview environment (only if stage 2 passes)
+  # ============================================================================
+  files-changed:
+    name: Select Tests to Run
+    runs-on: ubuntu-latest
+    needs: [static-checks, build, unit-tests]
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
+      timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
+      perf: ${{ steps.changes.outputs.perf == 'true' || steps.overrides.outputs.perf == 'true' }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for files changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+      - name: Check for keyword overrides
+        id: overrides
+        run: |
+          echo "PR #${{ github.event.pull_request.number }}"
+          TEST_ALL="${{ contains(github.event.pull_request.body, 'test-all') }}"
+          echo "Test all override: $TEST_ALL"
+          echo "Frontend override: ${{ contains(github.event.pull_request.body, 'test-frontend') }}"
+          echo "Backend override: ${{ contains(github.event.pull_request.body, 'test-backend') }}"
+          echo "Timezone override: ${{ contains(github.event.pull_request.body, 'test-timezone') }}"
+          echo "Perf override: ${{ contains(github.event.pull_request.body, 'test-perf') }}"
+          echo "CLI override: ${{ contains(github.event.pull_request.body, 'test-cli') }}"
+          if [ "$TEST_ALL" = "true" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "timezone=true" >> "$GITHUB_OUTPUT"
+            echo "perf=true" >> "$GITHUB_OUTPUT"
+            echo "cli=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=${{ contains(github.event.pull_request.body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
+            echo "backend=${{ contains(github.event.pull_request.body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
+            echo "timezone=${{ contains(github.event.pull_request.body, 'test-timezone') }}" >> "$GITHUB_OUTPUT"
+            echo "perf=${{ contains(github.event.pull_request.body, 'test-perf') }}" >> "$GITHUB_OUTPUT"
+            echo "cli=${{ contains(github.event.pull_request.body, 'test-cli') }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [static-checks, build, unit-tests]
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Context
+        uses: okteto/context@latest
+        with:
+          url: ${{ secrets.OKTETO_CONTEXT }}
+          token: ${{ secrets.OKTETO_TOKEN }}
+
+      - name: Create GitHub deployment
+        id: deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          initial-status: pending
+          environment: pr-${{ github.event.number }}
+          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+
+      - name: Deploy preview environment
+        id: deploy
+        uses: okteto/deploy-preview@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: pr-${{ github.event.number }}
+          timeout: 15m
+          file: okteto.preview.yaml
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+
+      - name: Set preview URL output
+        run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
+
+      - name: Update deployment status
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          state: success
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+
+      - name: Comment PR with preview info
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const marker = '<!-- preview-environment-comment -->';
+            const body = `${marker}
+            ## Preview Environment
+
+            🌐 **URL:** https://lightdash-preview-pr-${context.issue.number}.lightdash.okteto.dev
+
+            📋 **Logs:** [View in GCP Console](https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews)
+
+            🔧 **SSH:** \`./scripts/okteto-ssh.sh ${context.issue.number}\`
+            `;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+  # ============================================================================
+  # Stage 4: E2E and CLI tests (only after preview is up)
+  # ============================================================================
+
+  # Build cypress e2e image (runs in parallel with preview deployment)
+  build-cypress-e2e-image:
+    runs-on: ubuntu-latest
+    needs: [static-checks, build, unit-tests]
+    name: Build E2E Image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: GitHub Registry Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          file: ./packages/e2e/dockerfile
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+          push: true
+
+  api-tests:
+    if: needs.files-changed.outputs.backend == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed]
+    name: "E2E: API"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: 'credentials.json'
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: './packages/e2e/cypress/fixtures/'
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          working-directory: packages/e2e
+          spec: cypress/e2e/api/**/*
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false'
+        env:
+          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
+          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
+          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
+          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
+          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
+          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
+
+  app-tests:
+    if: needs.files-changed.outputs.frontend == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed, build-cypress-e2e-image]
+    container:
+      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        containers: [1, 2, 3]
+    name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: 'credentials.json'
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: './packages/e2e/cypress/fixtures/'
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          browser: firefox
+          working-directory: packages/e2e
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
+        env:
+          SPLIT: ${{ strategy.job-total }}
+          SPLIT_INDEX: ${{ strategy.job-index }}
+          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
+          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
+          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
+          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
+          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
+          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-and-videos-${{ strategy.job-index }}
+          path: |
+            packages/e2e/cypress/screenshots
+            packages/e2e/cypress/videos
+          if-no-files-found: ignore
+
+  perf-tests:
+    if: needs.files-changed.outputs.perf == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed, build-cypress-e2e-image]
+    container:
+      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+      options: --user 1001
+    name: "E2E: Performance"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: 'credentials.json'
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: './packages/e2e/cypress/fixtures/'
+      - name: Run Cypress Performance Tests
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          browser: firefox
+          working-directory: packages/e2e
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/perf/**/*.cy.{js,jsx,ts,tsx},video=false'
+        env:
+          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
+          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
+          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
+          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
+          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
+          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-performance-artifacts
+          path: packages/e2e/cypress/artifacts
+          if-no-files-found: ignore
+
+  timezone-tests:
+    if: needs.files-changed.outputs.timezone == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed, build-cypress-e2e-image]
+    container:
+      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        timezone: ['America/New_York', 'Europe/Madrid', 'Asia/Tokyo']
+    name: "E2E: Timezone (${{ matrix.timezone }})"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: 'credentials.json'
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: './packages/e2e/cypress/fixtures/'
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          browser: firefox
+          working-directory: packages/e2e
+          spec: cypress/e2e/app/dates.cy.ts
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false'
+        env:
+          TZ: ${{ matrix.timezone }}
+          CYPRESS_TZ: ${{ matrix.timezone }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
+          path: |
+            packages/e2e/cypress/screenshots
+            packages/e2e/cypress/videos
+          if-no-files-found: ignore
+
+  # CLI tests without dbt
+  cli-tests-without-dbt:
+    if: needs.files-changed.outputs.cli == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed]
+    name: "CLI: API"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: Build packages/warehouses module
+        run: pnpm warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && pnpm build && npm install -g
+      - name: Test lightdash version
+        run: |
+          lightdash_version=$(lightdash --version)
+          package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          working-directory: packages/e2e
+          spec: cypress/cli/api
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev'
+
+  # CLI tests with dbt
+  cli-tests:
+    if: needs.files-changed.outputs.cli == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed]
+    name: "CLI: Integration"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9.x'
+      - run: pip install dbt-core~=1.9.0 dbt-postgres~=1.9.0
+      - name: Seed DBT
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+          PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
+      - name: Run DBT
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+          PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: Build packages/warehouses module
+        run: pnpm warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && pnpm build && npm install -g
+      - name: Test lightdash version
+        run: |
+          lightdash_version=$(lightdash --version)
+          package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          working-directory: packages/e2e
+          spec: cypress/cli/integration/*
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev'
+        env:
+          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
+          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          CYPRESS_SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
+
+  # CLI dbt version tests
+  cli-dbt-tests:
+    if: needs.files-changed.outputs.cli == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [preview, files-changed]
+    strategy:
+      fail-fast: false
+      matrix:
+        dbt: ['1.4', '1.9', '1.10']
+    name: "CLI: dbt ${{ matrix.dbt }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node, PNPM, and Cypress
+        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9.x'
+      - run: |
+          if [ "${{ matrix.dbt }}" = "1.10" ]; then
+            pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=1.9.0
+          else
+            pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
+          fi
+      - name: Seed DBT
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+          PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
+      - name: Run DBT
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+          PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
+      - name: Build packages/common module
+        run: pnpm common-build
+      - name: Build packages/warehouses module
+        run: pnpm warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && pnpm build && npm install -g
+      - name: Test lightdash version
+        run: |
+          lightdash_version=$(lightdash --version)
+          package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Run Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          working-directory: packages/e2e
+          spec: cypress/cli/dbt/*
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev'
+        env:
+          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
+          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          CYPRESS_SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
+
+  # Cleanup job to drop all schemas created during CLI tests
+  cleanup-schemas:
+    if: always() && needs.files-changed.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    needs: [files-changed, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
+    name: Cleanup test schemas
+    steps:
+      - name: Drop test schemas
+        run: |
+          PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+)$"
+          SCHEMAS=$(psql -t -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name ~ '$PATTERN';")
+          for schema in $SCHEMAS; do
+              if [ -n "$schema" ]; then
+                  echo "Dropping schema: $schema"
+                  psql -c "DROP SCHEMA IF EXISTS \"$schema\" CASCADE;"
+              fi
+          done
+          echo "Schema cleanup completed"
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
