@@ -1,3 +1,11 @@
+## [0.2221.6](https://github.com/lightdash/lightdash/compare/0.2221.5...0.2221.6) (2025-12-04)
+
+
+### Bug Fixes
+
+* allow single project name in Git repository validator ([#18555](https://github.com/lightdash/lightdash/issues/18555)) ([ba4fcce](https://github.com/lightdash/lightdash/commit/ba4fcce4d1c6f4cca9e4fa43a1722ed89e3813f9))
+* remove explicit gray color from icon buttons ([#18557](https://github.com/lightdash/lightdash/issues/18557)) ([bd42b2b](https://github.com/lightdash/lightdash/commit/bd42b2b211efb795160952ee8fa67a16bc999a9f))
+
 ## [0.2221.5](https://github.com/lightdash/lightdash/compare/0.2221.4...0.2221.5) (2025-12-03)
 
 
