@@ -133,7 +133,7 @@ type RawSummaryRow = {
     baseTable: Explore['baseTable'];
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
-    baseTableDescription: Explore['tables'][string]['description'] | null;
+    description: string | null;
     baseTableRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
         | null;
@@ -1159,7 +1159,10 @@ export class ProjectModel {
                     explore->'baseTable' as "baseTable",
                     explore->'tables'->(explore->>'baseTable')->>'database' as "baseTableDatabase",
                     explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
-                    explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
+                    COALESCE(
+                        explore->>'description',
+                        explore->'tables'->(explore->>'baseTable')->>'description'
+                    ) as description,
                     explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
                     explore->'aiHint' as "aiHint"
                 `),
@@ -1173,7 +1176,7 @@ export class ProjectModel {
             groupLabel: row.groupLabel ?? undefined,
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
-            description: row.baseTableDescription ?? undefined,
+            description: row.description ?? undefined,
             aiHint: row.aiHint ?? undefined,
             type: row.type ?? undefined,
             baseTableRequiredAttributes:
