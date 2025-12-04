@@ -39,7 +39,7 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                 >
                     <Button
                         h={32}
-                        c="foreground.0"
+                        c="foreground"
                         fw={500}
                         fz="sm"
                         variant="default"

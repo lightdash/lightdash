@@ -1,3 +1,4 @@
+import { colorsTuple } from '@mantine-8/core';
 import {
     rem,
     type ColorScheme,
@@ -8,30 +9,8 @@ import {
 type ColorTuple = Tuple<string, 10>;
 
 const lightModeColors = {
-    background: [
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-    ] as ColorTuple,
-    foreground: [
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-    ] as ColorTuple,
+    background: colorsTuple('#FEFEFE') as ColorTuple,
+    foreground: colorsTuple('#1A1B1E') as ColorTuple,
 
     ldDark: [
         '#C9C9C9',
@@ -61,30 +40,8 @@ const lightModeColors = {
 };
 
 const darkModeColors = {
-    background: [
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-        '#1A1B1E',
-    ] as ColorTuple,
-    foreground: [
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-        '#FEFEFE',
-    ] as ColorTuple,
+    background: colorsTuple('#1A1B1E') as ColorTuple,
+    foreground: colorsTuple('#FEFEFE') as ColorTuple,
 
     ldDark: [
         '#101113',

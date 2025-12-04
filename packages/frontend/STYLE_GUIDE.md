@@ -235,9 +235,9 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 <Button bg="ldDark.8" c="ldDark.0">Dark button</Button>  // Dark bg/light text → Light bg/dark text
 <Badge bg="ldDark.9" c="ldDark.1">Dark badge</Badge>    // Inverts for dark mode
 
-// ✅ Good - Foreground/background variables (always use .0 as there is only one option for now)
-<Text c="foreground.0">Primary text</Text>      // Main text color
-<Box bg="background.0">Main background</Box>    // Main background color
+// ✅ Good - Foreground/background variables
+<Text c="foreground">Primary text</Text>      // Main text color
+<Box bg="background">Main background</Box>    // Main background color
 ```
 
 **Available custom color scales:**
@@ -246,14 +246,14 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 |-------|------------|-----------|---------|
 | `ldGray.0-9` | Light grays (#f8f9fa → #212529) | Dark grays (#2e2e32 → #d9d9df) | Borders, text |
 | `ldDark.0-9` | Dark shades (#C9C9C9 → #141414) | Light shades (#f3f5ff → #18181a) | Inverted contrast elements |
-| `background.0` | #FEFEFE (white) | #1A1B1E (dark) | Page/card backgrounds |
-| `foreground.0` | #1A1B1E (dark) | #FEFEFE (white) | Primary text color |
+| `background` | #FEFEFE (white) | #1A1B1E (dark) | Page/card backgrounds |
+| `foreground` | #1A1B1E (dark) | #FEFEFE (white) | Primary text color |
 
 **When to use each:**
 - **`ldGray`**: Borders, subtle text, neutral UI elements
 - **`ldDark`**: Buttons/badges with dark backgrounds in light mode, "inverted" elements
-- **`foreground.0`**: Main text color throughout the app
-- **`background.0`**: Main page/container backgrounds
+- **`foreground`**: Main text color throughout the app
+- **`background`**: Main page/container backgrounds
 - **Standard colors**: Brand colors (blue, red, green) for accents and semantic meanings
 
 #### Advanced Theme Customization
