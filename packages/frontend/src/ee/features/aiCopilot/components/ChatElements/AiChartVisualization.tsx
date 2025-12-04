@@ -96,10 +96,10 @@ export const AiChartVisualization: FC<Props> = ({
                     <ActionIcon
                         size="sm"
                         variant="subtle"
-                        color="gray"
+                        color="ldGray.9"
                         onClick={() => dispatch(clearArtifact())}
                     >
-                        <MantineIcon icon={IconX} color="gray" />
+                        <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Group>
                 <Paper h="100%" bg="ldGray.0">
@@ -159,10 +159,10 @@ export const AiChartVisualization: FC<Props> = ({
                                 <ActionIcon
                                     size="sm"
                                     variant="subtle"
-                                    color="gray"
+                                    color="ldGray.4"
                                     onClick={() => dispatch(clearArtifact())}
                                 >
-                                    <MantineIcon icon={IconX} color="gray" />
+                                    <MantineIcon icon={IconX} />
                                 </ActionIcon>
                             )}
                         </Group>

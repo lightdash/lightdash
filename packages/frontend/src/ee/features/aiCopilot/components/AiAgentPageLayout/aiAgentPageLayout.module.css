@@ -14,7 +14,12 @@
     overflow-y: auto;
 
     padding: var(--mantine-spacing-xs);
-    background: var(--mantine-color-ldGray-0);
+    @mixin light {
+        background: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background: var(--mantine-color-ldDark-2);
+    }
     &[data-panel-size='0.0'] {
         min-width: 3rem;
     }
