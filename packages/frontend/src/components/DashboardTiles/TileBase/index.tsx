@@ -189,6 +189,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             fw={600}
                                             fz="md"
                                             hidden={hideTitle}
+                                            c="foreground.0"
                                         >
                                             {title}
                                         </Text>
