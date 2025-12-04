@@ -1,3 +1,15 @@
+# [0.2226.0](https://github.com/lightdash/lightdash/compare/0.2225.0...0.2226.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* fallback to account user id for isFeatureEnabled in embed service ([#18565](https://github.com/lightdash/lightdash/issues/18565)) ([c112d76](https://github.com/lightdash/lightdash/commit/c112d762a1d8c0e34346faa94b8786281ee0d2a5))
+
+
+### Features
+
+* conditional formatting gradients for dark mode ([#18577](https://github.com/lightdash/lightdash/issues/18577)) ([e7b036f](https://github.com/lightdash/lightdash/commit/e7b036fd6d5b782177f452eb9f9043aa59829864)), closes [#18420](https://github.com/lightdash/lightdash/issues/18420)
+
 # [0.2225.0](https://github.com/lightdash/lightdash/compare/0.2224.2...0.2225.0) (2025-12-04)
 
 
