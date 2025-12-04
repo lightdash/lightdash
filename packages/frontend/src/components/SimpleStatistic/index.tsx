@@ -82,7 +82,7 @@ const BigNumberText: FC<
     return (
         <Text
             ref={ref}
-            c="ldGray.9"
+            c="foreground.0"
             ta="center"
             fw={500}
             {...textProps}
