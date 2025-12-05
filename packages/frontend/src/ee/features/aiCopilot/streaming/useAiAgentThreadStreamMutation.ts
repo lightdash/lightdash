@@ -4,7 +4,12 @@ import {
     toolRunQueryOutputSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
+import {
+    DefaultChatTransport,
+    readUIMessageStream,
+    type ReasoningUIPart,
+    type UIMessage,
+} from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
@@ -53,6 +58,23 @@ class ChatStreamParser extends DefaultChatTransport<UIMessage> {
         return this.processResponseStream(stream);
     }
 }
+
+const getReasoningFromPart = (part: ReasoningUIPart) => {
+    switch (true) {
+        case part.providerMetadata?.openai !== undefined:
+            return {
+                reasoningId: part.providerMetadata.openai.itemId,
+                text: part.text,
+            };
+        case part.providerMetadata?.anthropic !== undefined:
+            return {
+                reasoningId: part.providerMetadata.anthropic.signature,
+                text: part.text,
+            };
+        default:
+            return null;
+    }
+};
 
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
@@ -211,16 +233,17 @@ export function useAiAgentThreadStreamMutation() {
                                 }
                                 break;
                             case 'reasoning':
-                                const reasoningId =
-                                    part.providerMetadata?.openai?.itemId;
-                                const text = part.text;
+                                const reasoning = getReasoningFromPart(part);
 
-                                if (typeof reasoningId === 'string') {
+                                if (
+                                    reasoning &&
+                                    typeof reasoning.reasoningId === 'string'
+                                ) {
                                     dispatch(
                                         addReasoning({
                                             threadUuid,
-                                            reasoningId,
-                                            text,
+                                            reasoningId: reasoning.reasoningId,
+                                            text: reasoning.text,
                                         }),
                                     );
                                 }

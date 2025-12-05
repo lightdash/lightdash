@@ -637,6 +637,7 @@ export class AiAgentService {
                     description: preset.description,
                     provider: preset.provider,
                     default: isDefault,
+                    supportsReasoning: preset.supportsReasoning,
                 };
             },
         );
@@ -2917,7 +2918,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const agentSettings = await this.getAgentSettings(user, prompt);
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
-            enableReasoning: agentSettings.enableReasoning,
+            enableReasoning:
+                prompt.modelConfig?.reasoning ?? agentSettings.enableReasoning,
             modelId: prompt.modelConfig?.modelId,
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
