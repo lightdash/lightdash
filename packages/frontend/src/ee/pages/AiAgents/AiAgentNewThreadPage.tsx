@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useCallback } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -18,6 +18,7 @@ import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import {
     useCreateAgentThreadMutation,
     useVerifiedQuestions,
@@ -33,10 +34,18 @@ const AiAgentNewThreadPage: FC = () => {
         projectUuid,
         agentUuid,
     );
+    const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
 
-    const onSubmit = (prompt: string) => {
-        void createAgentThread({ prompt });
-    };
+    if (import.meta.env.DEV) {
+        console.log('modelOptions', modelOptions);
+    }
+
+    const onSubmit = useCallback(
+        (prompt: string) => {
+            void createAgentThread({ prompt });
+        },
+        [createAgentThread],
+    );
 
     return (
         <Center h="100%">

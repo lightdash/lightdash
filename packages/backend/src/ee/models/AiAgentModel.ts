@@ -2313,6 +2313,7 @@ export class AiAgentModel {
                 promptSlackTs: `${AiSlackPromptTableName}.prompt_slack_ts`,
                 slackThreadTs: `${AiSlackThreadTableName}.slack_thread_ts`,
                 humanScore: `${AiPromptTableName}.human_score`,
+                modelConfig: `${AiPromptTableName}.model_config`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -2602,6 +2603,7 @@ export class AiAgentModel {
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
                 humanScore: `${AiPromptTableName}.human_score`,
+                modelConfig: `${AiPromptTableName}.model_config`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -2642,6 +2644,7 @@ export class AiAgentModel {
                     ai_thread_uuid: data.threadUuid,
                     created_by_user_uuid: data.createdByUserUuid,
                     prompt: data.prompt,
+                    ...(data.modelConfig && { model_config: data.modelConfig }),
                 })
                 .returning('ai_prompt_uuid');
 

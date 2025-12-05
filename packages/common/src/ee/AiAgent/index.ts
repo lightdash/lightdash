@@ -260,12 +260,14 @@ export type ApiAiAgentThreadResponse = {
 
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
+    modelConfig?: { modelId: string; modelProvider: string };
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
+    modelConfig?: { modelId: string; modelProvider: string };
 };
 
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
@@ -607,3 +609,13 @@ export type AgentSummaryContext = {
 export type AiAgentWithContext = AiAgentSummary & {
     context: AgentSummaryContext;
 };
+
+export type AIModelOption = {
+    id: string;
+    displayName: string;
+    description: string;
+    provider: string;
+    default: boolean;
+};
+
+export type ApiAiAgentModelOptionsResponse = ApiSuccess<AIModelOption[]>;

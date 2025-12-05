@@ -13,9 +13,11 @@ import {
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
+    AIModelOption,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
+    AnyType,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -123,7 +125,7 @@ import { generateEmbedding } from './ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from './ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
-import { getModel } from './ai/models';
+import { getAvailableModels, getDefaultModel, getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -589,6 +591,57 @@ export class AiAgentService {
         return agentsWithAccess;
     }
 
+    public async getModelOptions(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+    ): Promise<AIModelOption[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+            projectUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this agent',
+            );
+        }
+
+        const defaultModel = getDefaultModel(this.lightdashConfig.ai.copilot);
+
+        return getAvailableModels(this.lightdashConfig.ai.copilot).map(
+            (preset) => {
+                const isDefault =
+                    preset.provider === defaultModel.provider &&
+                    preset.modelId === defaultModel.modelId;
+
+                return {
+                    id: preset.modelId,
+                    displayName: preset.displayName,
+                    description: preset.description,
+                    provider: preset.provider,
+                    default: isDefault,
+                };
+            },
+        );
+    }
+
     async listAgentThreads(
         user: SessionUser,
         agentUuid: string,
@@ -819,6 +872,7 @@ export class AiAgentService {
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
+                modelConfig: body.modelConfig,
             });
 
             this.analytics.track<AiAgentPromptCreatedEvent>({
@@ -892,6 +946,7 @@ export class AiAgentService {
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
+            modelConfig: body.modelConfig,
         });
 
         this.analytics.track<AiAgentPromptCreatedEvent>({
@@ -2863,6 +2918,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         const agentSettings = await this.getAgentSettings(user, prompt);
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: agentSettings.enableReasoning,
+            modelId: prompt.modelConfig?.modelId,
+            provider: prompt.modelConfig?.modelProvider as AnyType,
         });
 
         const args: AiAgentArgs = {

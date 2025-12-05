@@ -8,6 +8,7 @@ import {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentExploreAccessSummaryResponse,
+    ApiAiAgentModelOptionsResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -168,6 +169,27 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/models')
+    @OperationId('getModelOptions')
+    async getModelOptions(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAiAgentModelOptionsResponse> {
+        this.setStatus(200);
+        const models = await this.getAiAgentService().getModelOptions(
+            req.user!,
+            projectUuid,
+            agentUuid,
+        );
+        return {
+            status: 'ok',
+            results: models,
         };
     }
 
