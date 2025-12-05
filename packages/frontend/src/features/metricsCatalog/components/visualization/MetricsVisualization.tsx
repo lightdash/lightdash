@@ -71,18 +71,18 @@ const tickFormatter = (date: Date) => {
         timeSecond(date) < date
             ? DATE_FORMATS.millisecond
             : timeMinute(date) < date
-              ? DATE_FORMATS.second
-              : timeHour(date) < date
-                ? DATE_FORMATS.minute
-                : timeDay(date) < date
-                  ? DATE_FORMATS.hour
-                  : timeMonth(date) < date
-                    ? timeWeek(date) < date
-                        ? DATE_FORMATS.day
-                        : DATE_FORMATS.week
-                    : timeYear(date) < date
-                      ? DATE_FORMATS.month
-                      : DATE_FORMATS.year
+            ? DATE_FORMATS.second
+            : timeHour(date) < date
+            ? DATE_FORMATS.minute
+            : timeDay(date) < date
+            ? DATE_FORMATS.hour
+            : timeMonth(date) < date
+            ? timeWeek(date) < date
+                ? DATE_FORMATS.day
+                : DATE_FORMATS.week
+            : timeYear(date) < date
+            ? DATE_FORMATS.month
+            : DATE_FORMATS.year
     )(date);
 };
 

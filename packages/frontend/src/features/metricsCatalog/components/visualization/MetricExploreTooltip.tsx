@@ -315,8 +315,8 @@ const PercentageChangeFooter: FC<{
         percentChange > 0
             ? 'green.7'
             : percentChange < 0
-              ? 'red.7'
-              : 'ldDark.4';
+            ? 'red.7'
+            : 'ldDark.4';
 
     return (
         <Group position="right" spacing={4}>
