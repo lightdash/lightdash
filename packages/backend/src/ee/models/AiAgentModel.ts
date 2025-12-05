@@ -1357,6 +1357,7 @@ export class AiAgentModel {
                     | 'human_score'
                     | 'human_feedback'
                     | 'saved_query_uuid'
+                    | 'model_config'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -1376,6 +1377,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.human_score`,
                 `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
+                `${AiPromptTableName}.model_config`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -1462,6 +1464,7 @@ export class AiAgentModel {
                 humanFeedback: row.human_feedback,
                 artifacts: artifacts ?? null,
                 referencedArtifacts: referencedArtifacts ?? null,
+                modelConfig: row.model_config,
                 toolCalls: toolCalls
                     .filter(
                         (
@@ -1968,6 +1971,7 @@ export class AiAgentModel {
                     | 'human_score'
                     | 'human_feedback'
                     | 'saved_query_uuid'
+                    | 'model_config'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -1987,6 +1991,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.human_score`,
                 `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
+                `${AiPromptTableName}.model_config`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -2106,6 +2111,7 @@ export class AiAgentModel {
                     humanFeedback: row.human_feedback,
                     artifacts: artifacts.length > 0 ? artifacts : null,
                     referencedArtifacts,
+                    modelConfig: row.model_config,
                     toolCalls: toolCalls
                         .filter(
                             (
