@@ -79,13 +79,15 @@ export type DbAiPrompt = {
     human_feedback: string | null;
     metric_query: object | null;
     saved_query_uuid: string | null;
+    model_config: { modelName: string; modelProvider: string } | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
     // base
     DbAiPrompt,
     // insert
-    Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'>,
+    Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'> &
+        Partial<Pick<DbAiPrompt, 'model_config'>>,
     // update
     Partial<
         Pick<
@@ -97,6 +99,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'human_feedback'
             | 'metric_query'
             | 'saved_query_uuid'
+            | 'model_config'
         > & {
             responded_at: Knex.Raw;
         }

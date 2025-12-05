@@ -1,17 +1,21 @@
+import type { AiModelOption } from '@lightdash/common';
 import {
     ActionIcon,
     alpha,
     Anchor,
     Box,
+    Group,
     Paper,
     rem,
     Text,
     Textarea,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconArrowUp } from '@tabler/icons-react';
+import { IconArrowUp, IconClock } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 import styles from './AgentChatInput.module.css';
 
 const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
@@ -25,6 +29,11 @@ interface AgentChatInputProps {
     messageCount?: number;
     projectUuid?: string;
     agentUuid?: string;
+    models?: AiModelOption[];
+    selectedModelId?: string | null;
+    onModelChange?: (modelId: string) => void;
+    extendedThinking?: boolean;
+    onExtendedThinkingChange?: (enabled: boolean) => void;
 }
 
 export const AgentChatInput = ({
@@ -36,6 +45,11 @@ export const AgentChatInput = ({
     messageCount = 0,
     projectUuid,
     agentUuid,
+    models,
+    selectedModelId,
+    onModelChange,
+    extendedThinking = false,
+    onExtendedThinkingChange,
 }: AgentChatInputProps) => {
     // this is a workaround to prevent the enter key from being pressed when
     // the user is composing a character
@@ -129,29 +143,55 @@ export const AgentChatInput = ({
                     </Text>
                 </Paper>
             )}
-            <Textarea
-                autoFocus
-                classNames={{ input: styles.input }}
-                ref={inputRef}
-                placeholder={placeholder}
-                autosize
-                minRows={4}
-                radius="0.75rem"
-                disabled={disabled}
-                size="md"
-                m={-1}
-                onChange={(e) => setValue(e.target.value)}
-                value={value}
-                rightSection={
+            <Box pos="relative">
+                <Textarea
+                    autoFocus
+                    classNames={{ input: styles.input }}
+                    ref={inputRef}
+                    placeholder={placeholder}
+                    autosize
+                    minRows={4}
+                    radius="0.75rem"
+                    disabled={disabled}
+                    size="md"
+                    m={-1}
+                    onChange={(e) => setValue(e.target.value)}
+                    value={value}
+                />
+
+                <Group
+                    pos="absolute"
+                    bottom={12}
+                    right={12}
+                    gap="xs"
+                    style={{ zIndex: 1 }}
+                >
+                    {onExtendedThinkingChange && (
+                        <Tooltip label="Extended thinking" withArrow>
+                            <ActionIcon
+                                variant={extendedThinking ? 'light' : 'subtle'}
+                                color={extendedThinking ? 'blue' : 'gray'}
+                                size="md"
+                                radius="md"
+                                onClick={() =>
+                                    onExtendedThinkingChange(!extendedThinking)
+                                }
+                            >
+                                <IconClock size={18} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    {models && models.length > 0 && onModelChange && (
+                        <ModelSelector
+                            models={models}
+                            value={selectedModelId ?? null}
+                            onChange={onModelChange}
+                        />
+                    )}
                     <ActionIcon
                         variant="filled"
                         size="md"
                         radius="xl"
-                        style={{
-                            position: 'absolute',
-                            bottom: 12,
-                            right: 12,
-                        }}
                         color="ldDark.5"
                         disabled={disabled || isComposing}
                         loading={loading}
@@ -165,8 +205,8 @@ export const AgentChatInput = ({
                     >
                         <IconArrowUp size={18} />
                     </ActionIcon>
-                }
-            />
+                </Group>
+            </Box>
 
             {disabled && disabledReason ? (
                 <Paper

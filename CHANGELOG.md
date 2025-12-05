@@ -1,3 +1,13 @@
+# [0.2230.0](https://github.com/lightdash/lightdash/compare/0.2229.2...0.2230.0) (2025-12-05)
+
+
+### Features
+
+* add model selector to Agent threads ([#18533](https://github.com/lightdash/lightdash/issues/18533)) ([d31a9b5](https://github.com/lightdash/lightdash/commit/d31a9b552a6451ebcf04cea59fbd9f542899eb6f))
+* **backend:** list available models and model selection for prompts ([#18532](https://github.com/lightdash/lightdash/issues/18532)) ([88c1381](https://github.com/lightdash/lightdash/commit/88c1381645bdd6a14596af35d4b38070f78ba7b5))
+* reasoning toggle for the agent threads ([#18582](https://github.com/lightdash/lightdash/issues/18582)) ([4ac125a](https://github.com/lightdash/lightdash/commit/4ac125a1d1c365d23122597c4c47b9f9a46b2e51))
+* support configuring multiple models per provider ([#18531](https://github.com/lightdash/lightdash/issues/18531)) ([30ae081](https://github.com/lightdash/lightdash/commit/30ae08113a159e496289e6f7a76c412a031363de))
+
 ## [0.2229.2](https://github.com/lightdash/lightdash/compare/0.2229.1...0.2229.2) (2025-12-05)
 
 

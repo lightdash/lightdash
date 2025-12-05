@@ -69,7 +69,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     }, [isPending, refetch, isStreaming]);
 
     const handleSubmit = (prompt: string) => {
-        void createAgentThreadMessage({ prompt });
+        // Use modelConfig from first assistant message for follow-up messages
+        const firstAssistantMessage = thread?.messages?.find(
+            (m) => m.role === 'assistant',
+        );
+        const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
+
+        void createAgentThreadMessage({ prompt, modelConfig });
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {

@@ -502,39 +502,19 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
-                const reasoningsToStore = step.reasoning
-                    .map((reasoning) => {
-                        if (
-                            reasoning.text &&
-                            reasoning.text.length > 0 &&
-                            'providerMetadata' in reasoning &&
-                            typeof reasoning.providerMetadata === 'object' &&
-                            reasoning.providerMetadata !== null &&
-                            'openai' in reasoning.providerMetadata &&
-                            typeof reasoning.providerMetadata.openai ===
-                                'object' &&
-                            reasoning.providerMetadata.openai !== null &&
-                            'itemId' in reasoning.providerMetadata.openai &&
-                            typeof reasoning.providerMetadata.openai.itemId ===
-                                'string'
-                        ) {
-                            return {
-                                reasoningId:
-                                    reasoning.providerMetadata.openai.itemId,
-                                text: reasoning.text,
-                            };
-                        }
-                        return null;
-                    })
-                    .filter((r) => r !== null);
-
-                if (reasoningsToStore.length > 0) {
+                if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
-                        `Storing ${reasoningsToStore.length} reasoning parts for Prompt UUID ${args.promptUuid}`,
+                        `Storing reasoning text for Prompt UUID ${args.promptUuid}`,
                     );
                     void dependencies
-                        .storeReasoning(args.promptUuid, reasoningsToStore)
+                        .storeReasoning(args.promptUuid, [
+                            {
+                                // TODO :: this works for now, but we need to find a better way to capture the reasoning id from `providerMetadata`
+                                reasoningId: crypto.randomUUID(),
+                                text: step.reasoningText,
+                            },
+                        ])
                         .catch((error) => {
                             Logger.error(
                                 'On Step Finish',

@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-4.1-2025-04-14';
-export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-20250514';
+export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-4.1';
+export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-5';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-4.1-2025-04-14';
-export const DEFAULT_BEDROCK_MODEL_NAME =
-    'eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
 
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
@@ -27,24 +26,7 @@ export const aiCopilotConfigSchema = z
                         .string()
                         .default(DEFAULT_OPENAI_EMBEDDING_MODEL),
                     baseUrl: z.string().optional(),
-                    temperature: z.number().min(0).max(2).default(0.2),
-                    responsesApi: z.boolean().default(false),
-                    reasoning: z
-                        .object({
-                            enabled: z.boolean().default(false),
-                            reasoningSummary: z
-                                .enum(['auto', 'detailed'])
-                                .default('auto'),
-                            reasoningEffort: z
-                                .enum(['minimal', 'low', 'medium', 'high'])
-                                .default('medium'),
-                        })
-                        .optional()
-                        .default({
-                            enabled: false,
-                            reasoningSummary: 'auto',
-                            reasoningEffort: 'low',
-                        }),
+                    availableModels: z.array(z.string()).optional(),
                 })
                 .optional(),
             azure: z
@@ -53,14 +35,13 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     apiVersion: z.string(),
                     deploymentName: z.string(),
-                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
             anthropic: z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
-                    temperature: z.number().min(0).max(2).default(0.2),
+                    availableModels: z.array(z.string()).optional(),
                 })
                 .optional(),
             openrouter: z
@@ -77,7 +58,6 @@ export const aiCopilotConfigSchema = z
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
-                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
             bedrock: z
@@ -91,7 +71,7 @@ export const aiCopilotConfigSchema = z
                         embeddingModelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
-                        temperature: z.number().min(0).max(2).default(0.2),
+                        availableModels: z.array(z.string()).optional(),
                     }),
                     z.object({
                         region: z.string(),
@@ -104,7 +84,7 @@ export const aiCopilotConfigSchema = z
                         embeddingModelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
-                        temperature: z.number().min(0).max(2).default(0.2),
+                        availableModels: z.array(z.string()).optional(),
                     }),
                 ])
                 .optional(),

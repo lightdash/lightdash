@@ -4,6 +4,7 @@ import {
 } from '@ai-sdk/amazon-bedrock';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { ModelPreset } from './presets';
 import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
@@ -31,16 +32,36 @@ export const getBedrockModel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
+    preset: ModelPreset<'bedrock'>,
+    options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
-    const model = bedrock(config.modelName);
+    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#accessing-bedrock */
+    const model = bedrock(`${config.region}.${preset.modelId}`);
+
+    const reasoningEnabled =
+        options?.enableReasoning && preset.supportsReasoning;
 
     return {
         model,
         callOptions: {
-            temperature: config.temperature,
+            ...preset.callOptions,
+            // temperature is not supported when reasoning is enabled
+            ...(reasoningEnabled
+                ? { temperature: undefined }
+                : { temperature: 0.2 }),
         },
-        providerOptions: undefined,
+        providerOptions: {
+            [PROVIDER]: {
+                ...(preset.providerOptions || {}),
+                ...(reasoningEnabled && {
+                    reasoningConfig: {
+                        type: 'enabled',
+                        budgetTokens: 2048,
+                    },
+                }),
+            },
+        },
     };
 };
 

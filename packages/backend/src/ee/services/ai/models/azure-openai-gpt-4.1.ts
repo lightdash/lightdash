@@ -18,7 +18,7 @@ export const getAzureGpt41Model = (
     return {
         model,
         callOptions: {
-            temperature: config.temperature,
+            temperature: 0.2,
         },
         providerOptions: {
             [PROVIDER]: {

@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { ModelPreset } from './presets';
 import { AiModel } from './types';
 
 const PROVIDER = 'openai';
@@ -8,41 +9,36 @@ export const getOpenaiGptmodel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
-    options?: {
-        enableReasoning?: boolean;
-    },
+    preset: ModelPreset<'openai'>,
+    options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
+    const { supportsReasoning, modelId } = preset;
 
-    // TODO: Use config.responsesApi to determine if we should use the responses API.
-    const model = openai(config.modelName);
+    const model = openai(modelId);
 
-    const isGpt5 = model.modelId.includes('gpt-5');
-
-    // Use agent-specific enableReasoning if provided, otherwise fall back to config
-    const reasoningEnabled =
-        options?.enableReasoning !== undefined
-            ? options.enableReasoning
-            : config.reasoning.enabled;
+    const reasoningEnabled = supportsReasoning;
+    const reasoningEffort = options?.enableReasoning ? 'medium' : 'low';
 
     return {
         model,
         callOptions: {
-            ...(!isGpt5 && {
-                // gpt-5 models don't support temperature
-                temperature: config.temperature,
-            }),
+            ...preset.callOptions,
+            // temperature is not supported when reasoning is enabled
+            ...(reasoningEnabled
+                ? { temperature: undefined }
+                : { temperature: 0.2 }),
         },
         providerOptions: {
             [PROVIDER]: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
+                ...(preset.providerOptions || {}),
+                // Defaulting to Low as GPT-5 models without reasoning are not better than GPT-4.1
                 ...(reasoningEnabled && {
-                    reasoningSummary: config.reasoning.reasoningSummary,
-                    reasoningEffort: config.reasoning.reasoningEffort,
+                    reasoningSummary: 'auto',
+                    reasoningEffort,
                 }),
             },
         },
