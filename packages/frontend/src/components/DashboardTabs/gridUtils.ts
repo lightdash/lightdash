@@ -26,7 +26,7 @@ export const getReactGridLayoutConfig = (
 
     return {
         minH: 1,
-        minW: 6,
+        minW: 4,
         x: tile.x * scaleFactor,
         y: tile.y,
         w: tile.w * scaleFactor,
