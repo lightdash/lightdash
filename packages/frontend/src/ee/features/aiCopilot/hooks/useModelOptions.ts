@@ -1,5 +1,5 @@
 import type {
-    AIModelOption,
+    AiModelOption,
     ApiAiAgentModelOptionsResponse,
     ApiError,
 } from '@lightdash/common';
@@ -22,7 +22,7 @@ const getModelOptions = async (
 type UseModelOptionsProps = {
     projectUuid: string | undefined;
     agentUuid: string | undefined;
-    options?: UseQueryOptions<AIModelOption[], ApiError>;
+    options?: UseQueryOptions<AiModelOption[], ApiError>;
 };
 
 export const useModelOptions = ({
@@ -30,7 +30,7 @@ export const useModelOptions = ({
     agentUuid,
     options,
 }: UseModelOptionsProps) => {
-    return useQuery<AIModelOption[], ApiError>({
+    return useQuery<AiModelOption[], ApiError>({
         queryKey: [MODEL_OPTIONS_KEY, projectUuid, agentUuid],
         queryFn: () => getModelOptions(projectUuid!, agentUuid!),
         ...options,

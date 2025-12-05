@@ -1,22 +1,18 @@
-import {
-    AIModelOption,
-    assertUnreachable,
-    ParameterError,
-} from '@lightdash/common';
+import { assertUnreachable, ParameterError } from '@lightdash/common';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
-import { MODEL_PRESETS, ModelPreset } from './presets';
+import { matchesPreset, MODEL_PRESETS, ModelPreset } from './presets';
 
 export { MODEL_PRESETS };
 
 export const getDefaultModel = (
     config: LightdashConfig['ai']['copilot'],
 ): {
-    modelId: string;
+    name: string;
     provider: typeof config.defaultProvider;
 } => {
     switch (config.defaultProvider) {
@@ -27,7 +23,7 @@ export const getDefaultModel = (
             }
 
             return {
-                modelId: azureConfig.deploymentName,
+                name: azureConfig.deploymentName,
                 provider: 'azure',
             };
         }
@@ -39,7 +35,7 @@ export const getDefaultModel = (
                 );
             }
             return {
-                modelId: defaultProvider.modelName,
+                name: defaultProvider.modelName,
                 provider: config.defaultProvider,
             };
         }
@@ -63,15 +59,15 @@ export const getAvailableModels = (
 
         const { availableModels, modelName } = providerConfig;
 
-        const providerPresets = Object.values(MODEL_PRESETS).filter(
-            (preset) => preset.provider === provider,
-        );
+        const providerPresets = MODEL_PRESETS[provider];
 
         // Filter by availableModels if specified, otherwise include all
         const filteredPresets =
             availableModels && availableModels.length > 0
                 ? providerPresets.filter((preset) =>
-                      availableModels.includes(preset.modelId),
+                      availableModels.some((model) =>
+                          matchesPreset(preset, model),
+                      ),
                   )
                 : providerPresets;
 
@@ -82,7 +78,7 @@ export const getAvailableModels = (
 export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
     provider: T,
     config: LightdashConfig['ai']['copilot'],
-    modelId?: string,
+    modelName?: string,
 ): {
     config: NonNullable<LightdashConfig['ai']['copilot']['providers'][T]>;
     preset: ModelPreset<T>;
@@ -94,17 +90,14 @@ export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
         );
     }
 
-    // TODO :: for now we just use default model to preserve current behavior
+    const modelNameToFind = modelName ?? providerConfig.modelName;
     const preset = getAvailableModels(config).find(
-        (m) => m.modelId === (modelId ?? providerConfig.modelName),
+        (p) => p.provider === provider && matchesPreset(p, modelNameToFind),
     );
     if (!preset) {
         throw new ParameterError(
-            `Model preset not found for model: ${modelId}`,
+            `Model preset not found for model: ${modelNameToFind}`,
         );
-    }
-    if (preset.provider !== provider) {
-        throw new ParameterError(`Model ${modelId} is not a ${provider} model`);
     }
 
     return {
@@ -117,7 +110,7 @@ export const getModel = (
     config: LightdashConfig['ai']['copilot'],
     options?: {
         enableReasoning?: boolean;
-        modelId?: string;
+        modelName?: string;
         provider?: typeof config.defaultProvider;
     },
 ) => {
@@ -127,7 +120,7 @@ export const getModel = (
             const { config: openaiConfig, preset } = getModelPreset(
                 'openai',
                 config,
-                options?.modelId,
+                options?.modelName,
             );
             return getOpenaiGptmodel(openaiConfig, preset, {
                 enableReasoning: options?.enableReasoning,
@@ -145,7 +138,7 @@ export const getModel = (
             const { config: anthropicConfig, preset } = getModelPreset(
                 'anthropic',
                 config,
-                options?.modelId,
+                options?.modelName,
             );
             return getAnthropicModel(anthropicConfig, preset, {
                 enableReasoning: options?.enableReasoning,
@@ -165,7 +158,7 @@ export const getModel = (
             const { config: bedrockConfig, preset } = getModelPreset(
                 'bedrock',
                 config,
-                options?.modelId,
+                options?.modelName,
             );
             return getBedrockModel(bedrockConfig, preset, {
                 enableReasoning: options?.enableReasoning,

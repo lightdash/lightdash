@@ -39,7 +39,7 @@ export type AiPrompt = {
     response: string | null;
     humanScore: number | null;
     modelConfig: {
-        modelId: string;
+        modelName: string;
         modelProvider: string;
         reasoning?: boolean;
     } | null;
@@ -74,7 +74,7 @@ export type CreateWebAppPrompt = {
     createdByUserUuid: string;
     prompt: string;
     modelConfig?: {
-        modelId: string;
+        modelName: string;
         modelProvider: string;
         reasoning?: boolean;
     };

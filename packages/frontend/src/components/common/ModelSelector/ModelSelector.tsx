@@ -1,4 +1,4 @@
-import type { AIModelOption } from '@lightdash/common';
+import type { AiModelOption } from '@lightdash/common';
 import {
     Button,
     Menu,
@@ -12,7 +12,7 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
-    models: AIModelOption[];
+    models: AiModelOption[];
     value: string | null;
     onChange: (modelId: string) => void;
 }
@@ -24,12 +24,12 @@ export const ModelSelector: FC<Props> = ({
     ...buttonProps
 }) => {
     const selectedModel = useMemo(
-        () => models.find((m) => m.id === value),
+        () => models.find((m) => m.name === value),
         [models, value],
     );
 
     const groupedModels = useMemo(() => {
-        const groups = new Map<string, AIModelOption[]>();
+        const groups = new Map<string, AiModelOption[]>();
         models.forEach((model) => {
             const existing = groups.get(model.provider) ?? [];
             groups.set(model.provider, [...existing, model]);
@@ -84,11 +84,11 @@ export const ModelSelector: FC<Props> = ({
                             )}
 
                             {providerModels.map((model) => {
-                                const isSelected = model.id === value;
+                                const isSelected = model.name === value;
                                 return (
                                     <Menu.Item
-                                        key={model.id}
-                                        onClick={() => onChange(model.id)}
+                                        key={model.name}
+                                        onClick={() => onChange(model.name)}
                                         rightSection={
                                             isSelected ? (
                                                 <MantineIcon

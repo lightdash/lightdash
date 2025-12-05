@@ -13,7 +13,7 @@ import {
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
-    AIModelOption,
+    AiModelOption,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -126,6 +126,7 @@ import { generateArtifactQuestion } from './ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getAvailableModels, getDefaultModel, getModel } from './ai/models';
+import { matchesPreset } from './ai/models/presets';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -595,7 +596,7 @@ export class AiAgentService {
         user: SessionUser,
         projectUuid: string,
         agentUuid: string,
-    ): Promise<AIModelOption[]> {
+    ): Promise<AiModelOption[]> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -629,10 +630,10 @@ export class AiAgentService {
             (preset) => {
                 const isDefault =
                     preset.provider === defaultModel.provider &&
-                    preset.modelId === defaultModel.modelId;
+                    matchesPreset(preset, defaultModel.name);
 
                 return {
-                    id: preset.modelId,
+                    name: preset.name,
                     displayName: preset.displayName,
                     description: preset.description,
                     provider: preset.provider,
@@ -2920,7 +2921,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning:
                 prompt.modelConfig?.reasoning ?? agentSettings.enableReasoning,
-            modelId: prompt.modelConfig?.modelId,
+            modelName: prompt.modelConfig?.modelName,
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
 

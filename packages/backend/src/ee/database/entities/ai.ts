@@ -79,7 +79,7 @@ export type DbAiPrompt = {
     human_feedback: string | null;
     metric_query: object | null;
     saved_query_uuid: string | null;
-    model_config: { modelId: string; modelProvider: string } | null;
+    model_config: { modelName: string; modelProvider: string } | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<

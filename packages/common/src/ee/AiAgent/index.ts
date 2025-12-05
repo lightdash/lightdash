@@ -169,7 +169,7 @@ export type AiAgentMessageAssistant = {
     artifacts: AiAgentMessageAssistantArtifact[] | null;
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: {
-        modelId: string;
+        modelName: string;
         modelProvider: string;
         reasoning?: boolean;
     } | null;
@@ -266,7 +266,7 @@ export type ApiAiAgentThreadResponse = {
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     modelConfig?: {
-        modelId: string;
+        modelName: string;
         modelProvider: string;
         reasoning?: boolean;
     };
@@ -277,7 +277,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     modelConfig?: {
-        modelId: string;
+        modelName: string;
         modelProvider: string;
         reasoning?: boolean;
     };
@@ -623,8 +623,8 @@ export type AiAgentWithContext = AiAgentSummary & {
     context: AgentSummaryContext;
 };
 
-export type AIModelOption = {
-    id: string;
+export type AiModelOption = {
+    name: string;
     displayName: string;
     description: string;
     provider: string;
@@ -632,4 +632,4 @@ export type AIModelOption = {
     supportsReasoning: boolean;
 };
 
-export type ApiAiAgentModelOptionsResponse = ApiSuccess<AIModelOption[]>;
+export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;
