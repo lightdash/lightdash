@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Navigate } from 'react-router';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useDefaultProject } from '../../../hooks/useProjects';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 
 /**
@@ -10,11 +10,11 @@ import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentP
  * This page will redirect them to their default project ai-agents welcome page.
  */
 const AgentsRedirect = () => {
-    const { data, isLoading } = useDefaultProject();
+    const { activeProjectUuid, isLoading } = useActiveProjectUuid();
     const { showToastInfo } = useToaster();
     const canViewAiAgents = useAiAgentPermission({
         action: 'view',
-        projectUuid: data?.projectUuid,
+        projectUuid: activeProjectUuid,
     });
 
     useEffect(() => {
@@ -29,9 +29,9 @@ const AgentsRedirect = () => {
         return <PageSpinner />;
     }
 
-    if (canViewAiAgents && data) {
+    if (canViewAiAgents && activeProjectUuid) {
         return (
-            <Navigate to={`/projects/${data.projectUuid}/ai-agents`} replace />
+            <Navigate to={`/projects/${activeProjectUuid}/ai-agents`} replace />
         );
     }
 

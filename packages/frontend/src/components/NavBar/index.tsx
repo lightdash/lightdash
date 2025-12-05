@@ -10,7 +10,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
-import { useProjects } from '../../hooks/useProjects';
+import { useProject } from '../../hooks/useProject';
 import { getMantineThemeOverride } from '../../mantineTheme';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
@@ -41,9 +41,6 @@ const useNavBarMode = () => {
 
 const NavBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: projects } = useProjects();
-    const { activeProjectUuid, isLoading: isLoadingActiveProject } =
-        useActiveProjectUuid({ refetchOnMount: true });
     const { isFullscreen } = useFullscreen();
 
     const { navBarMode } = useNavBarMode();
@@ -54,12 +51,12 @@ const NavBar = memo(() => {
         const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
         return themeWithoutGlobalStyles;
     }, []);
+    const { activeProjectUuid, isLoading: isLoadingActiveProject } =
+        useActiveProjectUuid({ refetchOnMount: true });
 
-    const isCurrentProjectPreview = !!projects?.find(
-        (project) =>
-            project.projectUuid === activeProjectUuid &&
-            project.type === ProjectType.PREVIEW,
-    );
+    const { data: project } = useProject(activeProjectUuid);
+
+    const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
 
     const getHeaderStyles = useCallback(
         (theme: MantineTheme) => ({

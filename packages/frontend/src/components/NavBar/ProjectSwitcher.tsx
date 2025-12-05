@@ -36,6 +36,7 @@ import {
     useUpdateActiveProjectMutation,
 } from '../../hooks/useActiveProject';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
+import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
@@ -198,10 +199,16 @@ const ProjectSwitcher = () => {
 
     const { user } = useApp();
 
-    const { isInitialLoading: isLoadingProjects, data: projects } =
-        useProjects();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // Only fetch all projects when menu is opened
+    const { isInitialLoading: isLoadingProjects, data: projects } = useProjects(
+        { enabled: isMenuOpen },
+    );
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
+    // Fetch only the active project for the button label (lightweight)
+    const { data: activeProject } = useProject(activeProjectUuid);
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
@@ -298,11 +305,6 @@ const ProjectSwitcher = () => {
             swappableRouteMatch,
         ],
     );
-
-    const activeProject = useMemo(() => {
-        if (!activeProjectUuid || !projects) return null;
-        return projects.find((p) => p.projectUuid === activeProjectUuid);
-    }, [activeProjectUuid, projects]);
 
     // user has permission to create preview project on an organization level
     const orgRoleCanCreatePreviews = useMemo(() => {
@@ -409,12 +411,8 @@ const ProjectSwitcher = () => {
             );
     }, [isLoadingProjects, projects, user.data]);
 
-    if (
-        isLoadingProjects ||
-        isLoadingActiveProjectUuid ||
-        !projects ||
-        projects.length === 0
-    ) {
+    // Don't render if we're still loading the active project UUID
+    if (isLoadingActiveProjectUuid || !activeProjectUuid) {
         return null;
     }
 
@@ -426,6 +424,8 @@ const ProjectSwitcher = () => {
                 shadow="lg"
                 arrowOffset={16}
                 offset={-2}
+                opened={isMenuOpen}
+                onChange={setIsMenuOpen}
                 styles={{
                     dropdown: {
                         minWidth: 250,
@@ -439,9 +439,6 @@ const ProjectSwitcher = () => {
                         maw={200}
                         variant="default"
                         size="xs"
-                        disabled={
-                            isLoadingProjects || isLoadingActiveProjectUuid
-                        }
                         sx={(theme) => ({
                             '&:disabled': {
                                 color: theme.white,
@@ -501,8 +498,17 @@ const ProjectSwitcher = () => {
                     </Box>
 
                     <Stack spacing={0}>
+                        {/* Loading State */}
+                        {isLoadingProjects && (
+                            <Box p="lg" ta="center">
+                                <Text {...MENU_TEXT_PROPS}>
+                                    Loading projects...
+                                </Text>
+                            </Box>
+                        )}
+
                         {/* Base Projects Group */}
-                        {baseProjects.length > 0 && (
+                        {!isLoadingProjects && baseProjects.length > 0 && (
                             <Box>
                                 <GroupHeader
                                     title="Projects"
@@ -543,7 +549,7 @@ const ProjectSwitcher = () => {
                         )}
 
                         {/* Preview Projects Group */}
-                        {previewProjects.length > 0 && (
+                        {!isLoadingProjects && previewProjects.length > 0 && (
                             <Box>
                                 <Menu.Divider />
                                 <GroupHeader
@@ -587,7 +593,8 @@ const ProjectSwitcher = () => {
                         )}
 
                         {/* Empty State */}
-                        {baseProjects.length === 0 &&
+                        {!isLoadingProjects &&
+                            baseProjects.length === 0 &&
                             previewProjects.length === 0 && (
                                 <Box p="lg" ta="center">
                                     <Stack spacing="xs" align="center">
