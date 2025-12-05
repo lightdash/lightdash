@@ -83,7 +83,11 @@ const renderChart = (
     );
 };
 
-const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
+const renderDashboard = (
+    dashboard: DashboardSearchResult,
+    siteUrl: string,
+    queryResultsMap?: Map<string, { csv: string } | { error: true }>,
+) => (
     <dashboard
         dashboardUuid={dashboard.uuid}
         spaceUuid={dashboard.spaceUuid}
@@ -119,19 +123,28 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
             </lastupdatedby>
         )}
         <charts count={dashboard.charts.length}>
-            {dashboard.charts.map((chart) => (
-                <chart
-                    chartUuid={chart.uuid}
-                    chartType={chart.chartType}
-                    viewsCount={chart.viewsCount}
-                    href={`${siteUrl}/projects/${dashboard.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`}
-                >
-                    <name>{chart.name}</name>
-                    {chart.description && (
-                        <description>{chart.description}</description>
-                    )}
-                </chart>
-            ))}
+            {dashboard.charts.map((chart) => {
+                const queryResult = queryResultsMap?.get(chart.uuid);
+                return (
+                    <chart
+                        chartUuid={chart.uuid}
+                        chartType={chart.chartType}
+                        viewsCount={chart.viewsCount}
+                        href={`${siteUrl}/projects/${dashboard.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`}
+                    >
+                        <name>{chart.name}</name>
+                        {chart.description && (
+                            <description>{chart.description}</description>
+                        )}
+                        {queryResult && 'csv' in queryResult && (
+                            <data format="csv">{queryResult.csv}</data>
+                        )}
+                        {queryResult && 'error' in queryResult && (
+                            <queryError>Query failed</queryError>
+                        )}
+                    </chart>
+                );
+            })}
         </charts>
         {dashboard.validationErrors && dashboard.validationErrors.length > 0 ? (
             <validationerrors count={dashboard.validationErrors.length} />
@@ -147,7 +160,7 @@ const renderContent = (
     <searchresult searchQuery={args.searchQuery}>
         {args.content.map((content) =>
             isDashboardSearchResult(content)
-                ? renderDashboard(content, siteUrl)
+                ? renderDashboard(content, siteUrl, queryResultsMap)
                 : renderChart(
                       content,
                       siteUrl,
@@ -177,22 +190,47 @@ export const getFindContent = ({
                     })),
                 );
 
-                // Collect all saved charts from all search results and run queries if available
+                // Collect charts to query: prioritize top 1 dashboard charts, then fill with standalone
                 let queryResultsMap:
                     | Map<string, { csv: string } | { error: true }>
                     | undefined;
 
                 if (runSavedChartQuery) {
-                    const allCharts = searchQueryResults.flatMap((result) =>
-                        result.content.filter(isSavedChartSearchResult),
+                    const QUERY_LIMIT = 5;
+                    const chartsToQuery: { uuid: string }[] = [];
+
+                    // 1. Get charts from top 1 dashboard first
+                    const allDashboards = searchQueryResults.flatMap((result) =>
+                        result.content.filter(isDashboardSearchResult),
+                    );
+                    const topDashboard = allDashboards[0];
+                    if (topDashboard) {
+                        chartsToQuery.push(...topDashboard.charts);
+                    }
+
+                    // 2. Fill remaining with standalone charts (avoid duplicates)
+                    const dashboardChartUuids = new Set(
+                        chartsToQuery.map((c) => c.uuid),
+                    );
+                    const standaloneCharts = searchQueryResults
+                        .flatMap((result) =>
+                            result.content.filter(isSavedChartSearchResult),
+                        )
+                        .filter(
+                            (chart) => !dashboardChartUuids.has(chart.uuid),
+                        );
+
+                    const remainingSlots = Math.max(
+                        0,
+                        QUERY_LIMIT - chartsToQuery.length,
+                    );
+                    chartsToQuery.push(
+                        ...standaloneCharts.slice(0, remainingSlots),
                     );
 
-                    // Get top 5 charts
-                    const top5Charts = allCharts.slice(0, 5);
-
-                    // Run queries for top 5 charts in parallel
+                    // Run queries in parallel
                     const queryResultsArray = await Promise.allSettled(
-                        top5Charts.map((chart) =>
+                        chartsToQuery.map((chart) =>
                             runSavedChartQuery({
                                 chartUuid: chart.uuid,
                                 limit: 100,
@@ -202,7 +240,7 @@ export const getFindContent = ({
 
                     // Map results back to charts
                     queryResultsMap = new Map();
-                    top5Charts.forEach((chart, index) => {
+                    chartsToQuery.forEach((chart, index) => {
                         const result = queryResultsArray[index];
                         if (result.status === 'fulfilled') {
                             const csv = convertQueryResultsToCsv({
