@@ -41,6 +41,8 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: build-and-test
     concurrency: ${{ github.ref }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
