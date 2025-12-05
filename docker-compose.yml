@@ -94,6 +94,7 @@ services:
             - RESULTS_S3_BUCKET=${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
             - RESULTS_S3_SECRET_KEY=${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
             - RESULTS_S3_ACCESS_KEY=${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
+            - TURBO_TOKEN=${TURBO_TOKEN}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:
