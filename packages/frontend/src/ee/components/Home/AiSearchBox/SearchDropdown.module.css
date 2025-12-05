@@ -27,6 +27,10 @@
 .comboboxOption[data-combobox-selected] > div {
     background-color: var(--mantine-color-ldGray-0);
     color: inherit;
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
 }
 
 .comboboxHeader {

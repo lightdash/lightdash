@@ -1,30 +1,37 @@
 .askAiSection {
     --saturation-mix: 0%;
+    --gradient-from: color-mix(
+        in oklch,
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-1) var(--saturation-mix)
+    );
+    --gradient-to: color-mix(
+        in oklch,
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-indigo-1) var(--saturation-mix)
+    );
 
     background: linear-gradient(
         90deg,
-        color-mix(
-                in oklch,
-                var(--mantine-color-grape-0),
-                var(--mantine-color-grape-1) var(--saturation-mix)
-            )
-            0%,
-        color-mix(
-                in oklch,
-                var(--mantine-color-violet-0),
-                var(--mantine-color-violet-1) var(--saturation-mix)
-            )
-            40%,
-        color-mix(
-                in oklch,
-                var(--mantine-color-indigo-0),
-                var(--mantine-color-indigo-1) var(--saturation-mix)
-            )
-            100%
+        var(--gradient-from) 0%,
+        var(--gradient-to) 100%
     );
 
     width: 100%;
     cursor: pointer;
+
+    @mixin dark {
+        --gradient-from: color-mix(
+            in oklch,
+            var(--mantine-color-violet-light),
+            var(--mantine-color-violet-light-hover)
+        );
+        --gradient-to: color-mix(
+            in oklch,
+            var(--mantine-color-indigo-light),
+            var(--mantine-color-indigo-light-hover)
+        );
+    }
 }
 
 [data-combobox-selected='true'] .askAiSection {
@@ -37,6 +44,11 @@
     border-radius: var(--mantine-radius-sm);
     border: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
+
+    @mixin dark {
+        background-color: var(--mantine-color-violet-light);
+        border-color: var(--mantine-color-violet-light);
+    }
 }
 
 [data-combobox-selected='true'] .askAiSectionArrow {
