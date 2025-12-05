@@ -40,18 +40,25 @@ describeOrSkip.concurrent('agent integration tests', () => {
     };
 
     // Creating model to be used as judge
-    const { model: judge, callOptions } = getOpenaiGptmodel({
-        apiKey: process.env.OPENAI_API_KEY!,
-        modelName: 'gpt-4.1-2025-04-14',
-        embeddingModelName: 'text-embedding-3-small',
-        temperature: 0.2,
-        responsesApi: true,
-        reasoning: {
-            enabled: false,
-            reasoningEffort: 'medium',
-            reasoningSummary: 'auto',
+    const { model: judge, callOptions } = getOpenaiGptmodel(
+        {
+            apiKey: process.env.OPENAI_API_KEY!,
+            modelName: 'gpt-4.1-2025-04-14',
+            embeddingModelName: 'text-embedding-3-small',
         },
-    });
+        {
+            provider: 'openai',
+            modelId: 'gpt-4.1-2025-04-14',
+            displayName: 'GPT-4.1',
+            description: 'Reliable OpenAI model',
+            supportsReasoning: false,
+            callOptions: { temperature: 0.2 },
+            providerOptions: {
+                strictJsonSchema: true,
+                parallelToolCalls: false,
+            },
+        },
+    );
 
     beforeAll(async () => {
         if (!process.env.OPENAI_API_KEY) {
