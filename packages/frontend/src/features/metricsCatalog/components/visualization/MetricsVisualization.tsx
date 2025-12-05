@@ -71,18 +71,18 @@ const tickFormatter = (date: Date) => {
         timeSecond(date) < date
             ? DATE_FORMATS.millisecond
             : timeMinute(date) < date
-            ? DATE_FORMATS.second
-            : timeHour(date) < date
-            ? DATE_FORMATS.minute
-            : timeDay(date) < date
-            ? DATE_FORMATS.hour
-            : timeMonth(date) < date
-            ? timeWeek(date) < date
-                ? DATE_FORMATS.day
-                : DATE_FORMATS.week
-            : timeYear(date) < date
-            ? DATE_FORMATS.month
-            : DATE_FORMATS.year
+              ? DATE_FORMATS.second
+              : timeHour(date) < date
+                ? DATE_FORMATS.minute
+                : timeDay(date) < date
+                  ? DATE_FORMATS.hour
+                  : timeMonth(date) < date
+                    ? timeWeek(date) < date
+                        ? DATE_FORMATS.day
+                        : DATE_FORMATS.week
+                    : timeYear(date) < date
+                      ? DATE_FORMATS.month
+                      : DATE_FORMATS.year
     )(date);
 };
 
@@ -667,7 +667,7 @@ const MetricsVisualization: FC<Props> = ({
                             <CartesianGrid
                                 horizontal
                                 vertical={false}
-                                stroke={colors.gray[2]}
+                                stroke={colors.ldGray[2]}
                                 strokeDasharray="4 3"
                             />
 
@@ -688,7 +688,7 @@ const MetricsVisualization: FC<Props> = ({
                                               style: {
                                                   textAnchor: 'middle',
                                                   fontSize: 14,
-                                                  fill: colors.gray[7],
+                                                  fill: colors.ldGray[8],
                                                   fontWeight: 500,
                                                   userSelect: 'none',
                                               },
@@ -701,16 +701,22 @@ const MetricsVisualization: FC<Props> = ({
                                         value,
                                     );
                                 }}
-                                style={{ userSelect: 'none' }}
+                                style={{
+                                    userSelect: 'none',
+                                    fill: colors.ldGray[8],
+                                }}
                             />
 
                             <XAxis
                                 dataKey="dateValue"
                                 {...xAxisConfig}
-                                axisLine={{ stroke: colors.gray[2] }}
+                                axisLine={{ stroke: colors.ldGray[2] }}
                                 tickLine={false}
                                 fontSize={11}
-                                style={{ userSelect: 'none' }}
+                                style={{
+                                    userSelect: 'none',
+                                    fill: colors.ldGray[8],
+                                }}
                                 allowDuplicatedCategory={false}
                             />
 
