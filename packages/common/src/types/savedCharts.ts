@@ -379,10 +379,13 @@ export type XAxis = Axis & {
 
 export enum XAxisSortType {
     DEFAULT = 'default',
+    CATEGORY = 'category',
     BAR_TOTALS = 'bar_totals',
 }
 
 export enum XAxisSort {
+    DEFAULT = 'default',
+    DEFAULT_REVERSED = 'default_reversed',
     ASCENDING = 'ascending',
     DESCENDING = 'descending',
     BAR_TOTALS_ASCENDING = 'bar_totals_ascending',
@@ -392,15 +395,20 @@ export enum XAxisSort {
 export function getXAxisSort(
     xAxis: Pick<XAxis, 'sortType' | 'inverse'> | undefined,
 ): XAxisSort {
-    if (!xAxis) return XAxisSort.ASCENDING;
+    if (!xAxis) return XAxisSort.DEFAULT;
 
     switch (xAxis.sortType) {
+        case XAxisSortType.CATEGORY:
+            return xAxis.inverse ? XAxisSort.DESCENDING : XAxisSort.ASCENDING;
         case XAxisSortType.BAR_TOTALS:
             return xAxis.inverse
                 ? XAxisSort.BAR_TOTALS_DESCENDING
                 : XAxisSort.BAR_TOTALS_ASCENDING;
+        case XAxisSortType.DEFAULT:
         default:
-            return xAxis.inverse ? XAxisSort.DESCENDING : XAxisSort.ASCENDING;
+            return xAxis.inverse
+                ? XAxisSort.DEFAULT_REVERSED
+                : XAxisSort.DEFAULT;
     }
 }
 

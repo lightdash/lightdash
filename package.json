@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2228.0",
+    "version": "0.2229.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -61,6 +61,7 @@
         "prettier-plugin-organize-imports": "^3.1.1",
         "ts-jest": "^29.1.1",
         "tsx": "^4.19.2",
+        "turbo": "^2.6.2",
         "typescript": "5.5.4"
     },
     "scripts": {
@@ -124,6 +125,11 @@
         "test": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend -F e2e -F cli test",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
         "build": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend build",
+        "turbo:typecheck": "turbo run typecheck --filter=@lightdash/common --filter=@lightdash/warehouses --filter=@lightdash/cli --filter=backend --filter=@lightdash/frontend",
+        "turbo:lint": "turbo run lint --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli",
+        "turbo:format": "turbo run format --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli",
+        "turbo:test": "turbo run test --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli",
+        "turbo:build": "turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
         "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build && pnpm frontend-build-sdk",
         "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli -F frontend release",
         "start": "pnpm run backend-start",

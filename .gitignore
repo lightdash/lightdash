@@ -107,3 +107,6 @@ data/
 
 CLAUDE.local.md
 http-client.private.env.json
+
+# turbo
+.turbo

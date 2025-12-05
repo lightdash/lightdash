@@ -1,3 +1,17 @@
+# [0.2229.0](https://github.com/lightdash/lightdash/compare/0.2228.1...0.2229.0) (2025-12-05)
+
+
+### Features
+
+* introduce x-axis default sort and fix categorical sorting ([#18581](https://github.com/lightdash/lightdash/issues/18581)) ([b9b110a](https://github.com/lightdash/lightdash/commit/b9b110a336f25deb993054a26b689bf4fb47fda7))
+
+## [0.2228.1](https://github.com/lightdash/lightdash/compare/0.2228.0...0.2228.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* bring back custom metrics batch write back to dbt ([#18601](https://github.com/lightdash/lightdash/issues/18601)) ([c5605c8](https://github.com/lightdash/lightdash/commit/c5605c89d46bd8f89ecfe81c5492aa13f9954078))
+
 # [0.2228.0](https://github.com/lightdash/lightdash/compare/0.2227.0...0.2228.0) (2025-12-05)
 
 

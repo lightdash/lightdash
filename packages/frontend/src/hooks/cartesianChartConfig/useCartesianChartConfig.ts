@@ -130,15 +130,25 @@ function getXAxisSortConfig(
     sort: XAxisSort,
 ): Pick<XAxis, 'inverse' | 'sortType'> {
     switch (sort) {
-        case XAxisSort.ASCENDING:
+        case XAxisSort.DEFAULT:
             return {
                 inverse: false,
                 sortType: XAxisSortType.DEFAULT,
             };
-        case XAxisSort.DESCENDING:
+        case XAxisSort.DEFAULT_REVERSED:
             return {
                 inverse: true,
                 sortType: XAxisSortType.DEFAULT,
+            };
+        case XAxisSort.ASCENDING:
+            return {
+                inverse: false,
+                sortType: XAxisSortType.CATEGORY,
+            };
+        case XAxisSort.DESCENDING:
+            return {
+                inverse: true,
+                sortType: XAxisSortType.CATEGORY,
             };
         case XAxisSort.BAR_TOTALS_ASCENDING:
             return {

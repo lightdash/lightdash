@@ -2314,98 +2314,126 @@ const useEchartsCartesianConfig = (
         resultsData?.metricQuery?.sorts,
     ]);
 
-    const { sortedResultsByTotals, barTotalsSortedCategoryValues } =
-        useMemo(() => {
-            if (!stackedSeriesWithColorAssignments?.length)
-                return {
-                    sortedResultsByTotals: sortedResults,
-                    barTotalsSortedCategoryValues: undefined,
-                };
+    const { xAxisSortedResults, xAxisSortedCategoryValues } = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) {
+            return {
+                xAxisSortedResults: sortedResults,
+                xAxisSortedCategoryValues: undefined,
+            };
+        }
 
-            const axis = validCartesianConfig?.layout.flipAxes
-                ? axes.yAxis[0]
-                : axes.xAxis[0];
+        const axis = validCartesianConfig?.layout.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
 
-            const xFieldId = validCartesianConfig?.layout?.xField;
-            const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
-            if (
-                xFieldId &&
-                axis?.type === 'category' &&
-                xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
-            ) {
-                const stackTotalValueIndex = validCartesianConfig?.layout
-                    .flipAxes
-                    ? 1
-                    : 0;
+        // Handle bar totals sorting
+        if (
+            xFieldId &&
+            axis?.type === 'category' &&
+            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
+        ) {
+            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+                ? 1
+                : 0;
 
-                const stackTotals = getStackTotalRows(
-                    rows,
-                    stackedSeriesWithColorAssignments,
-                    validCartesianConfig?.layout.flipAxes,
-                    validCartesianConfigLegend,
-                );
+            const stackTotals = getStackTotalRows(
+                rows,
+                stackedSeriesWithColorAssignments,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+            );
 
-                // Using entries since we cannot use a map here (cannot index with unknown)
-                // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
-                const stackTotalEntries: [unknown, number][] = Object.entries(
-                    groupBy(
-                        stackTotals,
-                        (total) => total[stackTotalValueIndex],
+            // Using entries since we cannot use a map here (cannot index with unknown)
+            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+            const stackTotalEntries: [unknown, number][] = Object.entries(
+                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
+            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
+                acc.push([
+                    key,
+                    totals.reduce((sum, total) => sum + total[2], 0),
+                ]);
+                return acc;
+            }, []);
+
+            // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
+            const sorted = sortedResults.sort((a, b) => {
+                const totalA =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === a[xFieldId],
+                    )?.[1] ?? 0;
+
+                const totalB =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === b[xFieldId],
+                    )?.[1] ?? 0;
+
+                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
+            });
+
+            // Extract sorted category values for ECharts axis data property
+            const categoryValues = Array.from(
+                new Set(
+                    sorted.map((row) =>
+                        EMPTY_X_AXIS in row ? undefined : row[xFieldId],
                     ),
-                ).reduce<[unknown, number][]>((acc, [key, totals]) => {
-                    acc.push([
-                        key,
-                        totals.reduce((sum, total) => sum + total[2], 0),
-                    ]);
-
-                    return acc;
-                }, []);
-
-                const sorted = sortedResults.sort((a, b) => {
-                    const totalA =
-                        stackTotalEntries.find(
-                            (entry) => entry[0] === a[xFieldId],
-                        )?.[1] ?? 0;
-
-                    const totalB =
-                        stackTotalEntries.find(
-                            (entry) => entry[0] === b[xFieldId],
-                        )?.[1] ?? 0;
-
-                    return totalA - totalB; // Asc/Desc will be taken care of by inverse config
-                });
-
-                // Extract sorted category values for ECharts axis data property
-                const categoryValues = Array.from(
-                    new Set(
-                        sorted.map((row) =>
-                            EMPTY_X_AXIS in row ? undefined : row[xFieldId],
-                        ),
-                    ),
-                );
-
-                return {
-                    sortedResultsByTotals: sorted,
-                    barTotalsSortedCategoryValues: categoryValues,
-                };
-            }
+                ),
+            );
 
             return {
-                sortedResultsByTotals: sortedResults,
-                barTotalsSortedCategoryValues: undefined,
+                xAxisSortedResults: sorted,
+                xAxisSortedCategoryValues: categoryValues,
             };
-        }, [
-            stackedSeriesWithColorAssignments,
-            sortedResults,
-            validCartesianConfig?.layout.flipAxes,
-            validCartesianConfig?.layout?.xField,
-            validCartesianConfig?.eChartsConfig.xAxis,
-            axes.yAxis,
-            axes.xAxis,
-            rows,
-            validCartesianConfigLegend,
-        ]);
+        }
+
+        // Handle alphabetical category sorting
+        if (
+            xFieldId &&
+            axis?.type === 'category' &&
+            xAxisConfig?.sortType === XAxisSortType.CATEGORY
+        ) {
+            const sorted = [...sortedResults].sort((a, b) => {
+                const valueA = EMPTY_X_AXIS in a ? '' : a[xFieldId];
+                const valueB = EMPTY_X_AXIS in b ? '' : b[xFieldId];
+
+                const valA = String(valueA ?? '');
+                const valB = String(valueB ?? '');
+
+                return valA.localeCompare(valB);
+            });
+
+            // Extract sorted category values for ECharts axis data property
+            const categoryValues = Array.from(
+                new Set(
+                    sorted.map((row) =>
+                        EMPTY_X_AXIS in row ? undefined : row[xFieldId],
+                    ),
+                ),
+            );
+
+            return {
+                xAxisSortedResults: sorted,
+                xAxisSortedCategoryValues: categoryValues,
+            };
+        }
+
+        return {
+            xAxisSortedResults: sortedResults,
+            xAxisSortedCategoryValues: undefined,
+        };
+    }, [
+        stackedSeriesWithColorAssignments,
+        sortedResults,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        axes.yAxis,
+        axes.xAxis,
+        rows,
+        validCartesianConfigLegend,
+    ]);
 
     // Apply 100% stacking transformation if needed
     const { dataToRender, originalValues } = useMemo(() => {
@@ -2421,7 +2449,7 @@ const useEchartsCartesianConfig = (
             !stackedSeriesWithColorAssignments
         ) {
             return {
-                dataToRender: sortedResultsByTotals,
+                dataToRender: xAxisSortedResults,
                 originalValues: undefined,
             };
         }
@@ -2455,7 +2483,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.layout.flipAxes,
         stackedSeriesWithColorAssignments,
-        sortedResultsByTotals,
+        xAxisSortedResults,
     ]);
 
     const tooltip = useMemo<TooltipOption>(() => {
@@ -2639,10 +2667,10 @@ const useEchartsCartesianConfig = (
         series,
     ]);
 
-    // When BAR_TOTALS sorting is active, we need to explicitly set the category axis data
+    // When BAR_TOTALS or CATEGORY sorting is active, we need to explicitly set the category axis data
     // to preserve our sorted order, as ECharts would otherwise sort it differently
-    const axesWithBarTotalsSorting = useMemo(() => {
-        if (!barTotalsSortedCategoryValues) {
+    const sortedAxes = useMemo(() => {
+        if (!xAxisSortedCategoryValues) {
             return { xAxis: axes.xAxis, yAxis: axes.yAxis };
         }
 
@@ -2653,20 +2681,20 @@ const useEchartsCartesianConfig = (
                 ? axes.xAxis
                 : axes.xAxis.map((axis, index) =>
                       index === 0
-                          ? { ...axis, data: barTotalsSortedCategoryValues }
+                          ? { ...axis, data: xAxisSortedCategoryValues }
                           : axis,
                   ),
             yAxis: flipAxes
                 ? axes.yAxis.map((axis, index) =>
                       index === 0
-                          ? { ...axis, data: barTotalsSortedCategoryValues }
+                          ? { ...axis, data: xAxisSortedCategoryValues }
                           : axis,
                   )
                 : axes.yAxis,
         };
     }, [
         axes,
-        barTotalsSortedCategoryValues,
+        xAxisSortedCategoryValues,
         validCartesianConfig?.layout?.flipAxes,
     ]);
 
@@ -2676,8 +2704,8 @@ const useEchartsCartesianConfig = (
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
         return {
-            xAxis: axesWithBarTotalsSorting.xAxis,
-            yAxis: axesWithBarTotalsSorting.yAxis,
+            xAxis: sortedAxes.xAxis,
+            yAxis: sortedAxes.yAxis,
             useUTC: true,
             series: stackedSeriesWithColorAssignments,
             animation: !(isInDashboard || minimal),
@@ -2717,7 +2745,7 @@ const useEchartsCartesianConfig = (
             }),
         };
     }, [
-        axesWithBarTotalsSorting,
+        sortedAxes,
         stackedSeriesWithColorAssignments,
         isInDashboard,
         minimal,
