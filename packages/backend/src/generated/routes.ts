@@ -32778,6 +32778,11 @@ export function RegisterRoutes(app: Router) {
             name: 'forceRefresh',
             dataType: 'boolean',
         },
+        includeChannelIds: {
+            in: 'query',
+            name: 'includeChannelIds',
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/slack/channels',

@@ -56,7 +56,21 @@ const AiAgentAdminAgentsTable = () => {
         [],
     );
 
-    const { data: slackInstallation } = useGetSlack();
+    const {
+        data: slackInstallation,
+        isInitialLoading: isLoadingSlackInstallation,
+    } = useGetSlack();
+
+    // Include all channel IDs used by agents to ensure they're in the response
+    const includeChannelIds = useMemo(() => {
+        if (!agents) return undefined;
+        const ids = agents.flatMap((agent) =>
+            agent.integrations
+                .filter((i) => i.type === 'slack' && i.channelId)
+                .map((i) => i.channelId),
+        );
+        return ids.length > 0 ? ids : undefined;
+    }, [agents]);
 
     const { data: slackChannels } = useSlackChannels(
         '',
@@ -64,9 +78,13 @@ const AiAgentAdminAgentsTable = () => {
             excludeArchived: true,
             excludeDms: true,
             excludeGroups: true,
+            includeChannelIds,
         },
         {
-            enabled: !!slackInstallation?.organizationUuid && !!agents,
+            enabled:
+                !!slackInstallation?.organizationUuid &&
+                !!agents &&
+                !isLoadingSlackInstallation,
         },
     );
 
