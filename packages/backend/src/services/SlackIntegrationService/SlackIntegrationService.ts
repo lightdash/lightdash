@@ -131,6 +131,7 @@ export class SlackIntegrationService<
             excludeDms?: boolean;
             excludeGroups?: boolean;
             forceRefresh?: boolean;
+            includeChannelIds?: string[];
         },
     ): Promise<SlackChannel[] | undefined> {
         const organizationUuid = user?.organizationUuid;

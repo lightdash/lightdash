@@ -36,7 +36,7 @@ import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 
 const DEFAULT_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
-const MAX_CHANNELS_LIMIT = 100000;
+const CHANNELS_LIMIT = 200;
 
 export type PostSlackFile = {
     organizationUuid: string;
@@ -170,6 +170,7 @@ export class SlackClient {
             excludeDms?: boolean;
             excludeGroups?: boolean;
             forceRefresh?: boolean;
+            includeChannelIds?: string[];
         } = {
             excludeArchived: true,
             excludeDms: false,
@@ -188,12 +189,36 @@ export class SlackClient {
             if (!cached) return undefined;
 
             let finalResults = cached.channels;
+
             if (search) {
                 finalResults = finalResults.filter((channel) =>
-                    channel.name.includes(search),
+                    channel.name.toLowerCase().includes(search.toLowerCase()),
                 );
             }
-            return finalResults.slice(0, MAX_CHANNELS_LIMIT);
+
+            // Always include specified channel IDs (e.g., currently selected channels)
+            const includeIds = filter.includeChannelIds ?? [];
+            const includedChannels =
+                includeIds.length > 0
+                    ? cached.channels.filter((channel) =>
+                          includeIds.includes(channel.id),
+                      )
+                    : [];
+
+            if (finalResults.length > CHANNELS_LIMIT) {
+                Logger.debug(
+                    `Limiting Slack channels response to ${CHANNELS_LIMIT} (total: ${finalResults.length}). Use search to find specific channels.`,
+                );
+                const limited = finalResults.slice(0, CHANNELS_LIMIT);
+                // Merge included channels that aren't already in the limited results
+                const limitedIds = new Set(limited.map((c) => c.id));
+                const missingIncluded = includedChannels.filter(
+                    (c) => !limitedIds.has(c.id),
+                );
+                return [...limited, ...missingIncluded];
+            }
+
+            return finalResults;
         };
 
         const isCacheValid = () => {
@@ -248,6 +273,7 @@ export class SlackClient {
                     : allChannels;
             } catch (e) {
                 slackErrorHandler(e, 'Unable to fetch slack channels');
+                break;
             }
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
@@ -273,6 +299,7 @@ export class SlackClient {
                         : allUsers;
                 } catch (e) {
                     slackErrorHandler(e, 'Unable to fetch slack users');
+                    break;
                 }
             } while (nextCursor);
             Logger.debug(`Total slack users ${allUsers.length}`);
