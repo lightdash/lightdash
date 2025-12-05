@@ -4,7 +4,7 @@ import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useProjects } from '../../../hooks/useProjects';
+import { useProject } from '../../../hooks/useProject';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
@@ -234,16 +234,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         refetchOnMount: true,
         enabled: withNavbar,
     } as AnyType);
-    const { data: projects } = useProjects({
-        enabled: withNavbar,
-    });
-    const isCurrentProjectPreview =
-        withNavbar &&
-        !!projects?.find(
-            (project) =>
-                project.projectUuid === activeProjectUuid &&
-                project.type === ProjectType.PREVIEW,
-        );
+    const { data: project } = useProject(activeProjectUuid);
+
+    const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
 
     const { classes } = usePageStyles(
         {
