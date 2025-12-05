@@ -296,9 +296,21 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         return newCredentials;
     }
 
+    // Only add non sensitive fields from base credentials to avoid conflicts with authentication methods
+    const keysToExclude = [
+        ...sensitiveCredentialsFieldNames,
+        'authenticationType',
+    ];
+    const filteredBaseCredentials = Object.fromEntries(
+        Object.entries(baseCredentials).filter(
+            ([key]) =>
+                !keysToExclude.includes(key as SensitiveCredentialsFieldNames),
+        ),
+    );
     // We will use new credentials for connection, this might contain new authentication method
     // do not include all baseCredentials here, to avoid conflicts on authentication (that will cause a mix of serviceaccounts/sso/passwords)
     const merged = {
+        ...filteredBaseCredentials, // We copy most of the base config from the parent project, including advanced settings
         ...newCredentials,
         // Keep requireUserCredentials from base credentials, since this is a security setting and should not be overridden
         requireUserCredentials: baseCredentials.requireUserCredentials,
