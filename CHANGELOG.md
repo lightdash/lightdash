@@ -1,3 +1,13 @@
+## [0.2231.1](https://github.com/lightdash/lightdash/compare/0.2231.0...0.2231.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* add ErrorBoundary to AiChartToolCalls and handle null searchQueries ([#18616](https://github.com/lightdash/lightdash/issues/18616)) ([770e648](https://github.com/lightdash/lightdash/commit/770e648c442318eace0640c939007406f04780f7)), closes [#18615](https://github.com/lightdash/lightdash/issues/18615)
+* ai search box dark mode compat ([#18621](https://github.com/lightdash/lightdash/issues/18621)) ([605e68a](https://github.com/lightdash/lightdash/commit/605e68aef60e3d102507feb35d7aabad8906ec04)), closes [#18620](https://github.com/lightdash/lightdash/issues/18620)
+* handle aws bedrock accessKeyId/secretAccessKey auth ([#18609](https://github.com/lightdash/lightdash/issues/18609)) ([b23d414](https://github.com/lightdash/lightdash/commit/b23d414a3e58f89164a7f938095f44bf4561d699))
+* update error boundary background color to use theme variable ([#18619](https://github.com/lightdash/lightdash/issues/18619)) ([1037e0c](https://github.com/lightdash/lightdash/commit/1037e0c92cea472523295f0e74139f11c005eb8c))
+
 # [0.2231.0](https://github.com/lightdash/lightdash/compare/0.2230.0...0.2231.0) (2025-12-05)
 
 
