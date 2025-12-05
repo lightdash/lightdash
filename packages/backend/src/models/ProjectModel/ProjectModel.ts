@@ -323,7 +323,6 @@ export class ProjectModel {
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
-                `${WarehouseCredentialTableName}.encrypted_credentials`,
                 this.database.raw(
                     '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
                 ),
@@ -359,37 +358,18 @@ export class ProjectModel {
                 created_by_user_uuid,
                 copied_from_project_uuid,
                 warehouse_type,
-                encrypted_credentials,
-            }) => {
-                try {
-                    const warehouseCredentials =
-                        encrypted_credentials !== null
-                            ? (JSON.parse(
-                                  this.encryptionUtil.decrypt(
-                                      encrypted_credentials,
-                                  ),
-                              ) as CreateWarehouseCredentials)
-                            : undefined;
-                    return {
-                        name,
-                        projectUuid: project_uuid,
-                        type: project_type,
-                        createdByUserUuid: created_by_user_uuid,
-                        createdAt: created_at,
-                        upstreamProjectUuid: copied_from_project_uuid,
-                        warehouseType:
-                            warehouse_type !== null
-                                ? (warehouse_type as WarehouseTypes)
-                                : undefined,
-                        requireUserCredentials:
-                            !!warehouseCredentials?.requireUserCredentials,
-                    };
-                } catch (e) {
-                    throw new UnexpectedServerError(
-                        'Unexpected error: failed to parse warehouse credentials',
-                    );
-                }
-            },
+            }) => ({
+                name,
+                projectUuid: project_uuid,
+                type: project_type,
+                createdByUserUuid: created_by_user_uuid,
+                createdAt: created_at,
+                upstreamProjectUuid: copied_from_project_uuid,
+                warehouseType:
+                    warehouse_type !== null
+                        ? (warehouse_type as WarehouseTypes)
+                        : undefined,
+            }),
         );
     }
 
