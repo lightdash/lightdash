@@ -1,3 +1,15 @@
+# [0.2228.0](https://github.com/lightdash/lightdash/compare/0.2227.0...0.2228.0) (2025-12-05)
+
+
+### Bug Fixes
+
+* bar total sorting ([#18403](https://github.com/lightdash/lightdash/issues/18403)) ([54da7c3](https://github.com/lightdash/lightdash/commit/54da7c3527650f97d11e91e9367ae44e603af948))
+
+
+### Features
+
+* replace funnel charts text shadows w background ([#18583](https://github.com/lightdash/lightdash/issues/18583)) ([c6b1c4c](https://github.com/lightdash/lightdash/commit/c6b1c4c1edcc191c26a5b4cf7931e863454575da)), closes [#10722](https://github.com/lightdash/lightdash/issues/10722)
+
 # [0.2227.0](https://github.com/lightdash/lightdash/compare/0.2226.2...0.2227.0) (2025-12-05)
 
 
