@@ -1,4 +1,4 @@
-import { Box, Flex, Text, type FlexProps } from '@mantine/core';
+import { Flex, Stack, Text, type FlexProps } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import * as Sentry from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -22,11 +22,12 @@ const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                         icon={IconAlertCircle}
                         title="Something went wrong."
                         description={
-                            <Box
+                            <Stack
+                                spacing="xs"
                                 sx={(theme) => ({
                                     borderRadius: theme.radius.md,
                                     padding: theme.spacing.xs,
-                                    backgroundColor: theme.colors.gray[1],
+                                    backgroundColor: theme.colors.ldGray[1],
                                 })}
                             >
                                 <Text>
@@ -45,7 +46,7 @@ const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                             : ''
                                     }`}
                                 </Prism>
-                            </Box>
+                            </Stack>
                         }
                     />
                 </Flex>
