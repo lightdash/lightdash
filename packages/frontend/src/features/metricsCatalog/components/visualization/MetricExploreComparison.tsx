@@ -125,6 +125,8 @@ export const MetricExploreComparison: FC<Props> = ({
                     >
                         <Paper
                             p="sm"
+                            withBorder
+                            radius="md"
                             sx={(theme) => ({
                                 cursor: 'pointer',
                                 transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
@@ -137,13 +139,13 @@ export const MetricExploreComparison: FC<Props> = ({
                                 '&:hover': {
                                     backgroundColor:
                                         theme.colorScheme === 'dark'
-                                            ? theme.colors.ldDark[8]
+                                            ? theme.colors.ldDark[3]
                                             : theme.colors.ldGray[0],
                                 },
                                 backgroundColor:
                                     query.comparison === comparison.type
                                         ? theme.colorScheme === 'dark'
-                                            ? theme.colors.ldDark[7]
+                                            ? theme.colors.ldDark[2]
                                             : theme.fn.lighten(
                                                   theme.colors.ldGray[1],
                                                   0.3,
@@ -157,13 +159,13 @@ export const MetricExploreComparison: FC<Props> = ({
                             <Stack>
                                 <Group align="center" noWrap position="apart">
                                     <Group noWrap>
-                                        <Paper p="xs">
+                                        <Paper p="xs" radius="md" withBorder>
                                             <MantineIcon
                                                 icon={comparison.icon}
                                             />
                                         </Paper>
 
-                                        <Text color="dimmed" fw={500}>
+                                        <Text color="ldGray.7" fw={500}>
                                             {comparison.label}
                                         </Text>
                                     </Group>
