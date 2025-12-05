@@ -6,6 +6,7 @@ import {
 import { Paper, Stack, Text, Timeline } from '@mantine-8/core';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import ErrorBoundary from '../../../../../../features/errorBoundary/ErrorBoundary';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ImproveContextToolCall } from './ImproveContextToolCall';
 import { ToolCallContainer } from './ToolCallContainer';
@@ -46,7 +47,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     const { title, icon } = getContainerMetadata(calculationToolCalls, type);
 
     return (
-        <>
+        <ErrorBoundary>
             {projectUuid && agentUuid && threadUuid && (
                 <ImproveContextToolCall
                     projectUuid={projectUuid}
@@ -122,6 +123,6 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                     </Stack>
                 </ToolCallContainer>
             )}
-        </>
+        </ErrorBoundary>
     );
 };
