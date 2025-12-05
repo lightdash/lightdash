@@ -9,17 +9,26 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
-import type { FindContentFn } from '../types/aiAgentDependencies';
+import type {
+    FindContentFn,
+    RunSavedChartQueryFn,
+} from '../types/aiAgentDependencies';
+import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     findContent: FindContentFn;
+    runSavedChartQuery?: RunSavedChartQueryFn;
     siteUrl: string;
 };
 
-const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
+const renderChart = (
+    chart: AllChartsSearchResult,
+    siteUrl: string,
+    queryResult?: { csv: string } | { error: true },
+) => {
     const isSavedChart = isSavedChartSearchResult(chart);
     const isSqlChart = isSqlChartSearchResult(chart);
 
@@ -63,6 +72,12 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
                 <lastupdatedby>
                     {`${chart.lastUpdatedBy.firstName} ${chart.lastUpdatedBy.lastName}`}
                 </lastupdatedby>
+            )}
+            {queryResult && 'csv' in queryResult && (
+                <data format="csv">{queryResult.csv}</data>
+            )}
+            {queryResult && 'error' in queryResult && (
+                <queryError>Query failed</queryError>
             )}
         </chart>
     );
@@ -127,17 +142,26 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
     siteUrl: string,
+    queryResultsMap?: Map<string, { csv: string } | { error: true }>,
 ) => (
     <searchresult searchQuery={args.searchQuery}>
         {args.content.map((content) =>
             isDashboardSearchResult(content)
                 ? renderDashboard(content, siteUrl)
-                : renderChart(content, siteUrl),
+                : renderChart(
+                      content,
+                      siteUrl,
+                      queryResultsMap?.get(content.uuid),
+                  ),
         )}
     </searchresult>
 );
 
-export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
+export const getFindContent = ({
+    findContent,
+    runSavedChartQuery,
+    siteUrl,
+}: Dependencies) =>
     tool({
         description: toolFindContentArgsSchema.description,
         inputSchema: toolFindContentArgsSchema,
@@ -153,11 +177,59 @@ export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
                     })),
                 );
 
+                // Collect all saved charts from all search results and run queries if available
+                let queryResultsMap:
+                    | Map<string, { csv: string } | { error: true }>
+                    | undefined;
+
+                if (runSavedChartQuery) {
+                    const allCharts = searchQueryResults.flatMap((result) =>
+                        result.content.filter(isSavedChartSearchResult),
+                    );
+
+                    // Get top 5 charts
+                    const top5Charts = allCharts.slice(0, 5);
+
+                    // Run queries for top 5 charts in parallel
+                    const queryResultsArray = await Promise.allSettled(
+                        top5Charts.map((chart) =>
+                            runSavedChartQuery({
+                                chartUuid: chart.uuid,
+                                limit: 100,
+                            }),
+                        ),
+                    );
+
+                    // Map results back to charts
+                    queryResultsMap = new Map();
+                    top5Charts.forEach((chart, index) => {
+                        const result = queryResultsArray[index];
+                        if (result.status === 'fulfilled') {
+                            const csv = convertQueryResultsToCsv({
+                                ...result.value,
+                                cacheMetadata: {
+                                    cacheHit: false,
+                                    cacheUpdatedTime: undefined,
+                                },
+                            });
+                            queryResultsMap!.set(chart.uuid, { csv });
+                        } else {
+                            queryResultsMap!.set(chart.uuid, {
+                                error: true,
+                            });
+                        }
+                    });
+                }
+
                 return {
                     result: (
                         <searchresults>
                             {searchQueryResults.map((searchQueryResult) =>
-                                renderContent(searchQueryResult, siteUrl),
+                                renderContent(
+                                    searchQueryResult,
+                                    siteUrl,
+                                    queryResultsMap,
+                                ),
                             )}
                         </searchresults>
                     ).toString(),

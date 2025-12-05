@@ -153,3 +153,11 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
+
+export type RunSavedChartQueryFn = (args: {
+    chartUuid: string;
+    limit?: number | null;
+}) => Promise<{
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+}>;

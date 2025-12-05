@@ -200,6 +200,46 @@ export class AsyncQueryService extends ProjectService {
         this.permissionsService = args.permissionsService;
     }
 
+    static async pollAsyncQueryResults(
+        getAsyncQueryResults: (
+            queryUuid: string,
+        ) => Promise<ApiGetAsyncQueryResults>,
+        queryUuid: string,
+        backoffMs: number = 250,
+        attempts: number = 0,
+    ): Promise<ApiGetAsyncQueryResults> {
+        const MAX_POLL_ATTEMPTS = 120; // 2 minutes max
+
+        if (attempts >= MAX_POLL_ATTEMPTS) {
+            throw new Error('Query timed out waiting for results.');
+        }
+
+        const results = await getAsyncQueryResults(queryUuid);
+
+        if (results.status === QueryHistoryStatus.READY) {
+            return results;
+        }
+        if (results.status === QueryHistoryStatus.ERROR) {
+            throw new Error(results.error ?? 'Unknown error executing query.');
+        }
+        if (results.status === QueryHistoryStatus.CANCELLED) {
+            throw new Error('Query was cancelled.');
+        }
+
+        // Exponential backoff: 250ms -> 500ms -> 1000ms (cap)
+        const nextBackoff = Math.min(backoffMs * 2, 1000);
+        await new Promise((resolve) => {
+            setTimeout(resolve, backoffMs);
+        });
+
+        return AsyncQueryService.pollAsyncQueryResults(
+            getAsyncQueryResults,
+            queryUuid,
+            nextBackoff,
+            attempts + 1,
+        );
+    }
+
     // ! Duplicate of SavedSqlService.hasAccess
     private async hasAccess(
         account: Account,
