@@ -41,7 +41,7 @@ const ValueLabelIcon: FC<{
     }
 
     return (
-        <MantineIcon color={position ? 'ldDark.0' : 'ldGray.4'} icon={icon} />
+        <MantineIcon color={position ? 'ldDark.8' : 'ldGray.4'} icon={icon} />
     );
 };
 

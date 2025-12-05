@@ -357,7 +357,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                         <Paper p="xs" withBorder radius="sm">
                             <MantineIcon icon={IconLayoutDashboard} size="sm" />
                         </Paper>
-                        <Text color="ldDark.7" fw={700} fz="md">
+                        <Text color="ldDark.9" fw={700} fz="md">
                             Export dashboard
                         </Text>
                     </Group>
