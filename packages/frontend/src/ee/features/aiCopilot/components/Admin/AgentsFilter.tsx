@@ -143,7 +143,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
-                        <Text fz="xs" c="ldDark.3" fw={600}>
+                        <Text fz="xs" c="ldDark.9" fw={600}>
                             Filter by AI agents:
                         </Text>
                         {hasSelectedProjects && (
