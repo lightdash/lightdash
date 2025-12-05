@@ -9,6 +9,17 @@ import { defineConfig } from 'vitest/config';
 const FE_PORT = process.env.FE_PORT ? parseInt(process.env.FE_PORT) : 3000;
 const BE_PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
+import { startServer } from '@react-grab/claude-code/server';
+
+if (
+    process.env.REACT_GRAB_ENABLED === 'true' &&
+    process.env.NODE_ENV === 'development'
+) {
+    startServer().catch((e) => {
+        console.error('[Claude Code Server] Failed to start:', e);
+    });
+}
+
 export default defineConfig({
     publicDir: 'public',
     define: {
