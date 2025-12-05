@@ -23,6 +23,23 @@
         />
 
         <title>Lightdash</title>
+        <script type="module">
+            if (import.meta.env.DEV && REACT_GRAB_ENABLED) {
+                import('react-grab')
+                    .then(() => console.log('[React Grab] Loaded'))
+                    .catch((e) =>
+                        console.error('[React Grab] Failed to load:', e),
+                    );
+                import('@react-grab/claude-code/client')
+                    .then(() => console.log('[Claude Code Client] Loaded'))
+                    .catch((e) =>
+                        console.error(
+                            '[Claude Code Client] Failed to load:',
+                            e,
+                        ),
+                    );
+            }
+        </script>
     </head>
     <body data-color-mode="light">
         <noscript>You need to enable JavaScript to run this app.</noscript>
