@@ -1,28 +1,105 @@
-name: CLI Release Binaries
+name: Release to DockerHub, GCP, Homebrew
 
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag to attach binaries to (e.g., 0.2178.4 or 0.2178.5-rc.1)'
-        required: true
-        type: string
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+env:
+  REGISTRY_IMAGE: lightdash/lightdash
 
 jobs:
+  # ============================================================================
+  # Job 1: Build and push Docker images with multiple tags
+  # ============================================================================
+  build-and-push-images:
+    name: Build and Push Images
+    runs-on: depot-ubuntu-24.04-4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      # ========================================
+      # Build Docker image and push to Docker Hub
+      # ========================================
+      - name: Set up Docker tags for Docker Hub
+        id: meta-docker
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
+            type=raw,value=latest
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push to Docker Hub
+        id: build-docker
+        uses: depot/build-push-action@v1
+        with:
+          project: bgbbt3d0kc # depot project id
+          token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+          file: dockerfile
+          push: true
+          tags: ${{ steps.meta-docker.outputs.tags }}
+          labels: ${{ steps.meta-docker.outputs.labels }}
+          platforms: linux/amd64
+
+      # ========================================
+      # Build and push to GCP
+      # ========================================
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 381.0.0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+
+      - name: Build and push to GCP
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: lightdash
+          SENTRY_FRONTEND_PROJECT: lightdash-frontend
+          SENTRY_BACKEND_PROJECT: lightdash-backend
+          SENTRY_ENVIRONMENT: cloud_beta
+          # Configure replica regions (comma-separated)
+          GCP_REPLICA_REGIONS: "europe,europe-west2"
+        run: bash ./scripts/gcp-build-and-push.sh
+
+  # ============================================================================
+  # Job 2: CLI Release Binaries
+  # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    runs-on: depot-ubuntu-24.04-4
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Check for CLI-related changes
         id: check
@@ -68,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: pnpm/action-setup@v4
 
@@ -175,7 +252,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
 
           echo "Uploading binaries to release $TAG..."
 
@@ -195,9 +272,7 @@ jobs:
   update-homebrew-formula:
     name: Update Homebrew Formula
     needs: build-macos-binaries
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    runs-on: depot-ubuntu-24.04-4
     steps:
       - name: Checkout Homebrew tap
         uses: actions/checkout@v4
@@ -210,7 +285,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"  # Remove 'v' prefix if present
 
           echo "Updating Homebrew formula for version $VERSION"
@@ -284,7 +359,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
 
           git config user.name "github-actions[bot]"
