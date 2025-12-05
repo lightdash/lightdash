@@ -375,7 +375,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             h={20}
                             sx={{
                                 alignSelf: 'center',
-                                borderColor: '#DEE2E6',
+                                borderColor: 'ldGray.3',
                             }}
                         />
                     )}

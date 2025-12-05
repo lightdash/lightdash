@@ -88,12 +88,12 @@ const TooltipBadge: FC<{
 }> = ({ value, color = 'indigo', variant = 'default' }) => (
     <Badge
         variant="light"
-        color={variant === 'comparison' ? 'ldGray.7' : color}
+        color={variant === 'comparison' ? 'ldGray.9' : color}
         radius="md"
         h={24}
         sx={(theme) => ({
             border: `1px solid ${
-                theme.colors[variant === 'comparison' ? 'gray' : color][1]
+                theme.colors[variant === 'comparison' ? 'ldGray' : color][2]
             }`,
             fontFeatureSettings: '"tnum"',
         })}
@@ -315,8 +315,8 @@ const PercentageChangeFooter: FC<{
         percentChange > 0
             ? 'green.7'
             : percentChange < 0
-            ? 'red.7'
-            : 'ldDark.4';
+              ? 'red.7'
+              : 'ldDark.4';
 
     return (
         <Group position="right" spacing={4}>
