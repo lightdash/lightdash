@@ -22,7 +22,7 @@ jobs:
   # ============================================================================
   install:
     name: Install
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -41,8 +41,10 @@ jobs:
   # 2A: Static checks (lint, format, unused-exports, typecheck)
   static-checks:
     name: Lint & Typecheck
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -69,8 +71,10 @@ jobs:
   # 2B: Full build of the repo
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -93,8 +97,10 @@ jobs:
   # 2C: Unit tests
   unit-tests:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: install
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -119,7 +125,7 @@ jobs:
   # ============================================================================
   files-changed:
     name: Select Tests to Run
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [static-checks, build, unit-tests]
     outputs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
@@ -162,7 +168,7 @@ jobs:
 
   preview:
     name: Deploy Preview
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [static-checks, build, unit-tests]
     outputs:
       url: ${{ steps.deploy.outputs.url }}
@@ -249,7 +255,7 @@ jobs:
 
   # Build cypress e2e image (runs in parallel with preview deployment)
   build-cypress-e2e-image:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [static-checks, build, unit-tests]
     name: Build E2E Image
     steps:
@@ -275,9 +281,11 @@ jobs:
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "E2E: API"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -318,7 +326,7 @@ jobs:
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -328,6 +336,8 @@ jobs:
       matrix:
         containers: [1, 2, 3]
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -378,12 +388,14 @@ jobs:
   perf-tests:
     if: needs.files-changed.outputs.perf == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
       options: --user 1001
     name: "E2E: Performance"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -430,7 +442,7 @@ jobs:
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -440,6 +452,8 @@ jobs:
       matrix:
         timezone: ['America/New_York', 'Europe/Madrid', 'Asia/Tokyo']
     name: "E2E: Timezone (${{ matrix.timezone }})"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -478,9 +492,11 @@ jobs:
   cli-tests-without-dbt:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "CLI: API"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -509,9 +525,11 @@ jobs:
   cli-tests:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "CLI: Integration"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -570,13 +588,15 @@ jobs:
   cli-dbt-tests:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     strategy:
       fail-fast: false
       matrix:
         dbt: ['1.4', '1.9', '1.10']
     name: "CLI: dbt ${{ matrix.dbt }}"
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -639,7 +659,7 @@ jobs:
   # Cleanup job to drop all schemas created during CLI tests
   cleanup-schemas:
     if: always() && needs.files-changed.outputs.cli == 'true'
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     needs: [files-changed, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
     name: Cleanup test schemas
     steps:

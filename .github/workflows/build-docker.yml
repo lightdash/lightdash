@@ -14,7 +14,7 @@ env:
 
 jobs:
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     # Set permissions for depot OIDC authentication
     permissions:
       id-token: write
