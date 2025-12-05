@@ -25,7 +25,7 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 0
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
 
       # ========================================
       # Build Docker image and push to Docker Hub
@@ -36,7 +36,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.event.release.tag_name || inputs.tag }}
+            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
             type=raw,value=latest
 
       - name: Set up Depot CLI
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Check for CLI-related changes
         id: check
@@ -112,7 +112,7 @@ jobs:
           fi
 
           # Get the current and previous tags
-          CURRENT_TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          CURRENT_TAG="${{ github.event.release.tag_name }}"
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
 
           if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
@@ -145,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: pnpm/action-setup@v4
 
@@ -252,7 +252,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
 
           echo "Uploading binaries to release $TAG..."
 
@@ -285,7 +285,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"  # Remove 'v' prefix if present
 
           echo "Updating Homebrew formula for version $VERSION"
@@ -359,7 +359,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
 
           git config user.name "github-actions[bot]"
