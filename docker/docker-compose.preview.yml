@@ -31,7 +31,7 @@ services:
             args:
                 TURBO_TEAM: ${TURBO_TEAM}
             secrets:
-                - TURBO_TOKEN
+                TURBO_TOKEN: ${TURBO_TOKEN}
         depends_on:
             - db-preview
             - headless-browser
