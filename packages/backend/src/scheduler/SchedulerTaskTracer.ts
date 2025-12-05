@@ -143,6 +143,7 @@ const getTagsForTask: {
     }),
 
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: () => ({}),
+    [SCHEDULER_TASKS.REFRESH_CACHE]: () => ({}),
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

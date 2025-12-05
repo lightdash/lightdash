@@ -16,6 +16,7 @@ import {
     type ExportCsvDashboardPayload,
     type GsheetsNotificationPayload,
     type MsTeamsNotificationPayload,
+    type RefreshCachePayload,
     type ReplaceCustomFieldsPayload,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
@@ -55,6 +56,7 @@ export const SCHEDULER_TASKS = {
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
+    REFRESH_CACHE: 'refreshCache',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
     ...EE_SCHEDULER_TASKS,
 } as const;
@@ -84,6 +86,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
+    [SCHEDULER_TASKS.REFRESH_CACHE]: RefreshCachePayload;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;

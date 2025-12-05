@@ -545,3 +545,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     encodedJwt?: string;
 };
+
+export type RefreshCachePayload = {
+    projectUuids?: string[];
+};

@@ -65,6 +65,41 @@ export class SchedulerWorker extends SchedulerTask {
         // We don't want to exceed the max number of connections to the database
         const maxPoolSize = Math.min(desiredPoolSize, dbMaxConnections);
 
+        const cronItems = [
+            {
+                task: 'generateDailyJobs',
+                pattern: '0 0 * * *',
+                options: {
+                    backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
+                pattern:
+                    this.lightdashConfig.scheduler.queryHistory.cleanup
+                        .schedule,
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+        ];
+
+        // Add cache refresh cron job if enabled
+        if (this.lightdashConfig.scheduler.queryHistory.refresh.enabled) {
+            cronItems.push({
+                task: SCHEDULER_TASKS.REFRESH_CACHE,
+                pattern:
+                    this.lightdashConfig.scheduler.queryHistory.refresh
+                        .schedule,
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            });
+        }
+
         this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
@@ -72,26 +107,7 @@ export class SchedulerWorker extends SchedulerTask {
             noHandleSignals: true,
             pollInterval: 1000,
             maxPoolSize,
-            parsedCronItems: parseCronItems([
-                {
-                    task: 'generateDailyJobs',
-                    pattern: '0 0 * * *',
-                    options: {
-                        backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
-                    pattern:
-                        this.lightdashConfig.scheduler.queryHistory.cleanup
-                            .schedule,
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-            ]),
+            parsedCronItems: parseCronItems(cronItems),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
         });
@@ -751,6 +767,42 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                 } catch (error) {
                     Logger.error('Error during query history cleanup:', error);
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.REFRESH_CACHE]: async (payload) => {
+                const refreshConfig =
+                    this.lightdashConfig.scheduler.queryHistory.refresh;
+
+                if (!refreshConfig.enabled) {
+                    Logger.info('Cache refresh job is disabled');
+                    return;
+                }
+
+                Logger.info('Starting cache refresh job');
+
+                const projectUuids =
+                    payload?.projectUuids || refreshConfig.projectUuids;
+
+                if (projectUuids && projectUuids.length > 0) {
+                    Logger.info(
+                        `Refreshing cache for projects: ${projectUuids.join(', ')}`,
+                    );
+                } else {
+                    Logger.info('Refreshing cache for all projects');
+                }
+
+                try {
+                    const { invalidatedCount } =
+                        await this.asyncQueryService.queryHistoryModel.invalidateCacheForProjects(
+                            projectUuids,
+                        );
+
+                    Logger.info(
+                        `Cache refresh completed. Total cache entries invalidated: ${invalidatedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error('Error during cache refresh:', error);
                     throw error;
                 }
             },
