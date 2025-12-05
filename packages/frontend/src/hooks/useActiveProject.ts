@@ -6,7 +6,8 @@ import {
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useParams } from 'react-router';
-import { useDefaultProject, useProjects } from './useProjects';
+import { useOrganization } from './organization/useOrganization';
+import { useProject } from './useProject';
 
 const LAST_PROJECT_KEY = 'lastProject';
 
@@ -59,51 +60,65 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     refetchOnMount: boolean;
 }) => {
     const params = useParams<{ projectUuid?: string }>();
-    const { data: projects, isInitialLoading: isLoadingProjects } =
-        useProjects(useQueryFetchOptions);
-    const { data: defaultProject, isLoading: isLoadingDefaultProject } =
-        useDefaultProject(useQueryFetchOptions);
-    const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
-        useActiveProject();
+    const { data: lastProjectUuid } = useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
 
+    // Get organization to access defaultProjectUuid (lightweight call, usually cached)
+    const { data: organization, isInitialLoading: isLoadingOrg } =
+        useOrganization(useQueryFetchOptions);
+
+    // Priority 1: Project UUID from URL params
+    const { data: paramProject, isInitialLoading: isLoadingParamProject } =
+        useProject(params.projectUuid);
+
+    // Priority 2: Last used project from localStorage
+    // Only fetch if no param project
+    const shouldFetchLastProject = !params.projectUuid && !!lastProjectUuid;
+    const { data: lastProject, isInitialLoading: isLoadingLastProject } =
+        useProject(shouldFetchLastProject ? lastProjectUuid : undefined);
+
+    // Priority 3: Organization's default project
+    // Only fetch if no param project and no last project
+    const shouldFetchDefaultProject =
+        !params.projectUuid &&
+        !lastProjectUuid &&
+        !!organization?.defaultProjectUuid;
+    const { data: defaultProject, isInitialLoading: isLoadingDefaultProject } =
+        useProject(
+            shouldFetchDefaultProject
+                ? organization?.defaultProjectUuid
+                : undefined,
+        );
+
     const isLoading =
-        isLoadingProjects || isLoadingDefaultProject || isLoadingLastProject;
+        isLoadingParamProject ||
+        (shouldFetchLastProject && isLoadingLastProject) ||
+        (shouldFetchDefaultProject && isLoadingDefaultProject) ||
+        (!params.projectUuid && !lastProjectUuid && isLoadingOrg);
 
-    const paramProject = projects?.find(
-        (project) => project.projectUuid === params.projectUuid,
-    );
+    // Determine the active project UUID
+    const activeProjectUuid =
+        paramProject?.projectUuid ||
+        lastProject?.projectUuid ||
+        defaultProject?.projectUuid;
 
-    const lastProject = projects?.find(
-        (project) => project.projectUuid === lastProjectUuid,
-    );
-
+    // Update localStorage when we find an active project but don't have one stored
     useEffect(() => {
         const newValue =
             paramProject?.projectUuid || defaultProject?.projectUuid;
-        if (!isLoading && !lastProject && newValue) {
+        if (!isLoading && !lastProjectUuid && newValue) {
             mutate(newValue);
         }
     }, [
         isLoading,
         defaultProject?.projectUuid,
-        lastProject,
+        lastProjectUuid,
         mutate,
         paramProject?.projectUuid,
     ]);
 
-    if (isLoading) {
-        return {
-            isLoading: true,
-            activeProjectUuid: undefined,
-        };
-    }
-
     return {
-        isLoading: false,
-        activeProjectUuid:
-            paramProject?.projectUuid ||
-            lastProject?.projectUuid ||
-            defaultProject?.projectUuid,
+        isLoading,
+        activeProjectUuid: isLoading ? undefined : activeProjectUuid,
     };
 };
