@@ -637,6 +637,37 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
     return ALL_TASK_NAMES;
 };
 
+const getBedrockConfig = () => {
+    if (process.env.BEDROCK_API_KEY) {
+        return {
+            apiKey: process.env.BEDROCK_API_KEY,
+            region: process.env.BEDROCK_REGION,
+            modelName:
+                process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
+            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
+            availableModels: getArrayFromCommaSeparatedList(
+                'BEDROCK_AVAILABLE_MODELS',
+            ),
+        } as const;
+    }
+    if (process.env.BEDROCK_ACCESS_KEY_ID) {
+        return {
+            accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID,
+            secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
+            sessionToken: process.env.BEDROCK_SESSION_TOKEN,
+            region: process.env.BEDROCK_REGION,
+            modelName:
+                process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
+            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
+            availableModels: getArrayFromCommaSeparatedList(
+                'BEDROCK_AVAILABLE_MODELS',
+            ),
+        } as const;
+    }
+
+    return undefined;
+};
+
 export const getAiConfig = () => ({
     enabled: process.env.AI_COPILOT_ENABLED === 'true',
     debugLoggingEnabled:
@@ -696,23 +727,7 @@ export const getAiConfig = () => ({
                   ),
               }
             : undefined,
-        bedrock:
-            process.env.BEDROCK_API_KEY || process.env.BEDROCK_ACCESS_KEY_ID
-                ? {
-                      apiKey: process.env.BEDROCK_API_KEY,
-                      region: process.env.BEDROCK_REGION,
-                      accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID,
-                      secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
-                      sessionToken: process.env.BEDROCK_SESSION_TOKEN,
-                      modelName:
-                          process.env.BEDROCK_MODEL_NAME ||
-                          DEFAULT_BEDROCK_MODEL_NAME,
-                      embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
-                      availableModels: getArrayFromCommaSeparatedList(
-                          'BEDROCK_AVAILABLE_MODELS',
-                      ),
-                  }
-                : undefined,
+        bedrock: getBedrockConfig(),
     },
     maxQueryLimit:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||

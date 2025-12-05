@@ -1,0 +1,80 @@
+name: Build & Release
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_API: https://cache.depot.dev
+      NODE_OPTIONS: '--max-old-space-size=8192'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Lint all packages
+        run: pnpm turbo:lint
+      - name: Check formatting all packages
+        run: pnpm turbo:format
+      - name: Check for unused exports
+        run: pnpm -F frontend unused-exports
+      - name: Check types for all packages
+        run: pnpm turbo:typecheck
+      - name: Build all packages
+        run: pnpm turbo:build
+      - name: Run unit tests
+        run: pnpm turbo:test
+
+  release:
+    runs-on: depot-ubuntu-24.04-4
+    needs: build-and-test
+    concurrency: ${{ github.ref }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+
+      - name: Set publishing config
+        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+
+      - name: Semantic Release
+        # Config is on release.config.js
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          HUSKY: 0
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        with:
+          semantic_version: 19
+          extra_plugins: |
+            @semantic-release/changelog@6
+            @semantic-release/exec@6
+            @semantic-release/git@10
+            @semantic-release/github@8

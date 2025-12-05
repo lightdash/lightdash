@@ -3126,6 +3126,7 @@ export class ProjectService extends BaseService {
         dateZoom,
         chartUuid,
         parameters,
+        userAttributeOverrides,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -3139,6 +3140,7 @@ export class ProjectService extends BaseService {
         dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
         parameters?: ParametersValuesMap;
+        userAttributeOverrides?: UserAttributeValueMap; // EXPERIMENTAL: used to override user attributes for MCP
     }): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -3199,6 +3201,13 @@ export class ProjectService extends BaseService {
                             account,
                         });
 
+                    const mergedUserAttributes = userAttributeOverrides
+                        ? {
+                              ...userAttributes,
+                              ...userAttributeOverrides,
+                          }
+                        : userAttributes;
+
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
@@ -3207,7 +3216,7 @@ export class ProjectService extends BaseService {
                         explore,
                         warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
-                        userAttributes,
+                        userAttributes: mergedUserAttributes,
                         timezone: this.lightdashConfig.query.timezone || 'UTC',
                         dateZoom,
                         parameters,
@@ -3775,6 +3784,7 @@ export class ProjectService extends BaseService {
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
+        userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3814,6 +3824,13 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ user });
 
+        const mergedUserAttributes = userAttributeOverrides
+            ? {
+                  ...userAttributes,
+                  ...userAttributeOverrides,
+              }
+            : userAttributes;
+
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -3824,7 +3841,7 @@ export class ProjectService extends BaseService {
             explore,
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
-            userAttributes,
+            userAttributes: mergedUserAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
             availableParameterDefinitions,
