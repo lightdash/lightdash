@@ -485,14 +485,7 @@ export const useCreateAgentThreadMutation = (
     >({
         mutationFn: (data) =>
             agentUuid
-                ? createAgentThread(projectUuid, agentUuid, {
-                      ...data,
-                      //   TODO :: pass model config from the UI
-                      //   modelConfig: {
-                      //       modelId: 'gpt-5.1-2025-11-13',
-                      //       modelProvider: 'openai',
-                      //   },
-                  })
+                ? createAgentThread(projectUuid, agentUuid, data)
                 : Promise.reject(),
         onSuccess: async (thread) => {
             // Invalidate both user-specific and all-users thread queries

@@ -7,8 +7,9 @@ import {
     getTestContext,
     IntegrationTestContext,
 } from '../../../../../vitest.setup.integration';
-import { getModel } from '../../models';
+import { getModel, MODEL_PRESETS } from '../../models';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
+import { getModelPreset } from '../../models/presets';
 import {
     calculateRunQueryEfficiencyScore,
     llmAsAJudge,
@@ -43,21 +44,10 @@ describeOrSkip.concurrent('agent integration tests', () => {
     const { model: judge, callOptions } = getOpenaiGptmodel(
         {
             apiKey: process.env.OPENAI_API_KEY!,
-            modelName: 'gpt-4.1-2025-04-14',
+            modelName: 'gpt-4.1',
             embeddingModelName: 'text-embedding-3-small',
         },
-        {
-            provider: 'openai',
-            modelId: 'gpt-4.1-2025-04-14',
-            displayName: 'GPT-4.1',
-            description: 'Reliable OpenAI model',
-            supportsReasoning: false,
-            callOptions: { temperature: 0.2 },
-            providerOptions: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
-            },
-        },
+        getModelPreset('openai', 'gpt-4.1')!,
     );
 
     beforeAll(async () => {

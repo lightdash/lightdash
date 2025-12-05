@@ -42,7 +42,7 @@ const AiAgentNewThreadPage: FC = () => {
     const handleSelectedModelIdChange = useCallback(
         (modelId: string) => {
             setSelectedModelId(modelId);
-            const selectedModel = modelOptions?.find((m) => m.id === modelId);
+            const selectedModel = modelOptions?.find((m) => m.name === modelId);
             if (selectedModel && !selectedModel.supportsReasoning) {
                 setExtendedThinking(false);
             }
@@ -55,14 +55,14 @@ const AiAgentNewThreadPage: FC = () => {
         if (modelOptions && !selectedModelId) {
             const defaultModel = modelOptions.find((m) => m.default);
             if (defaultModel) {
-                handleSelectedModelIdChange(defaultModel.id);
+                handleSelectedModelIdChange(defaultModel.name);
             }
         }
     }, [modelOptions, selectedModelId, handleSelectedModelIdChange]);
 
     // Only enable extended thinking toggle when selected model supports reasoning
     const selectedModel = useMemo(
-        () => modelOptions?.find((m) => m.id === selectedModelId),
+        () => modelOptions?.find((m) => m.name === selectedModelId),
         [modelOptions, selectedModelId],
     );
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
@@ -73,7 +73,7 @@ const AiAgentNewThreadPage: FC = () => {
                 prompt,
                 modelConfig: selectedModel
                     ? {
-                          modelId: selectedModel.id,
+                          modelName: selectedModel.name,
                           modelProvider: selectedModel.provider,
                           reasoning: showExtendedThinking
                               ? extendedThinking

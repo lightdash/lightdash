@@ -1,4 +1,4 @@
-import type { AIModelOption } from '@lightdash/common';
+import type { AiModelOption } from '@lightdash/common';
 import {
     ActionIcon,
     alpha,
@@ -29,7 +29,7 @@ interface AgentChatInputProps {
     messageCount?: number;
     projectUuid?: string;
     agentUuid?: string;
-    models?: AIModelOption[];
+    models?: AiModelOption[];
     selectedModelId?: string | null;
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;

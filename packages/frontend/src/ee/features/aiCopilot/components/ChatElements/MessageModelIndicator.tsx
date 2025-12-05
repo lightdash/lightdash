@@ -5,7 +5,7 @@ import { useModelOptions } from '../../hooks/useModelOptions';
 interface Props {
     projectUuid: string;
     agentUuid: string;
-    modelConfig: { modelId: string; modelProvider: string } | null;
+    modelConfig: { modelName: string; modelProvider: string } | null;
 }
 
 export const MessageModelIndicator: FC<Props> = ({
@@ -21,7 +21,9 @@ export const MessageModelIndicator: FC<Props> = ({
     const modelDisplayName = useMemo(() => {
         if (!modelConfig || !modelOptions) return null;
 
-        const model = modelOptions.find((m) => m.id === modelConfig.modelId);
+        const model = modelOptions.find(
+            (m) => m.name === modelConfig.modelName,
+        );
         return model?.displayName ?? null;
     }, [modelConfig, modelOptions]);
 
