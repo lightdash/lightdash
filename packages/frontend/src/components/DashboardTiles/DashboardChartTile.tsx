@@ -999,7 +999,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                         <Text
                                                             fw={600}
                                                             span
-                                                            color="foreground.0"
+                                                            color="foreground"
                                                         >
                                                             {
                                                                 filterRuleLabels.field
@@ -1008,7 +1008,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                         </Text>{' '}
                                                         {filterRule.disabled ? (
                                                             <Text
-                                                                color="foreground.0"
+                                                                color="foreground"
                                                                 span
                                                             >
                                                                 is any value
@@ -1017,7 +1017,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                             <>
                                                                 <Text
                                                                     span
-                                                                    color="foreground.0"
+                                                                    color="foreground"
                                                                 >
                                                                     {
                                                                         filterRuleLabels.operator
@@ -1026,7 +1026,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                                 <Text
                                                                     fw={600}
                                                                     span
-                                                                    color="foreground.0"
+                                                                    color="foreground"
                                                                 >
                                                                     {
                                                                         filterRuleLabels.value

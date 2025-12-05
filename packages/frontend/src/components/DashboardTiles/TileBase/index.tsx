@@ -115,7 +115,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 direction="column"
                 p="md"
                 radius="sm"
-                bg="background.0"
+                bg="background"
                 shadow={isEditMode ? 'xs' : undefined}
                 sx={(theme) => {
                     let border = `1px solid ${theme.colors.ldGray[1]}`;
@@ -189,7 +189,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             fw={600}
                                             fz="md"
                                             hidden={hideTitle}
-                                            c="foreground.0"
+                                            c="foreground"
                                         >
                                             {title}
                                         </Text>
