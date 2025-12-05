@@ -124,8 +124,6 @@ jobs:
         uses: okteto/deploy-preview@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
         with:
           name: pr-${{ github.event.number }}
           timeout: 15m
