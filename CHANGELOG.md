@@ -1,3 +1,15 @@
+# [0.2233.0](https://github.com/lightdash/lightdash/compare/0.2232.0...0.2233.0) (2025-12-05)
+
+
+### Bug Fixes
+
+* handle table calculation references in editAdditionalMetric reducer ([#18613](https://github.com/lightdash/lightdash/issues/18613)) ([f39c759](https://github.com/lightdash/lightdash/commit/f39c759bcd266a65b0c853df69c6615cc57f7061))
+
+
+### Features
+
+* improve dashboard refresh button styles ([#18606](https://github.com/lightdash/lightdash/issues/18606)) ([35508ec](https://github.com/lightdash/lightdash/commit/35508ecc6a604f866dc93d1c4b7ea874518af0d7))
+
 # [0.2232.0](https://github.com/lightdash/lightdash/compare/0.2231.1...0.2232.0) (2025-12-05)
 
 
