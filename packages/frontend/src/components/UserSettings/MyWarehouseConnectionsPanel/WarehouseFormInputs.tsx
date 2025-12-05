@@ -6,8 +6,10 @@ import { PasswordInput, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
+import { useDatabricksLoginPopup } from '../../../hooks/useDatabricks';
 import { useSnowflakeLoginPopup } from '../../../hooks/useSnowflake';
 import { BigQuerySSOInput } from '../../ProjectConnection/WarehouseForms/BigQueryForm';
+import { DatabricksSSOInput } from '../../ProjectConnection/WarehouseForms/DatabricksForm';
 import { SnowflakeSSOInput } from '../../ProjectConnection/WarehouseForms/SnowflakeForm';
 
 const BigQueryFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -37,6 +39,24 @@ export const SnowflakeFormInput: FC<{ onClose: () => void }> = ({
     // (aka isAuthenticated is false), so we need to authenticate
     return (
         <SnowflakeSSOInput
+            isAuthenticated={false}
+            disabled={false}
+            openLoginPopup={openLoginPopup}
+        />
+    );
+};
+
+const DatabricksFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
+    const { mutate: openLoginPopup } = useDatabricksLoginPopup({
+        onLogin: async () => {
+            onClose();
+        },
+    });
+
+    // If this popup happens, it means we don't have warehouse credentials,
+    // (aka isAuthenticated is false), so we need to authenticate
+    return (
+        <DatabricksSSOInput
             isAuthenticated={false}
             disabled={false}
             openLoginPopup={openLoginPopup}
@@ -77,7 +97,7 @@ export const WarehouseFormInputs: FC<{
         case WarehouseTypes.BIGQUERY:
             return <BigQueryFormInput onClose={onClose} />;
         case WarehouseTypes.DATABRICKS:
-            return <>{/* Add personal access token input */}</>;
+            return <DatabricksFormInput onClose={onClose} />;
         default:
             return null;
     }

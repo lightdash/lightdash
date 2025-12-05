@@ -11,27 +11,32 @@ import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 
+// Databricks U2M OAuth doesn't require a client secret (public client)
+// and requires PKCE (Proof Key for Code Exchange)
+// https://docs.databricks.com/en/dev-tools/auth/oauth-u2m.html
 export const databricksPassportStrategy = !(
     lightdashConfig.auth.databricks.clientId &&
-    lightdashConfig.auth.databricks.clientSecret &&
     lightdashConfig.auth.databricks.authorizationEndpoint &&
     lightdashConfig.auth.databricks.tokenEndpoint
 )
     ? undefined
-    : // https://docs.databricks.com/en/dev-tools/auth/oauth-u2m.html
-      new OAuth2Strategy(
+    : new OAuth2Strategy(
           {
               authorizationURL:
                   lightdashConfig.auth.databricks.authorizationEndpoint,
               tokenURL: lightdashConfig.auth.databricks.tokenEndpoint,
               clientID: lightdashConfig.auth.databricks.clientId,
-              clientSecret: lightdashConfig.auth.databricks.clientSecret,
+              // U2M OAuth uses a public client without a secret, but passport-oauth2 requires this field
+              clientSecret: lightdashConfig.auth.databricks.clientSecret || '',
               callbackURL: new URL(
                   `/api/v1${lightdashConfig.auth.databricks.callbackPath}`,
                   lightdashConfig.siteUrl,
               ).href,
               scope: ['sql', 'offline_access'],
               passReqToCallback: true,
+              // PKCE is required for Databricks U2M OAuth
+              pkce: true,
+              state: true,
           },
           async (
               req: Express.Request,
