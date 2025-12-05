@@ -1,3 +1,10 @@
+# [0.2232.0](https://github.com/lightdash/lightdash/compare/0.2231.1...0.2232.0) (2025-12-05)
+
+
+### Features
+
+* allow smaller dashboard tile widths ([#18607](https://github.com/lightdash/lightdash/issues/18607)) ([e556a9e](https://github.com/lightdash/lightdash/commit/e556a9e147d0018fe6df4e421a68a0d2e80a1eb6))
+
 ## [0.2231.1](https://github.com/lightdash/lightdash/compare/0.2231.0...0.2231.1) (2025-12-05)
 
 
