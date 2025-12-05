@@ -1,28 +1,245 @@
-.backdropBackground {
-    backdrop-filter: blur(20px);
-
-    @mixin light {
-        background-color: alpha(var(--mantine-color-white), 0.1);
-    }
-
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-dark-8), 0.1);
-    }
-
-    border-top-left-radius: var(--mantine-radius-lg);
-    border-top-right-radius: var(--mantine-radius-lg);
+.container {
+    position: relative;
+    padding-bottom: var(--mantine-spacing-lg);
 }
 
-.input {
+.inputCard {
+    border-radius: var(--mantine-radius-lg);
+    overflow: hidden;
+    transition: box-shadow 150ms ease, border-color 150ms ease;
+
     @mixin light {
-        background-color: alpha(var(--mantine-color-white), 0.3);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-dark-8), 0.3);
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-gray-3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 
-    --input-bd-focus: var(--mantine-color-ldGray-7);
-    &:focus {
-        outline: 4px solid var(--mantine-color-ldGray-2);
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+        border: 1px solid var(--mantine-color-dark-4);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
+
+    &:focus-within {
+        @mixin light {
+            border-color: var(--mantine-color-gray-4);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        @mixin dark {
+            border-color: var(--mantine-color-dark-3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+    }
+}
+
+.textarea {
+    border: none;
+    background: transparent;
+    resize: none;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+    padding-bottom: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-md);
+    line-height: 1.5;
+    min-height: 60px;
+
+    &:focus {
+        outline: none;
+        box-shadow: none;
+    }
+}
+
+.textareaWrapper {
+    --input-bd: transparent;
+    --input-bg: transparent;
+}
+
+.divider {
+    margin: 0;
+    border: none;
+    border-top: 1px dashed;
+    border-color: var(--mantine-color-ldGray-3);
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-xs);
+}
+
+.toolbarActions {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+.submitButton {
+    border-radius: var(--mantine-radius-xl);
+    transition: transform 150ms ease, opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+}
+
+.warningBannerVisible .inputCard {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.disabledBanner {
+    border-radius: 0;
+    border-bottom-left-radius: var(--mantine-radius-lg);
+    border-bottom-right-radius: var(--mantine-radius-lg);
+    margin-top: -1px;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        border: 1px solid var(--mantine-color-ldGray-3);
+        border-top: none;
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-7);
+        border: 1px solid var(--mantine-color-ldDark-4);
+        border-top: none;
+    }
+}
+
+.disabledBannerVisible .inputCard {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.thinkingButton {
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+    border-radius: var(--mantine-radius-md);
+}
+
+.thinkingButtonOn {
+    color: var(--mantine-color-indigo-5);
+}
+
+.thinkingButtonOn:hover {
+    color: var(--mantine-color-indigo-5);
+}
+
+/* Minimal mode styles for existing threads */
+.minimalContainer {
+    position: relative;
+    padding: var(--mantine-spacing-sm);
+}
+
+.minimalInputWrapper {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    border-radius: var(--mantine-radius-lg);
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-md);
+    padding-top: var(--mantine-spacing-sm);
+    transition: background-color 150ms ease, border-color 150ms ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border: 1px solid var(--mantine-color-ldDark-6);
+    }
+
+    &:focus-within {
+        @mixin light {
+            border-color: var(--mantine-color-ldGray-4);
+        }
+
+        @mixin dark {
+            border-color: var(--mantine-color-ldDark-5);
+        }
+    }
+}
+
+.minimalTextarea {
+    border: none;
+    background: transparent;
+    resize: none;
+    padding: 0;
+    padding-right: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+    min-height: unset;
+
+    &[data-disabled='true'] {
+        background-color: transparent;
+    }
+
+    &:focus {
+        outline: none;
+        box-shadow: none;
+    }
+}
+
+.minimalTextareaWrapper {
+    flex: 1;
+    --input-bd: transparent;
+    --input-bg: transparent;
+}
+
+.minimalSubmitButton {
+    flex-shrink: 0;
+    align-self: flex-end;
+    border-radius: var(--mantine-radius-xl);
+    transition: transform 150ms ease, opacity 150ms ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-gray-8);
+
+        &:hover:not(:disabled) {
+            background-color: var(--mantine-color-gray-9);
+        }
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-gray-3);
+
+        &:hover:not(:disabled) {
+            background-color: var(--mantine-color-gray-2);
+        }
+    }
+
+    &:disabled {
+        opacity: 0.4;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+
+    &[data-loading='true'] {
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-7);
+        }
+    }
+}
+
+.warningBanner {
+    border-radius: var(--mantine-radius-md);
+    margin-left: var(--mantine-spacing-sm);
+    margin-right: var(--mantine-spacing-sm);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: var(--mantine-color-ldGray-0);
 }
