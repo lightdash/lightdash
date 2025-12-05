@@ -30,7 +30,7 @@ export const CatalogCategorySwatch: FC<Props> = ({
                 <MantineIcon
                     icon={IconCheck}
                     strokeWidth={2}
-                    color="foreground.0"
+                    color="foreground"
                     size={12}
                 />
             )}
