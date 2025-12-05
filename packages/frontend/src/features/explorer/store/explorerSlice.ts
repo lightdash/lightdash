@@ -799,6 +799,12 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.filters = newFilters;
 
             // Update tableCalculations SQL references
+            const tableCalcNames = new Set(
+                state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    (tc) => tc.name,
+                ),
+            );
+
             state.unsavedChartVersion.metricQuery.tableCalculations =
                 state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tableCalculation) => {
@@ -809,6 +815,11 @@ const explorerSlice = createSlice({
                         const newSql = tableCalculation.sql.replace(
                             lightdashVariablePattern,
                             (_, fieldRef) => {
+                                // Skip table calculation references - they're valid without table prefix
+                                if (tableCalcNames.has(fieldRef)) {
+                                    return `\${${fieldRef}}`;
+                                }
+
                                 const fieldId =
                                     convertFieldRefToFieldId(fieldRef);
                                 if (fieldId === previousAdditionalMetricName) {
