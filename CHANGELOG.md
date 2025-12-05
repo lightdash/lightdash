@@ -1,3 +1,15 @@
+# [0.2227.0](https://github.com/lightdash/lightdash/compare/0.2226.2...0.2227.0) (2025-12-05)
+
+
+### Bug Fixes
+
+* lightdash server crash when client fetch channels from big workspace ([#18163](https://github.com/lightdash/lightdash/issues/18163)) ([db64e78](https://github.com/lightdash/lightdash/commit/db64e787c23fca1956f21e12dda6444b2856190e)), closes [#8839](https://github.com/lightdash/lightdash/issues/8839)
+
+
+### Features
+
+* new slack channel selector component ([#18492](https://github.com/lightdash/lightdash/issues/18492)) ([4694c1a](https://github.com/lightdash/lightdash/commit/4694c1a284e2603a25dd7acbdd3390eed8ffdcdb))
+
 ## [0.2226.2](https://github.com/lightdash/lightdash/compare/0.2226.1...0.2226.2) (2025-12-04)
 
 
