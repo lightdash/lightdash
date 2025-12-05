@@ -140,7 +140,7 @@ export const SingleSeriesConfiguration = ({
                                     <Group spacing="xs" noWrap>
                                         <MantineIcon
                                             icon={IconAlignLeft}
-                                            color="ldDark.0"
+                                            color="ldDark.8"
                                         />
                                         <Text>Left</Text>
                                     </Group>
@@ -153,7 +153,7 @@ export const SingleSeriesConfiguration = ({
                                         <Text>Right</Text>
                                         <MantineIcon
                                             icon={IconAlignRight}
-                                            color="ldDark.0"
+                                            color="ldDark.8"
                                         />
                                     </Group>
                                 ),

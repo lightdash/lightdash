@@ -22,7 +22,7 @@ const ChartTypeIcon: FC<{ type: CartesianSeriesType }> = ({ type }) => {
             ? ChartKind.VERTICAL_BAR
             : ChartKind.LINE;
 
-    return <MantineIcon icon={getChartIcon(chartKind)} color="ldDark.0" />;
+    return <MantineIcon icon={getChartIcon(chartKind)} color="ldDark.8" />;
 };
 
 const ChartTypeItem = forwardRef<
