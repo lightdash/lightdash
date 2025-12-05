@@ -1,3 +1,10 @@
+## [0.2228.1](https://github.com/lightdash/lightdash/compare/0.2228.0...0.2228.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* bring back custom metrics batch write back to dbt ([#18601](https://github.com/lightdash/lightdash/issues/18601)) ([c5605c8](https://github.com/lightdash/lightdash/commit/c5605c89d46bd8f89ecfe81c5492aa13f9954078))
+
 # [0.2228.0](https://github.com/lightdash/lightdash/compare/0.2227.0...0.2228.0) (2025-12-05)
 
 
