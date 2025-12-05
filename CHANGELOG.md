@@ -1,3 +1,10 @@
+## [0.2229.2](https://github.com/lightdash/lightdash/compare/0.2229.1...0.2229.2) (2025-12-05)
+
+
+### Bug Fixes
+
+* adjust border color for dark mode in grid items ([#18605](https://github.com/lightdash/lightdash/issues/18605)) ([0a680ad](https://github.com/lightdash/lightdash/commit/0a680ad255ab38f6cef83847ada9d490b6c843cf))
+
 ## [0.2229.1](https://github.com/lightdash/lightdash/compare/0.2229.0...0.2229.1) (2025-12-05)
 
 
