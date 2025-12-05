@@ -1,3 +1,10 @@
+# [0.2231.0](https://github.com/lightdash/lightdash/compare/0.2230.0...0.2231.0) (2025-12-05)
+
+
+### Features
+
+* download content in folders per the Lightdash project structure ([#18253](https://github.com/lightdash/lightdash/issues/18253)) ([af3be77](https://github.com/lightdash/lightdash/commit/af3be77d713be876be92d0e26130a8067e5bedba))
+
 # [0.2230.0](https://github.com/lightdash/lightdash/compare/0.2229.2...0.2230.0) (2025-12-05)
 
 
