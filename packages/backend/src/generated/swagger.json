@@ -19072,9 +19072,6 @@
             },
             "OrganizationProject": {
                 "properties": {
-                    "requireUserCredentials": {
-                        "type": "boolean"
-                    },
                     "warehouseType": {
                         "$ref": "#/components/schemas/WarehouseTypes"
                     },
@@ -23401,7 +23398,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2236.2",
+        "version": "0.2242.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
