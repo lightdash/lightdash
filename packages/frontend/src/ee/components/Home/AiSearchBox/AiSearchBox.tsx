@@ -169,7 +169,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                         />
                                         <Text
                                             size="sm"
-                                            c="ldDark.7"
+                                            c="foreground"
                                             flex="1"
                                             mt={2}
                                         >
@@ -181,7 +181,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             <Text
                                                 component="span"
                                                 fw={600}
-                                                c="ldDark.7"
+                                                c="ldDark.9"
                                             >
                                                 "{form.values.prompt.trim()}"
                                             </Text>
@@ -193,7 +193,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             <MantineIcon
                                                 icon={IconCornerDownLeft}
                                                 size={16}
-                                                color="ldGray.5"
+                                                color="violet.4"
                                             />
                                         </Box>
                                     </PolymorphicGroupButton>
