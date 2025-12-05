@@ -184,7 +184,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                         >
                             <Text
                                 span
-                                c="ldDark.4"
+                                c="ldGray.9"
                                 fz={14}
                                 fw={500}
                                 maw={200}

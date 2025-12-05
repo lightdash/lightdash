@@ -56,7 +56,7 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             withinPortal
             rightSection={
                 <MantineIcon
-                    color="ldDark.2"
+                    color="ldGray.7"
                     icon={IconChevronDown}
                     size={12}
                 />

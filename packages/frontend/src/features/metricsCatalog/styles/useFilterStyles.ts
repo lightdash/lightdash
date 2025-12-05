@@ -7,7 +7,7 @@ const baseStyles = (theme: MantineTheme) => ({
         fontSize: 14,
         height: 32,
         borderColor: theme.colors.ldGray[2],
-        color: theme.colors.ldDark[7],
+        color: theme.colors.ldDark[9],
         '&:hover': {
             backgroundColor: theme.colors.ldGray[0],
             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
@@ -95,11 +95,14 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
             maxWidth: 100,
             marginLeft: -1,
             borderTopLeftRadius: 0,
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
-            borderTop: 0,
+            borderBottomLeftRadius: 0,
             paddingRight: 8,
             paddingLeft: 8,
+            // When filter accepts values, remove bottom-right radius (connects to autocomplete below)
+            '&[data-no-values="false"]': {
+                borderBottomRightRadius: 0,
+            },
+
             '&[data-full-width="true"]': {
                 width: '100%',
                 maxWidth: '100%',

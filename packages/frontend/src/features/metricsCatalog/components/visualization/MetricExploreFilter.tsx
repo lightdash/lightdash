@@ -223,6 +223,7 @@ export const MetricExploreFilter: FC<Props> = ({
                         placeholder="Filter by"
                         icon={<MantineIcon icon={IconFilter} />}
                         searchable
+                        withinPortal
                         radius="md"
                         size="xs"
                         data={
@@ -237,20 +238,23 @@ export const MetricExploreFilter: FC<Props> = ({
                         itemComponent={SelectItem}
                         onChange={handleDimensionChange}
                         data-selected={!!filterState.fieldId}
-                        data-no-values={!showValuesSection}
+                        data-no-values={!showValuesSection ? 'true' : 'false'}
                         classNames={filterSelectClasses}
                     />
 
                     {filterState.fieldId && (
                         <Select
                             placeholder="Condition"
+                            withinPortal
                             data={operatorOptions}
                             value={filterState.operator}
                             onChange={handleOperatorChange}
                             size="xs"
                             radius="md"
                             classNames={operatorSelectClasses}
-                            data-no-values={!showValuesSection}
+                            data-no-values={
+                                !showValuesSection ? 'true' : 'false'
+                            }
                             data-full-width={
                                 !showValuesSection ? 'true' : 'false'
                             }
@@ -272,7 +276,7 @@ export const MetricExploreFilter: FC<Props> = ({
             </Stack>
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
-                    color="dark"
+                    color={theme.colorScheme === 'dark' ? 'ldGray.2' : 'dark'}
                     compact
                     size="xs"
                     disabled={!canApplyFilter}
