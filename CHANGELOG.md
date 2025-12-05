@@ -1,3 +1,10 @@
+## [0.2229.1](https://github.com/lightdash/lightdash/compare/0.2229.0...0.2229.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* exclude sensitive fields when merging warehouse credentials ([#18586](https://github.com/lightdash/lightdash/issues/18586)) ([a1e36e5](https://github.com/lightdash/lightdash/commit/a1e36e5f55eb236a377e4f6cdce5af95695f45d7))
+
 # [0.2229.0](https://github.com/lightdash/lightdash/compare/0.2228.1...0.2229.0) (2025-12-05)
 
 
