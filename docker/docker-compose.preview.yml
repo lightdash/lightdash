@@ -2,10 +2,6 @@ version: '3.8'
 volumes:
     node_modules:
 
-secrets:
-    TURBO_TOKEN:
-        environment: TURBO_TOKEN
-
 # Okteto specific
 endpoints:
     - path: /
