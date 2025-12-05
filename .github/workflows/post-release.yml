@@ -1,14 +1,8 @@
-name: Release to DockerHub, GCP, Homebrew, Helm Chart
+name: Release to DockerHub, GCP, Homebrew
 
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag (e.g., 0.2228.0)'
-        required: true
-        type: string
 
 permissions:
   id-token: write
@@ -94,25 +88,7 @@ jobs:
         run: bash ./scripts/gcp-build-and-push.sh
 
   # ============================================================================
-  # Job 2: Update Helm chart
-  # ============================================================================
-  update-helm-chart:
-    name: Update Helm Chart
-    needs: build-and-push-images
-    runs-on: depot-ubuntu-24.04-4
-    steps:
-      - name: Trigger helm chart update on release
-        run: |
-          VERSION="${{ github.event.release.tag_name || inputs.tag }}"
-          curl \
-            -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
-            -d "{\"ref\": \"main\", \"inputs\": {\"lightdash-version\": \"$VERSION\"}}" \
-            https://api.github.com/repos/lightdash/helm-charts/actions/workflows/increment-lightdash-app-version.yml/dispatches
-
-  # ============================================================================
-  # Job 3: CLI Release Binaries
+  # Job 2: CLI Release Binaries
   # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
