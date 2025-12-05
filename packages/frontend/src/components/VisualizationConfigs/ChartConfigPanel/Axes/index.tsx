@@ -20,8 +20,10 @@ import {
 } from '@mantine/core';
 import {
     IconChartBar,
+    IconMinus,
     IconSortAscending,
     IconSortDescending,
+    IconSwitchHorizontal,
     type Icon,
 } from '@tabler/icons-react';
 import { forwardRef, type FC } from 'react';
@@ -183,6 +185,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 onChange={setXAxisSort}
                                 itemComponent={XAxisSortSelectItem}
                                 data={[
+                                    {
+                                        value: XAxisSort.DEFAULT,
+                                        label: 'Default',
+                                        icon: IconMinus,
+                                    },
+                                    {
+                                        value: XAxisSort.DEFAULT_REVERSED,
+                                        label: 'Default (reversed)',
+                                        icon: IconSwitchHorizontal,
+                                    },
                                     {
                                         value: XAxisSort.ASCENDING,
                                         label: 'Ascending',
