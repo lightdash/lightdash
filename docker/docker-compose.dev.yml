@@ -40,6 +40,7 @@ x-lightdash-environment: &lightdash-environment
     INTERNAL_LIGHTDASH_HOST: ${INTERNAL_LIGHTDASH_HOST}
     USE_SECURE_BROWSER: ${USE_SECURE_BROWSER}
     GROUPS_ENABLED: ${GROUPS_ENABLED}
+    ADMIN_CHANGE_NOTIFICATIONS_ENABLED: ${ADMIN_CHANGE_NOTIFICATIONS_ENABLED}
     POSTHOG_PROJECT_API_KEY: ${POSTHOG_PROJECT_API_KEY}
     OPENAI_API_KEY: ${OPENAI_API_KEY}
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
@@ -81,6 +82,13 @@ x-lightdash-environment: &lightdash-environment
     RESULTS_S3_SECRET_KEY: ${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
     RESULTS_S3_ACCESS_KEY: ${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
     LIGHTDASH_PROMETHEUS_ENABLED: ${LIGHTDASH_PROMETHEUS_ENABLED}
+    EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST}
+    EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT}
+    EMAIL_SMTP_SECURE: ${EMAIL_SMTP_SECURE}
+    EMAIL_SMTP_USE_AUTH: ${EMAIL_SMTP_USE_AUTH}
+    EMAIL_SMTP_ALLOW_INVALID_CERT: ${EMAIL_SMTP_ALLOW_INVALID_CERT}
+    EMAIL_SMTP_SENDER_NAME: ${EMAIL_SMTP_SENDER_NAME}
+    EMAIL_SMTP_SENDER_EMAIL: ${EMAIL_SMTP_SENDER_EMAIL}
 
 x-lightdash-base: &lightdash-base
     build: *lightdash-build
@@ -171,3 +179,14 @@ services:
             - '--web.console.templates=/etc/prometheus/consoles'
             - '--storage.tsdb.retention.time=200h'
             - '--web.enable-lifecycle'
+
+    mailpit:
+        image: axllent/mailpit:latest
+        restart: unless-stopped
+        ports:
+            - '8025:8025'
+            - '1025:1025'
+        environment:
+            MP_MAX_MESSAGES: 5000
+            MP_SMTP_AUTH_ACCEPT_ANY: 1
+            MP_SMTP_AUTH_ALLOW_INSECURE: 1

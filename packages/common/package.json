@@ -52,8 +52,8 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "test": "TZ=UTC jest",
-        "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
+        "test": "TZ=UTC LANG=en_US.UTF-8 jest",
+        "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
         "release": "pnpm publish --no-git-checks"
     }
 }
