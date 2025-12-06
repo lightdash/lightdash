@@ -11,20 +11,13 @@ const PROVIDER = 'bedrock';
 
 /**
  * Maps AWS region codes to Bedrock cross-region inference profile prefixes.
- * Newer Claude models (3.7+, 4.x) require inference profiles and cannot use direct model IDs.
  * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
- *
- * @param region - AWS region code (e.g., 'us-east-1', 'eu-west-1', 'ap-northeast-1')
- * @returns The model prefix for cross-region inference ('us', 'eu', or 'apac')
  */
-function getBedrockModelPrefix(region: string | undefined): string {
-    if (!region) return 'us'; // default to US
-
+function getBedrockModelPrefix(region: string): string {
     if (region.startsWith('us-')) return 'us';
     if (region.startsWith('eu-')) return 'eu';
     if (region.startsWith('ap-')) return 'apac';
-
-    return 'us'; // default fallback for unknown regions
+    return 'global';
 }
 
 export const getBedrockProvider = (
@@ -35,7 +28,7 @@ export const getBedrockProvider = (
     'apiKey' in config
         ? createAmazonBedrock({
               apiKey: config.apiKey,
-              ...(config.region ? { region: config.region } : {}),
+              region: config.region,
           })
         : createAmazonBedrock({
               region: config.region,
