@@ -139,6 +139,7 @@ export type GaugeChart = {
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
     customLabel?: string;
+    defaultColor?: string;
 };
 
 export enum MapChartLocation {
