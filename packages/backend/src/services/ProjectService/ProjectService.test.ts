@@ -40,6 +40,7 @@ import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -160,6 +161,12 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
         projectCompileLogModel: {} as ProjectCompileLogModel,
+        adminNotificationService: {
+            detectDatabaseChanges: jest.fn(() => []),
+            notifyDatabaseConnectionChange: jest.fn(async () => undefined),
+            detectDbtChanges: jest.fn(() => []),
+            notifyDbtConnectionChange: jest.fn(async () => undefined),
+        } as unknown as AdminNotificationService,
     });
 
 const account = buildAccount({

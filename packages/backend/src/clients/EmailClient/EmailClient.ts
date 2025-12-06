@@ -1,4 +1,7 @@
 import {
+    AdminNotificationPayload,
+    AdminNotificationType,
+    ChangeDetail,
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
@@ -53,9 +56,13 @@ type EmailTemplate = {
         | string
         | boolean
         | number
+        | null
+        | undefined
         | AttachmentUrl[]
         | { chartName: string; error: string }[]
-        | undefined
+        | ChangeDetail[]
+        | AdminNotificationPayload['changedBy']
+        | AdminNotificationPayload['targetUser']
     >;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
@@ -665,6 +672,107 @@ export default class EmailClient {
             },
             text: `${title}\n\n${message}`,
             attachments,
+        });
+    }
+
+    private static getAdminChangeNotificationText(
+        payload: AdminNotificationPayload,
+        isRemoval: boolean,
+    ): string {
+        const changedByName = payload.changedBy.isServiceAccount
+            ? `Service Account: ${payload.changedBy.serviceAccountDescription}`
+            : `${payload.changedBy.firstName} ${payload.changedBy.lastName}`;
+
+        if (payload.targetUser) {
+            const targetName = `${payload.targetUser.firstName} ${payload.targetUser.lastName}`;
+            const action = isRemoval ? 'removed as admin' : 'added as admin';
+            return `${targetName} was ${action} by ${changedByName}`;
+        }
+
+        const changeCount = payload.changes.length;
+        const fieldText =
+            changeCount === 1
+                ? '1 field changed'
+                : `${changeCount} fields changed`;
+
+        if (payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE) {
+            return `Database connection updated by ${changedByName} (${fieldText})`;
+        }
+
+        if (payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE) {
+            return `dbt connection updated by ${changedByName} (${fieldText})`;
+        }
+
+        return `${fieldText} by ${changedByName}`;
+    }
+
+    public async sendAdminChangeNotificationEmail(
+        recipients: string[],
+        payload: AdminNotificationPayload,
+    ): Promise<void> {
+        const subjectMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'Organization Admin Added',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'Organization Admin Removed',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]: 'Project Admin Added',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'Project Admin Removed',
+            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
+                'Database Connection Changed',
+            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
+                'dbt Connection Changed',
+        };
+
+        const templateMap: Record<AdminNotificationType, string> = {
+            [AdminNotificationType.ORG_ADMIN_ADDED]: 'adminChangeNotification',
+            [AdminNotificationType.ORG_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_ADDED]:
+                'adminChangeNotification',
+            [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
+                'adminChangeNotification',
+            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
+                'connectionChange',
+            [AdminNotificationType.DBT_CONNECTION_CHANGE]: 'connectionChange',
+        };
+
+        const projectContext = payload.projectName
+            ? `${payload.projectName} - ${payload.organizationName}`
+            : payload.organizationName;
+
+        const isRemoval = payload.type.includes('removed');
+        const isDatabaseConnectionChange =
+            payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE;
+        const isDbtConnectionChange =
+            payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE;
+        const isConnectionChange =
+            isDatabaseConnectionChange || isDbtConnectionChange;
+
+        return this.sendEmail({
+            to: recipients,
+            subject: `[Lightdash] ${
+                subjectMap[payload.type]
+            } - ${projectContext}`,
+            template: templateMap[payload.type],
+            context: {
+                type: payload.type,
+                organizationName: payload.organizationName,
+                projectName: payload.projectName,
+                changes: payload.changes,
+                changedBy: payload.changedBy,
+                targetUser: payload.targetUser,
+                timestamp: payload.timestamp.toISOString(),
+                settingsUrl: payload.settingsUrl,
+                host: this.lightdashConfig.siteUrl,
+                isRemoval,
+                isDatabaseConnectionChange,
+                isDbtConnectionChange,
+                isConnectionChange,
+            },
+            text: EmailClient.getAdminChangeNotificationText(
+                payload,
+                isRemoval,
+            ),
         });
     }
 }
