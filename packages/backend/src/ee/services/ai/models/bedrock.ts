@@ -9,6 +9,27 @@ import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
 
+/**
+ * Maps AWS region codes to Bedrock cross-region inference profile prefixes.
+ * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+ * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/global-cross-region-inference.html
+ *
+ * @param region - AWS region code (e.g., 'us-east-1', 'eu-west-1', 'ap-northeast-1')
+ * @returns The model prefix for cross-region inference ('us', 'eu', 'apac', or 'global')
+ */
+function getBedrockModelPrefix(region: string | undefined): string {
+    if (!region) return 'us'; // default to US
+
+    if (region.startsWith('us-')) return 'us';
+    if (region.startsWith('eu-')) return 'eu';
+    if (region.startsWith('ap-')) return 'apac';
+
+    // Fallback: if region is already a valid prefix, use it directly
+    if (['us', 'eu', 'apac', 'global'].includes(region)) return region;
+
+    return 'us'; // default fallback
+}
+
 export const getBedrockProvider = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
@@ -36,8 +57,9 @@ export const getBedrockModel = (
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
-    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#accessing-bedrock */
-    const model = bedrock(`${config.region}.${preset.modelId}`);
+    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#api-model-ids */
+    const modelPrefix = getBedrockModelPrefix(config.region);
+    const model = bedrock(`${modelPrefix}.${preset.modelId}`);
 
     const reasoningEnabled =
         options?.enableReasoning && preset.supportsReasoning;
