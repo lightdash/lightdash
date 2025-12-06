@@ -168,6 +168,9 @@ COPY packages/frontend/package.json ./packages/frontend/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prefer-offline
 
+# Add node_modules/.bin to PATH so turbo and other binaries are available
+ENV PATH="/usr/app/node_modules/.bin:$PATH"
+
 # Increase Node.js heap size for TypeScript compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
@@ -183,7 +186,8 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
 FROM prod-builder AS build-common
 COPY packages/common/tsconfig*.json ./packages/common/
 COPY packages/common/src/ ./packages/common/src/
-RUN --mount=type=secret,id=TURBO_TOKEN,env=TURBO_TOKEN \
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     turbo build --filter=@lightdash/common
 
 # Build warehouses package
@@ -191,7 +195,8 @@ FROM prod-builder AS build-warehouses
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/warehouses/tsconfig.json ./packages/warehouses/
 COPY packages/warehouses/src/ ./packages/warehouses/src/
-RUN --mount=type=secret,id=TURBO_TOKEN,env=TURBO_TOKEN \
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     turbo build --filter=@lightdash/warehouses
 
 # Build backend package
@@ -210,7 +215,8 @@ ARG SENTRY_BACKEND_PROJECT=""
 ARG SENTRY_ENVIRONMENT=""
 
 # Conditionally build backend with sourcemaps if Sentry environment variables are set
-RUN --mount=type=secret,id=TURBO_TOKEN,env=TURBO_TOKEN \
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
     turbo build-sourcemaps --filter=backend && turbo postbuild --filter=backend; \
@@ -229,7 +235,8 @@ ARG SENTRY_ORG=""
 ARG SENTRY_RELEASE_VERSION=""
 
 # Build frontend with sourcemaps (Vite generates them by default)
-RUN --mount=type=secret,id=TURBO_TOKEN,env=TURBO_TOKEN \
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
     echo "Building frontend with Sentry integration"; \
     SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} turbo build --filter=@lightdash/frontend; \

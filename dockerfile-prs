@@ -168,6 +168,9 @@ COPY packages/frontend/package.json packages/frontend/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prefer-offline
 
+# Add node_modules/.bin to PATH so turbo and other binaries are available
+ENV PATH="/usr/app/node_modules/.bin:$PATH"
+
 # Increase Node.js heap size for TypeScript compilation during parallel builds
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
