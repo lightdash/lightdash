@@ -239,41 +239,100 @@ Affected charts:
                 'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
             );
 
-        const fileName = GitIntegrationService.removeExtraSlashes(
-            `${path}/${explore.ymlPath}`,
-        );
-
         const getFileContent =
             type === DbtProjectType.GITHUB
                 ? GithubClient.getFileContent
                 : GitlabClient.getFileContent;
-        const { content: fileContent, sha: fileSha } = await getFileContent({
-            fileName,
-            owner,
-            repo,
-            branch,
-            token,
-            hostDomain,
-        });
 
-        // Get the dbt version from the project
-        const project = await this.projectModel.get(projectUuid);
-        const dbtVersion =
-            project.dbtVersion === DbtVersionOptionLatest.LATEST
-                ? getLatestSupportDbtVersion()
-                : project.dbtVersion;
+        // Try multiple path combinations to handle different repository structures
+        const pathsToTry: string[] = [];
 
-        const yamlSchema = new DbtSchemaEditor(
-            fileContent,
-            fileName,
-            dbtVersion,
+        // Path 1: project_sub_path + ymlPath (current implementation)
+        const primaryPath = GitIntegrationService.removeExtraSlashes(
+            `${path}/${explore.ymlPath}`,
         );
+        pathsToTry.push(primaryPath);
 
-        if (!yamlSchema.hasModels()) {
-            throw new ParseError(`No models found in ${fileName}`);
+        // Path 2: ymlPath alone (in case it's already relative to repo root)
+        const ymlPathOnly = GitIntegrationService.removeExtraSlashes(
+            explore.ymlPath,
+        );
+        if (ymlPathOnly !== primaryPath) {
+            pathsToTry.push(ymlPathOnly);
         }
 
-        return { yamlSchema, fileName, fileContent, fileSha };
+        // Path 3: Check if ymlPath already contains the path prefix and try without duplication
+        const normalizedPath = path.replace(/^\//, '').replace(/\/$/, '');
+        if (
+            normalizedPath &&
+            explore.ymlPath.startsWith(normalizedPath + '/')
+        ) {
+            pathsToTry.push(GitIntegrationService.removeExtraSlashes(explore.ymlPath));
+        }
+
+        Logger.debug(
+            `Attempting to locate YAML file for table ${table}. Will try paths in order: ${pathsToTry.join(', ')}`,
+        );
+
+        let lastError: Error | undefined;
+        for (const fileName of pathsToTry) {
+            try {
+                Logger.debug(
+                    `Trying to fetch file: ${fileName} from ${owner}/${repo}:${branch}`,
+                );
+
+                const { content: fileContent, sha: fileSha } =
+                    await getFileContent({
+                        fileName,
+                        owner,
+                        repo,
+                        branch,
+                        token,
+                        hostDomain,
+                    });
+
+                Logger.debug(
+                    `Successfully found YAML file at: ${fileName}`,
+                );
+
+                // Get the dbt version from the project
+                const project = await this.projectModel.get(projectUuid);
+                const dbtVersion =
+                    project.dbtVersion === DbtVersionOptionLatest.LATEST
+                        ? getLatestSupportDbtVersion()
+                        : project.dbtVersion;
+
+                const yamlSchema = new DbtSchemaEditor(
+                    fileContent,
+                    fileName,
+                    dbtVersion,
+                );
+
+                if (!yamlSchema.hasModels()) {
+                    throw new ParseError(`No models found in ${fileName}`);
+                }
+
+                return { yamlSchema, fileName, fileContent, fileSha };
+            } catch (error) {
+                if (error instanceof ParseError) {
+                    // If the file was found but has no models, throw immediately
+                    throw error;
+                }
+                Logger.debug(
+                    `Failed to fetch file at ${fileName}: ${getErrorMessage(error)}`,
+                );
+                lastError = error as Error;
+                // Continue to next path
+            }
+        }
+
+        // If we exhausted all paths, throw a comprehensive error
+        throw new ParameterError(
+            `Unable to locate YAML file for table "${table}". Tried the following paths in repository ${owner}/${repo} on branch "${branch}": ${pathsToTry.join(', ')}. ` +
+                `Original error: ${getErrorMessage(lastError)}. ` +
+                `This usually indicates a mismatch between your "Project directory path" configuration (currently: "${path}") and your repository structure. ` +
+                `Please verify that the "Project directory path" in your project settings matches the location of your dbt_project.yml file in the repository.`,
+        );
     }
 
     async updateFile(
