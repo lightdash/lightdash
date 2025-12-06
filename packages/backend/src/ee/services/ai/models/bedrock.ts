@@ -9,6 +9,24 @@ import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
 
+/**
+ * Maps AWS region codes to Bedrock cross-region inference profile prefixes.
+ * Newer Claude models (3.7+, 4.x) require inference profiles and cannot use direct model IDs.
+ * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+ *
+ * @param region - AWS region code (e.g., 'us-east-1', 'eu-west-1', 'ap-northeast-1')
+ * @returns The model prefix for cross-region inference ('us', 'eu', or 'apac')
+ */
+function getBedrockModelPrefix(region: string): string {
+    if (region.startsWith('us-')) return 'us';
+    if (region.startsWith('eu-')) return 'eu';
+    if (region.startsWith('ap-')) return 'apac';
+
+    // For other regions (e.g., sa-east-1, me-south-1), default to 'us'
+    // as cross-region inference will route to supported regions
+    return 'us';
+}
+
 export const getBedrockProvider = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
@@ -17,7 +35,7 @@ export const getBedrockProvider = (
     'apiKey' in config
         ? createAmazonBedrock({
               apiKey: config.apiKey,
-              ...(config.region ? { region: config.region } : {}),
+              region: config.region,
           })
         : createAmazonBedrock({
               region: config.region,
@@ -36,8 +54,9 @@ export const getBedrockModel = (
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
-    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#accessing-bedrock */
-    const model = bedrock(`${config.region}.${preset.modelId}`);
+    /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#api-model-ids */
+    const modelPrefix = getBedrockModelPrefix(config.region);
+    const model = bedrock(`${modelPrefix}.${preset.modelId}`);
 
     const reasoningEnabled =
         options?.enableReasoning && preset.supportsReasoning;
