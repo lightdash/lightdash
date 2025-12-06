@@ -296,4 +296,24 @@ export class QueryHistoryModel {
 
         return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
     }
+
+    async invalidateCacheForProjects(
+        projectUuids?: string[],
+    ): Promise<{ invalidatedCount: number }> {
+        const query = this.database(QueryHistoryTableName)
+            .whereNotNull('results_expires_at')
+            .where('results_expires_at', '>', new Date())
+            .update({
+                results_expires_at: new Date(0), // Set to epoch to immediately expire
+            });
+
+        // If specific projects are provided, only invalidate those
+        if (projectUuids && projectUuids.length > 0) {
+            void query.whereIn('project_uuid', projectUuids);
+        }
+
+        const invalidatedCount = await query;
+
+        return { invalidatedCount };
+    }
 }

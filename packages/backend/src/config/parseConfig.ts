@@ -849,6 +849,11 @@ export type LightdashConfig = {
                 maxBatches?: number;
                 schedule: string;
             };
+            refresh: {
+                enabled: boolean;
+                schedule: string;
+                projectUuids?: string[];
+            };
         };
     };
     groups: {
@@ -1594,6 +1599,13 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+                refresh: {
+                    enabled: process.env.CACHE_REFRESH_ENABLED === 'true',
+                    schedule: process.env.CACHE_REFRESH_SCHEDULE || '0 5 * * *', // 5 AM UTC by default
+                    projectUuids: process.env.CACHE_REFRESH_PROJECT_UUIDS
+                        ? process.env.CACHE_REFRESH_PROJECT_UUIDS.split(',')
+                        : undefined,
                 },
             },
         },

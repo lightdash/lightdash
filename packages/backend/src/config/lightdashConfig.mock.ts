@@ -157,6 +157,10 @@ export const lightdashConfigMock: LightdashConfig = {
                 maxBatches: 100,
                 schedule: '0 2 * * *',
             },
+            refresh: {
+                enabled: false,
+                schedule: '0 5 * * *',
+            },
         },
     },
     secureCookies: false,
