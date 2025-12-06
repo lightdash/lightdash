@@ -22,6 +22,7 @@ const getProjectsQuery = async () =>
 export const useProjects = (
     useQueryOptions?: UseQueryOptions<OrganizationProject[], ApiError>,
 ) => {
+    console.trace();
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
