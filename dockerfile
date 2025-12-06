@@ -207,10 +207,14 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     pnpm -F backend build; \
     fi
 
-# Build frontend package  
+# Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/frontend ./packages/frontend
+
+# Reinstall to fix workspace symlinks that were disrupted by COPY
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline
 
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""
