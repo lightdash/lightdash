@@ -79,7 +79,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         });
 
         const isQueryLoading =
-            queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+            queryExecutionHandle.isLoading || queryResults.isLoading;
         const queryError = queryExecutionHandle.error || queryResults.error;
 
         const handleDashboardChartTypeChange = useCallback(

@@ -84,7 +84,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const { query, queryResults, isLoading, getDownloadQueryUuid } =
         useExplorerQuery();
-    const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
 
     const resultsData = useMemo(
         () => ({
@@ -261,7 +260,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 unsavedMetricQuery={unsavedChartVersion.metricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
-                isLoading={isLoadingQueryResults}
+                isLoading={isLoading}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
@@ -289,7 +288,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                 }
                                 chartConfig={unsavedChartVersion.chartConfig}
                                 resultsData={resultsData}
-                                isLoading={isLoadingQueryResults}
                                 maxColumnLimit={
                                     health.data?.pivotTable?.maxColumnLimit
                                 }

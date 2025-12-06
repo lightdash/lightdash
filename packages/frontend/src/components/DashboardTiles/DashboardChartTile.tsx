@@ -312,7 +312,7 @@ const ValidDashboardChartTile: FC<{
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultsDataWithQueryData}
-            isLoading={resultsData.isFetchingRows}
+            isLoading={resultsData.isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
@@ -428,7 +428,7 @@ const ValidDashboardChartTileMinimal: FC<{
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
             resultsData={resultsDataWithQueryData}
-            isLoading={resultsData.isFetchingRows}
+            isLoading={resultsData.isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
@@ -540,7 +540,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     useEffect(() => {
         if (
             !hasTrackedLoadEvent.current &&
-            !resultsData.isInitialLoading &&
+            !resultsData.isLoading &&
             dashboardChartReadyQuery &&
             account?.user &&
             dashboardUuid
@@ -1894,22 +1894,8 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.data?.chart.name,
     );
 
-    const isLoading = useMemo(() => {
-        const isCreatingQuery = readyQuery.isFetching;
-        const isFetchingFirstPage = resultsData.isFetchingFirstPage;
-        const isFetchingAllRows =
-            resultsData.fetchAll && !resultsData.hasFetchedAllRows;
-        return (
-            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !resultsData.error
-        );
-    }, [
-        readyQuery.isFetching,
-        resultsData.fetchAll,
-        resultsData.hasFetchedAllRows,
-        resultsData.isFetchingFirstPage,
-        resultsData.error,
-    ]);
+    // Combine query creation loading + results loading
+    const isLoading = readyQuery.isFetching || resultsData.isLoading;
 
     return (
         <GenericDashboardChartTile

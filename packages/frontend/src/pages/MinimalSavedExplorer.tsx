@@ -57,8 +57,7 @@ const MinimalExplorerContent = memo(() => {
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    const isLoadingQueryResults =
-        query.isFetching || queryResults.isFetchingRows;
+    const isLoadingQueryResults = query.isFetching || queryResults.isLoading;
 
     if (!savedChart || health.isInitialLoading || !health.data) {
         return null;

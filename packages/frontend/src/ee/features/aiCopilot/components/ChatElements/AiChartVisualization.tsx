@@ -75,7 +75,7 @@ export const AiChartVisualization: FC<Props> = ({
     });
 
     const isQueryLoading =
-        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+        queryExecutionHandle.isLoading || queryResults.isLoading;
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     if (isQueryLoading) {

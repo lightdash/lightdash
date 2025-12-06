@@ -200,7 +200,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 }
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
-                isLoading={resultsData.isFetchingRows}
+                isLoading={resultsData.isLoading}
                 onSeriesContextMenu={(
                     e: EchartsSeriesClickEvent,
                     series: EChartsSeries[],
