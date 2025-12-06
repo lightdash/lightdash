@@ -46,6 +46,7 @@ import {
     parseVizConfig,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadinessScore,
     ShareUrl,
     SlackPrompt,
@@ -136,6 +137,7 @@ import {
     GetPromptFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
+    RunSavedChartQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -2825,6 +2827,56 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             );
 
+        const runSavedChartQuery: RunSavedChartQueryFn = (args) =>
+            wrapSentryTransaction(
+                'AiAgent.runSavedChartQuery',
+                args,
+                async () => {
+                    const account = fromSession(user);
+                    const { queryUuid, fields } =
+                        await this.asyncQueryService.executeAsyncSavedChartQuery(
+                            {
+                                account,
+                                projectUuid,
+                                chartUuid: args.chartUuid,
+                                context: QueryExecutionContext.AI,
+                                invalidateCache: false,
+                                limit: args.limit,
+                            },
+                        );
+
+                    const results =
+                        await AsyncQueryService.pollAsyncQueryResults(
+                            (uuid) =>
+                                this.asyncQueryService.getAsyncQueryResults({
+                                    account,
+                                    projectUuid,
+                                    queryUuid: uuid,
+                                }),
+                            queryUuid,
+                        );
+
+                    if (
+                        results.status !== QueryHistoryStatus.READY ||
+                        !('rows' in results)
+                    ) {
+                        throw new Error('Query did not complete successfully');
+                    }
+
+                    return {
+                        rows: results.rows.map((row) =>
+                            Object.fromEntries(
+                                Object.entries(row).map(([key, value]) => [
+                                    key,
+                                    value.value.raw,
+                                ]),
+                            ),
+                        ),
+                        fields,
+                    };
+                },
+            );
+
         return {
             listExplores,
             findContent,
@@ -2840,6 +2892,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             searchFieldValues,
             createChange,
             getExploreCompiler,
+            runSavedChartQuery,
         };
     }
 
@@ -2908,6 +2961,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
+            runSavedChartQuery,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -2958,6 +3012,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findFields,
             findExplores,
             runMiniMetricQuery,
+            runSavedChartQuery,
             getPrompt,
             sendFile,
             storeToolCall,

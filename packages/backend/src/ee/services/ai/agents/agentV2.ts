@@ -88,6 +88,7 @@ const getAgentTools = (
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
+        runSavedChartQuery: dependencies.runSavedChartQuery,
         siteUrl: args.siteUrl,
     });
 
