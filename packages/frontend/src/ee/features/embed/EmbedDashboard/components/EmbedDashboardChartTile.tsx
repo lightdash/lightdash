@@ -1,5 +1,6 @@
 import { mergeExisting, QueryExecutionContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { useIntersection } from '@mantine/hooks';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
@@ -30,6 +31,14 @@ const EmbedDashboardChartTile: FC<Props> = ({
 }) => {
     const { languageMap, onExplore } = useEmbed();
 
+    // Track if tile is visible in viewport to defer polling for off-screen charts
+    // This optimizes dashboard loading by warming up all queries but only polling visible ones
+    const { ref: intersectionRef, entry } = useIntersection({
+        threshold: 0,
+        rootMargin: '100px', // Start polling slightly before tile enters viewport
+    });
+    const isInViewport = entry?.isIntersecting ?? true; // Default to true on initial render
+
     // Using the regular dashboard query flow with Embed context
     const readyQuery = useDashboardChartReadyQuery(
         tile.uuid,
@@ -37,10 +46,13 @@ const EmbedDashboardChartTile: FC<Props> = ({
         QueryExecutionContext.EMBED,
     );
 
+    // Only poll for results when tile is in viewport
+    // Query creation (warm up) happens immediately via useDashboardChartReadyQuery
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+        isInViewport, // pollingEnabled - only poll when visible
     );
 
     const isLoading = useMemo(() => {
@@ -95,7 +107,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
 
     if (locked) {
         return (
-            <Box h="100%">
+            <Box ref={intersectionRef} h="100%">
                 <TileBase
                     isLoading={false}
                     title={''}
@@ -107,19 +119,21 @@ const EmbedDashboardChartTile: FC<Props> = ({
     }
 
     return (
-        <GenericDashboardChartTile
-            {...rest}
-            tile={translatedTile}
-            isLoading={isLoading}
-            canExportCsv={canExportCsv}
-            canExportImages={canExportImages}
-            canExportPagePdf={canExportPagePdf}
-            canDateZoom={canDateZoom}
-            resultsData={resultsData}
-            dashboardChartReadyQuery={dashboardChartReadyQuery}
-            error={error}
-            onExplore={onExplore}
-        />
+        <Box ref={intersectionRef} h="100%" w="100%">
+            <GenericDashboardChartTile
+                {...rest}
+                tile={translatedTile}
+                isLoading={isLoading}
+                canExportCsv={canExportCsv}
+                canExportImages={canExportImages}
+                canExportPagePdf={canExportPagePdf}
+                canDateZoom={canDateZoom}
+                resultsData={resultsData}
+                dashboardChartReadyQuery={dashboardChartReadyQuery}
+                error={error}
+                onExplore={onExplore}
+            />
+        </Box>
     );
 };
 
