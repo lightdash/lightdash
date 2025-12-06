@@ -64,7 +64,7 @@ export const aiCopilotConfigSchema = z
                 .union([
                     z.object({
                         apiKey: z.string(),
-                        region: z.string().optional(),
+                        region: z.string(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),

@@ -17,14 +17,14 @@ const PROVIDER = 'bedrock';
  * @param region - AWS region code (e.g., 'us-east-1', 'eu-west-1', 'ap-northeast-1')
  * @returns The model prefix for cross-region inference ('us', 'eu', or 'apac')
  */
-function getBedrockModelPrefix(region: string | undefined): string {
-    if (!region) return 'us'; // default to US
-
+function getBedrockModelPrefix(region: string): string {
     if (region.startsWith('us-')) return 'us';
     if (region.startsWith('eu-')) return 'eu';
     if (region.startsWith('ap-')) return 'apac';
 
-    return 'us'; // default fallback for unknown regions
+    // For other regions (e.g., sa-east-1, me-south-1), default to 'us'
+    // as cross-region inference will route to supported regions
+    return 'us';
 }
 
 export const getBedrockProvider = (
@@ -35,7 +35,7 @@ export const getBedrockProvider = (
     'apiKey' in config
         ? createAmazonBedrock({
               apiKey: config.apiKey,
-              ...(config.region ? { region: config.region } : {}),
+              region: config.region,
           })
         : createAmazonBedrock({
               region: config.region,
