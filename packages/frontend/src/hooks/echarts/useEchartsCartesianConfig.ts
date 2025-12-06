@@ -711,6 +711,16 @@ const getMetricFromParam = (
 
         // Prefer the actual index of the metric column name
         let metricIdx = dimNames ? dimNames.indexOf(yFieldHash) : -1;
+
+        // If not found, try to find a partial match for pivoted columns
+        if (metricIdx < 0 && dimNames) {
+            // Extract base field name (remove hash suffix)
+            const baseField = yFieldHash.split('.')[0];
+            metricIdx = dimNames.findIndex(
+                (name) => name === yFieldHash || name.startsWith(baseField),
+            );
+        }
+
         if (metricIdx < 0) {
             // Fallback: use x for horizontal, y for vertical
             const xIdx = getIndexFromEncode(enc, dimNames, 'x');
