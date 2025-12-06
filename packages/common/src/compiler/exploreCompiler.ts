@@ -331,6 +331,9 @@ export class ExploreCompiler {
             label,
             tags,
             baseTable,
+            ...(meta.description !== undefined
+                ? { description: meta.description }
+                : {}),
             joinedTables: compiledJoins,
             tables: compiledTables,
             targetDatabase,
