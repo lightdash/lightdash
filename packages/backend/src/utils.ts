@@ -1,10 +1,5 @@
-import {
-    AnyType,
-    ParameterError,
-    SshKeyPair,
-    validateEmail,
-} from '@lightdash/common';
-import { CustomSamplingContext, Scope } from '@sentry/core';
+import { SshKeyPair } from '@lightdash/common';
+import { CustomSamplingContext } from '@sentry/core';
 import * as Sentry from '@sentry/node';
 import { generateKeyPair } from 'crypto';
 import { parseKey } from 'sshpk';
@@ -41,28 +36,34 @@ export const wrapSentryTransaction = <T>(
             attributes: context,
         },
         async (span, end) => {
-            Logger.debug(
-                `Starting sentry transaction ${
-                    span?.spanContext().spanId
-                } "${name}" with context: ${JSON.stringify(context)}`,
-            );
+            if (Sentry.isEnabled()) {
+                Logger.debug(
+                    `Starting sentry transaction ${
+                        span?.spanContext().spanId
+                    } "${name}" with context: ${JSON.stringify(context)}`,
+                );
+            }
 
             try {
                 return await funct(span);
             } catch (error) {
-                Logger.error(
-                    `Error in wrapped sentry transaction ${
-                        span?.spanContext().spanId
-                    } "${name}": ${error}`,
-                );
-                Sentry.captureException(error);
+                if (Sentry.isEnabled()) {
+                    Logger.error(
+                        `Error in wrapped sentry transaction ${
+                            span?.spanContext().spanId
+                        } "${name}": ${error}`,
+                    );
+                    Sentry.captureException(error);
+                }
                 throw error;
             } finally {
-                Logger.debug(
-                    `End sentry transaction ${
-                        span?.spanContext().spanId
-                    } "${name}", took: ${Date.now() - startTime}ms`,
-                );
+                if (Sentry.isEnabled()) {
+                    Logger.debug(
+                        `End sentry transaction ${
+                            span?.spanContext().spanId
+                        } "${name}", took: ${Date.now() - startTime}ms`,
+                    );
+                }
                 end();
             }
         },
@@ -83,27 +84,34 @@ export function wrapSentryTransactionSync<T>(
             attributes: context,
         },
         (span) => {
-            Logger.debug(
-                `Starting sync sentry transaction "${name}" with context: ${JSON.stringify(
-                    context,
-                )}`,
-            );
+            if (Sentry.isEnabled()) {
+                Logger.debug(
+                    `Starting sync sentry transaction "${name}" with context: ${JSON.stringify(
+                        context,
+                    )}`,
+                );
+            }
 
             try {
                 const result = funct(span);
                 return result;
             } catch (error) {
-                Logger.error(
-                    `Error in wrapped sync sentry transaction "${name}": ${error}`,
-                );
-                Sentry.captureException(error);
+                if (Sentry.isEnabled()) {
+                    Logger.error(
+                        `Error in wrapped sync sentry transaction "${name}": ${error}`,
+                    );
+
+                    Sentry.captureException(error);
+                }
                 throw error;
             } finally {
-                Logger.debug(
-                    `End sync sentry transaction "${name}", took: ${
-                        Date.now() - startTime
-                    }ms`,
-                );
+                if (Sentry.isEnabled()) {
+                    Logger.debug(
+                        `End sync sentry transaction "${name}", took: ${
+                            Date.now() - startTime
+                        }ms`,
+                    );
+                }
             }
         },
     );
