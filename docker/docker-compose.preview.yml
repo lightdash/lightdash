@@ -24,10 +24,7 @@ services:
             - '3000'
 
     lightdash-preview:
-        build:
-            target: pr-runner
-            context: ..
-            dockerfile: dockerfile-prs
+        image: ${LIGHTDASH_IMAGE:-registry.depot.dev/bgbbt3d0kc:latest}
         depends_on:
             - db-preview
             - headless-browser
