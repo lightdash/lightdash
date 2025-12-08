@@ -1,3 +1,15 @@
+# [0.2234.0](https://github.com/lightdash/lightdash/compare/0.2233.2...0.2234.0) (2025-12-08)
+
+
+### Bug Fixes
+
+* map AWS region to correct Bedrock inference profile prefix ([#18637](https://github.com/lightdash/lightdash/issues/18637)) ([ee772ff](https://github.com/lightdash/lightdash/commit/ee772ff99cb9b720f89df9d544d562306cd381c8))
+
+
+### Features
+
+* add bedrock support for reasoning UI parts ([#18653](https://github.com/lightdash/lightdash/issues/18653)) ([d96c0da](https://github.com/lightdash/lightdash/commit/d96c0da38214d09b0620dc28b8065abe182edea7))
+
 ## [0.2233.2](https://github.com/lightdash/lightdash/compare/0.2233.1...0.2233.2) (2025-12-08)
 
 
