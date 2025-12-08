@@ -31,6 +31,14 @@ services:
         depends_on:
             - db-preview
             - headless-browser
+        deploy:
+            resources:
+                limits:
+                    cpus: '4.0'
+                    memory: 1G
+                reservations:
+                    cpus: '2.0'
+                    memory: 512M
         healthcheck:
             interval: 10s
             timeout: 5s
