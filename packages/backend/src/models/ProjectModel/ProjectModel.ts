@@ -2,6 +2,8 @@ import {
     AlreadyExistsError,
     AnyType,
     BigqueryAuthenticationType,
+    ChangeBase,
+    ChangesetConflictError,
     ChangesetUtils,
     CompiledTable,
     CreateProject,
@@ -1078,9 +1080,10 @@ export class ProjectModel {
                 );
 
                 if (changeset && applyChangeset) {
-                    finalExplores = ChangesetUtils.applyChangeset(
+                    finalExplores = await this.applyChangesetWithRetry(
                         changeset,
                         finalExplores,
+                        projectUuid,
                     );
                 }
 
@@ -1094,6 +1097,85 @@ export class ProjectModel {
                 return finalExplores;
             },
         );
+    }
+
+    /**
+     * Apply changeset to explores with automatic conflict resolution
+     * Deletes conflicting changes and retries up to 3 times
+     */
+    private async applyChangesetWithRetry(
+        changeset: { changes: Array<ChangeBase & { changeUuid: string }> },
+        explores: Record<string, Explore | ExploreError>,
+        projectUuid: string,
+        maxRetries: number = 3,
+    ): Promise<Record<string, Explore | ExploreError>> {
+        let currentAttempt = 0;
+        let currentChangeset = changeset;
+        let result = explores;
+
+        while (currentAttempt < maxRetries) {
+            try {
+                result = ChangesetUtils.applyChangeset(
+                    currentChangeset,
+                    result,
+                );
+                return result;
+            } catch (error) {
+                if (error instanceof ChangesetConflictError) {
+                    currentAttempt += 1;
+
+                    Logger.warn(
+                        `Changeset conflict detected (attempt ${currentAttempt}/${maxRetries}): ${error.message}`,
+                        {
+                            error: error.message,
+                            conflictData: error.data,
+                        },
+                    );
+
+                    // If we cannot remove the conflicted change, bubble up error
+                    if (!error.data.changeUuid) throw error;
+
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.changesetModel.revertChange(
+                        error.data.changeUuid,
+                    );
+                    Logger.info(
+                        `Deleted conflicting change ${error.data.changeUuid}`,
+                    );
+
+                    if (currentAttempt < maxRetries) {
+                        const remainingChanges =
+                            // eslint-disable-next-line no-await-in-loop
+                            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                                projectUuid,
+                            );
+
+                        if (
+                            !remainingChanges ||
+                            remainingChanges.changes.length === 0
+                        ) {
+                            Logger.info(
+                                'No remaining changes after conflict resolution',
+                            );
+                            return result;
+                        }
+
+                        Logger.info(
+                            `Retrying changeset application with ${remainingChanges.changes.length} remaining changes`,
+                        );
+                        currentChangeset = remainingChanges;
+                    }
+                } else {
+                    // Another type of error, re-throw
+                    throw error;
+                }
+            }
+        }
+
+        Logger.error(
+            `Failed to apply changeset after ${maxRetries} attempts due to persistent conflicts`,
+        );
+        return result;
     }
 
     async findVirtualViewsFromCache(

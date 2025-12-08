@@ -1,7 +1,7 @@
 import * as JsonPatch from 'fast-json-patch';
 import { type ChangeBase } from '../types/changeset';
 import {
-    ForbiddenError,
+    ChangesetConflictError,
     NotImplementedError,
     ParameterError,
 } from '../types/errors';
@@ -47,7 +47,7 @@ export class ChangesetUtils {
         }
     }
 
-    static applyChangeset<C extends ChangeBase>(
+    static applyChangeset<C extends ChangeBase & { changeUuid?: string }>(
         changeset: { changes: C[] },
         explores: Record<string, Explore | ExploreError>,
     ) {
@@ -133,8 +133,14 @@ export class ChangesetUtils {
                                         entityType
                                     ][change.entityName]
                                 ) {
-                                    throw new ForbiddenError(
+                                    throw new ChangesetConflictError(
                                         `Entity "${change.entityName}" already exists in table "${tableName}" of explore`,
+                                        {
+                                            changeUuid: change.changeUuid,
+                                            entityName: change.entityName,
+                                            entityTableName: tableName,
+                                            conflictType: 'already_exists',
+                                        },
                                     );
                                 }
 
