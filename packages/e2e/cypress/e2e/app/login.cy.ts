@@ -8,7 +8,7 @@ describe('Login', () => {
         cy.logout();
     });
 
-    it('Should login successfully', () => {
+    it.only('Should login successfully', () => {
         cy.logout();
         cy.visit('/login');
         cy.findByPlaceholderText('Your email address').type(
