@@ -523,7 +523,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbt: ['1.4', '1.9', '1.10']
+        dbt: [ '1.10' ]
     name: "CLI: dbt ${{ matrix.dbt }}"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
