@@ -81,6 +81,9 @@ x-lightdash-environment: &lightdash-environment
     RESULTS_S3_SECRET_KEY: ${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
     RESULTS_S3_ACCESS_KEY: ${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
     LIGHTDASH_PROMETHEUS_ENABLED: ${LIGHTDASH_PROMETHEUS_ENABLED}
+    TURBO_TOKEN: ${TURBO_TOKEN}
+    TURBO_TEAM: ${TURBO_TEAM}
+    TURBO_API: ${TURBO_API}
 
 x-lightdash-base: &lightdash-base
     build: *lightdash-build

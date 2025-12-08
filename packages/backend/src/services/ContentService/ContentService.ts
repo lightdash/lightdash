@@ -22,6 +22,7 @@ import {
 } from '../../models/ContentModel/ContentModelTypes';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -84,7 +85,14 @@ export class ContentService extends BaseService {
             throw new NotExistsError('Organization not found');
         }
         const projectUuids = (
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid)
+            await wrapSentryTransaction(
+                'ContentService.find.getAllByOrganizationUuid',
+                { organizationUuid },
+                async () =>
+                    this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    ),
+            )
         )
             .filter((project) =>
                 user.ability.can(

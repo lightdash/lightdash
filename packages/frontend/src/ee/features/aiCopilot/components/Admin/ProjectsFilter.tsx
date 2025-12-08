@@ -101,7 +101,7 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
                         <Group gap="two">
-                            <Text fz="xs" c="ldDark.3" fw={600}>
+                            <Text fz="xs" c="ldDark.9" fw={600}>
                                 Filter by projects:
                             </Text>
                             <Tooltip

@@ -57,13 +57,13 @@ jobs:
   files-changed:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
-      timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
-      perf: ${{ steps.changes.outputs.perf == 'true' || steps.overrides.outputs.perf == 'true' }}
-      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
+      preview: ${{ steps.changes.outputs.preview == 'true' || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      perf: ${{ steps.changes.outputs.perf == 'true' || contains(github.event.pull_request.body, 'test-perf') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for files changes
@@ -72,35 +72,12 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-      - name: Check for keyword overrides
-        id: overrides
-        run: |
-          echo "PR #${{ github.event.pull_request.number }}"
-          TEST_ALL="${{ contains(github.event.pull_request.body, 'test-all') }}"
-          echo "Test all override: $TEST_ALL"
-          echo "Frontend override: ${{ contains(github.event.pull_request.body, 'test-frontend') }}"
-          echo "Backend override: ${{ contains(github.event.pull_request.body, 'test-backend') }}"
-          echo "Timezone override: ${{ contains(github.event.pull_request.body, 'test-timezone') }}"
-          echo "Perf override: ${{ contains(github.event.pull_request.body, 'test-perf') }}"
-          echo "CLI override: ${{ contains(github.event.pull_request.body, 'test-cli') }}"
-          if [ "$TEST_ALL" = "true" ]; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-            echo "backend=true" >> "$GITHUB_OUTPUT"
-            echo "timezone=true" >> "$GITHUB_OUTPUT"
-            echo "perf=true" >> "$GITHUB_OUTPUT"
-            echo "cli=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "frontend=${{ contains(github.event.pull_request.body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
-            echo "backend=${{ contains(github.event.pull_request.body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
-            echo "timezone=${{ contains(github.event.pull_request.body, 'test-timezone') }}" >> "$GITHUB_OUTPUT"
-            echo "perf=${{ contains(github.event.pull_request.body, 'test-perf') }}" >> "$GITHUB_OUTPUT"
-            echo "cli=${{ contains(github.event.pull_request.body, 'test-cli') }}" >> "$GITHUB_OUTPUT"
-          fi
 
   preview:
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
+    needs: files-changed
+    if: needs.files-changed.outputs.preview == 'true'
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
@@ -184,10 +161,11 @@ jobs:
   # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
 
-  # Build cypress e2e image (runs in parallel with preview deployment)
+  # Build cypress e2e image (only when E2E tests that use it will run)
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
+    needs: files-changed
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.perf == 'true' || needs.files-changed.outputs.timezone == 'true'
     name: Build E2E Image
     steps:
       - name: Checkout
@@ -213,8 +191,15 @@ jobs:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
-    name: "E2E: API"
+    needs: [preview, files-changed, build-cypress-e2e-image]
+    container:
+      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        containers: [ 1, 2, 3, 4, 5 ]
+    name: "E2E: API (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
@@ -236,9 +221,10 @@ jobs:
         with:
           install: false
           working-directory: packages/e2e
-          spec: cypress/e2e/api/**/*
-          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false'
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/api/**/*.cy.{js,jsx,ts,tsx},video=false'
         env:
+          SPLIT: ${{ strategy.job-total }}
+          SPLIT_INDEX: ${{ strategy.job-index }}
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
           CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -265,7 +251,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        containers: [1, 2, 3]
+        containers: [ 1, 2, 3, 4, 5 ]
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
@@ -524,7 +510,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbt: ['1.4', '1.9', '1.10']
+        dbt: [ '1.10' ]
     name: "CLI: dbt ${{ matrix.dbt }}"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'

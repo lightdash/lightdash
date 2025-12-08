@@ -71,6 +71,11 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
                 reasoningId: part.providerMetadata.anthropic.signature,
                 text: part.text,
             };
+        case part.providerMetadata?.bedrock !== undefined:
+            return {
+                reasoningId: part.providerMetadata.bedrock.signature,
+                text: part.text,
+            };
         default:
             return null;
     }

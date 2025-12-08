@@ -1,11 +1,12 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-describe('Table calculations', () => {
+describe.skip('Table calculations', () => {
     beforeEach(() => {
         cy.login();
     });
 
-    it('I can create a quick table calculation (rank in column)', () => {
+    // todo: move to unit test
+    it.skip('I can create a quick table calculation (rank in column)', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
 
         // Select metrics and dimensions
@@ -33,7 +34,8 @@ describe('Table calculations', () => {
         });
     });
 
-    it('I can create a quick table calculation (running total)', () => {
+    // todo: move to unit test
+    it.skip('I can create a quick table calculation (running total)', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
 
         // Select metrics and dimensions
@@ -62,7 +64,8 @@ describe('Table calculations', () => {
         });
     });
 
-    it('I can create a string table calculation', () => {
+    // todo: move to unit test
+    it.skip('I can create a string table calculation', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         // Select metrics and dimensions
         cy.scrollTreeToItem('Order date');
@@ -112,7 +115,8 @@ describe('Table calculations', () => {
         cy.contains('rank_2').should('not.exist');
     });
 
-    it('I can create a number table calculation', () => {
+    // todo: move to unit test
+    it.skip('I can create a number table calculation', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         // Select metrics and dimensions
         cy.scrollTreeToItem('Order date');

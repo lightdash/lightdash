@@ -1,3 +1,50 @@
+## [0.2234.3](https://github.com/lightdash/lightdash/compare/0.2234.2...0.2234.3) (2025-12-08)
+
+
+### Bug Fixes
+
+* tooltip shows incorrect date when using datezoom (timezone related) ([#18664](https://github.com/lightdash/lightdash/issues/18664)) ([f92cd97](https://github.com/lightdash/lightdash/commit/f92cd973aef84a5dbc961ced4a683eac7c790c42))
+
+## [0.2234.2](https://github.com/lightdash/lightdash/compare/0.2234.1...0.2234.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* auto-scroll when reasoning parts change in AI chat ([#18673](https://github.com/lightdash/lightdash/issues/18673)) ([8f124e4](https://github.com/lightdash/lightdash/commit/8f124e46bd201d4b6d56a185f5112bcc9b4b6ba9))
+
+## [0.2234.1](https://github.com/lightdash/lightdash/compare/0.2234.0...0.2234.1) (2025-12-08)
+
+
+### Performance Improvements
+
+* wrap getAllByOrganizationUuid calls with Sentry transactions ([#18652](https://github.com/lightdash/lightdash/issues/18652)) ([83acbda](https://github.com/lightdash/lightdash/commit/83acbda277958ea20c4735273c40b3ba6fe20045))
+
+# [0.2234.0](https://github.com/lightdash/lightdash/compare/0.2233.2...0.2234.0) (2025-12-08)
+
+
+### Bug Fixes
+
+* map AWS region to correct Bedrock inference profile prefix ([#18637](https://github.com/lightdash/lightdash/issues/18637)) ([ee772ff](https://github.com/lightdash/lightdash/commit/ee772ff99cb9b720f89df9d544d562306cd381c8))
+
+
+### Features
+
+* add bedrock support for reasoning UI parts ([#18653](https://github.com/lightdash/lightdash/issues/18653)) ([d96c0da](https://github.com/lightdash/lightdash/commit/d96c0da38214d09b0620dc28b8065abe182edea7))
+
+## [0.2233.2](https://github.com/lightdash/lightdash/compare/0.2233.1...0.2233.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* attach claude code agent on vite.config ([#18625](https://github.com/lightdash/lightdash/issues/18625)) ([5596cb8](https://github.com/lightdash/lightdash/commit/5596cb8ce4549b676100906a2bcd37bef6047684))
+
+## [0.2233.1](https://github.com/lightdash/lightdash/compare/0.2233.0...0.2233.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* light grey axis labels on 100% stacked bar charts ([#18552](https://github.com/lightdash/lightdash/issues/18552)) ([017c71f](https://github.com/lightdash/lightdash/commit/017c71f762621cfb8b808699549952c9c35aa2f0))
+
 # [0.2233.0](https://github.com/lightdash/lightdash/compare/0.2232.0...0.2233.0) (2025-12-05)
 
 

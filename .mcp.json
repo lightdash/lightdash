@@ -1,13 +1,12 @@
 {
   "mcpServers": {
-    "playwright": {
-      "type": "stdio",
-      "command": "pnpm",
-      "args": [
-        "dlx",
-        "@playwright/mcp@latest"
-      ],
-      "env": {}
+    "chrome-devtools": {
+      "command": "pnpx",
+      "args": ["chrome-devtools-mcp@latest"]
+    },
+    "lightdash-docs": {
+      "type": "url",
+      "url": "https://docs.lightdash.com/mcp"
     }
   }
 }
