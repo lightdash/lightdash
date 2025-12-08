@@ -42,6 +42,7 @@ import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
+import { SlackChannelCacheModel } from './SlackChannelCacheModel';
 import { SpaceModel } from './SpaceModel';
 import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
@@ -91,6 +92,7 @@ export type ModelManifest = {
     sessionModel: SessionModel;
     shareModel: ShareModel;
     slackAuthenticationModel: SlackAuthenticationModel;
+    slackChannelCacheModel: SlackChannelCacheModel;
     spaceModel: SpaceModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
@@ -477,6 +479,13 @@ export class ModelRepository
         return this.getModel(
             'slackAuthenticationModel',
             () => new SlackAuthenticationModel({ database: this.database }),
+        );
+    }
+
+    public getSlackChannelCacheModel(): SlackChannelCacheModel {
+        return this.getModel(
+            'slackChannelCacheModel',
+            () => new SlackChannelCacheModel({ database: this.database }),
         );
     }
 
