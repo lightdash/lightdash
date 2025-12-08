@@ -174,6 +174,8 @@ export class ClientRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                    slackChannelCacheModel:
+                        this.models.getSlackChannelCacheModel(),
                 }),
         );
     }

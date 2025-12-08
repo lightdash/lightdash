@@ -580,4 +580,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
 
 export type SyncSlackChannelsPayload = {
     organizationUuid: string;
+    userUuid: undefined;
+    projectUuid: undefined;
+    schedulerUuid: undefined;
 };

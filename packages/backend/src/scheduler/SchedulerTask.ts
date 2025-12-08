@@ -7,8 +7,6 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
-    DashboardFilterRule,
-    DashboardParameterValue,
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     DownloadCsvPayload,
@@ -54,6 +52,7 @@ import {
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SyncSlackChannelsPayload,
     ThresholdOperator,
     ThresholdOptions,
     UnexpectedGoogleSheetsError,
@@ -70,9 +69,7 @@ import {
     getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
-    getDashboardFiltersForTile,
     getErrorMessage,
-    getFulfilledValues,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -3940,5 +3937,24 @@ export default class SchedulerTask {
         }
 
         return batchResult;
+    }
+
+    protected async syncSlackChannels(
+        jobId: string,
+        payload: SyncSlackChannelsPayload,
+    ) {
+        const { organizationUuid } = payload;
+
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.SYNC_SLACK_CHANNELS,
+                jobId,
+                scheduledTime: new Date(),
+                details: {
+                    organizationUuid,
+                },
+            },
+            async () => this.slackClient.syncChannelsToCache(organizationUuid),
+        );
     }
 }
