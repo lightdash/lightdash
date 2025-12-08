@@ -176,11 +176,14 @@ const getHeader = (
                 xValue.match(/^\d{4}-\d{2}-\d{2}/)
             ) {
                 try {
-                    return new Date(xValue).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                    });
+                    // Parse date as UTC to avoid timezone conversion issues
+                    // For dates like "2024-01-01", we want to display them as-is
+                    // without shifting to local timezone
+                    const date = dayjs.utc(xValue);
+                    if (date.isValid()) {
+                        return date.format('MMM D, YYYY');
+                    }
+                    return String(xValue);
                 } catch {
                     return String(xValue);
                 }
