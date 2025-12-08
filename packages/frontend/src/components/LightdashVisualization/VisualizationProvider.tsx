@@ -192,12 +192,13 @@ const VisualizationProvider: FC<
                 ? computedSeries
                 : chartConfig.config.eChartsConfig.series;
 
-        const sortedSeriesIdentifiers = (allSeries ?? [])
-            .map((series) => calculateSeriesLikeIdentifier(series).join('|'))
-            .sort((a, b) => b.localeCompare(a));
+        // Use series order as-is to preserve user's intended order
+        // Don't sort alphabetically as it destroys custom ordering
+        const seriesIdentifiers = (allSeries ?? [])
+            .map((series) => calculateSeriesLikeIdentifier(series).join('|'));
 
         return Object.fromEntries(
-            sortedSeriesIdentifiers.map((identifier, i) => {
+            seriesIdentifiers.map((identifier, i) => {
                 return [identifier, colorPalette[i % colorPalette.length]];
             }),
         );

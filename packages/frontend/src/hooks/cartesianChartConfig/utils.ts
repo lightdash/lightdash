@@ -30,6 +30,32 @@ export type GetExpectedSeriesMapArgs = {
     itemsMap: ItemsMap | undefined;
 };
 
+/**
+ * Create a "structural ID" for a series that excludes specific pivot values.
+ * This allows matching series that have the same field and pivot dimensions,
+ * even if the actual pivot values differ (e.g., when switching between parameter values).
+ *
+ * Example:
+ * - Full ID: "date|revenue.category.Electronics"
+ * - Structural ID: "date|revenue.category"
+ */
+const getSeriesStructuralId = (series: Series): string => {
+    const yRef = series.encode.yRef;
+    const xRef = series.encode.xRef;
+
+    // For yRef: include field and pivot field names, but not specific values
+    const yStructure = yRef.pivotValues && yRef.pivotValues.length > 0
+        ? `${yRef.field}.[${yRef.pivotValues.map(pv => pv.field).join(',')}]`
+        : yRef.field;
+
+    // For xRef: include field and pivot field names, but not specific values
+    const xStructure = xRef.pivotValues && xRef.pivotValues.length > 0
+        ? `${xRef.field}.[${xRef.pivotValues.map(pv => pv.field).join(',')}]`
+        : xRef.field;
+
+    return `${xStructure}|${yStructure}`;
+};
+
 export const getExpectedSeriesMap = ({
     defaultSmooth,
     defaultShowSymbol,
@@ -134,6 +160,14 @@ export const mergeExistingAndExpectedSeries = ({
     existingSeries,
     resultsColumns,
 }: MergeExistingAndExpectedSeriesArgs) => {
+    // Build a map of structural IDs to existing series for fuzzy matching
+    const existingSeriesByStructuralId = new Map<string, Series[]>();
+    existingSeries.forEach((series) => {
+        const structuralId = getSeriesStructuralId(series);
+        const existing = existingSeriesByStructuralId.get(structuralId) || [];
+        existingSeriesByStructuralId.set(structuralId, [...existing, series]);
+    });
+
     const { existingValidSeries, existingValidSeriesIds } =
         existingSeries.reduce<{
             existingValidSeries: Series[];
@@ -173,6 +207,76 @@ export const mergeExistingAndExpectedSeries = ({
             },
             { existingValidSeries: [], existingValidSeriesIds: [] },
         );
+
+    // If no exact matches found, try structural matching to preserve order and colors
+    if (existingValidSeries.length <= 0 && existingSeries.length > 0) {
+        // Build a map of expected series by structural ID
+        const expectedSeriesByStructuralId = new Map<string, Series[]>();
+        Object.values(expectedSeriesMap).forEach((series) => {
+            const structuralId = getSeriesStructuralId(series);
+            const existing = expectedSeriesByStructuralId.get(structuralId) || [];
+            expectedSeriesByStructuralId.set(structuralId, [...existing, series]);
+        });
+
+        // Check if we have structural matches
+        let hasStructuralMatches = false;
+        for (const structuralId of existingSeriesByStructuralId.keys()) {
+            if (expectedSeriesByStructuralId.has(structuralId)) {
+                hasStructuralMatches = true;
+                break;
+            }
+        }
+
+        // If we have structural matches, use existing series order and inherit properties
+        if (hasStructuralMatches) {
+            const result: Series[] = [];
+            const usedExpectedIds = new Set<string>();
+
+            // For each existing series, find corresponding expected series by structural match
+            existingSeries.forEach((existingSeries) => {
+                const structuralId = getSeriesStructuralId(existingSeries);
+                const matchingExpectedSeries = expectedSeriesByStructuralId.get(structuralId);
+
+                if (matchingExpectedSeries && matchingExpectedSeries.length > 0) {
+                    // Use the first unused expected series from this structural group
+                    const unusedSeries = matchingExpectedSeries.find(
+                        (s) => !usedExpectedIds.has(getSeriesId(s))
+                    );
+
+                    if (unusedSeries) {
+                        const expectedId = getSeriesId(unusedSeries);
+                        usedExpectedIds.add(expectedId);
+
+                        // Inherit custom properties from existing series
+                        result.push({
+                            ...unusedSeries,
+                            // Preserve custom properties that users might have set
+                            ...(existingSeries.color && { color: existingSeries.color }),
+                            type: existingSeries.type ?? unusedSeries.type,
+                            yAxisIndex: existingSeries.yAxisIndex ?? unusedSeries.yAxisIndex,
+                            areaStyle: existingSeries.areaStyle ?? unusedSeries.areaStyle,
+                            smooth: existingSeries.smooth ?? unusedSeries.smooth,
+                            showSymbol: existingSeries.showSymbol ?? unusedSeries.showSymbol,
+                            label: existingSeries.label ?? unusedSeries.label,
+                            hidden: existingSeries.hidden,
+                        });
+                    }
+                }
+            });
+
+            // Add any expected series that weren't matched
+            Object.entries(expectedSeriesMap).forEach(([expectedId, expectedSeries]) => {
+                if (!usedExpectedIds.has(expectedId)) {
+                    result.push(expectedSeries);
+                }
+            });
+
+            return result;
+        }
+
+        // No structural matches, fall back to default expected series
+        return Object.values(expectedSeriesMap);
+    }
 
     if (existingValidSeries.length <= 0) {
         return Object.values(expectedSeriesMap);
