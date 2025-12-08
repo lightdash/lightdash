@@ -95,7 +95,7 @@ jobs:
         with:
           project: bgbbt3d0kc # depot project id
           token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
-          file: dockerfile-prs
+          file: dockerfile
           push: true
           platforms: linux/amd64
           tags: |
