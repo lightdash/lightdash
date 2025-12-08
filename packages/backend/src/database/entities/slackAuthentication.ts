@@ -1,3 +1,4 @@
+import { SchedulerJobStatus } from '@lightdash/common';
 import { Installation } from '@slack/bolt';
 import { Knex } from 'knex';
 
@@ -14,6 +15,11 @@ export type DbSlackAuthTokens = {
     ai_thread_access_consent: boolean;
     ai_require_oauth: boolean;
     ai_multi_agent_channel_id: string | null;
+    // Channel sync status
+    channels_last_sync_at: Date | null;
+    channels_sync_status: SchedulerJobStatus | null;
+    channels_sync_error: string | null;
+    channels_count: number | null;
 };
 
 export type CreateDbSlackAuthTokens = Pick<
@@ -31,6 +37,10 @@ export type UpdateDbSlackAuthTokens = Pick<
             | 'ai_thread_access_consent'
             | 'ai_require_oauth'
             | 'ai_multi_agent_channel_id'
+            | 'channels_last_sync_at'
+            | 'channels_sync_status'
+            | 'channels_sync_error'
+            | 'channels_count'
         >
     >;
 
