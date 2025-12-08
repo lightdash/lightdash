@@ -23,6 +23,80 @@ services:
         ports:
             - '3000'
 
+    lightdash-setup:
+      build:
+        target: pr-runner
+        context: ..
+        dockerfile: dockerfile-prs
+      depends_on:
+        - db-preview
+      environment:
+        # these were set in the dockerfile-prs container
+        NODE_ENV: production
+        IS_PULL_REQUEST: true
+        LIGHTDASH_MODE: pr
+        DBT_DEMO_DIR: /usr/app
+        INTERNAL_LIGHTDASH_HOST: http://lightdash-preview:8080
+
+        # This must be set in the GitHub Actions workflow
+        SITE_URL: ${SITE_URL}
+
+        # these were set in the render.yaml file
+        PGMAXCONNECTIONS: 30
+        SECURE_COOKIES: true
+        TRUST_PROXY: true
+        LIGHTDASH_SECRET: not very secret
+        GROUPS_ENABLED: true
+        EXTENDED_USAGE_ANALYTICS: true
+
+        # these were set in the env.development file
+        PGHOST: db-preview
+        PGPORT: 5432
+        PGDATABASE: postgres
+        PGPASSWORD: ${PGPASSWORD}
+        PGUSER: postgres
+        HEADLESS_BROWSER_PORT: 3000
+        HEADLESS_BROWSER_HOST: headless-browser
+        S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+        S3_SECRET_KEY: ${S3_SECRET_KEY}
+        S3_ENDPOINT: ${S3_ENDPOINT}
+        S3_REGION: ${S3_REGION}
+        S3_BUCKET: ${S3_BUCKET}
+        MCP_ENABLED: true
+        CUSTOM_ROLES_ENABLED: true
+
+        # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
+        SCHEDULER_ENABLED: true
+        ALLOW_MULTIPLE_ORGS: true
+        MICROSOFT_TEAMS_ENABLED: true
+
+        # Debugging
+        LIGHTDASH_LOG_LEVEL: debug
+        LIGHTDASH_LOG_FORMAT: json
+
+        # These were set in the render UI but are secret
+        # these are set in the okteto admin UI - DO NOT SET THESE LOCALLY WHEN DEPLOYING or they will override the values in the okteto admin UI
+        RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
+        RUDDERSTACK_DATA_PLANE_URL: ${RUDDERSTACK_DATA_PLANE_URL}
+        POSTHOG_FE_API_HOST: ${POSTHOG_FE_API_HOST}
+        POSTHOG_BE_API_HOST: ${POSTHOG_BE_API_HOST}
+        POSTHOG_PROJECT_API_KEY: ${POSTHOG_PROJECT_API_KEY}
+        LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+        GITHUB_APP_ID: ${GITHUB_APP_ID}
+        GITHUB_APP_NAME: ${GITHUB_APP_NAME}
+        GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+        GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+        GITHUB_PRIVATE_KEY: ${GITHUB_PRIVATE_KEY}
+        EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST}
+        EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD}
+        EMAIL_SMTP_SENDER_EMAIL: ${EMAIL_SMTP_SENDER_EMAIL}
+        EMAIL_SMTP_USER: ${EMAIL_SMTP_SENDER_USER}
+        DBT_CLOUD_ENVIRONMENT_ID: ${DBT_CLOUD_ENVIRONMENT_ID}
+        DBT_CLOUD_BEARER_TOKEN: ${DBT_CLOUD_BEARER_TOKEN}
+      entrypoint: [ '/usr/bin/renderDeployHook.sh' ]
+      command: [ 'echo', 'Setup complete' ]
+      restart: 'no'
+
     lightdash-preview:
         build:
             target: pr-runner
@@ -31,7 +105,9 @@ services:
         depends_on:
             - db-preview
             - headless-browser
+            - lightdash-setup
         deploy:
+          replicas: 3
             resources:
                 limits:
                   cpus: '2.0'
@@ -113,4 +189,3 @@ services:
         ports:
             - '8080:8080'
         command: ['pnpm', 'start']
-        entrypoint: ['/usr/bin/renderDeployHook.sh']
