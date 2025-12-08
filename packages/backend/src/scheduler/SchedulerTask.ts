@@ -30,6 +30,8 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     ParametersValuesMap,
+    type PartialFailure,
+    PartialFailureType,
     QueryExecutionContext,
     ReadFileError,
     RenameResourcesPayload,
@@ -310,7 +312,7 @@ export default class SchedulerTask {
         let csvUrl;
         let csvUrls;
         let pdfFile;
-        let failures: { chartName: string; error: string }[] | undefined;
+        let failures: PartialFailure[] | undefined;
 
         const schedulerUuid =
             'schedulerUuid' in scheduler &&
@@ -545,7 +547,7 @@ export default class SchedulerTask {
                             ...schedulerParameters,
                         };
 
-                        const chartTileUuidsWithChartUuids = dashboard.tiles
+                        const chartTiles = dashboard.tiles
                             .filter(isDashboardChartTileType)
                             .filter((tile) => tile.properties.savedChartUuid)
                             .filter(
@@ -556,78 +558,87 @@ export default class SchedulerTask {
                             .map((tile) => ({
                                 tileUuid: tile.uuid,
                                 chartUuid: tile.properties.savedChartUuid!,
+                                // Use tile name as initial chart name, will be updated with actual chart name on success
+                                chartName:
+                                    tile.properties.title ||
+                                    tile.properties.chartName ||
+                                    'Unknown Chart',
+                                type: 'chart' as const,
                             }));
-                        const sqlChartTileUuids = dashboard.tiles
+                        const sqlChartTiles = dashboard.tiles
                             .filter(isDashboardSqlChartTile)
                             .filter((tile) => !!tile.properties.savedSqlUuid)
                             .map((tile) => ({
                                 tileUuid: tile.uuid,
                                 chartUuid: tile.properties.savedSqlUuid!,
+                                chartName:
+                                    tile.properties.title ||
+                                    tile.properties.chartName ||
+                                    'Unknown SQL Chart',
+                                type: 'sql_chart' as const,
                             }));
-                        const csvForChartPromises =
-                            chartTileUuidsWithChartUuids.map(
-                                async ({ chartUuid, tileUuid }) => {
-                                    const chartLimit =
-                                        getSchedulerCsvLimit(csvOptions);
-                                    const query =
-                                        await this.asyncQueryService.executeAsyncDashboardChartQuery(
-                                            {
-                                                account,
-                                                projectUuid,
-                                                tileUuid,
-                                                chartUuid,
-                                                invalidateCache: true,
-                                                context:
-                                                    QueryExecutionContext.SCHEDULED_DELIVERY,
-                                                dashboardUuid,
-                                                dashboardFilters,
-                                                dashboardSorts: [],
-                                                parameters: finalParameters,
-                                                limit: chartLimit,
-                                                pivotResults:
-                                                    pivotResultsFlag.enabled,
-                                            },
-                                        );
-                                    const chart =
-                                        await this.schedulerService.savedChartModel.get(
+
+                        // Metadata for tracking failures - order matches the promises
+                        const chartMetadata = [...chartTiles, ...sqlChartTiles];
+
+                        const csvForChartPromises = chartTiles.map(
+                            async ({ chartUuid, tileUuid }) => {
+                                const chartLimit =
+                                    getSchedulerCsvLimit(csvOptions);
+                                const query =
+                                    await this.asyncQueryService.executeAsyncDashboardChartQuery(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            tileUuid,
                                             chartUuid,
-                                        );
-                                    const downloadResult =
-                                        await this.asyncQueryService.downloadSyncQueryResults(
-                                            {
-                                                account,
-                                                projectUuid,
-                                                queryUuid: query.queryUuid,
-                                                type: downloadFileType,
-                                                onlyRaw:
-                                                    csvOptions?.formatted ===
-                                                    false,
-                                                customLabels:
-                                                    getCustomLabelsFromTableConfig(
-                                                        chart.chartConfig
-                                                            .config,
-                                                    ),
-                                                hiddenFields:
-                                                    getHiddenTableFields(
-                                                        chart.chartConfig,
-                                                    ),
-                                                pivotConfig:
-                                                    getPivotConfig(chart),
-                                                columnOrder:
-                                                    chart.tableConfig
-                                                        .columnOrder,
-                                            },
-                                        );
-                                    return {
-                                        chartName: chart.name,
-                                        filename: chart.name,
-                                        path: downloadResult.fileUrl,
-                                        localPath: downloadResult.fileUrl,
-                                        truncated: false,
-                                    };
-                                },
-                            );
-                        const csvForSqlChartPromises = sqlChartTileUuids.map(
+                                            invalidateCache: true,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            dashboardUuid,
+                                            dashboardFilters,
+                                            dashboardSorts: [],
+                                            parameters: finalParameters,
+                                            limit: chartLimit,
+                                            pivotResults:
+                                                pivotResultsFlag.enabled,
+                                        },
+                                    );
+                                const chart =
+                                    await this.schedulerService.savedChartModel.get(
+                                        chartUuid,
+                                    );
+                                const downloadResult =
+                                    await this.asyncQueryService.downloadSyncQueryResults(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            queryUuid: query.queryUuid,
+                                            type: downloadFileType,
+                                            onlyRaw:
+                                                csvOptions?.formatted === false,
+                                            customLabels:
+                                                getCustomLabelsFromTableConfig(
+                                                    chart.chartConfig.config,
+                                                ),
+                                            hiddenFields: getHiddenTableFields(
+                                                chart.chartConfig,
+                                            ),
+                                            pivotConfig: getPivotConfig(chart),
+                                            columnOrder:
+                                                chart.tableConfig.columnOrder,
+                                        },
+                                    );
+                                return {
+                                    chartName: chart.name,
+                                    filename: chart.name,
+                                    path: downloadResult.fileUrl,
+                                    localPath: downloadResult.fileUrl,
+                                    truncated: false,
+                                };
+                            },
+                        );
+                        const csvForSqlChartPromises = sqlChartTiles.map(
                             async ({ chartUuid, tileUuid }) => {
                                 const sqlLimit =
                                     getSchedulerCsvLimit(csvOptions);
@@ -723,29 +734,39 @@ export default class SchedulerTask {
                         csvUrls = successfulResults.map((r) => r.value);
 
                         const csvFailures = results
+                            .map((result, index) => ({ result, index }))
                             .filter(
-                                (result): result is PromiseRejectedResult =>
-                                    result.status === 'rejected',
+                                (
+                                    item,
+                                ): item is {
+                                    result: PromiseRejectedResult;
+                                    index: number;
+                                } => item.result.status === 'rejected',
                             )
-                            .map((result, index) => {
-                                // Try to get chart name from the error context or use a default
-                                const chartIndex = results.indexOf(result);
-                                const chartName =
-                                    chartIndex <
-                                    chartTileUuidsWithChartUuids.length
-                                        ? `Chart ${chartIndex + 1}`
-                                        : `SQL Chart ${
-                                              chartIndex -
-                                              chartTileUuidsWithChartUuids.length +
-                                              1
-                                          }`;
+                            .map(({ result, index }) => {
+                                // Look up chart metadata using the index
+                                const metadata = chartMetadata[index];
                                 Logger.warn(
-                                    `Failed to generate CSV for ${chartName} in scheduled delivery: ${result.reason}`,
+                                    `Failed to generate CSV for ${metadata.chartName} (${metadata.chartUuid}) in scheduled delivery: ${result.reason}`,
                                 );
+
+                                if (metadata.type === 'chart') {
+                                    return {
+                                        type: PartialFailureType.DASHBOARD_CHART,
+                                        chartUuid: metadata.chartUuid,
+                                        chartName: metadata.chartName,
+                                        tileUuid: metadata.tileUuid,
+                                        error: getErrorMessage(result.reason),
+                                    } satisfies PartialFailure;
+                                }
+
                                 return {
-                                    chartName,
+                                    type: PartialFailureType.DASHBOARD_SQL_CHART,
+                                    savedSqlUuid: metadata.chartUuid,
+                                    chartName: metadata.chartName,
+                                    tileUuid: metadata.tileUuid,
                                     error: getErrorMessage(result.reason),
-                                };
+                                } satisfies PartialFailure;
                             });
 
                         // Log partial failures if any
@@ -2962,6 +2983,9 @@ export default class SchedulerTask {
                 ),
             );
 
+            // Use page failures directly as partialFailures for logging
+            const partialFailures = page?.failures;
+
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                 schedulerUuid,
@@ -2973,6 +2997,8 @@ export default class SchedulerTask {
                     projectUuid: schedulerPayload.projectUuid,
                     organizationUuid: schedulerPayload.organizationUuid,
                     createdByUserUuid: schedulerPayload.userUuid,
+                    ...(partialFailures &&
+                        partialFailures.length > 0 && { partialFailures }),
                 },
             });
 
@@ -2983,6 +3009,9 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     isThresholdAlert: scheduler.thresholds !== undefined,
+                    hasPartialFailures:
+                        partialFailures && partialFailures.length > 0,
+                    partialFailuresCount: partialFailures?.length ?? 0,
                 },
             });
         } catch (e) {
