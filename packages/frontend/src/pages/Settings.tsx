@@ -25,6 +25,7 @@ import {
     IconUserShield,
     IconUsers,
     IconVariable,
+    IconVersions,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import {
@@ -692,6 +693,16 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Releases"
+                                        exact
+                                        to="/releases"
+                                        icon={
+                                            <MantineIcon icon={IconVersions} />
+                                        }
+                                    />
+                                )}
                             </Box>
 
                             {organization &&

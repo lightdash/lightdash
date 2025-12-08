@@ -1,0 +1,11 @@
+### Get releases timeline (centered around current deployed version)
+GET http://localhost:3000/api/v1/releases
+
+### Get releases with custom count
+GET http://localhost:3000/api/v1/releases?count=10
+
+### Get older releases (paginate backwards)
+GET http://localhost:3000/api/v1/releases?cursor=0.1234.0&direction=before
+
+### Get newer releases (paginate forwards)
+GET http://localhost:3000/api/v1/releases?cursor=0.1234.0&direction=after

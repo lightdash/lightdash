@@ -422,6 +422,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationModel: this.models.getOrganizationModel(),
                     migrationModel: this.models.getMigrationModel(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }

@@ -7,6 +7,7 @@ export enum PageName {
     WELCOME = 'welcome',
     REGISTER = 'register',
     LOGIN = 'login',
+    RELEASES = 'releases',
     PASSWORD_RECOVERY = 'password_recovery',
     PASSWORD_RESET = 'password_reset',
     SIGNUP = 'signup',

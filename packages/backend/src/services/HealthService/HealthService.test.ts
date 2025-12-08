@@ -1,4 +1,5 @@
 import { LightdashInstallType, LightdashMode } from '@lightdash/common';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
@@ -29,6 +30,7 @@ describe('health', () => {
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: lightdashConfigMock,
         migrationModel: migrationModel as unknown as MigrationModel,
+        analytics: analyticsMock,
     });
 
     afterEach(() => {
@@ -72,6 +74,7 @@ describe('health', () => {
                 mode: LightdashMode.CLOUD_BETA,
             },
             migrationModel: migrationModel as unknown as MigrationModel,
+            analytics: analyticsMock,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,

@@ -120,6 +120,7 @@ import {
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
+import { type ApiReleasesTimelineResponse } from './releases';
 import { type ApiRenameFieldsResponse } from './rename';
 import { type ResultColumns, type ResultRow } from './results';
 import {
@@ -828,7 +829,8 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
-    | ApiProjectCompileLogResponse['results'];
+    | ApiProjectCompileLogResponse['results']
+    | ApiReleasesTimelineResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

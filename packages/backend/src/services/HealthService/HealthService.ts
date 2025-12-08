@@ -2,11 +2,14 @@ import {
     HealthState,
     LightdashInstallType,
     LightdashMode,
+    type ReleasesTimeline,
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
+import { getReleasesAroundVersion } from '../../clients/github/GithubReleases';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -17,6 +20,7 @@ type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
+    analytics: LightdashAnalytics;
 };
 
 export class HealthService extends BaseService {
@@ -26,15 +30,19 @@ export class HealthService extends BaseService {
 
     private readonly migrationModel: MigrationModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     constructor({
         organizationModel,
         migrationModel,
         lightdashConfig,
+        analytics,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
+        this.analytics = analytics;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -218,5 +226,49 @@ export class HealthService extends BaseService {
             this.lightdashConfig.auth.google.oauth2ClientSecret !== undefined &&
             this.lightdashConfig.auth.google.enabled
         );
+    }
+
+    /**
+     * Gets the releases timeline centered around the current version.
+     * @param count Number of releases to return (default 15)
+     * @param cursor Optional cursor (release version tag) for pagination
+     * @param direction Direction to paginate:
+     *   'before' fetches older releases (published before cursor),
+     *   'after' fetches newer releases (published after cursor)
+     */
+    async getReleasesTimeline(
+        count?: number,
+        cursor?: string,
+        direction?: 'before' | 'after',
+    ): Promise<ReleasesTimeline> {
+        const effectiveCount = count ?? 15;
+        const effectiveDirection = direction ?? 'before';
+        this.analytics.track({
+            event: 'releases_timeline.viewed',
+            anonymousId: 'anonymous',
+            properties: {
+                currentVersion: VERSION,
+                count: effectiveCount,
+                hasCursor: !!cursor,
+                direction: effectiveDirection,
+            },
+        });
+
+        const result = await getReleasesAroundVersion(
+            VERSION,
+            effectiveCount,
+            cursor,
+            effectiveDirection,
+        );
+
+        return {
+            currentVersion: VERSION,
+            currentVersionFound: result.currentVersionFound,
+            releases: result.releases,
+            hasPrevious: result.hasPrevious,
+            hasNext: result.hasNext,
+            previousCursor: result.previousCursor,
+            nextCursor: result.nextCursor,
+        };
     }
 }

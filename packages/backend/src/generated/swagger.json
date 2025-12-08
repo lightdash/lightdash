@@ -7622,10 +7622,10 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
@@ -7636,8 +7636,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "tableName",
                                                                         "fieldType",
+                                                                        "tableName",
                                                                         "label",
                                                                         "name"
                                                                     ],
@@ -7648,16 +7648,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -7742,10 +7742,10 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
@@ -7756,8 +7756,8 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "tableName",
                                                                                     "fieldType",
+                                                                                    "tableName",
                                                                                     "label",
                                                                                     "name"
                                                                                 ],
@@ -15915,6 +15915,149 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ReleaseItem": {
+                "properties": {
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Link to the PR"
+                    },
+                    "prNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "PR number if available"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Description of the change"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Scope of the change if specified (e.g., backend, frontend)"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Type of change: feat, fix, chore, docs, refactor, etc."
+                    }
+                },
+                "required": [
+                    "prUrl",
+                    "prNumber",
+                    "description",
+                    "scope",
+                    "type"
+                ],
+                "type": "object",
+                "description": "Represents a single item in a release (feature, fix, chore, etc.)"
+            },
+            "Release": {
+                "properties": {
+                    "isCurrent": {
+                        "type": "boolean",
+                        "description": "Whether this is the current deployed version"
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/ReleaseItem"
+                        },
+                        "type": "array",
+                        "description": "Parsed items from the release notes"
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "URL to the release on GitHub"
+                    },
+                    "publishedAt": {
+                        "type": "string",
+                        "description": "When the release was published (ISO 8601 format)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Release title/name"
+                    },
+                    "version": {
+                        "type": "string",
+                        "description": "Release version tag (e.g., \"0.1234.0\")"
+                    }
+                },
+                "required": [
+                    "isCurrent",
+                    "items",
+                    "url",
+                    "publishedAt",
+                    "title",
+                    "version"
+                ],
+                "type": "object",
+                "description": "Represents a GitHub release"
+            },
+            "ReleasesTimeline": {
+                "properties": {
+                    "nextCursor": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Cursor for pagination - use with direction=before to fetch older releases"
+                    },
+                    "previousCursor": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Cursor for pagination - use with direction=after to fetch newer releases"
+                    },
+                    "hasNext": {
+                        "type": "boolean",
+                        "description": "Whether there are more (older) releases after the last one in the list"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean",
+                        "description": "Whether there are more (newer) releases before the first one in the list"
+                    },
+                    "releases": {
+                        "items": {
+                            "$ref": "#/components/schemas/Release"
+                        },
+                        "type": "array",
+                        "description": "List of releases ordered by publish date descending (newest first)"
+                    },
+                    "currentVersionFound": {
+                        "type": "boolean",
+                        "description": "Whether the current version was found in the releases list"
+                    },
+                    "currentVersion": {
+                        "type": "string",
+                        "description": "Current deployed version"
+                    }
+                },
+                "required": [
+                    "nextCursor",
+                    "previousCursor",
+                    "hasNext",
+                    "hasPrevious",
+                    "releases",
+                    "currentVersionFound",
+                    "currentVersion"
+                ],
+                "type": "object",
+                "description": "Response for the releases timeline API.\n\n## Pagination\n- First request (no cursor) returns releases centered around the current deployed version\n- Use `nextCursor` + `direction=before` to get older releases\n- Use `previousCursor` + `direction=after` to get newer releases\n- `hasPrevious` indicates if newer releases exist (scroll up)\n- `hasNext` indicates if older releases exist (scroll down)"
+            },
+            "ApiSuccess_ReleasesTimeline_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ReleasesTimeline"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReleasesTimelineResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ReleasesTimeline_"
+            },
             "ProjectType": {
                 "enum": ["DEFAULT", "PREVIEW"],
                 "type": "string"
@@ -17383,22 +17526,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -23099,7 +23242,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2229.2",
+        "version": "0.2234.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -30021,6 +30164,137 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/releases": {
+            "get": {
+                "operationId": "getReleasesTimeline",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReleasesTimelineResponse"
+                                },
+                                "examples": {
+                                    "Example 1": {
+                                        "value": {
+                                            "status": "ok",
+                                            "results": {
+                                                "currentVersion": "0.1234.0",
+                                                "currentVersionFound": true,
+                                                "releases": [
+                                                    {
+                                                        "version": "0.1235.0",
+                                                        "title": "0.1235.0",
+                                                        "publishedAt": "2025-12-02T10:00:00Z",
+                                                        "url": "https://github.com/lightdash/lightdash/releases/tag/0.1235.0",
+                                                        "items": [
+                                                            {
+                                                                "type": "feat",
+                                                                "scope": "dashboard",
+                                                                "description": "add dark mode support",
+                                                                "prNumber": 18575,
+                                                                "prUrl": "https://github.com/lightdash/lightdash/pull/18575"
+                                                            }
+                                                        ],
+                                                        "isCurrent": false
+                                                    },
+                                                    {
+                                                        "version": "0.1234.0",
+                                                        "title": "0.1234.0",
+                                                        "publishedAt": "2025-12-01T10:00:00Z",
+                                                        "url": "https://github.com/lightdash/lightdash/releases/tag/0.1234.0",
+                                                        "items": [
+                                                            {
+                                                                "type": "fix",
+                                                                "scope": null,
+                                                                "description": "fix chart rendering issue",
+                                                                "prNumber": 18570,
+                                                                "prUrl": "https://github.com/lightdash/lightdash/pull/18570"
+                                                            }
+                                                        ],
+                                                        "isCurrent": true
+                                                    }
+                                                ],
+                                                "hasPrevious": false,
+                                                "hasNext": true,
+                                                "previousCursor": "0.1235.0",
+                                                "nextCursor": "0.1234.0"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "GitHub API unavailable or rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the releases timeline showing releases around the current deployed version.\nThis is an unauthenticated endpoint for checking which features/fixes are\nincluded in a deployment.\n\n## Pagination\n- First request (no cursor) returns releases centered around current deployed version\n- Use `nextCursor` + `direction=before` to get older releases\n- Use `previousCursor` + `direction=after` to get newer releases\n- `hasPrevious` indicates if newer releases exist (scroll up)\n- `hasNext` indicates if older releases exist (scroll down)\n\n## Usage Examples\n- Get releases around current version: `GET /api/v1/releases`\n- Get next page (older): `GET /api/v1/releases?cursor=0.1234.0&direction=before`\n- Get previous page (newer): `GET /api/v1/releases?cursor=0.1234.0&direction=after`",
+                "summary": "Get releases timeline",
+                "tags": ["Releases"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Number of releases to return. Defaults to 15.",
+                        "in": "query",
+                        "name": "count",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "Cursor for pagination (release version tag, e.g., \"0.1234.0\").\nWhen omitted, returns releases centered around the current deployed version.",
+                        "in": "query",
+                        "name": "cursor",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Direction to paginate from cursor position.\n'before' fetches older releases (published before cursor).\n'after' fetches newer releases (published after cursor).\nDefaults to 'before'.",
+                        "in": "query",
+                        "name": "direction",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["before", "after"]
                         }
                     }
                 ]

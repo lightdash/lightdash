@@ -28,6 +28,7 @@ import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import Projects from './pages/Projects';
 import Register from './pages/Register';
+import Releases from './pages/Releases';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
@@ -119,6 +120,14 @@ const PUBLIC_ROUTES: RouteObject[] = [
         element: (
             <TrackPage name={PageName.JOIN_ORGANIZATION}>
                 <JoinOrganization />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/releases',
+        element: (
+            <TrackPage name={PageName.RELEASES}>
+                <Releases />
             </TrackPage>
         ),
     },
