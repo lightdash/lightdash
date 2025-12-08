@@ -100,7 +100,6 @@ jobs:
   preview:
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
