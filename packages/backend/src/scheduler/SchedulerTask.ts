@@ -3303,16 +3303,17 @@ export default class SchedulerTask {
                 'scheduler_uuid',
                 scheduler.schedulerUuid,
             );
-            const schedulerUrl =
-                scheduler.savedChartUuid || scheduler.dashboardUuid
-                    ? `${
-                          this.lightdashConfig.siteUrl
-                      }/projects/${projectUuid}/${
-                          scheduler.savedChartUuid ? 'saved' : 'dashboards'
-                      }/${
-                          scheduler.savedChartUuid || scheduler.dashboardUuid
-                      }/view?${schedulerUrlParam}`
-                    : this.lightdashConfig.siteUrl;
+
+            const resourceUuid =
+                scheduler.savedChartUuid || scheduler.dashboardUuid;
+            const resourceType = scheduler.savedChartUuid
+                ? 'saved'
+                : 'dashboards';
+
+            let schedulerUrl = this.lightdashConfig.siteUrl;
+            if (resourceUuid && projectUuid) {
+                schedulerUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${resourceType}/${resourceUuid}/view?${schedulerUrlParam}`;
+            }
 
             const failedTargets = batchResult.results
                 .filter((r) => !r.success)
