@@ -42,6 +42,7 @@ import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberP
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 
 type OrganizationServiceArguments = {
@@ -291,8 +292,12 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        const projects = await this.projectModel.getAllByOrganizationUuid(
-            organizationUuid,
+
+        const projects = await wrapSentryTransaction(
+            'OrganizationService.getProjects.getAllByOrganizationUuid',
+            { organizationUuid },
+            async () =>
+                this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
         return projects.filter((project) =>
