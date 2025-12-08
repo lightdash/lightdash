@@ -28,6 +28,7 @@ import {
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SyncSlackChannelsPayload,
     TaskPayloadMap,
     TraceTaskBase,
     UploadMetricGsheetPayload,
@@ -1218,6 +1219,33 @@ export class SchedulerClient {
                 organizationUuid: payload.organizationUuid,
             },
         });
+
+        return jobId;
+    }
+
+    async syncSlackChannelsJob(
+        payload: SyncSlackChannelsPayload,
+    ): Promise<string> {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+
+        // Use job key for deduplication - only one sync per organization at a time
+        const jobKey = `slack-channel-sync:${payload.organizationUuid}`;
+
+        const { id: jobId } = await graphileClient.addJob(
+            SCHEDULER_TASKS.SYNC_SLACK_CHANNELS,
+            payload,
+            {
+                runAt: now,
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+                jobKey, // Deduplication - replaces existing job with same key
+            },
+        );
+
+        Logger.debug(
+            `Scheduled Slack channel sync job for organization ${payload.organizationUuid}`,
+        );
 
         return jobId;
     }

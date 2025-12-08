@@ -7,8 +7,6 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
-    DashboardFilterRule,
-    DashboardParameterValue,
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     DownloadCsvPayload,
@@ -54,6 +52,7 @@ import {
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SyncSlackChannelsPayload,
     ThresholdOperator,
     ThresholdOptions,
     UnexpectedGoogleSheetsError,
@@ -69,9 +68,7 @@ import {
     getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
-    getDashboardFiltersForTile,
     getErrorMessage,
-    getFulfilledValues,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -119,6 +116,7 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { SlackChannelCacheModel } from '../models/SlackChannelCacheModel';
 import { isFeatureFlagEnabled } from '../postHog';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -163,6 +161,7 @@ export type SchedulerTaskArguments = {
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
     featureFlagService: FeatureFlagService;
+    slackChannelCacheModel: SlackChannelCacheModel;
 };
 
 export default class SchedulerTask {
@@ -206,6 +205,8 @@ export default class SchedulerTask {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    protected readonly slackChannelCacheModel: SlackChannelCacheModel;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -227,6 +228,7 @@ export default class SchedulerTask {
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
         this.featureFlagService = args.featureFlagService;
+        this.slackChannelCacheModel = args.slackChannelCacheModel;
     }
 
     private static getCsvOptions(
@@ -3848,5 +3850,86 @@ export default class SchedulerTask {
         }
 
         return batchResult;
+    }
+
+    protected async syncSlackChannels(
+        jobId: string,
+        payload: SyncSlackChannelsPayload,
+    ) {
+        const { organizationUuid } = payload;
+
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.SYNC_SLACK_CHANNELS,
+                jobId,
+                scheduledTime: new Date(),
+                details: {
+                    organizationUuid,
+                },
+            },
+            async () => {
+                const organizationId =
+                    await this.slackChannelCacheModel.getOrganizationId(
+                        organizationUuid,
+                    );
+
+                // Try to acquire sync lock
+                const lockAcquired =
+                    await this.slackChannelCacheModel.startSync(organizationId);
+                if (!lockAcquired) {
+                    Logger.info(
+                        `Slack channel sync already in progress for organization ${organizationUuid}`,
+                    );
+                    return {
+                        status: 'skipped',
+                        reason: 'sync_in_progress',
+                        totalChannels: 0,
+                    };
+                }
+
+                try {
+                    // Fetch all channels from Slack (handles rate limiting and pagination)
+                    const allChannels =
+                        await this.slackClient.fetchAllChannelsForCache(
+                            organizationUuid,
+                        );
+
+                    // Upsert all channels to database
+                    await this.slackChannelCacheModel.upsertChannels(
+                        organizationId,
+                        allChannels,
+                    );
+
+                    // Soft delete channels that are no longer in Slack
+                    const channelIds = allChannels.map((c) => c.channelId);
+                    await this.slackChannelCacheModel.softDeleteChannelsNotInList(
+                        organizationId,
+                        channelIds,
+                    );
+
+                    // Mark sync as complete
+                    await this.slackChannelCacheModel.completeSync(
+                        organizationId,
+                        allChannels.length,
+                    );
+
+                    return {
+                        status: 'completed',
+                        totalChannels: allChannels.length,
+                        reason: '',
+                    };
+                } catch (error) {
+                    const errorMessage = getErrorMessage(error);
+                    Logger.error(
+                        `Slack channel sync failed for organization ${organizationUuid}: ${errorMessage}`,
+                    );
+                    await this.slackChannelCacheModel.failSync(
+                        organizationId,
+                        errorMessage,
+                    );
+                    throw error;
+                }
+            },
+        );
     }
 }
