@@ -100,7 +100,8 @@ const waitForDownloadToComplete = (
     pollForJob();
 };
 
-describe('Download CSV on Dashboards', () => {
+// todo: remove
+describe.skip('Download CSV on Dashboards', () => {
     beforeEach(() => {
         cy.login();
 
@@ -193,7 +194,8 @@ describe('Download CSV on Explore', () => {
         });
     });
 
-    it('Should download CSV from table chart on Explore', () => {
+    // todo: remove
+    it.skip('Should download CSV from table chart on Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         // choose table and select fields

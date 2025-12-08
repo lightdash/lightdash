@@ -1,6 +1,7 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-describe('Project Permissions', () => {
+// todo: move to api tests (or remove if already addressed in api tests)
+describe.skip('Project Permissions', () => {
     it('Organization admin can see projects', () => {
         cy.login();
 

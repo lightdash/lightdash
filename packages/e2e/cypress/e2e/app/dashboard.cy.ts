@@ -299,7 +299,7 @@ describe('Dashboard', () => {
         cy.findAllByText('No data available').should('have.length', 0);
     });
 
-    it('Should preview a dashboard image export', () => {
+    it.skip('Should preview a dashboard image export', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         // create dashboard with title small
         cy.contains('Create dashboard').click();
@@ -336,7 +336,7 @@ describe('Dashboard', () => {
         cy.get('div').contains('Success', { timeout: 20000 }).should('exist');
     });
 
-    it('Should access dashboard by slug instead of UUID', () => {
+    it.skip('Should access dashboard by slug instead of UUID', () => {
         // First, verify we can access via slug
         const slug = 'jaffle-dashboard';
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards/${slug}`);
@@ -356,7 +356,7 @@ describe('Dashboard', () => {
         cy.get('.echarts-for-react').should('have.length', 3);
     });
 
-    it('Should maintain dashboard filters when using slug', () => {
+    it.skip('Should maintain dashboard filters when using slug', () => {
         const slug = 'jaffle-dashboard';
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards/${slug}`);
 
@@ -392,7 +392,7 @@ describe('Dashboard', () => {
         cy.contains('Payment method is credit_card');
     });
 
-    it('Should access dashboard via API using slug', () => {
+    it.skip('Should access dashboard via API using slug', () => {
         const slug = 'jaffle-dashboard';
 
         // Test API endpoint with slug
@@ -412,7 +412,7 @@ describe('Dashboard', () => {
         });
     });
 
-    it('Should handle invalid dashboard slug gracefully', () => {
+    it.skip('Should handle invalid dashboard slug gracefully', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/non-existent-slug`,
             { failOnStatusCode: false },

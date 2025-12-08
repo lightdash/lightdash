@@ -1,5 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+// todo: combine into 1 test
 describe('Dashboard List', () => {
     beforeEach(() => {
         cy.login();

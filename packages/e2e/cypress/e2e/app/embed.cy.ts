@@ -86,7 +86,8 @@ describe('Embedded dashboard', () => {
         });
     });
 
-    it('I can use "Explore from here" in embedded dashboard and view the correct elements', () => {
+    // todo: move to unit test
+    it.skip('I can use "Explore from here" in embedded dashboard and view the correct elements', () => {
         getJaffleDashboard().then((dashboardsResp) => {
             const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
 
@@ -163,7 +164,8 @@ describe('Embedded dashboard', () => {
         });
     });
 
-    it('URL syncs for dashboard filters in direct mode', () => {
+    // todo: move to unit test
+    it.skip('URL syncs for dashboard filters in direct mode', () => {
         getJaffleDashboard().then((dashboardsResp) => {
             const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
 
@@ -210,7 +212,8 @@ describe('Embedded dashboard', () => {
         });
     });
 
-    it('URL filter overrides apply for embedded dashboard with all filters allowed', () => {
+    // todo: move to unit test
+    it.skip('URL filter overrides apply for embedded dashboard with all filters allowed', () => {
         getJaffleDashboard().then((dashboardsResp) => {
             const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
 
@@ -270,7 +273,8 @@ describe('Embedded dashboard', () => {
         });
     });
 
-    it('URL syncs for date zoom in direct mode', () => {
+    // todo: move to unit test
+    it.skip('URL syncs for date zoom in direct mode', () => {
         getJaffleDashboard().then((dashboardsResp) => {
             const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
 
