@@ -176,6 +176,7 @@ export class ClientRepository
                         this.models.getSlackAuthenticationModel(),
                     slackChannelCacheModel:
                         this.models.getSlackChannelCacheModel(),
+                    schedulerClient: this.getSchedulerClient(),
                 }),
         );
     }

@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiSlackChannelResponse,
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
     ApiSlackGetInstallationResponse,
@@ -15,6 +16,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Path,
     Put,
     Query,
     Request,
@@ -70,6 +72,30 @@ export class SlackController extends BaseController {
                         ? includeChannelIds.split(',').filter(Boolean)
                         : undefined,
                 }),
+        };
+    }
+
+    /**
+     * Look up a single Slack channel by ID. Used for on-demand fetching when
+     * user pastes a channel ID not in the cache.
+     * @summary Lookup channel
+     * @param req express request
+     * @param channelId Slack channel ID (e.g., C01234567)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/channels/{channelId}')
+    @OperationId('getSlackChannelById')
+    async getChannelById(
+        @Request() req: express.Request,
+        @Path() channelId: string,
+    ): Promise<ApiSlackChannelResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSlackIntegrationService()
+                .lookupChannelById(req.user!, channelId),
         };
     }
 

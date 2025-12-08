@@ -144,6 +144,22 @@ export class SlackIntegrationService<
         );
     }
 
+    /**
+     * Look up a single channel by ID or name. Used for on-demand fetching when
+     * user types a channel ID or name not in the cache.
+     * - If input looks like a Slack ID (C/G/U/W + alphanumerics), looks up by ID
+     * - Otherwise, searches by name (e.g., "#my-channel" or "my-channel")
+     */
+    async lookupChannelById(
+        user: SessionUser,
+        input: string,
+    ): Promise<SlackChannel | null> {
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
+
+        return this.slackClient.lookupChannelById(organizationUuid, input);
+    }
+
     async updateAppCustomSettings(
         user: SessionUser,
         body: SlackAppCustomSettings,

@@ -128,9 +128,29 @@ export class SlackChannelCacheModel {
         };
     }
 
-    /**
-     * Get sync status from slack_auth_tokens table
-     */
+    async getChannelByName(
+        organizationId: number,
+        channelName: string,
+    ): Promise<SlackChannel | null> {
+        // Normalize the name - ensure it has the # prefix for matching
+        const normalizedName = channelName.startsWith('#')
+            ? channelName
+            : `#${channelName}`;
+
+        const [row] = await this.database(SlackChannelsTableName)
+            .select<DbSlackChannel[]>('channel_id', 'channel_name')
+            .where('organization_id', organizationId)
+            .whereRaw('LOWER(channel_name) = LOWER(?)', [normalizedName])
+            .whereNull('deleted_at');
+
+        if (!row) return null;
+
+        return {
+            id: row.channel_id,
+            name: row.channel_name,
+        };
+    }
+
     async getSyncStatus(
         organizationId: number,
     ): Promise<Pick<
@@ -189,7 +209,8 @@ export class SlackChannelCacheModel {
     async hasAnyChannels(organizationId: number): Promise<boolean> {
         const [row] = await this.database(SlackChannelsTableName)
             .count<{ count: string }[]>('* as count')
-            .where('organization_id', organizationId);
+            .where('organization_id', organizationId)
+            .whereNull('deleted_at'); // Only count non-deleted channels
 
         return parseInt(row?.count ?? '0', 10) > 0;
     }
@@ -282,19 +303,27 @@ export class SlackChannelCacheModel {
 
     /**
      * Start a sync by updating the status in slack_auth_tokens.
-     * Note: Concurrency is handled by Graphile's jobKey deduplication,
-     * so this just updates status for monitoring/UI purposes.
      */
-    async startSync(organizationId: number): Promise<void> {
+    async startSync(organizationId: number): Promise<boolean> {
         const now = new Date();
 
-        await this.database(SlackAuthTokensTableName)
+        const affectedRows = await this.database(SlackAuthTokensTableName)
             .update({
                 channels_sync_status: SchedulerJobStatus.STARTED,
                 channels_sync_started_at: now,
                 channels_sync_error: null,
             })
-            .where('organization_id', organizationId);
+            .where('organization_id', organizationId)
+            .andWhere((builder) => {
+                void builder
+                    .whereNull('channels_sync_status')
+                    .orWhereNot(
+                        'channels_sync_status',
+                        SchedulerJobStatus.STARTED,
+                    );
+            });
+
+        return affectedRows > 0;
     }
 
     async completeSync(
