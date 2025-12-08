@@ -195,7 +195,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        containers: [1, 2, 3]
+        containers: [ 1, 2, 3, 4, 5 ]
     name: "E2E: API (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
