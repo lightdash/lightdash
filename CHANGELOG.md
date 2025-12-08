@@ -1,3 +1,10 @@
+## [0.2234.3](https://github.com/lightdash/lightdash/compare/0.2234.2...0.2234.3) (2025-12-08)
+
+
+### Bug Fixes
+
+* tooltip shows incorrect date when using datezoom (timezone related) ([#18664](https://github.com/lightdash/lightdash/issues/18664)) ([f92cd97](https://github.com/lightdash/lightdash/commit/f92cd973aef84a5dbc961ced4a683eac7c790c42))
+
 ## [0.2234.2](https://github.com/lightdash/lightdash/compare/0.2234.1...0.2234.2) (2025-12-08)
 
 
