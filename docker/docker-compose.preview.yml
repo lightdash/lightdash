@@ -107,14 +107,15 @@ services:
             - headless-browser
             - lightdash-setup
         deploy:
-          replicas: 3
+            mode: replicated
+            replicas: 3
             resources:
                 limits:
-                  cpus: '2.0'
-                  memory: 1G
+                    cpus: '2.0'
+                    memory: 1G
                 reservations:
-                  cpus: '2.0'
-                  memory: 1G
+                    cpus: '2.0'
+                    memory: 1G
         healthcheck:
             interval: 10s
             timeout: 5s
