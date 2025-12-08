@@ -1,3 +1,10 @@
+## [0.2233.1](https://github.com/lightdash/lightdash/compare/0.2233.0...0.2233.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* light grey axis labels on 100% stacked bar charts ([#18552](https://github.com/lightdash/lightdash/issues/18552)) ([017c71f](https://github.com/lightdash/lightdash/commit/017c71f762621cfb8b808699549952c9c35aa2f0))
+
 # [0.2233.0](https://github.com/lightdash/lightdash/compare/0.2232.0...0.2233.0) (2025-12-05)
 
 
