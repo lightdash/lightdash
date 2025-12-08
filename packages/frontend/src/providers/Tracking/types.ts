@@ -448,6 +448,16 @@ type AiAgentChartExploredEvent = {
     };
 };
 
+type ThemeToggledEvent = {
+    name: EventName.THEME_TOGGLED;
+    properties: {
+        to: string;
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -485,7 +495,8 @@ export type EventData =
     | SpaceBreadcrumbClickedEvent
     | AiAgentChartHowItsCalculatedClickedEvent
     | AiAgentChartCreatedEvent
-    | AiAgentChartExploredEvent;
+    | AiAgentChartExploredEvent
+    | ThemeToggledEvent;
 
 export type IdentifyData = {
     id: string;
