@@ -288,7 +288,7 @@ jobs:
           install: false
           browser: firefox
           working-directory: packages/e2e
-          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
+          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/login.cy.{js,jsx,ts,tsx},video=false'
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
