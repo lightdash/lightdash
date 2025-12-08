@@ -55,6 +55,8 @@ jobs:
   build-and-push-pr-image:
     name: Build & Push PR Image
     runs-on: depot-ubuntu-24.04-4
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,11 +71,13 @@ jobs:
       # Build and push PR image
       # ========================================
       - name: Build and push PR image
+        id: build
         uses: depot/build-push-action@v1
         with:
           project: bgbbt3d0kc # depot project id
           token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
           file: dockerfile-prs
+          target: pr-runner
           push: true
           save: true
           platforms: linux/amd64
@@ -133,7 +137,7 @@ jobs:
           name: pr-${{ github.event.number }}
           timeout: 15m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,LIGHTDASH_IMAGE=registry.depot.dev/bgbbt3d0kc:pr-${{ github.event.number }}
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,LIGHTDASH_IMAGE=registry.depot.dev/bgbbt3d0kc@${{ needs.build-and-push-pr-image.outputs.digest }}
 
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
