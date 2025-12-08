@@ -47,7 +47,7 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space';
+export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**
@@ -61,7 +61,8 @@ export type ScopeName =
  */
 export type Scope = {
     /**
-     * The name of the scope, based on ability and subject (e.g. "create:Project")
+     * The name of the scope, based on ability, subject, and maybe modifier
+     * e.g. "create:Project" or "create:Project@preview"
      */
     name: ScopeName;
     /**
