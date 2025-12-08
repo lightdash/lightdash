@@ -1,3 +1,10 @@
+## [0.2234.1](https://github.com/lightdash/lightdash/compare/0.2234.0...0.2234.1) (2025-12-08)
+
+
+### Performance Improvements
+
+* wrap getAllByOrganizationUuid calls with Sentry transactions ([#18652](https://github.com/lightdash/lightdash/issues/18652)) ([83acbda](https://github.com/lightdash/lightdash/commit/83acbda277958ea20c4735273c40b3ba6fe20045))
+
 # [0.2234.0](https://github.com/lightdash/lightdash/compare/0.2233.2...0.2234.0) (2025-12-08)
 
 
