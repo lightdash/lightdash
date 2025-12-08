@@ -265,7 +265,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        containers: [1, 2, 3]
+        containers: [ 1 ]
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
       NODE_OPTIONS: '--max-old-space-size=8192'
@@ -291,8 +291,6 @@ jobs:
           working-directory: packages/e2e
           config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
         env:
-          SPLIT: ${{ strategy.job-total }}
-          SPLIT_INDEX: ${{ strategy.job-index }}
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
           CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
