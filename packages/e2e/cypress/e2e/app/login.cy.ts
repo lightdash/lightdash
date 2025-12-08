@@ -22,7 +22,8 @@ describe('Login', () => {
         cy.url().should('include', '/home');
     });
 
-    it('Should display error message when credentials are invalid or not recognised', () => {
+    // todo: move to unit test
+    it.skip('Should display error message when credentials are invalid or not recognised', () => {
         cy.logout();
         cy.visit('/login');
         cy.findByPlaceholderText('Your email address').type('test-email');

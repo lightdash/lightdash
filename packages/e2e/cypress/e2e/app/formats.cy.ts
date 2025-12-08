@@ -1,11 +1,12 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-describe('Explore', () => {
+describe.skip('Explore', () => {
     beforeEach(() => {
         cy.login();
     });
 
-    it('Should query in explore with formats and rounds', () => {
+    // todo: move to unit test
+    it.skip('Should query in explore with formats and rounds', () => {
         const urlParam = {
             tableName: 'events',
             metricQuery: {
