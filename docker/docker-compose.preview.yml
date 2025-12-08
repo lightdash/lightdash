@@ -34,10 +34,10 @@ services:
         deploy:
             resources:
                 limits:
-                  cpus: '3.0'
+                  cpus: '2.0'
                   memory: 1G
                 reservations:
-                  cpus: '3.0'
+                  cpus: '2.0'
                   memory: 1G
         healthcheck:
             interval: 10s
