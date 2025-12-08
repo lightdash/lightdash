@@ -14,6 +14,8 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectResponse,
     ApiSpaceSummaryListResponse,
+    ApiSqlChartAsCodeListResponse,
+    ApiSqlChartAsCodeUpsertResponse,
     ApiSqlQueryResults,
     ApiSuccessEmpty,
     CalculateTotalFromQuery,
@@ -25,6 +27,7 @@ import {
     LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
+    SqlChartAsCode,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -941,6 +944,66 @@ export class ProjectController extends BaseController {
                 },
                 chart.skipSpaceCreate,
                 chart.publicSpaceCreate,
+            ),
+        };
+    }
+
+    /**
+     * Gets SQL charts in code representation
+     * @summary Get SQL charts as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/sqlCharts/code')
+    @OperationId('getSqlChartsAsCode')
+    async getSqlChartsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiSqlChartAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getSqlCharts(req.user!, projectUuid, ids, offset),
+        };
+    }
+
+    /**
+     * Upserts an SQL chart from code representation
+     * @summary Upsert SQL chart as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/sqlCharts/{slug}/code')
+    @OperationId('upsertSqlChartAsCode')
+    async upsertSqlChartAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        sqlChart: Omit<SqlChartAsCode, 'config' | 'description'> & {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+            config: AnyType;
+            description?: string | null;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChartAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services.getCoderService().upsertSqlChart(
+                req.user!,
+                projectUuid,
+                slug,
+                {
+                    ...sqlChart,
+                    description: sqlChart.description ?? null,
+                },
+                sqlChart.skipSpaceCreate,
+                sqlChart.publicSpaceCreate,
             ),
         };
     }
