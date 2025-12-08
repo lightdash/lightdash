@@ -243,6 +243,9 @@ const ValidDashboardChartTile: FC<{
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
 
     const { health } = useApp();
     const { data: org } = useOrganization();
@@ -329,6 +332,7 @@ const ValidDashboardChartTile: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
                 ref={measureRef}
@@ -366,6 +370,9 @@ const ValidDashboardChartTileMinimal: FC<{
     const { colorScheme } = useMantineColorScheme();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
 
     const {
         ref: measureRef,
@@ -444,6 +451,7 @@ const ValidDashboardChartTileMinimal: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
                 ref={measureRef}
