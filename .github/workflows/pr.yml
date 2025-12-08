@@ -57,8 +57,8 @@ jobs:
   files-changed:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
     outputs:
+      preview: ${{ steps.changes.outputs.preview == 'true' || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
       frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
       backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
@@ -76,6 +76,8 @@ jobs:
   preview:
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
+    needs: files-changed
+    if: needs.files-changed.outputs.preview == 'true'
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
@@ -159,10 +161,11 @@ jobs:
   # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
 
-  # Build cypress e2e image (runs in parallel with preview deployment)
+  # Build cypress e2e image (only when E2E tests that use it will run)
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
-    needs: build-and-test
+    needs: files-changed
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.perf == 'true' || needs.files-changed.outputs.timezone == 'true'
     name: Build E2E Image
     steps:
       - name: Checkout
