@@ -25,6 +25,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 
 type RolesServiceArguments = {
@@ -99,8 +100,11 @@ export class RolesService extends BaseService {
         }
 
         // get all projects in organization
-        const projects = await this.projectModel.getAllByOrganizationUuid(
-            organizationUuid,
+        const projects = await wrapSentryTransaction(
+            'RolesService.validateRolesViewAccess.getAllByOrganizationUuid',
+            { organizationUuid },
+            async () =>
+                this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
         const canManageSomeProjects = projects.some((project) =>
