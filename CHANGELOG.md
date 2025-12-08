@@ -1,3 +1,10 @@
+## [0.2233.2](https://github.com/lightdash/lightdash/compare/0.2233.1...0.2233.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* attach claude code agent on vite.config ([#18625](https://github.com/lightdash/lightdash/issues/18625)) ([5596cb8](https://github.com/lightdash/lightdash/commit/5596cb8ce4549b676100906a2bcd37bef6047684))
+
 ## [0.2233.1](https://github.com/lightdash/lightdash/compare/0.2233.0...0.2233.1) (2025-12-08)
 
 
