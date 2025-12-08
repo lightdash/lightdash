@@ -59,11 +59,11 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: build-and-test
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
-      timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
-      perf: ${{ steps.changes.outputs.perf == 'true' || steps.overrides.outputs.perf == 'true' }}
-      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      perf: ${{ steps.changes.outputs.perf == 'true' || contains(github.event.pull_request.body, 'test-perf') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for files changes
@@ -72,30 +72,6 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
-      - name: Check for keyword overrides
-        id: overrides
-        run: |
-          echo "PR #${{ github.event.pull_request.number }}"
-          TEST_ALL="${{ contains(github.event.pull_request.body, 'test-all') }}"
-          echo "Test all override: $TEST_ALL"
-          echo "Frontend override: ${{ contains(github.event.pull_request.body, 'test-frontend') }}"
-          echo "Backend override: ${{ contains(github.event.pull_request.body, 'test-backend') }}"
-          echo "Timezone override: ${{ contains(github.event.pull_request.body, 'test-timezone') }}"
-          echo "Perf override: ${{ contains(github.event.pull_request.body, 'test-perf') }}"
-          echo "CLI override: ${{ contains(github.event.pull_request.body, 'test-cli') }}"
-          if [ "$TEST_ALL" = "true" ]; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-            echo "backend=true" >> "$GITHUB_OUTPUT"
-            echo "timezone=true" >> "$GITHUB_OUTPUT"
-            echo "perf=true" >> "$GITHUB_OUTPUT"
-            echo "cli=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "frontend=${{ contains(github.event.pull_request.body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
-            echo "backend=${{ contains(github.event.pull_request.body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
-            echo "timezone=${{ contains(github.event.pull_request.body, 'test-timezone') }}" >> "$GITHUB_OUTPUT"
-            echo "perf=${{ contains(github.event.pull_request.body, 'test-perf') }}" >> "$GITHUB_OUTPUT"
-            echo "cli=${{ contains(github.event.pull_request.body, 'test-cli') }}" >> "$GITHUB_OUTPUT"
-          fi
 
   preview:
     name: Deploy Preview
