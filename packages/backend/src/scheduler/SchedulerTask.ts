@@ -3281,6 +3281,61 @@ export default class SchedulerTask {
     // ==================== Batch Notification Methods ====================
     // These methods handle multiple targets of the same type in a single job,
     // providing aggregated result reporting for better failure notification handling.
+    private async sendDeliveryFailureNotification(
+        scheduler: SchedulerAndTargets,
+        batchResult: BatchDeliveryResult,
+        projectUuid: string | undefined,
+    ): Promise<void> {
+        if (batchResult.failed === 0) return; // No failures, nothing to send
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+            if (!user.email) {
+                Logger.warn(
+                    `Cannot send failure notification - scheduler creator has no email`,
+                );
+                return;
+            }
+
+            const schedulerUrlParam = setUuidParam(
+                'scheduler_uuid',
+                scheduler.schedulerUuid,
+            );
+            const schedulerUrl =
+                scheduler.savedChartUuid || scheduler.dashboardUuid
+                    ? `${
+                          this.lightdashConfig.siteUrl
+                      }/projects/${projectUuid}/${
+                          scheduler.savedChartUuid ? 'saved' : 'dashboards'
+                      }/${
+                          scheduler.savedChartUuid || scheduler.dashboardUuid
+                      }/view?${schedulerUrlParam}`
+                    : this.lightdashConfig.siteUrl;
+
+            const failedTargets = batchResult.results
+                .filter((r) => !r.success)
+                .map((r) => ({ target: r.target, error: r.error }));
+
+            await this.emailClient.sendScheduledDeliveryTargetFailureEmail(
+                user.email,
+                scheduler.name,
+                schedulerUrl,
+                batchResult.type,
+                failedTargets,
+                batchResult.total,
+            );
+
+            Logger.info(
+                `Sent delivery failure notification for scheduler ${scheduler.schedulerUuid} to ${user.email}`,
+            );
+        } catch (emailError) {
+            Logger.error(
+                `Failed to send delivery failure notification: ${emailError}`,
+            );
+        }
+    }
 
     protected async sendSlackBatchNotification(
         jobId: string,
@@ -3428,6 +3483,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All Slack deliveries failed: ${results
                     .map((r) => r.error)
@@ -3466,6 +3526,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
@@ -3617,6 +3682,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All email deliveries failed: ${results
                     .map((r) => r.error)
@@ -3655,6 +3725,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
@@ -3807,6 +3882,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All MS Teams deliveries failed: ${results
                     .map((r) => r.error)
@@ -3845,6 +3925,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
