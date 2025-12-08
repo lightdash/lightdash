@@ -1,3 +1,10 @@
+## [0.2234.2](https://github.com/lightdash/lightdash/compare/0.2234.1...0.2234.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* auto-scroll when reasoning parts change in AI chat ([#18673](https://github.com/lightdash/lightdash/issues/18673)) ([8f124e4](https://github.com/lightdash/lightdash/commit/8f124e46bd201d4b6d56a185f5112bcc9b4b6ba9))
+
 ## [0.2234.1](https://github.com/lightdash/lightdash/compare/0.2234.0...0.2234.1) (2025-12-08)
 
 
