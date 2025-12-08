@@ -71,7 +71,6 @@ const ThreadScrollToBottom = ({
     const totalReasoningPartsCount = streamingState?.reasoning?.flatMap(
         (r) => r.parts,
     ).length;
-    console.log('totalReasoningPartsCount', totalReasoningPartsCount);
 
     useLayoutEffect(() => {
         return scrollToBottom({
