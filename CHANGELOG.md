@@ -1,3 +1,16 @@
+# [0.2236.0](https://github.com/lightdash/lightdash/compare/0.2235.0...0.2236.0) (2025-12-09)
+
+
+### Bug Fixes
+
+* handle API call errors during agent response streaming ([#18701](https://github.com/lightdash/lightdash/issues/18701)) ([2a74820](https://github.com/lightdash/lightdash/commit/2a74820e33cd91a86e9e1c44a3b657bf9f2ed1ed))
+* headway styles for dark mode ([#18702](https://github.com/lightdash/lightdash/issues/18702)) ([3714866](https://github.com/lightdash/lightdash/commit/3714866605e4b851a56b7cd240b73d298072375e))
+
+
+### Features
+
+* add AI embedding and provider configuration environment variables to docker compose ([#18700](https://github.com/lightdash/lightdash/issues/18700)) ([bb544a1](https://github.com/lightdash/lightdash/commit/bb544a14b662157504d3fe8b5e397c01f52446a2))
+
 # [0.2235.0](https://github.com/lightdash/lightdash/compare/0.2234.3...0.2235.0) (2025-12-09)
 
 
