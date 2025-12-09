@@ -1824,7 +1824,10 @@ const getEchartAxes = ({
 };
 
 const getValidStack = (series: EChartsSeries | undefined) => {
-    return series && (series.type === 'bar' || !!series.areaStyle)
+    return series &&
+        (series.type === CartesianSeriesType.BAR ||
+            series.type === CartesianSeriesType.AREA ||
+            !!series.areaStyle)
         ? series.stack
         : undefined;
 };
