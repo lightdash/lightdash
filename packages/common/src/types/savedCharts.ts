@@ -1,5 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
+import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
@@ -863,6 +864,7 @@ export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
     columnOrder: string[];
     pivotDimensions?: string[];
     parameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
 };
 
 export type ApiCalculateSubtotalsResponse = {

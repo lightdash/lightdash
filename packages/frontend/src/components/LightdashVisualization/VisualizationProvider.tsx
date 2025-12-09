@@ -6,6 +6,7 @@ import {
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
+    type DateZoom,
     type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
@@ -84,6 +85,7 @@ export type VisualizationProviderProps = {
     containerWidth?: number;
     containerHeight?: number;
     isDashboard?: boolean;
+    dateZoom?: DateZoom;
 };
 
 const VisualizationProvider: FC<
@@ -114,6 +116,7 @@ const VisualizationProvider: FC<
     containerWidth,
     containerHeight,
     isDashboard,
+    dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -498,6 +501,7 @@ const VisualizationProvider: FC<
                     dashboardFilters={dashboardFilters}
                     invalidateCache={invalidateCache}
                     parameters={parameters}
+                    dateZoom={dateZoom}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

@@ -13,6 +13,7 @@ import {
     DashboardDAO,
     DashboardFilters,
     DateGranularity,
+    DateZoom,
     DecodedEmbed,
     Embed,
     EmbedContent,
@@ -1349,6 +1350,7 @@ export class EmbedService extends BaseService {
         columnOrder?: string[],
         pivotDimensions?: string[],
         invalidateCache?: boolean,
+        dateZoom?: DateZoom,
     ) {
         const { dashboardUuid, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
@@ -1393,6 +1395,7 @@ export class EmbedService extends BaseService {
             chart.uuid,
             dashboardUuid,
             combinedParameters,
+            dateZoom,
         );
     }
 
@@ -1407,6 +1410,7 @@ export class EmbedService extends BaseService {
         chartUuid?: string,
         dashboardUuid?: string,
         combinedParameters?: ParametersValuesMap,
+        dateZoom?: DateZoom,
     ) {
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -1460,6 +1464,7 @@ export class EmbedService extends BaseService {
                     },
                     account,
                     combinedParameters,
+                    dateZoomGranularity: dateZoom?.granularity,
                 });
 
                 // Format raw rows (this matches the logic in ProjectService)

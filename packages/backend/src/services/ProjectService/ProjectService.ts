@@ -5929,6 +5929,7 @@ export class ProjectService extends BaseService {
             metricQuery,
             columnOrder,
             pivotDimensions,
+            dateZoom,
         } = data;
 
         // Use the shared utility to prepare dimension groups
@@ -5973,6 +5974,7 @@ export class ProjectService extends BaseService {
                 csvLimit: null,
                 chartUuid: undefined,
                 parameters,
+                dateZoom,
             });
 
             return formatRawRows(rows, fields);

@@ -3,6 +3,7 @@ import {
     type ApiError,
     type CalculateSubtotalsFromQuery,
     type DashboardFilters,
+    type DateZoom,
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ const calculateSubtotalsFromQuery = async (
     columnOrder: string[],
     pivotDimensions?: string[],
     parameters?: ParametersValuesMap,
+    dateZoom?: DateZoom,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
@@ -31,6 +33,7 @@ const calculateSubtotalsFromQuery = async (
         columnOrder,
         pivotDimensions,
         parameters,
+        dateZoom,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -47,6 +50,7 @@ const postCalculateSubtotalsForEmbed = async (
     pivotDimensions?: string[],
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
+    dateZoom?: DateZoom,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -62,6 +66,7 @@ const postCalculateSubtotalsForEmbed = async (
             columnOrder,
             pivotDimensions,
             invalidateCache,
+            dateZoom,
         }),
     });
 };
@@ -77,6 +82,7 @@ export const useCalculateSubtotals = ({
     invalidateCache,
     embedToken,
     parameters,
+    dateZoom,
 }: {
     metricQuery?: MetricQuery;
     explore?: string;
@@ -88,6 +94,7 @@ export const useCalculateSubtotals = ({
     invalidateCache?: boolean;
     embedToken?: string;
     parameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
 }) => {
     const projectUuid = useProjectUuid();
 
@@ -104,6 +111,7 @@ export const useCalculateSubtotals = ({
             invalidateCache,
             embedToken,
             parameters,
+            dateZoom,
         ],
         () =>
             embedToken && projectUuid && savedChartUuid && columnOrder
@@ -115,6 +123,7 @@ export const useCalculateSubtotals = ({
                       pivotDimensions,
                       dashboardFilters,
                       invalidateCache,
+                      dateZoom,
                   )
                 : projectUuid && metricQuery && explore && columnOrder
                 ? calculateSubtotalsFromQuery(
@@ -124,6 +133,7 @@ export const useCalculateSubtotals = ({
                       columnOrder,
                       pivotDimensions,
                       parameters,
+                      dateZoom,
                   )
                 : Promise.reject(),
         {
