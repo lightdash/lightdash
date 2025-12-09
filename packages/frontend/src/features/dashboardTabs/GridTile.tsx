@@ -6,11 +6,11 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { memo, type FC } from 'react';
-import ChartTile from '../DashboardTiles/DashboardChartTile';
-import LoomTile from '../DashboardTiles/DashboardLoomTile';
-import MarkdownTile from '../DashboardTiles/DashboardMarkdownTile';
-import SqlChartTile from '../DashboardTiles/DashboardSqlChartTile';
-import TileBase from '../DashboardTiles/TileBase';
+import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
+import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
+import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
+import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
+import TileBase from '../../components/DashboardTiles/TileBase';
 
 const GridTile: FC<
     Pick<

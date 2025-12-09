@@ -8,8 +8,8 @@ import { Menu, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     filters: FilterDashboardToRule[];

@@ -20,9 +20,9 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
-import MantineIcon from '../common/MantineIcon';
 
 type AddProps = ModalProps & {
     tab: DashboardTab;
