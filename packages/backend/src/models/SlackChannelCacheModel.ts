@@ -59,12 +59,10 @@ export class SlackChannelCacheModel {
         const limit = filter.limit ?? CHANNELS_LIMIT;
 
         let query = this.database(SlackChannelsTableName)
-            .select([
-                {
-                    id: 'channel_id',
-                    name: 'channel_name',
-                },
-            ])
+            .select({
+                id: 'channel_id',
+                name: 'channel_name',
+            })
             .where('organization_id', organizationId)
             .whereNull('deleted_at'); // Exclude soft-deleted channels
 
@@ -98,12 +96,10 @@ export class SlackChannelCacheModel {
 
             if (missingIds.length > 0) {
                 const includedRows = await this.database(SlackChannelsTableName)
-                    .select([
-                        {
-                            id: 'channel_id',
-                            name: 'channel_name',
-                        },
-                    ])
+                    .select({
+                        id: 'channel_id',
+                        name: 'channel_name',
+                    })
                     .where('organization_id', organizationId)
                     .whereIn('channel_id', missingIds);
 
@@ -233,6 +229,9 @@ export class SlackChannelCacheModel {
                     channel_name: this.database.raw(
                         'CASE WHEN EXCLUDED.channel_name != slack_channels.channel_name THEN EXCLUDED.channel_name ELSE slack_channels.channel_name END',
                     ),
+                    channel_type: this.database.raw(
+                        'CASE WHEN EXCLUDED.channel_type != slack_channels.channel_type THEN EXCLUDED.channel_type ELSE slack_channels.channel_type END',
+                    ),
                     is_archived: this.database.raw(
                         'CASE WHEN EXCLUDED.is_archived != slack_channels.is_archived THEN EXCLUDED.is_archived ELSE slack_channels.is_archived END',
                     ),
@@ -240,6 +239,7 @@ export class SlackChannelCacheModel {
                     // Only bump updated_at if something actually changed
                     updated_at: this.database.raw(
                         `CASE WHEN EXCLUDED.channel_name != slack_channels.channel_name
+                            OR EXCLUDED.channel_type != slack_channels.channel_type
                             OR EXCLUDED.is_archived != slack_channels.is_archived
                             OR slack_channels.deleted_at IS NOT NULL
                          THEN ? ELSE slack_channels.updated_at END`,
