@@ -1,3 +1,10 @@
+## [0.2236.2](https://github.com/lightdash/lightdash/compare/0.2236.1...0.2236.2) (2025-12-09)
+
+
+### Bug Fixes
+
+* get right aggregate on date zoom + subttotals ([#18654](https://github.com/lightdash/lightdash/issues/18654)) ([4ab85d8](https://github.com/lightdash/lightdash/commit/4ab85d81f03c8af833929a3cb49c3cb77b177303))
+
 ## [0.2236.1](https://github.com/lightdash/lightdash/compare/0.2236.0...0.2236.1) (2025-12-09)
 
 
