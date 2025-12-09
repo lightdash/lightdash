@@ -688,14 +688,14 @@ export class CartesianChartDataModel {
                         : undefined;
 
                 // Determine if symbols should be shown for line/area charts
-                const isLineOrArea = seriesType === CartesianSeriesType.LINE;
+                const isLineOrArea = seriesType === CartesianSeriesType.LINE || seriesType === CartesianSeriesType.AREA;
                 const showSymbol = isLineOrArea && dataToRender.length <= 100;
 
                 return {
                     dimensions: [xAxisReference, seriesColumnId],
                     type: seriesType ?? defaultSeriesType,
                     stack:
-                        shouldStack && seriesType === 'bar'
+                        shouldStack && (seriesType === 'bar' || seriesType === 'area')
                             ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
                             : undefined,
                     name:
@@ -721,6 +721,8 @@ export class CartesianChartDataModel {
                               symbolSize: showSymbol ? 4 : 0,
                           }
                         : {}),
+                    // Add area style for area charts
+                    ...(seriesType === CartesianSeriesType.AREA ? { areaStyle: {} } : {}),
                     tooltip: {
                         valueFormatter: seriesFormat
                             ? CartesianChartDataModel.getTooltipFormatter(
@@ -1004,7 +1006,7 @@ export type CartesianChartDisplay = {
             // the series index in the yAxis array.
             yAxisIndex?: number;
             color?: string;
-            type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR;
+            type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR | CartesianSeriesType.AREA;
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
             // whichAxis maps to the yAxis index in Echarts.
