@@ -1,3 +1,10 @@
+## [0.2236.1](https://github.com/lightdash/lightdash/compare/0.2236.0...0.2236.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* show dashboard scheduled deliveries partial failures in scheduler logs ([#18682](https://github.com/lightdash/lightdash/issues/18682)) ([6846ef3](https://github.com/lightdash/lightdash/commit/6846ef359756f6d088166064cd19439f3abb4ba5))
+
 # [0.2236.0](https://github.com/lightdash/lightdash/compare/0.2235.0...0.2236.0) (2025-12-09)
 
 
