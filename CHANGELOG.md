@@ -1,3 +1,10 @@
+# [0.2235.0](https://github.com/lightdash/lightdash/compare/0.2234.3...0.2235.0) (2025-12-09)
+
+
+### Features
+
+* add SQL charts as code API endpoints ([#18643](https://github.com/lightdash/lightdash/issues/18643)) ([dfdb26f](https://github.com/lightdash/lightdash/commit/dfdb26fdba349483444bd3df87435773d9807ae0))
+
 ## [0.2234.3](https://github.com/lightdash/lightdash/compare/0.2234.2...0.2234.3) (2025-12-08)
 
 
