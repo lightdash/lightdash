@@ -62,7 +62,6 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
       backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      perf: ${{ steps.changes.outputs.perf == 'true' || contains(github.event.pull_request.body, 'test-perf') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
       - uses: actions/checkout@v4
@@ -165,7 +164,7 @@ jobs:
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
     needs: files-changed
-    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.perf == 'true' || needs.files-changed.outputs.timezone == 'true'
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
     name: Build E2E Image
     steps:
       - name: Checkout
@@ -300,60 +299,6 @@ jobs:
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
-          if-no-files-found: ignore
-
-  perf-tests:
-    if: needs.files-changed.outputs.perf == 'true'
-    timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
-    container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
-    name: "E2E: Performance"
-    env:
-      NODE_OPTIONS: '--max-old-space-size=8192'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
-      - name: Build packages/common module
-        run: pnpm common-build
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@v1.2.2
-        with:
-          name: 'credentials.json'
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: './packages/e2e/cypress/fixtures/'
-      - name: Run Cypress Performance Tests
-        uses: cypress-io/github-action@v6
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          config: 'baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/perf/**/*.cy.{js,jsx,ts,tsx},video=false'
-        env:
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
-          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
-          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
-          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
-          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
-          TZ: 'UTC'
-          CYPRESS_TZ: 'UTC'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: cypress-performance-artifacts
-          path: packages/e2e/cypress/artifacts
           if-no-files-found: ignore
 
   timezone-tests:
