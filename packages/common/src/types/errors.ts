@@ -643,3 +643,20 @@ export class CorruptedExploreError extends LightdashError {
         });
     }
 }
+
+export class ChangesetConflictError extends LightdashError {
+    constructor(
+        message: string,
+        data: {
+            entityName: string;
+            entityTableName: string;
+        },
+    ) {
+        super({
+            message,
+            name: 'ChangesetConflictError',
+            statusCode: 409,
+            data,
+        });
+    }
+}
