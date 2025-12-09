@@ -649,13 +649,28 @@ export const getTableCalculationsFromItemsMap = (itemsMap?: ItemsMap) =>
 export function itemsInMetricQuery(
     metricQuery: MetricQuery | undefined,
 ): string[] {
-    return metricQuery === undefined
-        ? []
-        : [
-              ...metricQuery.metrics,
-              ...metricQuery.dimensions,
-              ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
-          ];
+    if (metricQuery === undefined) {
+        return [];
+    }
+
+    const baseItems = [
+        ...metricQuery.metrics,
+        ...metricQuery.dimensions,
+        ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+    ];
+
+    // Add period-over-period columns if enabled
+    if (metricQuery.periodOverPeriod) {
+        const isRolling = metricQuery.periodOverPeriod.type === 'rollingPeriod';
+        const suffix = isRolling ? '_rolling' : '_previous';
+
+        const popColumns = metricQuery.metrics.map(
+            (metricId) => `${metricId}${suffix}`,
+        );
+        return [...baseItems, ...popColumns];
+    }
+
+    return baseItems;
 }
 
 export function formatRawValue(

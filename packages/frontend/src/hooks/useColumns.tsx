@@ -566,14 +566,20 @@ export const useColumns = (): TableColumn[] => {
             // Add main column
             const result = [...acc, column];
 
-            // If this field has a corresponding _previous PoP column, add it right after
+            // If this field has a corresponding _previous or _rolling PoP column, add it right after
             const popField = popPreviousFields.get(fieldId);
             if (popField) {
                 const { fieldId: popFieldId, item: popItem } = popField;
 
-                // Use the base item's label with "(previous period)" suffix
+                // Use the base item's label with appropriate suffix based on period type
                 const baseLabel = isField(popItem) ? popItem.label : popFieldId;
-                const popLabel = `${baseLabel} (previous period)`;
+                const isRolling = periodOverPeriod?.type === 'rollingPeriod';
+                const periodSuffix = isRolling
+                    ? `${periodOverPeriod?.windowSize ?? ''}-${
+                          periodOverPeriod?.granularity?.toLowerCase() ?? ''
+                      } rolling average`
+                    : 'previous period';
+                const popLabel = `${baseLabel} (${periodSuffix})`;
 
                 const popColumn: TableColumn = columnHelper.accessor(
                     (row) => row[popFieldId],
@@ -672,6 +678,7 @@ export const useColumns = (): TableColumn[] => {
         exploreData,
         parameters,
         popPreviousFields,
+        periodOverPeriod,
         theme,
     ]);
 };

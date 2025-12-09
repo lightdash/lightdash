@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     getBaseFieldIdFromPop,
+    isRollingPeriod,
     type EChartsSeries,
     type PeriodOverPeriodComparison,
     type ResultColumns,
@@ -24,6 +25,7 @@ const computePopColor = (color: string): string => {
 /**
  * Builds a map of base field ID -> PoP field ID using popMetadata from ResultColumns.
  * This uses the explicit API metadata rather than relying on naming conventions.
+ * Handles both previous period and rolling period fields.
  */
 const buildPopFieldsMap = (
     resultsColumns: ResultColumns | undefined,
@@ -33,6 +35,7 @@ const buildPopFieldsMap = (
     if (!resultsColumns) return popFieldsByBase;
 
     for (const [fieldId, column] of Object.entries(resultsColumns)) {
+        // Check for both previous period and rolling period metadata
         if (column.popMetadata) {
             popFieldsByBase.set(column.popMetadata.baseFieldId, fieldId);
         }
@@ -42,16 +45,26 @@ const buildPopFieldsMap = (
 };
 
 /**
- * Builds a human-readable period label based on granularity and offset
- * e.g., "Previous month" or "2 months ago"
+ * Builds a human-readable period label based on comparison type
+ * For previous period: "Previous month" or "2 months ago"
+ * For rolling period: "7-day rolling average"
  */
 const buildPeriodLabel = (
-    periodOffset: number,
-    granularity: string,
+    periodOverPeriod: PeriodOverPeriodComparison | undefined,
 ): string => {
+    if (!periodOverPeriod) return 'Previous period';
+
+    if (isRollingPeriod(periodOverPeriod)) {
+        const granularity = periodOverPeriod.granularity.toLowerCase();
+        return `${periodOverPeriod.windowSize}-${granularity} rolling average`;
+    }
+
+    // Previous period
+    const periodOffset = periodOverPeriod.periodOffset ?? 1;
+    const granularity = periodOverPeriod.granularity.toLowerCase();
     return periodOffset === 1
-        ? `Previous ${granularity.toLowerCase()}`
-        : `${periodOffset} ${granularity.toLowerCase()}s ago`;
+        ? `Previous ${granularity}`
+        : `${periodOffset} ${granularity}s ago`;
 };
 
 // ============================================================================
@@ -66,6 +79,7 @@ type CreatePopSeriesArgs = {
     periodOffset: number;
     granularity: string;
     yField: string;
+    isRolling?: boolean;
 };
 
 /**
@@ -80,6 +94,7 @@ const createPopSeries = ({
     periodOffset,
     granularity,
     yField,
+    isRolling = false,
 }: CreatePopSeriesArgs): EChartsSeries => {
     const metricDisplayName =
         baseSerie.dimensions?.[1]?.displayName || baseSerie.name || yField;
@@ -114,11 +129,12 @@ const createPopSeries = ({
             barGap: '0%',
         }),
         // Style based on chart type for visual distinction
+        // Rolling period uses dotted lines, previous period uses dashed lines
         ...(isLineType &&
             !isAreaChart && {
                 lineStyle: {
-                    type: 'dashed',
-                    width: 1.4,
+                    type: isRolling ? 'dotted' : 'dashed',
+                    width: isRolling ? 2 : 1.4,
                 },
             }),
         ...(isAreaChart && {
@@ -126,8 +142,8 @@ const createPopSeries = ({
                 ...baseSerie.areaStyle,
             },
             lineStyle: {
-                type: 'dashed',
-                width: 1.4,
+                type: isRolling ? 'dotted' : 'dashed',
+                width: isRolling ? 2 : 1.4,
             },
         }),
         // Remove area style only for non-area line charts
@@ -230,9 +246,12 @@ export const generatePopSeries = ({
     // If no PoP columns found in metadata, return base series unchanged
     if (popFieldsByBase.size === 0) return baseSeries;
 
-    const periodOffset = periodOverPeriod.periodOffset ?? 1;
+    const periodLabel = buildPeriodLabel(periodOverPeriod);
+    const periodOffset =
+        periodOverPeriod.type === 'previousPeriod'
+            ? periodOverPeriod.periodOffset ?? 1
+            : 0;
     const { granularity } = periodOverPeriod;
-    const periodLabel = buildPeriodLabel(periodOffset, granularity);
 
     const previousSeriesList: PreviousSeriesEntry[] = [];
 
@@ -255,6 +274,7 @@ export const generatePopSeries = ({
             periodOffset,
             granularity,
             yField,
+            isRolling: isRollingPeriod(periodOverPeriod),
         });
 
         previousSeriesList.push({ index, series: popSeries });

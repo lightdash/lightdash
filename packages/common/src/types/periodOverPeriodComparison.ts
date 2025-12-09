@@ -6,7 +6,15 @@ type PreviousPeriod = {
     periodOffset?: number; // e.g. compare this month to the last 3(periodOffset) months
 };
 
-export type PeriodOverPeriodComparison = PreviousPeriod & {
+type RollingPeriod = {
+    type: 'rollingPeriod';
+    granularity: TimeFrames;
+    windowSize: number; // e.g. 7 for 7-day rolling average
+};
+
+type PeriodOverPeriodBase = PreviousPeriod | RollingPeriod;
+
+export type PeriodOverPeriodComparison = PeriodOverPeriodBase & {
     // timeDimension
     field: {
         name: string;
@@ -58,6 +66,11 @@ export const isSupportedPeriodOverPeriodGranularity = (
 export const POP_PREVIOUS_PERIOD_SUFFIX = '_previous';
 
 /**
+ * Suffix used for rolling period comparison columns.
+ */
+export const POP_ROLLING_PERIOD_SUFFIX = '_rolling';
+
+/**
  * Gets the PoP field ID for a base metric field ID.
  * @param baseFieldId - The field ID of the base metric (e.g., "orders_total_revenue")
  * @returns The PoP field ID (e.g., "orders_total_revenue_previous")
@@ -74,3 +87,60 @@ export const getBaseFieldIdFromPop = (fieldId: string): string | null =>
     fieldId.endsWith(POP_PREVIOUS_PERIOD_SUFFIX)
         ? fieldId.slice(0, -POP_PREVIOUS_PERIOD_SUFFIX.length)
         : null;
+
+/**
+ * Type guard to check if a comparison is a rolling period.
+ * @param comparison - The period-over-period comparison to check
+ * @returns True if the comparison is a rolling period
+ */
+export const isRollingPeriod = (
+    comparison: PeriodOverPeriodComparison,
+): comparison is PeriodOverPeriodComparison & RollingPeriod =>
+    comparison.type === 'rollingPeriod';
+
+/**
+ * Type guard to check if a comparison is a previous period.
+ * @param comparison - The period-over-period comparison to check
+ * @returns True if the comparison is a previous period
+ */
+export const isPreviousPeriod = (
+    comparison: PeriodOverPeriodComparison,
+): comparison is PeriodOverPeriodComparison & PreviousPeriod =>
+    comparison.type === 'previousPeriod';
+
+/**
+ * Gets the rolling period field ID for a base metric field ID.
+ * @param baseFieldId - The field ID of the base metric (e.g., "orders_total_revenue")
+ * @returns The rolling period field ID (e.g., "orders_total_revenue_rolling")
+ */
+export const getRollingPeriodFieldId = (baseFieldId: string): string =>
+    `${baseFieldId}${POP_ROLLING_PERIOD_SUFFIX}`;
+
+/**
+ * Gets the base field ID from a rolling period field ID.
+ * @param fieldId - The field ID to check
+ * @returns The base field ID if this is a rolling period field, null otherwise
+ */
+export const getBaseFieldIdFromRollingPeriod = (
+    fieldId: string,
+): string | null =>
+    fieldId.endsWith(POP_ROLLING_PERIOD_SUFFIX)
+        ? fieldId.slice(0, -POP_ROLLING_PERIOD_SUFFIX.length)
+        : null;
+
+/**
+ * Checks if a field ID is a period-over-period field (either previous or rolling).
+ * @param fieldId - The field ID to check
+ * @returns True if the field is a PoP field
+ */
+export const isPopField = (fieldId: string): boolean =>
+    fieldId.endsWith(POP_PREVIOUS_PERIOD_SUFFIX) ||
+    fieldId.endsWith(POP_ROLLING_PERIOD_SUFFIX);
+
+/**
+ * Validates rolling period window size.
+ * @param windowSize - The window size to validate
+ * @returns True if window size is valid
+ */
+export const isValidRollingWindowSize = (windowSize: number): boolean =>
+    Number.isInteger(windowSize) && windowSize >= 2 && windowSize <= 365;
