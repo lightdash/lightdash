@@ -29,6 +29,7 @@ import {
     Space,
     SpaceMemberRole,
     SpaceSummary,
+    SqlChartAsCode,
     UpdatedByUser,
     type DashboardTileWithSlug,
 } from '@lightdash/common';
@@ -38,6 +39,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
@@ -49,6 +51,7 @@ type CoderServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
@@ -72,6 +75,8 @@ export class CoderService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
+    savedSqlModel: SavedSqlModel;
+
     dashboardModel: DashboardModel;
 
     spaceModel: SpaceModel;
@@ -85,6 +90,7 @@ export class CoderService extends BaseService {
         analytics,
         projectModel,
         savedChartModel,
+        savedSqlModel,
         dashboardModel,
         spaceModel,
         schedulerClient,
@@ -95,6 +101,7 @@ export class CoderService extends BaseService {
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
+        this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
@@ -128,6 +135,36 @@ export class CoderService extends BaseService {
                 : undefined,
             slug: chart.slug,
             tableConfig: chart.tableConfig,
+            spaceSlug,
+            version: currentVersion,
+            downloadedAt: new Date(),
+        };
+    }
+
+    private static transformSqlChart(
+        sqlChart: {
+            name: string;
+            description: string | null;
+            slug: string;
+            sql: string;
+            limit: number;
+            config: SqlChartAsCode['config'];
+            chartKind: SqlChartAsCode['chartKind'];
+            lastUpdatedAt: Date;
+        },
+        spacePath: string,
+    ): SqlChartAsCode {
+        const spaceSlug = getContentAsCodePathFromLtreePath(spacePath);
+
+        return {
+            name: sqlChart.name,
+            description: sqlChart.description,
+            slug: sqlChart.slug,
+            sql: sqlChart.sql,
+            limit: sqlChart.limit,
+            config: sqlChart.config,
+            chartKind: sqlChart.chartKind,
+            updatedAt: sqlChart.lastUpdatedAt,
             spaceSlug,
             version: currentVersion,
             downloadedAt: new Date(),
@@ -322,30 +359,74 @@ export class CoderService extends BaseService {
             [],
         );
 
-        const charts = await this.savedChartModel.find({
-            slugs: chartSlugs,
-            projectUuid,
-            excludeChartsSavedInDashboard: false,
-            includeOrphanChartsWithinDashboard: true,
-        });
+        // Skip database queries if there are no chart tiles
+        if (chartSlugs.length === 0) {
+            return tiles.map((tile) => ({
+                ...tile,
+                uuid: tile.uuid ?? uuidv4(),
+            })) as DashboardTileWithSlug[];
+        }
+
+        // Query both regular charts and SQL charts in parallel
+        const [charts, sqlChartRows] = await Promise.all([
+            this.savedChartModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+                excludeChartsSavedInDashboard: false,
+                includeOrphanChartsWithinDashboard: true,
+            }),
+            this.savedSqlModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+            }),
+        ]);
+
+        // Create a unified map of slug -> { uuid, isSql } for both chart types
+        const chartSlugToInfo = new Map<
+            string,
+            { uuid: string; isSql: boolean }
+        >();
+        charts.forEach((chart) =>
+            chartSlugToInfo.set(chart.slug, { uuid: chart.uuid, isSql: false }),
+        );
+        sqlChartRows.forEach((row) =>
+            chartSlugToInfo.set(row.slug, {
+                uuid: row.saved_sql_uuid,
+                isSql: true,
+            }),
+        );
 
         return tiles.map((tile) => {
             if (isAnyChartTile(tile)) {
-                const savedChart = charts.find(
-                    (chart) => chart.slug === tile.properties.chartSlug,
-                );
+                const { chartSlug } = tile.properties;
+                const chartInfo = chartSlugToInfo.get(chartSlug);
 
-                if (!savedChart) {
+                if (!chartInfo) {
                     throw new NotFoundError(
-                        `Chart with slug ${tile.properties.chartSlug} not found`,
+                        `Chart with slug ${chartSlug} not found`,
                     );
                 }
+
+                // Use the correct property name based on chart type
+                if (chartInfo.isSql) {
+                    return {
+                        ...tile,
+                        uuid: uuidv4(),
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: {
+                            ...tile.properties,
+                            savedSqlUuid: chartInfo.uuid,
+                        },
+                    } as DashboardTileWithSlug;
+                }
+
                 return {
                     ...tile,
                     uuid: uuidv4(),
+                    type: DashboardTileTypes.SAVED_CHART,
                     properties: {
                         ...tile.properties,
-                        savedChartUuid: savedChart.uuid,
+                        savedChartUuid: chartInfo.uuid,
                     },
                 } as DashboardTileWithSlug;
             }
@@ -637,7 +718,6 @@ export class CoderService extends BaseService {
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
-        const missingIds = CoderService.getMissingIds(chartIds, charts);
 
         // get all spaces to map  dashboardSlug
         const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
@@ -653,6 +733,8 @@ export class CoderService extends BaseService {
         const transformedCharts = charts.map((chart) =>
             CoderService.transformChart(chart, spaces, dashboards),
         );
+
+        const missingIds = CoderService.getMissingIds(chartIds, charts);
 
         return {
             charts: transformedCharts,
@@ -673,6 +755,122 @@ export class CoderService extends BaseService {
                 : undefined,
             missingIds,
             total: chartsSummariesWithAccess.length,
+            offset: newOffset,
+        };
+    }
+
+    async getSqlCharts(
+        user: SessionUser,
+        projectUuid: string,
+        chartIds?: string[],
+        offset?: number,
+    ): Promise<{
+        sqlCharts: SqlChartAsCode[];
+        missingIds: string[];
+        total: number;
+        offset: number;
+    }> {
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You are not allowed to download SQL charts',
+            );
+        }
+
+        // For SQL charts, we use slugs directly (no UUID to slug conversion needed)
+        // since SQL charts are only identified by slug in the as-code workflow
+        const slugs = chartIds;
+
+        if (slugs?.length === 0) {
+            return {
+                sqlCharts: [],
+                missingIds: chartIds || [],
+                total: 0,
+                offset: 0,
+            };
+        }
+
+        const sqlChartRows = await this.savedSqlModel.find({
+            projectUuid,
+            slugs,
+        });
+
+        // Filter SQL charts by space access
+        const sqlChartSpaceUuids = sqlChartRows.map((row) => row.space_uuid);
+        const sqlChartSpaces = await this.spaceModel.find({
+            spaceUuids: sqlChartSpaceUuids,
+        });
+        const sqlChartsWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            sqlChartRows.map((row) => ({
+                uuid: row.saved_sql_uuid,
+                name: row.name,
+                spaceUuid: row.space_uuid,
+                description: row.description ?? undefined,
+                slug: row.slug,
+            })),
+            sqlChartSpaces,
+        );
+
+        // Filter rows by access permissions first
+        const sqlChartSlugsWithAccess = new Set(
+            sqlChartsWithAccess.map((c) => c.slug),
+        );
+        const accessibleSqlChartRows = sqlChartRows.filter((row) =>
+            sqlChartSlugsWithAccess.has(row.slug),
+        );
+
+        // Apply pagination to the filtered results
+        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
+        const offsetIndex = offset || 0;
+        const paginatedSqlChartRows = accessibleSqlChartRows.slice(
+            offsetIndex,
+            offsetIndex + maxResults,
+        );
+        const newOffset = Math.min(
+            offsetIndex + paginatedSqlChartRows.length,
+            accessibleSqlChartRows.length,
+        );
+
+        const transformedSqlCharts = paginatedSqlChartRows.map((row) =>
+            CoderService.transformSqlChart(
+                {
+                    name: row.name,
+                    description: row.description,
+                    slug: row.slug,
+                    sql: row.sql,
+                    limit: row.limit,
+                    config: row.config as SqlChartAsCode['config'],
+                    chartKind: row.chart_kind,
+                    lastUpdatedAt: row.last_version_updated_at,
+                },
+                row.path,
+            ),
+        );
+
+        // Calculate missing IDs
+        const foundSlugs = new Set(sqlChartRows.map((c) => c.slug));
+        const missingIds = chartIds
+            ? chartIds.filter((id) => !foundSlugs.has(id))
+            : [];
+
+        return {
+            sqlCharts: transformedSqlCharts,
+            missingIds,
+            total: accessibleSqlChartRows.length,
             offset: newOffset,
         };
     }
@@ -850,6 +1048,134 @@ export class CoderService extends BaseService {
             `Finished updating chart "${chartAsCode.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
+        return promotionChanges;
+    }
+
+    async upsertSqlChart(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        sqlChartAsCode: SqlChartAsCode,
+        skipSpaceCreate?: boolean,
+        publicSpaceCreate?: boolean,
+    ): Promise<PromotionChanges> {
+        const project = await this.projectModel.get(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const sqlChartRows = await this.savedSqlModel.find({
+            slugs: [slug],
+            projectUuid,
+        });
+        const existingSqlChart = sqlChartRows[0];
+
+        const { space, created: spaceCreated } = await this.getOrCreateSpace(
+            projectUuid,
+            sqlChartAsCode.spaceSlug,
+            user,
+            skipSpaceCreate,
+            publicSpaceCreate,
+        );
+
+        if (existingSqlChart === undefined) {
+            // Create new SQL chart
+            this.logger.info(
+                `Creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
+            );
+
+            const { savedSqlUuid } = await this.savedSqlModel.create(
+                user.userUuid,
+                projectUuid,
+                {
+                    name: sqlChartAsCode.name,
+                    description: sqlChartAsCode.description,
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                    spaceUuid: space.uuid,
+                    slug: sqlChartAsCode.slug, // Force the slug from the YAML file
+                },
+            );
+
+            this.logger.info(
+                `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
+            );
+
+            // Note: We use a minimal object for the promotion changes since SQL charts
+            // don't have the same structure as regular charts. The CLI only uses the action.
+            const promotionChanges: PromotionChanges = {
+                charts: [
+                    {
+                        action: PromotionAction.CREATE,
+                        data: {
+                            uuid: savedSqlUuid,
+                            name: sqlChartAsCode.name,
+                            slug: sqlChartAsCode.slug,
+                            spaceSlug: sqlChartAsCode.spaceSlug,
+                        } as PromotionChanges['charts'][0]['data'],
+                    },
+                ],
+                spaces: spaceCreated
+                    ? [{ action: PromotionAction.CREATE, data: space }]
+                    : [],
+                dashboards: [],
+            };
+            return promotionChanges;
+        }
+
+        // Update existing SQL chart
+        this.logger.info(
+            `Updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
+        );
+
+        await this.savedSqlModel.update({
+            userUuid: user.userUuid,
+            savedSqlUuid: existingSqlChart.saved_sql_uuid,
+            sqlChart: {
+                unversionedData: {
+                    name: sqlChartAsCode.name,
+                    description: sqlChartAsCode.description,
+                    spaceUuid: space.uuid,
+                },
+                versionedData: {
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                },
+            },
+        });
+
+        this.logger.info(
+            `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
+        );
+
+        const promotionChanges: PromotionChanges = {
+            charts: [
+                {
+                    action: PromotionAction.UPDATE,
+                    data: {
+                        uuid: existingSqlChart.saved_sql_uuid,
+                        name: sqlChartAsCode.name,
+                        slug: sqlChartAsCode.slug,
+                        spaceSlug: sqlChartAsCode.spaceSlug,
+                    } as PromotionChanges['charts'][0]['data'],
+                },
+            ],
+            spaces: spaceCreated
+                ? [{ action: PromotionAction.CREATE, data: space }]
+                : [],
+            dashboards: [],
+        };
         return promotionChanges;
     }
 
