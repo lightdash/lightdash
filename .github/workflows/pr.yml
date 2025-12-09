@@ -38,16 +38,14 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Lint all packages
-        run: pnpm turbo:lint
-      - name: Check formatting all packages
-        run: pnpm turbo:format
-      - name: Check for unused exports
-        run: pnpm -F frontend unused-exports
-      - name: Check types for all packages
-        run: pnpm turbo:typecheck
-      - name: Build all packages
-        run: pnpm turbo:build
+      - name: Run quality checks and build in parallel
+        run: |
+          pnpm turbo:lint &
+          pnpm turbo:format &
+          pnpm -F frontend unused-exports &
+          pnpm turbo:typecheck &
+          pnpm turbo:build &
+          wait
       - name: Run unit tests
         run: pnpm turbo:test
 
