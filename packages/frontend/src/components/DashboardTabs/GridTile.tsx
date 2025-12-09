@@ -5,7 +5,6 @@ import {
     type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { useProfiler } from '@sentry/react';
 import { memo, type FC } from 'react';
 import ChartTile from '../DashboardTiles/DashboardChartTile';
 import LoomTile from '../DashboardTiles/DashboardLoomTile';
@@ -25,7 +24,6 @@ const GridTile: FC<
     }
 > = memo((props) => {
     const { tile } = props;
-    useProfiler(`Dashboard-${tile.type}`);
 
     if (props.locked) {
         // Allow markdown and loom tiles to show even when locked since they are not filterable

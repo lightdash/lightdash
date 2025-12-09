@@ -78,7 +78,7 @@ export type VisualizationProviderProps = {
     invalidateCache?: boolean;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
-    setEchartsRef?: (ref: RefObject<EChartsReact | null>) => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
     computedSeries?: Series[];
     apiErrorDetail?: ApiErrorDetail | null;
     containerWidth?: number;
@@ -121,10 +121,23 @@ const VisualizationProvider: FC<
 
     const chartRef = useRef<EChartsReact | null>(null);
     const leafletMapRef = useRef<LeafletMap | null>(null);
+
     useEffect(() => {
         if (setEchartsRef)
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);
-    }, [chartRef, setEchartsRef]);
+
+        // Cleanup: dispose ECharts instance and clear parent reference on unmount
+        return () => {
+            // Dispose the ECharts instance to free up canvas memory
+            if (chartRef.current) {
+                const echartsInstance = chartRef.current.getEchartsInstance();
+                if (echartsInstance && !echartsInstance.isDisposed()) {
+                    echartsInstance.dispose();
+                }
+                chartRef.current = null;
+            }
+        };
+    }, [setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] = useState<
         InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
     >();
