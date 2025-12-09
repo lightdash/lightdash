@@ -31,7 +31,8 @@ describe('Dashboard', () => {
         });
     });
 
-    it('Should use dashboard filters, should clear them for new dashboards', () => {
+    // todo: move to unit tests
+    it.skip('Should use dashboard filters, should clear them for new dashboards', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load

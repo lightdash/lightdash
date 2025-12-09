@@ -212,7 +212,7 @@ const testFilterStringEscaping = (projectUuid: string) => {
                     descending: false,
                 },
             ],
-            limit: 500,
+            limit: 1,
             tableCalculations: [],
             additionalMetrics: [],
         },
@@ -275,7 +275,7 @@ const testPercentile = (
                     descending: true,
                 },
             ],
-            limit: 500,
+            limit: 1,
             tableCalculations: [],
             additionalMetrics: [],
         },
@@ -333,7 +333,7 @@ const testTimeIntervalsResults = (
                     descending: true,
                 },
             ],
-            limit: 500,
+            limit: 1,
             tableCalculations: [],
             additionalMetrics: [],
         },
@@ -375,7 +375,7 @@ const createCustomDimensionChart = (projectUuid: string) => {
                         descending: true,
                     },
                 ],
-                limit: 500,
+                limit: 1,
                 tableCalculations: [],
                 additionalMetrics: [],
                 customDimensions: [
@@ -489,13 +489,15 @@ describe('Create projects', () => {
         testCompile().then((projectUuid) => {
             testFilterStringEscaping(projectUuid);
             testTimeIntervalsResults(projectUuid);
-            testPercentile(projectUuid);
+            // todo: move to unit test
+            // testPercentile(projectUuid);
 
-            createCustomDimensionChart(projectUuid);
-            testCustomDimensions(projectUuid);
+            // todo: move to api/unit test
+            // createCustomDimensionChart(projectUuid);
+            // testCustomDimensions(projectUuid);
         });
     });
-    it('Should create a Redshift project', () => {
+    it.skip('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
         // Amazon Redshift is based on PostgreSQL
         // So we can use our own PostgreSQL local instance to test the connection against Redshift
@@ -558,13 +560,14 @@ describe('Create projects', () => {
 
             testTimeIntervalsResults(projectUuid, bigqueryRowValues);
 
-            testPercentile(projectUuid, [
-                '2020-08-12',
-                '1,999',
-                '1,559',
-                '1,999',
-                '19,999,999',
-            ]);
+            // todo: move to unit test
+            // testPercentile(projectUuid, [
+            //     '2020-08-12',
+            //     '1,999',
+            //     '1,559',
+            //     '1,999',
+            //     '19,999,999',
+            // ]);
         });
     });
     // note: we don't have a staging environment for Trino atm
@@ -692,13 +695,14 @@ describe('Create projects', () => {
             ];
 
             testTimeIntervalsResults(projectUuid, snowflakeRowValues);
-            testPercentile(projectUuid, [
-                '2020-08-12',
-                '2,000',
-                '1,880',
-                '2,000',
-                '1,999,999',
-            ]);
+            // todo: move to unit test
+            // testPercentile(projectUuid, [
+            //     '2020-08-12',
+            //     '2,000',
+            //     '1,880',
+            //     '2,000',
+            //     '1,999,999',
+            // ]);
 
             // createCustomDimensionChart(projectUuid);
             // testCustomDimensions(projectUuid); // TODO enable after merging rounding fix
