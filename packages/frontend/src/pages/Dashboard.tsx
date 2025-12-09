@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { captureException, useProfiler } from '@sentry/react';
+import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
@@ -786,8 +786,6 @@ const DashboardPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
-
-    useProfiler('Dashboard');
 
     return (
         <DashboardProvider
