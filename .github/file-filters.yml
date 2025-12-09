@@ -22,9 +22,6 @@ backend:
   - "packages/e2e/cypress/e2e/api/**/*"
   - "packages/common/**/*"
 
-perf:
-  - "packages/e2e/cypress/e2e/perf/**/*"
-
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
