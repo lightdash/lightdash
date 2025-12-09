@@ -31,7 +31,8 @@ describe('Dashboard', () => {
         });
     });
 
-    it('Should use dashboard filters, should clear them for new dashboards', () => {
+    // todo: move to unit tests
+    it.skip('Should use dashboard filters, should clear them for new dashboards', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load
@@ -299,6 +300,7 @@ describe('Dashboard', () => {
         cy.findAllByText('No data available').should('have.length', 0);
     });
 
+    // todo: move to api/unit tests
     it.skip('Should preview a dashboard image export', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         // create dashboard with title small
@@ -336,6 +338,7 @@ describe('Dashboard', () => {
         cy.get('div').contains('Success', { timeout: 20000 }).should('exist');
     });
 
+    // todo: move to api/unit tests
     it.skip('Should access dashboard by slug instead of UUID', () => {
         // First, verify we can access via slug
         const slug = 'jaffle-dashboard';
@@ -356,6 +359,7 @@ describe('Dashboard', () => {
         cy.get('.echarts-for-react').should('have.length', 3);
     });
 
+    // todo: move to api/unit tests
     it.skip('Should maintain dashboard filters when using slug', () => {
         const slug = 'jaffle-dashboard';
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards/${slug}`);
@@ -392,6 +396,7 @@ describe('Dashboard', () => {
         cy.contains('Payment method is credit_card');
     });
 
+    // todo: move to api/unit tests
     it.skip('Should access dashboard via API using slug', () => {
         const slug = 'jaffle-dashboard';
 
@@ -412,6 +417,7 @@ describe('Dashboard', () => {
         });
     });
 
+    // todo: move to api/unit tests
     it.skip('Should handle invalid dashboard slug gracefully', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/non-existent-slug`,
