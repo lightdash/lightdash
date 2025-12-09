@@ -1,6 +1,7 @@
 import {
     SchedulerFormat,
     SchedulerJobStatus,
+    type PartialFailure,
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
@@ -131,7 +132,7 @@ const SuccessfulJobRow: FC<{
             wrap="nowrap"
             style={{
                 borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
             }}
         >
             {getLogStatusIconWithoutTooltip(job.finalStatus, theme)}
@@ -189,7 +190,7 @@ const FailedJobRow: FC<{
             p="sm"
             style={{
                 borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
             }}
         >
             <Group gap="md" wrap="nowrap" align="flex-start">
@@ -231,6 +232,79 @@ const FailedJobRow: FC<{
                     {job.errorDetails}
                 </Code>
             )}
+        </Stack>
+    );
+};
+
+// Component for job row with partial failures (completed but some items failed)
+const PartialFailureJobRow: FC<{
+    job: JobSummary;
+    run: SchedulerRun;
+    theme: MantineTheme;
+    partialFailures: PartialFailure[];
+    getFormatDisplayName: (format: SchedulerFormat) => string;
+}> = ({ job, run, theme, partialFailures, getFormatDisplayName }) => {
+    return (
+        <Stack
+            gap="sm"
+            p="sm"
+            style={{
+                borderRadius: theme.radius.sm,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
+            }}
+        >
+            <Group gap="md" wrap="nowrap" align="flex-start">
+                <MantineIcon
+                    icon={IconAlertTriangleFilled}
+                    color="orange.6"
+                    style={{ color: theme.colors.orange[6] }}
+                />
+                <Stack gap={4} style={{ flex: 1 }}>
+                    <Box>
+                        <Text fz="sm" fw={500}>
+                            {formatTaskName(job.task)}
+                        </Text>
+                        {run && (
+                            <Text fz="xs" c="gray.6">
+                                {`Generate ${getFormatDisplayName(run.format)}`}
+                            </Text>
+                        )}
+                    </Box>
+                    <Text fz="xs" c="orange.7">
+                        Completed with {partialFailures.length} failing chart
+                        {partialFailures.length > 1 ? 's' : ''}
+                    </Text>
+                </Stack>
+                <JobTimingInfo
+                    startedAt={job.startedAt}
+                    completedAt={job.completedAt}
+                    status={job.finalStatus}
+                />
+            </Group>
+            <Stack gap="xs">
+                {partialFailures.map((failure) => (
+                    <Stack
+                        key={failure.tileUuid}
+                        gap={4}
+                        p="xs"
+                        style={{
+                            borderRadius: theme.radius.sm,
+                            backgroundColor: theme.colors.orange[0],
+                        }}
+                    >
+                        <Text fz="xs" fw={500} c="orange.9">
+                            {failure.chartName}
+                        </Text>
+                        <Code
+                            c="orange.9"
+                            bg="transparent"
+                            style={{ fontSize: '11px', padding: 0 }}
+                        >
+                            {failure.error}
+                        </Code>
+                    </Stack>
+                ))}
+            </Stack>
         </Stack>
     );
 };
@@ -351,6 +425,23 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
         return { completedCount, errorCount, totalCount: jobSummaries.length };
     }, [jobSummaries]);
 
+    // Extract partial failures from the parent job's completed log details
+    const partialFailures = useMemo<PartialFailure[]>(() => {
+        if (!childLogs) return [];
+
+        // Find the parent job's completed log (handleScheduledDelivery task)
+        const parentCompletedLog = childLogs.find(
+            (log) =>
+                log.isParent &&
+                log.task === 'handleScheduledDelivery' &&
+                log.status === SchedulerJobStatus.COMPLETED,
+        );
+
+        if (!parentCompletedLog?.details?.partialFailures) return [];
+
+        return parentCompletedLog.details.partialFailures as PartialFailure[];
+    }, [childLogs]);
+
     if (!run) return null;
 
     return (
@@ -425,7 +516,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                 <Box>
                     <Group gap="xs" mb="md">
                         {jobStatusSummary.errorCount === 0 &&
-                        jobStatusSummary.completedCount > 0 ? (
+                        jobStatusSummary.completedCount > 0 &&
+                        partialFailures.length === 0 ? (
                             <>
                                 {getLogStatusIconWithoutTooltip(
                                     SchedulerJobStatus.COMPLETED,
@@ -450,8 +542,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                     All jobs failed
                                 </Text>
                             </>
-                        ) : jobStatusSummary.completedCount > 0 &&
-                          jobStatusSummary.errorCount > 0 ? (
+                        ) : jobStatusSummary.errorCount > 0 ||
+                          partialFailures.length > 0 ? (
                             <>
                                 <MantineIcon
                                     icon={IconAlertTriangleFilled}
@@ -459,8 +551,28 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                     style={{ color: theme.colors.orange[6] }}
                                 />
                                 <Text fz="sm" fw={600}>
-                                    {jobStatusSummary.completedCount} completed,{' '}
-                                    {jobStatusSummary.errorCount} failed
+                                    {jobStatusSummary.completedCount > 0
+                                        ? `${jobStatusSummary.completedCount} completed`
+                                        : ''}
+                                    {jobStatusSummary.completedCount > 0 &&
+                                    (jobStatusSummary.errorCount > 0 ||
+                                        partialFailures.length > 0)
+                                        ? ', '
+                                        : ''}
+                                    {jobStatusSummary.errorCount > 0
+                                        ? `${jobStatusSummary.errorCount} failed`
+                                        : ''}
+                                    {jobStatusSummary.errorCount > 0 &&
+                                    partialFailures.length > 0
+                                        ? ', '
+                                        : ''}
+                                    {partialFailures.length > 0
+                                        ? `${partialFailures.length} chart${
+                                              partialFailures.length > 1
+                                                  ? 's'
+                                                  : ''
+                                          } failed to export`
+                                        : ''}
                                 </Text>
                             </>
                         ) : (
@@ -475,21 +587,49 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         </Center>
                     ) : jobSummaries.length > 0 ? (
                         <Stack gap="xs">
-                            {jobSummaries.map((job) =>
-                                job.finalStatus === SchedulerJobStatus.ERROR ? (
-                                    <FailedJobRow
-                                        key={job.jobId}
-                                        job={job}
-                                        run={run}
-                                        theme={theme}
-                                        getTargetDisplayName={
-                                            getTargetDisplayName
-                                        }
-                                        getFormatDisplayName={
-                                            getFormatDisplayName
-                                        }
-                                    />
-                                ) : (
+                            {jobSummaries.map((job) => {
+                                // Check if this is the parent job with partial failures
+                                const isParentJobWithPartialFailures =
+                                    job.task === 'handleScheduledDelivery' &&
+                                    job.finalStatus ===
+                                        SchedulerJobStatus.COMPLETED &&
+                                    partialFailures.length > 0;
+
+                                if (
+                                    job.finalStatus === SchedulerJobStatus.ERROR
+                                ) {
+                                    return (
+                                        <FailedJobRow
+                                            key={job.jobId}
+                                            job={job}
+                                            run={run}
+                                            theme={theme}
+                                            getTargetDisplayName={
+                                                getTargetDisplayName
+                                            }
+                                            getFormatDisplayName={
+                                                getFormatDisplayName
+                                            }
+                                        />
+                                    );
+                                }
+
+                                if (isParentJobWithPartialFailures) {
+                                    return (
+                                        <PartialFailureJobRow
+                                            key={job.jobId}
+                                            job={job}
+                                            run={run}
+                                            theme={theme}
+                                            partialFailures={partialFailures}
+                                            getFormatDisplayName={
+                                                getFormatDisplayName
+                                            }
+                                        />
+                                    );
+                                }
+
+                                return (
                                     <SuccessfulJobRow
                                         key={job.jobId}
                                         job={job}
@@ -502,8 +642,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                             getFormatDisplayName
                                         }
                                     />
-                                ),
-                            )}
+                                );
+                            })}
                         </Stack>
                     ) : (
                         <Text fz="sm" c="gray.6">
