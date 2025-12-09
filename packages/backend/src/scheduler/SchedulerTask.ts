@@ -59,6 +59,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    WarehouseConnectionError,
     applyDimensionOverrides,
     assertUnreachable,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
@@ -2696,7 +2697,8 @@ export default class SchedulerTask {
                 e instanceof NotFoundError ||
                 e instanceof ForbiddenError ||
                 e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError;
+                e instanceof UnexpectedGoogleSheetsError ||
+                e instanceof WarehouseConnectionError;
 
             if (
                 this.slackClient.isEnabled &&
@@ -3054,8 +3056,12 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (e instanceof FieldReferenceError) {
+            if (
+                e instanceof FieldReferenceError ||
+                e instanceof WarehouseConnectionError
+            ) {
                 // This captures both the error from thresholdAlert and metricQuery
+                // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
