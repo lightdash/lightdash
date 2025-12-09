@@ -21,10 +21,10 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import FilterInputComponent from '../../common/Filters/FilterInputs';
-import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs/utils';
-import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
-import MantineIcon from '../../common/MantineIcon';
+import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
+import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
+import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
+import MantineIcon from '../../../components/common/MantineIcon';
 
 interface FilterSettingsProps {
     isEditMode: boolean;

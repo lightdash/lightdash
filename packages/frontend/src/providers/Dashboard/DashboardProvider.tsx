@@ -33,7 +33,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { convertSdkFilterToDashboardFilter } from '../../ee/features/embed/EmbedDashboard/utils';
@@ -44,6 +43,7 @@ import {
     useGetComments,
     type useDashboardCommentsCheck,
 } from '../../features/comments';
+import { hasSavedFilterValueChanged } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,

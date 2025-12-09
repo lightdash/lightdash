@@ -3,8 +3,8 @@ import { Button, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC, useCallback, useMemo } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import MantineIcon from '../common/MantineIcon';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {

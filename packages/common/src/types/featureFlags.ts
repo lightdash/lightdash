@@ -74,6 +74,11 @@ export enum FeatureFlags {
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
+
+    /**
+     * Dashboard redesign
+     */
+    DashboardRedesign = 'dashboard-redesign',
 }
 
 export type FeatureFlag = {

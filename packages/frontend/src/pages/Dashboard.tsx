@@ -1,18 +1,16 @@
 import {
     ContentType,
+    FeatureFlags,
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
+import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
-import DashboardFilter from '../components/DashboardFilter';
-import DashboardTabs from '../components/DashboardTabs';
-import PinnedParameters from '../components/PinnedParameters';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -22,8 +20,8 @@ import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModa
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
-import { DateZoom } from '../features/dateZoom';
-import { Parameters } from '../features/parameters';
+import DashboardHeaderV1 from '../features/dashboardHeader/dashboardHeaderV1';
+import DashboardHeaderV2 from '../features/dashboardHeader/dashboardHeaderV2';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -32,6 +30,7 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -147,6 +146,10 @@ const Dashboard: FC = () => {
         toggleFullscreen,
     } = useFullscreen();
     const { showToastError } = useToaster();
+
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
@@ -685,67 +688,66 @@ const Dashboard: FC = () => {
                 }
                 withFullHeight={true}
             >
-                <Group position="apart" align="flex-start" noWrap px={'lg'}>
-                    {/* This Group will take up remaining space (and not push DateZoom) */}
-                    <Group
-                        position="apart"
-                        align="flex-start"
-                        noWrap
-                        grow
-                        sx={{
-                            overflow: 'auto',
-                        }}
-                    >
-                        {hasTilesThatSupportFilters && (
-                            <DashboardFilter
-                                isEditMode={isEditMode}
-                                activeTabUuid={activeTab?.uuid}
-                            />
-                        )}
-                    </Group>
-                    {/* DateZoom section will adjust width dynamically */}
-                    {hasDashboardTiles && (
-                        <Group spacing="xs" style={{ marginLeft: 'auto' }}>
-                            <DateZoom isEditMode={isEditMode} />
-                        </Group>
-                    )}
-                </Group>
-                {hasDashboardTiles && (
-                    <Group spacing="xs" align="flex-start" noWrap px={'lg'}>
-                        <Parameters
-                            isEditMode={isEditMode}
-                            parameterValues={parameterValues}
-                            onParameterChange={handleParameterChange}
-                            onClearAll={clearAllParameters}
-                            parameters={referencedParameters}
-                            isLoading={!areAllChartsLoaded}
-                            missingRequiredParameters={
-                                missingRequiredParameters
-                            }
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={toggleParameterPin}
-                        />
-                        <PinnedParameters isEditMode={isEditMode} />
-                    </Group>
-                )}
-                <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>
-                    <DashboardTabs
+                {isDashboardRedesignEnabled ? (
+                    <DashboardHeaderV2
                         isEditMode={isEditMode}
+                        hasDashboardTiles={hasDashboardTiles}
+                        hasTilesThatSupportFilters={hasTilesThatSupportFilters}
+                        // parameters
+                        parameters={referencedParameters}
+                        parameterValues={parameterValues}
+                        onParameterChange={handleParameterChange}
+                        onParameterClearAll={clearAllParameters}
+                        isParameterLoading={!areAllChartsLoaded}
+                        missingRequiredParameters={missingRequiredParameters}
+                        pinnedParameters={pinnedParameters}
+                        onParameterPin={toggleParameterPin}
+                        // tabs
                         hasRequiredDashboardFiltersToSet={
                             hasRequiredDashboardFiltersToSet
                         }
+                        activeTab={activeTab}
                         addingTab={addingTab}
                         dashboardTiles={dashboardTiles}
-                        handleAddTiles={handleAddTiles}
-                        handleUpdateTiles={handleUpdateTiles}
-                        handleDeleteTile={handleDeleteTile}
-                        handleBatchDeleteTiles={handleBatchDeleteTiles}
-                        handleEditTile={handleEditTiles}
+                        onAddTiles={handleAddTiles}
+                        onUpdateTiles={handleUpdateTiles}
+                        onDeleteTile={handleDeleteTile}
+                        onBatchDeleteTiles={handleBatchDeleteTiles}
+                        onEditTile={handleEditTiles}
                         setGridWidth={setGridWidth}
-                        activeTab={activeTab}
                         setAddingTab={setAddingTab}
                     />
-                </Flex>
+                ) : (
+                    <DashboardHeaderV1
+                        isEditMode={isEditMode}
+                        hasDashboardTiles={hasDashboardTiles}
+                        hasTilesThatSupportFilters={hasTilesThatSupportFilters}
+                        // parameters
+                        parameters={referencedParameters}
+                        parameterValues={parameterValues}
+                        onParameterChange={handleParameterChange}
+                        onParameterClearAll={clearAllParameters}
+                        isParameterLoading={!areAllChartsLoaded}
+                        missingRequiredParameters={missingRequiredParameters}
+                        pinnedParameters={pinnedParameters}
+                        onParameterPin={toggleParameterPin}
+                        // tabs
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        activeTab={activeTab}
+                        addingTab={addingTab}
+                        dashboardTiles={dashboardTiles}
+                        onAddTiles={handleAddTiles}
+                        onUpdateTiles={handleUpdateTiles}
+                        onDeleteTile={handleDeleteTile}
+                        onBatchDeleteTiles={handleBatchDeleteTiles}
+                        onEditTile={handleEditTiles}
+                        setGridWidth={setGridWidth}
+                        setAddingTab={setAddingTab}
+                    />
+                )}
+
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened

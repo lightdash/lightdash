@@ -34,11 +34,11 @@ import {
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import FieldSelect from '../../../components/common/FieldSelect';
+import FieldIcon from '../../../components/common/Filters/FieldIcon';
+import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import FieldSelect from '../../common/FieldSelect';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import FieldLabel from '../../common/Filters/FieldLabel';
-import MantineIcon from '../../common/MantineIcon';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
