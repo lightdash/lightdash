@@ -219,7 +219,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
-    turbo build-sourcemaps --filter=backend && turbo postbuild --filter=backend; \
+    pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
     else \
     echo "Building backend without sourcemaps"; \
     turbo build --filter=backend; \
