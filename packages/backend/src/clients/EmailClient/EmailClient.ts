@@ -415,7 +415,7 @@ export default class EmailClient {
             .map(
                 (t) =>
                     `<li>${sanitizeHtml(t.target)}${
-                        t.error ? `: ${sanitizeHtml(t.error)}` : ''
+                        t.error ? ` error: ${sanitizeHtml(t.error)}` : ''
                     }</li>`,
             )
             .join('');
@@ -424,6 +424,7 @@ export default class EmailClient {
             <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
             totalTargets > 1 ? 's' : ''
         }.</p>
+            <br />
             <br />
             <p><strong>Failed targets:</strong></p> 
             <ul>${targetList}</ul>
