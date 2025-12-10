@@ -4,6 +4,7 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { VERSION } from './version';
 
 export const IGNORE_ERRORS = [
+    'WarehouseConnectionError',
     'WarehouseQueryError',
     'FieldReferenceError',
     'NotEnoughResults',
