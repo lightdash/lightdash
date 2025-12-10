@@ -1,3 +1,10 @@
+## [0.2240.2](https://github.com/lightdash/lightdash/compare/0.2240.1...0.2240.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** upgrade npm on release to support oidc ([#18731](https://github.com/lightdash/lightdash/issues/18731)) ([ad2f746](https://github.com/lightdash/lightdash/commit/ad2f746af281346dc7cdf4fcff3820f67b747e5f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2240.1](https://github.com/lightdash/lightdash/compare/0.2240.0...0.2240.1) (2025-12-10)
 
 
