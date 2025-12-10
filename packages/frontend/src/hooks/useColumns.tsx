@@ -449,15 +449,15 @@ export const useColumns = (): TableColumn[] => {
         >((acc, [fieldId, item]) => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
-            const isFieldDimension =
-                isCustomDimension(item) || isDimension(item);
-            const fieldColors = isFieldDimension ? null : getFieldColors(item);
+            const fieldColors = getFieldColors(item);
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
                     id: fieldId,
                     header: () => (
-                        <TableHeaderLabelContainer color={fieldColors?.color}>
+                        <TableHeaderLabelContainer
+                            color={fieldColors.columnHeaderColor}
+                        >
                             {isField(item) ? (
                                 <>
                                     {hasJoins && (
@@ -523,7 +523,7 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: fieldColors?.bg,
+                        bgColor: fieldColors.bg,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -553,7 +553,9 @@ export const useColumns = (): TableColumn[] => {
                     {
                         id: popFieldId,
                         header: () => (
-                            <TableHeaderLabelContainer color={popColors.color}>
+                            <TableHeaderLabelContainer
+                                color={popColors.columnHeaderColor}
+                            >
                                 {isField(popItem) && hasJoins && (
                                     <TableHeaderRegularLabel>
                                         {popItem.tableLabel}{' '}
