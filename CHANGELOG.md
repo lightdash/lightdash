@@ -1,3 +1,15 @@
+## [0.2240.1](https://github.com/lightdash/lightdash/compare/0.2240.0...0.2240.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* remove registry override for npm registry ([#18725](https://github.com/lightdash/lightdash/issues/18725)) ([31d3925](https://github.com/lightdash/lightdash/commit/31d3925db9f4b2bd092d547db023876eeae663a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* optimize project loading by fetching only when needed ([#18626](https://github.com/lightdash/lightdash/issues/18626)) ([9d0000e](https://github.com/lightdash/lightdash/commit/9d0000e474cde2d1aa1cbf222f62fa4b2383c7ca))
+
 # [0.2240.0](https://github.com/lightdash/lightdash/compare/0.2239.1...0.2240.0) (2025-12-10)
 
 
