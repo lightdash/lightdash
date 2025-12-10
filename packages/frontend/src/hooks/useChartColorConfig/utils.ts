@@ -2,16 +2,21 @@ import { type EChartsSeries, type Series } from '@lightdash/common';
 import { type SeriesLike } from './types';
 
 /**
- * There's some variation in what Series object we may be working with.
+ * Simple string hash function (djb2 algorithm).
+ * Returns a deterministic index for a given string.
  */
-
-export const isGroupedSeries = (series: SeriesLike) => {
-    return (
-        (series as EChartsSeries)?.pivotReference?.pivotValues != null ||
-        (series as Series)?.encode.yRef.pivotValues != null
-    );
+export const hashStringToIndex = (str: string, maxIndex: number): number => {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 33) ^ str.charCodeAt(i);
+    }
+    return Math.abs(hash) % maxIndex;
 };
 
+/**
+ * Calculates a unique identifier for a series, used for color assignment.
+ * Returns [groupKey, identifier] tuple.
+ */
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
         (series as EChartsSeries).pivotReference?.field ??
@@ -28,21 +33,7 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
             ? `${pivotValues.join('.')}`
             : null;
 
-    /**
-     * When dealing with flipped axis, Echarts will include the pivot value as
-     * part of the field identifier - we want to remove it for the purposes of
-     * color mapping if that's the case, so that we continue to have a mapping
-     * that looks like:
-     *
-     *  basefield->pivot_value
-     *
-     * instead of:
-     *
-     *  basefield.pivot_value -> pivot_value
-     *
-     * (which would be a grouping of 1 per pivot value, causing all values to
-     * be assigned the first color)
-     */
+    // Handle flipped axis edge case
     const baseFieldPathParts = baseField.split('.');
 
     const baseFieldPath =
@@ -50,22 +41,19 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
             ? baseFieldPathParts.slice(0, -1).join('.')
             : baseField;
 
+    // For ungrouped series (no pivot), use field name as identifier
+    // For grouped series, use the pivot value(s) as identifier
     const completeIdentifier = pivotValuesSubPath
         ? pivotValuesSubPath
         : baseFieldPath;
 
-    return [
-        `${baseFieldPath}${
-            /**
-             * If we have more than one pivot value, we append the number of pivot values
-             * to the group identifier, giving us a unique group per number of values.
-             *
-             * This is not critical, but gives us better serial color assignment when
-             * switching between number of groups, since we're not tacking each group
-             * configuration on top of eachother (under the same identifier).
-             */
-            pivotValues.length === 1 ? '' : `${`_n${pivotValues.length}`}`
-        }`,
-        completeIdentifier,
-    ];
+    // Ungrouped series share a common group so they get different colors.
+    // Grouped series use field name as group, with suffix for multi-pivot.
+    if (pivotValues.length === 0) {
+        return ['$ungrouped', completeIdentifier];
+    }
+
+    const groupSuffix =
+        pivotValues.length === 1 ? '' : `_n${pivotValues.length}`;
+    return [`${baseFieldPath}${groupSuffix}`, completeIdentifier];
 };

@@ -30,10 +30,7 @@ import {
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
-import {
-    calculateSeriesLikeIdentifier,
-    isGroupedSeries,
-} from '../../hooks/useChartColorConfig/utils';
+import { calculateSeriesLikeIdentifier } from '../../hooks/useChartColorConfig/utils';
 import {
     useFeatureFlag,
     useFeatureFlagEnabled,
@@ -162,8 +159,11 @@ const VisualizationProvider: FC<
         [onChartTypeChange],
     );
 
-    const { calculateKeyColorAssignment, calculateSeriesColorAssignment } =
-        useChartColorConfig({ colorPalette });
+    const {
+        calculateKeyColorAssignment,
+        calculateSeriesColorAssignment,
+        registerSeriesForColorAssignment,
+    } = useChartColorConfig({ colorPalette });
 
     // cartesian config related
     const [stacking, setStacking] = useState<boolean | StackType>();
@@ -219,6 +219,40 @@ const VisualizationProvider: FC<
         );
     }, [chartConfig, colorPalette, computedSeries]);
 
+    /**
+     * Pre-register series for color assignment when the CalculateSeriesColor flag is enabled.
+     * Colors are assigned deterministically using a hash of the series identifier,
+     * ensuring the same series always gets the same color regardless of:
+     * - Render order
+     * - Page reloads
+     * - What other series exist in the chart
+     *
+     * @see https://github.com/lightdash/lightdash/issues/13831
+     */
+    const isCalculateSeriesColorEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CalculateSeriesColor,
+    );
+
+    useEffect(() => {
+        if (!isCalculateSeriesColorEnabled) return;
+        if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN)
+            return;
+
+        const allSeries =
+            computedSeries && computedSeries.length > 0
+                ? computedSeries
+                : chartConfig.config.eChartsConfig.series ?? [];
+
+        if (allSeries.length > 0) {
+            registerSeriesForColorAssignment(allSeries);
+        }
+    }, [
+        chartConfig,
+        computedSeries,
+        registerSeriesForColorAssignment,
+        isCalculateSeriesColorEnabled,
+    ]);
+
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
             if (!onChartConfigChange) return;
@@ -255,12 +289,18 @@ const VisualizationProvider: FC<
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CalculateSeriesColor,
-    );
-
     /**
      * Gets a shared color for a given series.
+     *
+     * Color priority (highest to lowest):
+     * 1. Explicit series.color property (user-set)
+     * 2. Metadata colors (stored in chartConfig.config.metadata)
+     * 3. Dimension colors (from dbt model definition)
+     * 4. Calculated colors via shared Map (when CalculateSeriesColor flag is ON)
+     * 5. Fallback colors based on sorted position (when flag is OFF)
+     *
+     * When CalculateSeriesColor is enabled, colors are pre-registered in sorted order
+     * via registerSeriesForColorAssignment, ensuring deterministic assignment.
      */
     const getSeriesColor = useCallback(
         (seriesLike: SeriesLike) => {
@@ -300,17 +340,16 @@ const VisualizationProvider: FC<
             }
 
             /**
-             * If this series is grouped, figure out a shared color assignment from the series;
-             * otherwise, pick a series color from the palette based on its order.
+             * Use hash-based calculated colors when the feature flag is enabled,
+             * otherwise fall back to position-based colors from fallbackColors.
              */
-            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled
+            return isCalculateSeriesColorEnabled
                 ? calculateSeriesColorAssignment(seriesLike)
                 : fallbackColors[
                       // Note: we don't use getSeriesId since we may not be dealing with a Series type here
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
-
         [
             calculateSeriesColorAssignment,
             fallbackColors,
