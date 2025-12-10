@@ -147,13 +147,19 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
         const dimensionFilters = !isDimension(item)
-            ? Object.entries(fieldValues).reduce((acc, r) => {
-                  const [key, { raw }] = r;
+            ? allDimensions.reduce((acc, dimension) => {
+                  const fieldId = getItemId(dimension);
 
+                  // Check if this dimension exists in the fieldValues
+                  if (!(fieldId in fieldValues)) {
+                      return acc;
+                  }
+
+                  const { raw } = fieldValues[fieldId];
                   const dimensionFilter: FilterRule = {
                       id: uuidv4(),
                       target: {
-                          fieldId: key,
+                          fieldId,
                       },
                       operator:
                           raw === null
@@ -161,14 +167,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                               : FilterOperator.EQUALS,
                       values: raw === null ? undefined : [raw],
                   };
-                  const isValidDimension = allDimensions.find(
-                      (dimension) => getItemId(dimension) === key,
-                  );
 
-                  if (isValidDimension) {
-                      return [...acc, dimensionFilter];
-                  }
-                  return acc;
+                  return [...acc, dimensionFilter];
               }, [] as FilterRule[])
             : [
                   {
