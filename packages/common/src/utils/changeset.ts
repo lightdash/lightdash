@@ -1,7 +1,7 @@
 import * as JsonPatch from 'fast-json-patch';
 import { type ChangeBase } from '../types/changeset';
 import {
-    ForbiddenError,
+    ChangesetConflictError,
     NotImplementedError,
     ParameterError,
 } from '../types/errors';
@@ -133,9 +133,16 @@ export class ChangesetUtils {
                                         entityType
                                     ][change.entityName]
                                 ) {
-                                    throw new ForbiddenError(
+                                    const error = new ChangesetConflictError(
                                         `Entity "${change.entityName}" already exists in table "${tableName}" of explore`,
+                                        {
+                                            entityName: change.entityName,
+                                            entityTableName: tableName,
+                                        },
                                     );
+                                    // eslint-disable-next-line no-console
+                                    console.warn(error);
+                                    break;
                                 }
 
                                 const createPatch = JsonPatch.applyPatch(
