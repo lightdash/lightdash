@@ -1,3 +1,10 @@
+# [0.2242.0](https://github.com/lightdash/lightdash/compare/0.2241.0...0.2242.0) (2025-12-10)
+
+
+### Features
+
+* add support for dbt --favor-state flag in CLI commands ([#18722](https://github.com/lightdash/lightdash/issues/18722)) ([c626ca5](https://github.com/lightdash/lightdash/commit/c626ca509ac900f9de80d35136fe2f8a4846f71f))
+
 # [0.2241.0](https://github.com/lightdash/lightdash/compare/0.2240.5...0.2241.0) (2025-12-10)
 
 
