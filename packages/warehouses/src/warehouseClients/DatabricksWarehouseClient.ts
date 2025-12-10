@@ -453,7 +453,21 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                         mapFieldType(col.TYPE_NAME),
                     ]),
                 );
-                const { schema, table } = requests[index];
+                const { database, schema, table } = requests[index];
+
+                // Validate that columns were returned - empty results may indicate permission issues
+                if (result.length === 0) {
+                    console.warn(
+                        `No column metadata returned for table ${database}.${schema}.${table}. ` +
+                            `This may indicate insufficient permissions to access INFORMATION_SCHEMA.COLUMNS in Databricks. ` +
+                            `Column types will default to STRING unless explicitly defined in YAML metadata. ` +
+                            `To fix this, verify that the Databricks service account has appropriate permissions. ` +
+                            `For Unity Catalog, ensure the following grants are configured: ` +
+                            `GRANT USE CATALOG ON CATALOG ${database} TO <service-account>; ` +
+                            `GRANT USE SCHEMA ON SCHEMA ${database}.${schema} TO <service-account>; ` +
+                            `GRANT SELECT ON TABLE ${database}.${schema}.${table} TO <service-account>;`,
+                    );
+                }
 
                 acc[catalog][schema] = acc[catalog][schema] || {};
                 acc[catalog][schema][table] = columns;
