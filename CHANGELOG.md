@@ -1,3 +1,10 @@
+## [0.2240.4](https://github.com/lightdash/lightdash/compare/0.2240.3...0.2240.4) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** use github runner for trusted publishing ([#18733](https://github.com/lightdash/lightdash/issues/18733)) ([9b543cf](https://github.com/lightdash/lightdash/commit/9b543cf9133d6a80b2a101ec92b78311cfdd644e))
+
 ## [0.2240.3](https://github.com/lightdash/lightdash/compare/0.2240.2...0.2240.3) (2025-12-10)
 
 
