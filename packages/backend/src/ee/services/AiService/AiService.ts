@@ -1,8 +1,12 @@
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
+    CommercialFeatureFlags,
     DashboardDAO,
     DashboardSummary,
     FeatureFlags,
+    ForbiddenError,
+    GenerateChartMetadataRequest,
+    GeneratedChartMetadata,
     ItemsMap,
     QueryExecutionContext,
     SessionUser,
@@ -17,14 +21,18 @@ import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { isFeatureFlagEnabled } from '../../../postHog';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     CustomVizGenerated,
     DashboardSummaryCreated,
     DashboardSummaryViewed,
+    GenerateChartMetadataGenerated,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
+import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import { getModel } from '../ai/models';
 import {
     fieldDesc,
     formatSummaryArray,
@@ -52,6 +60,7 @@ type Dependencies = {
     projectService: ProjectService;
     openAi: OpenAi;
     lightdashConfig: LightdashConfig;
+    featureFlagService: FeatureFlagService;
 };
 
 export class AiService {
@@ -67,6 +76,8 @@ export class AiService {
 
     private readonly openAi: OpenAi;
 
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -74,6 +85,7 @@ export class AiService {
         this.projectService = dependencies.projectService;
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.featureFlagService = dependencies.featureFlagService;
     }
 
     private static async throwOnFeatureDisabled(user: SessionUser) {
@@ -375,5 +387,47 @@ export class AiService {
         });
 
         return dashboardSummary;
+    }
+
+    async generateChartMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateChartMetadataRequest,
+    ): Promise<GeneratedChartMetadata> {
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+
+        if (!aiCopilotFlag.enabled) {
+            throw new ForbiddenError('AI Copilot is not enabled!');
+        }
+
+        const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+            useFastModel: true,
+        });
+
+        const result = await generateChartMetadataFromContext(model, {
+            tableName: payload.tableName,
+            chartType: payload.chartType,
+            dimensions: payload.dimensions,
+            metrics: payload.metrics,
+            filters: payload.filters,
+            fieldsContext: payload.fieldsContext,
+            chartConfigJson: payload.chartConfigJson,
+        });
+
+        this.analytics.track<GenerateChartMetadataGenerated>({
+            userId: user.userUuid,
+            event: 'ai.chart_metadata.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                chartType: payload.chartType,
+            },
+        });
+
+        return result;
     }
 }

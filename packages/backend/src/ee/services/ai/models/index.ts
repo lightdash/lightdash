@@ -5,9 +5,22 @@ import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
-import { matchesPreset, MODEL_PRESETS, ModelPreset } from './presets';
+import {
+    matchesPreset,
+    MODEL_PRESETS,
+    ModelPreset,
+    ModelPresetProvider,
+} from './presets';
 
 export { MODEL_PRESETS };
+
+// Fast models for lightweight tasks (text generation, summaries, etc.)
+// These are cheaper and faster than default models
+const FAST_MODELS: Record<ModelPresetProvider, string> = {
+    openai: 'gpt-4o-mini',
+    anthropic: 'claude-haiku-4-5',
+    bedrock: 'claude-haiku-4-5',
+};
 
 export const getDefaultModel = (
     config: LightdashConfig['ai']['copilot'],
@@ -112,15 +125,32 @@ export const getModel = (
         enableReasoning?: boolean;
         modelName?: string;
         provider?: typeof config.defaultProvider;
+        /**
+         * Use a fast, cost-effective model for lightweight tasks
+         * (text generation, summaries, simple structured output)
+         */
+        useFastModel?: boolean;
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
+
+    // Resolve model name: explicit > fast > default
+    const resolveModelName = (
+        providerKey: ModelPresetProvider,
+    ): string | undefined => {
+        if (options?.modelName) return options.modelName;
+        if (options?.useFastModel) {
+            return FAST_MODELS[providerKey];
+        }
+        return undefined;
+    };
+
     switch (provider) {
         case 'openai': {
             const { config: openaiConfig, preset } = getModelPreset(
                 'openai',
                 config,
-                options?.modelName,
+                resolveModelName('openai'),
             );
             return getOpenaiGptmodel(openaiConfig, preset, {
                 enableReasoning: options?.enableReasoning,
@@ -138,7 +168,7 @@ export const getModel = (
             const { config: anthropicConfig, preset } = getModelPreset(
                 'anthropic',
                 config,
-                options?.modelName,
+                resolveModelName('anthropic'),
             );
             return getAnthropicModel(anthropicConfig, preset, {
                 enableReasoning: options?.enableReasoning,
@@ -158,7 +188,7 @@ export const getModel = (
             const { config: bedrockConfig, preset } = getModelPreset(
                 'bedrock',
                 config,
-                options?.modelName,
+                resolveModelName('bedrock'),
             );
             return getBedrockModel(bedrockConfig, preset, {
                 enableReasoning: options?.enableReasoning,
