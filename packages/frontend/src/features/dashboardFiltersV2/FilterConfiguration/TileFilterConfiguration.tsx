@@ -15,13 +15,11 @@ import {
     type Field,
 } from '@lightdash/common';
 import {
-    Accordion,
     Box,
     Checkbox,
     Flex,
     Select,
     Stack,
-    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -63,6 +61,7 @@ type TileWithTargetColumns = {
 type Props = {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
+    // TODO: unused, remove
     activeTabUuid: string | undefined;
     availableTileFilters: Record<string, Field[] | undefined>;
     field?: Field;
@@ -79,7 +78,6 @@ type Props = {
 const TileFilterConfiguration: FC<Props> = ({
     tiles,
     tabs,
-    activeTabUuid,
     field,
     filterRule,
     availableTileFilters,
@@ -295,30 +293,39 @@ const TileFilterConfiguration: FC<Props> = ({
         return tileTargetList.filter((v) => v.tabUuid === tabUUid);
     };
 
-    const SwitchToggle = ({
+    const TabToggle = ({
         tileList,
         tabName,
+        label,
+        disabled,
     }: {
         tileList: any[];
         tabName: string;
+        label: string;
+        disabled?: boolean;
     }) => {
         const isAllChecked = tileList.every(({ checked }) => checked);
         const isIndeterminate =
             !isAllChecked && tileList.some(({ checked }) => checked);
         const tileUuids = tileList.map((tile) => tile.tileUuid);
         const shouldBeChecked = isAllChecked || isIndeterminate;
-        const tooltipLabel = shouldBeChecked
-            ? `Toggle off to turn filter off for tab '${tabName}'`
-            : `Turn on to turn filter on for tab '${tabName}'`;
+        const tooltipLabel = disabled
+            ? 'No chart tiles in this tab'
+            : shouldBeChecked
+            ? `Uncheck to turn filter on for tab '${tabName}'`
+            : `Check to turn filter off for tab '${tabName}'`;
 
         return (
             <Tooltip label={tooltipLabel} position="right">
-                <Switch
-                    size="sm"
-                    checked={shouldBeChecked}
+                <Checkbox
+                    size="xs"
+                    checked={disabled ? false : shouldBeChecked}
+                    indeterminate={disabled ? false : isIndeterminate}
+                    disabled={disabled}
+                    label={label}
                     styles={{
                         label: {
-                            paddingRight: theme.spacing.xs,
+                            paddingLeft: theme.spacing.xs,
                         },
                     }}
                     onChange={() => {
@@ -335,11 +342,30 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const StackSubComponent = ({
         tileList,
+        isNested = false,
     }: {
         tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        isNested?: boolean;
     }) => {
+        if (tileList.length === 0) {
+            return (
+                <Text
+                    size="xs"
+                    color="dimmed"
+                    mt={isNested ? 'lg' : undefined}
+                    ml={isNested ? 'xl' : undefined}
+                >
+                    No chart tiles in this tab
+                </Text>
+            );
+        }
+
         return (
-            <Stack spacing="md">
+            <Stack
+                spacing="md"
+                mt={isNested ? 'lg' : undefined}
+                ml={isNested ? 'xl' : undefined}
+            >
                 {tileList.map((value) => (
                     <Box key={value.key}>
                         <Tooltip
@@ -354,56 +380,53 @@ const TileFilterConfiguration: FC<Props> = ({
                                 value.invalidField === undefined
                             }
                         >
-                            <Box>
-                                <Checkbox
-                                    size="xs"
-                                    fw={500}
-                                    disabled={value.disabled}
-                                    label={
-                                        <Flex align="center" gap="xxs">
-                                            <MantineIcon
-                                                color="blue.6"
-                                                icon={getChartIcon(
-                                                    value.tileChartKind,
-                                                )}
-                                            />
-                                            <Text
-                                                color={
-                                                    value.invalidField
-                                                        ? 'red'
-                                                        : undefined
-                                                }
-                                            >
-                                                {value.label}
-                                            </Text>
-                                        </Flex>
-                                    }
-                                    styles={{
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    }}
-                                    checked={value.checked}
-                                    onChange={(event) => {
-                                        onChange(
-                                            event.currentTarget.checked
-                                                ? FilterActions.ADD
-                                                : FilterActions.REMOVE,
-                                            value.tileUuid,
-                                            event.currentTarget.checked &&
-                                                typeof value.selectedField ===
-                                                    'string'
-                                                ? {
-                                                      fieldId:
-                                                          value.selectedField,
-                                                      tableName: 'mock_table',
-                                                      isSqlColumn: true,
-                                                  }
-                                                : undefined,
-                                        );
-                                    }}
-                                />
-                            </Box>
+                            <Checkbox
+                                size="xs"
+                                fw={500}
+                                disabled={value.disabled}
+                                label={
+                                    <Flex align="center" gap="xxs">
+                                        <MantineIcon
+                                            color="blue.6"
+                                            icon={getChartIcon(
+                                                value.tileChartKind,
+                                            )}
+                                        />
+                                        <Text
+                                            color={
+                                                value.invalidField
+                                                    ? 'red'
+                                                    : undefined
+                                            }
+                                        >
+                                            {value.label}
+                                        </Text>
+                                    </Flex>
+                                }
+                                styles={{
+                                    label: {
+                                        paddingLeft: theme.spacing.xs,
+                                    },
+                                }}
+                                checked={value.checked}
+                                onChange={(event) => {
+                                    onChange(
+                                        event.currentTarget.checked
+                                            ? FilterActions.ADD
+                                            : FilterActions.REMOVE,
+                                        value.tileUuid,
+                                        event.currentTarget.checked &&
+                                            typeof value.selectedField ===
+                                                'string'
+                                            ? {
+                                                  fieldId: value.selectedField,
+                                                  tableName: 'mock_table',
+                                                  isSqlColumn: true,
+                                              }
+                                            : undefined,
+                                    );
+                                }}
+                            />
                         </Tooltip>
 
                         {value.sortedFilters && (
@@ -485,39 +508,30 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const tileList =
         tabs.length > 0 ? (
-            <Accordion defaultValue={activeTabUuid} variant="contained">
-                {tabs.map((tab, index) => (
-                    <Flex align="center" gap="sm" key={index}>
-                        <Accordion.Item
-                            key={index}
-                            value={tab.uuid}
-                            style={{ flexGrow: 1 }}
-                        >
-                            <Accordion.Control
-                                fw={500}
-                                style={{ fontSize: '14px', fontWeight: 500 }}
-                            >
-                                {tab.name}
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <StackSubComponent
-                                    tileList={filteredTileTargetList(tab.uuid)}
-                                />
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                        <SwitchToggle
-                            tileList={filteredTileTargetList(tab.uuid)}
+            tabs.map((tab, index) => {
+                const tabTiles = filteredTileTargetList(tab.uuid);
+                return (
+                    <div key={index}>
+                        <TabToggle
+                            tileList={tabTiles}
                             tabName={tab.name}
+                            label={tab.name}
+                            disabled={tabTiles.length === 0}
                         />
-                    </Flex>
-                ))}
-            </Accordion>
+
+                        <StackSubComponent
+                            tileList={tabTiles}
+                            isNested={true}
+                        />
+                    </div>
+                );
+            })
         ) : (
-            <StackSubComponent tileList={tileTargetList} />
+            <StackSubComponent tileList={tileTargetList} isNested={false} />
         );
 
     return (
-        <Stack spacing="lg">
+        <Stack spacing="xl" mah={600} style={{ overflow: 'auto' }}>
             <Checkbox
                 size="xs"
                 checked={isAllChecked}
