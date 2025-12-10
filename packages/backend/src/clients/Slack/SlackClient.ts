@@ -3,6 +3,7 @@ import {
     friendlyName,
     getErrorMessage,
     MissingConfigError,
+    SLACK_ID_REGEX,
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
@@ -594,7 +595,7 @@ export class SlackClient {
             throw new Error(`Organization ${organizationUuid} not found`);
         }
         // Check if input looks like a Slack ID (C, G, U, W followed by alphanumerics)
-        const isSlackId = /^[CGUW][A-Z0-9]{8,}$/i.test(input);
+        const isSlackId = SLACK_ID_REGEX.test(input);
 
         if (isSlackId) {
             return this.lookupChannelByIdInternal(
