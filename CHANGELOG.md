@@ -1,3 +1,15 @@
+# [0.2239.0](https://github.com/lightdash/lightdash/compare/0.2238.0...0.2239.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* ai agent admin thread table hover/selected bg color dark mode ([#18674](https://github.com/lightdash/lightdash/issues/18674)) ([c0be8d6](https://github.com/lightdash/lightdash/commit/c0be8d641c8059e488432d934874ff51cfe3125d))
+
+
+### Features
+
+* softer contrast in tooltips for dark mode ([#18698](https://github.com/lightdash/lightdash/issues/18698)) ([c0e1e7a](https://github.com/lightdash/lightdash/commit/c0e1e7a58310a724eb9c8dc709bf0b0ad3d0a0d5))
+
 # [0.2238.0](https://github.com/lightdash/lightdash/compare/0.2237.1...0.2238.0) (2025-12-10)
 
 
