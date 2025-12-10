@@ -1,3 +1,15 @@
+# [0.2240.0](https://github.com/lightdash/lightdash/compare/0.2239.1...0.2240.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** update ci/cd to use id-tokens for npm registry ([#18724](https://github.com/lightdash/lightdash/issues/18724)) ([e6f8b10](https://github.com/lightdash/lightdash/commit/e6f8b10fcd680cf1abe1e096ec2c2efb9690debf))
+
+
+### Features
+
+* add batch delivery failure tracking and UI for scheduler jobs ([#18714](https://github.com/lightdash/lightdash/issues/18714)) ([61e8a6a](https://github.com/lightdash/lightdash/commit/61e8a6a390cd2eba7893d7b9cf5e7c73f3691146))
+
 ## [0.2239.1](https://github.com/lightdash/lightdash/compare/0.2239.0...0.2239.1) (2025-12-10)
 
 
